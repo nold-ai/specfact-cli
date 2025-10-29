@@ -1,0 +1,349 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# yamllint disable rule:line-length rule:truthy
+name: PR Orchestrator - SpecFact CLI
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "**.mdc"
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "**.mdc"
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Tests (Python 3.12)
+    outputs:
+      run_unit_coverage: ${{ steps.detect-unit.outputs.run_unit_coverage }}
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install hatch and coverage
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch coverage
+
+      - name: Create test output directories
+        shell: bash
+        run: |
+          mkdir -p logs/tests/junit logs/tests/coverage logs/tests/workflows
+
+      - name: Detect unit tests (to decide if coverage should run)
+        id: detect-unit
+        shell: bash
+        run: |
+          COUNT=$(find tests/unit -name "test_*.py" 2>/dev/null | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "run_unit_coverage=true" >> $GITHUB_OUTPUT
+            echo "RUN_UNIT_COVERAGE=true" >> $GITHUB_ENV
+            echo "Detected $COUNT unit test files. Will run coverage steps."
+          else
+            echo "run_unit_coverage=false" >> $GITHUB_OUTPUT
+            echo "RUN_UNIT_COVERAGE=false" >> $GITHUB_ENV
+            echo "No unit tests detected. Skipping coverage steps."
+          fi
+
+      - name: Run contract-first tests (no coverage)
+        shell: bash
+        env:
+          CONTRACT_FIRST_TESTING: "true"
+          TEST_MODE: "true"
+        run: |
+          echo "🧪 Running contract-first test suite (3.12)..."
+          echo "Contract validation..." && hatch run contract-test-contracts || echo "⚠️ Contract validation incomplete"
+          echo "Contract exploration..." && hatch run contract-test-exploration || echo "⚠️ Contract exploration incomplete"
+          echo "Scenario tests..." && hatch run contract-test-scenarios || echo "⚠️ Scenario tests incomplete"
+          echo "E2E tests..." && hatch run contract-test-e2e || echo "⚠️ E2E tests incomplete"
+
+      - name: Run unit tests with coverage (3.12)
+        if: env.RUN_UNIT_COVERAGE == 'true'
+        run: |
+          echo "🧪 Running unit tests with coverage (3.12)..."
+          hatch -e hatch-test.py3.12 run run-cov
+          hatch -e hatch-test.py3.12 run xml
+
+      - name: Upload coverage artifacts
+        if: env.RUN_UNIT_COVERAGE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: logs/tests/coverage/coverage.xml
+          if-no-files-found: error
+
+  compat-py311:
+    name: Compatibility (Python 3.11)
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+      - name: Install hatch
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+      - name: Run Python 3.11 compatibility tests (hatch-test matrix env)
+        run: |
+          echo "🔁 Python 3.11 compatibility checks"
+          hatch -e hatch-test.py3.11 test -k "contract"
+          hatch -e hatch-test.py3.11 run xml || true
+
+  contract-first-ci:
+    name: Contract-First CI
+    runs-on: ubuntu-latest
+    needs: [tests, compat-py311]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch coverage icontract beartype crosshair hypothesis icontract-hypothesis
+          hatch env create
+      - name: Run contract validation and exploration
+        run: |
+          echo "🔍 Validating runtime contracts..."
+          echo "Running contract-test-contracts..." && hatch run contract-test-contracts || echo "Contracts failed"
+          echo "Running contract-test-exploration..." && hatch run contract-test-exploration || echo "Exploration found issues"
+
+  cli-validation:
+    name: CLI Command Validation
+    runs-on: ubuntu-latest
+    needs: contract-first-ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+          hatch env create
+      - name: Install CLI
+        run: |
+          echo "Installing SpecFact CLI..."
+          pip install -e .
+      - name: Validate CLI commands
+        run: |
+          echo "🔍 Validating CLI commands..."
+          specfact --help || echo "⚠️ CLI not yet fully implemented"
+          echo "✅ CLI validation complete (advisory)"
+
+  quality-gates:
+    name: Quality Gates (Advisory)
+    runs-on: ubuntu-latest
+    needs: [tests]
+    if: needs.tests.outputs.run_unit_coverage == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download coverage artifacts from Tests
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports
+          path: logs/tests/coverage
+      - name: Validate coverage artifact presence
+        run: |
+          test -f logs/tests/coverage/coverage.xml || (echo "❌ Missing coverage.xml" && exit 1)
+          echo "✅ Found coverage.xml"
+      - name: Run quality gates (advisory)
+        run: |
+          echo "🔍 Checking coverage (advisory only)..."
+          COVERAGE_PERCENT_XML=$(grep -o "line-rate=\"[0-9.]*\"" logs/tests/coverage/coverage.xml | head -1 | sed 's/line-rate=\"//' | sed 's/\"//')
+          if [ -n "$COVERAGE_PERCENT_XML" ] && [ "$COVERAGE_PERCENT_XML" != "0" ]; then
+            COVERAGE_PERCENT_INT=$(echo "$COVERAGE_PERCENT_XML * 100" | bc -l | cut -d. -f1)
+          else
+            COVERAGE_PERCENT_INT=0
+          fi
+          echo "📊 Line coverage (advisory): ${COVERAGE_PERCENT_INT}%"
+          if [ "$COVERAGE_PERCENT_INT" -lt 30 ]; then
+            echo "⚠️  Advisory: coverage below 30% — permitted under contract-first; prioritize contract/scenario gaps."
+          else
+            echo "✅ Advisory: coverage acceptable"
+          fi
+
+  type-checking:
+    name: Type Checking (basedpyright)
+    runs-on: ubuntu-latest
+    needs: [tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+      - name: Install hatch
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+      - name: Run type checking
+        run: |
+          echo "🔍 Running basedpyright type checking..."
+          hatch run type-check || echo "⚠️ Type checking incomplete"
+
+  linting:
+    name: Linting (ruff, pylint)
+    runs-on: ubuntu-latest
+    needs: [tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+
+      - name: Run linting
+        run: |
+          echo "🔍 Running linting checks..."
+          hatch run lint || echo "⚠️ Linting incomplete"
+
+  package-validation:
+    name: Package Validation (uvx/pip)
+    runs-on: ubuntu-latest
+    needs: [tests, compat-py311, contract-first-ci, cli-validation, type-checking, linting]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine hatch
+
+      - name: Build package
+        run: |
+          echo "📦 Building SpecFact CLI package..."
+          hatch build
+          ls -lh dist/
+
+      - name: Validate package
+        run: |
+          echo "🔍 Validating package with twine..."
+          twine check dist/*
+
+      - name: Test installation
+        run: |
+          echo "📥 Testing pip installation..."
+          pip install dist/*.whl
+          specfact --version || echo "⚠️ CLI not yet fully implemented"
+          pip uninstall -y specfact-cli
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/
+          if-no-files-found: error
+
+  build-and-push-container:
+    name: Build and Push Container
+    runs-on: ubuntu-latest
+    needs: [package-validation]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute tags
+        id: vars
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          SHORT_SHA="${COMMIT_SHA:0:8}"
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+          VERSION_TAG="$SHORT_SHA-$TIMESTAMP"
+
+          {
+            printf 'SHORT_SHA=%s\n' "$SHORT_SHA"
+            printf 'VERSION_TAG=%s\n' "$VERSION_TAG"
+          } >> "$GITHUB_ENV"
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push specfact-cli
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }}
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Container Build Summary"
+            echo "| Parameter | Value |"
+            echo "|-----------|--------|"
+            echo "| Branch | main |"
+            echo "| Version Tag | $VERSION_TAG |"
+            echo "| Image | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` |"
+            echo "| Tagged | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION_TAG\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

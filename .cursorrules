@@ -1,0 +1,33 @@
+# .cursorrules - SpecFact CLI
+
+## General rules to follow in Cursor
+
+- When starting a new chat session, capture the current timestamp from the client system using the `run_terminal_cmd` tool with `date "+%Y-%m-%d %H:%M:%S %z"` to ensure accurate timestamps are used in logs, commits, and other time-sensitive operations.
+- When starting a new chat session, get familiar with the build and test guide (refer to `.cursor/rules/testing-and-build-guide.mdc`).
+- When starting a new task, first check the project overview and current status in `README.md` and `AGENTS.md`.
+- After any code changes, follow these steps in order:
+  1. Apply linting and formatting to ensure code quality: `hatch run format`
+  2. Type checking: `hatch run type-check` (basedpyright)
+  3. **Contract-first approach**: Run `hatch run contract-test` for contract validation
+  4. Run full test suite: `hatch test --cover -v`
+  5. Verify all tests pass and contracts are satisfied
+  6. Fix any issues and repeat steps until all tests pass
+- **Contract-first**: All public APIs must have `@icontract` decorators and `@beartype` type checking
+- **CLI focus**: Commands should follow typer patterns with rich console output
+- **Data validation**: Use Pydantic models for all data structures
+- Always finish each output listing which rulesets have been applied in your implementation and which AI (LLM) provider and model (including the version) you are using in your actual request for clarity. Ensure the model version is accurate and reflects what is currently running.
+
+<available_instructions>
+Cursor rules are user provided instructions for the AI to follow to help work with the codebase.
+They may or may not be relevent to the task at hand. If they are, use the fetch_rules tool to fetch the full rule.
+Some rules may be automatically attached to the conversation if the user attaches a file that matches the rule's glob, and wont need to be fetched.
+
+markdown-rules: This rule helps to avoid markdown linting errors
+python-github-rules: Development rules for python code and modules
+</available_instructions>
+
+## Note: Detailed rule instructions are auto-attached from the .cursor/rules directory
+
+## Comments policy
+
+Only write high-value comments if at all. Avoid talking to the user through comments.

@@ -1,0 +1,708 @@
+---
+description: Development rules for python code and modules
+globs: *.py
+alwaysApply: false
+---
+# Python Development Rules
+
+This document defines comprehensive Python development rules optimized for LLM understanding and modern best practices.
+
+## Core Development Philosophy
+
+### **1. Test-Driven Development (TDD)**
+
+- **Write tests first**: Define behavior through tests before implementation
+- **Red-Green-Refactor cycle**: Test → Implement → Refactor
+- **Test coverage**: Minimum 80% coverage, 100% for critical paths
+- **Test isolation**: Each test must be independent and repeatable
+
+### **2. Clean Code Principles**
+
+- **Self-documenting code**: Prefer clear naming over comments
+- **Single Responsibility**: Each function/class has one clear purpose
+- **DRY (Don't Repeat Yourself)**: Extract common patterns
+- **SOLID principles**: Apply object-oriented design principles
+
+### **3. Modern Python Practices**
+
+- **Type hints**: Use everywhere, enable mypy strict mode
+- **Pydantic models**: For data validation and serialization
+- **Async/await**: Use for I/O operations
+- **Context managers**: For resource management
+- **Dataclasses**: For simple data containers
+
+## Code Style and Formatting
+
+### **Formatting Tools**
+
+```bash
+# Format code (comprehensive)
+hatch run format
+
+# Type checking (basedpyright replaces mypy)
+hatch run type-check
+
+# Linting (comprehensive with all tools)
+hatch run lint
+
+# Governance checks (pylint detailed analysis)
+hatch run governance
+
+# Individual tools (when needed)
+black . --line-length=120
+isort . --profile=black
+basedpyright
+ruff check .
+ruff format .
+pylint src tests tools
+hatch run yaml-lint
+hatch run lint-workflows
+```
+
+### **Line Length and Spacing**
+
+- **Max line length**: 120 characters
+- **Indentation**: 4 spaces (no tabs)
+- **Blank lines**: 2 between classes, 1 between methods
+- **Import grouping**: Standard library → Third party → Local
+
+### **Naming Conventions**
+
+```python
+# Variables and functions: snake_case
+user_name = "john"
+def calculate_total_price():
+    pass
+
+# Classes: PascalCase
+class UserManager:
+    pass
+
+# Constants: UPPER_SNAKE_CASE
+MAX_RETRY_ATTEMPTS = 3
+
+# Private methods: _leading_underscore
+def _internal_helper():
+    pass
+
+# Files: snake_case
+user_manager.py
+```
+
+## Type System
+
+### **Type Hints (Required)**
+
+```python
+from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel
+
+def process_user_data(
+    user_id: int,
+    data: Dict[str, Any],
+    options: Optional[List[str]] = None
+) -> bool:
+    pass
+
+class UserConfig(BaseModel):
+    name: str
+    age: int
+    preferences: List[str] = []
+```
+
+### **BasedPyright Configuration**
+
+```toml
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+useLibraryCodeForTypes = true
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportImportCycles = false
+reportUnusedImport = true
+reportOptionalSubscript = true
+reportOptionalMemberAccess = true
+reportOptionalCall = true
+reportOptionalIterable = true
+reportOptionalContextManager = true
+reportOptionalOperand = true
+reportUntypedFunctionDecorator = true
+reportUntypedClassDecorator = true
+reportUntypedBaseClass = true
+reportUntypedNamedTuple = true
+reportPrivateUsage = true
+reportConstantRedefinition = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportOverlappingOverloads = true
+reportUninitializedInstanceVariable = true
+reportCallInDefaultInitializer = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportAssertAlwaysTrue = true
+reportSelfClsParameterName = true
+reportImplicitStringConcatenation = true
+reportUnboundVariable = true
+reportUndefinedVariable = true
+```
+
+## Testing Strategy
+
+### **Test Folder Structure**
+
+#### Unit Tests
+
+```bash
+tests/unit/
+├── module_name/
+│   ├── test_component.py       # Test file for component
+│   └── __init__.py             # Public API exports
+```
+
+#### Integration Tests
+
+```bash
+tests/integration/
+├── module_name/
+│   ├── test_integration.py     # Test file for integration
+│   └── __init__.py             # Public API exports
+```
+
+#### E2E Tests
+
+```bash
+tests/e2e/
+├── module_name/
+│   ├── test_e2e.py             # Test file for e2e
+│   └── __init__.py             # Public API exports
+```
+
+### **Test File Structure**
+
+```python
+# tests/unit/module_name/test_component.py
+import pytest
+from unittest.mock import Mock, patch
+
+class TestUserManager:
+    def setup_method(self):
+        """Setup for each test method"""
+        self.user_manager = UserManager()
+    
+    def test_create_user_success(self):
+        """Test successful user creation"""
+        # Arrange
+        user_data = {"name": "John", "email": "john@example.com"}
+        
+        # Act
+        result = self.user_manager.create_user(user_data)
+        
+        # Assert
+        assert result.id is not None
+        assert result.name == "John"
+    
+    @pytest.mark.asyncio
+    async def test_async_operation(self):
+        """Test async operations"""
+        result = await self.user_manager.async_operation()
+        assert result is not None
+```
+
+### **Test Coverage Requirements**
+
+- **Unit tests**: Test individual functions/methods
+- **Integration tests**: Test component interactions
+- **Critical paths**: 100% coverage
+- **Overall coverage**: Minimum 80%
+- **Test isolation**: No shared state between tests
+
+### **Test Commands**
+
+```bash
+# Run all tests with smart coverage (recommended)
+hatch run smart-test
+
+# Run specific test file (legacy)
+hatch test --cover -v tests/unit/common/test_logger_setup.py
+
+# Run with specific Python version
+hatch test -e hatch-test.py3.12 --cover -v
+```
+
+### **Code Quality Commands**
+
+```bash
+# Type checking with basedpyright
+hatch run type-check
+
+# Comprehensive linting (black + isort + basedpyright + ruff + pylint)
+hatch run lint
+
+# Governance checks (pylint with detailed reporting)
+hatch run governance
+
+# Code formatting (black + isort + ruff)
+hatch run format
+```
+
+## Error Handling and Logging
+
+### **Exception Handling**
+
+```python
+import logging
+from typing import Optional
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+logger = logging.getLogger(__name__)
+
+class CustomException(Exception):
+    """Custom exception for specific error cases"""
+    pass
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def robust_operation() -> Optional[str]:
+    """Operation with retry logic"""
+    try:
+        # Operation that might fail
+        result = perform_operation()
+        return result
+    except ConnectionError as e:
+        logger.error(f"Connection failed: {e}")
+        raise CustomException(f"Operation failed: {e}")
+    except Exception as e:
+        logger.exception("Unexpected error")
+        raise
+```
+
+### **Logging Standards**
+
+```python
+from common.logger_setup import get_logger
+
+logger = get_logger(__name__)
+
+def process_data(data: Dict[str, Any]) -> None:
+    logger.info("Starting data processing", extra={"data_size": len(data)})
+    
+    try:
+        result = transform_data(data)
+        logger.info("Data processing completed", extra={"result_count": len(result)})
+    except Exception as e:
+        logger.error("Data processing failed", exc_info=True)
+        raise
+```
+
+## Configuration Management
+
+### **Environment Variables**
+
+```python
+import os
+from typing import Optional
+from pydantic import BaseSettings
+
+class Settings(BaseSettings):
+    """Application settings with validation"""
+    database_url: str
+    api_key: str
+    debug: bool = False
+    max_workers: int = 4
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+settings = Settings()
+```
+
+### **Configuration Files**
+
+```python
+# config.py
+from pathlib import Path
+import yaml
+from pydantic import BaseModel
+
+class AppConfig(BaseModel):
+    """Application configuration model"""
+    log_level: str = "INFO"
+    timeout: int = 30
+    retry_attempts: int = 3
+
+def load_config(config_path: Path) -> AppConfig:
+    """Load configuration from YAML file"""
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+    return AppConfig(**data)
+```
+
+## Code Organization
+
+### **Module Structure**
+
+```bash
+src/
+├── module_name/
+│   ├── __init__.py          # Public API exports
+│   ├── __main__.py          # CLI entry point
+│   ├── agent.py             # Main agent logic
+│   ├── healthcheck.py       # Health check endpoint
+│   ├── models.py            # Pydantic models
+│   ├── exceptions.py        # Custom exceptions
+│   └── utils.py             # Utility functions
+```
+
+### **Import Organization**
+
+```python
+# Standard library imports
+import os
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional
+
+# Third-party imports
+import pydantic
+import requests
+from loguru import logger
+
+# Local imports
+from common.logger_setup import get_logger
+from .models import UserConfig
+from .exceptions import CustomException
+```
+
+## Documentation Standards
+
+### **Docstring Format (Google Style)**
+
+```python
+def process_user_data(user_id: int, data: Dict[str, Any]) -> bool:
+    """Process user data and return success status.
+    
+    Args:
+        user_id: Unique identifier for the user
+        data: Dictionary containing user data
+        
+    Returns:
+        True if processing was successful, False otherwise
+        
+    Raises:
+        ValueError: If user_id is invalid
+        CustomException: If data processing fails
+        
+    Example:
+        >>> result = process_user_data(123, {"name": "John"})
+        >>> print(result)
+        True
+    """
+    pass
+```
+
+### **Type Documentation**
+
+```python
+from typing import Protocol, TypeVar
+
+T = TypeVar('T')
+
+class DataProcessor(Protocol):
+    """Protocol for data processing components."""
+    
+    def process(self, data: T) -> T:
+        """Process data and return transformed result."""
+        ...
+
+class UserProcessor:
+    """Concrete implementation of data processor for users."""
+    
+    def process(self, data: UserData) -> UserData:
+        """Process user data."""
+        pass
+```
+
+## Security Practices
+
+### **Input Validation**
+
+```python
+from pydantic import BaseModel, validator
+import re
+
+class UserInput(BaseModel):
+    """Validated user input model"""
+    username: str
+    email: str
+    password: str
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if not re.match(r'^[a-zA-Z0-9_]{3,20}$', v):
+            raise ValueError('Username must be 3-20 alphanumeric characters')
+        return v
+    
+    @validator('email')
+    def validate_email(cls, v):
+        if not re.match(r'^[^@]+@[^@]+\.[^@]+$', v):
+            raise ValueError('Invalid email format')
+        return v
+```
+
+### **Secret Management**
+
+```python
+import os
+from cryptography.fernet import Fernet
+
+def get_secret(key_name: str) -> str:
+    """Get secret from environment or secure storage"""
+    secret = os.getenv(key_name)
+    if not secret:
+        raise ValueError(f"Secret {key_name} not found")
+    return secret
+```
+
+## Performance and Optimization
+
+### **Async Operations**
+
+```python
+import asyncio
+from typing import List
+import aiohttp
+
+async def fetch_multiple_urls(urls: List[str]) -> List[str]:
+    """Fetch multiple URLs concurrently"""
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_url(session, url) for url in urls]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return [r for r in results if not isinstance(r, Exception)]
+
+async def fetch_url(session: aiohttp.ClientSession, url: str) -> str:
+    """Fetch single URL"""
+    async with session.get(url) as response:
+        return await response.text()
+```
+
+### **Caching Patterns**
+
+```python
+from functools import lru_cache
+from typing import Dict, Any
+import redis
+
+@lru_cache(maxsize=128)
+def expensive_calculation(input_data: str) -> Dict[str, Any]:
+    """Cache expensive calculations"""
+    # Expensive operation here
+    return {"result": "calculated_value"}
+
+class RedisCache:
+    """Redis-based caching"""
+    
+    def __init__(self, redis_client: redis.Redis):
+        self.redis = redis_client
+    
+    def get(self, key: str) -> Optional[str]:
+        return self.redis.get(key)
+    
+    def set(self, key: str, value: str, ttl: int = 3600) -> None:
+        self.redis.setex(key, ttl, value)
+```
+
+## Quality Gates
+
+### **Pre-commit Checks**
+
+```bash
+# Format code
+hatch run format
+
+# Type checking
+hatch run type-check
+
+# Linting
+hatch run lint
+
+# Governance checks
+hatch run governance
+
+# Security (optional)
+# bandit -r src/
+
+# Test coverage (smart system)
+hatch run smart-test
+```
+
+### **Development Workflow**
+
+```bash
+# Quick development cycle
+hatch run format && hatch run type-check && hatch run smart-test-unit
+
+# Before committing
+hatch run lint && hatch run governance && hatch run smart-test
+
+# CI/CD pipeline
+hatch run smart-test-full && hatch run governance
+```
+
+### **CI/CD Integration**
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install hatch
+          hatch test --cover -v
+```
+
+## Project-Specific Rules
+
+### **SpecFact CLI Integration**
+
+- **State machines**: Use `src/common/state_machine.py`
+- **Agent patterns**: Extend `src/common/base_agent.py`
+- **Quality gates**: Use `src/common/quality_gate.py`
+- **Session management**: Use `src/common/session_manager.py`
+
+### **Test Mode Support**
+
+```python
+import os
+
+def get_config() -> Dict[str, Any]:
+    """Get configuration with test mode support"""
+    if os.environ.get('TEST_MODE') == 'true':
+        return {"test_mode": True, "debug": True}
+    return {"test_mode": False, "debug": False}
+```
+
+### **Agent Development Pattern**
+
+```python
+from common.base_agent import BaseAgent
+from common.state_machine import StateMachine
+
+class MyAgent(BaseAgent):
+    """Agent following SpecFact CLI patterns"""
+    
+    def __init__(self):
+        super().__init__()
+        self.state_machine = StateMachine()
+    
+    async def process_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming message"""
+        # Agent-specific logic here
+        return {"status": "processed"}
+```
+
+## LLM-Optimized Guidelines
+
+### **For Code Generation**
+
+1. **Explicit patterns**: Use clear, consistent patterns
+2. **Type hints**: Always include type annotations
+3. **Error handling**: Include comprehensive exception handling
+4. **Documentation**: Write self-documenting code with minimal comments
+5. **Testing**: Include test examples with code
+
+### **For Code Review**
+
+1. **Check type hints**: Ensure all functions have type annotations
+2. **Verify test coverage**: Ensure new code has corresponding tests
+3. **Review error handling**: Check for proper exception handling
+4. **Validate imports**: Ensure proper import organization
+5. **Check formatting**: Verify Black/isort compliance
+
+### **For Refactoring**
+
+1. **Maintain interfaces**: Keep public APIs stable
+2. **Update tests**: Ensure tests reflect changes
+3. **Update documentation**: Keep docstrings current
+4. **Preserve behavior**: Ensure functionality remains the same
+5. **Incremental changes**: Make small, focused changes
+
+## Success Metrics
+
+### **Code Quality**
+
+- **Type coverage**: 100% of functions have type hints
+- **Test coverage**: ≥80% overall, 100% for critical paths
+- **Type checking**: Zero basedpyright errors
+- **Linting**: Zero ruff errors, minimal pylint warnings
+- **Governance**: Clean pylint governance checks
+- **Formatting**: Black/isort/ruff compliant
+
+### **Performance**
+
+- **Response time**: <5 seconds for typical operations
+- **Memory usage**: Efficient resource utilization
+- **Error rate**: <1% for production operations
+
+### **Maintainability**
+
+- **Self-documenting code**: Minimal comments needed
+- **Modular design**: Clear separation of concerns
+- **Consistent patterns**: Predictable code structure
+- **Comprehensive testing**: All code paths tested
+
+## Version Management
+
+### **Critical Version Files**
+
+When updating versions, **ALWAYS** update these files in order:
+
+1. **`src/__init__.py`** - Primary source of truth for package version
+2. **`pyproject.toml`** - Project configuration and metadata
+3. **`setup.py`** - Legacy setup script compatibility
+4. **`CHANGELOG.md`** - Document changes and version history
+
+### **Version Update Process**
+
+```bash
+# 1. Update src/__init__.py first (primary source of truth)
+echo '__version__ = "0.2.35"' > src/__init__.py
+
+# 2. Update pyproject.toml
+sed -i 's/version = "0.2.34"/version = "0.2.35"/' pyproject.toml
+
+# 3. Update setup.py
+sed -i 's/version="0.2.34"/version="0.2.35"/' setup.py
+
+# 4. Update CHANGELOG.md (add new version entry at top)
+```
+
+### **Version Synchronization Rules**
+
+- **`src/__init__.py`**: Contains `__version__` - this is the **primary source of truth**
+- **`pyproject.toml`**: Must match `src/__init__.py` version exactly
+- **`setup.py`**: Must match `src/__init__.py` version exactly
+- **`CHANGELOG.md`**: Documents what changed in each version
+
+### **Version Validation**
+
+```bash
+# Verify all version files are synchronized
+python -c "import src; print(f'Package version: {src.__version__}')"
+grep 'version = ' pyproject.toml
+grep 'version=' setup.py
+```
+
+### **Why `src/__init__.py` is Primary**
+
+- **Runtime access**: `import src; print(src.__version__)`
+- **Package discovery**: Standard Python convention
+- **Import safety**: Available at import time
+- **Tool compatibility**: Works with all Python packaging tools

@@ -1,0 +1,267 @@
+---
+description: This rule provides essential instructions for testing and building the project correctly, avoiding common pitfalls with test environment management.
+alwaysApply: false
+---
+# Rule: Testing and Build Guidelines
+
+**Description:** This rule provides essential instructions for testing and building the project correctly, avoiding common pitfalls with test environment management.
+
+## Testing Guidelines
+
+### Contract-Bound Testing Strategy
+
+We prioritize deterministic, contract-enforced quality gates over large suites of hand-written unit tests. Every change must satisfy the following layers before relying on scenario/E2E suites:
+
+| Layer | Goal | Tooling | Evidence |
+| --- | --- | --- | --- |
+| 1. Runtime contracts | Prevent invalid inputs/outputs and state drift | `icontract` decorators, `beartype` runtime type checks | Contract files, violation dashboards |
+| 2. Automated exploration | Discover counterexamples and data-shape gaps | `crosshair check`, Hypothesis property tests (`icontract-hypothesis`) | Solver logs, failing seeds |
+| 3. Scenario/E2E | Validate business workflows and orchestration | Integration/E2E suites (`hatch run smart-test-*`) | Workflow coverage reports |
+
+#### Developer Workflow (per change)
+
+1. **Add/Update contracts** on new or modified public APIs, stateful classes and adapters.
+2. **Run contract-first validation locally**:
+   - `hatch run contract-test-contracts` (runtime contract validation)
+   - `hatch run contract-test-exploration` (CrossHair exploration)
+   - `hatch run contract-test-scenarios` (scenario tests with contract references)
+3. **Trim low-value tests** when a contract covers the same assertion (type/shape/"raises on negative" checks).
+4. **Keep scenario/E2E tests** for behavioral coverage, performance and resilience.
+
+Document contract additions, solver findings and the rationale for removed unit tests in the PR description.
+
+### Always Use Hatch Test Command
+
+```bash
+# Run all tests with coverage and verbose output
+hatch test --cover -v
+
+# Run tests for a specific Python version only
+hatch test -e hatch-test.py3.11 --cover -v
+
+# Run a specific test file
+hatch test --cover -v tests/unit/common/test_logger_setup.py
+```
+
+### Contract-First Test Commands
+
+```bash
+# Contract-first test system (recommended)
+hatch run contract-test                    # Auto-detect and run appropriate layers
+hatch run contract-test-contracts         # Runtime contract validation only
+hatch run contract-test-exploration       # CrossHair exploration only
+hatch run contract-test-exploration-fast  # CrossHair exploration with fast limits (timeout=1s/iteration)
+hatch run contract-test-scenarios         # Scenario tests with contract references
+hatch run contract-test-e2e               # End-to-end tests
+hatch run contract-test-full              # All contract-first layers
+hatch run contract-test-status            # Show contract test status
+
+# Legacy smart test system (for backward compatibility)
+hatch run smart-test-unit                 # Unit tests for modified files
+hatch run smart-test-folder               # Folder-level tests
+hatch run smart-test-integration          # Integration tests
+hatch run smart-test-e2e                  # E2E tests
+hatch run smart-test-full                 # Full test suite
+
+# Direct contract exploration (advanced)
+crosshair check --per_path_timeout=20.0 src/common/autodev_orchestrator.py
+```
+
+### Test Diet Rules (Contract-First Migration)
+
+- **Delete** tests that only assert input validation, datatype/shape enforcement or "raises on negative" conditions now guarded by contracts + runtime typing.
+- **Convert** repeated edge-case permutations into one Hypothesis property with contracts acting as oracles.
+- **Retain** scenario/E2E suites, resilience tests, performance benchmarks and regression reproductions that contracts cannot encode yet.
+- **Record** the contract or property that supersedes a removed test in the PR.
+- **Use contract-first commands** for validation: `hatch run contract-test-contracts` before `hatch run contract-test-scenarios`
+
+This phased reduction keeps time-to-market low while increasing confidence through executable specifications.
+
+### YAML and Workflow Validation (local-only)
+
+Before committing/pushing, validate YAML configuration and GitHub workflows locally:
+
+```bash
+# YAML (relaxed policy)
+hatch run yaml-lint
+# Workflows (.github/workflows/*)
+hatch run lint-workflows
+```
+
+Notes:
+- These checks are not added to GitHub Actions. They must be run locally prior to commit/push.
+
+### Avoid Direct pytest Usage
+
+❌ **Incorrect:**
+
+```bash
+python -m pytest tests/
+```
+
+✅ **Correct:**
+
+```bash
+hatch run smart-test
+```
+
+Using the smart coverage system ensures:
+
+- The proper Python matrix is used
+- Dependencies are correctly resolved
+- Environment variables are properly set
+- Coverage reports are correctly generated
+- **90%+ reduction** in unnecessary test runs
+- **Real-time output** visibility
+- **Comprehensive logging** for debugging
+- **Smart force execution** - runs 303 tests (folder level) instead of 2673+ tests (full suite) when no changes detected
+- **Force command argument support** - accepts `--level` parameter for specific test levels
+
+### CI Workflows: Single Source of Truth for Tests
+
+To conserve CI minutes and avoid redundant executions in private repositories, tests are run **only** in the dedicated `Tests` workflow (`.github/workflows/tests.yml`).
+
+- **Contract-first approach**: The `Tests` workflow runs `hatch run contract-test-full` for comprehensive contract validation
+- **Legacy support**: Smart test system remains available for backward compatibility
+- Other workflows (e.g., `integrated-ci.yml`, `quality-gates.yml`, `contract-enforcement.yml`) must not re-run the full test suite
+- Those pipelines may read existing coverage artifacts or generate reports, but they should not invoke `hatch test`
+- The `no-escape-gating.yml` workflow runs targeted gating checks without hatch to keep them lightweight
+
+Decision: tests are enforced at PR gate via the `Tests` workflow. Duplicate test steps in other workflows have been removed/disabled.
+
+### Workflow Dependency Chain
+
+The CI/CD pipeline follows a strict dependency chain to ensure proper testing and deployment:
+
+```mermaid
+graph TD
+    A[Push/PR to main/dev] --> B[Tests Workflow]
+    B --> C{Tests Success?}
+    C -->|Yes| D[Trigger All Dependent Workflows]
+    C -->|No| E[Stop - No Dependent Workflows]
+    
+    D --> F[Contract Validation]
+    D --> G[No-Escape Gating Tests]
+    D --> H[Integrated CI]
+    D --> I[Contract Enforcement]
+    D --> J[Quality Gates]
+    
+    F --> K[Build and Push]
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+    
+    K --> L[Docker Images Built & Pushed]
+    
+    style B fill:#e1f5fe
+    style K fill:#f3e5f5
+    style L fill:#e8f5e8
+```
+
+**Workflow Dependencies**:
+
+- **`tests.yml`** - Root workflow, runs all tests
+- **`contracts.yml`** - Depends on `tests.yml` success
+- **`no-escape-gating.yml`** - Depends on `tests.yml` success
+- **`integrated-ci.yml`** - Depends on `tests.yml` success
+- **`contract-enforcement.yml`** - Depends on `tests.yml` success
+- **`quality-gates.yml`** - Depends on `tests.yml` success
+- **`build-and-push.yml`** - Depends on **ALL workflows** success
+
+For detailed CI/CD workflow information, see: [CI/CD Workflow Guide](../development-guides/CI_CD_Workflow_Guide.md)
+
+### Coverage Artifacts and Dependent Pipelines
+
+- The `Tests` workflow uploads `coverage.xml` as an artifact named `coverage-reports`.
+- Dependent workflows (e.g., `quality-gates.yml`, `contract-enforcement.yml`) must download this artifact and must fail early if it is missing.
+- These dependent jobs must not re-run tests; they rely on the uploaded artifact for coverage validation and reporting.
+
+## Build Guidelines
+
+The primary build artifacts for this project are versioned **Docker images**, not a traditional Python package. These images are built and published to the GitHub Container Registry (GHCR) through an automated CI/CD pipeline.
+
+For detailed instructions on building images locally, refer to the [Docker Container Management Guide](../development-guides/Docker_Management.md).
+
+## Development Environment
+
+Remember to activate the Hatch environment before making changes:
+
+```bash
+hatch shell
+```
+
+### Faster Local Development (Docker-Free)
+
+For the fastest development loop (code, test, debug), you can run the agents directly on your host machine without the overhead of Docker. The `run_local.sh` script handles this workflow.
+
+It automatically starts a local Redis container (if needed), loads your `.env` file, and runs the agents as background processes using `hatch`.
+
+- **To start all agents locally:** `./scripts/run_local.sh`
+- **To start specific agents:** `./scripts/run_local.sh supervisor_agent`
+- **To stop all local agents:** `./scripts/run_local.sh --stop`
+
+## Container Management
+
+All container management (building, running, stopping, etc.) is handled by the `rebuild_containers.sh` script. This script provides workflows for local development, CI/CD, and running pre-built images.
+
+For comprehensive instructions, please refer to the canonical guide:
+
+- **[Docker Container Management Guide](../development-guides/Docker_Management.md)**
+
+For a quick list of all available script options, run:
+
+```bash
+bash ./scripts/rebuild_containers.sh --help
+```
+
+## Release Guidelines
+
+A "release" in this project corresponds to a set of versioneditHub Container Registry. This process is automated.
+
+### Automated Release Workflow
+
+Our release process is handled automatically by GitHub Actions. Here is how it works:
+
+1. **Trigger**: A push or pull request to the `main` or `dev` branch triggers the `Tests` workflow.
+2. **Testing**: The workflow runs the complete test suite using `hatch run smart-test`.
+3. **Build & Push**: If the tests pass, the `Build and Push Docker Images` workflow is automatically triggered. This workflow:
+    - Builds all service images.
+    - Tags the images with two tags:
+        - A unique, immutable tag (the Git commit SHA).
+        - A floating tag (`latest` for the `main` branch, `dev` for the `dev` branch).
+    - Pushes both tags to the GitHub Container Registry (GHCR).
+
+```mermaid
+graph TD;
+    A[Push to main/dev] --> B[Run 'Tests' Workflow];
+    B -- Success --> C[Trigger 'Build and Push' Workflow];
+    B -- Failure --> D[Stop];
+    C --> E[Build Docker Images];
+    E --> F[Tag with Commit SHA];
+    F --> G[Tag with latest/dev];
+    G --> H[Push to GHCR];
+```
+
+### Manual Version Bumping
+
+While the image publishing is automated, you still need to manually update the version number in the project files when making a formal version change.
+
+1. **Update CHANGELOG.md**: Document all significant changes under "Added", "Fixed", "Changed", or "Removed" sections.
+
+    ```markdown
+    ## [0.1.x] - YYYY-MM-DD
+
+    **Added:**
+    - New feature description
+
+    **Fixed:**
+    - Bug fix description
+
+    **Changed:**
+    - Change description
+    ```
+
+    The new block in the `CHANGELOG.md` file should be added at the top of the file, after the `# Changelog` header and the changelog format links, but before the first version block that is already in the file.
+
+2. **Update Project Version**: Ensure the version number is updated in `pyproject.toml`, `setup.py`, and `src/__init__.py` (but no further changes to these files).

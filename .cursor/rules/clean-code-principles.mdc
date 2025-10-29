@@ -1,0 +1,148 @@
+---
+description: Enforce clean-code principles and enforcements across the repository.
+globs:
+alwaysApply: true
+---
+# Rule: Clean Code Principles and Enforcements
+
+Description:
+This rule enforces concrete clean-code practices across the repository. It complements existing high-level rules (TDD, linting, formatting, coverage) by adding behavioral and API-consistency checks, with deterministic commands and examples.
+
+Why:
+
+- Reduce cognitive load and debugging time by standardizing error handling, return types, logging, and small, single-purpose functions.
+- Make automated checks (pre-commit/CI) able to catch non-style problems (bare-excepts, prints, mixed return semantics, state-machine/config mismatches).
+
+Scope:
+Applies to all python files under src/ and tests/ and any state-machine generation artifacts.
+
+Enforcement checklist (machine-checkable where possible):
+
+1. No bare except or broad except Exception without re-raising or logging full context
+   - Rationale: Broad excepts hide real failures.
+   - Check: run pylint with a custom plugin or flake8 rule to detect "except:" or "except Exception:" that either:
+     - swallow the exception without re-raising, or
+     - do not call logger.exception(...) (stack trace).
+   - Command (CI): flake8 --select E722,B001 (or custom check)
+   - Example (bad):
+     try:
+         ...
+     except Exception:
+         pass
+   - Example (good):
+     except SpecificError as e:
+         logger.error("...: %s", e)
+         raise
+
+2. No direct print() calls in library modules
+   - Rationale: Use LoggerSetup for structured logs and session IDs.
+   - Check: grep for "print(" in src/ and tests/ (fail in src/)
+   - Command (CI): git grep -n -- '^\s*print\(' -- src/ && fail
+   - Fix: Replace print with LoggerSetup.get_logger(...) or setup_logger(...)
+
+3. Enforce consistent return types (avoid implicit None/False mixing)
+   - Rationale: Functions exposed as API should have typed, predictable returns.
+   - Rules:
+     - Publishing/IO methods must return bool (True/False), not None. If underlying library returned int, normalize.
+     - connect() should return bool only.
+   - Check: static analysis rule or unit test that asserts function annotations and runtime contract on a selection of public functions (RedisClient.publish/connect, MessagingStandardization.*)
+   - Example (good):
+     def publish(...) -> bool: ...
+     return True/False
+
+4. Prefer specific exceptions & re-raise after logging
+   - Rationale: Keep failure semantics explicit for callers and tests.
+   - Rule: Do not swallow exceptions. If a function handles and cannot continue, raise a domain-specific exception or re-raise.
+
+5. Limit line / function complexity
+   - Rationale: Keep functions short and single-responsibility.
+   - Rules:
+     - Maximum function length: 120 lines (configurable)
+     - Maximum cyclomatic complexity: 12
+   - Check: use radon cc --total-average and flake8-ext or pylint thresholds
+   - Command (CI): radon cc -nc -s src/ && fail if any > 12
+
+6. Use centralized logging, never ad-hoc formatting
+   - Rationale: Keep consistent format and redaction.
+   - Rules:
+     - Use LoggerSetup.get_logger or setup_logger to obtain logger.
+     - No module-level printing of messages; message flow logs should go via agent_flow logger.
+   - Check: grep for 'logging.getLogger(' and verify consistent usage, grep for 'print(' (see rule 2).
+
+7. Avoid filesystem operations with overly permissive modes
+   - Rationale: 0o777 should not be used by default.
+   - Rule: mkdir/os.makedirs must not be invoked with mode=0o777. Use 0o755 or use environment-controlled mode.
+   - Check: grep for '0o777' and require explicit justification in code comments; CI should flag occurrences.
+
+8. State machine / YAML consistency check
+   - Rationale: Generated state machines must match canonical YAML config.
+   - Rule: Add a unit/regression test that:
+     - reloads src/common/*.py generated state machine enums and compares state names and transitions to autodev_config.yaml and productplan_config.yaml
+     - fails the build if mismatch or case differences are present
+   - Check: add tests/unit/test_state_machine_config_sync.py
+   - Command (CI): hatch test tests/unit/test_state_machine_config_sync.py
+
+9. No side-effects at import time
+   - Rationale: Module imports should be safe and predictable for tests and tools.
+   - Rule: Avoid heavy I/O or network calls on import. get_runtime_logs_dir may create directories — allowed only if idempotent and documented; avoid network calls or spawn threads.
+   - Check: grep for network or redis connection calls at module-level (e.g., RedisSDK(...)).
+
+10. Async / signal safety
+    - Rationale: Signal handlers must not call non-signal-safe operations.
+    - Rule: Signal handlers may only set a flag or call a thread-safe routine; do not call asyncio.create_task directly from a POSIX signal handler.
+    - Check: grep for "signal.signal(" and assert handler functions only set flags or use loop.call_soon_threadsafe.
+    - Suggested fix: replace create_task calls in handler with loop.call_soon_threadsafe(lambda: asyncio.create_task(...))
+
+11. Secure secret redaction guaranteed
+    - Rationale: Sensitive keys must be masked in logs.
+    - Rule: LoggerSetup.redact_secrets must be covered by unit tests for nested dicts and strings.
+    - Check: add tests/unit/test_logger_redaction.py
+
+12. Messaging coercion & strict validation
+    - Rationale: Legacy message coercion is useful but must be exercised and tested.
+    - Rule: Any place that uses coercion (MessagingStandardization.process_standardized_message) must have tests that validate coercion success/failure and metrics increments.
+    - Check: add unit tests that assert contextschema_coercion_success/failed metrics behave as expected.
+
+13. Enforce pre-commit & CI gating
+    - Add pre-commit config that runs: black, isort, mypy, flake8 (with B/C plugins), radon, tests for state machine sync.
+    - CI job must fail on:
+      - lint failures
+      - radon/cyclomatic complexity
+      - state-machine config mismatch test
+      - flake8 error codes for prints and bare excepts
+
+14. Documentation/commit habits
+    - Rule: Any code change that modifies public API, state machine YAMLs, or generated state machine outputs MUST:
+      - include/modify a unit test covering new behavior
+      - update docs/ and CHANGELOG.md
+      - include 'BREAKING' section in PR if public API changed
+    - Check: CI script that rejects PRs lacking test files changed when src/ is modified (heuristic).
+
+Implementation guidance (how to add tests / checks quickly)
+
+- Add a lightweight pytest module for state-machine YAML<->enum sync (example included in docs).
+- Add flake8 plugin rules or configure pylint to error on 'print' and bare excepts; enable in CI config.
+- Add radon complexity check step to pipeline; fail if thresholds exceeded.
+- Add a small assertion test for RedisClient.publish return normalization.
+
+Mapping to existing rules (what to augment)
+
+- docs/rules/python-github-rules.md: Add explicit "no-bare-except" and "no-print" items and function complexity thresholds.
+- docs/rules/spec-fact-cli-rules.md: Add "state-machine YAML / generated code sync check" and "normalize public API return types".
+- docs/rules/testing-and-build-guide.md: Add specific test files to run (state-machine sync test, logger redaction tests) and mention radon/complexity checks.
+- .cursor/rules/testing-and-build-guide.mdc and .cursor/rules/python-github-rules.mdc: include exact CLI commands and required test files (see enforcement checklist).
+
+Developer notes (priorities)
+
+1. Add the state-machine sync unit test (high value, low effort).
+2. Add flake8/pylint rule to detect print/bare-except (medium effort).
+3. Normalize RedisClient.publish/connect return values & add tests (low-to-medium effort).
+4. Add radon step to CI and fix top offenders iteratively (ongoing).
+5. Replace print() in AutoDevStateMachine.log with LoggerSetup.get_logger (small change, run tests).
+
+---
+
+Changelog / Expected follow-up
+
+- After adding these rules, update CI to run the new checks and add sample unit tests that fail on violations.
+- Run hatch test and the new linters locally; fix top offenders in an iterative PR with small, focused commits.

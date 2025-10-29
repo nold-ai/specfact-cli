@@ -1,0 +1,225 @@
+---
+description: This rule helps to prevent common estimation biases and ensure evidence-based, realistic time assessments.
+globs:
+alwaysApply: true
+---
+# Estimation Bias Prevention Rules
+
+This document outlines rules to prevent common estimation biases and ensure evidence-based, realistic time assessments.
+
+## Core Principles
+
+### **1. Evidence-Based Estimation**
+
+Always base estimates on **actual evidence** from recent work, not assumptions.
+
+**❌ Wrong Approach:**
+
+```markdown
+- Agent migration: 18-28 days (conservative estimate)
+- Infrastructure development: 2-3 weeks (enterprise complexity)
+- Documentation updates: 1 week (thorough review process)
+```
+
+**✅ Correct Approach:**
+
+```markdown
+- Agent migration: 2-4 days (based on 1,786 lines in 2-3 hours tonight)
+- Infrastructure development: 2-3 hours (based on MessagingStandardization implementation)
+- Documentation updates: 30 minutes (based on 1,000+ lines updated tonight)
+```
+
+### **2. Quality-First Development Recognition**
+
+Recognize that we use **TDD with quality gates**, not traditional feature development.
+
+**Quality-First Pattern:**
+
+1. **Contract-driven** (5 min) - Define interface first
+2. **TDD implementation** (15-30 min) - Test drives design
+3. **Quality gates** (5 min) - Immediate validation (80% coverage, linting)
+4. **Documentation** (5 min) - Update docs to reflect reality
+
+**❌ Wrong Mental Model:**
+
+```markdown
+- Feature development: Build features, test later
+- Enterprise processes: Reviews, approvals, coordination
+- Legacy migration: Complete rewrites instead of wrappers
+```
+
+**✅ Correct Mental Model:**
+
+```markdown
+- Quality-first: TDD from the start
+- Infrastructure work: Wrapper patterns, not rewrites
+- Immediate validation: Tests, linting, documentation
+```
+
+### **3. Git History Analysis**
+
+Before making estimates, analyze recent git commits for actual time patterns.
+
+**Required Analysis:**
+
+```bash
+# Check recent work patterns
+git log --oneline --since="24 hours ago"
+git show --stat <commit-hash>
+```
+
+**Evidence-Based Calculation:**
+
+```markdown
+- Lines of code per hour: [actual lines] / [actual hours]
+- Documentation per hour: [actual lines] / [actual hours]
+- Testing per hour: [actual tests] / [actual hours]
+```
+
+### **4. Pattern Recognition**
+
+Identify the actual development patterns from evidence.
+
+**Recent Evidence (Tonight's Work):**
+
+- **1,786 lines of production code** = **2-3 hours**
+- **510 lines of comprehensive tests** = **30 minutes**
+- **1,000+ lines of documentation** = **30 minutes**
+- **Total**: **3-4 hours for major infrastructure**
+
+**Extrapolation Formula:**
+
+```markdown
+Estimated Time = (Lines of Code / 500) × 2.5 hours
+```
+
+### **5. Conservative Bias Prevention**
+
+Avoid these common overestimation patterns:
+
+**❌ Conservative Assumptions:**
+
+- "Enterprise complexity" = 40-60x overestimation
+- "Legacy migration" = Complete rewrites
+- "Production concerns" = Extensive validation
+- "Team coordination" = Bureaucratic processes
+
+**✅ Evidence-Based Reality:**
+
+- **Infrastructure work** = Wrapper patterns, not rewrites
+- **Quality-first** = Fast, validated, documented
+- **TDD workflow** = Immediate validation
+- **Contract-driven** = Specs define implementation
+
+## Estimation Rules
+
+### **Rule 1: Always Check Git History**
+
+Before estimating, run:
+
+```bash
+git log --oneline --since="7 days ago" | head -10
+git show --stat <recent-major-commit>
+```
+
+### **Rule 2: Use Evidence-Based Calculation**
+
+```markdown
+# For similar work, use actual time patterns:
+- Infrastructure: 500 lines = 2-3 hours
+- Agent migration: 200-600 lines = 15-30 minutes each
+- Documentation: 1,000 lines = 30 minutes
+- Testing: 500 lines = 30 minutes
+```
+
+### **Rule 3: Recognize Quality-First Patterns**
+
+```markdown
+# Quality-first development is faster because:
+- TDD prevents debugging time
+- Immediate validation catches issues
+- Documentation evolves with code
+- No "throwaway" work
+```
+
+### **Rule 4: Avoid Enterprise Assumptions**
+
+**Never assume:**
+
+- Enterprise bureaucracy
+- Extensive review processes
+- Manual testing phases
+- Legacy migration complexity
+- Team coordination overhead
+
+**Instead, assume:**
+
+- TDD workflow
+- Immediate validation
+- Contract-driven development
+- Wrapper patterns
+- Quality gates
+
+### **Rule 5: Use Realistic Timeframes**
+
+**Based on evidence:**
+
+```markdown
+- Small changes (50-200 lines): 15-30 minutes
+- Medium changes (200-500 lines): 30-60 minutes
+- Large changes (500-1000 lines): 1-2 hours
+- Major infrastructure (1000+ lines): 2-4 hours
+```
+
+## Validation Checklist
+
+Before finalizing any estimate, verify:
+
+- [ ] **Git history analyzed** for similar recent work
+- [ ] **Evidence-based calculation** used, not assumptions
+- [ ] **Quality-first pattern** recognized
+- [ ] **Conservative bias** identified and corrected
+- [ ] **Realistic timeframes** applied
+- [ ] **Pattern extrapolation** validated against evidence
+
+## Example Corrections
+
+### **Before (Biased):**
+
+```markdown
+Agent migration: 18-28 days
+- Enterprise complexity
+- Legacy system integration
+- Extensive testing requirements
+- Team coordination overhead
+```
+
+### **After (Evidence-Based):**
+
+```markdown
+Agent migration: 2-4 days
+- Based on 1,786 lines in 2-3 hours tonight
+- Quality-first TDD workflow
+- Wrapper patterns, not rewrites
+- Immediate validation with quality gates
+```
+
+## Success Criteria
+
+Estimates are realistic when:
+
+- **Evidence-based** on recent git history
+- **Quality-first** development recognized
+- **Conservative bias** eliminated
+- **Pattern extrapolation** validated
+- **Timeframes** match actual productivity
+
+## Related Documentation
+
+- **[Testing and Build Guide](./testing-and-build-guide.md)** - Quality gate requirements
+- **[SpecFact CLI Rules](./spec-fact-cli-rules.md)** - Core development principles
+- **[Python GitHub Rules](./python-github-rules.md)** - Development standards
+
+---
+
+**Remember**: Quality-first development with TDD is **faster** than traditional feature development because it eliminates debugging, ensures immediate validation, and produces documented, tested code from the start.

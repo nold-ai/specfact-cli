@@ -1,0 +1,302 @@
+---
+description: This rule outlines the core rules and principles for developing and maintaining the SpecFact CLI project.
+globs:
+alwaysApply: true
+---
+# SpecFact CLI Development Rules
+
+This document outlines the core rules and principles for developing and maintaining the SpecFact CLI project.
+
+## Core Principles
+
+### **1. Problem Analysis Over Quick Fixes**
+
+Before implementing any solution, conduct a thorough analysis of how the affected components are used throughout the codebase. Avoid narrowly-focused patches that might only address a symptom.
+
+**Example**: When fixing logging race conditions, analyze logger usage across multiple agents rather than just patching the first error point.
+
+### **2. Centralize and Idempotent Logic**
+
+Favor solutions that centralize shared functionality into robust, idempotent utilities.
+
+### **3. Code Cleanup and Refactoring**
+
+After implementing a core fix, refactor the surrounding code to remove redundant logic.
+
+## Testing Requirements
+
+### **Mandatory Testing**
+
+All code changes must be followed by running the full test suite.
+
+### **Smart Test Coverage System**
+
+The project now uses an intelligent test coverage system that detects file changes and only runs full tests when necessary:
+
+#### **Primary Test Commands**
+
+```bash
+# Smart test execution (recommended for development)
+hatch run smart-test
+
+# Check if full test run is needed (for CI/pre-commit)
+hatch run smart-test-check
+
+# Force full test run (when needed)
+hatch run smart-test-force
+
+# Check current coverage status
+hatch run smart-test-status
+
+# Check coverage threshold (new feature)
+hatch run smart-test-threshold
+```
+
+#### **Incremental Testing Levels (Bottom-Up Approach)**
+
+```bash
+# Unit tests for modified files only (faste west - 5-30 seconds)
+hatch run smart-test-unit
+
+# Folder tests for modified file directories (medium - 30-120 seconds)
+hatch run smart-test-folder
+
+# Full test suite (comprehensive - 5-10 minutes)
+hatch run smart-test-full
+
+# Auto-detect best level based on changes (default)
+hatch run smart-test-auto
+```
+
+#### **Legacy Commands (use only when needed)**
+
+```bash
+# Full test suite (only when smart system fails)
+hatch test --cover -v
+
+# Specific test files (for targeted testing)
+hatch test --cover -v tests/unit/common/test_logger_setup.py
+```
+
+#### **How Smart Coverage Works**
+
+1. **File Change Detection**: Monitors `src/` and `tools/` directories for changes
+2. **Hash-based Caching**: Stores file hashes to detect modifications
+3. **Incremental Testing**: Only runs full tests when source files change
+4. **Coverage Caching**: Stores last coverage results and test counts
+5. **Fast Feedback**: Provides immediate feedback for unchanged code
+
+#### **Coverage Requirements**
+
+- **Minimum Coverage**: 80% total coverage (configurable in `pyproject.toml`)
+- **Cache Validation**: Smart system ensures accuracy
+- **Change Detection**: Automatic full runs when needed
+- **New Code**: Must have corresponding tests
+- **Modified Code**: Must maintain or improve coverage
+- **Critical Paths**: 100% coverage for critical components
+- **Threshold Validation**: Automatic validation prevents CI/CD failures
+- **Environment Override**: `COVERAGE_THRESHOLD=90.0` for temporary overrides
+
+#### **New Features (v2.0)**
+
+- **Coverage Threshold Validation**: Automatic validation against configurable thresholds
+- **Environment Variable Override**: `COVERAGE_THRESHOLD=90.0` for temporary overrides
+- **Hatch Integration**: All commands available via `hatch run smart-test-*`
+- **Enhanced Error Handling**: Clear failure messages with `CoverageThresholdError`
+- **95% Test Coverage**: The smart coverage system itself has 95% test coverage
+
+## Documentation Requirements
+
+### **Required for All Changes**
+
+1. **Analyze Impact**: Understand system-wide effects before changes
+2. **Run Tests**: `hatch run smart-test` (≥80% coverage required)
+3. **Update Documentation**: Keep docs/ current with changes
+4. **Version Control**: Update CHANGELOG.md, sync versions in pyproject.toml/setup.py
+
+### **Strict Testing Requirements (NO EXCEPTIONS)**
+
+**MANDATORY TESTING RULES:**
+
+1. **Every Modified Runtime Code File MUST Have Tests**
+   - If you modify `src/common/logger_setup.py`, you MUST have `tests/unit/common/test_logger_setup.py`
+   - If you modify `tools/contract_to_code.py`, you MUST have `tests/unit/tools/test_contract_to_code.py`
+   - **NO EXCEPTIONS** - even small changes require tests
+
+2. **Every New Runtime Code File MUST Have Tests**
+   - New files in `src/` or `tools/` MUST have corresponding test files
+   - Test files MUST be created BEFORE committing the code
+   - **NO EXCEPTIONS** - no code without tests
+
+3. **Test Coverage Validation**
+   - Run `hatch run smart-test-unit` for modified files
+   - Run `hatch run smart-test-folder` for modified directories
+   - Run `hatch run smart-test-full` before committing
+   - **ALL TESTS MUST PASS** - no failing tests allowed
+
+4. **Bottom-Up Testing Workflow**
+
+   ```bash
+   # 1. Start with unit tests (fastest)
+   hatch run smart-test-unit
+   
+   # 2. If unit tests pass, run folder tests
+   hatch run smart-test-folder
+   
+   # 3. If folder tests pass, run full tests
+   hatch run smart-test-full
+   
+   # 4. Only commit if ALL tests pass
+   git commit -m "feat: add new feature with tests"
+   ```
+
+5. **Test Quality Requirements**
+   - Tests MUST be meaningful and test actual functionality
+   - Tests MUST cover both success and failure cases
+   - Tests MUST be independent and repeatable
+   - Tests MUST have clear, descriptive names
+   - **NO EXCEPTIONS** - no placeholder or empty tests
+
+6. **Enforcement**
+   - Pre-commit hooks will run `hatch run smart-test-unit`
+   - CI/CD will run `hatch run smart-test-full`
+   - **FAILURE TO COMPLY** will result in commit rejection
+   - **NO EXCEPTIONS** - rules apply to all developers
+
+### **Documentation Standards**
+
+- **Architecture Changes**: Update state machine documentation
+- **API Changes**: Update interface documentation
+- **Configuration Changes**: Update configuration guides
+- **New Features**: Add to appropriate documentation sections
+
+## Key Principles
+
+### **Test Mode Support**
+
+All components must support `TEST_MODE=true`:
+
+```python
+import os
+
+if os.environ.get('TEST_MODE') == 'true':
+    # Test-specific behavior
+    pass
+```
+
+### **Centralized Logging**
+
+Use `src/common/logger_setup.py` for all logging:
+
+```python
+from common.logger_setup import get_logger
+
+logger = get_logger(__name__)
+```
+
+### **Redis Patterns**
+
+Use `src/common/redis_client.py` with fallback:
+
+```python
+from common.redis_client import get_redis_client
+
+redis_client = get_redis_client()
+```
+
+### **Protocol/FSM Integration**
+
+Define and validate state machines using YAML protocols:
+
+```yaml
+# contracts/protocols/workflow.protocol.yaml
+states:
+  - INIT
+  - PLAN
+  - CODE
+  - REVIEW
+transitions:
+  - from_state: INIT
+    on_event: start_planning
+    to_state: PLAN
+```
+
+## Current Implementation Plans
+
+### **Active Plans**
+
+- Check `README.md` and `AGENTS.md` for current project status and development guidelines
+- Review `.cursor/rules/` for detailed development standards and testing procedures
+
+## Quality Gates
+
+### **Code Quality**
+
+- **Linting**: `pylint src tests` with no errors
+- **Formatting**: `black .` and `isort .`
+- **Type Checking**: `mypy .` with no errors
+- **YAML Lint**: `hatch run yaml-lint` (relaxed policy)
+- **GitHub Workflows Lint**: `hatch run lint-workflows` (local-only)
+- **Test Coverage**: ≥80% total coverage
+
+### **Documentation Quality**
+
+- **Markdown Linting**: Follow markdown rules
+- **Link Validation**: All links must be valid
+- **Cross-References**: Maintain consistent references
+
+### **Integration Quality**
+
+- **State Machine**: All transitions properly implemented
+- **Agent Interface**: Standardized BaseAgent interface
+- **Context Schema**: Pydantic v2 validation
+- **Quality Gates**: 1-5 scoring system
+
+## Workflow
+
+### **Development Workflow**
+
+1. **Analyze Problem**: Understand root cause and system-wide impact
+2. **Design Solution**: Centralized, robust, idempotent approach
+3. **Implement**: Follow coding standards and patterns
+4. **Test**: Comprehensive testing with ≥80% coverage
+5. **Refactor**: Clean up redundant code
+6. **Document**: Update relevant documentation
+7. **Commit**: Use conventional commit format
+
+### **Review Process**
+
+1. **Self-Review**: Run full test suite and linting
+2. **Documentation Review**: Ensure docs are updated
+3. **Integration Review**: Verify state machine compatibility
+4. **Quality Review**: Check coverage and quality gates
+
+## Success Criteria
+
+### **Immediate Goals (v0.1)**
+
+- [ ] CLI commands implemented (import, analyze, plan, compare, enforce, repro)
+- [ ] Contract-first validation with icontract decorators
+- [ ] Pydantic models for all data structures
+- [ ] Semgrep async anti-pattern rules
+- [ ] uvx distribution ready
+- [ ] Container image published to GHCR
+
+### **Medium-term Goals (v0.2)**
+
+- [ ] VS Code extension for inline validation
+- [ ] GitHub Action marketplace listing
+- [ ] Auto-fix suggestions for deviations
+- [ ] Plugin API for custom rules
+- [ ] Multi-language support (TypeScript, Go)
+
+### **Long-term Vision (SpecFact Platform)**
+
+- [ ] Team collaboration features
+- [ ] Hosted validation service
+- [ ] Enterprise deployment options
+- [ ] Real-time contract monitoring
+
+## Related Documentation
+
+- **[Testing and Build Guide](./testing-and-build-guide.md)** - Comprehensive testing and build procedures

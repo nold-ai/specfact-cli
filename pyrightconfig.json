@@ -1,0 +1,29 @@
+{
+    "include": [
+        "src",
+        "tests",
+        "tools"
+    ],
+    "extraPaths": [
+        "src"
+    ],
+    "pythonVersion": "3.11",
+    "typeCheckingMode": "standard",
+    "reportUnknownMemberType": "warning",
+    "reportAttributeAccessIssue": "warning",
+    "useLibraryCodeForTypes": true,
+    "exclude": [
+      "**/.hatch/**",
+      "**/.mypy_cache/**",
+      "**/.pytest_cache/**",
+      "**/build/**",
+      "**/dist/**",
+      "**/__pycache__/**",
+      "**/logs/**",
+      "**/.ruff_cache/**",
+      "**/.coverage_cache/**",
+      "**/htmlcov/**",
+      "**/coverage_html_report/**",
+      "**/coverage.*/**",
+    ]
+} 

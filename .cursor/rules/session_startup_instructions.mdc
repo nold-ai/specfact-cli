@@ -1,0 +1,23 @@
+---
+description: This rule provides essential instructions for testing and building the project correctly, avoiding common pitfalls with test environment management.
+globs:
+alwaysApply: true
+---
+
+# Session Startup Instructions
+
+## Core Workflow Reminders
+
+- **Testing:** Run `hatch run smart-test`. Ensure total coverage is >= 80%.
+- **Formatting:** Apply `black .`, `isort .`, `mypy .`, and `pylint src tests` before committing.
+- **Commits:** Use the [Conventional Commits](https://www.conventionalcommits.org/) format.
+- **Versioning:** When releasing, update `CHANGELOG.md`, `pyproject.toml`, `setup.py`, and `src/__init__.py`.
+- **Docstrings:** Follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
+
+## Initial Context Checklist
+
+1. **Review:
+1.1. `GEMINI.md`: Check for any session-specific goals or instructions (applies to GEMINI CLI only).
+1.2. `CLAUDE.md`: Check for any session-specific goals or instructions (applies to Claude CLI only).
+2. `docs/README.md` to get the latest project status and priorities and see which plan is referenced as being worked on: Understand the current development phase and tasks based on the mentioned plan in the README.md file.
+3. Outline your understanding of the current development phase and tasks based on the mentioned plan in the README.md file, before proceeding with any work. Ask the user for confirmation before proceeding.
