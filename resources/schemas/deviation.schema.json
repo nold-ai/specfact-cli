@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Deviation Report Schema",
+  "description": "Schema for SpecFact CLI deviation report validation",
+  "type": "object",
+  "required": ["manual_plan", "auto_plan", "deviations", "summary"],
+  "properties": {
+    "manual_plan": {
+      "type": "string",
+      "description": "Path to manual plan bundle"
+    },
+    "auto_plan": {
+      "type": "string",
+      "description": "Path to auto-generated plan bundle"
+    },
+    "deviations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "severity", "description", "location"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "missing_feature",
+              "missing_story",
+              "extra_feature",
+              "extra_story",
+              "acceptance_drift",
+              "fsm_mismatch",
+              "risk_omission"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["HIGH", "MEDIUM", "LOW"]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "location": {
+            "type": "string"
+          },
+          "fix_hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Deviation counts by type"
+    }
+  }
+}
+

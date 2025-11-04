@@ -1,0 +1,141 @@
+version: "1.0"
+
+{% if idea %}
+idea:
+  title: {{ idea.title }}
+  narrative: {{ idea.narrative }}
+  {% if idea.target_users %}
+  target_users:
+  {% for user in idea.target_users %}
+    - {{ user }}
+  {% endfor %}
+  {% endif %}
+  {% if idea.value_hypothesis %}
+  value_hypothesis: {{ idea.value_hypothesis }}
+  {% endif %}
+  {% if idea.constraints %}
+  constraints:
+  {% for constraint in idea.constraints %}
+    - {{ constraint }}
+  {% endfor %}
+  {% endif %}
+  {% if idea.metrics %}
+  metrics: {{ idea.metrics | tojson }}
+  {% endif %}
+{% endif %}
+
+{% if business %}
+business:
+  {% if business.segments %}
+  segments:
+  {% for segment in business.segments %}
+    - {{ segment }}
+  {% endfor %}
+  {% endif %}
+  {% if business.problems %}
+  problems:
+  {% for problem in business.problems %}
+    - {{ problem }}
+  {% endfor %}
+  {% endif %}
+  {% if business.solutions %}
+  solutions:
+  {% for solution in business.solutions %}
+    - {{ solution }}
+  {% endfor %}
+  {% endif %}
+  {% if business.differentiation %}
+  differentiation:
+  {% for diff in business.differentiation %}
+    - {{ diff }}
+  {% endfor %}
+  {% endif %}
+  {% if business.risks %}
+  risks:
+  {% for risk in business.risks %}
+    - {{ risk }}
+  {% endfor %}
+  {% endif %}
+{% endif %}
+
+product:
+  {% if product.themes %}
+  themes:
+  {% for theme in product.themes %}
+    - {{ theme }}
+  {% endfor %}
+  {% endif %}
+  {% if product.releases %}
+  releases:
+  {% for release in product.releases %}
+    - name: {{ release.name }}
+      {% if release.objectives %}
+      objectives:
+      {% for objective in release.objectives %}
+        - {{ objective }}
+      {% endfor %}
+      {% endif %}
+      {% if release.scope %}
+      scope:
+      {% for item in release.scope %}
+        - {{ item }}
+      {% endfor %}
+      {% endif %}
+      {% if release.risks %}
+      risks:
+      {% for risk in release.risks %}
+        - {{ risk }}
+      {% endfor %}
+      {% endif %}
+  {% endfor %}
+  {% endif %}
+
+{% if features %}
+features:
+{% for feature in features %}
+  - key: {{ feature.key }}
+    title: {{ feature.title }}
+    {% if feature.outcomes %}
+    outcomes:
+    {% for outcome in feature.outcomes %}
+      - {{ outcome }}
+    {% endfor %}
+    {% endif %}
+    {% if feature.acceptance %}
+    acceptance:
+    {% for criterion in feature.acceptance %}
+      - {{ criterion }}
+    {% endfor %}
+    {% endif %}
+    {% if feature.constraints %}
+    constraints:
+    {% for constraint in feature.constraints %}
+      - {{ constraint }}
+    {% endfor %}
+    {% endif %}
+    {% if feature.stories %}
+    stories:
+    {% for story in feature.stories %}
+      - key: {{ story.key }}
+        title: {{ story.title }}
+        {% if story.acceptance %}
+        acceptance:
+        {% for criterion in story.acceptance %}
+          - {{ criterion }}
+        {% endfor %}
+        {% endif %}
+        {% if story.tags %}
+        tags:
+        {% for tag in story.tags %}
+          - {{ tag }}
+        {% endfor %}
+        {% endif %}
+        confidence: {{ story.confidence }}
+        draft: {{ story.draft | lower }}
+    {% endfor %}
+    {% endif %}
+    confidence: {{ feature.confidence }}
+    draft: {{ feature.draft | lower }}
+{% endfor %}
+{% endif %}
+

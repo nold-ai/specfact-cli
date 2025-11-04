@@ -1,0 +1,58 @@
+## 🎯 Purpose
+
+{{ purpose | default("Describe the purpose of this PR") }}
+
+## 📋 Changes
+
+{% if changes %}
+{% for change in changes %}
+- {{ change }}
+{% endfor %}
+{% else %}
+- [ ] List your changes here
+{% endif %}
+
+## ✅ Validation
+
+**SpecFact CLI Validation Results:**
+
+{% if validation_passed %}
+- ✅ All contracts validated successfully
+- ✅ No plan deviations detected
+- ✅ FSM protocol compliant
+{% else %}
+- ⚠️ Validation findings:
+{% if high_count > 0 %}
+  - {{ high_count }} HIGH severity issue(s)
+{% endif %}
+{% if medium_count > 0 %}
+  - {{ medium_count }} MEDIUM severity issue(s)
+{% endif %}
+{% if low_count > 0 %}
+  - {{ low_count }} LOW severity issue(s)
+{% endif %}
+{% endif %}
+
+## 📊 Coverage
+
+{% if coverage %}
+- **Line Coverage**: {{ coverage.line }}%
+- **Branch Coverage**: {{ coverage.branch }}%
+{% else %}
+- [ ] Add coverage information
+{% endif %}
+
+## 🔗 Related
+
+{% if related_issues %}
+{% for issue in related_issues %}
+- Closes #{{ issue }}
+{% endfor %}
+{% else %}
+- [ ] Link related issues/PRs
+{% endif %}
+
+## 📝 Notes
+
+{{ notes | default("Add any additional notes here") }}
+

@@ -1,5 +1,5 @@
 """
-Logging utility for standardized log setup across all agents
+Logging utility for standardized log setup across all modules
 """
 
 import atexit
@@ -11,20 +11,19 @@ from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from queue import Queue
 from typing import Any, Literal
 
+from beartype import beartype
+from icontract import ensure, require
 
 # Add TRACE level (5) - more detailed than DEBUG (10)
 logging.addLevelName(5, "TRACE")
 
 # Circular dependency protection flag
-_is_platform_base_initializing = False
+# Note: Platform base infrastructure removed for lean CLI
+# The logger setup is now standalone without agent-system dependencies
 
 
-def set_platform_base_initializing(initializing: bool) -> None:
-    """Set the platform base initialization flag to prevent circular dependencies"""
-    global _is_platform_base_initializing
-    _is_platform_base_initializing = initializing
-
-
+@beartype
+@ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty string path")
 def get_runtime_logs_dir() -> str:
     """
     Get the path to the centralized runtime logs directory and ensure it exists.
@@ -92,6 +91,10 @@ class MessageFlowFormatter(logging.Formatter):
         r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}|^\w+ \| \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})"
     )
 
+    @beartype
+    @require(
+        lambda agent_name: isinstance(agent_name, str) and len(agent_name) > 0, "Agent name must be non-empty string"
+    )
     def __init__(
         self,
         agent_name: str,
@@ -100,7 +103,7 @@ class MessageFlowFormatter(logging.Formatter):
         style: Literal["%", "{", "$"] = "%",
         session_id: str | None = None,
         preserve_newlines: bool = True,
-    ):
+    ) -> None:
         """
         Initialize the formatter with the agent name
 
@@ -117,6 +120,9 @@ class MessageFlowFormatter(logging.Formatter):
         self.session_id = session_id
         self.preserve_newlines = preserve_newlines
 
+    @beartype
+    @require(lambda record: isinstance(record, logging.LogRecord), "Record must be LogRecord instance")
+    @ensure(lambda result: isinstance(result, str), "Must return string")
     def format(self, record: logging.LogRecord) -> str:
         """
         Format the log record according to message flow patterns
@@ -151,7 +157,10 @@ class MessageFlowFormatter(logging.Formatter):
 
             # Format the message with flow information and session ID if available
             if self.session_id:
-                formatted_message = f"{receiver} | {timestamp} | {self.session_id} | {record.levelname} | {sender} => {receiver} | {message}"
+                formatted_message = (
+                    f"{receiver} | {timestamp} | {self.session_id} | "
+                    f"{record.levelname} | {sender} => {receiver} | {message}"
+                )
             else:
                 formatted_message = (
                     f"{receiver} | {timestamp} | {record.levelname} | {sender} => {receiver} | {message}"
@@ -231,6 +240,8 @@ class LoggerSetup:
         cls._active_loggers.clear()
 
     @classmethod
+    @beartype
+    @ensure(lambda result: isinstance(result, logging.Logger), "Must return Logger instance")
     def create_agent_flow_logger(cls, session_id: str | None = None) -> logging.Logger:
         """
         Creates a dedicated logger for inter-agent message flow.
@@ -295,6 +306,13 @@ class LoggerSetup:
         return logger
 
     @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
+    @require(
+        lambda log_level: log_level is None or (isinstance(log_level, str) and len(log_level) > 0),
+        "Log level must be None or non-empty string",
+    )
+    @ensure(lambda result: isinstance(result, logging.Logger), "Must return Logger instance")
     def create_logger(
         cls,
         name: str,
@@ -476,6 +494,9 @@ class LoggerSetup:
             pass
 
     @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
+    @ensure(lambda result: isinstance(result, bool), "Must return boolean")
     def flush_logger(cls, name: str) -> bool:
         """
         Flush a specific logger by name
@@ -490,6 +511,9 @@ class LoggerSetup:
         return name in cls._active_loggers
 
     @classmethod
+    @beartype
+    @require(lambda logger: isinstance(logger, logging.Logger), "Logger must be Logger instance")
+    @require(lambda summary: isinstance(summary, dict), "Summary must be dictionary")
     def write_test_summary(cls, logger: logging.Logger, summary: dict[str, Any]) -> None:
         """
         Write test summary in a format that log_analyzer.py can understand
@@ -520,12 +544,16 @@ class LoggerSetup:
 
         # Write summary directly to the file to ensure it's synchronous
         log_file_path = file_handler.baseFilename
+        passed = summary.get("passed", 0)
+        failed = summary.get("failed", 0)
+        skipped = summary.get("skipped", 0)
+        duration = summary.get("duration", 0)
         summary_lines = [
             "=" * 15 + " test session starts " + "=" * 15,
-            f"{summary.get('passed', 0)} passed, {summary.get('failed', 0)} failed, {summary.get('skipped', 0)} skipped in {summary.get('duration', 0):.2f}s",
-            f"Test Summary: {summary.get('passed', 0)} passed, {summary.get('failed', 0)} failed, {summary.get('skipped', 0)} skipped",
-            f"Status: {'PASSED' if summary.get('failed', 0) == 0 else 'FAILED'}",
-            f"Duration: {summary.get('duration', 0):.2f} seconds",
+            f"{passed} passed, {failed} failed, {skipped} skipped in {duration:.2f}s",
+            f"Test Summary: {passed} passed, {failed} failed, {skipped} skipped",
+            f"Status: {'PASSED' if failed == 0 else 'FAILED'}",
+            f"Duration: {duration:.2f} seconds",
         ]
 
         if summary.get("failed_tests"):
@@ -544,6 +572,9 @@ class LoggerSetup:
         listener.start()
 
     @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
+    @ensure(lambda result: result is None or isinstance(result, logging.Logger), "Must return None or Logger instance")
     def get_logger(cls, name: str) -> logging.Logger | None:
         """
         Get a logger by name
@@ -557,6 +588,9 @@ class LoggerSetup:
         return cls._active_loggers.get(name)
 
     @staticmethod
+    @beartype
+    @require(lambda logger: isinstance(logger, logging.Logger), "Logger must be Logger instance")
+    @require(lambda message: isinstance(message, str), "Message must be string")
     def trace(logger: logging.Logger, message: str, *args: Any, **kwargs: Any) -> None:
         """
         Log a message at TRACE level (5)
@@ -570,6 +604,8 @@ class LoggerSetup:
         logger.log(5, message, *args, **kwargs)
 
     @staticmethod
+    @beartype
+    @ensure(lambda result: result is not None, "Must return object")
     def redact_secrets(obj: Any) -> Any:
         """
         Recursively mask sensitive values (API keys, tokens, passwords, secrets) in dicts/lists/strings.
@@ -599,6 +635,10 @@ class LoggerSetup:
         return obj
 
 
+@beartype
+@require(lambda agent_name: isinstance(agent_name, str) and len(agent_name) > 0, "Agent name must be non-empty string")
+@require(lambda log_level: isinstance(log_level, str) and len(log_level) > 0, "Log level must be non-empty string")
+@ensure(lambda result: isinstance(result, logging.Logger), "Must return Logger instance")
 def setup_logger(
     agent_name: str,
     log_level: str = "INFO",

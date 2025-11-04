@@ -1,0 +1,47 @@
+# Python async anti-pattern detection rules
+
+# Async function patterns to detect
+async_patterns:
+  # Fire-and-forget tasks (missing await)
+  - pattern: "asyncio.create_task(.*) without await"
+    severity: HIGH
+    message: "Task created but never awaited"
+
+  # Blocking calls in async functions
+  - pattern: "time.sleep(.*) in async function"
+    severity: HIGH
+    message: "Blocking sleep in async function, use asyncio.sleep instead"
+
+  # Missing error handling
+  - pattern: "await .* without try/except"
+    severity: MEDIUM
+    message: "Async call without error handling"
+
+  # Long-running tasks without timeout
+  - pattern: "await .* without timeout"
+    severity: MEDIUM
+    message: "Async operation without timeout"
+
+# Event loop patterns
+event_loop:
+  # Multiple event loops
+  - pattern: "asyncio.new_event_loop()"
+    severity: MEDIUM
+    message: "Creating new event loop, prefer asyncio.get_event_loop()"
+
+  # Blocking operations on event loop
+  - pattern: "loop.run_until_complete(.*) in async context"
+    severity: HIGH
+    message: "Blocking event loop with run_until_complete"
+
+# Protocol violations
+protocols:
+  # State transitions without validation
+  - pattern: "state change without validation"
+    severity: HIGH
+    message: "State transition without protocol validation"
+
+  # Missing guards
+  - pattern: "transition without guard check"
+    severity: MEDIUM
+    message: "State transition missing guard validation"

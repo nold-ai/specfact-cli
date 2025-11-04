@@ -1,0 +1,37 @@
+states:
+  - "INIT"
+  - "PLANNING"
+  - "IMPLEMENTATION"
+  - "REVIEW"
+  - "DONE"
+
+start: "INIT"
+
+transitions:
+  - from_state: "INIT"
+    on_event: "start_planning"
+    to_state: "PLANNING"
+
+  - from_state: "PLANNING"
+    on_event: "approve_plan"
+    to_state: "IMPLEMENTATION"
+
+  - from_state: "PLANNING"
+    on_event: "reject_plan"
+    to_state: "INIT"
+
+  - from_state: "IMPLEMENTATION"
+    on_event: "request_review"
+    to_state: "REVIEW"
+
+  - from_state: "REVIEW"
+    on_event: "approve"
+    to_state: "DONE"
+    guard: "is_approved"
+
+  - from_state: "REVIEW"
+    on_event: "request_changes"
+    to_state: "IMPLEMENTATION"
+
+guards:
+  is_approved: "return context.review_status == 'approved'"

@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan Bundle Schema",
+  "description": "Schema for SpecFact CLI plan bundle validation",
+  "type": "object",
+  "required": ["version", "product"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Plan bundle version"
+    },
+    "idea": {
+      "type": "object",
+      "required": ["title", "narrative"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "narrative": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "value_hypothesis": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metrics": {
+          "type": "object"
+        }
+      }
+    },
+    "business": {
+      "type": "object",
+      "properties": {
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "problems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "solutions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "differentiation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "product": {
+      "type": "object",
+      "required": ["themes"],
+      "properties": {
+        "themes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "releases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "objectives": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "scope": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "risks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "title"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^FEATURE-\\d+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["key", "title"],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^STORY-\\d+$"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "acceptance": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0
+                },
+                "draft": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "draft": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
+

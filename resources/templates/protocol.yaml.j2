@@ -1,0 +1,24 @@
+states:
+{% for state in states %}
+  - {{ state }}
+{% endfor %}
+
+start: {{ start }}
+
+transitions:
+{% for transition in transitions %}
+  - from_state: {{ transition.from_state }}
+    on_event: {{ transition.on_event }}
+    to_state: {{ transition.to_state }}
+    {% if transition.guard %}
+    guard: {{ transition.guard }}
+    {% endif %}
+{% endfor %}
+
+{% if guards %}
+guards:
+{% for guard_name, guard_expr in guards.items() %}
+  {{ guard_name }}: "{{ guard_expr }}"
+{% endfor %}
+{% endif %}
+

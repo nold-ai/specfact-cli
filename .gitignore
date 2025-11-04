@@ -88,11 +88,22 @@ dump.rdb
 # Local npm packages (we don't use npm right now)
 package.json
 package-lock.json
-
 node_modules/
-
-# Warp AI Terminal rules (generated from .cursor/rules)
-.warp/
 
 # Internal docs
 docs/internal/
+
+# Ignore .specify artifacts
+.specify/
+.cursor/commands/speckit.*
+specs/
+
+# Ignore specfact-cli prompt templates
+.cursor/commands/specfact-*
+.github/prompts/specfact-*
+
+# Semgrep rules (generated from tools/semgrep/ - source rules are versioned)
+.semgrep/
+
+# Ignore .specfact artifacts
+.specfact/

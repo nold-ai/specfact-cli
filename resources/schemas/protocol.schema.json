@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Protocol Schema",
+  "description": "Schema for SpecFact CLI FSM protocol validation",
+  "type": "object",
+  "required": ["states", "start", "transitions"],
+  "properties": {
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "List of state names"
+    },
+    "start": {
+      "type": "string",
+      "description": "Initial state name"
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from_state", "on_event", "to_state"],
+        "properties": {
+          "from_state": {
+            "type": "string"
+          },
+          "on_event": {
+            "type": "string"
+          },
+          "to_state": {
+            "type": "string"
+          },
+          "guard": {
+            "type": "string",
+            "description": "Guard function name"
+          }
+        }
+      },
+      "description": "List of state transitions"
+    },
+    "guards": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Guard definitions"
+    }
+  }
+}
+

@@ -1,0 +1,19 @@
+states:
+  - "INIT"
+  - "PLANNING"
+  - "DONE"
+
+start: "INVALID_START" # Start state not in states list
+
+transitions:
+  - from_state: "INIT"
+    on_event: "start"
+    to_state: "PLANNING"
+
+  - from_state: "PLANNING"
+    on_event: "finish"
+    to_state: "NONEXISTENT" # Invalid to_state
+
+  - from_state: "ORPHAN_STATE" # Invalid from_state
+    on_event: "orphan_event"
+    to_state: "DONE"

@@ -1,0 +1,36 @@
+name: SpecFact CLI Validation
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  specfact-validation:
+    name: Contract Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install SpecFact CLI
+        run: |
+          pip install specfact-cli
+
+      - name: Run Contract Validation
+        run: |
+          specfact repro --verbose --budget {{ budget }}
+
+      - name: Upload Validation Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: specfact-report
+          path: repro-report.md
+

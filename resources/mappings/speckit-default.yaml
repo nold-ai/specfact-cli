@@ -1,0 +1,82 @@
+# Default Spec-Kit to SpecFact CLI mapping
+#
+# This mapping defines how Spec-Kit artifacts are converted to SpecFact format
+# and vice versa. Spec-Kit uses markdown artifacts (spec.md, plan.md, tasks.md)
+# while SpecFact uses YAML plan bundles.
+#
+# Spec-Kit Format Compatibility:
+# - spec.md: Frontmatter, INVSEST criteria, Scenarios (Primary/Alternate/Exception/Recovery)
+# - plan.md: Constitution Check, Phases (Phase 0/1/2/-1), Technology Stack, Constraints, Unknowns
+# - tasks.md: Phase organization (Phase 1: Setup, Phase 2: Foundational, Phase 3+: Stories), Parallel markers [P]
+
+# Directory structure mapping
+directories:
+  spec: contracts/protocols
+  schemas: src/schemas
+  workflows: .github/workflows
+  docs: docs
+  # Spec-Kit structure: .specify/specs/[###-feature-name]/spec.md, plan.md, tasks.md
+
+# File mapping
+files:
+  components.yaml: contracts/protocols/workflow.protocol.yaml
+  architecture.md: docs/architecture.md
+  # Spec-Kit files: spec.md, plan.md, tasks.md, constitution.md
+
+# State mapping (Spec-Kit → SpecFact)
+states:
+  # Map common Spec-Kit state names to SpecFact conventions
+  initial: INIT
+  planning: PLANNING
+  implementation: IMPLEMENTATION
+  review: REVIEW
+  done: DONE
+  completed: COMPLETED
+  failed: FAILED
+
+# Event mapping
+events:
+  # Map common event names
+  start: start
+  approve: approve
+  reject: reject
+  complete: complete
+  fail: fail
+
+# Feature extraction rules
+features:
+  # Extract features from Spec-Kit structure
+  from_directories: true
+  from_issues: true
+  from_commits: true
+  confidence_threshold: 0.5
+  # Spec-Kit format: Features are in spec.md with User Stories, INVSEST criteria, Scenarios
+  # Each feature directory contains spec.md, plan.md, tasks.md
+
+# Story extraction rules
+stories:
+  # Extract stories from test files
+  from_tests: true
+  test_patterns:
+    - "test_*.py"
+    - "test_*.ts"
+    - "test_*.js"
+    - "*.spec.ts"
+    - "*.spec.js"
+  # Extract from commit messages
+  from_commits: true
+  commit_patterns:
+    - "STORY-\\d+"
+    - "story/.*"
+  # Spec-Kit format: Stories are in spec.md with:
+  # - Priority (P1/P2/P3)
+  # - INVSEST criteria (Independent, Negotiable, Valuable, Estimable, Small, Testable)
+  # - Scenarios (Primary, Alternate, Exception, Recovery)
+  # - "Why this priority" text
+
+# Schema conversion
+schemas:
+  # Convert JSON Schema to Pydantic
+  json_schema_to_pydantic: true
+  # Convert OpenAPI to Pydantic
+  openapi_to_pydantic: true

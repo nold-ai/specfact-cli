@@ -1,0 +1,118 @@
+version: "1.0"
+idea:
+  title: SpecFact CLI
+  narrative: Spec→Contract→Sentinel tool for contract-driven development with automated quality gates
+  target_users:
+    - Python developers
+    - DevOps engineers
+    - QA teams
+  value_hypothesis: Reduce bugs by 80% through contract-driven development
+product:
+  themes:
+    - CLI
+    - Contract Validation
+    - Plan Management
+    - Code Analysis
+  releases:
+    - name: v0.1 - MVP
+      objectives:
+        - Core CLI commands
+        - Plan management
+        - Code analysis
+      scope:
+        - FEATURE-CLI
+        - FEATURE-PLAN
+        - FEATURE-ANALYZE
+      risks: []
+features:
+  - key: FEATURE-CLI
+    title: CLI Framework
+    outcomes:
+      - Users can access all commands via CLI
+      - Rich console output with colors
+    acceptance:
+      - CLI help works
+      - Commands are discoverable
+    stories:
+      - key: STORY-CLI-001
+        title: Main CLI Entry Point
+        acceptance:
+          - CLI loads and shows help
+      - key: STORY-CLI-002
+        title: Version Command
+        acceptance:
+          - Version displays correctly
+
+  - key: FEATURE-PLAN
+    title: Plan Management
+    outcomes:
+      - Users can create and manage development plans
+      - Plans can be compared for deviations
+    acceptance:
+      - Plan init works
+      - Plan compare detects deviations
+    stories:
+      - key: STORY-PLAN-001
+        title: Plan Init Command
+        acceptance:
+          - Create new plan bundles
+      - key: STORY-PLAN-002
+        title: Plan Compare Command
+        acceptance:
+          - Compare manual vs auto plans
+      - key: STORY-PLAN-003
+        title: Add Feature to Plan
+        acceptance:
+          - Add new features to existing plans
+
+  - key: FEATURE-ANALYZE
+    title: Code Analysis
+    outcomes:
+      - Auto-derive plans from existing code
+      - Support brownfield discovery
+    acceptance:
+      - Analyze Python code successfully
+      - Generate valid plan bundles
+    stories:
+      - key: STORY-ANALYZE-001
+        title: Code to Spec Analysis
+        acceptance:
+          - Parse Python AST
+          - Extract features from classes
+          - Generate plan bundle
+
+  - key: FEATURE-VALIDATORS
+    title: Validation Framework
+    outcomes:
+      - Validate plans against JSON schemas
+      - Validate FSM protocols
+    acceptance:
+      - Schema validation works
+      - FSM validation detects cycles
+    stories:
+      - key: STORY-VAL-001
+        title: Schema Validator
+        acceptance:
+          - Validate plan bundles
+      - key: STORY-VAL-002
+        title: FSM Validator
+        acceptance:
+          - Validate protocols
+
+  - key: FEATURE-GENERATORS
+    title: Code Generators
+    outcomes:
+      - Generate plan bundles from models
+      - Generate reports in multiple formats
+    acceptance:
+      - Plan generation works
+      - Report generation works
+    stories:
+      - key: STORY-GEN-001
+        title: Plan Generator
+        acceptance:
+          - Generate YAML from models
+      - key: STORY-GEN-002
+        title: Report Generator
+        acceptance:
+          - Generate markdown/JSON/YAML reports

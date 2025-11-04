@@ -1,0 +1,49 @@
+# Node.js/TypeScript async anti-pattern detection rules
+
+# Promise patterns to detect
+promise_patterns:
+  # Unhandled promise rejections
+  - pattern: "new Promise(.*) without catch"
+    severity: HIGH
+    message: "Promise created without error handling"
+
+  # Missing await
+  - pattern: "Promise.* without await"
+    severity: MEDIUM
+    message: "Promise not awaited"
+
+  # Promise.all without error handling
+  - pattern: "Promise.all(.*) without catch"
+    severity: HIGH
+    message: "Promise.all without error handling"
+
+# Async/await patterns
+async_await:
+  # Blocking in async function
+  - pattern: "fs.readFileSync(.*) in async function"
+    severity: HIGH
+    message: "Blocking file operation in async function, use fs.readFile instead"
+
+  # Serial async operations that could be parallel
+  - pattern: "sequential await that could be parallel"
+    severity: LOW
+    message: "Consider using Promise.all for parallel operations"
+
+# Event emitter patterns
+events:
+  # Missing error event handler
+  - pattern: "EventEmitter without error handler"
+    severity: MEDIUM
+    message: "EventEmitter missing error event handler"
+
+# Callback patterns (legacy)
+callbacks:
+  # Callback hell
+  - pattern: "deeply nested callbacks"
+    severity: MEDIUM
+    message: "Consider using async/await instead of callbacks"
+
+  # Missing error-first callback
+  - pattern: "callback without error parameter"
+    severity: LOW
+    message: "Callback should follow error-first pattern"

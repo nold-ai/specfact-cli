@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.1.0"
+version = "0.4.0"
 description = "SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development with automated quality gates"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,63 +27,66 @@ classifiers = [
 ]
 dependencies = [
     # Core dependencies
-    "pydantic>=2.11.5",
-    "python-dotenv>=1.1.0",
-    "typing-extensions>=4.13.2",
-    "PyYAML>=6.0.2",
+    "pydantic>=2.12.3",
+    "python-dotenv>=1.2.1",
+    "typing-extensions>=4.15.0",
+    "PyYAML>=6.0.3",
     
     # CLI framework
-    "typer>=0.15.0",
-    "rich>=14.0.0",
+    "typer>=0.20.0",
+    "rich>=13.0.0,<14.0.0",
     
     # Template engine
-    "jinja2>=3.1.0",
+    "jinja2>=3.1.6",
     
     # Graph analysis
-    "networkx>=3.2",
+    "networkx>=3.4.2",
     
     # Git operations
-    "gitpython>=3.1.0",
+    "gitpython>=3.1.45",
     
     # YAML utilities
-    "ruamel.yaml>=0.18.0",
+    "ruamel.yaml>=0.18.16",
     
-    # Testing and validation
-    "pytest>=8.3.5",
-    "pytest-asyncio>=0.26.0",
+    # Schema validation
+    "jsonschema>=4.23.0",
     
     # Contract-First Development Dependencies
     "icontract>=2.7.1",  # Design-by-contract decorators
-    "beartype>=0.22.2",  # Runtime type checking
+    "beartype>=0.22.4",  # Runtime type checking
     "crosshair-tool>=0.0.97",  # Contract exploration and counterexample discovery
-    "hypothesis>=6.140.3",  # Property-based testing
+    "hypothesis>=6.142.4",  # Property-based testing
     
     # Code analysis
-    "semgrep>=1.40.0",
-    "ruff>=0.8.0",
+    "ruff>=0.14.2",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.3.5",
-    "pytest-cov>=6.0.0",
-    "pytest-mock>=3.14.1",
-    "pytest-asyncio>=1.1.0",
-    "pytest-xdist>=3.6.0",
-    "basedpyright>=1.31.5",
-    "black>=25.1.0",
-    "isort>=6.0.1",
-    "pylint>=3.3.8",
-    "ruff>=0.8.0",
-    "pytoml>=0.1.21",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-asyncio>=1.2.0",
+    "pytest-xdist>=3.8.0",
+    "basedpyright>=1.32.1",
+    "black>=25.9.0",
+    "isort>=7.0.0",
+    "pylint>=4.0.2",
+    "ruff>=0.14.2",
+    "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
     "types-PyYAML>=6.0.12.20250516",
-    "pip-tools>=7.4.1",
+    "pip-tools>=7.5.1",
+    "semgrep>=1.141.1",
     
     # Contract-First Development Dependencies (dev)
     "icontract>=2.7.1",
-    "beartype>=0.22.2", 
+    "beartype>=0.22.4", 
     "crosshair-tool>=0.0.97",
-    "hypothesis>=6.140.3",
+    "hypothesis>=6.142.4",
+]
+
+scanning = [
+    "semgrep>=1.141.1",  # Optional: Only needed for code scanning features
 ]
 
 # Add other optional dependency groups from your original if they existed and are still needed (e.g., server, client, devtools, full from tpl)
@@ -95,7 +98,7 @@ Documentation = "https://github.com/nold-ai/specfact-cli#readme"
 Issues = "https://github.com/nold-ai/specfact-cli/issues"
 
 [project.scripts]
-specfact = "specfact_cli.cli:app"
+specfact = "specfact_cli.cli:cli_main"
 
 # [project.entry-points."pytest11"] # Add if you have pytest plugins
 # specfact_test_plugin = "specfact_cli.pytest_plugin"
@@ -108,59 +111,37 @@ dependencies = [
     "pytest-cov",
     "pytest-mock",
     "pytest-xdist",
-    "fastapi",
-    "uvicorn",
     "python-dotenv",
-    "redis",
     "pre-commit",
-    "requests",
-    "beautifulsoup4",
-    "lxml",
-    "html2text",
     # Ensure format/lint tools are available in the hatch env
-    "black>=25.1.0",
-    "isort>=6.0.1",
-    "basedpyright>=1.18.0",
-    "pylint>=3.3.8",
-    "ruff>=0.8.0",
-    "yamllint>=1.35.1",
+    "black>=25.9.0",
+    "isort>=7.0.0",
+    "basedpyright>=1.32.1",
+    "pylint>=4.0.2",
+    "ruff>=0.14.2",
+    "yamllint>=1.37.1",
+    "semgrep>=1.141.1",
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
-    "beartype>=0.22.2", 
+    "beartype>=0.22.4", 
     "crosshair-tool>=0.0.97",
-    "hypothesis>=6.140.3",
-    # "flake8>=7.1.0",  # Replaced by ruff
+    "hypothesis>=6.142.4",
 ]
 
 [tool.hatch.envs.default.scripts]
-# Contract generation scripts
-generate-contracts = "python tools/generate_contracts.py --all --verbose"
-generate-contracts-api = "python tools/generate_contracts.py --type api --verbose"
-generate-contracts-feature = "python tools/generate_contracts.py --type feature --verbose"
-generate-contracts-ui = "python tools/generate_contracts.py --type ui --verbose"
-generate-state-machines = "python tools/generate_state_machine.py --all"
-validate-contracts = "python tools/generate_contracts.py --check-git-diff build"
-
-# Phase 3b: Spec-First Development Tools
-spec-first-generate = "python tools/spec_first_cli.py generate {args}"
-spec-first-validate = "python tools/spec_first_cli.py validate {args}"
-spec-first-review = "python tools/spec_first_cli.py review {args}"
-spec-first-feedback = "python tools/spec_first_cli.py feedback {args}"
-spec-first-status = "python tools/spec_first_cli.py status {args}"
-spec-first-list-reviews = "python tools/spec_first_cli.py list-reviews"
-contract-to-code = "python tools/contract_to_code.py {args}"
-
-# Phase 3b: Convenience Workflows
-spec-first-workflow = "python tools/spec_first_cli.py generate {args} && python tools/spec_first_cli.py validate {args}"
-generate-and-code = "python tools/spec_first_cli.py generate {args} && python tools/contract_to_code.py {args}"
-
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright {args}"
-lint = "black {args:-.} && isort {args:-.} && basedpyright {args} && ruff check {args:-.} && ruff format {args:-.} --check && pylint {args:-src tests tools} && yamllint -d relaxed .github/workflows contracts docker-compose.yml prometheus.yml src/common user_settings.yaml"
-governance = "pylint {args:-src tests tools} --reports=y --output-format=parseable"
-format = "black {args:-.} && isort {args:-.} && ruff check {args:-.} --fix && ruff format {args:-.}"
+lint = "black . --line-length=120 && isort . && basedpyright && ruff check . && ruff format . --check && pylint src tests tools"
+governance = "pylint src tests tools --reports=y --output-format=parseable"
+format = "black . --line-length=120 && isort . && ruff check . --fix && ruff format ."
+
+# Code scanning (Semgrep)
+scan = "semgrep --config tools/semgrep/async.yml {args}"
+scan-all = "semgrep --config tools/semgrep/async.yml ."
+scan-json = "semgrep --config tools/semgrep/async.yml --json . > logs/semgrep-results.json"
+scan-fix = "semgrep --config tools/semgrep/async.yml --autofix ."
 
 # YAML and Workflow linting
 yaml-fmt = "bash scripts/yaml-tools.sh fmt {args}"
@@ -207,6 +188,11 @@ contract-migrate = "python tools/contract_migration_helper.py --analyze-module {
 contract-analyze = "python tools/migrate_tests_to_contracts.py --analyze --output logs/analysis/migration_analysis.json"
 contract-prune = "python tools/migrate_tests_to_contracts.py --prune --dry-run"
 
+# Pre-commit hooks
+pre-commit-install = "bash scripts/setup-git-hooks.sh"
+pre-commit-checks = "bash scripts/pre-commit-smart-checks.sh"
+pre-commit-test = "bash scripts/pre-commit-smart-test.sh"
+
 [tool.hatch.envs.py311]
 python = "3.11"
 
@@ -222,17 +208,17 @@ contract-test-status = "python tools/contract_first_smart_test.py status"
 
 [tool.hatch.envs.hatch-test]
 dependencies = [
-    "pytest>=8.3.5",
-    "pytest-mock>=3.14.1",
-    "pytest-asyncio>=0.26.0",
-    "pytest-xdist>=3.6.0",
+    "pytest>=8.4.2",
+    "pytest-mock>=3.15.1",
+    "pytest-asyncio>=1.2.0",
+    "pytest-xdist>=3.8.0",
     "coverage[toml]>=7.7.1",
     "pytest-timeout>=2.3.1",
     "icontract>=2.7.1",
-    "beartype>=0.22.2", 
+    "beartype>=0.22.4", 
     "crosshair-tool>=0.0.97",
-    "hypothesis>=6.140.3",
-    "yamllint>=1.35.1",
+    "hypothesis>=6.142.4",
+    "yamllint>=1.37.1",
 ]
 dev-mode = true
 parallel = true
@@ -290,6 +276,9 @@ exclude_lines = [
 ]
 show_missing = true
 # Contract-first approach: Line coverage is advisory; thresholds are enforced by contract-first layers in CI.
+# Lower threshold (50%) recognizes that contracts provide runtime validation at API boundaries.
+# Focus on contract coverage (80%+) and scenario tests for comprehensive validation.
+fail_under = 50  # 50% line coverage for unit tests (contract-first: contracts provide primary validation)
 
 [tool.coverage.html]
 directory = "logs/tests/coverage/html"
@@ -299,6 +288,7 @@ output = "logs/tests/coverage/coverage.xml"
 
 [tool.pytest-asyncio] # Add if you use asyncio tests
 mode = "strict"
+default_fixture_loop_scope = "function"
 
 [tool.hatch.build]
 dev-mode-dirs = ["src","tools"]
@@ -306,7 +296,6 @@ dev-mode-dirs = ["src","tools"]
 [tool.hatch.build.targets.wheel]
 packages = [
     "src/specfact_cli",
-    "src/common",
 ]
 
 # [tool.hatch.envs.default.env-vars] # Add if you have default env vars for hatch environments
@@ -420,22 +409,15 @@ reportMissingImports = false
 
 [[tool.basedpyright.override]]
 module = [
-    "src.backlog_agent.*",
-    "src.common.*",
+    "src.specfact_cli.common.*",
     "tools.*"
 ]
 typeCheckingMode = "basic"
 reportMissingImports = true
 
-[[tool.basedpyright.override]]
-module = "src.backlog_agent.github_client"
-typeCheckingMode = "standard"
-reportMissingImports = true
-
 [tool.pytest.ini_options]
-minversion = "8.3.5"
+minversion = "8.4.2"
 addopts = "-ra -v --import-mode=importlib" # Combined and no coverage flags
-asyncio_default_fixture_loop_scope = "function"
 pythonpath = [
     "src",
     "tools"
@@ -456,7 +438,6 @@ markers = [
     "contract_coverage: mark test for contract coverage tracking",
     "state_transition_coverage: mark test for state transition coverage tracking",
 ]
-asyncio_mode = "auto"
 filterwarnings = [ # From pytest.ini
     "ignore::pytest.PytestAssertRewriteWarning",
     "ignore::pytest.PytestDeprecationWarning",
@@ -492,7 +473,6 @@ max-line-length = 120
 
 [tool.pylint.reports]
 output-format = "parseable"
-include-ids = "yes"
 reports = "no"
 
 [tool.pylint.design]

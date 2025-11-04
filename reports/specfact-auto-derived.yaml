@@ -1,0 +1,719 @@
+version: "1.0"
+idea:
+  title: Unknown  Project
+  narrative: Auto-derived plan from brownfield analysis of Unknown Project
+  target_users: []
+  value_hypothesis: ""
+  constraints: []
+product:
+  themes:
+    - CLI
+    - Validation
+  releases: []
+features:
+  - key: FEATURE-CONTRACTMIGRATIONHELPER
+    title: Contract Migration Helper
+    outcomes:
+      - Helps migrate modules to contract-first approach.
+    acceptance:
+      - ContractMigrationHelper class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-CONTRACTMIGRATIONHELPER-001
+        title: As a developer, I can configure Contract Migration Helper
+        acceptance:
+          - Configuration functionality works as expected
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-CONTRACTMIGRATIONHELPER-002
+        title: As a user, I can analyze data with Contract Migration Helper
+        acceptance:
+          - Analyze a module for contract migration potential.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - analyze_module()
+        confidence: 0.6
+        draft: false
+      - key: STORY-CONTRACTMIGRATIONHELPER-003
+        title: As a user, I can generate outputs from Contract Migration Helper
+        acceptance:
+          - Generate a detailed migration plan.
+        tags: []
+        story_points: 2
+        value_points: 5
+        tasks:
+          - generate_migration_plan()
+        confidence: 0.6
+        draft: false
+      - key: STORY-CONTRACTMIGRATIONHELPER-004
+        title: As a user, I can create new Contract Migration Helper records
+        acceptance:
+          - Add contract decorators to a module.
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - add_contracts_to_module()
+        confidence: 0.6
+        draft: false
+    confidence: 0.9
+    draft: false
+  - key: FEATURE-CONTRACTFIRSTTESTMANAGER
+    title: Contract First Test Manager
+    outcomes:
+      - Contract-first test manager extending the smart coverage system.
+    acceptance:
+      - ContractFirstTestManager class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-CONTRACTFIRSTTESTMANAGER-001
+        title: As a developer, I can configure Contract First Test Manager
+        acceptance:
+          - Configuration functionality works as expected
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-CONTRACTFIRSTTESTMANAGER-002
+        title: As a user, I can use Contract First Test Manager features
+        acceptance:
+          - Run contract-first tests with the 3-layer quality model.
+        tags: []
+        story_points: 5
+        value_points: 3
+        tasks:
+          - run_contract_first_tests()
+        confidence: 0.6
+        draft: false
+      - key: STORY-CONTRACTFIRSTTESTMANAGER-003
+        title: As a user, I can view Contract First Test Manager data
+        acceptance:
+          - Get contract-first test status.
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - get_contract_status()
+        confidence: 0.6
+        draft: false
+    confidence: 0.9
+    draft: false
+  - key: FEATURE-SMARTCOVERAGEMANAGER
+    title: Smart Coverage Manager
+    outcomes:
+      - Provides Smart Coverage Manager functionality
+    acceptance:
+      - SmartCoverageManager class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-SMARTCOVERAGEMANAGER-001
+        title: As a developer, I can configure Smart Coverage Manager
+        acceptance:
+          - Configuration functionality works as expected
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-SMARTCOVERAGEMANAGER-002
+        title: As a developer, I can validate Smart Coverage Manager data
+        acceptance:
+          - Check if a full test run is needed.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - check_if_full_test_needed()
+        confidence: 0.6
+        draft: false
+      - key: STORY-SMARTCOVERAGEMANAGER-003
+        title: As a user, I can view Smart Coverage Manager data
+        acceptance:
+          - Get current coverage status.
+          - Get recent test log files.
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - get_status()
+          - get_recent_logs()
+        confidence: 0.8
+        draft: false
+      - key: STORY-SMARTCOVERAGEMANAGER-004
+        title: As a user, I can use Smart Coverage Manager features
+        acceptance:
+          - Show recent test log files and their status.
+          - Show the latest test log content.
+          - Run tests with smart change detection and specified level.
+          - "Run tests by specified level: unit, folder, integration, e2e, or full."
+          - Force a test run regardless of file changes.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - show_recent_logs()
+          - show_latest_log()
+          - run_smart_tests()
+          - run_tests_by_level()
+          - force_full_run()
+        confidence: 0.8
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-YAMLUTILS
+    title: Y A M L Utils
+    outcomes:
+      - Helper class for YAML operations.
+    acceptance:
+      - YAMLUtils class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-YAMLUTILS-001
+        title: As a developer, I can configure Y A M L Utils
+        acceptance:
+          - Initialize YAML utilities.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-YAMLUTILS-002
+        title: As a user, I can use Y A M L Utils features
+        acceptance:
+          - Load YAML from file.
+          - Load YAML from string.
+          - Dump data to YAML file.
+          - Dump data to YAML string.
+          - Deep merge two YAML dictionaries.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - load()
+          - load_string()
+          - dump()
+          - dump_string()
+          - merge_yaml()
+        confidence: 0.8
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-GITOPERATIONS
+    title: Git Operations
+    outcomes:
+      - Helper class for Git operations.
+    acceptance:
+      - GitOperations class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-GITOPERATIONS-001
+        title: As a developer, I can configure Git Operations
+        acceptance:
+          - Initialize Git operations.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-GITOPERATIONS-002
+        title: As a user, I can use Git Operations features
+        acceptance:
+          - Initialize a new Git repository.
+          - Commit staged changes.
+          - Push commits to remote repository.
+          - Check if the working directory is clean.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - init()
+          - commit()
+          - push()
+          - is_clean()
+        confidence: 0.8
+        draft: false
+      - key: STORY-GITOPERATIONS-003
+        title: As a user, I can create new Git Operations records
+        acceptance:
+          - Create a new branch.
+          - Add files to the staging area.
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - create_branch()
+          - add()
+        confidence: 0.8
+        draft: false
+      - key: STORY-GITOPERATIONS-004
+        title: As a developer, I can validate Git Operations data
+        acceptance:
+          - Checkout an existing branch.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - checkout()
+        confidence: 0.6
+        draft: false
+      - key: STORY-GITOPERATIONS-005
+        title: As a user, I can view Git Operations data
+        acceptance:
+          - Get the name of the current branch.
+          - List all branches.
+          - Get list of changed files.
+        tags: []
+        story_points: 5
+        value_points: 8
+        tasks:
+          - get_current_branch()
+          - list_branches()
+          - get_changed_files()
+        confidence: 0.8
+        draft: false
+    confidence: 1.0
+    draft: false
+  - key: FEATURE-FSMVALIDATOR
+    title: F S M Validator
+    outcomes:
+      - FSM validator for protocol validation.
+    acceptance:
+      - FSMValidator class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-FSMVALIDATOR-001
+        title: As a developer, I can configure F S M Validator
+        acceptance:
+          - Initialize FSM validator.
+        tags: []
+        story_points: 5
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-FSMVALIDATOR-002
+        title: As a developer, I can validate F S M Validator data
+        acceptance:
+          - Validate the FSM protocol.
+          - Check if transition is valid.
+        tags: []
+        story_points: 5
+        value_points: 3
+        tasks:
+          - validate()
+          - is_valid_transition()
+        confidence: 0.8
+        draft: false
+      - key: STORY-FSMVALIDATOR-003
+        title: As a user, I can view F S M Validator data
+        acceptance:
+          - Get all states reachable from given state.
+          - Get all transitions from given state.
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - get_reachable_states()
+          - get_transitions_from()
+        confidence: 0.8
+        draft: false
+    confidence: 1.0
+    draft: false
+  - key: FEATURE-SCHEMAVALIDATOR
+    title: Schema Validator
+    outcomes:
+      - Schema validator for plan bundles and protocols.
+    acceptance:
+      - SchemaValidator class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-SCHEMAVALIDATOR-001
+        title: As a developer, I can configure Schema Validator
+        acceptance:
+          - Initialize schema validator.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-SCHEMAVALIDATOR-002
+        title: As a developer, I can validate Schema Validator data
+        acceptance:
+          - Validate data against JSON schema.
+        tags: []
+        story_points: 5
+        value_points: 3
+        tasks:
+          - validate_json_schema()
+        confidence: 0.6
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-PLANCOMPARATOR
+    title: Plan Comparator
+    outcomes:
+      - Compares two plan bundles to detect deviations.
+    acceptance:
+      - PlanComparator class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-PLANCOMPARATOR-001
+        title: As a user, I can compare Plan Comparator data
+        acceptance:
+          - Compare two plan bundles and generate deviation report.
+        tags: []
+        story_points: 2
+        value_points: 5
+        tasks:
+          - compare()
+        confidence: 0.6
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-CODEANALYZER
+    title: Code Analyzer
+    outcomes:
+      - Analyzes Python code to auto-derive plan bundles.
+    acceptance:
+      - CodeAnalyzer class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-CODEANALYZER-001
+        title: As a developer, I can configure Code Analyzer
+        acceptance:
+          - Initialize code analyzer.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-CODEANALYZER-002
+        title: As a user, I can analyze data with Code Analyzer
+        acceptance:
+          - Analyze repository and generate plan bundle.
+        tags: []
+        story_points: 2
+        value_points: 5
+        tasks:
+          - analyze()
+        confidence: 0.6
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-PROTOCOLGENERATOR
+    title: Protocol Generator
+    outcomes:
+      - Generator for protocol YAML files.
+    acceptance:
+      - ProtocolGenerator class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-PROTOCOLGENERATOR-001
+        title: As a developer, I can configure Protocol Generator
+        acceptance:
+          - Initialize protocol generator.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-PROTOCOLGENERATOR-002
+        title: As a user, I can generate outputs from Protocol Generator
+        acceptance:
+          - Generate protocol YAML file from model.
+          - Generate file from custom template.
+        tags: []
+        story_points: 2
+        value_points: 5
+        tasks:
+          - generate()
+          - generate_from_template()
+        confidence: 0.8
+        draft: false
+      - key: STORY-PROTOCOLGENERATOR-003
+        title: As a user, I can use Protocol Generator features
+        acceptance:
+          - Render protocol to YAML string without writing to file.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - render_string()
+        confidence: 0.6
+        draft: false
+    confidence: 0.9
+    draft: false
+  - key: FEATURE-PLANGENERATOR
+    title: Plan Generator
+    outcomes:
+      - Generator for plan bundle YAML files.
+    acceptance:
+      - PlanGenerator class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-PLANGENERATOR-001
+        title: As a developer, I can configure Plan Generator
+        acceptance:
+          - Initialize plan generator.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-PLANGENERATOR-002
+        title: As a user, I can generate outputs from Plan Generator
+        acceptance:
+          - Generate plan bundle YAML file from model.
+          - Generate file from custom template.
+        tags: []
+        story_points: 2
+        value_points: 5
+        tasks:
+          - generate()
+          - generate_from_template()
+        confidence: 0.8
+        draft: false
+      - key: STORY-PLANGENERATOR-003
+        title: As a user, I can use Plan Generator features
+        acceptance:
+          - Render plan bundle to YAML string without writing to file.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - render_string()
+        confidence: 0.6
+        draft: false
+    confidence: 0.9
+    draft: false
+  - key: FEATURE-REPORTGENERATOR
+    title: Report Generator
+    outcomes:
+      - Generator for validation and deviation reports.
+    acceptance:
+      - ReportGenerator class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-REPORTGENERATOR-001
+        title: As a developer, I can configure Report Generator
+        acceptance:
+          - Initialize report generator.
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-REPORTGENERATOR-002
+        title: As a user, I can generate outputs from Report Generator
+        acceptance:
+          - Generate validation report file.
+          - Generate deviation report file.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - generate_validation_report()
+          - generate_deviation_report()
+        confidence: 0.8
+        draft: false
+      - key: STORY-REPORTGENERATOR-003
+        title: As a user, I can use Report Generator features
+        acceptance:
+          - Render report to markdown string without writing to file.
+        tags: []
+        story_points: 5
+        value_points: 3
+        tasks:
+          - render_markdown_string()
+        confidence: 0.6
+        draft: false
+    confidence: 0.9
+    draft: false
+  - key: FEATURE-DEVIATIONREPORT
+    title: Deviation Report
+    outcomes:
+      - Deviation report model.
+    acceptance:
+      - DeviationReport class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-DEVIATIONREPORT-001
+        title: As a user, I can use Deviation Report features
+        acceptance:
+          - Total number of deviations.
+          - Number of high severity deviations.
+          - Number of medium severity deviations.
+          - Number of low severity deviations.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - total_deviations()
+          - high_count()
+          - medium_count()
+          - low_count()
+        confidence: 0.8
+        draft: false
+    confidence: 0.8
+    draft: false
+  - key: FEATURE-VALIDATIONREPORT
+    title: Validation Report
+    outcomes:
+      - Validation report model (for backward compatibility).
+    acceptance:
+      - ValidationReport class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-VALIDATIONREPORT-001
+        title: As a user, I can create new Validation Report records
+        acceptance:
+          - Add a deviation and update counts.
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - add_deviation()
+        confidence: 0.6
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-TEXTUTILS
+    title: Text Utils
+    outcomes:
+      - A utility class for text manipulation.
+    acceptance:
+      - TextUtils class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-TEXTUTILS-001
+        title: As a user, I can use Text Utils features
+        acceptance:
+          - Shorten text to a maximum length, appending '...' if truncated.
+          - Extract code from markdown triple-backtick fences. If multiple fenced
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - shorten_text()
+          - clean_code()
+        confidence: 0.8
+        draft: false
+    confidence: 0.8
+    draft: false
+  - key: FEATURE-MESSAGEFLOWFORMATTER
+    title: Message Flow Formatter
+    outcomes:
+      - Custom formatter that recognizes message flow patterns and formats them
+        accordingly
+    acceptance:
+      - MessageFlowFormatter class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-MESSAGEFLOWFORMATTER-001
+        title: As a developer, I can configure Message Flow Formatter
+        acceptance:
+          - Initialize the formatter with the agent name
+        tags: []
+        story_points: 2
+        value_points: 3
+        tasks:
+          - __init__()
+        confidence: 0.6
+        draft: false
+      - key: STORY-MESSAGEFLOWFORMATTER-002
+        title: As a user, I can use Message Flow Formatter features
+        acceptance:
+          - Format the log record according to message flow patterns
+        tags: []
+        story_points: 8
+        value_points: 3
+        tasks:
+          - format()
+        confidence: 0.6
+        draft: false
+    confidence: 0.7
+    draft: false
+  - key: FEATURE-LOGGERSETUP
+    title: Logger Setup
+    outcomes:
+      - Utility class for standardized logging setup across all agents
+    acceptance:
+      - LoggerSetup class provides documented functionality
+    constraints: []
+    stories:
+      - key: STORY-LOGGERSETUP-001
+        title: As a user, I can view Logger Setup data
+        acceptance:
+          - Shuts down all active queue listeners.
+          - Get a logger by name
+        tags: []
+        story_points: 2
+        value_points: 8
+        tasks:
+          - shutdown_listeners()
+          - get_logger()
+        confidence: 0.8
+        draft: false
+      - key: STORY-LOGGERSETUP-002
+        title: As a user, I can create new Logger Setup records
+        acceptance:
+          - Creates a dedicated logger for inter-agent message flow.
+          - Creates a new logger or returns an existing one with the specified
+            configuration.
+        tags: []
+        story_points: 8
+        value_points: 8
+        tasks:
+          - create_agent_flow_logger()
+          - create_logger()
+        confidence: 0.8
+        draft: false
+      - key: STORY-LOGGERSETUP-003
+        title: As a user, I can use Logger Setup features
+        acceptance:
+          - Flush all active loggers to ensure their output is written
+          - Flush a specific logger by name
+          - Write test summary in a format that log_analyzer.py can understand
+          - Log a message at TRACE level (5)
+          - Recursively mask sensitive values (API keys, tokens, passwords, secrets)
+            in dicts/lists/strings.
+        tags: []
+        story_points: 5
+        value_points: 5
+        tasks:
+          - flush_all_loggers()
+          - flush_logger()
+          - write_test_summary()
+          - trace()
+          - redact_secrets()
+        confidence: 0.8
+        draft: false
+    confidence: 1.0
+    draft: false

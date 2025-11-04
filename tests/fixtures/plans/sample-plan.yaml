@@ -1,0 +1,106 @@
+version: "1.0"
+
+idea:
+  title: "Developer Productivity CLI"
+  narrative: "A CLI tool to help developers ship faster with better quality."
+  target_users:
+    - "Professional developers"
+    - "Engineering teams"
+  value_hypothesis: "Reduce time-to-production by catching bugs early"
+  constraints:
+    - "Must work offline"
+    - "Zero configuration by default"
+  metrics:
+    adoption_rate: "100 installs/week"
+    bug_detection_rate: "80%"
+
+business:
+  segments:
+    - "SMB"
+    - "Enterprise"
+  problems:
+    - "Slow feedback loops"
+    - "Manual code review overhead"
+  solutions:
+    - "Automated contract validation"
+    - "Real-time feedback"
+  differentiation:
+    - "Temporal contracts with FSM validation"
+    - "Offline-first architecture"
+  risks:
+    - "Market adoption"
+    - "Competition from existing tools"
+
+product:
+  themes:
+    - "Developer Experience"
+    - "Quality Assurance"
+  releases:
+    - name: "v0.1.0 MVP"
+      objectives:
+        - "Launch CLI with core validation"
+        - "Support basic workflows"
+      scope:
+        - "FEATURE-001"
+        - "FEATURE-002"
+      risks:
+        - "Integration complexity"
+
+features:
+  - key: "FEATURE-001"
+    title: "Plan Bundle Management"
+    outcomes:
+      - "Users can create and validate plan bundles"
+      - "Plans conform to schema"
+    acceptance:
+      - "CLI can load plan.bundle.yaml"
+      - "Schema validation reports errors"
+      - "Valid plans pass validation"
+    constraints:
+      - "Must support YAML 1.2"
+    stories:
+      - key: "STORY-001"
+        title: "As a developer, I can init a new plan"
+        acceptance:
+          - "specfact plan init creates plan.bundle.yaml"
+          - "Generated plan passes validation"
+        tags:
+          - "cli"
+          - "greenfield"
+        confidence: 0.9
+        draft: false
+      - key: "STORY-002"
+        title: "As a developer, I can validate an existing plan"
+        acceptance:
+          - "specfact plan validate reports all errors"
+          - "Exit code 0 for valid plans"
+        tags:
+          - "cli"
+          - "validation"
+        confidence: 0.95
+        draft: false
+    confidence: 0.85
+    draft: false
+
+  - key: "FEATURE-002"
+    title: "Protocol Validation"
+    outcomes:
+      - "FSM protocols are validated for correctness"
+      - "State reachability is verified"
+    acceptance:
+      - "CLI validates protocol.yaml syntax"
+      - "Unreachable states are detected"
+      - "Cycle detection works"
+    stories:
+      - key: "STORY-003"
+        title: "As a developer, I can validate FSM protocols"
+        acceptance:
+          - "specfact protocol validate checks FSM"
+          - "Reports show specific issues"
+        tags:
+          - "fsm"
+          - "validation"
+        confidence: 0.8
+        draft: false
+    confidence: 0.75
+    draft: false

@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# yamllint disable rule:line-length rule:truthy
+name: Pre-Merge Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check:
+    name: Check for Temporary Files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for temporary files
+        id: check-temp
+        run: |
+          # Check for temporary files in PR
+          TEMP_FILES=$(git diff origin/main...HEAD --name-only | grep -E "(temp_|debug_|test_.*\.py$|trigger_.*\.py$)" || true)
+          
+          if [ -n "$TEMP_FILES" ]; then
+            echo "❌ Temporary files detected in PR:"
+            echo "$TEMP_FILES"
+            echo "::error::Temporary files detected! Remove them before merging."
+            exit 1
+          else
+            echo "✅ No temporary files detected"
+            echo "::notice::No temporary files found in PR"
+          fi
+
+      - name: Check for WIP commits
+        id: check-wip
+        run: |
+          # Check for WIP commits in PR
+          WIP_COMMITS=$(git log origin/main..HEAD --oneline | grep -i "wip\|todo\|fixme\|xxx" || true)
+          
+          if [ -n "$WIP_COMMITS" ]; then
+            echo "⚠️ WIP commits detected (may be intentional):"
+            echo "$WIP_COMMITS"
+            echo "::warning::WIP commits found. Review before merging."
+          else
+            echo "✅ No WIP commits detected"
+          fi
+
+      - name: Check for large files
+        id: check-size
+        run: |
+          # Check for files larger than 1MB
+          LARGE_FILES=$(git diff origin/main...HEAD --name-only | xargs -I {} find {} -size +1M 2>/dev/null || true)
+          
+          if [ -n "$LARGE_FILES" ]; then
+            echo "⚠️ Large files detected:"
+            echo "$LARGE_FILES"
+            echo "::warning::Large files detected. Consider using Git LFS."
+          else
+            echo "✅ No large files detected"
+          fi
+
