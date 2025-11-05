@@ -134,9 +134,9 @@ dependencies = [
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright {args}"
-lint = "black . --line-length=120 && isort . && basedpyright && ruff check . && ruff format . --check && pylint src tests tools"
+lint = "black . --line-length=120 && basedpyright && ruff check . && ruff format . --check && pylint src tests tools"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
-format = "black . --line-length=120 && isort . && ruff check . --fix && ruff format ."
+format = "black . --line-length=120 && ruff check . --fix && ruff format ."
 
 # Code scanning (Semgrep)
 scan = "semgrep --config tools/semgrep/async.yml {args}"
@@ -634,8 +634,14 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
+# Match isort black profile configuration
+# Black-compatible: multi_line_output = 3, combine_as_imports = true
 force-single-line = false
+force-wrap-aliases = false
+combine-as-imports = true
+split-on-trailing-comma = true
 lines-after-imports = 2
+known-first-party = ["specfact_cli"]
 
 [tool.ruff.format]
 quote-style = "double"
