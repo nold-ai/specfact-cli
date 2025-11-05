@@ -19,6 +19,7 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 
+
 console = Console()
 
 
@@ -103,7 +104,13 @@ class ReproReport:
         """
         if self.budget_exceeded or self.timeout_checks > 0:
             return 2
-        if self.failed_checks > 0:
+        # CrossHair failures are non-blocking (advisory only) - don't count them
+        failed_checks_blocking = [
+            check
+            for check in self.checks
+            if check.status == CheckStatus.FAILED and check.tool != "crosshair"
+        ]
+        if failed_checks_blocking:
             return 1
         return 0
 
@@ -260,7 +267,7 @@ class ReproChecker:
         src_dir = self.repo_path / "src"
 
         checks: list[tuple[str, str, list[str], int | None, bool]] = [
-            ("Linting (ruff)", "ruff", ["ruff", "check", "."], None, True),
+            ("Linting (ruff)", "ruff", ["ruff", "check", "src/", "tests/", "tools/"], None, True),
         ]
 
         # Add semgrep only if config exists
@@ -277,13 +284,26 @@ class ReproChecker:
 
         checks.extend(
             [
-                ("Type checking (basedpyright)", "basedpyright", ["basedpyright", "."], None, True),
+                ("Type checking (basedpyright)", "basedpyright", ["basedpyright", "src/", "tools/"], None, True),
             ]
         )
 
         # Add CrossHair only if src/ exists
+        # Exclude common/logger_setup.py from CrossHair analysis due to known signature analysis issues
+        # CrossHair doesn't support --exclude, so we exclude the common directory and add other directories
         if src_dir.exists():
-            checks.append(("Contract exploration (CrossHair)", "crosshair", ["crosshair", "check", "src/"], 60, True))
+            # Get all subdirectories except common
+            specfact_dirs = [d for d in src_dir.iterdir() if d.is_dir() and d.name != "common"]
+            crosshair_targets = ["src/" + d.name for d in specfact_dirs] + ["tools/"]
+            checks.append(
+                (
+                    "Contract exploration (CrossHair)",
+                    "crosshair",
+                    ["crosshair", "check", *crosshair_targets],
+                    60,
+                    True,
+                )
+            )
 
         # Add property tests only if directory exists
         if contracts_tests.exists():

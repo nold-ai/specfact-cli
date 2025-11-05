@@ -13,6 +13,7 @@ from specfact_cli.models.plan import PlanBundle
 from specfact_cli.models.protocol import Protocol
 from specfact_cli.utils.yaml_utils import load_yaml
 
+
 runner = CliRunner()
 
 

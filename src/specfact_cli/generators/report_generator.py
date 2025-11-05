@@ -10,7 +10,7 @@ from beartype import beartype
 from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
-from specfact_cli.models.deviation import DeviationReport, ValidationReport
+from specfact_cli.models.deviation import Deviation, DeviationReport, ValidationReport
 from specfact_cli.utils.yaml_utils import dump_yaml
 
 
@@ -112,7 +112,7 @@ class ReportGenerator:
 
     def _generate_markdown_report(self, report: ValidationReport, output_path: Path) -> None:
         """Generate markdown validation report."""
-        lines = []
+        lines: list[str] = []
         lines.append("# Validation Report\n")
         lines.append(f"**Status**: {'✅ PASSED' if report.passed else '❌ FAILED'}\n")
         total_count = len(report.deviations)
@@ -137,14 +137,14 @@ class ReportGenerator:
 
     def _generate_deviation_markdown(self, report: DeviationReport, output_path: Path) -> None:
         """Generate markdown deviation report."""
-        lines = []
+        lines: list[str] = []
         lines.append("# Deviation Report\n")
         lines.append(f"**Manual Plan**: {report.manual_plan}")
         lines.append(f"**Auto Plan**: {report.auto_plan}")
         lines.append(f"**Total Deviations**: {len(report.deviations)}\n")
 
         # Group by type
-        by_type: dict = {}
+        by_type: dict[str, list[Deviation]] = {}
         for deviation in report.deviations:
             type_key = deviation.type.value
             if type_key not in by_type:

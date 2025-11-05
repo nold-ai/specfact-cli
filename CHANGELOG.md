@@ -9,9 +9,61 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.4.1] - 2025-11-05
+
+### Added (0.4.1)
+
+- **GitHub Pages Documentation Setup**
+  - Created `.github/workflows/github-pages.yml` workflow for automatic documentation deployment
+  - Added `_config.yml` Jekyll configuration with Minima theme
+  - Created `docs/Gemfile` with Jekyll dependencies
+  - Added `docs/index.md` homepage template with Jekyll front matter
+  - Updated `README.md` with documentation section and GitHub Pages link
+  - Configured Jekyll to build from `docs/` directory with clean navigation
+  - Includes trademark information in footer
+  - Automatic deployment on push to `main` branch when docs change
+
+- **Trademark Information and Legal Notices**
+  - Created `TRADEMARKS.md` with comprehensive trademark information
+  - Documented NOLD AI (NOLDAI) as registered trademark (wordmark) at EUIPO
+  - Listed all third-party trademarks (AI tools, IDEs, development platforms) with ownership information
+  - Added trademark notices to key documentation files:
+    - `README.md` - Footer trademark notice
+    - `LICENSE.md` - Enhanced trademark section
+    - `docs/README.md` - Documentation footer notice
+    - `docs/guides/ide-integration.md` - IDE integration guide notice
+    - `AGENTS.md` - Repository guidelines notice
+  - Added trademark URL to `pyproject.toml` project URLs
+  - Ensures proper trademark attribution throughout the project
+
+### Fixed (0.4.1)
+
+- **Semgrep Rules Bundling for Runtime**
+  - Fixed issue where `tools/semgrep/async.yml` was excluded from package distribution
+  - Added `src/specfact_cli/resources/semgrep/async.yml` as bundled package resource
+  - Updated `workflow_generator.py` to use package resource for installed packages
+  - Falls back to `tools/semgrep/async.yml` for development environments
+  - Ensures `specfact import from-spec-kit` can generate semgrep rules at runtime
+  - Resolves `FileNotFoundError` when running import command in installed packages
+
+- **Plan Bundle Metadata Parameter**
+  - Fixed missing `metadata` parameter in `PlanBundle` constructors across all test files
+  - Added `metadata=None` to all `PlanBundle` instances in integration and unit tests
+  - Resolves `basedpyright` `reportCallIssue` errors for missing metadata parameter
+  - All 22 type-checking errors related to metadata resolved
+
+### Changed (0.4.1)
+
+- **Semgrep Rules Location**
+  - `tools/semgrep/async.yml` - Used for development (hatch scripts, local testing)
+  - `src/specfact_cli/resources/semgrep/async.yml` - Bundled in package for runtime use
+  - Updated `tools/semgrep/README.md` to document dual-location approach
+
+---
+
 ## [0.4.0] - 2025-11-05
 
-### Changed (2025-11-05) - Plan Name Consistency in Brownfield Import
+### Changed (0.4.0) - Plan Name Consistency in Brownfield Import
 
 - **`specfact import from-code` Plan Name Usage**
   - Updated import logic to use user-provided plan name (from `--name` option) for `idea.title` instead of "Unknown Project"
@@ -38,7 +90,7 @@ All notable changes to this project will be documented in this file.
   - Updated PlanBundle structure example to show `idea` section with plan name
   - Clear guidance on plan name usage for AI-generated plan bundles
 
-### Fixed (2025-11-05)
+### Fixed (0.4.0)
 
 - **Plan Bundle Title Consistency**
   - Fixed issue where brownfield plans always showed "Unknown Project" as title

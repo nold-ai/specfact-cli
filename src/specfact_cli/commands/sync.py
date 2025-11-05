@@ -9,15 +9,15 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import typer
-from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli.models.plan import PlanBundle
 from specfact_cli.sync.speckit_sync import SpecKitSync
+
 
 app = typer.Typer(help="Synchronize Spec-Kit artifacts and repository changes")
 console = Console()
@@ -35,7 +35,7 @@ def _sync_speckit_to_specfact(repo: Path, converter: Any, scanner: Any, progress
     from specfact_cli.validators.schema import validate_plan_bundle
 
     plan_path = repo / SpecFactStructure.DEFAULT_PLAN
-    existing_bundle: Optional[PlanBundle] = None
+    existing_bundle: PlanBundle | None = None
 
     if plan_path.exists():
         validation_result = validate_plan_bundle(plan_path)
@@ -93,7 +93,7 @@ def sync_spec_kit(
         "--bidirectional",
         help="Enable bidirectional sync (Spec-Kit ↔ SpecFact)",
     ),
-    plan: Optional[Path] = typer.Option(
+    plan: Path | None = typer.Option(
         None,
         "--plan",
         help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: .specfact/plans/main.bundle.yaml)",
@@ -327,7 +327,7 @@ def sync_repository(
         file_okay=False,
         dir_okay=True,
     ),
-    target: Optional[Path] = typer.Option(
+    target: Path | None = typer.Option(
         None,
         "--target",
         help="Target directory for artifacts (default: .specfact)",

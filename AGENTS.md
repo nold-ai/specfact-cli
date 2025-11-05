@@ -69,10 +69,18 @@
 
 ## Commit & Pull Request Guidelines
 
+- **Branch Protection**: This repository has branch protection enabled for `dev` and `main` branches. All changes must be made via Pull Requests:
+  - **Never commit directly to `dev` or `main`** - create a feature/bugfix/hotfix branch instead
+  - Create a feature branch: `git checkout -b feature/your-feature-name`
+  - Create a bugfix branch: `git checkout -b bugfix/your-bugfix-name`
+  - Create a hotfix branch: `git checkout -b hotfix/your-hotfix-name`
+  - Push your branch and create a PR to `dev` or `main`
+  - All PRs must pass CI/CD checks before merging
 - Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`)
 - **Contract-first workflow**: Before pushing, run `hatch run format`, `hatch run lint`, and `hatch run contract-test`
 - PRs should link to CLI-First Strategy docs, describe contract impacts, and include tests
 - Attach contract validation notes and screenshots/logs when behavior changes
+- **Version Updates**: When updating the version in `pyproject.toml`, ensure it's newer than the latest PyPI version. The CI/CD pipeline will automatically publish to PyPI after successful merge to `main` only if the version is newer.
 
 ## CLI Command Development Notes
 
@@ -223,3 +231,7 @@ console.print("[bold red]✗[/bold red] Validation failed")
 - **[Contributing Guide](./CONTRIBUTING.md)** - Contribution guidelines and workflow
 - **[Testing Guide](./.cursor/rules/testing-and-build-guide.mdc)** - Testing procedures
 - **[Python Rules](./.cursor/rules/python-github-rules.mdc)** - Development standards
+
+---
+
+**Trademarks**: All product names, logos, and brands mentioned in this document are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](./TRADEMARKS.md) for more information.

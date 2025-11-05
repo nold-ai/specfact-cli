@@ -83,7 +83,7 @@ class TestPlanBundle:
         product = Product(themes=["Innovation"])
         features = [Feature(key="FEATURE-001", title="Feature 1")]
 
-        bundle = PlanBundle(idea=idea, business=business, product=product, features=features)
+        bundle = PlanBundle(idea=idea, business=business, product=product, features=features, metadata=None)
 
         # Test business logic: nested relationships
         # Since we set idea and business, they should not be None

@@ -51,6 +51,7 @@ class TestPlanGenerator:
                     ],
                 )
             ],
+            metadata=None,
         )
 
     @pytest.fixture
@@ -110,6 +111,7 @@ class TestPlanGenerator:
                 themes=[],
                 releases=[],
             ),
+            metadata=None,
         )
 
         output_path = output_dir / "plan.bundle.yaml"

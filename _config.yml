@@ -1,0 +1,78 @@
+# Jekyll configuration for GitHub Pages
+# This file configures Jekyll for GitHub Pages documentation
+
+title: SpecFact CLI Documentation
+description: >-
+  Complete documentation for SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development.
+baseurl: "" # Set to "/specfact-cli" if using project pages, "" for user/organization pages
+url: "https://nold-ai.github.io" # Set to your GitHub Pages domain
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+plugins:
+  - jekyll-feed
+  - jekyll-redirect-from
+  - jekyll-relative-links
+  - jekyll-sitemap
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - .git
+  - .github
+  - .cursor
+  - .specfact
+  - tests
+  - tools
+  - contracts
+  - reports
+  - logs
+  - dist
+  - build
+  - scripts
+  - specs
+  - resources
+
+# Source and destination (Jekyll will look for files in docs/)
+# Note: For GitHub Pages, Jekyll typically expects source in root or docs/
+source: docs
+destination: _site
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: default
+      permalink: /:basename/
+
+# Theme settings (using minimal theme for clean look)
+theme: minima
+minima:
+  social:
+    github: nold-ai/specfact-cli
+  author:
+    name: NOLD AI
+    email: hello@noldai.com
+
+# Navigation
+navigation:
+  - title: Getting Started
+    url: /getting-started/
+  - title: Guides
+    url: /guides/
+  - title: Reference
+    url: /reference/
+  - title: Examples
+    url: /examples/
+
+# Footer
+footer:
+  copyright: "© 2025 Nold AI (Owner: Dominikus Nold)"
+  trademark: "NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All other trademarks mentioned are the property of their respective owners."
+

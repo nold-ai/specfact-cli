@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 from specfact_cli.cli import app
 from specfact_cli.utils.yaml_utils import dump_yaml
 
+
 runner = CliRunner()
 
 

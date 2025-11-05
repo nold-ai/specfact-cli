@@ -8,4 +8,5 @@ repository changes, and SpecFact plans.
 from specfact_cli.sync.repository_sync import RepositorySync, RepositorySyncResult
 from specfact_cli.sync.speckit_sync import SpecKitSync, SyncResult
 
+
 __all__ = ["RepositorySync", "RepositorySyncResult", "SpecKitSync", "SyncResult"]

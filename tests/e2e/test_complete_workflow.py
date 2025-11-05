@@ -121,6 +121,7 @@ class TestCompleteWorkflow:
             business=business,
             product=product,
             features=[feature1, feature2],
+            metadata=None,
         )
 
         # Step 6: Validate with Pydantic
@@ -243,6 +244,7 @@ class TestCompleteWorkflow:
                     stories=[],
                 ),
             ],
+            metadata=None,
         )
 
         # Step 2: Create an "auto-derived" plan (actual implementation)
@@ -268,6 +270,7 @@ class TestCompleteWorkflow:
                 ),
                 # Missing FEATURE-002 entirely
             ],
+            metadata=None,
         )
 
         # Step 3: Compare and create deviation report
@@ -347,6 +350,7 @@ class TestCompleteWorkflow:
             business=None,
             product=product,
             features=[feature],
+            metadata=None,
         )
 
         # Save plan
@@ -503,6 +507,56 @@ class TestGeneratorE2EWorkflows:
                 },
             ),
             business=Business(
+                segments=["Enterprise", "Startups"],
+                problems=["Manual code review is slow", "Inconsistent quality standards"],
+                solutions=["Automated LLM-based review", "Multi-agent system"],
+                differentiation=["Faster than human review", "Consistent quality"],
+                risks=["Model accuracy", "API costs"],
+            ),
+            product=Product(
+                themes=["AI/ML", "Developer Productivity"],
+                releases=[
+                    Release(
+                        name="v1.0",
+                        objectives=["Basic review", "Multi-agent integration"],
+                        scope=["FEATURE-001", "FEATURE-002"],
+                        risks=["Model accuracy"],
+                    )
+                ],
+            ),
+            features=[
+                Feature(
+                    key="FEATURE-001",
+                    title="LLM Code Analysis",
+                    outcomes=["Automated review", "Quality checks"],
+                    acceptance=["Reviews generated", "Actionable feedback"],
+                    stories=[],
+                ),
+                Feature(
+                    key="FEATURE-002",
+                    title="Multi-Agent System",
+                    outcomes=["Specialized agents", "Collaborative review"],
+                    acceptance=["Agents work together", "Consensus reached"],
+                    stories=[],
+                ),
+            ],
+            metadata=None,
+        )
+        # Original plan content (removed duplicate)
+        original_plan = PlanBundle(
+            version="1.0",
+            idea=Idea(
+                title="Multi-Agent System for Code Review",
+                narrative="Autonomous system using multiple specialized agents for comprehensive code review",
+                target_users=["software teams", "DevOps engineers", "technical leads"],
+                value_hypothesis="Reduce code review time by 70% while improving quality scores by 40%",
+                metrics={
+                    "review_time_reduction": 0.7,
+                    "quality_improvement": 0.4,
+                    "false_positive_rate": 0.05,
+                },
+            ),
+            business=Business(
                 segments=["Enterprise SaaS", "Developer Tools"],
                 problems=[
                     "Manual code reviews are time-consuming",
@@ -576,12 +630,13 @@ class TestGeneratorE2EWorkflows:
                     ],
                 ),
             ],
+            metadata=None,
         )
 
         # Step 2: Generate plan to file
         generator = PlanGenerator()
         plan_path = workspace / "plans" / "multi-agent-review.yaml"
-        generator.generate(plan, plan_path)
+        generator.generate(original_plan, plan_path)
         print(f"✅ Generated plan: {plan_path.name}")
 
         # Step 3: Validate generated plan
@@ -808,6 +863,7 @@ class TestGeneratorE2EWorkflows:
                     ],
                 )
             ],
+            metadata=None,
         )
 
         plan_gen = PlanGenerator()
@@ -1153,6 +1209,7 @@ class TestPlanCreationE2E:
                     ],
                 ),
             ],
+            metadata=None,
         )
 
         # Step 2: Generate plan file
@@ -1252,6 +1309,7 @@ class TestPlanCreationE2E:
             business=None,
             product=Product(themes=[], releases=[]),
             features=[],
+            metadata=None,
         )
 
         generator = PlanGenerator()
@@ -1394,6 +1452,7 @@ class TestPlanComparisonWorkflow:
             business=None,
             product=manual_product,
             features=manual_features,
+            metadata=None,
         )
 
         manual_path = workspace / "contracts" / "plans" / "manual.yaml"
@@ -1460,6 +1519,7 @@ class TestPlanComparisonWorkflow:
             business=None,
             product=auto_product,
             features=auto_features,
+            metadata=None,
         )
 
         auto_path = workspace / "contracts" / "plans" / "auto-derived.yaml"
@@ -1558,6 +1618,7 @@ class TestPlanComparisonWorkflow:
             business=None,
             product=auto_product,
             features=auto_features,
+            metadata=None,
         )
 
         auto_path = workspace / "contracts" / "plans" / "brownfield-auto.yaml"
@@ -1611,6 +1672,7 @@ class TestPlanComparisonWorkflow:
             business=None,
             product=manual_product,
             features=manual_features,
+            metadata=None,
         )
 
         manual_path = workspace / "contracts" / "plans" / "manual-target.yaml"
@@ -1664,6 +1726,7 @@ class TestPlanComparisonWorkflow:
                     stories=[],
                 ),
             ],
+            metadata=None,
         )
 
         generator.generate(improved_auto_plan, auto_path)

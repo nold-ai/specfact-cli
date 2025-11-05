@@ -95,10 +95,10 @@ class TestCodeAnalyzerIntegration:
 
             # Analyze the codebase
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Verify results
-            assert isinstance(plan_bundle, PlanBundle)
+            assert isinstance(_plan_bundle, PlanBundle)
             assert len(analyzer.features) >= 3  # At least 3 features (CoreService, APIService, DataRepository)
 
             # Verify dependency graph was built
@@ -340,7 +340,7 @@ class TestCodeAnalyzerIntegration:
 
             # Analyze with high confidence threshold
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.8)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Should only include well-documented service (or empty if threshold too high)
             feature_keys = [f.key.lower() for f in analyzer.features]
@@ -398,7 +398,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "module_c.py").write_text(module_c)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Verify dependency graph structure
             assert len(analyzer.dependency_graph.nodes) >= 3
@@ -466,7 +466,7 @@ class TestCodeAnalyzerIntegration:
 
             # Should not raise exception
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Should still analyze valid file
             assert len(analyzer.features) >= 1
@@ -492,7 +492,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "service.py").write_text(code)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Should analyze nested structure
             assert len(analyzer.features) >= 1

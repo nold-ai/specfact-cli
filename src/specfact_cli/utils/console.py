@@ -14,6 +14,7 @@ from rich.table import Table
 
 from specfact_cli.models.deviation import DeviationSeverity, ValidationReport
 
+
 # Shared console instance
 console = Console()
 

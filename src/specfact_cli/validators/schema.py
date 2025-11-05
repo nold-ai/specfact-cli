@@ -136,9 +136,7 @@ def validate_plan_bundle(
     """
     # If it's already a model, just return success report
     if isinstance(plan_or_path, PlanBundle):
-        report = ValidationReport()
-        # Could add additional validation logic here if needed
-        return report
+        return ValidationReport()
 
     # Otherwise treat as path
     path = plan_or_path
@@ -177,9 +175,7 @@ def validate_protocol(protocol_or_path: Protocol | Path) -> ValidationReport | t
     """
     # If it's already a model, just return success report
     if isinstance(protocol_or_path, Protocol):
-        report = ValidationReport()
-        # Could add additional validation logic here if needed
-        return report
+        return ValidationReport()
 
     # Otherwise treat as path
     path = protocol_or_path

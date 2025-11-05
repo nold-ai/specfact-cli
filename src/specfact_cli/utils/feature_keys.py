@@ -6,6 +6,7 @@ to enable consistent comparison and merging of plans.
 """
 
 import re
+from typing import Any
 
 from beartype import beartype
 
@@ -39,9 +40,7 @@ def normalize_feature_key(key: str) -> str:
     key = key.replace("FEATURE-", "").replace("000_", "").replace("001_", "")
 
     # Remove underscores and spaces, convert to uppercase
-    normalized = re.sub(r"[_\s-]", "", key).upper()
-
-    return normalized
+    return re.sub(r"[_\s-]", "", key).upper()
 
 
 @beartype
@@ -159,7 +158,7 @@ def convert_feature_keys(features: list, target_format: str = "sequential", star
         >>> convert_feature_keys(features, "sequential")
         [{'key': 'FEATURE-001', 'title': 'Contract First Test Manager', ...}]
     """
-    converted = []
+    converted: list[dict[str, Any]] = []
     current_index = start_index
 
     for feature in features:

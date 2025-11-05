@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from specfact_cli.modes import OperationalMode, detect_mode
 
+
 runner = CliRunner()
 
 

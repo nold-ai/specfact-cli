@@ -7,4 +7,5 @@ stories, and generate plan bundles from brownfield codebases.
 
 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
+
 __all__ = ["CodeAnalyzer"]

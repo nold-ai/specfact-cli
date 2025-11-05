@@ -1,0 +1,285 @@
+rules:
+  - id: asyncio-create-task-not-awaited
+    patterns:
+      - pattern: asyncio.create_task(...)
+      - pattern-not-inside: await asyncio.create_task(...)
+      - pattern-not-inside: $TASK = asyncio.create_task(...)
+    message: |
+      Fire-and-forget task created without storing reference or awaiting.
+      This can lead to tasks being garbage collected before completion.
+      Either await the task or store the reference.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: correctness
+      subcategory: [async]
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+
+  - id: blocking-sleep-in-async
+    patterns:
+      - pattern-either:
+          - pattern: time.sleep(...)
+          - pattern: time.wait(...)
+      - pattern-inside: |
+          async def $FUNC(...):
+            ...
+    message: |
+      Blocking sleep in async function. Use asyncio.sleep() instead.
+      Blocking calls prevent other coroutines from running.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: correctness
+      subcategory: [async]
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+    fix: asyncio.sleep(...)
+
+  - id: missing-await-on-coroutine
+    patterns:
+      - pattern: $FUNC(...)
+      - pattern-not: await $FUNC(...)
+      - pattern-not: asyncio.create_task($FUNC(...))
+      - pattern-not: asyncio.gather($FUNC(...), ...)
+      - pattern-inside: |
+          async def $OUTER(...):
+            ...
+    message: |
+      Coroutine call without await. This creates a coroutine object but never executes it.
+      Add 'await' keyword or use asyncio.create_task() for background execution.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: correctness
+      subcategory: [async]
+      likelihood: HIGH
+      impact: HIGH
+      confidence: MEDIUM
+
+  - id: bare-except-in-async
+    patterns:
+      - pattern-either:
+          - pattern: |
+              try:
+                ...
+              except:
+                ...
+          - pattern: |
+              try:
+                ...
+              except Exception:
+                pass
+      - pattern-inside: |
+          async def $FUNC(...):
+            ...
+    message: |
+      Bare except or silent exception handling in async function.
+      This can hide errors in coroutines and make debugging difficult.
+      Use specific exception types and log errors.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: [async, error-handling]
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: HIGH
+
+  - id: missing-timeout-on-wait
+    patterns:
+      - pattern-either:
+          - pattern: await asyncio.wait_for($CORO, None)
+          - pattern: await $CORO
+      - pattern-not: await asyncio.wait_for($CORO, timeout=...)
+      - pattern-inside: |
+          async def $FUNC(...):
+            ...
+    message: |
+      Async wait without timeout. Long-running operations should have timeouts
+      to prevent indefinite hangs. Use asyncio.wait_for(coro, timeout=...).
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: [async, timeout]
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: LOW
+
+  - id: blocking-file-io-in-async
+    patterns:
+      - pattern-either:
+          - pattern: open(...)
+          - pattern: $FILE.read(...)
+          - pattern: $FILE.write(...)
+      - pattern-not-inside: |
+          with aiofiles.open(...) as $F:
+            ...
+      - pattern-inside: |
+          async def $FUNC(...):
+            ...
+    message: |
+      Blocking file I/O in async function. Use aiofiles or run_in_executor()
+      for file operations to avoid blocking the event loop.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+      subcategory: [async, io]
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: MEDIUM
+
+  - id: asyncio-gather-without-error-handling
+    patterns:
+      - pattern: await asyncio.gather(...)
+      - pattern-not-inside: |
+          try:
+            await asyncio.gather(...)
+          except ...:
+            ...
+      - pattern-not: await asyncio.gather(..., return_exceptions=True)
+    message: |
+      asyncio.gather() without error handling. If any coroutine raises an exception,
+      gather() will raise it immediately. Use return_exceptions=True or wrap in try/except.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: [async, error-handling]
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: HIGH
+
+  - id: event-loop-in-async-context
+    patterns:
+      - pattern-either:
+          - pattern: asyncio.get_event_loop().run_until_complete(...)
+          - pattern: asyncio.run(...)
+      - pattern-inside: |
+          async def $FUNC(...):
+            ...
+    message: |
+      Running event loop inside async context. This creates a nested event loop
+      which can cause deadlocks. Use 'await' instead of run_until_complete().
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: correctness
+      subcategory: [async]
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+
+  - id: missing-async-context-manager
+    patterns:
+      - pattern: |
+          async with $RESOURCE:
+            ...
+      - pattern-not: |
+          async with $RESOURCE as $VAR:
+            ...
+    message: |
+      Async context manager without variable binding. Consider binding the resource
+      to a variable for explicit resource management.
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: best-practice
+      subcategory: [async]
+      likelihood: LOW
+      impact: LOW
+      confidence: MEDIUM
+
+  - id: sync-lock-in-async
+    patterns:
+      - pattern-either:
+          - pattern: threading.Lock()
+          - pattern: threading.RLock()
+          - pattern: threading.Semaphore()
+      - pattern-inside: |
+          async def $FUNC(...):
+            ...
+    message: |
+      Using synchronous lock in async function. Use asyncio.Lock() or
+      asyncio.Semaphore() instead to avoid blocking the event loop.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: correctness
+      subcategory: [async, concurrency]
+      likelihood: HIGH
+      impact: HIGH
+      confidence: HIGH
+
+  - id: sequential-await-could-be-parallel
+    patterns:
+      - pattern: |
+          await $FUNC1(...)
+          await $FUNC2(...)
+      - pattern-not-inside: |
+          results = await asyncio.gather(
+            $FUNC1(...),
+            $FUNC2(...),
+          )
+    message: |
+      Sequential awaits that could be parallelized. If these operations are
+      independent, use asyncio.gather() to run them concurrently.
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: performance
+      subcategory: [async]
+      likelihood: LOW
+      impact: LOW
+      confidence: LOW
+
+  - id: missing-cancellation-handling
+    patterns:
+      - pattern: |
+          async def $FUNC(...):
+            ...
+      - pattern-not-inside: |
+          try:
+            ...
+          except asyncio.CancelledError:
+            ...
+    message: |
+      Async function without cancellation handling. Long-running tasks should
+      handle CancelledError to clean up resources properly.
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: best-practice
+      subcategory: [async, cleanup]
+      likelihood: LOW
+      impact: MEDIUM
+      confidence: LOW
+
+  - id: task-result-not-checked
+    patterns:
+      - pattern: |
+          $TASK = asyncio.create_task(...)
+          ...
+      - pattern-not: |
+          $TASK = asyncio.create_task(...)
+          ...
+          $RESULT = await $TASK
+      - pattern-not: |
+          $TASK = asyncio.create_task(...)
+          ...
+          $TASK.result()
+    message: |
+      Task created but result never checked. Background tasks may fail silently.
+      Await the task or check its result/exception.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: [async]
+      likelihood: MEDIUM
+      impact: MEDIUM
+      confidence: LOW

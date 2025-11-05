@@ -58,7 +58,9 @@ class TestPlanComparator:
             version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
         )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None)
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -90,9 +92,13 @@ class TestPlanComparator:
             stories=[],
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None)
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None)
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+        )
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -124,9 +130,13 @@ class TestPlanComparator:
             stories=[],
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None)
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None)
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None
+        )
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -162,9 +172,13 @@ class TestPlanComparator:
             stories=[story1],  # Missing story2
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None)
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None)
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None
+        )
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -223,7 +237,9 @@ class TestPlanComparator:
             risks=["Competition"],
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=business, product=product, features=[], metadata=None)
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=business, product=product, features=[], metadata=None
+        )
 
         auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None)
 
@@ -277,7 +293,9 @@ class TestPlanComparator:
             stories=[],
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea1, business=None, product=product1, features=[feature1], metadata=None)
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea1, business=None, product=product1, features=[feature1], metadata=None
+        )
 
         auto_plan = PlanBundle(
             version="1.0", idea=idea2, business=None, product=product2, features=[feature1, feature2], metadata=None
@@ -301,7 +319,9 @@ class TestPlanComparator:
         feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
         feature3 = Feature(key="FEATURE-003", title="Reports", outcomes=[], acceptance=[], stories=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None)
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
         auto_plan = PlanBundle(
             version="1.0",
