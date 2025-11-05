@@ -4,13 +4,13 @@ name: PR Orchestrator - SpecFact CLI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - "**.mdc"
   push:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - "docs/**"
       - "**.md"
