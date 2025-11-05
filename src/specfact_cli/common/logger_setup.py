@@ -330,15 +330,10 @@ class LoggerSetup:
             # rebuild the logger with file backing to ensure per-agent files are created.
             if log_file:
                 # Stop and discard any existing listener
-                try:
-                    existing_listener = cls._log_listeners.pop(logger_name, None)
-                    if existing_listener:
-                        try:
-                            existing_listener.stop()
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+                existing_listener = cls._log_listeners.pop(logger_name, None)
+                if existing_listener:
+                    with contextlib.suppress(Exception):
+                        existing_listener.stop()
 
                 # Remove all handlers from the existing logger
                 with contextlib.suppress(Exception):
