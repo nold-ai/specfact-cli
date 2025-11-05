@@ -104,7 +104,13 @@ class ReproReport:
         """
         if self.budget_exceeded or self.timeout_checks > 0:
             return 2
-        if self.failed_checks > 0:
+        # CrossHair failures are non-blocking (advisory only) - don't count them
+        failed_checks_blocking = [
+            check
+            for check in self.checks
+            if check.status == CheckStatus.FAILED and check.tool != "crosshair"
+        ]
+        if failed_checks_blocking:
             return 1
         return 0
 
