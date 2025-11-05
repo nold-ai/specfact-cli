@@ -190,7 +190,7 @@ specfact repro --report evidence.md
 
 ```bash
 # Works completely offline
-uvx specfact plan init --interactive
+uvx --from specfact-cli specfact plan init --interactive
 ```
 
 ---

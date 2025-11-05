@@ -29,7 +29,7 @@ Think of it as a **quality gate** for your development workflow that:
 
 ```bash
 # Zero-install (just run it)
-uvx specfact --help
+uvx --from specfact-cli specfact --help
 
 # Or install with pip
 pip install specfact-cli
@@ -146,7 +146,7 @@ For complete documentation, see **[docs/README.md](docs/README.md)**.
 No installation needed:
 
 ```bash
-uvx specfact plan init
+uvx --from specfact-cli specfact plan init
 ```
 
 ### 2. pip

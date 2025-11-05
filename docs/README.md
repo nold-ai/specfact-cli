@@ -77,7 +77,7 @@ Start here:
 
 ```bash
 # Install (no setup required)
-uvx specfact plan init --interactive
+uvx --from specfact-cli specfact plan init --interactive
 
 # Or use CoPilot mode (if available)
 /specfact-plan-init --idea idea.yaml

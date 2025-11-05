@@ -9,7 +9,7 @@ This guide will help you get started with SpecFact CLI in under 60 seconds.
 No installation required - run directly:
 
 ```bash
-uvx specfact --help
+uvx --from specfact-cli specfact --help
 ```
 
 ### Option 2: pip
