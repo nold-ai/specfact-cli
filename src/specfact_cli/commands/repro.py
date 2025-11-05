@@ -24,7 +24,7 @@ app = typer.Typer(help="Run validation suite for reproducibility")
 console = Console()
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 @beartype
 @require(lambda repo: repo.exists() and repo.is_dir(), "Repo path must exist and be directory")
 @require(lambda budget: budget > 0, "Budget must be positive")
