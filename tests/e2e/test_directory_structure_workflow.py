@@ -84,19 +84,19 @@ class TestCompleteWorkflowWithNewStructure:
             '''
             class UserService:
                 """Manages user operations."""
-                
+
                 def create_user(self, name, email):
                     """Create a new user account."""
                     pass
-                
+
                 def get_user(self, user_id):
                     """Retrieve user by ID."""
                     pass
-                
+
                 def update_user(self, user_id, data):
                     """Update user information."""
                     pass
-                
+
                 def delete_user(self, user_id):
                     """Delete user account."""
                     pass
