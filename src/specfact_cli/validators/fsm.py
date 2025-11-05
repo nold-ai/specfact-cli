@@ -147,9 +147,11 @@ class FSMValidator:
 
         # Check 4: Guards are defined
         for transition in self.protocol.transitions:
-            if transition.guard:
-                # Check protocol guards first
-                if transition.guard not in self.protocol.guards and transition.guard not in self.guard_functions:
+            if (
+                transition.guard
+                and transition.guard not in self.protocol.guards
+                and transition.guard not in self.guard_functions
+            ):
                     # LOW severity if guard functions can be provided externally
                     report.add_deviation(
                         Deviation(

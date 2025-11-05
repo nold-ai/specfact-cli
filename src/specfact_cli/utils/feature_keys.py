@@ -40,9 +40,7 @@ def normalize_feature_key(key: str) -> str:
     key = key.replace("FEATURE-", "").replace("000_", "").replace("001_", "")
 
     # Remove underscores and spaces, convert to uppercase
-    normalized = re.sub(r"[_\s-]", "", key).upper()
-
-    return normalized
+    return re.sub(r"[_\s-]", "", key).upper()
 
 
 @beartype
