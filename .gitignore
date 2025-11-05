@@ -107,3 +107,7 @@ specs/
 
 # Ignore .specfact artifacts
 .specfact/
+
+# Ignore mcp.json
+.github/mcp.json
+.cursor/mcp.json

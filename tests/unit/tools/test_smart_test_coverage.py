@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 # Import the module under test
 import tempfile
@@ -20,6 +21,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+
+# Add project root to path for tools imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from tools.smart_test_coverage import SmartCoverageManager
 

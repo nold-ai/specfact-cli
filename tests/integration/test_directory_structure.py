@@ -303,9 +303,8 @@ class TestPlanCompareWithNewStructure:
             metadata=None,
         )
 
-        plans_dir = tmp_path / ".specfact" / "plans"
-        plans_dir.mkdir(parents=True)
-        auto_path = plans_dir / "auto-derived.2025-01-01T10-00-00.bundle.yaml"
+        # Use the same plans directory (already created above)
+        auto_path = manual_path.parent / "auto-derived.2025-01-01T10-00-00.bundle.yaml"
         dump_yaml(auto_plan.model_dump(exclude_none=True), auto_path)
 
         # Run compare from the target directory
@@ -346,9 +345,9 @@ class TestPlanCompareWithNewStructure:
         manual_path.parent.mkdir(parents=True)
         dump_yaml(plan.model_dump(exclude_none=True), manual_path)
 
-        brownfield_dir = tmp_path / ".specfact" / "reports" / "brownfield"
-        brownfield_dir.mkdir(parents=True)
-        auto_path = brownfield_dir / "auto-derived.2025-01-01T10-00-00.bundle.yaml"
+        # Auto-derived plans are now stored in .specfact/plans/, not reports/brownfield/
+        plans_dir = tmp_path / ".specfact" / "plans"
+        auto_path = plans_dir / "auto-derived.2025-01-01T10-00-00.bundle.yaml"
         dump_yaml(plan.model_dump(exclude_none=True), auto_path)
 
         # Run compare from the target directory

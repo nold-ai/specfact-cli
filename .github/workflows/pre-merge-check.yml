@@ -23,12 +23,21 @@ jobs:
       - name: Check for temporary files
         id: check-temp
         run: |
-          # Check for temporary files in PR
-          TEMP_FILES=$(git diff origin/main...HEAD --name-only | grep -E "(temp_|debug_|test_.*\.py$|trigger_.*\.py$)" || true)
+          # Check for temporary files in PR (only at project root, not in tests/)
+          # Patterns match .gitignore: /test_*.py, /debug_*.py, /trigger_*.py, /temp_*.py
+          # These are files at the root level, not in subdirectories
+          CHANGED_FILES=$(git diff origin/main...HEAD --name-only)
           
-          if [ -n "$TEMP_FILES" ]; then
+          # Check for temporary Python files at root (not in tests/ or any subdirectory)
+          TEMP_FILES=$(echo "$CHANGED_FILES" | grep -E "^(temp_|debug_|trigger_|test_).*\.py$" | grep -v "^tests/" | grep -v "/" || true)
+          
+          # Also check for analysis artifacts at root
+          ARTIFACT_FILES=$(echo "$CHANGED_FILES" | grep -E "^(functional_coverage|migration_analysis|messaging_migration_plan)\.json$" | grep -v "/" || true)
+          
+          if [ -n "$TEMP_FILES" ] || [ -n "$ARTIFACT_FILES" ]; then
             echo "❌ Temporary files detected in PR:"
-            echo "$TEMP_FILES"
+            [ -n "$TEMP_FILES" ] && echo "$TEMP_FILES"
+            [ -n "$ARTIFACT_FILES" ] && echo "$ARTIFACT_FILES"
             echo "::error::Temporary files detected! Remove them before merging."
             exit 1
           else

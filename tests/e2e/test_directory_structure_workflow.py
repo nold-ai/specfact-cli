@@ -646,11 +646,11 @@ class FeatureService:
         )
         assert result.exit_code == 0
 
-        # Verify ephemeral files are in correct location
-        brownfield_dir = tmp_path / ".specfact" / "reports" / "brownfield"
-        assert brownfield_dir.exists()
-        reports = list(brownfield_dir.glob("*.yaml"))
-        assert len(reports) > 0
+        # Verify auto-derived plans are in .specfact/plans/ (not reports/brownfield/)
+        plans_dir = tmp_path / ".specfact" / "plans"
+        assert plans_dir.exists()
+        auto_reports = list(plans_dir.glob("auto-derived.*.bundle.yaml"))
+        assert len(auto_reports) > 0
 
         # Step 4: Developer B compares
         old_cwd = os.getcwd()
@@ -671,5 +671,5 @@ class FeatureService:
 
         # Step 5: Verify comparison report available for review
         comparison_dir = tmp_path / ".specfact" / "reports" / "comparison"
-        comparison_reports = list(comparison_dir.glob("*.md"))
+        comparison_reports = list(comparison_dir.glob("report-*.md"))
         assert len(comparison_reports) > 0
