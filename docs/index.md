@@ -90,4 +90,6 @@ See [CONTRIBUTING.md](https://github.com/nold-ai/specfact-cli/blob/main/CONTRIBU
 
 Copyright © 2025 Nold AI (Owner: Dominikus Nold)
 
-**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](https://github.com/nold-ai/specfact-cli/blob/main/TRADEMARKS.md) for more information.
+**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](TRADEMARKS.md) for more information.
+
+**License**: See [LICENSE.md](LICENSE.md) for licensing information.
