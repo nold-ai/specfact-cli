@@ -293,7 +293,7 @@ class ReproChecker:
                 (
                     "Contract exploration (CrossHair)",
                     "crosshair",
-                    ["crosshair", "check"] + crosshair_targets,
+                    ["crosshair", "check", *crosshair_targets],
                     60,
                     True,
                 )
