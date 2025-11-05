@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 
 from specfact_cli.cli import app
 
+
 runner = CliRunner()
 
 

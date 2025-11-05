@@ -3,6 +3,7 @@ Logging utility for standardized log setup across all modules
 """
 
 import atexit
+import contextlib
 import logging
 import os
 import re
@@ -13,6 +14,7 @@ from typing import Any, Literal
 
 from beartype import beartype
 from icontract import ensure, require
+
 
 # Add TRACE level (5) - more detailed than DEBUG (10)
 logging.addLevelName(5, "TRACE")
@@ -220,23 +222,16 @@ class LoggerSetup:
     def shutdown_listeners(cls):
         """Shuts down all active queue listeners."""
         for listener in cls._log_listeners.values():
-            try:
+            with contextlib.suppress(Exception):
                 listener.stop()
-            except Exception:
-                # Ignore errors during interpreter shutdown
-                pass
         cls._log_listeners.clear()
         # Also clear active loggers to avoid handler accumulation across test sessions
         for logger in cls._active_loggers.values():
-            try:
+            with contextlib.suppress(Exception):
                 for handler in list(logger.handlers):
-                    try:
+                    with contextlib.suppress(Exception):
                         handler.close()
-                    except Exception:
-                        pass
                     logger.removeHandler(handler)
-            except Exception:
-                pass
         cls._active_loggers.clear()
 
     @classmethod
@@ -346,21 +341,15 @@ class LoggerSetup:
                     pass
 
                 # Remove all handlers from the existing logger
-                try:
+                with contextlib.suppress(Exception):
                     for handler in list(existing_logger.handlers):
-                        try:
+                        with contextlib.suppress(Exception):
                             handler.close()
-                        except Exception:
-                            pass
                         existing_logger.removeHandler(handler)
-                except Exception:
-                    pass
 
                 # Remove from cache and proceed to full (re)creation below
-                try:
+                with contextlib.suppress(Exception):
                     cls._active_loggers.pop(logger_name, None)
-                except Exception:
-                    pass
             else:
                 # No file requested: just ensure level is updated and reuse existing logger
                 if log_level and existing_logger.level != logging.getLevelName(log_level.upper()):
@@ -448,10 +437,8 @@ class LoggerSetup:
             logger.addHandler(queue_handler)
 
             # Emit a one-time initialization line so users can see where logs go
-            try:
+            with contextlib.suppress(Exception):
                 logger.info("[LoggerSetup] File logger initialized: %s", log_file_path)
-            except Exception:
-                pass
         else:
             # If no log file is specified, set up a listener with a console handler
             log_queue = Queue(-1)
@@ -486,7 +473,7 @@ class LoggerSetup:
         """
         Flush all active loggers to ensure their output is written
         """
-        for logger_name, logger in cls._active_loggers.items():
+        for _logger_name, _logger in cls._active_loggers.items():
             # With QueueListener, flushing the logger's handlers (QueueHandler)
             # doesn't guarantee the message is written. The listener thread handles it.
             # Stopping the listener flushes the queue, but that's for shutdown.
@@ -611,11 +598,11 @@ class LoggerSetup:
         Recursively mask sensitive values (API keys, tokens, passwords, secrets) in dicts/lists/strings.
         Returns a sanitized copy of the object suitable for logging.
         """
-        SENSITIVE_KEYS = ["key", "token", "password", "secret"]
+        sensitive_keys = ["key", "token", "password", "secret"]
         if isinstance(obj, dict):
             redacted = {}
             for k, v in obj.items():
-                if any(s in k.lower() for s in SENSITIVE_KEYS):
+                if any(s in k.lower() for s in sensitive_keys):
                     if isinstance(v, str) and len(v) > 4:
                         redacted[k] = f"*** MASKED (ends with '{v[-4:]}') ***"
                     elif v:
@@ -630,8 +617,7 @@ class LoggerSetup:
         if isinstance(obj, str):
             # Optionally, mask API key patterns in strings (e.g., sk-...)
             # Example: OpenAI key pattern
-            obj = re.sub(r"sk-[a-zA-Z0-9_-]{20,}", "*** MASKED API KEY ***", obj)
-            return obj
+            return re.sub(r"sk-[a-zA-Z0-9_-]{20,}", "*** MASKED API KEY ***", obj)
         return obj
 
 

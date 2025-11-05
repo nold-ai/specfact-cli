@@ -16,6 +16,7 @@ from specfact_cli.models.enforcement import EnforcementConfig, EnforcementPreset
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.utils.yaml_utils import dump_yaml
 
+
 app = typer.Typer(help="Configure quality gates and enforcement modes")
 console = Console()
 
@@ -55,10 +56,10 @@ def stage(
     # Validate preset enum
     try:
         preset_enum = EnforcementPreset(preset)
-    except ValueError:
+    except ValueError as err:
         console.print(f"[bold red]✗[/bold red] Unknown preset: {preset}")
         console.print("Valid presets: minimal, balanced, strict")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from err
 
     # Create enforcement configuration
     config = EnforcementConfig.from_preset(preset_enum)

@@ -16,6 +16,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from tools.smart_test_coverage import CoverageThresholdError, SmartCoverageManager

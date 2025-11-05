@@ -19,6 +19,7 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 
+
 console = Console()
 
 
@@ -260,7 +261,7 @@ class ReproChecker:
         src_dir = self.repo_path / "src"
 
         checks: list[tuple[str, str, list[str], int | None, bool]] = [
-            ("Linting (ruff)", "ruff", ["ruff", "check", "."], None, True),
+            ("Linting (ruff)", "ruff", ["ruff", "check", "src/", "tests/", "tools/"], None, True),
         ]
 
         # Add semgrep only if config exists
@@ -277,13 +278,15 @@ class ReproChecker:
 
         checks.extend(
             [
-                ("Type checking (basedpyright)", "basedpyright", ["basedpyright", "."], None, True),
+                ("Type checking (basedpyright)", "basedpyright", ["basedpyright", "src/", "tools/"], None, True),
             ]
         )
 
         # Add CrossHair only if src/ exists
         if src_dir.exists():
-            checks.append(("Contract exploration (CrossHair)", "crosshair", ["crosshair", "check", "src/"], 60, True))
+            checks.append(
+                ("Contract exploration (CrossHair)", "crosshair", ["crosshair", "check", "src/", "tools/"], 60, True)
+            )
 
         # Add property tests only if directory exists
         if contracts_tests.exists():

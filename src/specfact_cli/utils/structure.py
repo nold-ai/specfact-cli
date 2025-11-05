@@ -247,8 +247,9 @@ class SpecFactStructure:
         if not plans_dir.exists():
             return []
 
-        import yaml
         from datetime import datetime
+
+        import yaml
 
         plans = []
         active_plan = None

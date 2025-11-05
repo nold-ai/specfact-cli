@@ -79,11 +79,16 @@ class ContractFirstTestManager(SmartCoverageManager):
 
     def _compute_file_hash(self, file_path: Path) -> str:
         """Compute a stable hash for a contract file."""
-        hasher = hashlib.sha256()
-        with open(file_path, "rb") as handle:
-            for chunk in iter(lambda: handle.read(8192), b""):
-                hasher.update(chunk)
-        return hasher.hexdigest()
+        if not file_path.is_file():
+            return ""
+        try:
+            hasher = hashlib.sha256()
+            with open(file_path, "rb") as handle:
+                for chunk in iter(lambda: handle.read(8192), b""):
+                    hasher.update(chunk)
+            return hasher.hexdigest()
+        except (FileNotFoundError, PermissionError, IsADirectoryError):
+            return ""
 
     def _build_crosshair_command(self, file_path: Path, *, fast: bool) -> list[str]:
         """Construct the CrossHair command with optional fast settings."""
@@ -510,20 +515,20 @@ class ContractFirstTestManager(SmartCoverageManager):
 
         # Layer 1: Runtime contracts
         print("\n📋 Layer 1: Runtime Contract Validation")
-        contract_success, violations = self._run_contract_validation(modified_files, force=force)
+        contract_success, _violations = self._run_contract_validation(modified_files, force=force)
         if not contract_success:
             print("❌ Contract validation failed - stopping here")
             return False
 
         # Layer 2: Automated exploration
         print("\n🔍 Layer 2: Automated Contract Exploration")
-        exploration_success, exploration_results = self._run_contract_exploration(modified_files, force=force)
+        exploration_success, _exploration_results = self._run_contract_exploration(modified_files, force=force)
         if not exploration_success:
             print("⚠️  Contract exploration found issues - continuing to scenarios")
 
         # Layer 3: Scenario tests
         print("\n🔗 Layer 3: Scenario Tests")
-        scenario_success, test_count, coverage = self._run_scenario_tests()
+        scenario_success, test_count, _coverage = self._run_scenario_tests()
         if not scenario_success:
             print("❌ Scenario tests failed")
             return False
@@ -541,12 +546,12 @@ class ContractFirstTestManager(SmartCoverageManager):
     def get_contract_status(self) -> dict[str, Any]:
         """Get contract-first test status."""
         status = self.get_status()
-        contract_status = {
+        assert isinstance(status, dict)
+        return {
             **status,
             "contract_cache": self.contract_cache,
             "tool_availability": self._check_contract_tools(),
         }
-        return contract_status
 
 
 def main():

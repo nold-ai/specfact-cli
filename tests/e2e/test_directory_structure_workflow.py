@@ -8,6 +8,7 @@ from specfact_cli.cli import app
 from specfact_cli.models.plan import Idea, PlanBundle, Product
 from specfact_cli.utils.yaml_utils import dump_yaml, load_yaml
 
+
 runner = CliRunner()
 
 
@@ -142,6 +143,7 @@ class TestCompleteWorkflowWithNewStructure:
             business=None,
             product=Product(themes=["User Management"], releases=[]),
             features=auto_plan_data["features"],  # Use discovered features
+            metadata=None,
         )
 
         manual_plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
@@ -415,6 +417,7 @@ class TestMigrationScenarios:
             business=None,
             product=Product(themes=["Legacy"], releases=[]),
             features=[],
+            metadata=None,
         )
 
         old_plan_path = old_contracts_dir / "plan.bundle.yaml"

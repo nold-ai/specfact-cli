@@ -215,21 +215,64 @@ For a quick list of all available script options, run:
 bash ./scripts/rebuild_containers.sh --help
 ```
 
+## Branch Protection & Workflow
+
+### Branch Protection Rules
+
+This repository has branch protection enabled for `dev` and `main` branches:
+
+- **No direct commits**: All changes must be made via Pull Requests
+- **Required PRs**: Create feature/bugfix/hotfix branches and submit PRs
+- **CI/CD gates**: All PRs must pass CI/CD checks before merging
+- **Approval required**: PRs may require approval before merging (depending on repository settings)
+
+### Development Workflow
+
+1. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   # or
+   git checkout -b bugfix/your-bugfix-name
+   # or
+   git checkout -b hotfix/your-hotfix-name
+   ```
+
+2. **Make your changes** and test locally:
+   ```bash
+   hatch run format
+   hatch run lint
+   hatch run contract-test
+   hatch test --cover -v
+   ```
+
+3. **Commit and push**:
+   ```bash
+   git add .
+   git commit -m "feat: your feature description"
+   git push origin feature/your-feature-name
+   ```
+
+4. **Create a Pull Request** to `dev` or `main` via GitHub
+
+5. **Wait for CI/CD checks** to pass before merging
+
 ## Release Guidelines
 
-A "release" in this project corresponds to a set of versioneditHub Container Registry. This process is automated.
+A "release" in this project corresponds to a set of versioned Docker images and PyPI packages. This process is automated.
 
 ### Automated Release Workflow
 
 Our release process is handled automatically by GitHub Actions. Here is how it works:
 
-1. **Trigger**: A push or pull request to the `main` or `dev` branch triggers the `Tests` workflow.
-2. **Testing**: The workflow runs the complete test suite using `hatch run smart-test`.
-3. **Build & Push**: If the tests pass, the `Build and Push Docker Images` workflow is automatically triggered. This workflow:
+1. **Trigger**: A push to the `main` branch (after successful PR merge) triggers the release workflow.
+2. **Testing**: The workflow runs the complete test suite using `hatch run contract-test`.
+3. **Package Validation**: The package is built and validated.
+4. **PyPI Publication**: If the version in `pyproject.toml` is newer than the latest PyPI version, the package is automatically published to PyPI.
+5. **Build & Push**: Docker images are built and pushed to GHCR. This workflow:
     - Builds all service images.
     - Tags the images with two tags:
         - A unique, immutable tag (the Git commit SHA).
-        - A floating tag (`latest` for the `main` branch, `dev` for the `dev` branch).
+        - A floating tag (`latest` for the `main` branch).
     - Pushes both tags to the GitHub Container Registry (GHCR).
 
 ```mermaid

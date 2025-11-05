@@ -65,7 +65,7 @@ class SpecKitScanner:
         Returns:
             Dictionary with detected structure information
         """
-        structure = {
+        structure: dict[str, Any] = {
             "is_speckit": False,
             "specify_dir": None,
             "specify_memory_dir": None,
@@ -74,6 +74,13 @@ class SpecKitScanner:
             "feature_dirs": [],
             "memory_files": [],
         }
+        # Explicitly type the list values for type checker
+        spec_files: list[str] = []
+        feature_dirs: list[str] = []
+        memory_files: list[str] = []
+        structure["spec_files"] = spec_files
+        structure["feature_dirs"] = feature_dirs
+        structure["memory_files"] = memory_files
 
         if not self.is_speckit_repo():
             return structure
@@ -98,15 +105,15 @@ class SpecKitScanner:
             # Find all feature directories (specs/*/)
             for spec_dir in specs_dir.iterdir():
                 if spec_dir.is_dir():
-                    structure["feature_dirs"].append(str(spec_dir))
+                    feature_dirs.append(str(spec_dir))
                     # Find all markdown files in each feature directory
                     for md_file in spec_dir.glob("*.md"):
-                        structure["spec_files"].append(str(md_file))
+                        spec_files.append(str(md_file))
                     # Also check for contracts/*.yaml
                     contracts_dir = spec_dir / "contracts"
                     if contracts_dir.exists():
                         for yaml_file in contracts_dir.glob("*.yaml"):
-                            structure["spec_files"].append(str(yaml_file))
+                            spec_files.append(str(yaml_file))
 
         return structure
 
@@ -263,7 +270,7 @@ class SpecKitScanner:
                 acceptance_pattern = r"(\d+)\.\s+\*\*Given\*\*\s+(.+?),\s+\*\*When\*\*\s+(.+?),\s+\*\*Then\*\*\s+(.+?)(?=\n\n|\n\d+\.|\n###|$)"
                 acceptances = re.finditer(acceptance_pattern, story_content, re.DOTALL)
 
-                acceptance_criteria = []
+                acceptance_criteria: list[str] = []
                 for acc_match in acceptances:
                     given = acc_match.group(2).strip()
                     when = acc_match.group(3).strip()
@@ -271,7 +278,7 @@ class SpecKitScanner:
                     acceptance_criteria.append(f"Given {given}, When {when}, Then {then}")
 
                 # Extract scenarios (Primary, Alternate, Exception, Recovery)
-                scenarios = {
+                scenarios: dict[str, list[str]] = {
                     "primary": [],
                     "alternate": [],
                     "exception": [],
@@ -588,7 +595,7 @@ class SpecKitScanner:
                 phase_content = phase_match.group(3)
 
                 # Find tasks in this phase
-                phase_tasks = []
+                phase_tasks: list[dict[str, Any]] = []
                 phase_task_pattern = (
                     r"- \[([ x])\] \[?([T\d]+)\]?\s*\[?([P])?\]?\s*\[?([US\d]+)?\]?\s*(.+?)(?=\n-|\n##|$)"
                 )

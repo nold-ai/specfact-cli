@@ -29,6 +29,7 @@ from specfact_cli.utils.prompts import (
 )
 from specfact_cli.utils.yaml_utils import YAMLUtils, dump_yaml, load_yaml, string_to_yaml, yaml_to_string
 
+
 __all__ = [
     "GitOperations",
     "YAMLUtils",

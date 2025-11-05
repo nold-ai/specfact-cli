@@ -25,6 +25,7 @@ from specfact_cli.importers.speckit_scanner import SpecKitScanner
 from specfact_cli.models.plan import Feature, Story
 from specfact_cli.utils.yaml_utils import load_yaml
 
+
 runner = CliRunner()
 
 
@@ -548,7 +549,7 @@ Users can test features
             plan_bundle = converter.convert_plan()
 
             assert len(plan_bundle.features) >= 1
-            feature = plan_bundle.features[0]
+            _feature = plan_bundle.features[0]  # Not used - just verifying it exists
 
             # Export back to Spec-Kit
             features_converted = converter.convert_to_speckit(plan_bundle)

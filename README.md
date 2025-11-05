@@ -168,6 +168,35 @@ docker run ghcr.io/nold-ai/specfact-cli:latest --help
 
 ---
 
+## Project Documentation
+
+### 📚 Online Documentation
+
+**GitHub Pages**: Full documentation is available at `https://nold-ai.github.io/specfact-cli/`
+
+The documentation includes:
+
+- Getting Started guides
+- Complete command reference
+- IDE integration setup
+- Use cases and examples
+- Architecture overview
+- Testing procedures
+
+**Note**: The GitHub Pages workflow is configured and will automatically deploy when changes are pushed to the `main` branch. Enable GitHub Pages in your repository settings to activate the site.
+
+### 📖 Local Documentation
+
+All documentation is in the [`docs/`](docs/) directory:
+
+- **[Documentation Index](docs/README.md)** - Complete documentation overview
+- **[Getting Started](docs/getting-started/installation.md)** - Installation and setup
+- **[Command Reference](docs/reference/commands.md)** - All available commands
+- **[IDE Integration](docs/guides/ide-integration.md)** - Set up slash commands
+- **[Use Cases](docs/guides/use-cases.md)** - Real-world scenarios
+
+---
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -214,3 +243,5 @@ For commercial licensing, contact [hello@noldai.com](mailto:hello@noldai.com)
 > **Built with ❤️ by [NOLD AI](https://noldai.com)**
 
 Copyright © 2025 Nold AI (Owner: Dominikus Nold)
+
+**Trademarks**: NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All other trademarks mentioned in this project are the property of their respective owners. See [TRADEMARKS.md](TRADEMARKS.md) for more information.

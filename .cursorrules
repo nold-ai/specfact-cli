@@ -5,6 +5,12 @@
 - When starting a new chat session, capture the current timestamp from the client system using the `run_terminal_cmd` tool with `date "+%Y-%m-%d %H:%M:%S %z"` to ensure accurate timestamps are used in logs, commits, and other time-sensitive operations.
 - When starting a new chat session, get familiar with the build and test guide (refer to `.cursor/rules/testing-and-build-guide.mdc`).
 - When starting a new task, first check the project overview and current status in `README.md` and `AGENTS.md`.
+- **Branch Protection**: This repository has branch protection enabled for `dev` and `main` branches. All changes must be made via Pull Requests:
+  - Create a feature branch: `git checkout -b feature/your-feature-name`
+  - Create a bugfix branch: `git checkout -b bugfix/your-bugfix-name`
+  - Create a hotfix branch: `git checkout -b hotfix/your-hotfix-name`
+  - Push your branch and create a PR to `dev` or `main`
+  - Direct commits to `dev` or `main` are not allowed
 - After any code changes, follow these steps in order:
   1. Apply linting and formatting to ensure code quality: `hatch run format`
   2. Type checking: `hatch run type-check` (basedpyright)
@@ -12,6 +18,7 @@
   4. Run full test suite: `hatch test --cover -v`
   5. Verify all tests pass and contracts are satisfied
   6. Fix any issues and repeat steps until all tests pass
+- **Version Management**: When updating the version in `pyproject.toml`, ensure it's newer than the latest PyPI version. The CI/CD pipeline will automatically publish to PyPI only if the new version is greater than the published version.
 - **Contract-first**: All public APIs must have `@icontract` decorators and `@beartype` type checking
 - **CLI focus**: Commands should follow typer patterns with rich console output
 - **Data validation**: Use Pydantic models for all data structures

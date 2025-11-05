@@ -8,7 +8,6 @@ including linting, type checking, contract exploration, and tests.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from beartype import beartype
@@ -20,15 +19,26 @@ from rich.table import Table
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.validators.repro_checker import ReproChecker
 
+
 app = typer.Typer(help="Run validation suite for reproducibility")
 console = Console()
 
 
+def _is_valid_repo_path(path: Path) -> bool:
+    """Check if path exists and is a directory."""
+    return path.exists() and path.is_dir()
+
+
+def _is_valid_output_path(path: Path | None) -> bool:
+    """Check if output path exists if provided."""
+    return path is None or path.exists()
+
+
 @app.callback(invoke_without_command=True)
 @beartype
-@require(lambda repo: repo.exists() and repo.is_dir(), "Repo path must exist and be directory")
+@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @require(lambda budget: budget > 0, "Budget must be positive")
-@ensure(lambda out: out is None or out.exists(), "Output path must exist if provided")
+@ensure(lambda out: _is_valid_output_path(out), "Output path must exist if provided")
 def main(
     repo: Path = typer.Option(
         Path("."),
@@ -54,7 +64,7 @@ def main(
         "--fail-fast",
         help="Stop on first failure",
     ),
-    out: Optional[Path] = typer.Option(
+    out: Path | None = typer.Option(
         None,
         "--out",
         help="Output report path (default: .specfact/reports/enforcement/report-<timestamp>.yaml)",

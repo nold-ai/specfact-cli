@@ -10,7 +10,7 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import UTC
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from beartype import beartype
@@ -21,7 +21,7 @@ from rich.table import Table
 from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
-from specfact_cli.models.deviation import ValidationReport
+from specfact_cli.models.deviation import Deviation, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Release, Story
 from specfact_cli.utils import (
@@ -38,6 +38,7 @@ from specfact_cli.utils import (
 )
 from specfact_cli.validators.schema import validate_plan_bundle
 
+
 app = typer.Typer(help="Manage development plans, features, and stories")
 console = Console()
 
@@ -51,7 +52,7 @@ def init(
         "--interactive/--no-interactive",
         help="Interactive mode with prompts",
     ),
-    out: Optional[Path] = typer.Option(
+    out: Path | None = typer.Option(
         None,
         "--out",
         help="Output plan bundle path (default: .specfact/plans/main.bundle.yaml)",
@@ -189,7 +190,7 @@ def _build_plan_interactively() -> PlanBundle:
     print_section("3. Product - Themes and Releases")
 
     themes = prompt_list("Product themes (e.g., AI/ML, Security)")
-    releases = []
+    releases: list[Release] = []
 
     if prompt_confirm("Define releases?", default=True):
         while True:
@@ -218,7 +219,7 @@ def _build_plan_interactively() -> PlanBundle:
     # Section 4: Features
     print_section("4. Features - What will you build?")
 
-    features = []
+    features: list[Feature] = []
     while prompt_confirm("Add a feature?", default=True):
         feature = _prompt_feature()
         features.append(feature)
@@ -278,7 +279,7 @@ def _prompt_feature() -> Feature:
         feature_data["draft"] = draft
 
     # Add stories
-    stories = []
+    stories: list[Story] = []
     if prompt_confirm("Add stories to this feature?", default=True):
         while True:
             story = _prompt_story()
@@ -332,7 +333,7 @@ def add_feature(
     title: str = typer.Option(..., "--title", help="Feature title"),
     outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
-    plan: Optional[Path] = typer.Option(
+    plan: Path | None = typer.Option(
         None,
         "--plan",
         help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
@@ -440,7 +441,7 @@ def add_story(
     story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity)"),
     value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value)"),
     draft: bool = typer.Option(False, "--draft", help="Mark story as draft"),
-    plan: Optional[Path] = typer.Option(
+    plan: Path | None = typer.Option(
         None,
         "--plan",
         help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
@@ -543,12 +544,12 @@ def add_story(
 @app.command("compare")
 @beartype
 def compare(
-    manual: Optional[Path] = typer.Option(
+    manual: Path | None = typer.Option(
         None,
         "--manual",
         help="Manual plan bundle path (default: .specfact/plans/main.bundle.yaml)",
     ),
-    auto: Optional[Path] = typer.Option(
+    auto: Path | None = typer.Option(
         None,
         "--auto",
         help="Auto-derived plan bundle path (default: latest in .specfact/plans/)",
@@ -558,7 +559,7 @@ def compare(
         "--format",
         help="Output format (markdown, json, yaml)",
     ),
-    out: Optional[Path] = typer.Option(
+    out: Path | None = typer.Option(
         None,
         "--out",
         help="Output file path (default: .specfact/reports/comparison/deviations-<timestamp>.md)",
@@ -592,8 +593,7 @@ def compare(
         if auto is None:
             plans_dir = Path(SpecFactStructure.PLANS)
             print_error(
-                f"No auto-derived plans found in {plans_dir}\n"
-                "Generate one with: specfact import from-code --repo ."
+                f"No auto-derived plans found in {plans_dir}\n" "Generate one with: specfact import from-code --repo ."
             )
             raise typer.Exit(1)
         print_info(f"Using latest auto-derived plan: {auto}")
@@ -718,7 +718,7 @@ def compare(
                     console.print(f"[dim]Using enforcement config: {config_path}[/dim]\n")
 
                     # Check for blocking deviations
-                    blocking_deviations = []
+                    blocking_deviations: list[Deviation] = []
                     for deviation in report.deviations:
                         action = enforcement_config.get_action(deviation.severity.value)
                         action_icon = {"BLOCK": "🚫", "WARN": "⚠️", "LOG": "📝"}[action.value]
@@ -763,7 +763,7 @@ def compare(
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, str), "Plan must be None or str")
 def select(
-    plan: Optional[str] = typer.Argument(
+    plan: str | None = typer.Argument(
         None,
         help="Plan name or number to select (e.g., 'main.bundle.yaml' or '1')",
     ),
@@ -907,7 +907,7 @@ def select(
 )
 def promote(
     stage: str = typer.Option(..., "--stage", help="Target stage (draft, review, approved, released)"),
-    plan: Optional[Path] = typer.Option(
+    plan: Path | None = typer.Option(
         None,
         "--plan",
         help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
@@ -1002,23 +1002,22 @@ def promote(
                     raise typer.Exit(1)
 
         # Review → Approved: All features must pass validation
-        if current_stage == "review" and stage == "approved":
-            if validate:
-                print_info("Validating all features...")
-                incomplete_features = []
-                for f in bundle.features:
-                    if not f.acceptance:
+        if current_stage == "review" and stage == "approved" and validate:
+            print_info("Validating all features...")
+            incomplete_features: list[Feature] = []
+            for f in bundle.features:
+                if not f.acceptance:
+                    incomplete_features.append(f)
+                for s in f.stories:
+                    if not s.acceptance:
                         incomplete_features.append(f)
-                    for s in f.stories:
-                        if not s.acceptance:
-                            incomplete_features.append(f)
-                            break
+                        break
 
-                if incomplete_features:
-                    print_warning(f"{len(incomplete_features)} feature(s) have incomplete acceptance criteria")
-                    if not force:
-                        console.print("[dim]Use --force to promote anyway[/dim]")
-                        raise typer.Exit(1)
+            if incomplete_features:
+                print_warning(f"{len(incomplete_features)} feature(s) have incomplete acceptance criteria")
+                if not force:
+                    console.print("[dim]Use --force to promote anyway[/dim]")
+                    raise typer.Exit(1)
 
         # Approved → Released: All features must be implemented (future check)
         if current_stage == "approved" and stage == "released":

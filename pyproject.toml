@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.4.0"
+version = "0.4.1"
 description = "SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development with automated quality gates"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -96,6 +96,7 @@ Homepage = "https://github.com/nold-ai/specfact-cli"
 Repository = "https://github.com/nold-ai/specfact-cli.git"
 Documentation = "https://github.com/nold-ai/specfact-cli#readme"
 Issues = "https://github.com/nold-ai/specfact-cli/issues"
+Trademarks = "https://github.com/nold-ai/specfact-cli/blob/main/TRADEMARKS.md"
 
 [project.scripts]
 specfact = "specfact_cli.cli:cli_main"
@@ -625,6 +626,11 @@ ignore = [
     "S101",   # assert used
     "INP001", # implicit namespace package
     "PLR2004", # magic value comparison (acceptable in tools)
+]
+
+# Typer command files - B008 is acceptable for typer.Option/Argument patterns
+"src/specfact_cli/commands/**/*" = [
+    "B008",   # typer.Option/Argument in defaults (common Typer pattern)
 ]
 
 [tool.ruff.lint.isort]

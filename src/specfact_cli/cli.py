@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from beartype import beartype
@@ -22,6 +21,7 @@ from specfact_cli import __version__
 # Import command modules
 from specfact_cli.commands import enforce, import_cmd, init, plan, repro, sync
 from specfact_cli.modes import OperationalMode, detect_mode
+
 
 # Map shell names for completion support
 SHELL_MAP = {
@@ -37,15 +37,13 @@ SHELL_MAP = {
 
 def normalize_shell_in_argv() -> None:
     """Normalize shell names in sys.argv before Typer processes them."""
-    if len(sys.argv) >= 3:
-        # Check for --show-completion or --install-completion
-        if sys.argv[1] in ("--show-completion", "--install-completion"):
-            shell_arg = sys.argv[2]
-            shell_normalized = shell_arg.lower().strip()
-            mapped_shell = SHELL_MAP.get(shell_normalized)
-            if mapped_shell and mapped_shell != shell_normalized:
-                # Replace "sh" with "bash" in argv
-                sys.argv[2] = mapped_shell
+    if len(sys.argv) >= 3 and sys.argv[1] in ("--show-completion", "--install-completion"):
+        shell_arg = sys.argv[2]
+        shell_normalized = shell_arg.lower().strip()
+        mapped_shell = SHELL_MAP.get(shell_normalized)
+        if mapped_shell and mapped_shell != shell_normalized:
+            # Replace "sh" with "bash" in argv
+            sys.argv[2] = mapped_shell
 
 
 # Note: Shell normalization happens in cli_main() before app() is called
@@ -72,7 +70,7 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def mode_callback(value: Optional[str]) -> None:
+def mode_callback(value: str | None) -> None:
     """Handle --mode flag callback."""
     global _current_mode
     if value is not None:
@@ -111,7 +109,7 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
-    mode: Optional[str] = typer.Option(
+    mode: str | None = typer.Option(
         None,
         "--mode",
         callback=mode_callback,
@@ -151,15 +149,19 @@ def hello() -> None:
     )
 
 
+# Default path option (module-level singleton to avoid B008)
+_DEFAULT_PATH_OPTION = typer.Option(
+    None,
+    "--path",
+    help="Path to shell configuration file (auto-detected if not provided)",
+)
+
+
 @app.command()
 @beartype
 def install_completion(
     shell: str = typer.Argument(..., help="Shell name: bash, sh, zsh, fish, powershell, pwsh, ps1"),
-    path: Optional[Path] = typer.Option(
-        None,
-        "--path",
-        help="Path to shell configuration file (auto-detected if not provided)",
-    ),
+    path: Path | None = _DEFAULT_PATH_OPTION,
 ) -> None:
     """
     Install shell completion for SpecFact CLI.
@@ -357,10 +359,7 @@ def cli_main() -> None:
     completion_env = os.environ.get("_SPECFACT_COMPLETE")
     if completion_env:
         # Extract shell name from completion env var (format: "shell_source" or "shell")
-        if completion_env.endswith("_source"):
-            shell_name = completion_env[:-7]  # Remove "_source" suffix
-        else:
-            shell_name = completion_env
+        shell_name = completion_env[:-7] if completion_env.endswith("_source") else completion_env
 
         # Normalize shell name using our mapping
         shell_normalized = shell_name.lower().strip()

@@ -7,6 +7,7 @@ from specfact_cli.cli import app
 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Story
 from specfact_cli.utils.yaml_utils import dump_yaml
 
+
 runner = CliRunner()
 
 
@@ -33,7 +34,7 @@ class TestPlanCompareCommand:
             stories=[],
         )
 
-        plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature])
+        plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature], metadata=None)
 
         manual_path = tmp_plans / "manual.yaml"
         auto_path = tmp_plans / "auto.yaml"
@@ -72,10 +73,12 @@ class TestPlanCompareCommand:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2]
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
         )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1])
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
         manual_path = tmp_plans / "manual.yaml"
         auto_path = tmp_plans / "auto.yaml"
@@ -114,9 +117,13 @@ class TestPlanCompareCommand:
             stories=[],
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1])
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2])
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+        )
 
         manual_path = tmp_plans / "manual.yaml"
         auto_path = tmp_plans / "auto.yaml"
@@ -160,9 +167,13 @@ class TestPlanCompareCommand:
             stories=[story1],
         )
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature_manual])
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature_auto])
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None
+        )
 
         manual_path = tmp_plans / "manual.yaml"
         auto_path = tmp_plans / "auto.yaml"
@@ -187,9 +198,13 @@ class TestPlanCompareCommand:
         feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
         feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1])
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2])
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+        )
 
         manual_path = tmp_plans / "manual.yaml"
         auto_path = tmp_plans / "auto.yaml"
@@ -231,9 +246,13 @@ class TestPlanCompareCommand:
         feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
         feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1])
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2])
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+        )
 
         manual_path = tmp_plans / "manual.yaml"
         auto_path = tmp_plans / "auto.yaml"
@@ -278,7 +297,7 @@ class TestPlanCompareCommand:
         # Create valid auto plan
         idea = Idea(title="Test", narrative="Test", metrics=None)
         product = Product(themes=[], releases=[])
-        plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[])
+        plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None)
         dump_yaml(plan.model_dump(exclude_none=True), auto_path)
 
         result = runner.invoke(
@@ -297,7 +316,7 @@ class TestPlanCompareCommand:
         # Create valid manual plan
         idea = Idea(title="Test", narrative="Test", metrics=None)
         product = Product(themes=[], releases=[])
-        plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[])
+        plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None)
         dump_yaml(plan.model_dump(exclude_none=True), manual_path)
 
         result = runner.invoke(
@@ -319,7 +338,9 @@ class TestPlanCompareCommand:
         feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
         feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea1, business=None, product=product1, features=[feature1])
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea1, business=None, product=product1, features=[feature1], metadata=None
+        )
 
         auto_plan = PlanBundle(
             version="1.0",
@@ -327,6 +348,7 @@ class TestPlanCompareCommand:
             business=None,
             product=product2,
             features=[feature1, feature2],
+            metadata=None,
         )
 
         manual_path = tmp_plans / "manual.yaml"

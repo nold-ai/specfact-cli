@@ -8,6 +8,7 @@ from specfact_cli.cli import app
 from specfact_cli.models.enforcement import EnforcementConfig
 from specfact_cli.utils.yaml_utils import load_yaml
 
+
 runner = CliRunner()
 
 

@@ -10,6 +10,7 @@ from specfact_cli.models.enforcement import EnforcementAction, EnforcementConfig
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Release, Story
 from specfact_cli.models.protocol import Protocol, Transition
 
+
 __all__ = [
     "Business",
     "Deviation",
