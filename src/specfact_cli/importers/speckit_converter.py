@@ -297,7 +297,7 @@ class SpecKitConverter:
                     if len(theme) > 2:
                         themes.add(theme)
 
-        return sorted(list(themes))
+        return sorted(themes)
 
     @beartype
     @ensure(lambda result: result.exists(), "Output path must exist")
@@ -647,7 +647,7 @@ class SpecKitConverter:
         story_tasks: dict[int, list[tuple[int, str]]] = {}  # story_num -> [(task_num, description)]
 
         # Organize tasks by phase
-        for story_idx, story in enumerate(feature.stories, start=1):
+        for _story_idx, story in enumerate(feature.stories, start=1):
             story_num = self._extract_story_number(story.key)
 
             if story.tasks:

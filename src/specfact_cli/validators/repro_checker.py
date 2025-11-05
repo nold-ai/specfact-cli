@@ -283,13 +283,17 @@ class ReproChecker:
         )
 
         # Add CrossHair only if src/ exists
-        # Exclude logger_setup.py from CrossHair analysis due to known signature analysis issues
+        # Exclude common/logger_setup.py from CrossHair analysis due to known signature analysis issues
+        # CrossHair doesn't support --exclude, so we exclude the common directory and add other directories
         if src_dir.exists():
+            # Get all subdirectories except common
+            specfact_dirs = [d for d in src_dir.iterdir() if d.is_dir() and d.name != "common"]
+            crosshair_targets = ["src/" + d.name for d in specfact_dirs] + ["tools/"]
             checks.append(
                 (
                     "Contract exploration (CrossHair)",
                     "crosshair",
-                    ["crosshair", "check", "src/", "tools/", "--exclude", "**/logger_setup.py"],
+                    ["crosshair", "check"] + crosshair_targets,
                     60,
                     True,
                 )
