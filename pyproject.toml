@@ -298,6 +298,67 @@ packages = [
     "src/specfact_cli",
 ]
 
+[tool.hatch.build.targets.sdist]
+# Only include essential files in source distribution
+include = [
+    "/src",
+    "/README.md",
+    "/LICENSE.md",
+    "/pyproject.toml",
+]
+# Exclude development files, tests, docs, tools, etc.
+exclude = [
+    "/.git",
+    "/.github",
+    "/.cursor",
+    "/.specfact",
+    "/tests",
+    "/tools",
+    "/docs",
+    "/contracts",
+    "/reports",
+    "/logs",
+    "/dist",
+    "/build",
+    "/.pytest_cache",
+    "/.coverage",
+    "/.coverage.*",
+    "/coverage.xml",
+    "/htmlcov",
+    "/__pycache__",
+    "/*.pyc",
+    "/*.pyo",
+    "/*.pyd",
+    "/.Python",
+    "/.env",
+    "/.venv",
+    "/venv",
+    "/env",
+    "/.mypy_cache",
+    "/.ruff_cache",
+    "/.pylint.d",
+    "/.cache",
+    "/.tox",
+    "/.eggs",
+    "/*.egg-info",
+    "/.DS_Store",
+    "/.vscode",
+    "/.idea",
+    "/*.code-workspace",
+    "/.cursorrules",
+    "/.prettierrc.json",
+    "/.yamllint",
+    "/pyrightconfig.json",
+    "/setup.py",
+    "/AGENTS.md",
+    "/CHANGELOG.md",
+    "/CLA.md",
+    "/CODE_OF_CONDUCT.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/USAGE-FAQ.md",
+]
+
 # [tool.hatch.envs.default.env-vars] # Add if you have default env vars for hatch environments
 # MY_VAR = "value"
 
