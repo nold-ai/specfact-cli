@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Contract Validation
         run: |
-          specfact repro --verbose --budget 90
+          hatch run specfact repro --verbose --budget 90
 
       - name: Upload Validation Report
         if: always()

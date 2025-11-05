@@ -38,6 +38,7 @@ from specfact_cli.utils import (
 )
 from specfact_cli.validators.schema import validate_plan_bundle
 
+
 app = typer.Typer(help="Manage development plans, features, and stories")
 console = Console()
 
@@ -592,7 +593,7 @@ def compare(
         if auto is None:
             plans_dir = Path(SpecFactStructure.PLANS)
             print_error(
-                f"No auto-derived plans found in {plans_dir}\n" "Generate one with: specfact import from-code --repo ."
+                f"No auto-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
             )
             raise typer.Exit(1)
         print_info(f"Using latest auto-derived plan: {auto}")
