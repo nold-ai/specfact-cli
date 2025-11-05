@@ -19,9 +19,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install SpecFact CLI
+      - name: Install dependencies
         run: |
-          pip install specfact-cli
+          python -m pip install --upgrade pip
+          pip install hatch
+
+      - name: Install SpecFact CLI from source
+        run: |
+          echo "📦 Installing SpecFact CLI from local source..."
+          hatch env create
+          pip install -e .
 
       - name: Run Contract Validation
         run: |
