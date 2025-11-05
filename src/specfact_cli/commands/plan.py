@@ -38,7 +38,6 @@ from specfact_cli.utils import (
 )
 from specfact_cli.validators.schema import validate_plan_bundle
 
-
 app = typer.Typer(help="Manage development plans, features, and stories")
 console = Console()
 
@@ -862,7 +861,7 @@ def select(
         # Prompt for selection
         selection = ""
         try:
-            selection = prompt_text("Select a plan by number (1-%d) or 'q' to quit: " % len(plans)).strip()
+            selection = prompt_text(f"Select a plan by number (1-{len(plans)}) or 'q' to quit: ").strip()
 
             if selection.lower() in ("q", "quit", ""):
                 print_info("Selection cancelled")
