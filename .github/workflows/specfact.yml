@@ -1,0 +1,141 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# yamllint disable rule:line-length rule:truthy
+name: SpecFact CLI Validation
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "**.mdc"
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "**.mdc"
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "Time budget in seconds"
+        required: false
+        default: "90"
+        type: string
+      mode:
+        description: "Enforcement mode (block, warn, log)"
+        required: false
+        default: "block"
+        type: choice
+        options:
+          - block
+          - warn
+          - log
+
+jobs:
+  specfact-validation:
+    name: Contract Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+
+      - name: Install SpecFact CLI
+        run: |
+          echo "📦 Installing SpecFact CLI..."
+          hatch env create || true
+          pip install -e .
+
+      - name: Set validation parameters
+        id: validation
+        run: |
+          BUDGET="${INPUT_BUDGET:-90}"
+          MODE="${INPUT_MODE:-block}"
+          echo "budget=$BUDGET" >> $GITHUB_OUTPUT
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+          echo "SPECFACT_BUDGET=$BUDGET" >> $GITHUB_ENV
+          echo "SPECFACT_MODE=$MODE" >> $GITHUB_ENV
+
+      - name: Run Contract Validation
+        id: repro
+        continue-on-error: true
+        run: |
+          hatch run specfact repro --verbose --budget ${{ steps.validation.outputs.budget }} || true
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Find latest repro report
+        id: report
+        if: always()
+        run: |
+          REPORT_DIR=".specfact/reports/enforcement"
+          if [ -d "$REPORT_DIR" ]; then
+            LATEST_REPORT=$(find "$REPORT_DIR" -name "report-*.yaml" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
+            if [ -n "$LATEST_REPORT" ]; then
+              echo "path=$LATEST_REPORT" >> $GITHUB_OUTPUT
+              echo "SPECFACT_REPORT_PATH=$LATEST_REPORT" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: Create GitHub annotations
+        id: annotations
+        if: always() && steps.report.outputs.path != ''
+        run: |
+          python -m specfact_cli.utils.github_annotations || true
+
+      - name: Generate PR comment
+        id: pr-comment
+        if: always() && github.event_name == 'pull_request' && steps.report.outputs.path != ''
+        run: |
+          python -m specfact_cli.utils.github_annotations
+          if [ -f ".specfact/pr-comment.md" ]; then
+            echo "comment_path=.specfact/pr-comment.md" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request' && steps.pr-comment.outputs.comment_path != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const commentPath = '${{ steps.pr-comment.outputs.comment_path }}';
+            if (fs.existsSync(commentPath)) {
+              const comment = fs.readFileSync(commentPath, 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: specfact-report
+          path: |
+            .specfact/reports/enforcement/*.yaml
+            .specfact/pr-comment.md
+          if-no-files-found: ignore
+
+      - name: Fail workflow if validation failed
+        if: steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block'
+        run: |
+          echo "❌ Validation failed. Exiting with error code."
+          exit 1
+

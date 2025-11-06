@@ -24,14 +24,14 @@ class TestCodeAnalyzerIntegration:
             core_service = dedent(
                 '''
                 """Core service module."""
-                
+
                 class CoreService:
                     """Core service with base functionality."""
-                    
+
                     def initialize(self, config: dict) -> bool:
                         """Initialize the core service."""
                         return True
-                    
+
                     def shutdown(self) -> None:
                         """Shutdown the service."""
                         pass
@@ -44,19 +44,19 @@ class TestCodeAnalyzerIntegration:
                 '''
                 """API service module."""
                 from core import CoreService
-                
+
                 class APIService:
                     """API service that uses core service."""
-                    
+
                     def __init__(self):
                         """Initialize API service."""
                         self.core = CoreService()
-                    
+
                     def handle_request(self, data: dict) -> dict:
                         """Handle an API request."""
                         self.core.initialize({})
                         return {"status": "ok"}
-                    
+
                     async def handle_async_request(self, data: dict) -> dict:
                         """Handle an async API request."""
                         return {"status": "ok"}
@@ -70,22 +70,22 @@ class TestCodeAnalyzerIntegration:
                 """Repository module."""
                 from core import CoreService
                 from api import APIService
-                
+
                 class DataRepository:
                     """Data repository with CRUD operations."""
-                    
+
                     def create_record(self, data: dict) -> dict:
                         """Create a new record."""
                         return {"id": 1, **data}
-                    
+
                     def get_record(self, record_id: int) -> dict:
                         """Get record by ID."""
                         return {"id": record_id}
-                    
+
                     def update_record(self, record_id: int, data: dict) -> dict:
                         """Update an existing record."""
                         return {"id": record_id, **data}
-                    
+
                     def delete_record(self, record_id: int) -> bool:
                         """Delete a record."""
                         return True
@@ -95,10 +95,10 @@ class TestCodeAnalyzerIntegration:
 
             # Analyze the codebase
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Verify results
-            assert isinstance(plan_bundle, PlanBundle)
+            assert isinstance(_plan_bundle, PlanBundle)
             assert len(analyzer.features) >= 3  # At least 3 features (CoreService, APIService, DataRepository)
 
             # Verify dependency graph was built
@@ -126,18 +126,18 @@ class TestCodeAnalyzerIntegration:
                 '''
                 """Service with type hints."""
                 from typing import List, Dict, Optional
-                
+
                 class TypedService:
                     """Service with comprehensive type hints."""
-                    
+
                     def get_items(self) -> List[str]:
                         """Get list of items."""
                         return ["item1", "item2"]
-                    
+
                     def get_config(self) -> Dict[str, int]:
                         """Get configuration dictionary."""
                         return {"key": 1}
-                    
+
                     def find_item(self, item_id: int) -> Optional[Dict[str, str]]:
                         """Find an item by ID."""
                         return {"id": str(item_id)}
@@ -146,7 +146,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "typed.py").write_text(code)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            analyzer.analyze()
 
             # Verify type hints were extracted
             assert len(analyzer.type_hints) >= 1
@@ -166,19 +166,19 @@ class TestCodeAnalyzerIntegration:
                 '''
                 """Async service module."""
                 import asyncio
-                
+
                 class AsyncService:
                     """Service with async operations."""
-                    
+
                     async def fetch_data(self) -> dict:
                         """Fetch data asynchronously."""
                         await asyncio.sleep(0.1)
                         return {"data": "test"}
-                    
+
                     async def process_items(self, items: list) -> list:
                         """Process items asynchronously."""
                         return [item.upper() for item in items]
-                    
+
                     def sync_method(self) -> str:
                         """Synchronous method."""
                         return "sync"
@@ -187,7 +187,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "async_service.py").write_text(code)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            analyzer.analyze()
 
             # Verify async patterns were detected
             assert len(analyzer.async_patterns) >= 1
@@ -212,7 +212,7 @@ class TestCodeAnalyzerIntegration:
                 import pydantic
                 from fastapi import FastAPI
                 from redis import Redis
-                
+
                 class ThemedService:
                     """Service that should have multiple themes."""
                     pass
@@ -221,7 +221,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "themed.py").write_text(code)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            analyzer.analyze()
 
             # Verify themes were detected
             assert len(analyzer.themes) >= 3
@@ -238,26 +238,26 @@ class TestCodeAnalyzerIntegration:
             code = dedent(
                 '''
                 """Repository with CRUD operations."""
-                
+
                 class UserRepository:
                     """User data repository."""
-                    
+
                     def create_user(self, name: str, email: str) -> dict:
                         """Create a new user."""
                         return {"id": 1, "name": name, "email": email}
-                    
+
                     def get_user(self, user_id: int) -> dict:
                         """Get user by ID."""
                         return {"id": user_id}
-                    
+
                     def list_users(self) -> list:
                         """List all users."""
                         return []
-                    
+
                     def update_user(self, user_id: int, data: dict) -> dict:
                         """Update user information."""
                         return {"id": user_id, **data}
-                    
+
                     def delete_user(self, user_id: int) -> bool:
                         """Delete a user."""
                         return True
@@ -266,7 +266,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "users.py").write_text(code)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            analyzer.analyze()
 
             # Find UserRepository feature
             user_feature = next(
@@ -296,29 +296,29 @@ class TestCodeAnalyzerIntegration:
             good_code = dedent(
                 '''
                 """Well-documented service."""
-                
+
                 class DocumentedService:
                     """Comprehensive service documentation.
-                    
+
                     This service provides core functionality for the application.
                     It handles all primary operations and integrates with external systems.
                     """
-                    
+
                     def process_data(self, data: dict) -> dict:
                         """Process data with validation.
-                        
+
                         Args:
                             data: Input data dictionary
-                            
+
                         Returns:
                             Processed data dictionary
                         """
                         return {"processed": True, **data}
-                    
+
                     def validate_input(self, input_data: dict) -> bool:
                         """Validate input data."""
                         return True
-                    
+
                     def transform_data(self, data: dict) -> dict:
                         """Transform data format."""
                         return data
@@ -340,7 +340,7 @@ class TestCodeAnalyzerIntegration:
 
             # Analyze with high confidence threshold
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.8)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Should only include well-documented service (or empty if threshold too high)
             feature_keys = [f.key.lower() for f in analyzer.features]
@@ -374,7 +374,7 @@ class TestCodeAnalyzerIntegration:
                 '''
                 """Module B."""
                 from module_a import ModuleA
-                
+
                 class ModuleB:
                     """Module B class."""
                     def __init__(self):
@@ -388,7 +388,7 @@ class TestCodeAnalyzerIntegration:
                 '''
                 """Module C."""
                 from module_b import ModuleB
-                
+
                 class ModuleC:
                     """Module C class."""
                     def __init__(self):
@@ -398,7 +398,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "module_c.py").write_text(module_c)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Verify dependency graph structure
             assert len(analyzer.dependency_graph.nodes) >= 3
@@ -466,7 +466,7 @@ class TestCodeAnalyzerIntegration:
 
             # Should not raise exception
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Should still analyze valid file
             assert len(analyzer.features) >= 1
@@ -492,7 +492,7 @@ class TestCodeAnalyzerIntegration:
             (src_path / "service.py").write_text(code)
 
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
-            plan_bundle = analyzer.analyze()
+            _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
             # Should analyze nested structure
             assert len(analyzer.features) >= 1

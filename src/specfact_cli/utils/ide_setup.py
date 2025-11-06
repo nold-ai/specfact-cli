@@ -17,6 +17,7 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 
+
 console = Console()
 
 # IDE configuration map (from Spec-Kit)

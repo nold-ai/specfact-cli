@@ -3,10 +3,11 @@
 
 from setuptools import find_packages, setup
 
+
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.3.1",
+        version="0.4.2",
         description="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
         packages=find_packages(where="src"),
         package_dir={"": "src"},

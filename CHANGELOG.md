@@ -9,9 +9,143 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.4.2] - 2025-11-06
+
+### Fixed (0.4.2)
+
+- **CrossHair Contract Exploration Dynamic Detection**
+  - Removed hard-coded skip list for files with signature analysis limitations
+  - Implemented dynamic detection of CrossHair signature analysis limitations
+  - Enhanced signature issue detection to check both `stderr` and `stdout`
+  - Improved pattern matching for signature issues:
+    - "wrong parameter order"
+    - "keyword-only parameter"
+    - "ValueError: wrong parameter"
+    - Generic signature errors/failures
+  - Signature analysis limitations are now automatically detected and marked as "skipped" without failing the build
+  - All files are analyzed by CrossHair, with graceful handling of limitations
+  - More maintainable approach: automatically handles new files with similar issues without code changes
+
+- **Contract Violation Prevention**
+  - Added `__post_init__` method to `CheckResult` dataclass to ensure `tool` field is never empty
+  - Prevents contract violations during findings extraction when `tool` field is empty
+  - Defaults `tool` to "unknown" if empty to satisfy contract requirements
+
+### Changed (0.4.2)
+
+- **Contract-First Test Manager**
+  - Replaced static file skip list with dynamic signature issue detection
+  - Enhanced detection logic to check both stdout and stderr for signature analysis limitations
+  - Improved comments explaining CrossHair limitations (Typer decorators, complex Path parameter handling)
+  - More robust and maintainable approach to handling CrossHair signature analysis limitations
+
+- **Enforcement Report Metadata**
+  - Added comprehensive metadata to enforcement reports:
+    - `timestamp`, `repo_path`, `budget`
+    - `active_plan_path`, `enforcement_config_path`, `enforcement_preset`
+    - `fix_enabled`, `fail_fast`
+  - Metadata automatically populated during `specfact repro` execution
+  - Provides context for understanding which plan/scope/budget enforcement reports belong to
+
+- **Tool Findings Extraction**
+  - Enhanced `CheckResult.to_dict()` to include structured findings from tool output
+  - Added tool-specific parsing functions:
+    - `_extract_ruff_findings()` - Extracts violations with file, line, column, code, message
+    - `_extract_semgrep_findings()` - Extracts findings with severity, rule ID, locations
+    - `_extract_basedpyright_findings()` - Extracts type errors with file, line, message
+    - `_extract_crosshair_findings()` - Extracts contract violations with counterexamples
+    - `_extract_pytest_findings()` - Extracts test results with pass/fail counts
+  - Added `_strip_ansi_codes()` helper to clean up tool output for better readability
+  - Reports now include actionable findings directly within the YAML structure
+  - Conditional inclusion of raw output/error with truncation for very long outputs
+
+### Added (0.4.2)
+
+- **Auto-fix Support for Semgrep**
+  - Added `--fix` flag to `specfact repro` command for applying auto-fixes
+  - Semgrep auto-fixes are automatically applied when `--fix` is enabled
+  - Auto-fix suggestions included in PR comments for Semgrep violations
+  - Enhanced `ReproChecker` to support `fix` parameter for conditional auto-fix application
+
+- **GitHub Action Integration**
+  - Created `.github/workflows/specfact.yml` GitHub Action workflow
+  - PR annotations for failed checks with detailed error messages
+  - PR comments with formatted validation reports and auto-fix suggestions
+  - Budget-based blocking to prevent long-running validations
+  - Manual workflow dispatch support for ad-hoc validation
+  - Comprehensive error handling and timeout management
+
+- **GitHub Annotations Utility**
+  - Created `src/specfact_cli/utils/github_annotations.py` for GitHub Action integration
+  - `create_annotation()` - Creates GitHub Action annotations with file/line/col support
+  - `parse_repro_report()` - Parses YAML enforcement reports
+  - `create_annotations_from_report()` - Creates annotations from report dictionary
+  - `generate_pr_comment()` - Generates formatted PR comments with markdown tables
+  - Full contract-first validation with `@beartype` and `@icontract` decorators
+
+- **Comprehensive Test Suite**
+  - **E2E tests**: `tests/e2e/test_github_action_workflow.py` - GitHub Action workflow testing
+  - **Unit tests**: `tests/unit/utils/test_github_annotations.py` - GitHub annotations utility testing
+  - **Unit tests**: Enhanced `tests/unit/validators/test_repro_checker.py` with auto-fix and metadata tests
+  - All tests passing with contract-first validation
+
+---
+
+## [0.4.1] - 2025-11-05
+
+### Added (0.4.1)
+
+- **GitHub Pages Documentation Setup**
+  - Created `.github/workflows/github-pages.yml` workflow for automatic documentation deployment
+  - Added `_config.yml` Jekyll configuration with Minima theme
+  - Created `docs/Gemfile` with Jekyll dependencies
+  - Added `docs/index.md` homepage template with Jekyll front matter
+  - Updated `README.md` with documentation section and GitHub Pages link
+  - Configured Jekyll to build from `docs/` directory with clean navigation
+  - Includes trademark information in footer
+  - Automatic deployment on push to `main` branch when docs change
+
+- **Trademark Information and Legal Notices**
+  - Created `TRADEMARKS.md` with comprehensive trademark information
+  - Documented NOLD AI (NOLDAI) as registered trademark (wordmark) at EUIPO
+  - Listed all third-party trademarks (AI tools, IDEs, development platforms) with ownership information
+  - Added trademark notices to key documentation files:
+    - `README.md` - Footer trademark notice
+    - `LICENSE.md` - Enhanced trademark section
+    - `docs/README.md` - Documentation footer notice
+    - `docs/guides/ide-integration.md` - IDE integration guide notice
+    - `AGENTS.md` - Repository guidelines notice
+  - Added trademark URL to `pyproject.toml` project URLs
+  - Ensures proper trademark attribution throughout the project
+
+### Fixed (0.4.1)
+
+- **Semgrep Rules Bundling for Runtime**
+  - Fixed issue where `tools/semgrep/async.yml` was excluded from package distribution
+  - Added `src/specfact_cli/resources/semgrep/async.yml` as bundled package resource
+  - Updated `workflow_generator.py` to use package resource for installed packages
+  - Falls back to `tools/semgrep/async.yml` for development environments
+  - Ensures `specfact import from-spec-kit` can generate semgrep rules at runtime
+  - Resolves `FileNotFoundError` when running import command in installed packages
+
+- **Plan Bundle Metadata Parameter**
+  - Fixed missing `metadata` parameter in `PlanBundle` constructors across all test files
+  - Added `metadata=None` to all `PlanBundle` instances in integration and unit tests
+  - Resolves `basedpyright` `reportCallIssue` errors for missing metadata parameter
+  - All 22 type-checking errors related to metadata resolved
+
+### Changed (0.4.1)
+
+- **Semgrep Rules Location**
+  - `tools/semgrep/async.yml` - Used for development (hatch scripts, local testing)
+  - `src/specfact_cli/resources/semgrep/async.yml` - Bundled in package for runtime use
+  - Updated `tools/semgrep/README.md` to document dual-location approach
+
+---
+
 ## [0.4.0] - 2025-11-05
 
-### Changed (2025-11-05) - Plan Name Consistency in Brownfield Import
+### Changed (0.4.0) - Plan Name Consistency in Brownfield Import
 
 - **`specfact import from-code` Plan Name Usage**
   - Updated import logic to use user-provided plan name (from `--name` option) for `idea.title` instead of "Unknown Project"
@@ -38,7 +172,7 @@ All notable changes to this project will be documented in this file.
   - Updated PlanBundle structure example to show `idea` section with plan name
   - Clear guidance on plan name usage for AI-generated plan bundles
 
-### Fixed (2025-11-05)
+### Fixed (0.4.0)
 
 - **Plan Bundle Title Consistency**
   - Fixed issue where brownfield plans always showed "Unknown Project" as title

@@ -97,12 +97,21 @@ class WorkflowGenerator:
             IOError: If unable to write output file
         """
         if source_rules is None:
-            # Default to tools/semgrep/async.yml relative to project root
-            source_rules = Path(__file__).parent.parent.parent.parent / "tools" / "semgrep" / "async.yml"
+            # Try package resource first (for installed packages)
+            package_resource = Path(__file__).parent.parent / "resources" / "semgrep" / "async.yml"
+            # Fall back to tools/semgrep/async.yml for development
+            dev_resource = Path(__file__).parent.parent.parent.parent / "tools" / "semgrep" / "async.yml"
 
-        source_rules = Path(source_rules)
-        if not source_rules.exists():
-            raise FileNotFoundError(f"Source Semgrep rules not found: {source_rules}")
+            if package_resource.exists():
+                source_rules = package_resource
+            elif dev_resource.exists():
+                source_rules = dev_resource
+            else:
+                raise FileNotFoundError(f"Source Semgrep rules not found. Checked: {package_resource}, {dev_resource}")
+        else:
+            source_rules = Path(source_rules)
+            if not source_rules.exists():
+                raise FileNotFoundError(f"Source Semgrep rules not found: {source_rules}")
 
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)

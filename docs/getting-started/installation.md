@@ -39,19 +39,62 @@ podman run --rm -v $(pwd):/workspace ghcr.io/nold-ai/specfact-cli:latest --help
 
 ### Option 4: GitHub Action
 
+Create `.github/workflows/specfact.yml`:
+
 ```yaml
-# .github/workflows/specfact-gate.yml
-name: SpecFact Quality Gate
-on: [pull_request]
+name: SpecFact CLI Validation
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "Time budget in seconds"
+        required: false
+        default: "90"
+        type: string
+      mode:
+        description: "Enforcement mode (block, warn, log)"
+        required: false
+        default: "block"
+        type: choice
+        options:
+          - block
+          - warn
+          - log
+
 jobs:
-  validate:
+  specfact-validation:
+    name: Contract Validation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Run SpecFact
-        uses: nold-ai/specfact-action@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          preset: balanced
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install SpecFact CLI
+        run: pip install specfact-cli
+
+      - name: Run Contract Validation
+        run: specfact repro --verbose --budget 90
+
+      - name: Generate PR Comment
+        if: github.event_name == 'pull_request'
+        run: python -m specfact_cli.utils.github_annotations
+        env:
+          SPECFACT_REPORT_PATH: .specfact/reports/enforcement/report-*.yaml
 ```
 
 ## First Steps

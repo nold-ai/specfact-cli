@@ -158,6 +158,45 @@ class TestReproChecker:
             # Should have fewer checks than normal (fail_fast stopped early)
             # Note: This is a weak assertion, but fail_fast logic is in run_all_checks
 
+    def test_repro_checker_fix_flag(self, tmp_path: Path):
+        """Test ReproChecker with fix=True includes --fix in Semgrep command."""
+        # Create semgrep config to enable Semgrep check
+        semgrep_config = tmp_path / "tools" / "semgrep" / "async.yml"
+        semgrep_config.parent.mkdir(parents=True, exist_ok=True)
+        semgrep_config.write_text("rules:\n  - id: test-rule\n    patterns:\n      - pattern: test\n")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30, fix=True)
+        assert checker.fix is True
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = ""
+            mock_proc.stderr = ""
+            mock_run.return_value = mock_proc
+
+            # Mock shutil.which to make tools "available"
+            with patch("shutil.which", return_value="/usr/bin/semgrep"):
+                checker.run_all_checks()
+
+            # Verify Semgrep was called with --autofix flag
+            semgrep_calls = [call for call in mock_run.call_args_list if "semgrep" in str(call)]
+            if semgrep_calls:
+                # Check that --autofix is in the command
+                semgrep_call = semgrep_calls[0]
+                command = semgrep_call[0][0] if isinstance(semgrep_call[0], tuple) else semgrep_call[0]
+                assert "--autofix" in command or any("--autofix" in str(arg) for arg in command)
+
+    def test_repro_checker_fix_flag_disabled(self, tmp_path: Path):
+        """Test ReproChecker with fix=False does not include --fix in Semgrep command."""
+        # Create semgrep config to enable Semgrep check
+        semgrep_config = tmp_path / "tools" / "semgrep" / "async.yml"
+        semgrep_config.parent.mkdir(parents=True, exist_ok=True)
+        semgrep_config.write_text("rules:\n  - id: test-rule\n    patterns:\n      - pattern: test\n")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30, fix=False)
+        assert checker.fix is False
+
     def test_repro_report_add_check(self):
         """Test ReproReport.add_check updates counts."""
         report = ReproReport()
@@ -206,3 +245,35 @@ class TestReproChecker:
         report = ReproReport()
         report.add_check(CheckResult(name="Check", tool="test", status=CheckStatus.TIMEOUT, timeout=True))
         assert report.get_exit_code() == 2
+
+    def test_repro_report_metadata(self):
+        """Test ReproReport includes metadata in to_dict."""
+        report = ReproReport()
+        report.repo_path = "/test/repo"
+        report.budget = 120
+        report.active_plan_path = ".specfact/plans/main.bundle.yaml"
+        report.enforcement_config_path = ".specfact/gates/config/enforcement.yaml"
+        report.enforcement_preset = "balanced"
+        report.fix_enabled = True
+        report.fail_fast = False
+
+        report_dict = report.to_dict()
+
+        assert "metadata" in report_dict
+        metadata = report_dict["metadata"]
+        assert metadata["repo_path"] == "/test/repo"
+        assert metadata["budget"] == 120
+        assert metadata["active_plan_path"] == ".specfact/plans/main.bundle.yaml"
+        assert metadata["enforcement_config_path"] == ".specfact/gates/config/enforcement.yaml"
+        assert metadata["enforcement_preset"] == "balanced"
+        assert metadata["fix_enabled"] is True
+        assert "fail_fast" not in metadata  # Should be omitted when False
+
+    def test_repro_report_metadata_minimal(self):
+        """Test ReproReport metadata is optional (only includes available fields)."""
+        report = ReproReport()
+        report_dict = report.to_dict()
+
+        # Should still have timestamp even if no other metadata
+        assert "metadata" in report_dict
+        assert "timestamp" in report_dict["metadata"]

@@ -52,15 +52,21 @@ class CodeAnalyzer:
         self.plan_name = plan_name
         self.features: list[Feature] = []
         self.themes: set[str] = set()
-        self.dependency_graph: nx.DiGraph = nx.DiGraph()  # Module dependency graph
+        self.dependency_graph: nx.DiGraph[str] = nx.DiGraph()  # Module dependency graph
         self.type_hints: dict[str, dict[str, str]] = {}  # Module -> {function: type_hint}
         self.async_patterns: dict[str, list[str]] = {}  # Module -> [async_methods]
         self.commit_bounds: dict[str, tuple[str, str]] = {}  # Feature -> (first_commit, last_commit)
 
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
-    @ensure(lambda result: result.version == "1.0", "Plan bundle version must be 1.0")
-    @ensure(lambda result: len(result.features) >= 0, "Features list must be non-negative length")
+    @ensure(
+        lambda result: isinstance(result, PlanBundle)
+        and hasattr(result, "version")
+        and hasattr(result, "features")
+        and result.version == "1.0"  # type: ignore[reportUnknownMemberType]
+        and len(result.features) >= 0,  # type: ignore[reportUnknownMemberType]
+        "Plan bundle must be valid",
+    )
     def analyze(self) -> PlanBundle:
         """
         Analyze repository and generate plan bundle.
@@ -100,7 +106,7 @@ class CodeAnalyzer:
         else:
             repo_name = self.repo_path.name or "Unknown Project"
             title = self._humanize_name(repo_name)
-        
+
         idea = Idea(
             title=title,
             narrative=f"Auto-derived plan from brownfield analysis of {title}",
@@ -212,13 +218,13 @@ class CodeAnalyzer:
 
         # Extract docstring as outcome
         docstring = ast.get_docstring(node)
-        outcomes = []
+        outcomes: list[str] = []
         if docstring:
             # Take first paragraph as primary outcome
             first_para = docstring.split("\n\n")[0].strip()
-            outcomes.append(first_para)
+            outcomes.append(first_para)  # type: ignore[reportUnknownMemberType]
         else:
-            outcomes.append(f"Provides {self._humanize_name(node.name)} functionality")
+            outcomes.append(f"Provides {self._humanize_name(node.name)} functionality")  # type: ignore[reportUnknownMemberType]
 
         # Collect all methods
         methods = [item for item in node.body if isinstance(item, ast.FunctionDef)]
@@ -257,7 +263,7 @@ class CodeAnalyzer:
         # Group methods by pattern
         method_groups = self._group_methods_by_functionality(methods)
 
-        stories = []
+        stories: list[Story] = []
         story_counter = 1
 
         for group_name, group_methods in method_groups.items():
@@ -268,14 +274,14 @@ class CodeAnalyzer:
             story = self._create_story_from_method_group(group_name, group_methods, class_name, story_counter)
 
             if story:
-                stories.append(story)
+                stories.append(story)  # type: ignore[reportUnknownMemberType]
                 story_counter += 1
 
         return stories
 
     def _group_methods_by_functionality(self, methods: list[ast.FunctionDef]) -> dict[str, list[ast.FunctionDef]]:
         """Group methods by their functionality patterns."""
-        groups = defaultdict(list)
+        groups: dict[str, list[ast.FunctionDef]] = defaultdict(list)
 
         # Filter out private methods (except __init__)
         public_methods = [m for m in methods if not m.name.startswith("_") or m.name == "__init__"]
@@ -283,45 +289,45 @@ class CodeAnalyzer:
         for method in public_methods:
             # CRUD operations
             if any(crud in method.name.lower() for crud in ["create", "add", "insert", "new"]):
-                groups["Create Operations"].append(method)
+                groups["Create Operations"].append(method)  # type: ignore[reportUnknownMemberType]
             elif any(read in method.name.lower() for read in ["get", "read", "fetch", "find", "list", "retrieve"]):
-                groups["Read Operations"].append(method)
+                groups["Read Operations"].append(method)  # type: ignore[reportUnknownMemberType]
             elif any(update in method.name.lower() for update in ["update", "modify", "edit", "change", "set"]):
-                groups["Update Operations"].append(method)
+                groups["Update Operations"].append(method)  # type: ignore[reportUnknownMemberType]
             elif any(delete in method.name.lower() for delete in ["delete", "remove", "destroy"]):
-                groups["Delete Operations"].append(method)
+                groups["Delete Operations"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Validation
             elif any(val in method.name.lower() for val in ["validate", "check", "verify", "is_valid"]):
-                groups["Validation"].append(method)
+                groups["Validation"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Processing/Computation
             elif any(
                 proc in method.name.lower() for proc in ["process", "compute", "calculate", "transform", "convert"]
             ):
-                groups["Processing"].append(method)
+                groups["Processing"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Analysis
             elif any(an in method.name.lower() for an in ["analyze", "parse", "extract", "detect"]):
-                groups["Analysis"].append(method)
+                groups["Analysis"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Generation
             elif any(gen in method.name.lower() for gen in ["generate", "build", "create", "make"]):
-                groups["Generation"].append(method)
+                groups["Generation"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Comparison
             elif any(cmp in method.name.lower() for cmp in ["compare", "diff", "match"]):
-                groups["Comparison"].append(method)
+                groups["Comparison"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Setup/Configuration
             elif method.name == "__init__" or any(
                 setup in method.name.lower() for setup in ["setup", "configure", "initialize"]
             ):
-                groups["Configuration"].append(method)
+                groups["Configuration"].append(method)  # type: ignore[reportUnknownMemberType]
 
             # Catch-all for other public methods
             else:
-                groups["Core Functionality"].append(method)
+                groups["Core Functionality"].append(method)  # type: ignore[reportUnknownMemberType]
 
         return dict(groups)
 
@@ -339,8 +345,8 @@ class CodeAnalyzer:
         title = self._generate_story_title(group_name, class_name)
 
         # Extract acceptance criteria from docstrings
-        acceptance = []
-        tasks = []
+        acceptance: list[str] = []
+        tasks: list[str] = []
 
         for method in methods:
             # Add method as task
@@ -541,7 +547,7 @@ class CodeAnalyzer:
             relative_path = file_path
 
         # Convert to module name
-        parts = list(relative_path.parts[:-1]) + [relative_path.stem]  # Remove .py extension
+        parts = [*relative_path.parts[:-1], relative_path.stem]  # Remove .py extension
         return ".".join(parts)
 
     def _extract_imports_from_ast(self, tree: ast.AST, file_path: Path) -> list[str]:
@@ -574,7 +580,7 @@ class CodeAnalyzer:
                     imports.add(node.module)
 
         # Try to resolve local imports (relative to current file)
-        resolved_imports = []
+        resolved_imports: list[str] = []
         current_module = self._path_to_module_name(file_path)
 
         for imported in imports:
@@ -727,8 +733,9 @@ class CodeAnalyzer:
             commits = list(repo.iter_commits(max_count=max_commits))
 
             # Map commits to files to features
-            file_to_feature: dict[str, list[str]] = {}
-            for feature in self.features:
+            # Note: This mapping would be implemented in a full version
+            # For now, we track commit bounds per feature
+            for _feature in self.features:
                 # Extract potential file paths from feature key
                 # This is simplified - in reality we'd track which files contributed to which features
                 pass
@@ -748,7 +755,21 @@ class CodeAnalyzer:
                         feature_match = re.search(r"feature[-\s]?(\d+)", message, re.IGNORECASE)
                         if feature_match:
                             feature_num = feature_match.group(1)
-                            # Associate commit with feature (simplified)
+                            commit_hash = commit.hexsha[:8]  # Short hash
+
+                            # Find feature by key format (FEATURE-001, FEATURE-1, etc.)
+                            for feature in self.features:
+                                # Match feature key patterns: FEATURE-001, FEATURE-1, Feature-001, etc.
+                                if re.search(rf"feature[-\s]?{feature_num}", feature.key, re.IGNORECASE):
+                                    # Update commit bounds for this feature
+                                    if feature.key not in self.commit_bounds:
+                                        # First commit found for this feature
+                                        self.commit_bounds[feature.key] = (commit_hash, commit_hash)
+                                    else:
+                                        # Update last commit (commits are in reverse chronological order)
+                                        first_commit, _last_commit = self.commit_bounds[feature.key]
+                                        self.commit_bounds[feature.key] = (first_commit, commit_hash)
+                                    break
                 except Exception:
                     # Skip individual commits that fail (corrupted, etc.)
                     continue
@@ -762,7 +783,7 @@ class CodeAnalyzer:
 
     def _enhance_features_with_dependencies(self) -> None:
         """Enhance features with dependency graph information."""
-        for feature in self.features:
+        for _feature in self.features:
             # Find dependencies for this feature's module
             # This is simplified - would need to track which module each feature comes from
             pass

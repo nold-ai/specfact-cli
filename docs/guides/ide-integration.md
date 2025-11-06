@@ -277,3 +277,7 @@ The `specfact init` command handles all conversions automatically.
 - ✅ Use slash commands in your IDE
 - 📖 Read [CoPilot Mode Guide](copilot-mode.md) for CLI usage
 - 📖 Read [Command Reference](../reference/commands.md) for all commands
+
+---
+
+**Trademarks**: All product names, logos, and brands mentioned in this guide are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../../TRADEMARKS.md) for more information.

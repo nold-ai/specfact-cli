@@ -2,6 +2,8 @@
 
 This directory contains Semgrep rules for detecting common async anti-patterns in Python code.
 
+**Note**: This file (`tools/semgrep/async.yml`) is used for **development** (hatch scripts, local testing). For **runtime** use in the installed package, the file is bundled as `src/specfact_cli/resources/semgrep/async.yml` and will be automatically included in the package distribution.
+
 ## Rules
 
 ### `async.yml` - Python Async Anti-Patterns
@@ -192,7 +194,7 @@ asyncio.create_task(background_task())
 
 Configuration file (`.semgrepignore`):
 
-```
+```bash
 # Ignore test files
 tests/
 ```
@@ -225,4 +227,3 @@ When adding new rules:
 
 **Maintained by**: SpecFact CLI Team
 **Last Updated**: 2025-10-30
-

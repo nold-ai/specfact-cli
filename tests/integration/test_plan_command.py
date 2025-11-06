@@ -5,9 +5,10 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.models.plan import PlanBundle
+from specfact_cli.models.plan import Metadata, PlanBundle
 from specfact_cli.utils.yaml_utils import load_yaml
 from specfact_cli.validators.schema import validate_plan_bundle
+
 
 runner = CliRunner()
 
@@ -652,6 +653,7 @@ class TestPlanAddStory:
                     ],
                 )
             ],
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
         )
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)

@@ -24,6 +24,7 @@ Usage:
 """
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -33,6 +34,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
 
 # TOML parsing - prefer tomlkit (style-preserving, widely used), fallback to tomllib (Python 3.11+)
 try:
@@ -44,8 +46,8 @@ except ImportError:
         import tomllib  # type: ignore[import]
 
         TOML_LIBRARY = "tomllib"
-    except ImportError:
-        raise ImportError("No TOML parser available. Please install tomlkit (recommended) or use Python 3.11+")
+    except ImportError as err:
+        raise ImportError("No TOML parser available. Please install tomlkit (recommended) or use Python 3.11+") from err
 
 
 class CoverageThresholdError(Exception):
@@ -243,7 +245,7 @@ class SmartCoverageManager:
         try:
             with open(file_path, "rb") as f:
                 return hashlib.sha256(f.read()).hexdigest()
-        except (FileNotFoundError, PermissionError):
+        except (FileNotFoundError, PermissionError, IsADirectoryError):
             return ""
 
     def _should_exclude_file(self, file_path: Path) -> bool:
@@ -386,7 +388,7 @@ class SmartCoverageManager:
         if git_changed:
             for rel in git_changed:
                 p = self.project_root / rel
-                if not p.exists() or self._should_exclude_file(p):
+                if not p.exists() or not p.is_file() or self._should_exclude_file(p):
                     continue
                 # Only consider source roots (src, tools)
                 if not any(str(p).startswith(str(self.project_root / d)) for d in self.source_dirs):
@@ -758,10 +760,8 @@ class SmartCoverageManager:
                     try:
                         rc = proc.wait(timeout=600)  # 10 minute timeout
                     except subprocess.TimeoutExpired:
-                        try:
+                        with contextlib.suppress(Exception):
                             proc.kill()
-                        except Exception:
-                            pass
                         raise
                     return rc, output_local, None
 
@@ -917,10 +917,8 @@ class SmartCoverageManager:
                     try:
                         rc = proc.wait(timeout=600)  # 10 minute timeout
                     except subprocess.TimeoutExpired:
-                        try:
+                        with contextlib.suppress(Exception):
                             proc.kill()
-                        except Exception:
-                            pass
                         raise
                     return rc, output_local, None
 
@@ -1015,28 +1013,26 @@ class SmartCoverageManager:
                 tested_coverage_percentage = coverage_percentage
 
             # For unit/folder tests, check if failure is due to coverage threshold
-            if not success and test_level in ["unit", "folder"]:
-                # Check if tests actually passed but failed due to coverage threshold
-                if test_count > 0 and coverage_percentage > 0:
-                    # Check if the failure is due to coverage threshold
-                    coverage_threshold_failure = False
-                    for line in output_lines:
-                        if (
-                            "coverage failure" in line.lower()
-                            or "fail_under" in line.lower()
-                            or "less than fail-under" in line.lower()
-                            or ("total of" in line and "is less than fail-under" in line)
-                        ):
-                            coverage_threshold_failure = True
-                            break
+            if not success and test_level in ["unit", "folder"] and test_count > 0 and coverage_percentage > 0:
+                # Check if the failure is due to coverage threshold
+                coverage_threshold_failure = False
+                for line in output_lines:
+                    if (
+                        "coverage failure" in line.lower()
+                        or "fail_under" in line.lower()
+                        or "less than fail-under" in line.lower()
+                        or ("total of" in line and "is less than fail-under" in line)
+                    ):
+                        coverage_threshold_failure = True
+                        break
 
-                    if coverage_threshold_failure:
-                        # This is a coverage threshold failure, not a test failure
-                        success = True  # Treat as success for unit/folder tests
-                        print(
-                            f"⚠️  Warning: Overall coverage {coverage_percentage:.1f}% is below threshold of {self.coverage_threshold:.1f}%"
-                        )
-                        print("💡 This is expected for unit/folder tests. Full test run will enforce the threshold.")
+                if coverage_threshold_failure:
+                    # This is a coverage threshold failure, not a test failure
+                    success = True  # Treat as success for unit/folder tests
+                    print(
+                        f"⚠️  Warning: Overall coverage {coverage_percentage:.1f}% is below threshold of {self.coverage_threshold:.1f}%"
+                    )
+                    print("💡 This is expected for unit/folder tests. Full test run will enforce the threshold.")
 
             # For unit/folder tests, also check tested code coverage against threshold
             if test_level in ["unit", "folder"] and tested_coverage_percentage > 0:
@@ -1694,10 +1690,7 @@ class SmartCoverageManager:
                     continue
                 # Format: XY <path> or R? <old> -> <new>
                 payload = line[3:].strip()
-                if " -> " in payload:
-                    path = payload.split(" -> ", 1)[1]
-                else:
-                    path = payload
+                path = payload.split(" -> ", 1)[1] if " -> " in payload else payload
                 # Normalize and keep repo-relative
                 rel = str(Path(path))
                 changed.add(rel)

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from specfact_cli.models.plan import Business, Feature, Idea, PlanBundle, Product, Story
+from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Story
 from specfact_cli.utils.yaml_utils import dump_yaml, load_yaml
 from specfact_cli.validators.schema import SchemaValidator, validate_plan_bundle
 
@@ -60,12 +60,14 @@ class TestPlanBundleWorkflow:
         features = [Feature(**f) for f in data["features"]]
 
         # Create plan bundle
+        metadata = Metadata(**data.get("metadata", {})) if data.get("metadata") else None
         plan_bundle = PlanBundle(
             version=data["version"],
             idea=idea,
             business=business,
             product=product,
             features=features,
+            metadata=metadata,
         )
 
         # Verify model
@@ -86,12 +88,14 @@ class TestPlanBundleWorkflow:
         product = Product(**data["product"])
         features = [Feature(**f) for f in data["features"]]
 
+        metadata = Metadata(**data.get("metadata", {})) if data.get("metadata") else None
         plan_bundle = PlanBundle(
             version=data["version"],
             idea=idea,
             business=business,
             product=product,
             features=features,
+            metadata=metadata,
         )
 
         # Use the validate_plan_bundle function
@@ -128,12 +132,14 @@ class TestPlanBundleWorkflow:
         product = Product(**data["product"])
         features = [Feature(**f) for f in data["features"]]
 
+        metadata = Metadata(**data.get("metadata", {})) if data.get("metadata") else None
         plan_bundle = PlanBundle(
             version=data["version"],
             idea=idea,
             business=business,
             product=product,
             features=features,
+            metadata=metadata,
         )
 
         # Convert to dict
@@ -231,6 +237,7 @@ class TestPlanBundleEdgeCases:
             business=None,
             product=product,
             features=[],
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
         )
 
         # Should be valid
@@ -248,6 +255,7 @@ class TestPlanBundleEdgeCases:
             product=product,
             features=[],
             business=None,
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
         )
 
         # Should be valid

@@ -13,6 +13,7 @@ from specfact_cli.agents.plan_agent import PlanAgent
 from specfact_cli.agents.registry import AgentRegistry, get_agent
 from specfact_cli.agents.sync_agent import SyncAgent
 
+
 __all__ = [
     "AgentMode",
     "AgentRegistry",

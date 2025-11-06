@@ -12,7 +12,13 @@ The licensor grants you a non-exclusive, royalty-free, worldwide, non-sublicensa
 
 ## Limitations
 
-You may use or modify the software only for your own internal business purposes or for non-commercial or personal use. You may distribute the software or provide it to others only if you do so free of charge for non-commercial purposes. You may not alter, remove, or obscure any licensing, copyright, or other notices of the licensor in the software. Any use of the licensor's trademarks is subject to applicable law.
+You may use or modify the software only for your own internal business purposes or for non-commercial or personal use. You may distribute the software or provide it to others only if you do so free of charge for non-commercial purposes. You may not alter, remove, or obscure any licensing, copyright, or other notices of the licensor in the software.
+
+## Trademarks
+
+**NOLD AI** (also referred to as **NOLDAI**) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All rights to the NOLD AI trademark are reserved.
+
+Any use of the licensor's trademarks is subject to applicable law. All other trademarks, service marks, and trade names mentioned in this software are the property of their respective owners. See [TRADEMARKS.md](TRADEMARKS.md) for a complete list of third-party trademarks and their respective owners.
 
 ## Patents
 

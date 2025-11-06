@@ -103,11 +103,17 @@ specfact --mode copilot import from-code --repo . --confidence 0.7
 ### Example 3: Enforce Quality
 
 ```bash
+# Set enforcement policy
 specfact enforce stage --preset balanced
-specfact repro
+
+# Run validation
+specfact repro --verbose --budget 120
+
+# Apply auto-fixes for violations
+specfact repro --fix --budget 120
 ```
 
-**Takes:** 2 minutes | **Learn:** Quality gates
+**Takes:** 2 minutes | **Learn:** Quality gates and auto-fixes
 
 ### Example 4: Bidirectional Sync
 
@@ -154,4 +160,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 **Happy building!** 🚀
 
+---
+
 Copyright © 2025 Nold AI (Owner: Dominikus Nold)
+
+**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../TRADEMARKS.md) for more information.

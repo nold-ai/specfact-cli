@@ -7,4 +7,5 @@ to detect deviations and generate comparison reports.
 
 from specfact_cli.comparators.plan_comparator import PlanComparator
 
+
 __all__ = ["PlanComparator"]

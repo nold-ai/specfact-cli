@@ -203,7 +203,7 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
         # Add workspace structure if workspace is available
         if enhanced.get("workspace"):
             workspace_path = Path(enhanced["workspace"])
-            if workspace_path.exists() and workspace_path.is_dir():
+            if workspace_path.exists() and workspace_path.is_dir():  # type: ignore[reportUnknownMemberType]
                 # Add workspace structure information
                 src_dirs = list(workspace_path.glob("src/**"))
                 test_dirs = list(workspace_path.glob("tests/**"))
@@ -215,7 +215,7 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
         return enhanced
 
     @beartype
-    @require(lambda repo_path: repo_path.exists() and repo_path.is_dir(), "Repo path must exist and be directory")
+    @require(lambda repo_path: repo_path.exists() and repo_path.is_dir(), "Repo path must exist and be directory")  # type: ignore[reportUnknownMemberType]
     @ensure(lambda result: isinstance(result, dict), "Result must be a dictionary")
     def _load_codebase_context(self, repo_path: Path) -> dict[str, Any]:
         """
@@ -236,8 +236,8 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
 
         # Load directory structure
         try:
-            src_dirs = list(repo_path.glob("src/**")) if (repo_path / "src").exists() else []
-            test_dirs = list(repo_path.glob("tests/**")) if (repo_path / "tests").exists() else []
+            src_dirs = list(repo_path.glob("src/**")) if (repo_path / "src").exists() else []  # type: ignore[reportUnknownMemberType]
+            test_dirs = list(repo_path.glob("tests/**")) if (repo_path / "tests").exists() else []  # type: ignore[reportUnknownMemberType]
             context["structure"] = {
                 "src_dirs": [str(d.relative_to(repo_path)) for d in src_dirs[:20]],
                 "test_dirs": [str(d.relative_to(repo_path)) for d in test_dirs[:20]],
@@ -284,7 +284,7 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
 
         dependencies: list[str] = []
         for dep_file in dependency_files:
-            if dep_file.exists():
+            if dep_file.exists():  # type: ignore[reportUnknownMemberType]
                 try:
                     content = dep_file.read_text(encoding="utf-8")[:500]  # First 500 chars
                     dependencies.append(f"{dep_file.name}: {content[:100]}...")
@@ -306,7 +306,7 @@ Dependencies: {len(dependencies)} dependency files found
         return context
 
     @beartype
-    @require(lambda repo_path: repo_path.exists() and repo_path.is_dir(), "Repo path must exist and be directory")
+    @require(lambda repo_path: repo_path.exists() and repo_path.is_dir(), "Repo path must exist and be directory")  # type: ignore[reportUnknownMemberType]
     @require(lambda confidence: 0.0 <= confidence <= 1.0, "Confidence must be 0.0-1.0")
     @require(lambda plan_name: plan_name is None or isinstance(plan_name, str), "Plan name must be None or str")
     @ensure(lambda result: isinstance(result, PlanBundle), "Result must be PlanBundle")
@@ -370,7 +370,7 @@ Dependencies: {len(dependencies)} dependency files found
         else:
             repo_name = repo_path.name or "Unknown Project"
             title = repo_name.replace("_", " ").replace("-", " ").title()
-        
+
         idea = Idea(
             title=title,
             narrative=f"Auto-derived plan from brownfield analysis of {title}",

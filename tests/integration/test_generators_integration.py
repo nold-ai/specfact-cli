@@ -6,7 +6,7 @@ from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.protocol_generator import ProtocolGenerator
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
-from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Release, Story
+from specfact_cli.models.plan import Feature, Idea, Metadata, PlanBundle, Product, Release, Story
 from specfact_cli.models.protocol import Protocol, Transition
 from specfact_cli.utils.yaml_utils import load_yaml
 from specfact_cli.validators.fsm import FSMValidator
@@ -67,6 +67,7 @@ class TestPlanGeneratorIntegration:
                     ],
                 )
             ],
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
         )
 
     def test_generate_and_validate_roundtrip(self, plan_generator, schema_validator, sample_plan_bundle, tmp_path):
@@ -115,6 +116,8 @@ class TestPlanGeneratorIntegration:
                     Release(name="v1.0", objectives=["Production"], scope=["FEATURE-3"], risks=[]),
                 ],
             ),
+            features=[],
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
         )
 
         output_path = tmp_path / "multi-release-plan.yaml"
@@ -314,6 +317,7 @@ class TestCrossComponentIntegration:
                 metrics=None,
             ),
             business=None,
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
             product=Product(
                 themes=["Core"],
                 releases=[Release(name="v1.0", objectives=["Launch"], scope=[], risks=[])],

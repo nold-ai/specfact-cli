@@ -8,7 +8,6 @@ Spec-Kit projects and converting them to SpecFact contract-driven format.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from beartype import beartype
@@ -16,8 +15,19 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+
 app = typer.Typer(help="Import codebases and Spec-Kit projects to contract format")
 console = Console()
+
+
+def _is_valid_repo_path(path: Path) -> bool:
+    """Check if path exists and is a directory."""
+    return path.exists() and path.is_dir()
+
+
+def _is_valid_output_path(path: Path | None) -> bool:
+    """Check if output path exists if provided."""
+    return path is None or path.exists()
 
 
 @app.command("from-spec-kit")
@@ -45,7 +55,7 @@ def from_spec_kit(
         "--out-branch",
         help="Feature branch name for migration",
     ),
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Path to write import report",
@@ -130,13 +140,13 @@ def from_spec_kit(
 
             # Step 4: Generate Semgrep rules
             task = progress.add_task("Generating Semgrep rules...", total=None)
-            semgrep_path = converter.generate_semgrep_rules()
+            _semgrep_path = converter.generate_semgrep_rules()  # Not used yet
             progress.update(task, description="✓ Semgrep rules generated")
 
             # Step 5: Generate GitHub Action workflow
             task = progress.add_task("Generating GitHub Action workflow...", total=None)
             repo_name = repo.name if isinstance(repo, Path) else None
-            workflow_path = converter.generate_github_action(repo_name=repo_name)
+            _workflow_path = converter.generate_github_action(repo_name=repo_name)  # Not used yet
             progress.update(task, description="✓ GitHub Action workflow generated")
 
         except Exception as e:
@@ -179,9 +189,9 @@ def from_spec_kit(
 
 
 @app.command("from-code")
-@require(lambda repo: repo.exists() and repo.is_dir(), "Repo path must exist and be directory")
+@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @require(lambda confidence: 0.0 <= confidence <= 1.0, "Confidence must be 0.0-1.0")
-@ensure(lambda out: out is None or out.exists(), "Output path must exist if provided")
+@ensure(lambda out: _is_valid_output_path(out), "Output path must exist if provided")
 @beartype
 def from_code(
     repo: Path = typer.Option(
@@ -192,12 +202,12 @@ def from_code(
         file_okay=False,
         dir_okay=True,
     ),
-    name: Optional[str] = typer.Option(
+    name: str | None = typer.Option(
         None,
         "--name",
         help="Custom plan name (will be sanitized for filesystem, default: 'auto-derived')",
     ),
-    out: Optional[Path] = typer.Option(
+    out: Path | None = typer.Option(
         None,
         "--out",
         help="Output plan bundle path (default: .specfact/plans/<name>-<timestamp>.bundle.yaml)",
@@ -207,7 +217,7 @@ def from_code(
         "--shadow-only",
         help="Shadow mode - observe without enforcing",
     ),
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Path to write analysis report (default: .specfact/reports/brownfield/analysis-<timestamp>.md)",

@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from specfact_cli.cli import app
 
+
 runner = CliRunner()
 
 
@@ -19,14 +20,14 @@ class TestAnalyzeCommand:
         code = dedent(
             '''
             """Sample module."""
-            
+
             class UserService:
                 """User management service."""
-                
+
                 def create_user(self, name):
                     """Create a new user."""
                     pass
-                
+
                 def get_user(self, user_id):
                     """Get user by ID."""
                     pass
@@ -63,7 +64,7 @@ class TestAnalyzeCommand:
             '''
             class PaymentProcessor:
                 """Process payments."""
-                
+
                 def process_payment(self, amount):
                     """Process a payment."""
                     pass
@@ -109,15 +110,15 @@ class TestAnalyzeCommand:
             '''
             class DocumentedService:
                 """Well-documented service with clear purpose."""
-                
+
                 def create_record(self, data):
                     """Create a new record with validation."""
                     pass
-                
+
                 def get_record(self, record_id):
                     """Retrieve a record by ID."""
                     pass
-                
+
                 def update_record(self, record_id, data):
                     """Update an existing record."""
                     pass
@@ -173,10 +174,10 @@ class TestAnalyzeCommand:
             import asyncio
             import typer
             from pydantic import BaseModel
-            
+
             class CLIHandler:
                 """CLI command handler."""
-                
+
                 async def handle_command(self, cmd):
                     """Handle a command asynchronously."""
                     pass
@@ -217,15 +218,15 @@ class TestAnalyzeCommand:
             '''
             class OrderService:
                 """Order processing service."""
-                
+
                 def create_order(self, items):
                     """Create a new order from items."""
                     pass
-                
+
                 def calculate_total(self, order_id):
                     """Calculate order total with tax."""
                     pass
-                
+
                 def apply_discount(self, order_id, code):
                     """Apply discount code to order."""
                     pass
@@ -266,23 +267,23 @@ class TestAnalyzeCommand:
             '''
             class ProductRepository:
                 """Product data repository."""
-                
+
                 def create_product(self, data):
                     """Create a new product."""
                     pass
-                
+
                 def get_product(self, product_id):
                     """Get product by ID."""
                     pass
-                
+
                 def list_products(self):
                     """List all products."""
                     pass
-                
+
                 def update_product(self, product_id, data):
                     """Update product."""
                     pass
-                
+
                 def delete_product(self, product_id):
                     """Delete product."""
                     pass
@@ -325,7 +326,7 @@ class TestAnalyzeCommand:
             '''
             class NotificationService:
                 """Send notifications to users."""
-                
+
                 def send_email(self, to, subject, body):
                     """Send email notification."""
                     pass
@@ -364,11 +365,11 @@ class TestAnalyzeCommand:
             '''
             class AuthService:
                 """Authentication service."""
-                
+
                 def login(self, username, password):
                     """Authenticate user."""
                     pass
-                
+
                 def logout(self, session_id):
                     """End user session."""
                     pass

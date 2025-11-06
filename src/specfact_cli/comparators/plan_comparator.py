@@ -196,8 +196,8 @@ class PlanComparator:
         auto_features_by_norm = {normalize_feature_key(f.key): f for f in auto.features}
 
         # Also build by original key for display
-        manual_features = {f.key: f for f in manual.features}
-        auto_features = {f.key: f for f in auto.features}
+        # manual_features = {f.key: f for f in manual.features}  # Not used yet
+        # auto_features = {f.key: f for f in auto.features}  # Not used yet
 
         # Check for missing features (in manual but not in auto) using normalized keys
         for norm_key in manual_features_by_norm:

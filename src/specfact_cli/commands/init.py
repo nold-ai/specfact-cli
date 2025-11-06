@@ -17,13 +17,19 @@ from rich.panel import Panel
 
 from specfact_cli.utils.ide_setup import IDE_CONFIG, copy_templates_to_ide, detect_ide
 
+
 app = typer.Typer(help="Initialize SpecFact for IDE integration")
 console = Console()
 
 
+def _is_valid_repo_path(path: Path) -> bool:
+    """Check if path exists and is a directory."""
+    return path.exists() and path.is_dir()
+
+
 @app.callback(invoke_without_command=True)
 @require(lambda ide: ide in IDE_CONFIG or ide == "auto", "IDE must be valid or 'auto'")
-@require(lambda repo: repo.exists() and repo.is_dir(), "Repo path must exist and be directory")
+@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
 @beartype
 def init(
