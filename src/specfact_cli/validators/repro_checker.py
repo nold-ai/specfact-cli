@@ -663,7 +663,7 @@ class ReproChecker:
         src_dir = self.repo_path / "src"
 
         checks: list[tuple[str, str, list[str], int | None, bool]] = [
-            ("Linting (ruff)", "ruff", ["ruff", "check", "src/", "tests/", "tools/"], None, True),
+            ("Linting (ruff)", "ruff", ["ruff", "check", "--output-format=full", "src/", "tests/", "tools/"], None, True),
         ]
 
         # Add semgrep only if config exists
