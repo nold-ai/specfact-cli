@@ -232,19 +232,19 @@ class TestCompleteWorkflowWithNewStructure:
             '''
             class TaskManager:
                 """Manages tasks."""
-                
+
                 def create_task(self, title):
                     """Create a new task."""
                     pass
-                
+
                 def get_task(self, task_id):
                     """Get task by ID."""
                     pass
-                
+
                 def update_task(self, task_id, data):
                     """Update task."""
                     pass
-                
+
                 def delete_task(self, task_id):
                     """Delete task."""
                     pass
