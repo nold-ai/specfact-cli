@@ -26,6 +26,8 @@ import pytest
 # Add project root to path for tools imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import contextlib
+
 from tools.smart_test_coverage import SmartCoverageManager
 
 
@@ -1252,10 +1254,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(2)) as mock_exit:
             from tools.smart_test_coverage import main
 
-            try:
-                main()
-            except SystemExit:
-                pass  # Expected behavior
+            with contextlib.suppress(SystemExit):
+                main()  # Expected behavior
 
         captured = capsys.readouterr()
         # The error message is now in stderr, not stdout
@@ -1268,10 +1268,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(2)) as mock_exit:
             from tools.smart_test_coverage import main
 
-            try:
-                main()
-            except SystemExit:
-                pass  # Expected behavior
+            with contextlib.suppress(SystemExit):
+                main()  # Expected behavior
 
         captured = capsys.readouterr()
         # The error message is now in stderr due to argparse
@@ -1324,10 +1322,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(0)):
             from tools.smart_test_coverage import main
 
-            try:
+            with contextlib.suppress(SystemExit):
                 main()
-            except SystemExit:
-                pass
 
         captured = capsys.readouterr()
         assert "Coverage Threshold Check:" in captured.out
@@ -1348,10 +1344,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(1)):
             from tools.smart_test_coverage import main
 
-            try:
+            with contextlib.suppress(SystemExit):
                 main()
-            except SystemExit:
-                pass
 
         captured = capsys.readouterr()
         assert "Coverage Threshold Check:" in captured.out
@@ -1375,10 +1369,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(1)):
             from tools.smart_test_coverage import main
 
-            try:
+            with contextlib.suppress(SystemExit):
                 main()
-            except SystemExit:
-                pass
 
         captured = capsys.readouterr()
         assert "❌ Coverage threshold not met!" in captured.out

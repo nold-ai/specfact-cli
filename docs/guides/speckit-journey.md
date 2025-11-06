@@ -184,9 +184,12 @@ specfact enforce stage --preset minimal
 
 # Review what would be blocked
 specfact repro --verbose
+
+# Apply auto-fixes for violations (if available)
+specfact repro --fix --verbose
 ```
 
-**Result**: See what SpecFact would catch, no blocking yet.
+**Result**: See what SpecFact would catch, no blocking yet. Auto-fixes can be applied for Semgrep violations.
 
 #### **Week 4: Enable Balanced Enforcement**
 
@@ -198,9 +201,12 @@ specfact enforce stage --preset balanced
 git checkout -b test-enforcement
 # Make a change that violates contracts
 specfact repro  # Should block HIGH issues
+
+# Or apply auto-fixes first
+specfact repro --fix  # Apply Semgrep auto-fixes, then validate
 ```
 
-**Result**: Automated enforcement catching critical issues.
+**Result**: Automated enforcement catching critical issues. Auto-fixes can be applied before validation.
 
 #### **Week 5+: Full SpecFact Workflow** (Optional)
 

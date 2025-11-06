@@ -152,16 +152,16 @@ class FSMValidator:
                 and transition.guard not in self.protocol.guards
                 and transition.guard not in self.guard_functions
             ):
-                    # LOW severity if guard functions can be provided externally
-                    report.add_deviation(
-                        Deviation(
-                            type=DeviationType.FSM_MISMATCH,
-                            severity=DeviationSeverity.LOW,
-                            description=f"Guard '{transition.guard}' not defined in protocol or guard_functions",
-                            location=f"transition[{transition.from_state} → {transition.to_state}]",
-                            fix_hint=f"Add guard definition for '{transition.guard}' in protocol.guards or pass guard_functions",
-                        )
+                # LOW severity if guard functions can be provided externally
+                report.add_deviation(
+                    Deviation(
+                        type=DeviationType.FSM_MISMATCH,
+                        severity=DeviationSeverity.LOW,
+                        description=f"Guard '{transition.guard}' not defined in protocol or guard_functions",
+                        location=f"transition[{transition.from_state} → {transition.to_state}]",
+                        fix_hint=f"Add guard definition for '{transition.guard}' in protocol.guards or pass guard_functions",
                     )
+                )
 
         # Check 5: Detect cycles (informational)
         try:

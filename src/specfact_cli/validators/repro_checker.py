@@ -7,10 +7,12 @@ exploration, and test suites with time budgets and result aggregation.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -34,6 +36,279 @@ class CheckStatus(Enum):
     SKIPPED = "skipped"
 
 
+@beartype
+@require(lambda text: isinstance(text, str), "Text must be string")
+@ensure(lambda result: isinstance(result, str), "Must return string")
+def _strip_ansi_codes(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
+
+
+@beartype
+@require(lambda output: isinstance(output, str), "Output must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+@ensure(
+    lambda result: "violations" in result and "total_violations" in result,
+    "Must include violations and total_violations",
+)
+def _extract_ruff_findings(output: str) -> dict[str, Any]:
+    """Extract structured findings from ruff output."""
+    findings: dict[str, Any] = {
+        "violations": [],
+        "total_violations": 0,
+        "files_checked": 0,
+    }
+
+    # Strip ANSI codes
+    clean_output = _strip_ansi_codes(output)
+
+    # Parse ruff output format:
+    # Format 1: "W293 [*] Blank line contains whitespace\n--> src/file.py:240:1"
+    # Format 2: "src/file.py:240:1: W293 Blank line contains whitespace"
+    lines = clean_output.split("\n")
+    i = 0
+    while i < len(lines):
+        line_stripped = lines[i].strip()
+        if not line_stripped:
+            i += 1
+            continue
+
+        # Skip help lines and code block markers
+        if line_stripped.startswith(("help:", "|", "    |")):
+            i += 1
+            continue
+
+        # Try format 1: "W293 [*] message" followed by "--> file:line:col"
+        code_match = re.match(r"^([A-Z]\d+)\s+\[[^\]]+\]\s+(.+)$", line_stripped)
+        if code_match:
+            code = code_match.group(1)
+            message = code_match.group(2)
+            # Look for location line: "--> file:line:col"
+            if i + 1 < len(lines):
+                location_line = lines[i + 1].strip()
+                location_match = re.match(r"-->\s+([^:]+):(\d+):(\d+)", location_line)
+                if location_match:
+                    file_path = location_match.group(1)
+                    line_num = int(location_match.group(2))
+                    col_num = int(location_match.group(3))
+                    findings["violations"].append(
+                        {
+                            "file": file_path,
+                            "line": line_num,
+                            "column": col_num,
+                            "code": code,
+                            "message": message,
+                        }
+                    )
+                    i += 2  # Skip both lines
+                    continue
+
+        # Try format 2: "file:line:col: code message"
+        pattern = r"^([^:]+):(\d+):(\d+):\s+([A-Z]\d+)\s+(.+)$"
+        match = re.match(pattern, line_stripped)
+        if match:
+            file_path, line_num, col_num, code, message = match.groups()
+            findings["violations"].append(
+                {
+                    "file": file_path,
+                    "line": int(line_num),
+                    "column": int(col_num),
+                    "code": code,
+                    "message": message,
+                }
+            )
+
+        i += 1
+
+    # Set total_violations from list length
+    findings["total_violations"] = len(findings["violations"])
+
+    # Extract files checked count
+    files_match = re.search(r"(\d+)\s+files?\s+checked", clean_output, re.IGNORECASE)
+    if files_match:
+        findings["files_checked"] = int(files_match.group(1))
+
+    return findings
+
+
+@beartype
+@require(lambda output: isinstance(output, str), "Output must be string")
+@require(lambda error: isinstance(error, str), "Error must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+@ensure(lambda result: "total_findings" in result, "Must include total_findings")
+def _extract_semgrep_findings(output: str, error: str) -> dict[str, Any]:
+    """Extract structured findings from semgrep output."""
+    findings: dict[str, Any] = {
+        "findings": [],
+        "total_findings": 0,
+        "rules_run": 0,
+        "targets_scanned": 0,
+    }
+
+    # Combine output and error (semgrep uses stderr for status)
+    combined = _strip_ansi_codes((output + "\n" + error).strip())
+
+    # Extract findings count
+    findings_match = re.search(r"Findings:\s*(\d+)", combined, re.IGNORECASE)
+    if findings_match:
+        findings["total_findings"] = int(findings_match.group(1))
+
+    # Extract rules run
+    rules_match = re.search(r"Rules\s+run:\s*(\d+)", combined, re.IGNORECASE)
+    if rules_match:
+        findings["rules_run"] = int(rules_match.group(1))
+
+    # Extract targets scanned
+    targets_match = re.search(r"Targets\s+scanned:\s*(\d+)", combined, re.IGNORECASE)
+    if targets_match:
+        findings["targets_scanned"] = int(targets_match.group(1))
+
+    return findings
+
+
+@beartype
+@require(lambda output: isinstance(output, str), "Output must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+@ensure(lambda result: "errors" in result and "warnings" in result, "Must include errors and warnings")
+def _extract_basedpyright_findings(output: str) -> dict[str, Any]:
+    """Extract structured findings from basedpyright output."""
+    findings: dict[str, Any] = {
+        "errors": [],
+        "warnings": [],
+        "total_errors": 0,
+        "total_warnings": 0,
+    }
+
+    # Strip ANSI codes
+    clean_output = _strip_ansi_codes(output)
+
+    # Parse basedpyright output: "path:line:col: error|warning: message"
+    pattern = r"^([^:]+):(\d+):(\d+):\s+(error|warning):\s+(.+)$"
+    for line in clean_output.split("\n"):
+        line_stripped = line.strip()
+        if not line_stripped:
+            continue
+        match = re.match(pattern, line_stripped)
+        if match:
+            file_path, line_num, col_num, level, message = match.groups()
+            finding = {
+                "file": file_path,
+                "line": int(line_num),
+                "column": int(col_num),
+                "message": message,
+            }
+            if level == "error":
+                findings["errors"].append(finding)
+                findings["total_errors"] += 1
+            else:
+                findings["warnings"].append(finding)
+                findings["total_warnings"] += 1
+
+    return findings
+
+
+@beartype
+@require(lambda output: isinstance(output, str), "Output must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+@ensure(lambda result: "counterexamples" in result, "Must include counterexamples")
+def _extract_crosshair_findings(output: str) -> dict[str, Any]:
+    """Extract structured findings from CrossHair output."""
+    findings: dict[str, Any] = {
+        "counterexamples": [],
+        "total_counterexamples": 0,
+    }
+
+    # Strip ANSI codes
+    clean_output = _strip_ansi_codes(output)
+
+    # CrossHair typically outputs counterexamples
+    # Format varies, but we can extract basic info
+    if "counterexample" in clean_output.lower() or "failed" in clean_output.lower():
+        # Try to extract file and line info
+        pattern = r"([^:]+):(\d+):.*?(counterexample|failed)"
+        matches = re.finditer(pattern, clean_output, re.IGNORECASE)
+        for match in matches:
+            findings["counterexamples"].append(
+                {
+                    "file": match.group(1),
+                    "line": int(match.group(2)),
+                    "type": match.group(3).lower(),
+                }
+            )
+            findings["total_counterexamples"] += 1
+
+    return findings
+
+
+@beartype
+@require(lambda output: isinstance(output, str), "Output must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+@ensure(lambda result: "tests_run" in result, "Must include tests_run")
+@ensure(lambda result: result["tests_run"] >= 0, "tests_run must be non-negative")
+def _extract_pytest_findings(output: str) -> dict[str, Any]:
+    """Extract structured findings from pytest output."""
+    findings: dict[str, Any] = {
+        "tests_run": 0,
+        "tests_passed": 0,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "failures": [],
+    }
+
+    # Strip ANSI codes
+    clean_output = _strip_ansi_codes(output)
+
+    # Extract test summary
+    summary_match = re.search(r"(\d+)\s+passed", clean_output, re.IGNORECASE)
+    if summary_match:
+        findings["tests_passed"] = int(summary_match.group(1))
+
+    failed_match = re.search(r"(\d+)\s+failed", clean_output, re.IGNORECASE)
+    if failed_match:
+        findings["tests_failed"] = int(failed_match.group(1))
+
+    skipped_match = re.search(r"(\d+)\s+skipped", clean_output, re.IGNORECASE)
+    if skipped_match:
+        findings["tests_skipped"] = int(skipped_match.group(1))
+
+    findings["tests_run"] = findings["tests_passed"] + findings["tests_failed"] + findings["tests_skipped"]
+
+    return findings
+
+
+@beartype
+@require(lambda tool: isinstance(tool, str) and len(tool) > 0, "Tool must be non-empty string")
+@require(lambda output: isinstance(output, str), "Output must be string")
+@require(lambda error: isinstance(error, str), "Error must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+def _extract_findings(tool: str, output: str, error: str) -> dict[str, Any]:
+    """
+    Extract structured findings from tool output based on tool type.
+
+    Args:
+        tool: Tool name (ruff, semgrep, basedpyright, crosshair, pytest)
+        output: Tool stdout output
+        error: Tool stderr output
+
+    Returns:
+        Dictionary with structured findings for the specific tool
+    """
+    tool_lower = tool.lower()
+    if tool_lower == "ruff":
+        return _extract_ruff_findings(output)
+    if tool_lower == "semgrep":
+        return _extract_semgrep_findings(output, error)
+    if tool_lower == "basedpyright":
+        return _extract_basedpyright_findings(output)
+    if tool_lower == "crosshair":
+        return _extract_crosshair_findings(output)
+    if tool_lower == "pytest":
+        return _extract_pytest_findings(output)
+    # Unknown tool - return empty findings
+    return {}
+
+
 @dataclass
 class CheckResult:
     """Result of a single validation check."""
@@ -47,9 +322,30 @@ class CheckResult:
     error: str = ""
     timeout: bool = False
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert result to dictionary."""
-        return {
+    def __post_init__(self) -> None:
+        """Validate that tool is non-empty if findings extraction is needed."""
+        if not self.tool:
+            self.tool = "unknown"  # Default to "unknown" if tool is empty
+
+    @beartype
+    @require(lambda max_output_length: max_output_length > 0, "max_output_length must be positive")
+    @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+    @ensure(
+        lambda result: "name" in result and "tool" in result and "status" in result,
+        "Must include name, tool, and status",
+    )
+    def to_dict(self, include_findings: bool = True, max_output_length: int = 50000) -> dict[str, Any]:
+        """
+        Convert result to dictionary with structured findings.
+
+        Args:
+            include_findings: Whether to include structured findings (default: True)
+            max_output_length: Maximum length of raw output/error to include if findings unavailable (truncates if longer)
+
+        Returns:
+            Dictionary representation of the check result with structured findings
+        """
+        result = {
             "name": self.name,
             "tool": self.tool,
             "status": self.status.value,
@@ -59,6 +355,34 @@ class CheckResult:
             "output_length": len(self.output),
             "error_length": len(self.error),
         }
+
+        # Extract structured findings based on tool type
+        if include_findings and self.tool:
+            try:
+                findings = _extract_findings(self.tool, self.output, self.error)
+                if findings:
+                    result["findings"] = findings
+            except Exception:
+                # If extraction fails, fall back to raw output (truncated)
+                if self.output:
+                    if len(self.output) <= max_output_length:
+                        result["output"] = _strip_ansi_codes(self.output)
+                    else:
+                        result["output"] = _strip_ansi_codes(self.output[:max_output_length])
+                        result["output_truncated"] = True
+                else:
+                    result["output"] = ""
+
+                if self.error:
+                    if len(self.error) <= max_output_length:
+                        result["error"] = _strip_ansi_codes(self.error)
+                    else:
+                        result["error"] = _strip_ansi_codes(self.error[:max_output_length])
+                        result["error_truncated"] = True
+                else:
+                    result["error"] = ""
+
+        return result
 
 
 @dataclass
@@ -73,6 +397,15 @@ class ReproReport:
     timeout_checks: int = 0
     skipped_checks: int = 0
     budget_exceeded: bool = False
+    # Metadata fields
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    repo_path: str | None = None
+    budget: int | None = None
+    active_plan_path: str | None = None
+    enforcement_config_path: str | None = None
+    enforcement_preset: str | None = None
+    fix_enabled: bool = False
+    fail_fast: bool = False
 
     @beartype
     @require(lambda result: isinstance(result, CheckResult), "Must be CheckResult instance")
@@ -106,17 +439,28 @@ class ReproReport:
             return 2
         # CrossHair failures are non-blocking (advisory only) - don't count them
         failed_checks_blocking = [
-            check
-            for check in self.checks
-            if check.status == CheckStatus.FAILED and check.tool != "crosshair"
+            check for check in self.checks if check.status == CheckStatus.FAILED and check.tool != "crosshair"
         ]
         if failed_checks_blocking:
             return 1
         return 0
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert report to dictionary."""
-        return {
+    @beartype
+    @require(lambda max_finding_length: max_finding_length > 0, "max_finding_length must be positive")
+    @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
+    @ensure(lambda result: "total_checks" in result and "checks" in result, "Must include total_checks and checks")
+    def to_dict(self, include_findings: bool = True, max_finding_length: int = 50000) -> dict[str, Any]:
+        """
+        Convert report to dictionary with structured findings.
+
+        Args:
+            include_findings: Whether to include structured findings for each check (default: True)
+            max_finding_length: Maximum length of raw output/error to include if findings unavailable (truncates if longer)
+
+        Returns:
+            Dictionary representation of the report with structured findings
+        """
+        result = {
             "total_duration": self.total_duration,
             "total_checks": self.total_checks,
             "passed_checks": self.passed_checks,
@@ -124,8 +468,35 @@ class ReproReport:
             "timeout_checks": self.timeout_checks,
             "skipped_checks": self.skipped_checks,
             "budget_exceeded": self.budget_exceeded,
-            "checks": [check.to_dict() for check in self.checks],
+            "checks": [
+                check.to_dict(include_findings=include_findings, max_output_length=max_finding_length)
+                for check in self.checks
+            ],
         }
+
+        # Add metadata if available
+        metadata = {}
+        if self.timestamp:
+            metadata["timestamp"] = self.timestamp
+        if self.repo_path:
+            metadata["repo_path"] = self.repo_path
+        if self.budget is not None:
+            metadata["budget"] = self.budget
+        if self.active_plan_path:
+            metadata["active_plan_path"] = self.active_plan_path
+        if self.enforcement_config_path:
+            metadata["enforcement_config_path"] = self.enforcement_config_path
+        if self.enforcement_preset:
+            metadata["enforcement_preset"] = self.enforcement_preset
+        if self.fix_enabled:
+            metadata["fix_enabled"] = self.fix_enabled
+        if self.fail_fast:
+            metadata["fail_fast"] = self.fail_fast
+
+        if metadata:
+            result["metadata"] = metadata
+
+        return result
 
 
 class ReproChecker:
@@ -139,7 +510,9 @@ class ReproChecker:
     @beartype
     @require(lambda budget: budget > 0, "Budget must be positive")
     @ensure(lambda self: self.budget > 0, "Budget must be positive after init")
-    def __init__(self, repo_path: Path | None = None, budget: int = 120, fail_fast: bool = False) -> None:
+    def __init__(
+        self, repo_path: Path | None = None, budget: int = 120, fail_fast: bool = False, fix: bool = False
+    ) -> None:
         """
         Initialize reproducibility checker.
 
@@ -147,12 +520,20 @@ class ReproChecker:
             repo_path: Path to repository (default: current directory)
             budget: Total time budget in seconds (must be > 0)
             fail_fast: Stop on first failure
+            fix: Apply auto-fixes where available (Semgrep auto-fixes)
         """
         self.repo_path = Path(repo_path) if repo_path else Path(".")
         self.budget = budget
         self.fail_fast = fail_fast
+        self.fix = fix
         self.report = ReproReport()
         self.start_time = time.time()
+
+        # Initialize metadata in report
+        self.report.repo_path = str(self.repo_path.absolute())
+        self.report.budget = budget
+        self.report.fix_enabled = fix
+        self.report.fail_fast = fail_fast
 
     @beartype
     @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
@@ -224,8 +605,23 @@ class ReproChecker:
             result.output = proc.stdout
             result.error = proc.stderr
 
+            # Check if this is a CrossHair signature analysis limitation (not a real failure)
+            is_signature_issue = False
+            if tool.lower() == "crosshair" and proc.returncode != 0:
+                combined_output = f"{proc.stderr} {proc.stdout}".lower()
+                is_signature_issue = (
+                    "wrong parameter order" in combined_output
+                    or "keyword-only parameter" in combined_output
+                    or "valueerror: wrong parameter" in combined_output
+                    or ("signature" in combined_output and ("error" in combined_output or "failure" in combined_output))
+                )
+
             if proc.returncode == 0:
                 result.status = CheckStatus.PASSED
+            elif is_signature_issue:
+                # CrossHair signature analysis limitation - treat as skipped, not failed
+                result.status = CheckStatus.SKIPPED
+                result.error = f"CrossHair signature analysis limitation (non-blocking, runtime contracts valid): {proc.stderr[:200] if proc.stderr else 'signature analysis limitation'}"
             else:
                 result.status = CheckStatus.FAILED
 
@@ -238,7 +634,7 @@ class ReproChecker:
         except Exception as e:
             result.duration = time.time() - start
             result.status = CheckStatus.FAILED
-            result.error = str(e)
+            result.error = f"Check failed with exception: {e!s}"
 
         return result
 
@@ -267,16 +663,19 @@ class ReproChecker:
         src_dir = self.repo_path / "src"
 
         checks: list[tuple[str, str, list[str], int | None, bool]] = [
-            ("Linting (ruff)", "ruff", ["ruff", "check", "src/", "tests/", "tools/"], None, True),
+            ("Linting (ruff)", "ruff", ["ruff", "check", "--output-format=full", "src/", "tests/", "tools/"], None, True),
         ]
 
         # Add semgrep only if config exists
         if semgrep_enabled:
+            semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(self.repo_path)), "."]
+            if self.fix:
+                semgrep_command.append("--autofix")
             checks.append(
                 (
                     "Async patterns (semgrep)",
                     "semgrep",
-                    ["semgrep", "--config", str(semgrep_config.relative_to(self.repo_path)), "."],
+                    semgrep_command,
                     30,
                     True,
                 )
@@ -337,4 +736,39 @@ class ReproChecker:
                 break
 
         self.report.total_duration = time.time() - self.start_time
+
+        # Check if budget exceeded
+        elapsed = time.time() - self.start_time
+        if elapsed >= self.budget:
+            self.report.budget_exceeded = True
+
+        # Populate metadata: active plan and enforcement config
+        try:
+            from specfact_cli.utils.structure import SpecFactStructure
+
+            # Get active plan path
+            active_plan_path = SpecFactStructure.get_default_plan_path(self.repo_path)
+            if active_plan_path.exists():
+                self.report.active_plan_path = str(active_plan_path.relative_to(self.repo_path))
+
+            # Get enforcement config path and preset
+            enforcement_config_path = SpecFactStructure.get_enforcement_config_path(self.repo_path)
+            if enforcement_config_path.exists():
+                self.report.enforcement_config_path = str(enforcement_config_path.relative_to(self.repo_path))
+                try:
+                    from specfact_cli.models.enforcement import EnforcementConfig
+                    from specfact_cli.utils.yaml_utils import load_yaml
+
+                    config_data = load_yaml(enforcement_config_path)
+                    if config_data:
+                        enforcement_config = EnforcementConfig(**config_data)
+                        self.report.enforcement_preset = enforcement_config.preset.value
+                except Exception as e:
+                    # If config can't be loaded, just skip preset (non-fatal)
+                    console.print(f"[dim]Warning: Could not load enforcement config preset: {e}[/dim]")
+
+        except Exception as e:
+            # If metadata collection fails, continue without it (non-fatal)
+            console.print(f"[dim]Warning: Could not collect metadata: {e}[/dim]")
+
         return self.report

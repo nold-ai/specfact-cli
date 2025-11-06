@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.4.1"
+version = "0.4.2"
 description = "SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development with automated quality gates"
 readme = "README.md"
 requires-python = ">=3.11"
