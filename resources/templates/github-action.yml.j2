@@ -74,7 +74,7 @@ jobs:
         id: repro
         continue-on-error: true
         run: |
-          specfact repro --verbose --budget ${{ steps.validation.outputs.budget }} || true
+          specfact repro --verbose --budget {% raw %}${{ steps.validation.outputs.budget }}{% endraw %} || true
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Find latest repro report
@@ -92,13 +92,13 @@ jobs:
 
       - name: Create GitHub annotations
         id: annotations
-        if: always() && steps.report.outputs.path != ''
+        if: always() && {% raw %}steps.report.outputs.path != ''{% endraw %}
         run: |
           python -m specfact_cli.utils.github_annotations || true
 
       - name: Generate PR comment
         id: pr-comment
-        if: always() && github.event_name == 'pull_request' && steps.report.outputs.path != ''
+        if: always() && {% raw %}github.event_name == 'pull_request' && steps.report.outputs.path != ''{% endraw %}
         run: |
           python -m specfact_cli.utils.github_annotations
           if [ -f ".specfact/pr-comment.md" ]; then
@@ -106,12 +106,12 @@ jobs:
           fi
 
       - name: Post PR comment
-        if: always() && github.event_name == 'pull_request' && steps.pr-comment.outputs.comment_path != ''
+        if: always() && {% raw %}github.event_name == 'pull_request' && steps.pr-comment.outputs.comment_path != ''{% endraw %}
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const commentPath = '${{ steps.pr-comment.outputs.comment_path }}';
+            const commentPath = '{% raw %}${{ steps.pr-comment.outputs.comment_path }}{% endraw %}';
             if (fs.existsSync(commentPath)) {
               const comment = fs.readFileSync(commentPath, 'utf8');
               github.rest.issues.createComment({
@@ -133,7 +133,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Fail workflow if validation failed
-        if: steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block'
+        if: {% raw %}steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block'{% endraw %}
         run: |
           echo "❌ Validation failed. Exiting with error code."
           exit 1
