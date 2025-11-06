@@ -103,11 +103,17 @@ specfact --mode copilot import from-code --repo . --confidence 0.7
 ### Example 3: Enforce Quality
 
 ```bash
+# Set enforcement policy
 specfact enforce stage --preset balanced
-specfact repro
+
+# Run validation
+specfact repro --verbose --budget 120
+
+# Apply auto-fixes for violations
+specfact repro --fix --budget 120
 ```
 
-**Takes:** 2 minutes | **Learn:** Quality gates
+**Takes:** 2 minutes | **Learn:** Quality gates and auto-fixes
 
 ### Example 4: Bidirectional Sync
 

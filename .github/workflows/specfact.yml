@@ -20,7 +20,7 @@ on:
       budget:
         description: "Time budget in seconds"
         required: false
-        default: "{{ budget }}"
+        default: "90"
         type: string
       mode:
         description: "Enforcement mode (block, warn, log)"
@@ -47,7 +47,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "{{ python_version }}"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install dependencies
@@ -58,12 +58,13 @@ jobs:
       - name: Install SpecFact CLI
         run: |
           echo "📦 Installing SpecFact CLI..."
-          pip install specfact-cli
+          hatch env create || true
+          pip install -e .
 
       - name: Set validation parameters
         id: validation
         run: |
-          BUDGET="${INPUT_BUDGET:-{{ budget }}}"
+          BUDGET="${INPUT_BUDGET:-90}"
           MODE="${INPUT_MODE:-block}"
           echo "budget=$BUDGET" >> $GITHUB_OUTPUT
           echo "mode=$MODE" >> $GITHUB_OUTPUT
@@ -74,7 +75,7 @@ jobs:
         id: repro
         continue-on-error: true
         run: |
-          specfact repro --verbose --budget ${{ steps.validation.outputs.budget }} || true
+          hatch run specfact repro --verbose --budget ${{ steps.validation.outputs.budget }} || true
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Find latest repro report

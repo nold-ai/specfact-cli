@@ -425,37 +425,62 @@ specfact repro --budget 120 --verbose
 
 #### 1. Add GitHub Action
 
-Create `.github/workflows/specfact-gate.yml`:
+Create `.github/workflows/specfact.yml`:
 
 ```yaml
-name: SpecFact Quality Gate
+name: SpecFact CLI Validation
+
 on:
   pull_request:
     branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "Time budget in seconds"
+        required: false
+        default: "90"
+        type: string
+
 jobs:
-  validate:
+  specfact-validation:
+    name: Contract Validation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      
-      - name: Install SpecFact
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install SpecFact CLI
         run: pip install specfact-cli
-      
-      - name: Run SpecFact
-        run: specfact repro --budget 120 --verbose
-      
-      - name: Upload report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: specfact-report
-          path: .specfact/report.md
+
+      - name: Run Contract Validation
+        run: specfact repro --verbose --budget 90
+
+      - name: Generate PR Comment
+        if: github.event_name == 'pull_request'
+        run: python -m specfact_cli.utils.github_annotations
+        env:
+          SPECFACT_REPORT_PATH: .specfact/reports/enforcement/report-*.yaml
 ```
+
+**Features**:
+
+- ✅ PR annotations for violations
+- ✅ PR comments with violation summaries
+- ✅ Auto-fix suggestions in PR comments
+- ✅ Budget-based blocking
+- ✅ Manual workflow dispatch support
 
 #### 2. Configure Enforcement
 
@@ -483,7 +508,10 @@ analysis:
 
 ```bash
 # Before pushing
-specfact repro
+specfact repro --verbose
+
+# Apply auto-fixes for violations
+specfact repro --fix --verbose
 
 # If issues found
 specfact enforce stage --preset minimal  # Temporarily allow

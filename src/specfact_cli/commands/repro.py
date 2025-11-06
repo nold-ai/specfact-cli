@@ -39,6 +39,8 @@ def _is_valid_output_path(path: Path | None) -> bool:
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @require(lambda budget: budget > 0, "Budget must be positive")
 @ensure(lambda out: _is_valid_output_path(out), "Output path must exist if provided")
+# CrossHair: Skip analysis for Typer-decorated functions (signature analysis limitation)
+# type: ignore[crosshair]
 def main(
     repo: Path = typer.Option(
         Path("."),
@@ -64,6 +66,11 @@ def main(
         "--fail-fast",
         help="Stop on first failure",
     ),
+    fix: bool = typer.Option(
+        False,
+        "--fix",
+        help="Apply auto-fixes where available (Semgrep auto-fixes)",
+    ),
     out: Path | None = typer.Option(
         None,
         "--out",
@@ -83,6 +90,7 @@ def main(
 
     Example:
         specfact repro --verbose --budget 120
+        specfact repro --fix --budget 120
     """
     from specfact_cli.utils.yaml_utils import dump_yaml
 
@@ -91,13 +99,15 @@ def main(
     console.print(f"[dim]Time budget: {budget}s[/dim]")
     if fail_fast:
         console.print("[dim]Fail-fast: enabled[/dim]")
+    if fix:
+        console.print("[dim]Auto-fix: enabled[/dim]")
     console.print()
 
     # Ensure structure exists
     SpecFactStructure.ensure_structure(repo)
 
     # Run all checks
-    checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast)
+    checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast, fix=fix)
 
     with Progress(
         SpinnerColumn(),

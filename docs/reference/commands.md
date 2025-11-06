@@ -338,12 +338,21 @@ specfact repro [OPTIONS]
 
 - `--verbose` - Show detailed output
 - `--budget INT` - Time budget in seconds (default: 120)
-- `--report PATH` - Write validation report
+- `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
+- `--fail-fast` - Stop on first failure
+- `--out PATH` - Output report path (default: `.specfact/reports/enforcement/report-<timestamp>.yaml`)
 
 **Example:**
 
 ```bash
+# Standard validation
 specfact repro --verbose --budget 120
+
+# Apply auto-fixes for violations
+specfact repro --fix --budget 120
+
+# Stop on first failure
+specfact repro --fail-fast
 ```
 
 **What it runs:**
@@ -355,11 +364,87 @@ specfact repro --verbose --budget 120
 5. **Smoke tests** - Event loop lag, orphaned tasks
 6. **Plan validation** - Schema compliance
 
+**Auto-fixes:**
+
+When using `--fix`, Semgrep will automatically apply fixes for violations that have `fix:` fields in the rules. For example, `blocking-sleep-in-async` rule will automatically replace `time.sleep(...)` with `asyncio.sleep(...)` in async functions.
+
 **Exit codes:**
 
 - `0` - All checks passed
 - `1` - Validation failed
 - `2` - Budget exceeded
+
+**Report Format:**
+
+Reports are written as YAML files to `.specfact/reports/enforcement/report-<timestamp>.yaml`. Each report includes:
+
+**Summary Statistics:**
+
+- `total_duration` - Total time taken (seconds)
+- `total_checks` - Number of checks executed
+- `passed_checks`, `failed_checks`, `timeout_checks`, `skipped_checks` - Status counts
+- `budget_exceeded` - Whether time budget was exceeded
+
+**Check Details:**
+
+- `checks` - List of check results with:
+  - `name` - Human-readable check name
+  - `tool` - Tool used (ruff, semgrep, basedpyright, crosshair, pytest)
+  - `status` - Check status (passed, failed, timeout, skipped)
+  - `duration` - Time taken (seconds)
+  - `exit_code` - Tool exit code
+  - `timeout` - Whether check timed out
+  - `output_length` - Length of output (truncated in report)
+  - `error_length` - Length of error output (truncated in report)
+
+**Metadata (Context):**
+
+- `timestamp` - When the report was generated (ISO format)
+- `repo_path` - Repository path (absolute)
+- `budget` - Time budget used (seconds)
+- `active_plan_path` - Active plan bundle path (relative to repo, if exists)
+- `enforcement_config_path` - Enforcement config path (relative to repo, if exists)
+- `enforcement_preset` - Enforcement preset used (minimal, balanced, strict, if config exists)
+- `fix_enabled` - Whether `--fix` flag was used (true/false)
+- `fail_fast` - Whether `--fail-fast` flag was used (true/false)
+
+**Example Report:**
+
+```yaml
+total_duration: 89.09
+total_checks: 4
+passed_checks: 1
+failed_checks: 2
+timeout_checks: 1
+skipped_checks: 0
+budget_exceeded: false
+checks:
+  - name: Linting (ruff)
+    tool: ruff
+    status: failed
+    duration: 0.03
+    exit_code: 1
+    timeout: false
+    output_length: 39324
+    error_length: 0
+  - name: Async patterns (semgrep)
+    tool: semgrep
+    status: passed
+    duration: 0.21
+    exit_code: 0
+    timeout: false
+    output_length: 0
+    error_length: 164
+metadata:
+  timestamp: '2025-11-06T00:43:42.062620'
+  repo_path: /home/user/my-project
+  budget: 120
+  active_plan_path: .specfact/plans/main.bundle.yaml
+  enforcement_config_path: .specfact/gates/config/enforcement.yaml
+  enforcement_preset: balanced
+  fix_enabled: false
+  fail_fast: false
+```
 
 ---
 
