@@ -68,15 +68,15 @@ class TestCodeAnalyzer:
             '''
             class UserManager:
                 """Manages user operations."""
-                
+
                 def __init__(self):
                     """Initialize manager."""
                     pass
-                
+
                 def get_user(self, user_id):
                     """Get user by ID."""
                     pass
-                
+
                 def create_user(self, name):
                     """Create new user."""
                     pass
@@ -107,23 +107,23 @@ class TestCodeAnalyzer:
             '''
             class ProductCatalog:
                 """Product catalog management."""
-                
+
                 def create_product(self, name):
                     """Create a new product."""
                     pass
-                
+
                 def get_product(self, product_id):
                     """Get product by ID."""
                     pass
-                
+
                 def list_products(self):
                     """List all products."""
                     pass
-                
+
                 def update_product(self, product_id, data):
                     """Update existing product."""
                     pass
-                
+
                 def delete_product(self, product_id):
                     """Delete a product."""
                     pass
@@ -158,11 +158,11 @@ class TestCodeAnalyzer:
             '''
             class OrderService:
                 """Order processing service."""
-                
+
                 def create_order(self, items):
                     """Create a new order."""
                     pass
-                
+
                 def process_order(self, order_id):
                     """Process an order."""
                     pass
@@ -196,7 +196,7 @@ class TestCodeAnalyzer:
             '''
             class ComplexService:
                 """Service with many operations."""
-                
+
                 def op1(self): pass
                 def op2(self): pass
                 def op3(self): pass
@@ -230,7 +230,7 @@ class TestCodeAnalyzer:
             class _PrivateHelper:
                 """Internal helper class."""
                 pass
-            
+
             class PublicService:
                 """Public service class."""
                 def do_something(self):
@@ -261,7 +261,7 @@ class TestCodeAnalyzer:
                 """Test user manager."""
                 def test_create(self):
                     pass
-            
+
             class UserManager:
                 """Real user manager."""
                 def create(self):
@@ -312,10 +312,10 @@ class TestCodeAnalyzer:
         code = dedent(
             '''
             import typer
-            
+
             class CommandHandler:
                 """Handles CLI commands."""
-                
+
                 def execute(self, cmd):
                     """Execute a command."""
                     pass
@@ -358,15 +358,15 @@ class TestCodeAnalyzer:
             '''
             class DataValidator:
                 """Validates data."""
-                
+
                 def validate_email(self, email):
                     """Validate email format."""
                     pass
-                
+
                 def validate_phone(self, phone):
                     """Validate phone number."""
                     pass
-                
+
                 def is_valid(self, data):
                     """Check if data is valid."""
                     pass
@@ -400,7 +400,7 @@ class TestCodeAnalyzer:
             '''
             class PaymentProcessor:
                 """Processes payments."""
-                
+
                 def process_payment(self, amount):
                     """Process a payment."""
                     pass
@@ -430,11 +430,11 @@ class TestCodeAnalyzer:
             '''
             class ReportGenerator:
                 """Generates reports."""
-                
+
                 def generate_pdf(self):
                     """Generate PDF report."""
                     pass
-                
+
                 def generate_html(self):
                     """Generate HTML report."""
                     pass
@@ -469,7 +469,7 @@ class TestCodeAnalyzer:
             '''
             class EmailService:
                 """Sends emails."""
-                
+
                 def send_email(self, to, subject, body):
                     """Send an email to a recipient with subject and body."""
                     pass

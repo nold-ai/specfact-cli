@@ -211,7 +211,7 @@ class TestCopyTemplatesToIDE:
         (cursor_dir / "specfact-import-from-code.md").write_text("existing")
 
         # Try to copy without force
-        copied_files, settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=False)
+        copied_files, _settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=False)
 
         # Should skip existing file
         assert len(copied_files) == 0
@@ -234,7 +234,7 @@ class TestCopyTemplatesToIDE:
         (cursor_dir / "specfact-import-from-code.md").write_text("existing")
 
         # Copy with force
-        copied_files, settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=True)
+        copied_files, _settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=True)
 
         # Should have copied file
         assert len(copied_files) == 1
