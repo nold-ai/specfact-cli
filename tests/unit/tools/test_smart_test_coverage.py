@@ -1254,10 +1254,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(2)) as mock_exit:
             from tools.smart_test_coverage import main
 
-            try:
-                main()
-            except SystemExit:
-                pass  # Expected behavior
+            with contextlib.suppress(SystemExit):
+                main()  # Expected behavior
 
         captured = capsys.readouterr()
         # The error message is now in stderr, not stdout
@@ -1270,10 +1268,8 @@ class TestMainFunction:
         with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(2)) as mock_exit:
             from tools.smart_test_coverage import main
 
-            try:
-                main()
-            except SystemExit:
-                pass  # Expected behavior
+            with contextlib.suppress(SystemExit):
+                main()  # Expected behavior
 
         captured = capsys.readouterr()
         # The error message is now in stderr due to argparse
