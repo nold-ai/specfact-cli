@@ -30,7 +30,8 @@ SpecFact CLI **complements Spec-Kit** by adding automation and enforcement:
 | Enhancement | What You Get |
 |-------------|--------------|
 | **Automated enforcement** | Runtime + static contract validation, CI/CD gates |
-| **Team workflows** | Shared plans, deviation detection, multi-user collaboration |
+| **Shared plans** | **Shared structured plans** enable team collaboration with automated bidirectional sync (not just manual markdown sharing like Spec-Kit) |
+| **Code vs plan drift detection** | Automated comparison of intended design (manual plan) vs actual implementation (code-derived plan from `import from-code`) |
 | **CI/CD integration** | Automated quality gates in your pipeline |
 | **Brownfield support** | Analyze existing code to complement Spec-Kit's greenfield focus |
 | **Property testing** | FSM fuzzing, Hypothesis-based validation |
@@ -60,10 +61,29 @@ specfact import from-spec-kit --repo ./my-speckit-project --write
 **Ongoing**: Keep using Spec-Kit interactively, sync automatically with SpecFact:
 
 ```bash
+# Enable shared plans sync (bidirectional sync for team collaboration)
+specfact plan sync --shared --watch
+# Or use direct command:
 specfact sync spec-kit --repo . --bidirectional --watch
 ```
 
 **Best of both worlds**: Interactive authoring (Spec-Kit) + Automated enforcement (SpecFact)
+
+**Team collaboration**: **Shared structured plans** enable multiple developers to work on the same plan with automated deviation detection. Unlike Spec-Kit's manual markdown sharing, SpecFact provides automated bidirectional sync that keeps plans synchronized across team members:
+
+```bash
+# Enable shared plans for team collaboration
+specfact plan sync --shared --watch
+# → Automatically syncs Spec-Kit artifacts ↔ SpecFact plans
+# → Multiple developers can work on the same plan with automated synchronization
+# → No manual markdown sharing required
+
+# Detect code vs plan drift automatically
+specfact plan compare --code-vs-plan
+# → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
+# → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
+# → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
+```
 
 ---
 
@@ -167,7 +187,25 @@ specfact import from-code --repo . --shadow-only
 
 **How it complements Spec-Kit**: Spec-Kit focuses on new feature authoring; SpecFact CLI adds brownfield analysis to work with existing code.
 
-### 4. Evidence-Based
+### 4. Code vs Plan Drift Detection
+
+**What it means**: Automated comparison of intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code). Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift".
+
+**Why developers love it**: Detects code vs plan drift automatically (not just artifact consistency like Spec-Kit's `/speckit.analyze`). Spec-Kit's `/speckit.analyze` only checks artifact consistency between markdown files; SpecFact CLI detects actual code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from code analysis).
+
+**Example**:
+
+```bash
+# Detect code vs plan drift automatically
+specfact plan compare --code-vs-plan
+# → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
+# → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
+# → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
+```
+
+**How it complements Spec-Kit**: Spec-Kit's `/speckit.analyze` only checks artifact consistency between markdown files; SpecFact CLI detects code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from `import from-code`).
+
+### 5. Evidence-Based
 
 **What it means**: Reproducible validation and reports
 
@@ -180,7 +218,7 @@ specfact import from-code --repo . --shadow-only
 specfact repro --report evidence.md
 ```
 
-### 5. Offline-First
+### 6. Offline-First
 
 **What it means**: Works without internet connection
 

@@ -1,6 +1,26 @@
-# Testing Mode Detection and Command Routing
+# Operational Modes
 
-This guide shows how to test mode detection (Phase 3.1) and command routing (Phase 3.2) in practice.
+Reference documentation for SpecFact CLI's operational modes: CI/CD and CoPilot.
+
+## Overview
+
+SpecFact CLI supports two operational modes for different use cases:
+
+- **CI/CD Mode** (default): Fast, deterministic execution for automated pipelines
+- **CoPilot Mode**: Enhanced prompts with context injection for interactive development
+
+## Mode Detection
+
+Mode is automatically detected based on:
+
+1. **Explicit `--mode` flag** (highest priority)
+2. **CoPilot API availability** (environment/IDE detection)
+3. **IDE integration** (VS Code/Cursor with CoPilot enabled)
+4. **Default to CI/CD mode** (fallback)
+
+## Testing Mode Detection
+
+This reference shows how to test mode detection and command routing in practice.
 
 ## Quick Test Commands
 

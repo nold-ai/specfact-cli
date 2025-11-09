@@ -4,157 +4,99 @@
 
 ---
 
-## 📚 Documentation
+## 🎯 Find Your Path
 
-### New to SpecFact CLI?
+### New to SpecFact?
 
-Start here:
+**Goal**: Get started in < 5 minutes
 
 1. **[Getting Started](getting-started/README.md)** - Install and run your first command
-2. **[Use Cases](guides/use-cases.md)** - See real-world examples
-3. **[Command Reference](reference/commands.md)** - Learn all available commands
+2. **[See It In Action](examples/dogfooding-specfact-cli.md)** - Real example (< 10 seconds)
+3. **[Use Cases](guides/use-cases.md)** - Common scenarios
+
+**Time**: < 10 minutes | **Result**: Running your first command
+
+---
 
 ### Using GitHub Spec-Kit?
 
-**🎯 Level Up**: SpecFact CLI is **the add-on** to level up from Spec-Kit's interactive authoring to automated enforcement:
+**Goal**: Level up from interactive authoring to automated enforcement
 
-- **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Complete guide to leveling up from interactive slash commands to automated CI/CD enforcement
+1. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** ⭐ - Complete migration guide
+2. **[Migration Use Case](guides/use-cases.md#use-case-1-github-spec-kit-migration)** - Step-by-step
+3. **[Bidirectional Sync](guides/use-cases.md#use-case-1-github-spec-kit-migration)** - Keep both tools in sync
 
-### Guides
-
-- **[IDE Integration](guides/ide-integration.md)** - Set up slash commands in your IDE
-- **[CoPilot Mode](guides/copilot-mode.md)** - Using `--mode copilot` on CLI
-- **[Use Cases](guides/use-cases.md)** - Real-world scenarios
-- **[Competitive Analysis](guides/competitive-analysis.md)** - How SpecFact compares
-
-### Reference Documentation
-
-- **[Command Reference](reference/commands.md)** - Complete command documentation
-- **[Architecture](reference/architecture.md)** - Technical design and principles
-- **[Testing](reference/testing.md)** - Testing procedures
-- **[Directory Structure](reference/directory-structure.md)** - Project structure
+**Time**: 15-30 minutes | **Result**: Automated enforcement for your Spec-Kit project
 
 ---
 
-## 🚀 Quick Links
+### Using SpecFact Daily?
 
-### Common Tasks
+**Goal**: Use SpecFact effectively in your workflow
 
-- **[Install SpecFact CLI](getting-started/installation.md)**
-- **[Level up from GitHub Spec-Kit](guides/speckit-journey.md)** - **The add-on** to level up from interactive authoring to automated enforcement
-- **[Set Up IDE Integration](guides/ide-integration.md)** - Initialize slash commands in your IDE
-- **[Migrate from GitHub Spec-Kit](guides/use-cases.md#use-case-1-github-spec-kit-migration)**
-- **[Analyze existing code](guides/use-cases.md#use-case-2-brownfield-code-hardening)**
-- **[Start a new project](guides/use-cases.md#use-case-3-greenfield-spec-first-development)**
+1. **[Command Reference](reference/commands.md)** - All commands with examples
+2. **[Use Cases](guides/use-cases.md)** - Real-world scenarios
+3. **[IDE Integration](guides/ide-integration.md)** - Set up slash commands
+4. **[CoPilot Mode](guides/copilot-mode.md)** - Enhanced prompts
 
-### By Role
-
-**Developers:**
-
-- [Getting Started Guide](getting-started/README.md)
-- [Command Reference](reference/commands.md)
-- [Use Cases & Examples](guides/use-cases.md)
-- [IDE Integration](guides/ide-integration.md)
-
-**Team Leads:**
-
-- [Use Cases](guides/use-cases.md)
-- [Competitive Analysis](guides/competitive-analysis.md)
-- [Architecture Overview](reference/architecture.md)
-- [Operational Modes](reference/architecture.md#operational-modes)
-
-**Contributors:**
-
-- [Contributing Guidelines](../CONTRIBUTING.md)
-- [Architecture Documentation](reference/architecture.md)
-- [Development Setup](getting-started/installation.md#development-setup)
+**Time**: 30-60 minutes | **Result**: Master daily workflows
 
 ---
 
-## 💡 Learn by Example
+### Contributing to SpecFact?
 
-### Example 1: Your First Command
+**Goal**: Understand internals and contribute
 
-```bash
-# Install (no setup required)
-uvx --from specfact-cli specfact plan init --interactive
+1. **[Architecture](reference/architecture.md)** - Technical design
+2. **[Development Setup](getting-started/installation.md#development-setup)** - Local setup
+3. **[Testing Procedures](technical/testing.md)** - How we test
+4. **[Technical Deep Dives](technical/README.md)** - Implementation details
 
-# Or use CoPilot mode (if available)
-/specfact-plan-init --idea idea.yaml
-```
+**Time**: 2-4 hours | **Result**: Ready to contribute
 
-**Takes:** 60 seconds | **Learn:** Basic workflow
+---
 
-### Example 2: Analyze Existing Code
+## 📚 Documentation Sections
 
-```bash
-# CI/CD mode (fast, deterministic)
-specfact import from-code --repo . --shadow-only
+### Getting Started
 
-# CoPilot mode (enhanced prompts)
-specfact --mode copilot import from-code --repo . --confidence 0.7
+- [Installation](getting-started/installation.md) - All installation options
+- [First Steps](getting-started/first-steps.md) - Step-by-step first commands
 
-# Or use slash command in IDE (after running specfact init)
-/specfact-import-from-code --repo . --confidence 0.7
-```
+### User Guides
 
-**Takes:** 2-5 minutes | **Learn:** Brownfield analysis
+- [Spec-Kit Journey](guides/speckit-journey.md) ⭐ - Migration guide
+- [Use Cases](guides/use-cases.md) - Real-world scenarios
+- [Workflows](guides/workflows.md) - Common daily workflows
+- [IDE Integration](guides/ide-integration.md) - Slash commands
+- [CoPilot Mode](guides/copilot-mode.md) - Enhanced prompts
+- [Troubleshooting](guides/troubleshooting.md) - Common issues and solutions
 
-### Example 3: Enforce Quality
+### Reference
 
-```bash
-# Set enforcement policy
-specfact enforce stage --preset balanced
+- [Commands](reference/commands.md) - Complete command reference
+- [Architecture](reference/architecture.md) - Technical design
+- [Operational Modes](reference/modes.md) - CI/CD vs CoPilot modes
+- [Feature Keys](reference/feature-keys.md) - Key normalization
+- [Directory Structure](reference/directory-structure.md) - Project layout
 
-# Run validation
-specfact repro --verbose --budget 120
+### Examples
 
-# Apply auto-fixes for violations
-specfact repro --fix --budget 120
-```
+- [Dogfooding Example](examples/dogfooding-specfact-cli.md) - Main example
+- [Quick Examples](examples/quick-examples.md) - Code snippets
 
-**Takes:** 2 minutes | **Learn:** Quality gates and auto-fixes
+### Technical
 
-### Example 4: Bidirectional Sync
-
-```bash
-# Sync Spec-Kit artifacts
-specfact sync spec-kit --repo . --bidirectional --watch
-
-# Sync repository changes
-specfact sync repository --repo . --watch
-```
-
-**Takes:** < 1 minute | **Learn:** Continuous change management
+- [Code2Spec Analysis](technical/code2spec-analysis-logic.md) - AI-first approach
+- [Testing Procedures](technical/testing.md) - Testing guidelines
 
 ---
 
 ## 🆘 Getting Help
 
-### Documentation
-
-You're here! Browse the guides above.
-
-### Community
-
-- 💬 [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions) - Ask questions
-- 🐛 [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues) - Report bugs
-
-### Direct Support
-
-- 📧 Email: [hello@noldai.com](mailto:hello@noldai.com)
-
----
-
-## 🤝 Contributing
-
-Found an error or want to improve the docs?
-
-1. Fork the repository
-2. Edit the markdown files in `docs/`
-3. Submit a pull request
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+- 💬 [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
+- 🐛 [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
+- 📧 [hello@noldai.com](mailto:hello@noldai.com)
 
 ---
 

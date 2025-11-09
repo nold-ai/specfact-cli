@@ -26,6 +26,7 @@ specfact import from-spec-kit --repo ./my-project --dry-run
 ## Next Steps
 
 - 📖 **[Installation Guide](installation.md)** - Install SpecFact CLI
+- 📖 **[First Steps](first-steps.md)** - Step-by-step first commands
 - 📖 **[Use Cases](../guides/use-cases.md)** - See real-world examples
 - 📖 **[Command Reference](../reference/commands.md)** - Learn all available commands
 

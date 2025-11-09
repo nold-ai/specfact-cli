@@ -4,12 +4,14 @@ Practical guides for using SpecFact CLI effectively.
 
 ## Available Guides
 
+- **[Spec-Kit Journey](speckit-journey.md)** ⭐ - Migrating from GitHub Spec-Kit to SpecFact
+- **[Use Cases](use-cases.md)** - Real-world scenarios and examples
+- **[Workflows](workflows.md)** - Common daily workflows
 - **[IDE Integration](ide-integration.md)** - Set up slash commands in your IDE
 - **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` on CLI commands
-- **[Use Cases](use-cases.md)** - Real-world scenarios and examples
-- **[Spec-Kit Journey](speckit-journey.md)** - Migrating from GitHub Spec-Kit to SpecFact
+- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
 - **[Competitive Analysis](competitive-analysis.md)** - How SpecFact compares to other tools
-- **[Mode Detection](mode-detection.md)** - Testing and understanding operational modes
+- **[Operational Modes](../reference/modes.md)** - CI/CD vs CoPilot modes (reference)
 
 ## Quick Start
 
@@ -21,7 +23,7 @@ Practical guides for using SpecFact CLI effectively.
 ### For CLI Users
 
 1. **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` for enhanced prompts
-2. **[Mode Detection](mode-detection.md)** - Understanding mode auto-detection
+2. **[Operational Modes](../reference/modes.md)** - Understanding CI/CD vs CoPilot modes
 
 ### For Spec-Kit Users
 

@@ -2,6 +2,8 @@
 
 > **TL;DR**: We ran SpecFact CLI on its own codebase. It discovered **19 features** and **49 stories** in **under 3 seconds**. When we compared the auto-derived plan against our manual plan, it found **24 deviations** and blocked the merge (as configured). Total time: **< 10 seconds**. 🚀
 
+> **Note**: "Dogfooding" is a well-known tech term meaning "eating your own dog food" - using your own product. It's a common practice in software development to validate that tools work in real-world scenarios.
+
 ---
 
 ## The Challenge

@@ -96,6 +96,53 @@ class TestPlanCompareCommand:
         assert "FEATURE-002" in result.stdout
         assert "HIGH" in result.stdout
 
+    def test_compare_code_vs_plan_alias(self, tmp_plans):
+        """Test --code-vs-plan convenience alias for code vs plan drift detection."""
+        idea = Idea(title="Test Project", narrative="A test project", metrics=None)
+        product = Product(themes=[], releases=[])
+
+        feature1 = Feature(
+            key="FEATURE-001",
+            title="User Auth",
+            outcomes=["Secure login"],
+            acceptance=["Login works"],
+            stories=[],
+        )
+
+        feature2 = Feature(
+            key="FEATURE-002",
+            title="Dashboard",
+            outcomes=["View metrics"],
+            acceptance=["Dashboard loads"],
+            stories=[],
+        )
+
+        manual_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+        )
+
+        auto_plan = PlanBundle(
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+        )
+
+        manual_path = tmp_plans / "manual.yaml"
+        auto_path = tmp_plans / "auto.yaml"
+
+        dump_yaml(manual_plan.model_dump(exclude_none=True), manual_path)
+        dump_yaml(auto_plan.model_dump(exclude_none=True), auto_path)
+
+        result = runner.invoke(
+            app,
+            ["plan", "compare", "--code-vs-plan", "--manual", str(manual_path), "--auto", str(auto_path)],
+        )
+
+        assert result.exit_code == 0  # Succeeds even with deviations
+        assert "Code vs Plan Drift Detection" in result.stdout
+        assert "intended design" in result.stdout.lower()
+        assert "actual implementation" in result.stdout.lower()
+        assert "1 deviation(s) found" in result.stdout
+        assert "FEATURE-002" in result.stdout
+
     def test_compare_with_extra_feature(self, tmp_plans):
         """Test detecting extra feature in auto plan."""
         idea = Idea(title="Test Project", narrative="A test project", metrics=None)

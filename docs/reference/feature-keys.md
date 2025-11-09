@@ -1,8 +1,10 @@
-# Feature Key Normalization Guide
+# Feature Key Normalization
+
+Reference documentation for feature key formats and normalization in SpecFact CLI.
 
 ## Overview
 
-SpecFact CLI supports multiple feature key formats to accommodate different use cases and historical plans. This guide explains how to work with different formats and how the normalization system ensures consistent comparison and merging.
+SpecFact CLI supports multiple feature key formats to accommodate different use cases and historical plans. The normalization system ensures consistent comparison and merging across different formats.
 
 ## Supported Key Formats
 
