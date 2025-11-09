@@ -1,7 +1,7 @@
 # IDE Integration with SpecFact CLI
 
-**Status**: ✅ **AVAILABLE** (v0.2.2)  
-**Last Updated**: 2025-11-02
+**Status**: ✅ **AVAILABLE** (v0.4.2+)  
+**Last Updated**: 2025-11-09
 
 ---
 

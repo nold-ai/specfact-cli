@@ -2,6 +2,61 @@
 
 Complete reference for all SpecFact CLI commands.
 
+## Quick Reference
+
+### Most Common Commands
+
+```bash
+# Import from Spec-Kit
+specfact import from-spec-kit --repo . --dry-run
+
+# Import from code
+specfact import from-code --repo . --name my-project
+
+# Initialize plan
+specfact plan init --interactive
+
+# Compare plans
+specfact plan compare --repo .
+
+# Sync Spec-Kit (bidirectional)
+specfact sync spec-kit --repo . --bidirectional --watch
+
+# Validate everything
+specfact repro --verbose
+```
+
+### Commands by Workflow
+
+**Import & Analysis:**
+
+- `import from-spec-kit` - Import from GitHub Spec-Kit
+- `import from-code` - Analyze existing codebase
+
+**Plan Management:**
+
+- `plan init` - Initialize new plan
+- `plan add-feature` - Add feature to plan
+- `plan add-story` - Add story to feature
+- `plan compare` - Compare plans (detect drift)
+- `plan sync --shared` - Enable shared plans (team collaboration)
+
+**Enforcement:**
+
+- `enforce stage` - Configure quality gates
+- `repro` - Run validation suite
+
+**Synchronization:**
+
+- `sync spec-kit` - Sync with Spec-Kit artifacts
+- `sync repository` - Sync code changes
+
+**Setup:**
+
+- `init` - Initialize IDE integration
+
+---
+
 ## Global Options
 
 ```bash
@@ -152,7 +207,7 @@ specfact plan init [OPTIONS]
 
 - `--interactive` - Interactive wizard (recommended)
 - `--template NAME` - Use template (default, minimal, full)
-- `--out PATH` - Output path (default: `contracts/plans/plan.bundle.yaml`)
+- `--out PATH` - Output path (default: `.specfact/plans/main.bundle.yaml`)
 
 **Example:**
 
@@ -174,7 +229,7 @@ specfact plan add-feature [OPTIONS]
 - `--title TEXT` - Feature title (required)
 - `--outcomes TEXT` - Success outcomes (multiple allowed)
 - `--acceptance TEXT` - Acceptance criteria (multiple allowed)
-- `--plan PATH` - Plan bundle path (default: `contracts/plans/plan.bundle.yaml`)
+- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
 
 **Example:**
 
@@ -250,9 +305,51 @@ specfact plan select main.bundle.yaml
 
 **Note**: The active plan is tracked in `.specfact/plans/config.yaml` and replaces the static `main.bundle.yaml` reference. All plan commands (`compare`, `promote`, `add-feature`, `add-story`, `sync spec-kit`) now use the active plan by default.
 
+#### `plan sync`
+
+Enable shared plans for team collaboration (convenience wrapper for `sync spec-kit --bidirectional`):
+
+```bash
+specfact plan sync --shared [OPTIONS]
+```
+
+**Options:**
+
+- `--shared` - Enable shared plans (bidirectional sync for team collaboration)
+- `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
+- `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
+- `--repo PATH` - Path to repository (default: `.`)
+- `--plan PATH` - Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+- `--overwrite` - Overwrite existing Spec-Kit artifacts (delete all existing before sync)
+
+**Shared Plans for Team Collaboration:**
+
+The `plan sync --shared` command is a convenience wrapper around `sync spec-kit --bidirectional` that emphasizes team collaboration. **Shared structured plans** enable multiple developers to work on the same plan with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members.
+
+**Example:**
+
+```bash
+# One-time shared plans sync
+specfact plan sync --shared
+
+# Continuous watch mode (recommended for team collaboration)
+specfact plan sync --shared --watch --interval 5
+
+# Equivalent direct command:
+specfact sync spec-kit --repo . --bidirectional --watch
+```
+
+**What it syncs:**
+
+- **Spec-Kit → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/plans/*.yaml`
+- **SpecFact → Spec-Kit**: Changes to `.specfact/plans/*.yaml` → Updated Spec-Kit markdown (preserves structure)
+- **Team collaboration**: Multiple developers can work on the same plan with automated synchronization
+
+**Note**: This is a convenience wrapper. The underlying command is `sync spec-kit --bidirectional`. See [`sync spec-kit`](#sync-spec-kit) for full details.
+
 #### `plan compare`
 
-Compare manual and auto-derived plans:
+Compare manual and auto-derived plans to detect code vs plan drift:
 
 ```bash
 specfact plan compare [OPTIONS]
@@ -260,29 +357,42 @@ specfact plan compare [OPTIONS]
 
 **Options:**
 
-- `--manual PATH` - Manual plan bundle (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
-- `--auto PATH` - Auto-derived plan bundle (default: latest in `.specfact/plans/`)
+- `--manual PATH` - Manual plan bundle (intended design - what you planned) (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+- `--auto PATH` - Auto-derived plan bundle (actual implementation - what's in your code from `import from-code`) (default: latest in `.specfact/plans/`)
+- `--code-vs-plan` - Convenience alias for `--manual <active-plan> --auto <latest-auto-plan>` (detects code vs plan drift)
 - `--format TEXT` - Output format (markdown, json, yaml) (default: markdown)
 - `--out PATH` - Output file (default: `.specfact/reports/comparison/report-*.md`)
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
 
+**Code vs Plan Drift Detection:**
+
+The `--code-vs-plan` flag is a convenience alias that compares your intended design (manual plan) with actual implementation (code-derived plan from `import from-code`). Auto-derived plans come from code analysis, so this comparison IS "code vs plan drift" - detecting deviations between what you planned and what's actually in your code.
+
 **Example:**
 
 ```bash
+# Detect code vs plan drift (convenience alias)
+specfact plan compare --code-vs-plan
+# → Compares intended design (manual plan) vs actual implementation (code-derived plan)
+# → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
+
+# Explicit comparison
 specfact plan compare \
-  --manual contracts/plans/plan.bundle.yaml \
-  --auto reports/brownfield-plan.yaml \
+  --manual .specfact/plans/main.bundle.yaml \
+  --auto .specfact/plans/my-project-*.bundle.yaml \
   --format markdown \
-  --out reports/deviation.md
+  --out .specfact/reports/comparison/deviation.md
 ```
 
 **Output includes:**
 
-- Missing features (in manual but not in auto)
-- Extra features (in auto but not in manual)
+- Missing features (in manual but not in auto - planned but not implemented)
+- Extra features (in auto but not in manual - implemented but not planned)
 - Mismatched stories
 - Confidence scores
 - Deviation severity
+
+**How it differs from Spec-Kit**: Spec-Kit's `/speckit.analyze` only checks artifact consistency between markdown files; SpecFact CLI detects actual code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from code analysis).
 
 ---
 
@@ -466,8 +576,16 @@ specfact sync spec-kit [OPTIONS]
 - `--bidirectional` - Enable bidirectional sync (default: one-way import)
 - `--plan PATH` - Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
 - `--overwrite` - Overwrite existing Spec-Kit artifacts (delete all existing before sync)
-- `--watch` - Watch mode for continuous sync
-- `--interval INT` - Watch interval in seconds (default: 5)
+- `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
+- `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
+
+**Watch Mode Features:**
+
+- **Real-time monitoring**: Automatically detects file changes in Spec-Kit artifacts, SpecFact plans, and repository code
+- **Debouncing**: Prevents rapid file change events (500ms debounce interval)
+- **Change type detection**: Automatically detects whether changes are in Spec-Kit artifacts, SpecFact plans, or code
+- **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
+- **Resource efficient**: Minimal CPU/memory usage
 
 **Example:**
 
@@ -505,9 +623,18 @@ specfact sync repository [OPTIONS]
 
 - `--repo PATH` - Path to repository (default: `.`)
 - `--target PATH` - Target directory for artifacts (default: `.specfact`)
-- `--watch` - Watch mode for continuous sync
-- `--interval INT` - Watch interval in seconds (default: 5)
-- `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
+- `--watch` - Watch mode for continuous sync (monitors code changes in real-time)
+- `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
+- `--confidence FLOAT` - Minimum confidence threshold for feature detection (default: 0.5, range: 0.0-1.0)
+- `--target PATH` - Target directory for artifacts (default: `.specfact`)
+
+**Watch Mode Features:**
+
+- **Real-time monitoring**: Automatically detects code changes in repository
+- **Automatic sync**: Triggers sync when code changes are detected
+- **Deviation tracking**: Tracks deviations from manual plans as code changes
+- **Debouncing**: Prevents rapid file change events (500ms debounce interval)
+- **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 
 **Example:**
 
@@ -515,8 +642,11 @@ specfact sync repository [OPTIONS]
 # One-time sync
 specfact sync repository --repo . --target .specfact
 
-# Continuous watch mode
+# Continuous watch mode (monitors for code changes every 5 seconds)
 specfact sync repository --repo . --watch --interval 5
+
+# Watch mode with custom interval and confidence threshold
+specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 ```
 
 **What it tracks:**
@@ -699,4 +829,13 @@ eval (env _SPECFACT_COMPLETE=fish_source specfact)
 
 ---
 
-See [Getting Started](../getting-started/README.md) for quick examples and [Use Cases](../guides/use-cases.md) for detailed scenarios.
+## Related Documentation
+
+- [Getting Started](../getting-started/README.md) - Installation and first steps
+- [First Steps](../getting-started/first-steps.md) - Step-by-step first commands
+- [Use Cases](../guides/use-cases.md) - Real-world scenarios
+- [Workflows](../guides/workflows.md) - Common daily workflows
+- [IDE Integration](../guides/ide-integration.md) - Set up slash commands
+- [Troubleshooting](../guides/troubleshooting.md) - Common issues and solutions
+- [Architecture](architecture.md) - Technical design and principles
+- [Quick Examples](../examples/quick-examples.md) - Code snippets

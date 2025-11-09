@@ -6,7 +6,8 @@ Complete technical reference for SpecFact CLI.
 
 - **[Commands](commands.md)** - Complete command reference with all options
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
-- **[Testing](testing.md)** - Testing procedures and guidelines
+- **[Operational Modes](modes.md)** - CI/CD vs CoPilot modes
+- **[Feature Keys](feature-keys.md)** - Key normalization and formats
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
 
 ## Quick Reference

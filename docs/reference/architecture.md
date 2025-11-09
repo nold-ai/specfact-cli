@@ -2,6 +2,14 @@
 
 Technical architecture and design principles of SpecFact CLI.
 
+## Quick Overview
+
+**For Users**: SpecFact CLI helps you write better code by enforcing contracts (rules that catch bugs before production). It works in two modes: **CI/CD mode** (fast, automated) and **CoPilot mode** (interactive, AI-enhanced). You can import from Spec-Kit, analyze existing code, create plans, and enforce quality gates.
+
+**For Contributors**: SpecFact CLI implements a contract-driven development framework through three layers: Specification (plans and protocols), Contract (runtime validation), and Enforcement (quality gates). The architecture supports dual-mode operation (CI/CD and CoPilot) with agent-based routing for complex operations.
+
+---
+
 ## Overview
 
 SpecFact CLI implements a **contract-driven development** framework through three core layers:
@@ -9,6 +17,13 @@ SpecFact CLI implements a **contract-driven development** framework through thre
 1. **Specification Layer** - Plan bundles and protocol definitions
 2. **Contract Layer** - Runtime contracts, static checks, and property tests
 3. **Enforcement Layer** - No-escape gates with budgets and staged enforcement
+
+### Related Documentation
+
+- [Getting Started](../getting-started/README.md) - Installation and first steps
+- [Use Cases](../guides/use-cases.md) - Real-world scenarios
+- [Workflows](../guides/workflows.md) - Common daily workflows
+- [Commands](commands.md) - Complete command reference
 
 ## Operational Modes
 
@@ -569,4 +584,4 @@ See [pyproject.toml](../../pyproject.toml) for complete dependency list.
 
 ---
 
-See [Testing](testing.md) for detailed testing documentation and [Commands](commands.md) for command reference.
+See [Commands](commands.md) for command reference and [Technical Deep Dives](../technical/README.md) for testing procedures.

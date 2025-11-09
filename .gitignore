@@ -108,6 +108,9 @@ specs/
 # Ignore .specfact artifacts
 .specfact/
 
+# Ignore reports directory (ephemeral artifacts)
+reports/
+
 # Ignore mcp.json
 .github/mcp.json
 .cursor/mcp.json

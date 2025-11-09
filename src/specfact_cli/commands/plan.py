@@ -543,6 +543,13 @@ def add_story(
 
 @app.command("compare")
 @beartype
+@require(lambda manual: manual is None or isinstance(manual, Path), "Manual must be None or Path")
+@require(lambda auto: auto is None or isinstance(auto, Path), "Auto must be None or Path")
+@require(
+    lambda format: isinstance(format, str) and format.lower() in ("markdown", "json", "yaml"),
+    "Format must be markdown, json, or yaml",
+)
+@require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def compare(
     manual: Path | None = typer.Option(
         None,
@@ -553,6 +560,11 @@ def compare(
         None,
         "--auto",
         help="Auto-derived plan bundle path (default: latest in .specfact/plans/)",
+    ),
+    code_vs_plan: bool = typer.Option(
+        False,
+        "--code-vs-plan",
+        help="Alias for comparing code-derived plan vs manual plan (auto-detects latest auto plan)",
     ),
     format: str = typer.Option(
         "markdown",
@@ -566,18 +578,52 @@ def compare(
     ),
 ) -> None:
     """
-    Compare manual and auto-derived plans.
+    Compare manual and auto-derived plans to detect code vs plan drift.
 
-    Detects deviations between manually created plans and
-    reverse-engineered plans from code.
+    Detects deviations between manually created plans (intended design) and
+    reverse-engineered plans from code (actual implementation). This comparison
+    identifies code vs plan drift automatically.
+
+    Use --code-vs-plan for convenience: automatically compares the latest
+    code-derived plan against the manual plan.
 
     Example:
         specfact plan compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-<timestamp>.bundle.yaml
+        specfact plan compare --code-vs-plan  # Convenience alias
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
     # Ensure .specfact structure exists
     SpecFactStructure.ensure_structure()
+
+    # Handle --code-vs-plan convenience alias
+    if code_vs_plan:
+        # Auto-detect manual plan (default)
+        if manual is None:
+            manual = SpecFactStructure.get_default_plan_path()
+            if not manual.exists():
+                print_error(
+                    f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive"
+                )
+                raise typer.Exit(1)
+            print_info(f"Using default manual plan: {manual}")
+
+        # Auto-detect latest code-derived plan
+        if auto is None:
+            auto = SpecFactStructure.get_latest_brownfield_report()
+            if auto is None:
+                plans_dir = Path(SpecFactStructure.PLANS)
+                print_error(
+                    f"No code-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                )
+                raise typer.Exit(1)
+            print_info(f"Using latest code-derived plan: {auto}")
+
+        # Override help text to emphasize code vs plan drift
+        print_section("Code vs Plan Drift Detection")
+        console.print(
+            "[dim]Comparing intended design (manual plan) vs actual implementation (code-derived plan)[/dim]\n"
+        )
 
     # Use default paths if not specified (smart defaults)
     if manual is None:
@@ -705,7 +751,23 @@ def compare(
         # Apply enforcement rules if config exists
         from specfact_cli.utils.structure import SpecFactStructure
 
-        config_path = SpecFactStructure.get_enforcement_config_path()
+        # Determine base path from plan paths (use manual plan's parent directory)
+        base_path = manual.parent if manual else None
+        # If base_path is not a repository root, find the repository root
+        if base_path:
+            # Walk up to find repository root (where .specfact would be)
+            current = base_path.resolve()
+            while current != current.parent:
+                if (current / SpecFactStructure.ROOT).exists():
+                    base_path = current
+                    break
+                current = current.parent
+            else:
+                # If we didn't find .specfact, use the plan's directory
+                # But resolve to absolute path first
+                base_path = manual.parent.resolve()
+
+        config_path = SpecFactStructure.get_enforcement_config_path(base_path)
         if config_path.exists():
             try:
                 from specfact_cli.utils.yaml_utils import load_yaml
@@ -895,7 +957,111 @@ def select(
     print_info("  - specfact plan promote")
     print_info("  - specfact plan add-feature")
     print_info("  - specfact plan add-story")
+    print_info("  - specfact plan sync --shared")
     print_info("  - specfact sync spec-kit")
+
+
+@app.command("sync")
+@beartype
+@require(lambda repo: repo is None or isinstance(repo, Path), "Repo must be None or Path")
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda overwrite: isinstance(overwrite, bool), "Overwrite must be bool")
+@require(lambda watch: isinstance(watch, bool), "Watch must be bool")
+@require(lambda interval: isinstance(interval, int) and interval >= 1, "Interval must be int >= 1")
+def sync(
+    shared: bool = typer.Option(
+        False,
+        "--shared",
+        help="Enable shared plans sync (bidirectional sync with Spec-Kit)",
+    ),
+    repo: Path | None = typer.Option(
+        None,
+        "--repo",
+        help="Path to repository (default: current directory)",
+    ),
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan)",
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Overwrite existing Spec-Kit artifacts (delete all existing before sync)",
+    ),
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        help="Watch mode for continuous sync",
+    ),
+    interval: int = typer.Option(
+        5,
+        "--interval",
+        help="Watch interval in seconds (default: 5)",
+        min=1,
+    ),
+) -> None:
+    """
+    Sync shared plans between Spec-Kit and SpecFact (bidirectional sync).
+
+    This is a convenience wrapper around `specfact sync spec-kit --bidirectional`
+    that enables team collaboration through shared structured plans. The bidirectional
+    sync keeps Spec-Kit artifacts and SpecFact plans synchronized automatically.
+
+    Shared plans enable:
+    - Team collaboration: Multiple developers can work on the same plan
+    - Automated sync: Changes in Spec-Kit automatically sync to SpecFact
+    - Deviation detection: Compare code vs plan drift automatically
+    - Conflict resolution: Automatic conflict detection and resolution
+
+    Example:
+        specfact plan sync --shared                    # One-time sync
+        specfact plan sync --shared --watch            # Continuous sync
+        specfact plan sync --shared --repo ./project   # Sync specific repo
+    """
+    from specfact_cli.commands.sync import sync_spec_kit
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    if not shared:
+        print_error("This command requires --shared flag")
+        print_info("Use 'specfact plan sync --shared' to enable shared plans sync")
+        print_info("Or use 'specfact sync spec-kit --bidirectional' for direct sync")
+        raise typer.Exit(1)
+
+    # Use default repo if not specified
+    if repo is None:
+        repo = Path(".").resolve()
+        print_info(f"Using current directory: {repo}")
+
+    # Use default plan if not specified
+    if plan is None:
+        plan = SpecFactStructure.get_default_plan_path()
+        if not plan.exists():
+            print_warning(f"Default plan not found: {plan}")
+            print_info("Using default plan path (will be created if needed)")
+        else:
+            print_info(f"Using active plan: {plan}")
+
+    print_section("Shared Plans Sync")
+    console.print("[dim]Bidirectional sync between Spec-Kit and SpecFact for team collaboration[/dim]\n")
+
+    # Call the underlying sync command
+    try:
+        # Call sync_spec_kit with bidirectional=True
+        sync_spec_kit(
+            repo=repo,
+            bidirectional=True,  # Always bidirectional for shared plans
+            plan=plan,
+            overwrite=overwrite,
+            watch=watch,
+            interval=interval,
+        )
+    except typer.Exit:
+        # Re-raise typer.Exit to preserve exit codes
+        raise
+    except Exception as e:
+        print_error(f"Shared plans sync failed: {e}")
+        raise typer.Exit(1) from e
 
 
 @app.command("promote")
