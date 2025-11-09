@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.4.2"
+version = "0.5.0"
 description = "SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development with automated quality gates"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -59,6 +59,9 @@ dependencies = [
     
     # Code analysis
     "ruff>=0.14.2",
+    
+    # File system watching
+    "watchdog>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -495,6 +498,7 @@ markers = [
     "asyncio: mark test as async",
     "integration: marks tests as integration tests",
     "timeout: mark tests with a timeout",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "workflow_coverage: mark test for workflow coverage tracking",
     "component_coverage: mark test for component coverage tracking",
     "contract_coverage: mark test for contract coverage tracking",

@@ -48,7 +48,7 @@ Spec-Kit **is not designed primarily for** (but SpecFact CLI provides):
 | **Work with existing code** | ⚠️ **Not designed for** - Focuses on new feature authoring | ✅ **`import from-code`** - Reverse-engineer existing code to plans |
 | **Iterate on existing features** | ⚠️ **Not designed for** - Focuses on new feature planning | ✅ **Auto-derive plans** - Understand existing features from code |
 | **Brownfield projects** | ⚠️ **Not designed for** - Designed primarily for greenfield | ✅ **Brownfield analysis** - Work with existing projects |
-| **Team collaboration** | Manual sharing, no sync | Shared plans, bidirectional sync |
+| **Team collaboration** | Manual sharing, no sync | **Shared structured plans** (automated bidirectional sync for team collaboration), automated deviation detection |
 | **CI/CD integration** | Manual validation | Automated gates, proof bundles |
 | **Production deployment** | Manual checklist | Automated quality gates |
 | **Code review** | Manual review | Automated deviation detection |
@@ -76,7 +76,8 @@ cat docs/getting-started.md
 
 - ✅ SpecFact imports your Spec-Kit artifacts automatically
 - ✅ Automated enforcement (CI/CD gates, contract validation)
-- ✅ Team collaboration (shared plans, deviation detection)
+- ✅ **Shared plans** (bidirectional sync for team collaboration)
+- ✅ **Code vs plan drift detection** (automated deviation detection)
 - ✅ Production readiness (quality gates, proof bundles)
 
 **Key insight**: SpecFact **preserves** your Spec-Kit workflow - you can use both tools together!
@@ -121,7 +122,9 @@ ls -la .specfact/
 Keep using Spec-Kit interactively, sync automatically with SpecFact:
 
 ```bash
-# Enable bidirectional sync (watch mode)
+# Enable shared plans sync (bidirectional sync for team collaboration)
+specfact plan sync --shared --watch
+# Or use direct command:
 specfact sync spec-kit --repo . --bidirectional --watch
 ```
 
@@ -137,11 +140,18 @@ specfact sync spec-kit --repo . --bidirectional --watch
 # → Detects changes in specs/[###-feature-name]/
 # → Imports new spec.md, plan.md, tasks.md
 # → Updates .specfact/plans/*.yaml
+# → Enables shared plans for team collaboration
 
-# 3. Enable automated enforcement
+# 3. Detect code vs plan drift automatically
+specfact plan compare --code-vs-plan
+# → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
+# → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
+# → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
+
+# 4. Enable automated enforcement
 specfact enforce stage --preset balanced
 
-# 4. CI/CD automatically validates (GitHub Action)
+# 5. CI/CD automatically validates (GitHub Action)
 # → Runs on every PR
 # → Blocks HIGH severity issues
 # → Generates proof bundles
@@ -170,8 +180,8 @@ specfact enforce stage --preset balanced
 # Import existing Spec-Kit project
 specfact import from-spec-kit --repo . --write
 
-# Enable bidirectional sync
-specfact sync spec-kit --repo . --bidirectional --watch
+# Enable shared plans sync (bidirectional sync for team collaboration)
+specfact plan sync --shared --watch
 ```
 
 **Result**: Both tools working together seamlessly.
@@ -299,13 +309,19 @@ cat migration-report.md
 - ✅ Business context extracted from constitution
 - ✅ Enforcement config matches your needs
 
-### **Step 4: Enable Bidirectional Sync**
+### **Step 4: Enable Shared Plans (Bidirectional Sync)**
+
+**Shared structured plans** enable team collaboration with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members.
 
 ```bash
 # One-time sync
+specfact plan sync --shared
+# Or use direct command:
 specfact sync spec-kit --repo . --bidirectional
 
-# Continuous watch mode (recommended)
+# Continuous watch mode (recommended for team collaboration)
+specfact plan sync --shared --watch
+# Or use direct command:
 specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 ```
 
@@ -313,6 +329,7 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 
 - **Spec-Kit → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/plans/*.yaml`
 - **SpecFact → Spec-Kit**: Changes to `.specfact/plans/*.yaml` → Updated Spec-Kit markdown (preserves structure)
+- **Team collaboration**: Multiple developers can work on the same plan with automated synchronization
 
 ### **Step 5: Enable Enforcement**
 
@@ -353,14 +370,16 @@ specfact repro
 
 **Why**: See what SpecFact would catch before enabling blocking.
 
-### **2. Use Bidirectional Sync**
+### **2. Use Shared Plans (Bidirectional Sync)**
 
 ```bash
-# Keep both tools in sync automatically
+# Enable shared plans for team collaboration
+specfact plan sync --shared --watch
+# Or use direct command:
 specfact sync spec-kit --repo . --bidirectional --watch
 ```
 
-**Why**: Continue using Spec-Kit interactively, get SpecFact automation automatically.
+**Why**: **Shared structured plans** enable team collaboration with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members. Continue using Spec-Kit interactively, get SpecFact automation automatically.
 
 ### **3. Progressive Enforcement**
 

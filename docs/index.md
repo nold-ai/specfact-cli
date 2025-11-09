@@ -37,7 +37,7 @@ Start here:
 
 - **[Command Reference](reference/commands.md)** - Complete command documentation
 - **[Architecture](reference/architecture.md)** - Technical design and principles
-- **[Testing](reference/testing.md)** - Testing procedures
+- **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
 - **[Directory Structure](reference/directory-structure.md)** - Project structure
 
 ---

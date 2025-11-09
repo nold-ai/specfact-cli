@@ -1,6 +1,6 @@
 # Using CoPilot Mode
 
-**Status**: ✅ **AVAILABLE** (v0.2.2)  
+**Status**: ✅ **AVAILABLE** (v0.4.2+)  
 **Last Updated**: 2025-11-02
 
 ---

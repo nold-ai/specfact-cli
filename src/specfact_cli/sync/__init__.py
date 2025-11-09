@@ -7,6 +7,15 @@ repository changes, and SpecFact plans.
 
 from specfact_cli.sync.repository_sync import RepositorySync, RepositorySyncResult
 from specfact_cli.sync.speckit_sync import SpecKitSync, SyncResult
+from specfact_cli.sync.watcher import FileChange, SyncEventHandler, SyncWatcher
 
 
-__all__ = ["RepositorySync", "RepositorySyncResult", "SpecKitSync", "SyncResult"]
+__all__ = [
+    "FileChange",
+    "RepositorySync",
+    "RepositorySyncResult",
+    "SpecKitSync",
+    "SyncEventHandler",
+    "SyncResult",
+    "SyncWatcher",
+]
