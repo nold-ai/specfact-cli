@@ -70,7 +70,7 @@ Please check all that apply:
 
 ## Checklist
 
-- [ ] My code follows the style guidelines (PEP 8, Black, isort)
+- [ ] My code follows the style guidelines (PEP 8, ruff format, isort)
 - [ ] I have performed a self-review of my code
 - [ ] I have added/updated contracts (`@icontract`, `@beartype`)
 - [ ] I have added/updated docstrings (Google style)

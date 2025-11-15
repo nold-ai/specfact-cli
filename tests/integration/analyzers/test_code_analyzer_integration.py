@@ -426,16 +426,16 @@ class TestCodeAnalyzerIntegration:
                 if module_b_name and module_a_name:
                     # Module B should depend on Module A
                     # Edge direction: module_b -> module_a (B imports A, so B depends on A)
-                    assert analyzer.dependency_graph.has_edge(
-                        module_b_name, module_a_name
-                    ), f"Missing edge from {module_b_name} to {module_a_name}. Available edges: {edges}"
+                    assert analyzer.dependency_graph.has_edge(module_b_name, module_a_name), (
+                        f"Missing edge from {module_b_name} to {module_a_name}. Available edges: {edges}"
+                    )
 
                 if module_c_name and module_b_name and module_c_name != module_b_name:
                     # Module C should depend on Module B
                     # Edge direction: module_c -> module_b (C imports B, so C depends on B)
-                    assert analyzer.dependency_graph.has_edge(
-                        module_c_name, module_b_name
-                    ), f"Missing edge from {module_c_name} to {module_b_name}. Available edges: {edges}"
+                    assert analyzer.dependency_graph.has_edge(module_c_name, module_b_name), (
+                        f"Missing edge from {module_c_name} to {module_b_name}. Available edges: {edges}"
+                    )
             else:
                 # If no edges, at least verify we have the nodes
                 assert len(module_names) >= 3, f"Expected at least 3 modules, got: {module_names}"

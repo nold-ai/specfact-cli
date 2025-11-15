@@ -33,6 +33,7 @@ def _is_test_mode() -> bool:
         return True
     # Check if running under pytest (common patterns)
     import sys
+
     return any("pytest" in arg or "test" in arg.lower() for arg in sys.argv) or "pytest" in sys.modules
 
 

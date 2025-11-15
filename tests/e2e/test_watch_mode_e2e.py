@@ -180,7 +180,6 @@ features:
     @pytest.mark.timeout(10)
     def test_watch_mode_bidirectional_sync(self) -> None:
         """Test that watch mode handles bidirectional sync with changes on both sides."""
-        import shutil
 
         with TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
@@ -280,10 +279,10 @@ features:
                             if file.is_file():
                                 file.unlink()
                         # Try to remove the directory
-                        try:
-                            gates_results.rmdir()
-                        except OSError:
-                            pass  # Directory might not be empty, that's okay
+                        from contextlib import suppress
+
+                        with suppress(OSError):
+                            gates_results.rmdir()  # Directory might not be empty, that's okay
 
     def test_watch_mode_detects_repository_changes(self) -> None:
         """Test that watch mode detects and syncs repository code changes."""

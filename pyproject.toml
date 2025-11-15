@@ -72,7 +72,6 @@ dev = [
     "pytest-asyncio>=1.2.0",
     "pytest-xdist>=3.8.0",
     "basedpyright>=1.32.1",
-    "black>=25.9.0",
     "isort>=7.0.0",
     "pylint>=4.0.2",
     "ruff>=0.14.2",
@@ -118,7 +117,6 @@ dependencies = [
     "python-dotenv",
     "pre-commit",
     # Ensure format/lint tools are available in the hatch env
-    "black>=25.9.0",
     "isort>=7.0.0",
     "basedpyright>=1.32.1",
     "pylint>=4.0.2",
@@ -137,9 +135,9 @@ dependencies = [
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright {args}"
-lint = "black . --line-length=120 && basedpyright && ruff check . && ruff format . --check && pylint src tests tools"
+lint = "ruff format . --check && basedpyright && ruff check . && pylint src tests tools"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
-format = "black . --line-length=120 && ruff check . --fix && ruff format ."
+format = "ruff check . --fix && ruff format ."
 
 # Code scanning (Semgrep)
 scan = "semgrep --config tools/semgrep/async.yml {args}"
@@ -366,28 +364,8 @@ exclude = [
 # [tool.hatch.envs.default.env-vars] # Add if you have default env vars for hatch environments
 # MY_VAR = "value"
 
-[tool.black]
-line-length = 120
-target-version = ["py312"] # From your original config
-include = '''\.pyi?$''' # From template
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  # Add project-specific excludes if any
-)/
-'''
-
 [tool.isort]
-profile = "black"
+profile = "ruff"
 multi_line_output = 3 
 line_length = 120 # From your original config
 
@@ -517,8 +495,8 @@ disable = [
     "C0115",  # missing-class-docstring
     "C0116",  # missing-function-docstring
     "C0103",  # invalid-name (too restrictive for some cases)
-    "C0330",  # bad-continuation (handled by black)
-    "C0326",  # bad-whitespace (handled by black)
+    "C0330",  # bad-continuation (handled by ruff format)
+    "C0326",  # bad-whitespace (handled by ruff format)
     "R0903",  # too-few-public-methods
     "R0913",  # too-many-arguments (too restrictive for APIs)
     "R0912",  # too-many-branches
@@ -580,7 +558,7 @@ select = [
 ]
 
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",  # line too long (handled by ruff format)
     "C901",  # too complex (leave to pylint for governance)
     "PLR0913",  # too many arguments (pylint handles this better)
     "PLR0912",  # too many branches (pylint handles this better)
@@ -638,8 +616,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-# Match isort black profile configuration
-# Black-compatible: multi_line_output = 3, combine_as_imports = true
+# Match isort ruff profile configuration
+# Ruff-compatible: multi_line_output = 3, combine_as_imports = true
 force-single-line = false
 force-wrap-aliases = false
 combine-as-imports = true
