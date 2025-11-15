@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'docs/**'
       - '.github/workflows/github-pages.yml'
@@ -36,24 +37,27 @@ jobs:
       - name: Setup Ruby (for Jekyll)
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1'
-          bundler-cache: true
+          ruby-version: '3.2'
+          bundler-cache: false
           working-directory: ./docs
 
       - name: Install Jekyll dependencies
         run: |
           cd docs
-          bundle install
+          bundle config set --local path 'vendor/bundle'
+          bundle install --jobs 1 --retry 3
 
       - name: Copy root files to docs
         run: |
           # Copy important root files to docs directory for inclusion in GitHub Pages
           cp LICENSE.md docs/LICENSE.md
           cp TRADEMARKS.md docs/TRADEMARKS.md
+          cp _config.yml docs/_config.yml
 
       - name: Build with Jekyll
         run: |
-          jekyll build --source docs --destination _site
+          cd docs
+          jekyll build --destination ../_site
         env:
           JEKYLL_ENV: production
 

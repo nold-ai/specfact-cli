@@ -39,7 +39,8 @@ exclude:
 
 # Source and destination (Jekyll will look for files in docs/)
 # Note: For GitHub Pages, Jekyll typically expects source in root or docs/
-source: docs
+# When _config.yml is in docs/, source should be "." (current directory)
+source: .
 destination: _site
 
 # Defaults
