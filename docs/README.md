@@ -4,6 +4,31 @@
 
 ---
 
+## Why SpecFact?
+
+### **Love GitHub Spec-Kit? SpecFact Adds What's Missing**
+
+**Use both together:** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
+
+**If you've tried GitHub Spec-Kit**, you know it's great for documenting new features. SpecFact adds what's missing for legacy code modernization:
+
+- ✅ **Runtime contract enforcement** → Spec-Kit generates docs; SpecFact prevents regressions with executable contracts
+- ✅ **Brownfield-first** → Spec-Kit excels at new features; SpecFact understands existing code
+- ✅ **Formal verification** → Spec-Kit uses LLM suggestions; SpecFact uses mathematical proof (CrossHair)
+- ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
+
+**Perfect together:**
+
+- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
+- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
+- ✅ **Bidirectional sync** → Keep both tools in sync automatically
+
+**Bottom line:** Use Spec-Kit for documenting new features. Use SpecFact for modernizing legacy code safely. Use both together for the best of both worlds.
+
+👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)**
+
+---
+
 ## 🎯 Find Your Path
 
 ### New to SpecFact?
@@ -20,16 +45,23 @@
 
 ---
 
-### Using GitHub Spec-Kit?
+### Love GitHub Spec-Kit?
 
-**Secondary Goal**: Add automated enforcement to Spec-Kit's interactive authoring
+**Why SpecFact?** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
 
-1. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
-2. **[Spec-Kit Comparison](guides/speckit-comparison.md)** - Understand when to use each tool
+**Use both together:**
+
+- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
+- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
+- ✅ **Bidirectional sync** → Keep both tools in sync automatically
+- ✅ **GitHub Actions** → SpecFact integrates with your existing GitHub workflows
+
+1. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** ⭐ **START HERE** - See what SpecFact adds
+2. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
 3. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
 4. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
 
-**Time**: 15-30 minutes | **Result**: Automated enforcement for your Spec-Kit project
+**Time**: 15-30 minutes | **Result**: Understand how SpecFact complements Spec-Kit for legacy code modernization
 
 ---
 

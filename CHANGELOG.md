@@ -1155,7 +1155,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - Comprehensive README.md with CLI usage examples
   - AGENTS.md with repository guidelines and development patterns
   - CONTRIBUTING.md with contribution workflow
-  - LICENSE.md with Sustainable Use License
+  - LICENSE.md with Apache License 2.0
   - USAGE-FAQ.md with licensing and usage questions
   - CODE_OF_CONDUCT.md for community guidelines
   - SECURITY.md for security policy
@@ -1198,7 +1198,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
 
 ### Security (0.1.0)
 
-- Applied Sustainable Use License for proper commercial protection
+- Applied Apache License 2.0 for enterprise-friendly open-source licensing
 - Protected internal documentation via .gitignore (docs/internal/)
 - Removed all internal email addresses and project references
 - Ensured no sensitive information in public repository

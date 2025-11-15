@@ -30,7 +30,7 @@
 | **GitHub integration** | ✅ Native slash commands | ✅ GitHub Actions + CLI | Spec-Kit for native integration |
 | **Learning curve** | ✅ Low (markdown + slash commands) | ⚠️ Medium (decorators + contracts) | Spec-Kit for ease of use |
 | **High-risk brownfield** | ⚠️ Good documentation | ✅ Formal verification | **SpecFact for high-risk** |
-| **Free tier** | ✅ Open-source | ✅ Sustainable Use License | Both free |
+| **Free tier** | ✅ Open-source | ✅ Apache 2.0 | Both free |
 
 ---
 
