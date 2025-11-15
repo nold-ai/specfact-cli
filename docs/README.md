@@ -4,29 +4,64 @@
 
 ---
 
+## Why SpecFact?
+
+### **Love GitHub Spec-Kit? SpecFact Adds What's Missing**
+
+**Use both together:** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
+
+**If you've tried GitHub Spec-Kit**, you know it's great for documenting new features. SpecFact adds what's missing for legacy code modernization:
+
+- ✅ **Runtime contract enforcement** → Spec-Kit generates docs; SpecFact prevents regressions with executable contracts
+- ✅ **Brownfield-first** → Spec-Kit excels at new features; SpecFact understands existing code
+- ✅ **Formal verification** → Spec-Kit uses LLM suggestions; SpecFact uses mathematical proof (CrossHair)
+- ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
+
+**Perfect together:**
+
+- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
+- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
+- ✅ **Bidirectional sync** → Keep both tools in sync automatically
+
+**Bottom line:** Use Spec-Kit for documenting new features. Use SpecFact for modernizing legacy code safely. Use both together for the best of both worlds.
+
+👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)**
+
+---
+
 ## 🎯 Find Your Path
 
 ### New to SpecFact?
 
-**Goal**: Get started in < 5 minutes
+**Primary Goal**: Modernize legacy Python codebases in < 5 minutes
 
 1. **[Getting Started](getting-started/README.md)** - Install and run your first command
-2. **[See It In Action](examples/dogfooding-specfact-cli.md)** - Real example (< 10 seconds)
-3. **[Use Cases](guides/use-cases.md)** - Common scenarios
+2. **[Modernizing Legacy Code?](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
+3. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+4. **[See It In Action](examples/dogfooding-specfact-cli.md)** - Real example (< 10 seconds)
+5. **[Use Cases](guides/use-cases.md)** - Common scenarios
 
-**Time**: < 10 minutes | **Result**: Running your first command
+**Time**: < 10 minutes | **Result**: Running your first brownfield analysis
 
 ---
 
-### Using GitHub Spec-Kit?
+### Love GitHub Spec-Kit?
 
-**Goal**: Level up from interactive authoring to automated enforcement
+**Why SpecFact?** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
 
-1. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** ⭐ - Complete migration guide
-2. **[Migration Use Case](guides/use-cases.md#use-case-1-github-spec-kit-migration)** - Step-by-step
-3. **[Bidirectional Sync](guides/use-cases.md#use-case-1-github-spec-kit-migration)** - Keep both tools in sync
+**Use both together:**
 
-**Time**: 15-30 minutes | **Result**: Automated enforcement for your Spec-Kit project
+- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
+- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
+- ✅ **Bidirectional sync** → Keep both tools in sync automatically
+- ✅ **GitHub Actions** → SpecFact integrates with your existing GitHub workflows
+
+1. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** ⭐ **START HERE** - See what SpecFact adds
+2. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
+3. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
+4. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
+
+**Time**: 15-30 minutes | **Result**: Understand how SpecFact complements Spec-Kit for legacy code modernization
 
 ---
 
@@ -65,8 +100,20 @@
 
 ### User Guides
 
-- [Spec-Kit Journey](guides/speckit-journey.md) ⭐ - Migration guide
-- [Use Cases](guides/use-cases.md) - Real-world scenarios
+#### Primary Use Case: Brownfield Modernization ⭐
+
+- [Brownfield Engineer Guide](guides/brownfield-engineer.md) ⭐ **PRIMARY** - Complete modernization guide
+- [The Brownfield Journey](guides/brownfield-journey.md) ⭐ **PRIMARY** - Step-by-step workflow
+- [Brownfield ROI](guides/brownfield-roi.md) ⭐ - Calculate savings
+- [Use Cases](guides/use-cases.md) ⭐ - Real-world scenarios (brownfield primary)
+
+#### Secondary Use Case: Spec-Kit Integration
+
+- [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
+- [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
+
+#### General Guides
+
 - [Workflows](guides/workflows.md) - Common daily workflows
 - [IDE Integration](guides/ide-integration.md) - Slash commands
 - [CoPilot Mode](guides/copilot-mode.md) - Enhanced prompts

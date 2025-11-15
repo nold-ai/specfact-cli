@@ -55,7 +55,7 @@ hatch test --cover -v tests/integration/test_directory_structure.py::TestDirecto
 hatch test --cover -v tests/integration/test_directory_structure.py::TestDirectoryStructure::test_ensure_structure_creates_directories
 ```
 
-### Contract-First Testing
+### Contract Testing (Brownfield & Greenfield)
 
 ```bash
 # Run contract tests

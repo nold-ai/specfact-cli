@@ -1,8 +1,9 @@
 # SpecFact CLI
 
-> **Stop "vibe coding", start shipping quality code with contracts**
+> **Understand and Modernize Legacy Code with Confidence**  
+> Automatically extract specs from existing Python code, then enforce them as contracts
 
-[![License](https://img.shields.io/badge/license-Sustainable%20Use-blue.svg)](LICENSE.md)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Status](https://img.shields.io/badge/status-beta-orange.svg)](https://github.com/nold-ai/specfact-cli)
 
@@ -10,16 +11,46 @@
 
 ## What is SpecFact CLI?
 
-A command-line tool that helps you write better code by enforcing **contracts** - rules that catch bugs before they reach production.
+A brownfield-first CLI that **reverse engineers your legacy code** into documented specs, then prevents regressions with runtime contract enforcement.
 
-Think of it as a **quality gate** for your development workflow that:
+**Stop guessing what your legacy code does.** SpecFact automatically extracts specs from existing code, then enforces them as you modernize.
 
-- ✅ Catches async bugs automatically
-- ✅ Validates your code matches your specs
-- ✅ Blocks bad code from merging
-- ✅ Works offline, no cloud required
+**Perfect for:** Teams modernizing legacy Python systems, data pipelines, DevOps scripts
 
-**Perfect for:** Teams who want to ship faster without breaking things.
+**For teams that can't afford production bugs during migration.**
+
+---
+
+## Why SpecFact?
+
+### **Love GitHub Spec-Kit? SpecFact Adds What's Missing**
+
+**Use both together:** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
+
+| What You Need | Spec-Kit | SpecFact CLI |
+|---------------|----------|--------------|
+| **Work with existing code** | ⚠️ Designed for new features | ✅ **Reverse-engineer legacy code** |
+| **Prevent regressions** | ⚠️ Documentation only | ✅ **Runtime contract enforcement** |
+| **Find hidden bugs** | ⚠️ LLM suggestions (may miss) | ✅ **Symbolic execution** (CrossHair) |
+| **Automated safety net** | ⚠️ Manual code review | ✅ **CI/CD gates** (GitHub Actions) |
+
+**Perfect together:**
+
+- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
+- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
+- ✅ **Bidirectional sync** → Keep both tools in sync automatically
+- ✅ **GitHub Actions** → SpecFact integrates with your existing GitHub workflows
+
+**Bottom line:** Spec-Kit is great for documenting new features. SpecFact is essential for modernizing legacy code safely. Use both together for the best of both worlds.
+
+---
+
+## 💡 Key Capabilities
+
+- ✅ **Reverse engineer legacy code** → Extract specs automatically from existing code
+- ✅ **Runtime contract enforcement** → Prevent regressions during modernization
+- ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
+- ✅ **Works offline** → No cloud required, fully local
 
 ---
 
@@ -38,11 +69,11 @@ pip install specfact-cli
 ### Your first command (< 60 seconds)
 
 ```bash
+# Modernizing legacy code? (Recommended)
+specfact import from-code --repo . --name my-project
+
 # Starting a new project?
 specfact plan init --interactive
-
-# Have existing code?
-specfact import from-code --repo . --name my-project
 
 # Using GitHub Spec-Kit?
 specfact import from-spec-kit --repo ./my-project --dry-run
@@ -70,7 +101,7 @@ We ran SpecFact CLI **on itself** to prove it works:
 
 **New to SpecFact?** Start with the [Getting Started Guide](docs/getting-started/README.md)
 
-**Using Spec-Kit?** See [The Journey: From Spec-Kit to SpecFact](docs/guides/speckit-journey.md)
+**Tried Spec-Kit?** See [How SpecFact Compares to Spec-Kit](docs/guides/speckit-comparison.md) and [The Journey: From Spec-Kit to SpecFact](docs/guides/speckit-journey.md)
 
 **Need help?** Browse the [Documentation Hub](docs/README.md)
 
@@ -120,23 +151,18 @@ hatch run contract-test-full
 
 ## License
 
-**Sustainable Use License** - Free for internal business use
+**Apache License 2.0** - Open source and enterprise-friendly
 
-### ✅ You Can
+SpecFact CLI is licensed under the Apache License 2.0, which means:
 
-- Use it for your business (internal tools, automation)
-- Modify it for your own needs
-- Provide consulting services using SpecFact CLI
+- ✅ **Free to use** for any purpose (commercial or non-commercial)
+- ✅ **Modify and distribute** as needed
+- ✅ **Enterprise-friendly** with explicit patent grant
+- ✅ **Build commercial products** on top of SpecFact CLI
 
-### ❌ You Cannot
+**Full license**: [LICENSE.md](LICENSE.md)
 
-- Sell it as a SaaS product
-- White-label and resell
-- Create competing products
-
-For commercial licensing, contact [hello@noldai.com](mailto:hello@noldai.com)
-
-**Full license**: [LICENSE.md](LICENSE.md) | **FAQ**: [USAGE-FAQ.md](USAGE-FAQ.md)
+**Note**: The Apache 2.0 license is ideal for enterprise brownfield modernization projects, as it provides legal clarity and patent protection that many enterprises require.
 
 ---
 

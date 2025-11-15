@@ -27,4 +27,3 @@ This example shows:
 - [Use Cases](../guides/use-cases.md) - More real-world scenarios
 - [Getting Started](../getting-started/README.md) - Installation and setup
 - [Command Reference](../reference/commands.md) - All available commands
-

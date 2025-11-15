@@ -1962,12 +1962,12 @@ class TestBrownfieldAnalysisWorkflow:
 
         for feature in plan.features:
             for story in feature.stories:
-                assert (
-                    story.story_points in valid_fibonacci
-                ), f"Story {story.key} has invalid story points: {story.story_points}"
-                assert (
-                    story.value_points in valid_fibonacci
-                ), f"Story {story.key} has invalid value points: {story.value_points}"
+                assert story.story_points in valid_fibonacci, (
+                    f"Story {story.key} has invalid story points: {story.story_points}"
+                )
+                assert story.value_points in valid_fibonacci, (
+                    f"Story {story.key} has invalid value points: {story.value_points}"
+                )
 
         print("✅ All stories use valid Fibonacci numbers")
 

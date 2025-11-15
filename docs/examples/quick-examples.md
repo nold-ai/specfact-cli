@@ -15,6 +15,7 @@ pip install specfact-cli
 python -m venv .venv
 source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
 pip install specfact-cli
+
 ```
 
 ## Your First Command
@@ -28,6 +29,7 @@ specfact import from-code --repo . --name my-project
 
 # Using GitHub Spec-Kit?
 specfact import from-spec-kit --repo ./my-project --dry-run
+
 ```
 
 ## Import from Spec-Kit
@@ -44,6 +46,7 @@ specfact import from-spec-kit \
   --repo ./spec-kit-project \
   --write \
   --out-branch feat/specfact-migration
+
 ```
 
 ## Import from Code
@@ -60,6 +63,7 @@ specfact import from-code --repo . --shadow-only
 
 # CoPilot mode (enhanced prompts)
 specfact --mode copilot import from-code --repo . --confidence 0.7
+
 ```
 
 ## Plan Management
@@ -79,6 +83,7 @@ specfact plan add-story \
   --feature FEATURE-001 \
   --title "As a user, I can login with email and password" \
   --acceptance "Login form validates input"
+
 ```
 
 ## Plan Comparison
@@ -94,6 +99,7 @@ specfact plan compare \
 
 # Code vs plan comparison
 specfact plan compare --code-vs-plan --repo .
+
 ```
 
 ## Sync Operations
@@ -110,6 +116,7 @@ specfact sync repository --repo . --target .specfact
 
 # Repository watch mode
 specfact sync repository --repo . --watch --interval 5
+
 ```
 
 ## Enforcement
@@ -123,6 +130,7 @@ specfact enforce stage --preset balanced
 
 # Strict mode (block everything)
 specfact enforce stage --preset strict
+
 ```
 
 ## Validation
@@ -139,6 +147,7 @@ specfact repro --verbose --budget 120
 
 # Apply auto-fixes
 specfact repro --fix --budget 120
+
 ```
 
 ## IDE Integration
@@ -152,6 +161,7 @@ specfact init --ide vscode
 
 # Force reinitialize
 specfact init --ide cursor --force
+
 ```
 
 ## Operational Modes
@@ -186,6 +196,7 @@ specfact sync repository --repo . --watch --interval 5
 # Before committing: Validate
 specfact repro
 specfact plan compare --repo .
+
 ```
 
 ### Migration from Spec-Kit
@@ -202,6 +213,7 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 
 # Step 4: Enable enforcement
 specfact enforce stage --preset minimal
+
 ```
 
 ### Brownfield Analysis
@@ -229,6 +241,7 @@ specfact import from-code \
   --repo . \
   --name my-project \
   --out custom/path/my-plan.bundle.yaml
+
 ```
 
 ### Custom Report
@@ -241,6 +254,7 @@ specfact import from-code \
 specfact plan compare \
   --repo . \
   --output comparison-report.md
+
 ```
 
 ### Feature Key Format
@@ -251,6 +265,7 @@ specfact import from-code --repo . --key-format classname
 
 # Sequential format (for manual plans)
 specfact import from-code --repo . --key-format sequential
+
 ```
 
 ### Confidence Threshold
@@ -274,4 +289,3 @@ specfact import from-code --repo . --confidence 0.8
 ---
 
 **Happy building!** 🚀
-

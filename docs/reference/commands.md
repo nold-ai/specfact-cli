@@ -7,19 +7,19 @@ Complete reference for all SpecFact CLI commands.
 ### Most Common Commands
 
 ```bash
-# Import from Spec-Kit
-specfact import from-spec-kit --repo . --dry-run
-
-# Import from code
+# PRIMARY: Import from existing code (brownfield modernization)
 specfact import from-code --repo . --name my-project
 
-# Initialize plan
+# SECONDARY: Import from Spec-Kit (add enforcement to Spec-Kit projects)
+specfact import from-spec-kit --repo . --dry-run
+
+# Initialize plan (alternative: greenfield workflow)
 specfact plan init --interactive
 
 # Compare plans
 specfact plan compare --repo .
 
-# Sync Spec-Kit (bidirectional)
+# Sync Spec-Kit (bidirectional) - Secondary use case
 specfact sync spec-kit --repo . --bidirectional --watch
 
 # Validate everything
@@ -30,8 +30,8 @@ specfact repro --verbose
 
 **Import & Analysis:**
 
-- `import from-spec-kit` - Import from GitHub Spec-Kit
-- `import from-code` - Analyze existing codebase
+- `import from-code` ⭐ **PRIMARY** - Analyze existing codebase (brownfield modernization)
+- `import from-spec-kit` - Import from GitHub Spec-Kit (secondary use case)
 
 **Plan Management:**
 
@@ -157,6 +157,7 @@ specfact import from-code [OPTIONS]
 **Mode Behavior:**
 
 - **CoPilot Mode** (AI-first - Pragmatic): Uses AI IDE's native LLM (Cursor, CoPilot, etc.) for semantic understanding. The AI IDE understands the codebase semantically, then calls the SpecFact CLI for structured analysis. No separate LLM API setup needed. Multi-language support, high-quality Spec-Kit artifacts.
+
 - **CI/CD Mode** (AST fallback): Uses Python AST for fast, deterministic analysis (Python-only). Works offline, no LLM required.
 
 **Pragmatic Integration**:

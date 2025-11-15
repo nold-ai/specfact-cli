@@ -100,10 +100,12 @@ Detailed instructions for the AI assistant...
 ## Execution Steps
 
 1. Parse arguments...
+
 2. Execute command...
+
 3. Generate output...
 
-```
+```text
 
 ### IDE Registration
 
@@ -160,6 +162,7 @@ specfact init --ide vscode
 # ✓ Initialization Complete
 # Copied 5 template(s) to .github/prompts/
 # Updated VS Code settings: .vscode/settings.json
+
 ```
 
 **VS Code settings.json:**
@@ -223,6 +226,7 @@ The `specfact init` command handles all conversions automatically.
    ```bash
    ls .cursor/commands/specfact-*.md  # For Cursor
    ls .github/prompts/specfact-*.prompt.md  # For VS Code
+
    ```
 
 2. **Re-run init:**
@@ -243,6 +247,7 @@ The `specfact init` command handles all conversions automatically.
 
    ```bash
    ls -la .vscode/settings.json
+
    ```
 
 2. **Manually verify settings.json:**
@@ -253,6 +258,7 @@ The `specfact init` command handles all conversions automatically.
        "promptFilesRecommendations": [...]
      }
    }
+
    ```
 
 3. **Re-run init:**

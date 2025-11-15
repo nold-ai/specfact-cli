@@ -4,7 +4,7 @@ How SpecFact CLI complements and extends other development tools.
 
 ## Overview
 
-SpecFact CLI is an **offline-first, contract-driven development tool** that builds on the strengths of specification tools like GitHub Spec-Kit and works alongside AI coding platforms to provide production-ready quality gates.
+SpecFact CLI is a **brownfield-first legacy code modernization tool** that reverse engineers existing Python code into documented specs, then enforces them as runtime contracts. It builds on the strengths of specification tools like GitHub Spec-Kit and works alongside AI coding platforms to provide production-ready quality gates for legacy codebases.
 
 ---
 
@@ -172,20 +172,24 @@ transitions:
 specfact repro --budget 120 --report evidence.md
 ```
 
-### 3. Brownfield-Friendly
+### 3. Brownfield-First ⭐ PRIMARY
 
-**What it means**: Works with existing code and projects, complementing tools designed primarily for greenfield development
+**What it means**: **Primary use case** - Reverse engineer existing legacy code into documented specs, then enforce contracts to prevent regressions during modernization.
 
-**Why developers love it**: No big rewrite required; analyze what you have today
+**Why developers love it**: Understand undocumented legacy code in minutes, not weeks. Modernize with confidence knowing contracts catch regressions automatically.
 
 **Example**:
 
 ```bash
-# Analyze what you have today
-specfact import from-code --repo . --shadow-only
+# Primary use case: Analyze legacy code
+specfact import from-code --repo ./legacy-app --name my-project
+
+# Extract specs from existing code in < 10 seconds
+# Then enforce contracts to prevent regressions
+specfact enforce stage --preset balanced
 ```
 
-**How it complements Spec-Kit**: Spec-Kit focuses on new feature authoring; SpecFact CLI adds brownfield analysis to work with existing code.
+**How it complements Spec-Kit**: Spec-Kit focuses on new feature authoring (greenfield); SpecFact CLI's **primary focus** is brownfield code modernization with runtime enforcement.
 
 ### 4. Code vs Plan Drift Detection
 
@@ -235,11 +239,13 @@ uvx --from specfact-cli specfact plan init --interactive
 
 ## When to Use SpecFact CLI
 
-### SpecFact CLI is Perfect For
+### SpecFact CLI is Perfect For ⭐ PRIMARY
 
+- ✅ **Legacy code modernization** ⭐ - Reverse engineer undocumented code into specs
+- ✅ **Brownfield projects** ⭐ - Understand and modernize existing Python codebases
+- ✅ **High-risk refactoring** ⭐ - Prevent regressions with runtime contract enforcement
 - ✅ **Production systems** - Need quality gates and validation
 - ✅ **Team projects** - Multiple developers need consistent standards
-- ✅ **Existing codebases** - Brownfield support, no rewrite needed
 - ✅ **Compliance environments** - Evidence-based validation required
 - ✅ **Air-gapped deployments** - Offline-first architecture
 - ✅ **Open source projects** - Transparent, inspectable tooling
@@ -255,7 +261,18 @@ uvx --from specfact-cli specfact plan init --interactive
 
 ## Getting Started With SpecFact CLI
 
-### Already Using Spec-Kit?
+### Modernizing Legacy Code? ⭐ PRIMARY
+
+**Reverse engineer existing code**:
+
+```bash
+# Primary use case: Analyze legacy codebase
+specfact import from-code --repo ./legacy-app --name my-project
+```
+
+See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-code-modernization-primary) ⭐
+
+### Already Using Spec-Kit? (Secondary)
 
 **One-command import**:
 
@@ -263,7 +280,7 @@ uvx --from specfact-cli specfact plan init --interactive
 specfact import from-spec-kit --repo . --write
 ```
 
-See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-1-github-spec-kit-migration)
+See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)
 
 ### Using AI Coding Tools?
 

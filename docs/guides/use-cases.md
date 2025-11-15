@@ -2,121 +2,19 @@
 
 Detailed use cases and examples for SpecFact CLI.
 
-## Use Case 1: GitHub Spec-Kit Migration
-
-**Problem**: You have a Spec-Kit project but need team collaboration, production deployment, and quality assurance.
-
-**Solution**: Migrate to SpecFact CLI for contract-driven development.
-
-### Steps
-
-#### 1. Preview Migration
-
-```bash
-specfact import from-spec-kit --repo ./spec-kit-project --dry-run
-```
-
-**Expected Output:**
-
-```bash
-🔍 Analyzing Spec-Kit project...
-✅ Found .specify/ directory (modern format)
-✅ Found specs/001-user-authentication/spec.md
-✅ Found specs/001-user-authentication/plan.md
-✅ Found specs/001-user-authentication/tasks.md
-✅ Found .specify/memory/constitution.md
-
-📊 Migration Preview:
-  - Will create: .specfact/plans/main.bundle.yaml
-  - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
-  - Will create: .specfact/enforcement/config.yaml
-  - Will convert: Spec-Kit features → SpecFact Feature models
-  - Will convert: Spec-Kit user stories → SpecFact Story models
-  
-🚀 Ready to migrate (use --write to execute)
-```
-
-#### 2. Execute Migration
-
-```bash
-specfact import from-spec-kit \
-  --repo ./spec-kit-project \
-  --write \
-  --out-branch feat/specfact-migration \
-  --report migration-report.md
-```
-
-#### 3. Review Generated Contracts
-
-```bash
-git checkout feat/specfact-migration
-git diff main
-```
-
-Review:
-
-- `.specfact/plans/main.bundle.yaml` - Plan bundle (converted from Spec-Kit artifacts)
-- `.specfact/protocols/workflow.protocol.yaml` - FSM definition (if protocol detected)
-- `.specfact/enforcement/config.yaml` - Quality gates configuration
-- `.semgrep/async-anti-patterns.yaml` - Anti-pattern rules (if async patterns detected)
-- `.github/workflows/specfact-gate.yml` - CI workflow (optional)
-
-#### 4. Enable Bidirectional Sync (Optional)
-
-Keep Spec-Kit and SpecFact synchronized:
-
-```bash
-# One-time bidirectional sync
-specfact sync spec-kit --repo . --bidirectional
-
-# Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
-```
-
-**What it syncs:**
-
-- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/plans/*.yaml`
-- `.specify/memory/constitution.md` ↔ SpecFact business context
-- `specs/[###-feature-name]/research.md`, `data-model.md`, `quickstart.md` ↔ SpecFact supporting artifacts
-- `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
-- Automatic conflict resolution with priority rules
-
-#### 5. Enable Enforcement
-
-```bash
-# Start in shadow mode (observe only)
-specfact enforce stage --preset minimal
-
-# After stabilization, enable warnings
-specfact enforce stage --preset balanced
-
-# For production, enable strict mode
-specfact enforce stage --preset strict
-```
-
-#### 6. Validate
-
-```bash
-specfact repro --verbose
-```
-
-### Expected Timeline
-
-- **Preview**: < 1 minute
-- **Migration**: 2-5 minutes
-- **Review**: 15-30 minutes
-- **Stabilization**: 1-2 weeks (shadow mode)
-- **Production**: After validation passes
+> **Primary Use Case**: Brownfield code modernization (Use Case 1)  
+> **Secondary Use Case**: Adding enforcement to Spec-Kit projects (Use Case 2)  
+> **Alternative**: Greenfield spec-first development (Use Case 3)
 
 ---
 
-## Use Case 2: Brownfield Code Hardening
+## Use Case 1: Brownfield Code Modernization ⭐ PRIMARY
 
-**Problem**: Existing codebase with no specs, need to add quality gates incrementally. Spec-Kit focuses on new feature authoring, while this use case requires analyzing existing code.
+**Problem**: Existing codebase with no specs, no documentation, or outdated documentation. Need to understand legacy code and add quality gates incrementally without breaking existing functionality.
 
-**Solution**: Analyze code to generate specifications, then progressively enforce.
+**Solution**: Reverse engineer existing code into documented specs, then progressively enforce contracts to prevent regressions during modernization.
 
-### Steps (Use Case 2)
+### Steps
 
 #### 1. Analyze Code
 
@@ -273,7 +171,7 @@ specfact enforce stage --preset balanced
 specfact enforce stage --preset strict
 ```
 
-### Expected Timeline (Use Case 2)
+### Expected Timeline (Brownfield Modernization)
 
 - **Analysis**: 2-5 minutes
 - **Review**: 1-2 hours
@@ -283,13 +181,121 @@ specfact enforce stage --preset strict
 
 ---
 
-## Use Case 3: Greenfield Spec-First Development
+## Use Case 2: GitHub Spec-Kit Migration (Secondary)
+
+**Problem**: You have a Spec-Kit project but need automated enforcement, team collaboration, and production deployment quality gates.
+
+**Solution**: Import Spec-Kit artifacts into SpecFact CLI for automated contract enforcement while keeping Spec-Kit for interactive authoring.
+
+### Steps (Spec-Kit Migration)
+
+#### 1. Preview Migration
+
+```bash
+specfact import from-spec-kit --repo ./spec-kit-project --dry-run
+```
+
+**Expected Output:**
+
+```bash
+🔍 Analyzing Spec-Kit project...
+✅ Found .specify/ directory (modern format)
+✅ Found specs/001-user-authentication/spec.md
+✅ Found specs/001-user-authentication/plan.md
+✅ Found specs/001-user-authentication/tasks.md
+✅ Found .specify/memory/constitution.md
+
+📊 Migration Preview:
+  - Will create: .specfact/plans/main.bundle.yaml
+  - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
+  - Will create: .specfact/enforcement/config.yaml
+  - Will convert: Spec-Kit features → SpecFact Feature models
+  - Will convert: Spec-Kit user stories → SpecFact Story models
+  
+🚀 Ready to migrate (use --write to execute)
+```
+
+#### 2. Execute Migration
+
+```bash
+specfact import from-spec-kit \
+  --repo ./spec-kit-project \
+  --write \
+  --out-branch feat/specfact-migration \
+  --report migration-report.md
+```
+
+#### 3. Review Generated Contracts
+
+```bash
+git checkout feat/specfact-migration
+git diff main
+```
+
+Review:
+
+- `.specfact/plans/main.bundle.yaml` - Plan bundle (converted from Spec-Kit artifacts)
+- `.specfact/protocols/workflow.protocol.yaml` - FSM definition (if protocol detected)
+- `.specfact/enforcement/config.yaml` - Quality gates configuration
+- `.semgrep/async-anti-patterns.yaml` - Anti-pattern rules (if async patterns detected)
+- `.github/workflows/specfact-gate.yml` - CI workflow (optional)
+
+#### 4. Enable Bidirectional Sync (Optional)
+
+Keep Spec-Kit and SpecFact synchronized:
+
+```bash
+# One-time bidirectional sync
+specfact sync spec-kit --repo . --bidirectional
+
+# Continuous watch mode
+specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+```
+
+**What it syncs:**
+
+- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/plans/*.yaml`
+- `.specify/memory/constitution.md` ↔ SpecFact business context
+- `specs/[###-feature-name]/research.md`, `data-model.md`, `quickstart.md` ↔ SpecFact supporting artifacts
+- `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
+- Automatic conflict resolution with priority rules
+
+#### 5. Enable Enforcement
+
+```bash
+# Start in shadow mode (observe only)
+specfact enforce stage --preset minimal
+
+# After stabilization, enable warnings
+specfact enforce stage --preset balanced
+
+# For production, enable strict mode
+specfact enforce stage --preset strict
+```
+
+#### 6. Validate
+
+```bash
+specfact repro --verbose
+```
+
+### Expected Timeline (Spec-Kit Migration)
+
+- **Preview**: < 1 minute
+- **Migration**: 2-5 minutes
+- **Review**: 15-30 minutes
+- **Stabilization**: 1-2 weeks (shadow mode)
+- **Production**: After validation passes
+
+---
+
+## Use Case 3: Greenfield Spec-First Development (Alternative)
 
 **Problem**: Starting a new project, want contract-driven development from day 1.
 
 **Solution**: Use SpecFact CLI for spec-first planning and strict enforcement.
 
-### Steps (Use Case 3)
+### Steps (Greenfield Development)
 
 #### 1. Create Plan Interactively
 
@@ -406,7 +412,7 @@ specfact repro
 specfact repro --budget 120 --verbose
 ```
 
-### Expected Timeline Use Case 3
+### Expected Timeline (Greenfield Development)
 
 - **Planning**: 1-2 hours
 - **Protocol design**: 30 minutes
@@ -421,7 +427,7 @@ specfact repro --budget 120 --verbose
 
 **Solution**: Add SpecFact GitHub Action to PR workflow.
 
-### Steps Use Case 4
+### Steps (CI/CD Integration)
 
 #### 1. Add GitHub Action
 
@@ -543,7 +549,7 @@ The GitHub Action will:
 
 **Solution**: Share common plan bundle and enforcement config.
 
-### Steps Use Case 5
+### Steps (Multi-Repository)
 
 #### 1. Create Shared Plan Bundle
 

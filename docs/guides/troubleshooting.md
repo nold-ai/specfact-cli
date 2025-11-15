@@ -82,9 +82,9 @@ Common issues and solutions for SpecFact CLI.
    specfact import from-spec-kit --repo /path/to/speckit-project
    ```
 
-### Code Analysis Fails
+### Code Analysis Fails (Brownfield) ⭐
 
-**Issue**: `Analysis failed` or `No features detected`
+**Issue**: `Analysis failed` or `No features detected` when analyzing legacy code
 
 **Solutions**:
 
@@ -94,7 +94,7 @@ Common issues and solutions for SpecFact CLI.
    specfact import from-code --repo . --verbose
    ```
 
-2. **Lower confidence threshold**:
+2. **Lower confidence threshold** (for legacy code with less structure):
 
    ```bash
    specfact import from-code --repo . --confidence 0.3
@@ -106,10 +106,16 @@ Common issues and solutions for SpecFact CLI.
    find . -name "*.py" -type f | head -10
    ```
 
-4. **Use CoPilot mode** (if available):
+4. **Use CoPilot mode** (recommended for brownfield - better semantic understanding):
 
    ```bash
    specfact --mode copilot import from-code --repo . --confidence 0.7
+   ```
+
+5. **For legacy codebases**, start with minimal confidence and review extracted features:
+
+   ```bash
+   specfact import from-code --repo . --confidence 0.2 --name legacy-api
    ```
 
 ---

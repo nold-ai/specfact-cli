@@ -4,7 +4,7 @@ Technical architecture and design principles of SpecFact CLI.
 
 ## Quick Overview
 
-**For Users**: SpecFact CLI helps you write better code by enforcing contracts (rules that catch bugs before production). It works in two modes: **CI/CD mode** (fast, automated) and **CoPilot mode** (interactive, AI-enhanced). You can import from Spec-Kit, analyze existing code, create plans, and enforce quality gates.
+**For Users**: SpecFact CLI is a **brownfield-first tool** that reverse engineers legacy Python code into documented specs, then enforces them as runtime contracts. It works in two modes: **CI/CD mode** (fast, automated) and **CoPilot mode** (interactive, AI-enhanced). **Primary use case**: Analyze existing codebases. **Secondary use case**: Add enforcement to Spec-Kit projects.
 
 **For Contributors**: SpecFact CLI implements a contract-driven development framework through three layers: Specification (plans and protocols), Contract (runtime validation), and Enforcement (quality gates). The architecture supports dual-mode operation (CI/CD and CoPilot) with agent-based routing for complex operations.
 

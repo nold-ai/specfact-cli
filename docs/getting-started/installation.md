@@ -2,6 +2,8 @@
 
 This guide will help you get started with SpecFact CLI in under 60 seconds.
 
+> **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. See [First Steps](first-steps.md) for brownfield workflows.
+
 ## Installation
 
 ### Option 1: uvx (Recommended)

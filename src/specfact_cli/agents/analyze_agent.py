@@ -294,9 +294,7 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
         context["dependencies"] = dependencies
 
         # Generate summary
-        context[
-            "summary"
-        ] = f"""
+        context["summary"] = f"""
 Repository: {repo_path.name}
 Total code files: {len(filtered_files)}
 Languages detected: {", ".join({f.suffix for f in filtered_files[:20]})}

@@ -180,92 +180,109 @@ features:
     @pytest.mark.timeout(10)
     def test_watch_mode_bidirectional_sync(self) -> None:
         """Test that watch mode handles bidirectional sync with changes on both sides."""
+
         with TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
 
-            # Create initial Spec-Kit structure
-            specify_dir = repo_path / ".specify" / "memory"
-            specify_dir.mkdir(parents=True)
-            (specify_dir / "constitution.md").write_text("# Constitution\n")
+            try:
+                # Create initial Spec-Kit structure
+                specify_dir = repo_path / ".specify" / "memory"
+                specify_dir.mkdir(parents=True)
+                (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-            # Create SpecFact structure
-            plans_dir = repo_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True)
-            (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+                # Create SpecFact structure
+                plans_dir = repo_path / ".specfact" / "plans"
+                plans_dir.mkdir(parents=True)
+                (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
 
-            # Start watch mode in background thread
-            def run_watch_mode() -> None:
-                """Run watch mode in a separate thread."""
-                runner.invoke(
-                    app,
-                    [
-                        "sync",
-                        "spec-kit",
-                        "--repo",
-                        str(repo_path),
-                        "--bidirectional",
-                        "--watch",
-                        "--interval",
-                        "1",
-                    ],
-                )
+                # Start watch mode in background thread
+                def run_watch_mode() -> None:
+                    """Run watch mode in a separate thread."""
+                    runner.invoke(
+                        app,
+                        [
+                            "sync",
+                            "spec-kit",
+                            "--repo",
+                            str(repo_path),
+                            "--bidirectional",
+                            "--watch",
+                            "--interval",
+                            "1",
+                        ],
+                    )
 
-            watch_thread = threading.Thread(target=run_watch_mode, daemon=True)
-            watch_thread.start()
+                watch_thread = threading.Thread(target=run_watch_mode, daemon=True)
+                watch_thread.start()
 
-            # Wait for watch mode to start
-            time.sleep(1.5)
+                # Wait for watch mode to start
+                time.sleep(1.5)
 
-            # Create Spec-Kit feature
-            specs_dir = repo_path / "specs" / "001-test-feature"
-            specs_dir.mkdir(parents=True)
-            spec_file = specs_dir / "spec.md"
-            spec_file.write_text(
-                dedent(
-                    """# Feature Specification: Test Feature
+                # Create Spec-Kit feature
+                specs_dir = repo_path / "specs" / "001-test-feature"
+                specs_dir.mkdir(parents=True)
+                spec_file = specs_dir / "spec.md"
+                spec_file.write_text(
+                    dedent(
+                        """# Feature Specification: Test Feature
 
 ## User Scenarios & Testing
 
 ### User Story 1 - Test Story (Priority: P1)
 As a user, I want to test features so that I can validate functionality.
 """
+                    )
                 )
-            )
 
-            # Wait for first sync (Spec-Kit → SpecFact)
-            # Watch mode processes changes at the interval (1 second), plus debounce (0.5 seconds)
-            time.sleep(2.5)
+                # Wait for first sync (Spec-Kit → SpecFact)
+                # Watch mode processes changes at the interval (1 second), plus debounce (0.5 seconds)
+                time.sleep(2.5)
 
-            # Verify first sync happened (Spec-Kit → SpecFact)
-            plan_files = list(plans_dir.glob("*.yaml"))
-            assert len(plan_files) > 0, "SpecFact plan should exist after Spec-Kit change"
+                # Verify first sync happened (Spec-Kit → SpecFact)
+                plan_files = list(plans_dir.glob("*.yaml"))
+                assert len(plan_files) > 0, "SpecFact plan should exist after Spec-Kit change"
 
-            # Then modify SpecFact plan
-            plan_file = plans_dir / "main.bundle.yaml"
-            plan_file.write_text(
-                dedent(
-                    """version: '1.0'
+                # Then modify SpecFact plan
+                plan_file = plans_dir / "main.bundle.yaml"
+                plan_file.write_text(
+                    dedent(
+                        """version: '1.0'
 features:
   - key: FEATURE-001
     title: Test Feature
 """
+                    )
                 )
-            )
 
-            # Wait for second sync (SpecFact → Spec-Kit)
-            time.sleep(2.5)
+                # Wait for second sync (SpecFact → Spec-Kit)
+                time.sleep(2.5)
 
-            # Verify both sides were synced
-            # Spec-Kit → SpecFact: spec.md should create/update plan
-            assert len(plan_files) > 0, "SpecFact plan should exist after Spec-Kit change"
+                # Verify both sides were synced
+                # Spec-Kit → SpecFact: spec.md should create/update plan
+                assert len(plan_files) > 0, "SpecFact plan should exist after Spec-Kit change"
 
-            # SpecFact → Spec-Kit: plan changes should sync back (if bidirectional works)
-            # Check if Spec-Kit artifacts were updated
-            specs_dir = repo_path / "specs"
-            if specs_dir.exists():
-                # Note: Actual sync logic is tested in unit tests
-                # This e2e test verifies watch mode detects changes on both sides
-                _ = list(specs_dir.rglob("*.md"))  # Verify spec files exist
+                # SpecFact → Spec-Kit: plan changes should sync back (if bidirectional works)
+                # Check if Spec-Kit artifacts were updated
+                specs_dir = repo_path / "specs"
+                if specs_dir.exists():
+                    # Note: Actual sync logic is tested in unit tests
+                    # This e2e test verifies watch mode detects changes on both sides
+                    _ = list(specs_dir.rglob("*.md"))  # Verify spec files exist
+            finally:
+                # Cleanup: Remove any files in gates directory that might prevent cleanup
+                gates_dir = repo_path / ".specfact" / "gates"
+                if gates_dir.exists():
+                    gates_results = gates_dir / "results"
+                    if gates_results.exists():
+                        # Remove all files in gates/results to allow cleanup
+                        for file in gates_results.iterdir():
+                            if file.is_file():
+                                file.unlink()
+                        # Try to remove the directory
+                        from contextlib import suppress
+
+                        with suppress(OSError):
+                            gates_results.rmdir()  # Directory might not be empty, that's okay
 
     def test_watch_mode_detects_repository_changes(self) -> None:
         """Test that watch mode detects and syncs repository code changes."""
