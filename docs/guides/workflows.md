@@ -2,7 +2,39 @@
 
 Daily workflows for using SpecFact CLI effectively.
 
-## Bidirectional Sync
+> **Primary Workflow**: Brownfield code modernization  
+> **Secondary Workflow**: Spec-Kit bidirectional sync
+
+---
+
+## Brownfield Code Modernization ⭐ PRIMARY
+
+Reverse engineer existing code and enforce contracts incrementally.
+
+### Step 1: Analyze Legacy Code
+
+```bash
+specfact import from-code --repo . --name my-project
+```
+
+### Step 2: Review Extracted Specs
+
+```bash
+cat .specfact/plans/my-project-*.bundle.yaml
+```
+
+### Step 3: Add Contracts Incrementally
+
+```bash
+# Start in shadow mode
+specfact enforce stage --preset minimal
+```
+
+See [Brownfield Journey Guide](brownfield-journey.md) for complete workflow.
+
+---
+
+## Bidirectional Sync (Secondary)
 
 Keep Spec-Kit and SpecFact synchronized automatically.
 

@@ -1,6 +1,8 @@
 # The Journey: From Spec-Kit to SpecFact
 
-> **Spec-Kit and SpecFact are complementary, not competitive.** Use Spec-Kit for interactive authoring, add SpecFact for automated enforcement.
+> **Spec-Kit and SpecFact are complementary, not competitive.**  
+> **Primary Use Case**: SpecFact CLI for brownfield code modernization  
+> **Secondary Use Case**: Add SpecFact enforcement to Spec-Kit's interactive authoring for new features
 
 ---
 
@@ -45,14 +47,68 @@ Spec-Kit **is not designed primarily for** (but SpecFact CLI provides):
 
 | Need | Spec-Kit Solution | SpecFact Solution |
 |------|------------------|-------------------|
-| **Work with existing code** | ⚠️ **Not designed for** - Focuses on new feature authoring | ✅ **`import from-code`** - Reverse-engineer existing code to plans |
-| **Iterate on existing features** | ⚠️ **Not designed for** - Focuses on new feature planning | ✅ **Auto-derive plans** - Understand existing features from code |
-| **Brownfield projects** | ⚠️ **Not designed for** - Designed primarily for greenfield | ✅ **Brownfield analysis** - Work with existing projects |
+| **Work with existing code** ⭐ **PRIMARY** | ⚠️ **Not designed for** - Focuses on new feature authoring | ✅ **`import from-code`** ⭐ - Reverse-engineer existing code to plans (PRIMARY use case) |
+| **Iterate on existing features** ⭐ **PRIMARY** | ⚠️ **Not designed for** - Focuses on new feature planning | ✅ **Auto-derive plans** ⭐ - Understand existing features from code (PRIMARY use case) |
+| **Brownfield projects** ⭐ **PRIMARY** | ⚠️ **Not designed for** - Designed primarily for greenfield | ✅ **Brownfield analysis** ⭐ - Work with existing projects (PRIMARY use case) |
 | **Team collaboration** | Manual sharing, no sync | **Shared structured plans** (automated bidirectional sync for team collaboration), automated deviation detection |
 | **CI/CD integration** | Manual validation | Automated gates, proof bundles |
 | **Production deployment** | Manual checklist | Automated quality gates |
 | **Code review** | Manual review | Automated deviation detection |
 | **Compliance** | Manual audit | Proof bundles, reproducible checks |
+
+---
+
+## 🌱 Brownfield Modernization with SpecFact + Spec-Kit
+
+### **Best of Both Worlds for Legacy Code**
+
+When modernizing legacy code, you can use **both tools together** for maximum value:
+
+1. **Spec-Kit** for initial spec generation (fast, LLM-powered)
+2. **SpecFact** for runtime contract enforcement (safety net)
+3. **Spec-Kit** maintains documentation (living specs)
+4. **SpecFact** prevents regressions (contract enforcement)
+
+### **Workflow: Legacy Code → Modernized Code**
+
+```bash
+# Step 1: Use SpecFact to extract specs from legacy code
+specfact import from-code --repo ./legacy-app --name customer-portal
+
+# Output: Auto-generated plan bundle from existing code
+# ✅ Analyzed 47 Python files
+# ✅ Extracted 23 features
+# ✅ Generated 112 user stories
+# ⏱️  Completed in 8.2 seconds
+
+# Step 2: (Optional) Use Spec-Kit to refine specs interactively
+# /speckit.specify --feature "Payment Processing"
+# /speckit.plan --feature "Payment Processing"
+
+# Step 3: Use SpecFact to add runtime contracts
+# Add @icontract decorators to critical paths
+
+# Step 4: Modernize safely with contract safety net
+# Refactor knowing contracts will catch regressions
+
+# Step 5: Keep both in sync
+specfact sync spec-kit --repo . --bidirectional --watch
+```
+
+### **Why This Works**
+
+- **SpecFact code2spec** extracts specs from undocumented legacy code automatically
+- **Spec-Kit interactive authoring** refines specs with LLM assistance
+- **SpecFact runtime contracts** prevent regressions during modernization
+- **Spec-Kit documentation** maintains living specs for team
+
+**Result:** Fast spec generation + runtime safety net = confident modernization
+
+### **See Also**
+
+- **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete brownfield workflow
+- **[Brownfield Journey](brownfield-journey.md)** - Step-by-step modernization guide
+- **[Spec-Kit Comparison](speckit-comparison.md)** - Detailed comparison
 
 ---
 

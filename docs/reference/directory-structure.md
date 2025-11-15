@@ -2,6 +2,8 @@
 
 This document defines the canonical directory structure for SpecFact CLI artifacts.
 
+> **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. The directory structure reflects this brownfield-first approach.
+
 ## Overview
 
 All SpecFact artifacts are stored under `.specfact/` in the repository root. This ensures:
@@ -54,17 +56,18 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 **Guidelines**:
 
 - One primary `main.bundle.yaml` for the main project plan
-- Additional plans for features, experiments, or brownfield analysis
+- Additional plans for **brownfield analysis** ⭐ (primary), features, or experiments
 - **Always committed to git** - these are the source of truth
-- Use descriptive names: `feature-<name>.bundle.yaml`, `legacy-<component>.bundle.yaml`
+- Use descriptive names: `legacy-<component>.bundle.yaml` (brownfield), `feature-<name>.bundle.yaml`
 
 **Example**:
 
 ```bash
 .specfact/plans/
 ├── main.bundle.yaml                    # Primary plan
-├── feature-authentication.bundle.yaml  # Auth feature plan
-└── brownfield-legacy-api.bundle.yaml   # Reverse-engineered from existing API
+├── legacy-api.bundle.yaml              # ⭐ Reverse-engineered from existing API (brownfield)
+├── legacy-payment.bundle.yaml          # ⭐ Reverse-engineered from existing payment system (brownfield)
+└── feature-authentication.bundle.yaml  # Auth feature plan
 ```
 
 ### `.specfact/protocols/` (Versioned)
@@ -141,15 +144,9 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 ## Default Command Paths
 
-### `specfact plan init`
+### `specfact import from-code` ⭐ PRIMARY
 
-```bash
-# Creates
-.specfact/plans/main.bundle.yaml
-.specfact/config.yaml (if --interactive)
-```
-
-### `specfact import from-code`
+**Primary use case**: Reverse-engineer existing codebases into plan bundles.
 
 ```bash
 # Default paths (timestamped with custom name)
@@ -159,6 +156,27 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 # Can override with custom names
 --out .specfact/plans/legacy-api.bundle.yaml  # Save as versioned plan
 --name my-project  # Custom plan name (sanitized for filesystem)
+```
+
+**Example (brownfield modernization)**:
+
+```bash
+# Analyze legacy codebase
+specfact import from-code --repo . --name legacy-api --confidence 0.7
+
+# Creates:
+# - .specfact/plans/legacy-api-2025-10-31T14-30-00.bundle.yaml (versioned)
+# - .specfact/reports/brownfield/analysis-2025-10-31T14-30-00.md (gitignored)
+```
+
+### `specfact plan init` (Alternative)
+
+**Alternative use case**: Create new plans for greenfield projects.
+
+```bash
+# Creates
+.specfact/plans/main.bundle.yaml
+.specfact/config.yaml (if --interactive)
 ```
 
 ### `specfact plan compare`
@@ -389,32 +407,40 @@ mv reports/analysis.md .specfact/reports/brownfield/
 
 SpecFact supports multiple plan bundles for:
 
+- **Brownfield modernization** ⭐ **PRIMARY**: Separate plans for legacy components vs modernized code
 - **Monorepos**: One plan per service
 - **Feature branches**: Feature-specific plans
-- **Legacy modernization**: Separate plans for old and new code
 
-**Example**:
+**Example (Brownfield Modernization)**:
 
 ```bash
 .specfact/plans/
-├── main.bundle.yaml              # Overall project plan
-├── service-api.bundle.yaml       # API service plan
-├── service-web.bundle.yaml       # Web service plan
-└── feature-new-auth.bundle.yaml  # Experimental feature plan
+├── main.bundle.yaml                      # Overall project plan
+├── legacy-api.bundle.yaml                # ⭐ Reverse-engineered from existing API (brownfield)
+├── legacy-payment.bundle.yaml            # ⭐ Reverse-engineered from existing payment system (brownfield)
+├── modernized-api.bundle.yaml            # New API plan (after modernization)
+└── feature-new-auth.bundle.yaml          # Experimental feature plan
 ```
 
-**Usage**:
+**Usage (Brownfield Workflow)**:
 
 ```bash
-# Compare service against main
-specfact plan compare \
-  --manual .specfact/plans/main.bundle.yaml \
-  --auto .specfact/plans/service-api.bundle.yaml
-
-# Analyze specific service
+# Step 1: Reverse-engineer legacy codebase
 specfact import from-code \
-  --repo src/api \
-  --out .specfact/plans/service-api.bundle.yaml
+  --repo src/legacy-api \
+  --name legacy-api \
+  --out .specfact/plans/legacy-api.bundle.yaml
+
+# Step 2: Compare legacy vs modernized
+specfact plan compare \
+  --manual .specfact/plans/legacy-api.bundle.yaml \
+  --auto .specfact/plans/modernized-api.bundle.yaml
+
+# Step 3: Analyze specific legacy component
+specfact import from-code \
+  --repo src/legacy-payment \
+  --name legacy-payment \
+  --out .specfact/plans/legacy-payment.bundle.yaml
 ```
 
 ## Summary

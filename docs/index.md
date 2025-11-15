@@ -4,8 +4,6 @@ title: SpecFact CLI Documentation
 description: Everything you need to know about using SpecFact CLI
 ---
 
-# SpecFact CLI Documentation
-
 > **Everything you need to know about using SpecFact CLI**
 
 ---
@@ -14,17 +12,22 @@ description: Everything you need to know about using SpecFact CLI
 
 ### New to SpecFact CLI?
 
+**Primary Use Case**: Modernizing legacy Python codebases
+
 Start here:
 
 1. **[Getting Started](getting-started/README.md)** - Install and run your first command
-2. **[Use Cases](guides/use-cases.md)** - See real-world examples
-3. **[Command Reference](reference/commands.md)** - Learn all available commands
+2. **[Modernizing Legacy Code?](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
+3. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+4. **[Use Cases](guides/use-cases.md)** - See real-world examples
+5. **[Command Reference](reference/commands.md)** - Learn all available commands
 
 ### Using GitHub Spec-Kit?
 
-**🎯 Level Up**: SpecFact CLI is **the add-on** to level up from Spec-Kit's interactive authoring to automated enforcement:
+**Secondary Use Case**: SpecFact CLI complements Spec-Kit by adding automated enforcement to Spec-Kit's interactive authoring:
 
-- **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Complete guide to leveling up from interactive slash commands to automated CI/CD enforcement
+- **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add automated enforcement to your Spec-Kit projects
+- **[Spec-Kit Comparison](guides/speckit-comparison.md)** - Understand when to use each tool
 
 ### Guides
 
@@ -47,11 +50,12 @@ Start here:
 ### Common Tasks
 
 - **[Install SpecFact CLI](getting-started/installation.md)**
-- **[Level up from GitHub Spec-Kit](guides/speckit-journey.md)** - **The add-on** to level up from interactive authoring to automated enforcement
+- **[Modernize Legacy Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Reverse engineer existing code into specs
+- **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
 - **[Set Up IDE Integration](guides/ide-integration.md)** - Initialize slash commands in your IDE
-- **[Migrate from GitHub Spec-Kit](guides/use-cases.md#use-case-1-github-spec-kit-migration)**
-- **[Analyze existing code](guides/use-cases.md#use-case-2-brownfield-code-hardening)**
-- **[Start a new project](guides/use-cases.md#use-case-3-greenfield-spec-first-development)**
+- **[Analyze existing code](guides/use-cases.md#use-case-1-brownfield-code-modernization)** ⭐ **PRIMARY**
+- **[Add enforcement to Spec-Kit projects](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Secondary use case
+- **[Start a new project](guides/use-cases.md#use-case-3-greenfield-spec-first-development)** - Alternative workflow
 
 ---
 

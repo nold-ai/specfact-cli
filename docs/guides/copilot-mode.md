@@ -86,7 +86,7 @@ This context is used to generate enhanced prompts that instruct the AI IDE to:
 
 ## Examples
 
-### Example 1: Brownfield Analysis
+### Example 1: Brownfield Analysis ⭐ PRIMARY
 
 ```bash
 # CI/CD mode (fast, deterministic, Python-only)

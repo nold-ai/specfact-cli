@@ -9,7 +9,54 @@ This guide walks you through your first commands with SpecFact CLI, with step-by
 
 ---
 
-## Scenario 1: Starting a New Project
+## Scenario 1: Modernizing Legacy Code ⭐ PRIMARY
+
+**Goal**: Reverse engineer existing code into documented specs
+
+**Time**: < 5 minutes
+
+### Step 1: Analyze Your Legacy Codebase
+
+```bash
+specfact import from-code --repo . --name my-project
+```
+
+**What happens**:
+
+- Analyzes all Python files in your repository
+- Extracts features, user stories, and business logic from code
+- Generates dependency graphs
+- Creates plan bundle with extracted specs
+
+**Example output**:
+
+```bash
+✅ Analyzed 47 Python files
+✅ Extracted 23 features
+✅ Generated 112 user stories
+⏱️  Completed in 8.2 seconds
+```
+
+### Step 2: Review Extracted Specs
+
+```bash
+cat .specfact/plans/my-project-*.bundle.yaml
+```
+
+Review the auto-generated plan to understand what SpecFact discovered about your codebase.
+
+### Step 3: Add Contracts to Critical Functions
+
+```bash
+# Start in shadow mode (observe only)
+specfact enforce stage --preset minimal
+```
+
+See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete workflow.
+
+---
+
+## Scenario 2: Starting a New Project (Alternative)
 
 **Goal**: Create a plan before writing code
 
@@ -98,103 +145,7 @@ specfact repro
 
 ---
 
-## Scenario 2: Analyzing Existing Code
-
-**Goal**: Understand what your code does
-
-**Time**: 2-5 minutes
-
-### Step 1: Import from Code
-
-```bash
-specfact import from-code \
-  --repo . \
-  --name my-project \
-  --shadow-only
-```
-
-**What happens**:
-
-- Analyzes your codebase (Python files by default)
-- Extracts features from classes and modules
-- Generates an auto-derived plan bundle
-- Saves to `.specfact/reports/brownfield/auto-derived.*.yaml`
-
-**Example output**:
-
-```bash
-🔍 Analyzing repository: .
-✓ Found 15 features
-✓ Detected themes: API, Database, Authentication
-✓ Total stories: 42
-
-✅ Analysis complete!
-📁 Plan bundle: .specfact/reports/brownfield/auto-derived.2025-11-09T21-00-00.bundle.yaml
-```
-
-### Step 2: Review Generated Plan
-
-```bash
-cat .specfact/reports/brownfield/auto-derived.*.yaml | head -50
-```
-
-**What you'll see**:
-
-- Features extracted from your codebase
-- Stories inferred from commit messages and docstrings
-- Confidence scores for each feature
-- API surface detected from public methods
-
-### Step 3: Compare with Manual Plan (if exists)
-
-If you have a manual plan in `.specfact/plans/main.bundle.yaml`:
-
-```bash
-specfact plan compare --repo .
-```
-
-**What happens**:
-
-- Compares manual plan vs auto-derived plan
-- Detects deviations (missing features, extra features, differences)
-- Generates comparison report
-
-**Example output**:
-
-```bash
-📊 Comparing plans...
-✓ Manual plan: .specfact/plans/main.bundle.yaml
-✓ Auto-derived plan: .specfact/reports/brownfield/auto-derived.*.yaml
-
-📈 Deviations found: 3
-  - HIGH: Feature FEATURE-001 missing in auto plan
-  - MEDIUM: Story STORY-002 differs in acceptance criteria
-  - LOW: Extra feature FEATURE-999 in auto plan
-
-📁 Report: .specfact/reports/comparison/report-*.md
-```
-
-### Step 4: Set Up Enforcement (Optional)
-
-```bash
-specfact enforce stage --preset balanced
-```
-
-**What happens**:
-
-- Configures quality gates
-- Sets enforcement rules (BLOCK, WARN, LOG)
-- Creates enforcement configuration
-
-### Next Steps for Scenario 2
-
-- [Use Cases - Brownfield Analysis](../guides/use-cases.md#use-case-2-brownfield-code-hardening) - Detailed brownfield workflow
-- [Command Reference](../reference/commands.md) - Learn all commands
-- [Workflows](../guides/workflows.md) - Common daily workflows
-
----
-
-## Scenario 3: Migrating from Spec-Kit
+## Scenario 3: Migrating from Spec-Kit (Secondary)
 
 **Goal**: Add automated enforcement to Spec-Kit project
 
@@ -298,7 +249,7 @@ specfact enforce stage --preset strict
 - Sets severity levels (HIGH, MEDIUM, LOW)
 - Defines actions (BLOCK, WARN, LOG)
 
-### Next Steps for Scenario 3
+### Next Steps for Scenario 3 (Secondary)
 
 - [The Journey: From Spec-Kit to SpecFact](../guides/speckit-journey.md) - Complete migration guide
 - [Use Cases - Spec-Kit Migration](../guides/use-cases.md#use-case-1-github-spec-kit-migration) - Detailed migration workflow

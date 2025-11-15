@@ -13,15 +13,19 @@ Choose your preferred installation method:
 ### Your First Command
 
 ```bash
+# Modernizing legacy code? (Recommended)
+specfact import from-code --repo . --name my-project
+
 # Starting a new project?
 specfact plan init --interactive
-
-# Have existing code?
-specfact import from-code --repo . --shadow-only
 
 # Using GitHub Spec-Kit?
 specfact import from-spec-kit --repo ./my-project --dry-run
 ```
+
+### Modernizing Legacy Code?
+
+**New to brownfield modernization?** See our **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** for a complete walkthrough of modernizing legacy Python code with SpecFact CLI.
 
 ## Next Steps
 

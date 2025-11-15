@@ -25,6 +25,7 @@ Uses **AI IDE's native LLM** for semantic understanding via pragmatic integratio
 - ✅ **No additional API costs** - Leverages existing IDE infrastructure
 - ✅ **Simpler architecture** - No langchain, API keys, or complex integration
 - ✅ **Multi-language support** - Works with Python, TypeScript, JavaScript, PowerShell, Go, Rust, etc.
+
 - ✅ **Semantic understanding** - AI understands business logic, not just structure
 - ✅ **High-quality output** - Generates meaningful priorities, constraints, unknowns
 - ✅ **Spec-Kit compatible** - Produces artifacts that pass `/speckit.analyze` validation
@@ -475,6 +476,7 @@ AST-based analysis is used in **CI/CD mode** when:
 
 1. **Semantic Understanding**: Understands business logic and domain concepts
 2. **Multi-language Support**: Works with Python, TypeScript, JavaScript, PowerShell, Go, Rust, etc.
+
 3. **Semantic Extraction**: Extracts actual priorities, constraints, unknowns from code context
 4. **High-quality Artifacts**: Generates Spec-Kit compatible artifacts with semantic content
 5. **Bidirectional Sync**: Preserves semantics during Spec-Kit ↔ SpecFact sync
@@ -500,6 +502,7 @@ AST-based analysis is used in **CI/CD mode** when:
 **Limitations**:
 
 1. **Python-only**: Cannot analyze TypeScript, JavaScript, PowerShell, etc.
+
 2. **Generic Content**: Produces generic priorities, constraints, unknowns (hardcoded fallbacks)
 3. **No Semantic Understanding**: Cannot understand business logic or domain concepts
 4. **Method Name Dependency**: If methods don't follow naming conventions, grouping may be less accurate

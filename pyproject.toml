@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "specfact-cli"
 version = "0.5.0"
-description = "SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development with automated quality gates"
+description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE.md" }  # Sustainable Use License
 authors = [
     {name = "NOLD AI (Owner: Dominikus Nold)", email = "hello@noldai.com"}
 ]
-keywords = ["spec-first", "contracts", "tdd", "async", "quality-gates", "contract-driven-development", "state-machine", "crosshair", "icontract", "beartype", "property-based-testing", "cli", "specfact"]
+keywords = ["legacy-code", "brownfield", "code-to-spec", "reverse-engineering", "technical-debt", "code-documentation", "modernization", "refactoring", "spec-first", "contracts", "tdd", "async", "quality-gates", "contract-driven-development", "state-machine", "crosshair", "icontract", "beartype", "property-based-testing", "cli", "specfact"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

@@ -1,6 +1,7 @@
 # SpecFact CLI
 
-> **Stop "vibe coding", start shipping quality code with contracts**
+> **Understand and Modernize Legacy Code with Confidence**  
+> Automatically extract specs from existing Python code, then enforce them as contracts
 
 [![License](https://img.shields.io/badge/license-Sustainable%20Use-blue.svg)](LICENSE.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
@@ -10,16 +11,16 @@
 
 ## What is SpecFact CLI?
 
-A command-line tool that helps you write better code by enforcing **contracts** - rules that catch bugs before they reach production.
+A brownfield-first CLI that **reverse engineers your legacy code** into documented specs, then prevents regressions with runtime contract enforcement.
 
-Think of it as a **quality gate** for your development workflow that:
+**Perfect for:** Teams modernizing legacy Python systems, data pipelines, DevOps scripts
 
-- ✅ Catches async bugs automatically
-- ✅ Validates your code matches your specs
-- ✅ Blocks bad code from merging
-- ✅ Works offline, no cloud required
+**Key capabilities:**
 
-**Perfect for:** Teams who want to ship faster without breaking things.
+- ✅ **Reverse engineer legacy code** → Extract specs automatically from existing code
+- ✅ **Runtime contract enforcement** → Prevent regressions during modernization
+- ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
+- ✅ **Works offline** → No cloud required, fully local
 
 ---
 
@@ -38,11 +39,11 @@ pip install specfact-cli
 ### Your first command (< 60 seconds)
 
 ```bash
+# Modernizing legacy code? (Recommended)
+specfact import from-code --repo . --name my-project
+
 # Starting a new project?
 specfact plan init --interactive
-
-# Have existing code?
-specfact import from-code --repo . --name my-project
 
 # Using GitHub Spec-Kit?
 specfact import from-spec-kit --repo ./my-project --dry-run
