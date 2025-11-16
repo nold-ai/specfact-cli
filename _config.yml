@@ -3,9 +3,9 @@
 
 title: SpecFact CLI Documentation
 description: >-
-  Complete documentation for SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development.
-baseurl: "" # Set to "/specfact-cli" if using project pages, "" for user/organization pages
-url: "https://nold-ai.github.io" # Set to your GitHub Pages domain
+  Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.
+baseurl: "/specfact-cli" # Project pages require baseurl
+url: "https://nold-ai.github.io" # GitHub Pages domain
 
 # Build settings
 markdown: kramdown
@@ -51,26 +51,35 @@ defaults:
     values:
       layout: default
       permalink: /:basename/
+  - scope:
+      path: "getting-started"
+    values:
+      layout: default
+  - scope:
+      path: "guides"
+    values:
+      layout: default
+  - scope:
+      path: "reference"
+    values:
+      layout: default
+  - scope:
+      path: "examples"
+    values:
+      layout: default
 
 # Theme settings (using minimal theme for clean look)
 theme: minima
 minima:
   social:
-    github: nold-ai/specfact-cli
+    github:
+      username: nold-ai
+      repository: specfact-cli
   author:
     name: NOLD AI
     email: hello@noldai.com
-
-# Navigation
-navigation:
-  - title: Getting Started
-    url: /getting-started/
-  - title: Guides
-    url: /guides/
-  - title: Reference
-    url: /reference/
-  - title: Examples
-    url: /examples/
+  skin: dark # or light, auto
+  show_excerpts: true
 
 # Footer
 footer:
