@@ -114,3 +114,6 @@ reports/
 # Ignore mcp.json
 .github/mcp.json
 .cursor/mcp.json
+
+# Jekyll bundle
+vendor/
