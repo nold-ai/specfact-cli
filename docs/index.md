@@ -2,6 +2,7 @@
 layout: default
 title: SpecFact CLI Documentation
 description: Brownfield-first CLI for reverse engineering legacy Python code into specs with runtime contract enforcement
+permalink: /
 ---
 
 # SpecFact CLI Documentation
