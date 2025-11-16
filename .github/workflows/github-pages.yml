@@ -10,6 +10,7 @@ on:
       - '_config.yml'
       - 'docs/Gemfile'
       - 'docs/index.md'
+      - 'docs/assets/**'
       - 'LICENSE.md'
       - 'TRADEMARKS.md'
   workflow_dispatch:
