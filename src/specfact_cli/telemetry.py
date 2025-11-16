@@ -40,6 +40,7 @@ except ImportError:  # pragma: no cover - optional dependency
     SimpleSpanProcessor = None  # type: ignore[assignment]
     ConsoleSpanExporter = None  # type: ignore[assignment]
     OTLPSpanExporter = None  # type: ignore[assignment]
+    Resource = None  # type: ignore[assignment]
 
 
 LOGGER = logging.getLogger(__name__)
@@ -183,7 +184,13 @@ class TelemetryManager:
         """Configure OpenTelemetry exporter if endpoint is provided."""
         if not self._settings.endpoint:
             return
-        if trace is None or TracerProvider is None or BatchSpanProcessor is None or OTLPSpanExporter is None:
+        if (
+            trace is None
+            or TracerProvider is None
+            or BatchSpanProcessor is None
+            or OTLPSpanExporter is None
+            or Resource is None
+        ):
             LOGGER.warning(
                 "Telemetry opt-in detected with endpoint set, but OpenTelemetry dependencies are missing. "
                 "Events will be stored locally only."
