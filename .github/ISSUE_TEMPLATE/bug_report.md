@@ -1,38 +1,66 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Report a bug in SpecFact CLI
+title: "[Bug] <Brief Description>"
+labels: bug
 assignees: ''
 
 ---
 
-**Describe the bug**
+## Describe the Bug
+
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+## To Reproduce
 
-**Expected behavior**
+Steps to reproduce the behavior:
+
+```bash
+# Example command that triggers the bug
+specfact <command> --options
+```
+
+**Example:**
+
+```bash
+specfact import from-code ./my-legacy-project --confidence 0.8
+```
+
+## Expected Behavior
+
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+## Actual Behavior
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+What actually happened? Include error messages, stack traces, or unexpected output.
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+## Environment
 
-**Additional context**
-Add any other context about the problem here.
+- **OS**: [e.g., Linux, macOS, Windows]
+- **Python Version**: [e.g., 3.11.5]
+- **SpecFact CLI Version**: [e.g., 0.1.0 - run `specfact --version`]
+- **Installation Method**: [e.g., pip, uvx, from source]
+
+## Command Output
+
+Include the full command output (with `--verbose` if applicable):
+
+```markdown
+Paste command output here
+```
+
+## Codebase Context (for brownfield issues)
+
+If this bug occurs when analyzing legacy code:
+
+- **Project Type**: [e.g., Django, Flask, FastAPI, plain Python]
+- **Codebase Size**: [e.g., ~10K lines, ~100 files]
+- **Python Version in Target Codebase**: [e.g., 3.8, 3.11]
+
+## Additional Context
+
+Add any other context about the problem here, such as:
+
+- Related issues or PRs
+- Workarounds you've found
+- Impact on your workflow
