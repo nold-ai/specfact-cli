@@ -4,6 +4,9 @@
 <loc>https://nold-ai.github.io/specfact-cli/</loc>
 </url>
 <url>
+<loc>https://nold-ai.github.io/specfact-cli/main/</loc>
+</url>
+<url>
 <loc>https://nold-ai.github.io/specfact-cli/redirects/</loc>
 </url>
 <url>
@@ -11,5 +14,8 @@
 </url>
 <url>
 <loc>https://nold-ai.github.io/specfact-cli/robots/</loc>
+</url>
+<url>
+<loc>https://nold-ai.github.io/specfact-cli/main.css/</loc>
 </url>
 </urlset>
