@@ -45,18 +45,15 @@ destination: _site
 
 # Defaults
 defaults:
+  # Apply permalink pattern only to markdown pages, not assets
   - scope:
       path: ""
       type: pages
+      exclude:
+        - "assets/**"
     values:
       layout: default
       permalink: /:basename/
-  # Exclude assets from permalink pattern - they should be served as-is
-  # Assets are processed by Jekyll automatically and don't need permalink override
-  - scope:
-      path: "assets"
-    values:
-      permalink: pretty
   - scope:
       path: "getting-started"
     values:
