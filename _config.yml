@@ -52,8 +52,9 @@ defaults:
     values:
       layout: default
   # Apply permalink pattern only to markdown files
-  # Note: We use a more specific scope to avoid affecting SCSS files
-  # SCSS files in assets/ should be processed as assets, not pages
+  # Note: SCSS files with front matter are treated as pages and inherit this pattern
+  # This causes CSS to be output at main/index.css instead of assets/main.css
+  # We fix this in the GitHub Pages workflow by copying the CSS to the correct location
   - scope:
       path: ""
       type: pages

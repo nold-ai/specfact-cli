@@ -1,5 +1,7 @@
 ---
 # Only the main CSS file needs this front matter
+# Explicit permalink to prevent Jekyll from applying default permalink pattern
+permalink: /assets/main.css
 ---
 
 @import "minima";
