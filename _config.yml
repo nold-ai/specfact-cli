@@ -45,8 +45,9 @@ destination: _site
 
 # Defaults
 defaults:
-  # Apply permalink pattern only to markdown pages
-  # Note: Assets (SCSS files) are not pages, so they won't be affected by this
+  # Default layout and permalink for all pages
+  # Note: SCSS files with front matter are treated as pages and inherit this pattern
+  # We override it in docs/assets/main.scss with explicit permalink: /assets/main.css
   - scope:
       path: ""
       type: pages
