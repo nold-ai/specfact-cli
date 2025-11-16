@@ -80,11 +80,12 @@ minima:
     email: hello@noldai.com
   skin: auto # auto, light, or dark - respects user preference
   show_excerpts: true
-  
-# Custom CSS
+
+# SASS configuration
+# Note: Jekyll automatically processes assets/main.scss when using minima theme
+# sass_dir is only needed for custom SASS partials directory
 sass:
   style: compressed
-  sass_dir: assets
 
 # Footer
 footer:
