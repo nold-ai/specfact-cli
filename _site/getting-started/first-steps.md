@@ -1,0 +1,285 @@
+# Your First Steps with SpecFact CLI
+
+This guide walks you through your first commands with SpecFact CLI, with step-by-step explanations.
+
+## Before You Start
+
+- [Install SpecFact CLI](installation.md) (if not already installed)
+- Choose your scenario below
+
+---
+
+## Scenario 1: Modernizing Legacy Code ⭐ PRIMARY
+
+**Goal**: Reverse engineer existing code into documented specs
+
+**Time**: < 5 minutes
+
+### Step 1: Analyze Your Legacy Codebase
+
+```bash
+specfact import from-code --repo . --name my-project
+```
+
+**What happens**:
+
+- Analyzes all Python files in your repository
+- Extracts features, user stories, and business logic from code
+- Generates dependency graphs
+- Creates plan bundle with extracted specs
+
+**Example output**:
+
+```bash
+✅ Analyzed 47 Python files
+✅ Extracted 23 features
+✅ Generated 112 user stories
+⏱️  Completed in 8.2 seconds
+```
+
+### Step 2: Review Extracted Specs
+
+```bash
+cat .specfact/plans/my-project-*.bundle.yaml
+```
+
+Review the auto-generated plan to understand what SpecFact discovered about your codebase.
+
+### Step 3: Add Contracts to Critical Functions
+
+```bash
+# Start in shadow mode (observe only)
+specfact enforce stage --preset minimal
+```
+
+See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete workflow.
+
+---
+
+## Scenario 2: Starting a New Project (Alternative)
+
+**Goal**: Create a plan before writing code
+
+**Time**: 5-10 minutes
+
+### Step 1: Initialize a Plan
+
+```bash
+specfact plan init --interactive
+```
+
+**What happens**:
+
+- Creates `.specfact/` directory structure
+- Prompts you for project title and description
+- Creates initial plan bundle at `.specfact/plans/main.bundle.yaml`
+
+**Example output**:
+
+```bash
+📋 Initializing new development plan...
+
+Enter project title: My Awesome Project
+Enter project description: A project to demonstrate SpecFact CLI
+
+✅ Plan initialized successfully!
+📁 Plan bundle: .specfact/plans/main.bundle.yaml
+```
+
+### Step 2: Add Your First Feature
+
+```bash
+specfact plan add-feature \
+  --key FEATURE-001 \
+  --title "User Authentication" \
+  --outcomes "Users can login securely"
+```
+
+**What happens**:
+
+- Adds a new feature to your plan bundle
+- Creates a feature with key `FEATURE-001`
+- Sets the title and outcomes
+
+### Step 3: Add Stories to the Feature
+
+```bash
+specfact plan add-story \
+  --feature FEATURE-001 \
+  --title "As a user, I can login with email and password" \
+  --acceptance "Login form validates input" \
+  --acceptance "User is redirected after successful login"
+```
+
+**What happens**:
+
+- Adds a user story to the feature
+- Defines acceptance criteria
+- Links the story to the feature
+
+### Step 4: Validate the Plan
+
+```bash
+specfact repro
+```
+
+**What happens**:
+
+- Validates the plan bundle structure
+- Checks for required fields
+- Reports any issues
+
+**Expected output**:
+
+```bash
+✅ Plan validation passed
+📊 Features: 1
+📊 Stories: 1
+```
+
+### Next Steps
+
+- [Use Cases](../guides/use-cases.md) - See real-world examples
+- [Command Reference](../reference/commands.md) - Learn all commands
+- [IDE Integration](../guides/ide-integration.md) - Set up slash commands
+
+---
+
+## Scenario 3: Migrating from Spec-Kit (Secondary)
+
+**Goal**: Add automated enforcement to Spec-Kit project
+
+**Time**: 15-30 minutes
+
+### Step 1: Preview Migration
+
+```bash
+specfact import from-spec-kit \
+  --repo ./my-speckit-project \
+  --dry-run
+```
+
+**What happens**:
+
+- Analyzes your Spec-Kit project structure
+- Detects Spec-Kit artifacts (specs, plans, tasks, constitution)
+- Shows what will be imported
+- **Does not modify anything** (dry-run mode)
+
+**Example output**:
+
+```bash
+🔍 Analyzing Spec-Kit project...
+✅ Found .specify/ directory (modern format)
+✅ Found specs/001-user-authentication/spec.md
+✅ Found specs/001-user-authentication/plan.md
+✅ Found specs/001-user-authentication/tasks.md
+✅ Found .specify/memory/constitution.md
+
+📊 Migration Preview:
+  - Will create: .specfact/plans/main.bundle.yaml
+  - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
+  - Will convert: Spec-Kit features → SpecFact Feature models
+  - Will convert: Spec-Kit user stories → SpecFact Story models
+  
+🚀 Ready to migrate (use --write to execute)
+```
+
+### Step 2: Execute Migration
+
+```bash
+specfact import from-spec-kit \
+  --repo ./my-speckit-project \
+  --write
+```
+
+**What happens**:
+
+- Imports Spec-Kit artifacts into SpecFact format
+- Creates `.specfact/` directory structure
+- Converts Spec-Kit features and stories to SpecFact models
+- Preserves all information
+
+### Step 3: Review Generated Contracts
+
+```bash
+ls -la .specfact/
+```
+
+**What you'll see**:
+
+- `.specfact/plans/main.bundle.yaml` - Plan bundle (converted from Spec-Kit)
+- `.specfact/protocols/workflow.protocol.yaml` - FSM definition (if protocol detected)
+- `.specfact/enforcement/config.yaml` - Quality gates configuration
+
+### Step 4: Set Up Bidirectional Sync (Optional)
+
+Keep Spec-Kit and SpecFact synchronized:
+
+```bash
+# One-time bidirectional sync
+specfact sync spec-kit --repo . --bidirectional
+
+# Continuous watch mode
+specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+```
+
+**What happens**:
+
+- Syncs changes between Spec-Kit and SpecFact
+- Bidirectional: changes in either direction are synced
+- Watch mode: continuously monitors for changes
+
+### Step 5: Enable Enforcement
+
+```bash
+# Start in shadow mode (observe only)
+specfact enforce stage --preset minimal
+
+# After stabilization, enable warnings
+specfact enforce stage --preset balanced
+
+# For production, enable strict mode
+specfact enforce stage --preset strict
+```
+
+**What happens**:
+
+- Configures enforcement rules
+- Sets severity levels (HIGH, MEDIUM, LOW)
+- Defines actions (BLOCK, WARN, LOG)
+
+### Next Steps for Scenario 3 (Secondary)
+
+- [The Journey: From Spec-Kit to SpecFact](../guides/speckit-journey.md) - Complete migration guide
+- [Use Cases - Spec-Kit Migration](../guides/use-cases.md#use-case-1-github-spec-kit-migration) - Detailed migration workflow
+- [Workflows - Bidirectional Sync](../guides/workflows.md#bidirectional-sync) - Keep both tools in sync
+
+---
+
+## Common Questions
+
+### What if I make a mistake?
+
+All commands support `--dry-run` or `--shadow-only` flags to preview changes without modifying files.
+
+### Can I undo changes?
+
+Yes! SpecFact CLI creates backups and you can use Git to revert changes:
+
+```bash
+git status
+git diff
+git restore .specfact/
+```
+
+### How do I learn more?
+
+- [Command Reference](../reference/commands.md) - All commands with examples
+- [Use Cases](../guides/use-cases.md) - Real-world scenarios
+- [Workflows](../guides/workflows.md) - Common daily workflows
+- [Troubleshooting](../guides/troubleshooting.md) - Common issues and solutions
+
+---
+
+**Happy building!** 🚀

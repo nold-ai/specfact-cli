@@ -45,23 +45,14 @@ destination: _site
 
 # Defaults
 defaults:
-  # Default layout for all pages
+  # Apply permalink pattern only to markdown pages
+  # Note: Assets (SCSS files) are not pages, so they won't be affected by this
   - scope:
       path: ""
       type: pages
     values:
       layout: default
-  # Apply permalink pattern only to markdown files
-  # Note: SCSS files with front matter are treated as pages and inherit this pattern
-  # This causes CSS to be output at main/index.css instead of assets/main.css
-  # We fix this in the GitHub Pages workflow by copying the CSS to the correct location
-  - scope:
-      path: ""
-      type: pages
-    values:
       permalink: /:basename/
-    # Only apply to files that are actually markdown, not SCSS
-    # Jekyll will still process SCSS as assets if they're in assets/
   - scope:
       path: "getting-started"
     values:
@@ -97,7 +88,6 @@ minima:
 # sass_dir is only needed for custom SASS partials directory
 sass:
   style: compressed
-  sourcemap: never  # Disable source maps to prevent JSON output
 
 # Footer
 footer:

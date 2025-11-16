@@ -64,6 +64,11 @@ jobs:
         run: |
           cd docs
           bundle exec jekyll build --destination ../_site
+          # Fix CSS path: Jekyll outputs main.css at main/index.css due to permalink pattern
+          # Copy it to assets/main.css where the HTML expects it
+          if [ -f ../_site/main/index.css ]; then
+            cp ../_site/main/index.css ../_site/assets/main.css
+          fi
         env:
           JEKYLL_ENV: production
 
