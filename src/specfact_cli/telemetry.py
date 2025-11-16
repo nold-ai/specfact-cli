@@ -118,6 +118,17 @@ class TelemetrySettings:
     @beartype
     def from_env(cls) -> TelemetrySettings:
         """Build telemetry settings from environment variables and opt-in file."""
+        # Disable in test environments (GitHub pattern)
+        if os.getenv("TEST_MODE") == "true" or os.getenv("PYTEST_CURRENT_TEST"):
+            return cls(
+                enabled=False,
+                endpoint=None,
+                headers={},
+                local_path=DEFAULT_LOCAL_LOG,
+                debug=False,
+                opt_in_source="disabled",
+            )
+
         env_flag = os.getenv("SPECFACT_TELEMETRY_OPT_IN")
         enabled = _coerce_bool(env_flag)
         opt_in_source = "env" if enabled else "disabled"
@@ -197,17 +208,37 @@ class TelemetryManager:
             )
             return
 
+        # Allow user to customize service name
+        service_name = os.getenv("SPECFACT_TELEMETRY_SERVICE_NAME", "specfact-cli")
         resource = Resource.create(
             {
-                "service.name": "specfact-cli",
+                "service.name": service_name,
                 "service.version": __version__,
                 "telemetry.opt_in_source": self._settings.opt_in_source,
             }
         )
         provider = TracerProvider(resource=resource)
 
-        exporter = OTLPSpanExporter(endpoint=self._settings.endpoint, headers=self._settings.headers or None)
-        provider.add_span_processor(BatchSpanProcessor(exporter))
+        # Configure exporter (timeout is handled by BatchSpanProcessor)
+        export_timeout = int(os.getenv("SPECFACT_TELEMETRY_EXPORT_TIMEOUT", "10"))
+        exporter = OTLPSpanExporter(
+            endpoint=self._settings.endpoint,
+            headers=self._settings.headers or None,
+        )
+
+        # Allow user to configure batch settings
+        batch_size = int(os.getenv("SPECFACT_TELEMETRY_BATCH_SIZE", "512"))
+        batch_timeout_ms = int(os.getenv("SPECFACT_TELEMETRY_BATCH_TIMEOUT", "5")) * 1000  # Convert to milliseconds
+        export_timeout_ms = export_timeout * 1000  # Convert to milliseconds
+
+        provider.add_span_processor(
+            BatchSpanProcessor(
+                exporter,
+                max_queue_size=batch_size,
+                export_timeout_millis=export_timeout_ms,
+                schedule_delay_millis=batch_timeout_ms,
+            )
+        )
 
         if self._settings.debug and ConsoleSpanExporter and SimpleSpanProcessor:
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
@@ -268,10 +299,15 @@ class TelemetryManager:
         if self._tracer is None:
             return
 
+        # Emit to OTLP exporter with error handling
         span_name = f"specfact.{event.get('command', 'unknown')}"
-        with self._tracer.start_as_current_span(span_name) as span:  # pragma: no cover - exercised indirectly
-            for key, value in self._last_event.items():
-                span.set_attribute(f"specfact.{key}", value)
+        try:
+            with self._tracer.start_as_current_span(span_name) as span:  # pragma: no cover - exercised indirectly
+                for key, value in self._last_event.items():
+                    span.set_attribute(f"specfact.{key}", value)
+        except Exception as exc:  # pragma: no cover - collector failures
+            # Log but don't fail - local storage already succeeded
+            LOGGER.warning("Failed to export telemetry to OTLP collector: %s. Event stored locally only.", exc)
 
     @contextmanager
     @beartype

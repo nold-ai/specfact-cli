@@ -7,8 +7,10 @@ when files are created/modified on either Spec-Kit or SpecFact side.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
+from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -268,21 +270,37 @@ features:
                     # Note: Actual sync logic is tested in unit tests
                     # This e2e test verifies watch mode detects changes on both sides
                     _ = list(specs_dir.rglob("*.md"))  # Verify spec files exist
-            finally:
-                # Cleanup: Remove any files in gates directory that might prevent cleanup
-                gates_dir = repo_path / ".specfact" / "gates"
-                if gates_dir.exists():
-                    gates_results = gates_dir / "results"
-                    if gates_results.exists():
-                        # Remove all files in gates/results to allow cleanup
-                        for file in gates_results.iterdir():
-                            if file.is_file():
-                                file.unlink()
-                        # Try to remove the directory
-                        from contextlib import suppress
 
-                        with suppress(OSError):
-                            gates_results.rmdir()  # Directory might not be empty, that's okay
+                # Wait a bit for any final file operations to complete
+                # This allows file handles to be released before cleanup
+                time.sleep(0.5)
+            finally:
+                # Wait for watch mode thread to release file handles
+                # Since it's a daemon thread, it will be terminated, but we need to give
+                # the Observer time to release file handles
+                time.sleep(0.5)
+
+                # Comprehensive cleanup: Remove all files and directories recursively
+                # This ensures TemporaryDirectory can clean up properly
+                # Retry cleanup up to 3 times with brief delays
+                for attempt in range(3):
+                    try:
+                        # Remove all files first
+                        for root, dirs, files in os.walk(repo_path, topdown=False):
+                            for file in files:
+                                file_path = Path(root) / file
+                                with suppress(OSError, PermissionError):
+                                    file_path.unlink()
+                            # Then remove directories (bottom-up)
+                            for dir_name in dirs:
+                                dir_path = Path(root) / dir_name
+                                with suppress(OSError, PermissionError):
+                                    dir_path.rmdir()
+                        # Success - break out of retry loop
+                        break
+                    except (OSError, PermissionError):
+                        if attempt < 2:  # Don't sleep on last attempt
+                            time.sleep(0.2)  # Brief delay before retry
 
     def test_watch_mode_detects_repository_changes(self) -> None:
         """Test that watch mode detects and syncs repository code changes."""

@@ -460,7 +460,12 @@ module = [
     "tools.*"
 ]
 typeCheckingMode = "basic"
-reportMissingImports = true
+
+[[tool.basedpyright.override]]
+module = [
+    "specfact_cli.telemetry"
+]
+reportMissingImports = false
 
 [tool.pytest.ini_options]
 minversion = "8.4.2"
@@ -507,13 +512,17 @@ disable = [
     "R0915",  # too-many-statements
     "W0511",  # fixme
     "C0413",  # wrong-import-position (handled by isort)
+    "E0401",  # unable-to-import (false positives for local modules in pylint)
+    "E0611",  # no-name-in-module (false positives for local modules in pylint)
 ]
 
 [tool.pylint.master]
-# Allow pylint to analyze tools directory
+# Allow pylint to analyze tools directory and src directory
 init-hook = """
 import sys
+import os
 sys.path.insert(0, 'tools')
+sys.path.insert(0, os.path.join(os.getcwd(), 'src'))
 """
 
 [tool.pylint.format]
