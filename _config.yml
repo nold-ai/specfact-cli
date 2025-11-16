@@ -78,8 +78,13 @@ minima:
   author:
     name: NOLD AI
     email: hello@noldai.com
-  skin: dark # or light, auto
+  skin: auto # auto, light, or dark - respects user preference
   show_excerpts: true
+  
+# Custom CSS
+sass:
+  style: compressed
+  sass_dir: assets
 
 # Footer
 footer:
