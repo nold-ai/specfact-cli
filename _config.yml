@@ -54,6 +54,11 @@ defaults:
     values:
       layout: default
       permalink: /:basename/
+  # Exclude assets from permalink pattern - they should be served as-is
+  - scope:
+      path: "assets"
+    values:
+      permalink: /:path/:basename.:output_ext
   - scope:
       path: "getting-started"
     values:
