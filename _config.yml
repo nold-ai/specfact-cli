@@ -52,10 +52,11 @@ defaults:
       layout: default
       permalink: /:basename/
   # Exclude assets from permalink pattern - they should be served as-is
+  # Assets are processed by Jekyll automatically and don't need permalink override
   - scope:
       path: "assets"
     values:
-      permalink: /:path/:basename.:output_ext
+      permalink: pretty
   - scope:
       path: "getting-started"
     values:
