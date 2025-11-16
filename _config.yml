@@ -45,8 +45,7 @@ destination: _site
 
 # Defaults
 defaults:
-  # Apply permalink pattern only to markdown pages
-  # Note: Assets (SCSS files) are not pages, so they won't be affected by this
+  # Default layout for all pages
   - scope:
       path: ""
       type: pages
