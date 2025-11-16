@@ -107,6 +107,15 @@ We ran SpecFact CLI **on itself** to prove it works:
 
 ---
 
+## Optional Telemetry (Opt-In)
+
+- Telemetry is **off by default** and only activates if you set `SPECFACT_TELEMETRY_OPT_IN=true` or create `~/.specfact/telemetry.opt-in`.
+- When enabled, SpecFact records anonymized metrics (e.g., number of features detected, contract violations blocked) to help us publish aggregate stats such as “contracts prevented 70% of the bugs surfaced during modernization.”
+- Data is stored locally in `~/.specfact/telemetry.log`, and you can route it to your own OpenTelemetry collector via `SPECFACT_TELEMETRY_ENDPOINT`.
+- Learn more in [`docs/reference/telemetry.md`](docs/reference/telemetry.md).
+
+---
+
 ## Project Documentation
 
 ### 📚 Online Documentation

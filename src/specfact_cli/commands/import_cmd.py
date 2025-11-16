@@ -15,6 +15,8 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from specfact_cli.telemetry import telemetry
+
 
 app = typer.Typer(help="Import codebases and Spec-Kit projects to contract format")
 console = Console()
@@ -28,6 +30,11 @@ def _is_valid_repo_path(path: Path) -> bool:
 def _is_valid_output_path(path: Path | None) -> bool:
     """Check if output path exists if provided."""
     return path is None or path.exists()
+
+
+def _count_python_files(repo: Path) -> int:
+    """Count Python files for anonymized telemetry metrics."""
+    return sum(1 for _ in repo.rglob("*.py"))
 
 
 @app.command("from-spec-kit")
@@ -255,6 +262,8 @@ def from_code(
     router = get_router()
     routing_result = router.route("import from-code", mode, {"repo": str(repo), "confidence": confidence})
 
+    python_file_count = _count_python_files(repo)
+
     from specfact_cli.generators.plan_generator import PlanGenerator
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.validators.schema import validate_plan_bundle
@@ -275,66 +284,78 @@ def from_code(
     if shadow_only:
         console.print("[yellow]→ Shadow mode - observe without enforcement[/yellow]")
 
-    try:
-        # Use AI-first approach in CoPilot mode, fallback to AST in CI/CD mode
-        if routing_result.execution_mode == "agent":
-            console.print("[dim]Mode: CoPilot (AI-first import)[/dim]")
-            # Get agent for this command
-            agent = get_agent("import from-code")
-            if agent and isinstance(agent, AnalyzeAgent):
-                # Build context for agent
-                context = {
-                    "workspace": str(repo),
-                    "current_file": None,  # TODO: Get from IDE in Phase 4.2+
-                    "selection": None,  # TODO: Get from IDE in Phase 4.2+
-                }
-                # Inject context (for future LLM integration)
-                _enhanced_context = agent.inject_context(context)
-                # Use AI-first import
-                console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
-                plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=name)
-                console.print("[green]✓[/green] AI import complete")
+    telemetry_metadata = {
+        "mode": mode.value,
+        "execution_mode": routing_result.execution_mode,
+        "files_analyzed": python_file_count,
+        "shadow_mode": shadow_only,
+    }
+
+    with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
+        try:
+            # Use AI-first approach in CoPilot mode, fallback to AST in CI/CD mode
+            if routing_result.execution_mode == "agent":
+                console.print("[dim]Mode: CoPilot (AI-first import)[/dim]")
+                # Get agent for this command
+                agent = get_agent("import from-code")
+                if agent and isinstance(agent, AnalyzeAgent):
+                    # Build context for agent
+                    context = {
+                        "workspace": str(repo),
+                        "current_file": None,  # TODO: Get from IDE in Phase 4.2+
+                        "selection": None,  # TODO: Get from IDE in Phase 4.2+
+                    }
+                    # Inject context (for future LLM integration)
+                    _enhanced_context = agent.inject_context(context)
+                    # Use AI-first import
+                    console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
+                    plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=name)
+                    console.print("[green]✓[/green] AI import complete")
+                else:
+                    # Fallback to AST if agent not available
+                    console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
+                    from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+                    console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
+                    analyzer = CodeAnalyzer(
+                        repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                    )
+                    plan_bundle = analyzer.analyze()
             else:
-                # Fallback to AST if agent not available
-                console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
+                # CI/CD mode: use AST-based import (no LLM available)
+                console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
                 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
+                console.print("\n[cyan]🔍 Importing Python files...[/cyan]")
                 analyzer = CodeAnalyzer(repo, confidence_threshold=confidence, key_format=key_format, plan_name=name)
                 plan_bundle = analyzer.analyze()
-        else:
-            # CI/CD mode: use AST-based import (no LLM available)
-            console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
-            from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-            console.print("\n[cyan]🔍 Importing Python files...[/cyan]")
-            analyzer = CodeAnalyzer(repo, confidence_threshold=confidence, key_format=key_format, plan_name=name)
-            plan_bundle = analyzer.analyze()
+            console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
+            console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
 
-        console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
-        console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
+            # Show summary
+            total_stories = sum(len(f.stories) for f in plan_bundle.features)
+            console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
 
-        # Show summary
-        total_stories = sum(len(f.stories) for f in plan_bundle.features)
-        console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
+            record_event({"features_detected": len(plan_bundle.features), "stories_detected": total_stories})
 
-        # Generate plan file
-        out.parent.mkdir(parents=True, exist_ok=True)
-        generator = PlanGenerator()
-        generator.generate(plan_bundle, out)
+            # Generate plan file
+            out.parent.mkdir(parents=True, exist_ok=True)
+            generator = PlanGenerator()
+            generator.generate(plan_bundle, out)
 
-        console.print("[bold green]✓ Import complete![/bold green]")
-        console.print(f"[dim]Plan bundle written to: {out}[/dim]")
+            console.print("[bold green]✓ Import complete![/bold green]")
+            console.print(f"[dim]Plan bundle written to: {out}[/dim]")
 
-        # Validate generated plan
-        is_valid, error, _ = validate_plan_bundle(out)
-        if is_valid:
-            console.print("[green]✓ Plan validation passed[/green]")
-        else:
-            console.print(f"[yellow]⚠ Plan validation warning: {error}[/yellow]")
+            # Validate generated plan
+            is_valid, error, _ = validate_plan_bundle(out)
+            if is_valid:
+                console.print("[green]✓ Plan validation passed[/green]")
+            else:
+                console.print(f"[yellow]⚠ Plan validation warning: {error}[/yellow]")
 
-        # Generate report
-        report_content = f"""# Brownfield Import Report
+            # Generate report
+            report_content = f"""# Brownfield Import Report
 
 ## Repository: {repo}
 
@@ -351,15 +372,15 @@ def from_code(
 ## Features
 
 """
-        for feature in plan_bundle.features:
-            report_content += f"### {feature.title} ({feature.key})\n"
-            report_content += f"- **Stories**: {len(feature.stories)}\n"
-            report_content += f"- **Confidence**: {feature.confidence}\n"
-            report_content += f"- **Outcomes**: {', '.join(feature.outcomes)}\n\n"
+            for feature in plan_bundle.features:
+                report_content += f"### {feature.title} ({feature.key})\n"
+                report_content += f"- **Stories**: {len(feature.stories)}\n"
+                report_content += f"- **Confidence**: {feature.confidence}\n"
+                report_content += f"- **Outcomes**: {', '.join(feature.outcomes)}\n\n"
 
-        report.write_text(report_content)
-        console.print(f"[dim]Report written to: {report}[/dim]")
+            report.write_text(report_content)
+            console.print(f"[dim]Report written to: {report}[/dim]")
 
-    except Exception as e:
-        console.print(f"[bold red]✗ Import failed:[/bold red] {e}")
-        raise typer.Exit(1) from e
+        except Exception as e:
+            console.print(f"[bold red]✗ Import failed:[/bold red] {e}")
+            raise typer.Exit(1) from e
