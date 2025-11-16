@@ -32,11 +32,12 @@
   }
 }
 
+// Override body styles with !important to ensure they apply
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  line-height: 1.6;
-  color: var(--text-color);
-  background-color: var(--bg-color);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  line-height: 1.7 !important;
+  color: var(--text-color) !important;
+  background-color: var(--bg-color) !important;
 }
 
 // Header styling
