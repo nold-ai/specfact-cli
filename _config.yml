@@ -45,7 +45,9 @@ destination: _site
 
 # Defaults
 defaults:
-  # Default layout for all pages
+  # Default layout and permalink for all pages
+  # Note: SCSS files with front matter are treated as pages and inherit this pattern
+  # We override it in docs/assets/main.scss with explicit permalink: /assets/main.css
   - scope:
       path: ""
       type: pages
