@@ -18,6 +18,7 @@ from rich.table import Table
 
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.validators.repro_checker import ReproChecker
+from specfact_cli.telemetry import telemetry
 
 
 app = typer.Typer(help="Run validation suite for reproducibility")
@@ -32,6 +33,11 @@ def _is_valid_repo_path(path: Path) -> bool:
 def _is_valid_output_path(path: Path | None) -> bool:
     """Check if output path exists if provided."""
     return path is None or path.exists()
+
+
+def _count_python_files(path: Path) -> int:
+    """Count Python files for anonymized telemetry reporting."""
+    return sum(1 for _ in path.rglob("*.py"))
 
 
 @app.callback(invoke_without_command=True)
@@ -106,87 +112,103 @@ def main(
     # Ensure structure exists
     SpecFactStructure.ensure_structure(repo)
 
-    # Run all checks
-    checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast, fix=fix)
+    python_file_count = _count_python_files(repo)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        progress.add_task("Running validation checks...", total=None)
+    telemetry_metadata = {
+        "mode": "repro",
+        "files_analyzed": python_file_count,
+    }
 
-        # This will show progress for each check internally
-        report = checker.run_all_checks()
+    with telemetry.track_command("repro.run", telemetry_metadata) as record_event:
+        # Run all checks
+        checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast, fix=fix)
 
-    # Display results
-    console.print("\n[bold]Validation Results[/bold]\n")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            progress.add_task("Running validation checks...", total=None)
 
-    # Summary table
-    table = Table(title="Check Summary")
-    table.add_column("Check", style="cyan")
-    table.add_column("Tool", style="dim")
-    table.add_column("Status", style="bold")
-    table.add_column("Duration", style="dim")
+            # This will show progress for each check internally
+            report = checker.run_all_checks()
 
-    for check in report.checks:
-        if check.status.value == "passed":
-            status_icon = "[green]✓[/green] PASSED"
-        elif check.status.value == "failed":
-            status_icon = "[red]✗[/red] FAILED"
-        elif check.status.value == "timeout":
-            status_icon = "[yellow]⏱[/yellow] TIMEOUT"
-        elif check.status.value == "skipped":
-            status_icon = "[dim]⊘[/dim] SKIPPED"
-        else:
-            status_icon = "[dim]…[/dim] PENDING"
+        # Display results
+        console.print("\n[bold]Validation Results[/bold]\n")
 
-        duration_str = f"{check.duration:.2f}s" if check.duration else "N/A"
+        # Summary table
+        table = Table(title="Check Summary")
+        table.add_column("Check", style="cyan")
+        table.add_column("Tool", style="dim")
+        table.add_column("Status", style="bold")
+        table.add_column("Duration", style="dim")
 
-        table.add_row(check.name, check.tool, status_icon, duration_str)
-
-    console.print(table)
-
-    # Summary stats
-    console.print("\n[bold]Summary:[/bold]")
-    console.print(f"  Total checks: {report.total_checks}")
-    console.print(f"  [green]Passed: {report.passed_checks}[/green]")
-    if report.failed_checks > 0:
-        console.print(f"  [red]Failed: {report.failed_checks}[/red]")
-    if report.timeout_checks > 0:
-        console.print(f"  [yellow]Timeout: {report.timeout_checks}[/yellow]")
-    if report.skipped_checks > 0:
-        console.print(f"  [dim]Skipped: {report.skipped_checks}[/dim]")
-    console.print(f"  Total duration: {report.total_duration:.2f}s")
-
-    # Show errors if verbose
-    if verbose:
         for check in report.checks:
-            if check.error:
-                console.print(f"\n[bold red]{check.name} Error:[/bold red]")
-                console.print(f"[dim]{check.error}[/dim]")
-            if check.output and check.status.value == "failed":
-                console.print(f"\n[bold red]{check.name} Output:[/bold red]")
-                console.print(f"[dim]{check.output[:500]}[/dim]")  # Limit output
+            if check.status.value == "passed":
+                status_icon = "[green]✓[/green] PASSED"
+            elif check.status.value == "failed":
+                status_icon = "[red]✗[/red] FAILED"
+            elif check.status.value == "timeout":
+                status_icon = "[yellow]⏱[/yellow] TIMEOUT"
+            elif check.status.value == "skipped":
+                status_icon = "[dim]⊘[/dim] SKIPPED"
+            else:
+                status_icon = "[dim]…[/dim] PENDING"
 
-    # Write report if requested
-    if out is None:
-        # Use default path
-        out = SpecFactStructure.get_timestamped_report_path("enforcement", repo, "yaml")
-        SpecFactStructure.ensure_structure(repo)
+            duration_str = f"{check.duration:.2f}s" if check.duration else "N/A"
 
-    out.parent.mkdir(parents=True, exist_ok=True)
-    dump_yaml(report.to_dict(), out)
-    console.print(f"\n[dim]Report written to: {out}[/dim]")
+            table.add_row(check.name, check.tool, status_icon, duration_str)
 
-    # Exit with appropriate code
-    exit_code = report.get_exit_code()
-    if exit_code == 0:
-        console.print("\n[bold green]✓[/bold green] All validations passed!")
-        console.print("[dim]Reproducibility verified[/dim]")
-    elif exit_code == 1:
-        console.print("\n[bold red]✗[/bold red] Some validations failed")
-        raise typer.Exit(1)
-    else:
-        console.print("\n[yellow]⏱[/yellow] Budget exceeded")
-        raise typer.Exit(2)
+        console.print(table)
+
+        # Summary stats
+        console.print("\n[bold]Summary:[/bold]")
+        console.print(f"  Total checks: {report.total_checks}")
+        console.print(f"  [green]Passed: {report.passed_checks}[/green]")
+        if report.failed_checks > 0:
+            console.print(f"  [red]Failed: {report.failed_checks}[/red]")
+        if report.timeout_checks > 0:
+            console.print(f"  [yellow]Timeout: {report.timeout_checks}[/yellow]")
+        if report.skipped_checks > 0:
+            console.print(f"  [dim]Skipped: {report.skipped_checks}[/dim]")
+        console.print(f"  Total duration: {report.total_duration:.2f}s")
+
+        record_event(
+            {
+                "checks_total": report.total_checks,
+                "checks_failed": report.failed_checks,
+                "violations_detected": report.failed_checks,
+            }
+        )
+
+        # Show errors if verbose
+        if verbose:
+            for check in report.checks:
+                if check.error:
+                    console.print(f"\n[bold red]{check.name} Error:[/bold red]")
+                    console.print(f"[dim]{check.error}[/dim]")
+                if check.output and check.status.value == "failed":
+                    console.print(f"\n[bold red]{check.name} Output:[/bold red]")
+                    console.print(f"[dim]{check.output[:500]}[/dim]")  # Limit output
+
+        # Write report if requested
+        if out is None:
+            # Use default path
+            out = SpecFactStructure.get_timestamped_report_path("enforcement", repo, "yaml")
+            SpecFactStructure.ensure_structure(repo)
+
+        out.parent.mkdir(parents=True, exist_ok=True)
+        dump_yaml(report.to_dict(), out)
+        console.print(f"\n[dim]Report written to: {out}[/dim]")
+
+        # Exit with appropriate code
+        exit_code = report.get_exit_code()
+        if exit_code == 0:
+            console.print("\n[bold green]✓[/bold green] All validations passed!")
+            console.print("[dim]Reproducibility verified[/dim]")
+        elif exit_code == 1:
+            console.print("\n[bold red]✗[/bold red] Some validations failed")
+            raise typer.Exit(1)
+        else:
+            console.print("\n[yellow]⏱[/yellow] Budget exceeded")
+            raise typer.Exit(2)

@@ -62,6 +62,10 @@ dependencies = [
     
     # File system watching
     "watchdog>=6.0.0",
+
+    # Telemetry (opt-in; only active when SPECFACT_TELEMETRY_OPT_IN=true)
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
 ]
 
 [project.optional-dependencies]
