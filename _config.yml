@@ -45,12 +45,11 @@ destination: _site
 
 # Defaults
 defaults:
-  # Apply permalink pattern only to markdown pages, not assets
+  # Apply permalink pattern only to markdown pages
+  # Note: Assets (SCSS files) are not pages, so they won't be affected by this
   - scope:
       path: ""
       type: pages
-      exclude:
-        - "assets/**"
     values:
       layout: default
       permalink: /:basename/
