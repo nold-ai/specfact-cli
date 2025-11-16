@@ -11,19 +11,21 @@ rotate, or delete their own data.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
+from collections.abc import MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, MutableMapping, Optional
+from typing import Any
 from uuid import uuid4
 
 from beartype import beartype
 from beartype.typing import Callable, Iterator, Mapping
-import logging
 
 from specfact_cli import __version__
+
 
 try:
     from opentelemetry import trace
@@ -66,7 +68,7 @@ ALLOWED_FIELDS = {
 }
 
 
-def _coerce_bool(value: Optional[str]) -> bool:
+def _coerce_bool(value: str | None) -> bool:
     """Convert truthy string representations to boolean."""
     if value is None:
         return False
@@ -113,7 +115,7 @@ class TelemetrySettings:
 
     @classmethod
     @beartype
-    def from_env(cls) -> "TelemetrySettings":
+    def from_env(cls) -> TelemetrySettings:
         """Build telemetry settings from environment variables and opt-in file."""
         env_flag = os.getenv("SPECFACT_TELEMETRY_OPT_IN")
         enabled = _coerce_bool(env_flag)

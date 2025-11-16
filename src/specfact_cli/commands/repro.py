@@ -16,9 +16,9 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.validators.repro_checker import ReproChecker
-from specfact_cli.telemetry import telemetry
 
 
 app = typer.Typer(help="Run validation suite for reproducibility")

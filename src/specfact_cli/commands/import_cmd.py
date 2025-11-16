@@ -17,6 +17,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli.telemetry import telemetry
 
+
 app = typer.Typer(help="Import codebases and Spec-Kit projects to contract format")
 console = Console()
 
@@ -316,7 +317,9 @@ def from_code(
                     from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
                     console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
-                    analyzer = CodeAnalyzer(repo, confidence_threshold=confidence, key_format=key_format, plan_name=name)
+                    analyzer = CodeAnalyzer(
+                        repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                    )
                     plan_bundle = analyzer.analyze()
             else:
                 # CI/CD mode: use AST-based import (no LLM available)

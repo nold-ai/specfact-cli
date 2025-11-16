@@ -75,10 +75,9 @@ def test_track_command_marks_failure(tmp_path: Path) -> None:
     class CustomError(RuntimeError):
         """Test-specific error."""
 
-    with pytest.raises(CustomError):
-        with manager.track_command("repro.run") as record:
-            record({"checks_total": 5})
-            raise CustomError("boom")
+    with pytest.raises(CustomError), manager.track_command("repro.run") as record:
+        record({"checks_total": 5})
+        raise CustomError("boom")
 
     event = manager.last_event
     assert event is not None
