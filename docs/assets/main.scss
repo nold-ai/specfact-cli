@@ -5,11 +5,7 @@
 @import "minima";
 
 // Custom styling for SpecFact CLI documentation
-// Override minima theme styles with higher specificity
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-  line-height: 1.6 !important;
-}
+// These styles override minima theme defaults
 
 :root {
   --primary-color: #2563eb;
