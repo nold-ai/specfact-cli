@@ -9,110 +9,6 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.5.0] - 2025-11-09
-
-### Added (0.5.0)
-
-- **Watch Mode for Continuous Synchronization**
-  - Added `--watch` flag to `sync spec-kit` and `sync repository` commands
-  - Real-time file system monitoring with configurable interval (default: 5 seconds)
-  - Automatic change detection for Spec-Kit artifacts, SpecFact plans, and repository code
-  - Debouncing to prevent rapid file change events (500ms debounce interval)
-  - Graceful shutdown with Ctrl+C support
-  - Resource-efficient implementation with minimal CPU/memory usage
-  - Comprehensive E2E test suite with 20+ tests covering all watch mode scenarios
-
-- **Enhanced Sync Commands**
-  - `sync spec-kit` now supports watch mode for continuous bidirectional sync
-  - `sync repository` now supports watch mode for continuous code-to-plan sync
-  - Automatic change type detection (Spec-Kit, SpecFact, or code changes)
-  - Improved error handling with path validation and graceful degradation
-
-- **Documentation Reorganization**
-  - Complete reorganization of user-facing documentation for improved clarity
-  - Created persona-based navigation hub in `docs/README.md`
-  - New guides: `getting-started/first-steps.md`, `guides/workflows.md`, `guides/troubleshooting.md`
-  - New examples: `examples/quick-examples.md`
-  - Moved technical content to dedicated `technical/` directory
-  - Enhanced `reference/architecture.md` and `reference/commands.md` with quick reference sections
-  - Streamlined root `README.md` to focus on value proposition and quick start
-  - All documentation verified for consistency, links, and markdown linting
-
-- **Plan Management Enhancements**
-  - Added `plan sync --shared` convenience wrapper for team collaboration
-  - Added `plan compare --code-vs-plan` convenience alias for drift detection
-  - Improved active plan selection and management
-  - Enhanced plan comparison with better deviation reporting
-
-### Changed (0.5.0)
-
-- **Sync Command Improvements**
-  - Enhanced `sync spec-kit` with better bidirectional sync handling
-  - Improved `sync repository` with better code change tracking
-  - Better error messages and validation for repository paths
-  - Improved handling of temporary directory cleanup during watch mode
-
-- **Documentation Structure**
-  - Moved `guides/mode-detection.md` → `reference/modes.md` (technical reference)
-  - Moved `guides/feature-key-normalization.md` → `reference/feature-keys.md` (technical reference)
-  - Moved `reference/testing.md` → `technical/testing.md` (contributor concern)
-  - Updated all cross-references and links throughout documentation
-  - Improved organization with clear separation between user guides and technical reference
-
-- **Command Reference Enhancements**
-  - Added quick reference section to `reference/commands.md`
-  - Grouped commands by workflow (Import & Analysis, Plan Management, Enforcement, etc.)
-  - Added related documentation links to all reference pages
-  - Improved examples and usage patterns
-
-- **Architecture Documentation**
-  - Added quick overview section to `reference/architecture.md` for non-technical users
-  - Enhanced with related documentation links
-  - Improved organization and readability
-
-### Fixed (0.5.0)
-
-- **Watch Mode Path Validation**
-  - Fixed repository path validation in watch mode callbacks
-  - Added proper path resolution and validation before watcher initialization
-  - Improved handling of temporary directory cleanup during watch mode execution
-  - Added graceful error handling for non-existent directories
-
-- **Documentation Consistency**
-  - Fixed outdated path references (`contracts/plans/` → `.specfact/plans/`)
-  - Updated all default paths to match current directory structure
-  - Verified all cross-references and links
-  - Fixed markdown linting errors
-
-- **Test Suite Improvements**
-  - Added `@pytest.mark.slow` marker for slow tests
-  - Added `@pytest.mark.timeout` for watch mode tests
-  - Improved test reliability and error handling
-  - Enhanced E2E test coverage for watch mode scenarios
-
-### Documentation (0.5.0)
-
-- **Complete Documentation Reorganization**
-  - Phase 1: Core reorganization (streamlined README, persona-based docs/README, moved technical content)
-  - Phase 2: Content creation (first-steps.md, workflows.md, troubleshooting.md, quick-examples.md)
-  - Phase 3: Content enhancement (architecture.md, commands.md, polish all docs)
-  - All phases completed with full verification and consistency checks
-
-- **New Documentation Files**
-  - `docs/getting-started/first-steps.md` - Step-by-step first commands
-  - `docs/guides/workflows.md` - Common daily workflows
-  - `docs/guides/troubleshooting.md` - Common issues and solutions
-  - `docs/examples/quick-examples.md` - Quick code snippets
-  - `docs/technical/README.md` - Technical deep dives overview
-
-- **Enhanced Documentation**
-  - Added "dogfooding" term explanation in examples
-  - Improved cross-references and navigation
-  - Better organization for different user personas
-  - Clearer separation between user guides and technical reference
-
----
-
 ## [0.6.0] - 2025-11-17
 
 ### Added (0.6.0)
@@ -239,6 +135,110 @@ All notable changes to this project will be documented in this file.
 - **Updated Dates**
   - All documentation files updated with correct dates (2025-11-17)
   - Removed placeholder dates (2025-01-XX) from examples and documentation
+
+---
+
+## [0.5.0] - 2025-11-09
+
+### Added (0.5.0)
+
+- **Watch Mode for Continuous Synchronization**
+  - Added `--watch` flag to `sync spec-kit` and `sync repository` commands
+  - Real-time file system monitoring with configurable interval (default: 5 seconds)
+  - Automatic change detection for Spec-Kit artifacts, SpecFact plans, and repository code
+  - Debouncing to prevent rapid file change events (500ms debounce interval)
+  - Graceful shutdown with Ctrl+C support
+  - Resource-efficient implementation with minimal CPU/memory usage
+  - Comprehensive E2E test suite with 20+ tests covering all watch mode scenarios
+
+- **Enhanced Sync Commands**
+  - `sync spec-kit` now supports watch mode for continuous bidirectional sync
+  - `sync repository` now supports watch mode for continuous code-to-plan sync
+  - Automatic change type detection (Spec-Kit, SpecFact, or code changes)
+  - Improved error handling with path validation and graceful degradation
+
+- **Documentation Reorganization**
+  - Complete reorganization of user-facing documentation for improved clarity
+  - Created persona-based navigation hub in `docs/README.md`
+  - New guides: `getting-started/first-steps.md`, `guides/workflows.md`, `guides/troubleshooting.md`
+  - New examples: `examples/quick-examples.md`
+  - Moved technical content to dedicated `technical/` directory
+  - Enhanced `reference/architecture.md` and `reference/commands.md` with quick reference sections
+  - Streamlined root `README.md` to focus on value proposition and quick start
+  - All documentation verified for consistency, links, and markdown linting
+
+- **Plan Management Enhancements**
+  - Added `plan sync --shared` convenience wrapper for team collaboration
+  - Added `plan compare --code-vs-plan` convenience alias for drift detection
+  - Improved active plan selection and management
+  - Enhanced plan comparison with better deviation reporting
+
+### Changed (0.5.0)
+
+- **Sync Command Improvements**
+  - Enhanced `sync spec-kit` with better bidirectional sync handling
+  - Improved `sync repository` with better code change tracking
+  - Better error messages and validation for repository paths
+  - Improved handling of temporary directory cleanup during watch mode
+
+- **Documentation Structure**
+  - Moved `guides/mode-detection.md` → `reference/modes.md` (technical reference)
+  - Moved `guides/feature-key-normalization.md` → `reference/feature-keys.md` (technical reference)
+  - Moved `reference/testing.md` → `technical/testing.md` (contributor concern)
+  - Updated all cross-references and links throughout documentation
+  - Improved organization with clear separation between user guides and technical reference
+
+- **Command Reference Enhancements**
+  - Added quick reference section to `reference/commands.md`
+  - Grouped commands by workflow (Import & Analysis, Plan Management, Enforcement, etc.)
+  - Added related documentation links to all reference pages
+  - Improved examples and usage patterns
+
+- **Architecture Documentation**
+  - Added quick overview section to `reference/architecture.md` for non-technical users
+  - Enhanced with related documentation links
+  - Improved organization and readability
+
+### Fixed (0.5.0)
+
+- **Watch Mode Path Validation**
+  - Fixed repository path validation in watch mode callbacks
+  - Added proper path resolution and validation before watcher initialization
+  - Improved handling of temporary directory cleanup during watch mode execution
+  - Added graceful error handling for non-existent directories
+
+- **Documentation Consistency**
+  - Fixed outdated path references (`contracts/plans/` → `.specfact/plans/`)
+  - Updated all default paths to match current directory structure
+  - Verified all cross-references and links
+  - Fixed markdown linting errors
+
+- **Test Suite Improvements**
+  - Added `@pytest.mark.slow` marker for slow tests
+  - Added `@pytest.mark.timeout` for watch mode tests
+  - Improved test reliability and error handling
+  - Enhanced E2E test coverage for watch mode scenarios
+
+### Documentation (0.5.0)
+
+- **Complete Documentation Reorganization**
+  - Phase 1: Core reorganization (streamlined README, persona-based docs/README, moved technical content)
+  - Phase 2: Content creation (first-steps.md, workflows.md, troubleshooting.md, quick-examples.md)
+  - Phase 3: Content enhancement (architecture.md, commands.md, polish all docs)
+  - All phases completed with full verification and consistency checks
+
+- **New Documentation Files**
+  - `docs/getting-started/first-steps.md` - Step-by-step first commands
+  - `docs/guides/workflows.md` - Common daily workflows
+  - `docs/guides/troubleshooting.md` - Common issues and solutions
+  - `docs/examples/quick-examples.md` - Quick code snippets
+  - `docs/technical/README.md` - Technical deep dives overview
+
+- **Enhanced Documentation**
+  - Added "dogfooding" term explanation in examples
+  - Improved cross-references and navigation
+  - Better organization for different user personas
+  - Clearer separation between user guides and technical reference
 
 ---
 
