@@ -64,6 +64,7 @@ def test_review_workflow_with_incomplete_plan(tmp_path: Path) -> None:
     report = scanner.scan(bundle)
 
     # Should find multiple ambiguities
+    assert report.findings is not None
     assert len(report.findings) > 0
 
     # Should find missing stories
@@ -139,11 +140,13 @@ def test_ambiguity_scanner_coverage() -> None:
         product=Product(themes=[], releases=[]),
         features=[],
         metadata=None,
+        clarifications=None,
     )
 
     report = scanner.scan(bundle)
 
     # Should have coverage for all categories
+    assert report.coverage is not None
     assert len(report.coverage) == len(TaxonomyCategory)
 
     # All categories should have a status
@@ -173,10 +176,12 @@ def test_prioritization_by_impact_uncertainty() -> None:
             )
         ],
         metadata=None,
+        clarifications=None,
     )
 
     report = scanner.scan(bundle)
 
+    assert report.findings is not None
     if len(report.findings) > 1:
         # Check that findings are sorted by priority (impact x uncertainty)
         # Note: The scanner may return findings in a different order than expected

@@ -144,6 +144,7 @@ class TestCompleteWorkflowWithNewStructure:
             product=Product(themes=["User Management"], releases=[]),
             features=auto_plan_data["features"],  # Use discovered features
             metadata=None,
+            clarifications=None,
         )
 
         manual_plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
@@ -417,6 +418,7 @@ class TestMigrationScenarios:
             business=None,
             product=Product(themes=["Legacy"], releases=[]),
             features=[],
+            clarifications=None,
             metadata=None,
         )
 

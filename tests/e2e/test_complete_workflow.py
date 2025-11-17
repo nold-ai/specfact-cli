@@ -1923,6 +1923,7 @@ class TestBrownfieldAnalysisWorkflow:
 
             print("✅ CLI import from-code on specfact-cli: COMPLETE")
 
+    @pytest.mark.timeout(60)
     def test_self_analysis_consistency(self):
         """
         Test that analyzing specfact-cli multiple times produces consistent results.
@@ -1956,6 +1957,7 @@ class TestBrownfieldAnalysisWorkflow:
         print(f"✅ Both runs found: {len(plan1.features)} features, {stories1} stories")
         print("✅ Analysis consistency: VERIFIED")
 
+    @pytest.mark.timeout(60)
     def test_story_points_fibonacci_compliance(self):
         """
         Verify all discovered stories use valid Fibonacci numbers for points.
