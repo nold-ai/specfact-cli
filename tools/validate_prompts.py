@@ -30,11 +30,17 @@ REQUIRED_SECTIONS = [
 CLI_COMMANDS = {
     "specfact-import-from-code": "specfact import from-code",
     "specfact-plan-init": "specfact plan init",
+    "specfact-plan-add-feature": "specfact plan add-feature",
+    "specfact-plan-add-story": "specfact plan add-story",
+    "specfact-plan-update-idea": "specfact plan update-idea",
+    "specfact-plan-update-feature": "specfact plan update-feature",
     "specfact-plan-compare": "specfact plan compare",
     "specfact-plan-promote": "specfact plan promote",
     "specfact-plan-review": "specfact plan review",
     "specfact-plan-select": "specfact plan select",
     "specfact-sync": "specfact sync spec-kit",
+    "specfact-enforce": "specfact enforce stage",
+    "specfact-repro": "specfact repro",
 }
 
 # Required CLI enforcement rules

@@ -46,7 +46,7 @@ The validator checks:
   - [ ] "Use CLI output as grounding"
   - [ ] "NEVER manipulate internal code" (explicitly forbids direct Python code manipulation)
   - [ ] "No internal knowledge required" (explicitly states that internal implementation details should not be needed)
-- [ ] **Available CLI commands documented**: Prompt lists available CLI commands for plan updates (e.g., `update-feature`, `add-feature`, `add-story`)
+- [ ] **Available CLI commands documented**: Prompt lists available CLI commands for plan updates (e.g., `update-idea`, `update-feature`, `add-feature`, `add-story`)
 - [ ] **FORBIDDEN examples present**: Prompt shows examples of what NOT to do (direct code manipulation)
 - [ ] **CORRECT examples present**: Prompt shows examples of what TO do (using CLI commands)
 - [ ] **Command examples**: Examples show actual CLI usage with correct flags
@@ -280,7 +280,33 @@ After each prompt update:
 4. Update checklist based on learnings
 5. Share findings with team
 
+## Available Prompts
+
+The following prompts are available for SpecFact CLI commands:
+
+### Plan Management
+
+- `specfact-plan-init.md` - Initialize a new development plan bundle
+- `specfact-plan-add-feature.md` - Add a new feature to an existing plan
+- `specfact-plan-add-story.md` - Add a new story to a feature
+- `specfact-plan-update-idea.md` - Update idea section metadata
+- `specfact-plan-update-feature.md` - Update an existing feature's metadata
+- `specfact-plan-compare.md` - Compare manual and auto-derived plans
+- `specfact-plan-promote.md` - Promote a plan bundle through stages
+- `specfact-plan-review.md` - Review plan bundle to identify ambiguities
+- `specfact-plan-select.md` - Select active plan from available bundles
+
+### Import & Sync
+
+- `specfact-import-from-code.md` - Import codebase structure (brownfield)
+- `specfact-sync.md` - Synchronize Spec-Kit artifacts and repository changes
+
+### Validation & Enforcement
+
+- `specfact-enforce.md` - Configure quality gates and enforcement modes
+- `specfact-repro.md` - Run validation suite for reproducibility
+
 ---
 
-**Last Updated**: 2025-11-17  
-**Version**: 1.3
+**Last Updated**: 2025-11-18  
+**Version**: 1.4

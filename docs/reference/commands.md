@@ -854,6 +854,16 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
 - Automatic conflict resolution with priority rules
 
+**Spec-Kit Field Auto-Generation:**
+
+When syncing from SpecFact to Spec-Kit (`--bidirectional`), the CLI automatically generates all required Spec-Kit fields:
+
+- **spec.md**: Frontmatter (Feature Branch, Created date, Status), INVSEST criteria, Scenarios (Primary, Alternate, Exception, Recovery)
+- **plan.md**: Constitution Check (Article VII, VIII, IX), Phases (Phase 0, 1, 2, -1), Technology Stack (from constraints), Constraints, Unknowns
+- **tasks.md**: Phase organization (Phase 1: Setup, Phase 2: Foundational, Phase 3+: User Stories), Story mappings ([US1], [US2]), Parallel markers [P]
+
+**All Spec-Kit fields are auto-generated** - no manual editing required unless you want to customize defaults. Generated artifacts are ready for `/speckit.analyze` without additional work.
+
 #### `sync repository`
 
 Sync code changes to SpecFact artifacts:

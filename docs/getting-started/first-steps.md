@@ -229,6 +229,7 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 - Syncs changes between Spec-Kit and SpecFact
 - Bidirectional: changes in either direction are synced
 - Watch mode: continuously monitors for changes
+- **Auto-generates all Spec-Kit fields**: When syncing from SpecFact to Spec-Kit, all required fields (frontmatter, INVSEST, Constitution Check, Phases, Technology Stack, Story mappings) are automatically generated - ready for `/speckit.analyze` without manual editing
 
 ### Step 5: Enable Enforcement
 

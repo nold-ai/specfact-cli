@@ -747,3 +747,172 @@ class TestPlanAddWorkflow:
         assert len(bundle.features[0].stories) == 1
         assert bundle.features[0].stories[0].key == "STORY-001"
         assert bundle.features[0].stories[0].story_points == 5
+
+
+class TestPlanUpdateIdea:
+    """Integration tests for plan update-idea command."""
+
+    def test_update_idea_in_initialized_plan(self, tmp_path, monkeypatch):
+        """Test updating idea section in a plan created with init."""
+        monkeypatch.chdir(tmp_path)
+
+        # First, create a plan
+        init_result = runner.invoke(app, ["plan", "init", "--no-interactive"])
+        assert init_result.exit_code == 0
+
+        # Update idea section
+        result = runner.invoke(
+            app,
+            [
+                "plan",
+                "update-idea",
+                "--target-users",
+                "Developers, DevOps",
+                "--value-hypothesis",
+                "Reduce technical debt",
+                "--constraints",
+                "Python 3.11+, Maintain backward compatibility",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "updated successfully" in result.stdout.lower()
+
+        # Verify idea was updated and plan is still valid
+        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
+        is_valid, _error, bundle = validate_plan_bundle(plan_path)
+        assert is_valid is True
+        assert bundle is not None
+        assert bundle.idea is not None
+        assert len(bundle.idea.target_users) == 2
+        assert "Developers" in bundle.idea.target_users
+        assert bundle.idea.value_hypothesis == "Reduce technical debt"
+        assert len(bundle.idea.constraints) == 2
+
+    def test_update_idea_creates_section_if_missing(self, tmp_path, monkeypatch):
+        """Test that update-idea creates idea section if plan doesn't have one."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create plan without idea section
+        init_result = runner.invoke(app, ["plan", "init", "--no-interactive"])
+        assert init_result.exit_code == 0
+
+        # Verify plan has no idea section initially
+        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
+        is_valid, _error, bundle = validate_plan_bundle(plan_path)
+        assert is_valid is True
+        assert bundle is not None
+        assert bundle.idea is None
+
+        # Update idea (should create section)
+        result = runner.invoke(
+            app,
+            [
+                "plan",
+                "update-idea",
+                "--target-users",
+                "Test Users",
+                "--value-hypothesis",
+                "Test hypothesis",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created new idea section" in result.stdout
+
+        # Verify idea section was created
+        is_valid, _error, bundle = validate_plan_bundle(plan_path)
+        assert is_valid is True
+        assert bundle is not None
+        assert bundle.idea is not None
+        assert len(bundle.idea.target_users) == 1
+        assert bundle.idea.value_hypothesis == "Test hypothesis"
+
+    def test_update_idea_preserves_other_sections(self, tmp_path, monkeypatch):
+        """Test that update-idea preserves features and other sections."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create plan with features
+        runner.invoke(app, ["plan", "init", "--no-interactive"])
+        runner.invoke(
+            app,
+            ["plan", "add-feature", "--key", "FEATURE-001", "--title", "Test Feature"],
+        )
+
+        # Update idea
+        result = runner.invoke(
+            app,
+            [
+                "plan",
+                "update-idea",
+                "--target-users",
+                "Users",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        # Verify features are preserved
+        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
+        is_valid, _error, bundle = validate_plan_bundle(plan_path)
+        assert is_valid is True
+        assert bundle is not None
+        assert bundle.idea is not None
+        assert len(bundle.features) == 1
+        assert bundle.features[0].key == "FEATURE-001"
+        assert len(bundle.idea.target_users) == 1
+
+    def test_update_idea_multiple_times(self, tmp_path, monkeypatch):
+        """Test updating idea section multiple times sequentially."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create plan
+        runner.invoke(app, ["plan", "init", "--no-interactive"])
+
+        # First update
+        result1 = runner.invoke(
+            app,
+            [
+                "plan",
+                "update-idea",
+                "--target-users",
+                "User 1",
+            ],
+        )
+        assert result1.exit_code == 0
+
+        # Second update
+        result2 = runner.invoke(
+            app,
+            [
+                "plan",
+                "update-idea",
+                "--value-hypothesis",
+                "Hypothesis 1",
+            ],
+        )
+        assert result2.exit_code == 0
+
+        # Third update
+        result3 = runner.invoke(
+            app,
+            [
+                "plan",
+                "update-idea",
+                "--constraints",
+                "Constraint 1",
+            ],
+        )
+        assert result3.exit_code == 0
+
+        # Verify all updates are present
+        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
+        is_valid, _error, bundle = validate_plan_bundle(plan_path)
+        assert is_valid is True
+        assert bundle is not None
+        assert bundle.idea is not None
+        assert len(bundle.idea.target_users) == 1
+        assert "User 1" in bundle.idea.target_users
+        assert bundle.idea.value_hypothesis == "Hypothesis 1"
+        assert len(bundle.idea.constraints) == 1
+        assert "Constraint 1" in bundle.idea.constraints

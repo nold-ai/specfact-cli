@@ -338,6 +338,11 @@ def sync_spec_kit(
         help="Watch interval in seconds (default: 5)",
         min=1,
     ),
+    ensure_speckit_compliance: bool = typer.Option(
+        False,
+        "--ensure-speckit-compliance",
+        help="Validate and auto-enrich plan bundle for Spec-Kit compliance before sync (ensures technology stack, testable acceptance criteria, comprehensive scenarios)",
+    ),
 ) -> None:
     """
     Sync changes between Spec-Kit artifacts and SpecFact.
@@ -357,6 +362,65 @@ def sync_spec_kit(
 
     with telemetry.track_command("sync.spec_kit", telemetry_metadata) as record:
         console.print(f"[bold cyan]Syncing Spec-Kit artifacts from:[/bold cyan] {repo}")
+
+        # Ensure Spec-Kit compliance if requested
+        if ensure_speckit_compliance:
+            console.print("\n[cyan]🔍 Validating plan bundle for Spec-Kit compliance...[/cyan]")
+            from specfact_cli.utils.structure import SpecFactStructure
+            from specfact_cli.validators.schema import validate_plan_bundle
+
+            # Use provided plan path or default
+            plan_path = plan if plan else (repo / SpecFactStructure.DEFAULT_PLAN)
+            if not plan_path.is_absolute():
+                plan_path = repo / plan_path
+
+            if plan_path.exists():
+                validation_result = validate_plan_bundle(plan_path)
+                if isinstance(validation_result, tuple):
+                    is_valid, _error, plan_bundle = validation_result
+                    if is_valid and plan_bundle:
+                        # Check for technology stack in constraints
+                        has_tech_stack = bool(
+                            plan_bundle.idea
+                            and plan_bundle.idea.constraints
+                            and any(
+                                "Python" in c or "framework" in c.lower() or "database" in c.lower()
+                                for c in plan_bundle.idea.constraints
+                            )
+                        )
+
+                        if not has_tech_stack:
+                            console.print("[yellow]⚠ Technology stack not found in constraints[/yellow]")
+                            console.print("[dim]Technology stack will be extracted from constraints during sync[/dim]")
+
+                        # Check for testable acceptance criteria
+                        features_with_non_testable = []
+                        for feature in plan_bundle.features:
+                            for story in feature.stories:
+                                testable_count = sum(
+                                    1
+                                    for acc in story.acceptance
+                                    if any(
+                                        keyword in acc.lower()
+                                        for keyword in ["must", "should", "verify", "validate", "ensure"]
+                                    )
+                                )
+                                if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
+                                    features_with_non_testable.append((feature.key, story.key))
+
+                        if features_with_non_testable:
+                            console.print(
+                                f"[yellow]⚠ Found {len(features_with_non_testable)} stories with non-testable acceptance criteria[/yellow]"
+                            )
+                            console.print("[dim]Acceptance criteria will be enhanced during sync[/dim]")
+
+                        console.print("[green]✓ Plan bundle validation complete[/green]")
+                    else:
+                        console.print("[yellow]⚠ Plan bundle validation failed, but continuing with sync[/yellow]")
+                else:
+                    console.print("[yellow]⚠ Could not validate plan bundle, but continuing with sync[/yellow]")
+            else:
+                console.print("[yellow]⚠ Plan bundle not found, skipping compliance check[/yellow]")
 
         # Resolve repo path to ensure it's absolute and valid (do this once at the start)
         resolved_repo = repo.resolve()

@@ -112,11 +112,17 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
 SPECFACT_COMMANDS = [
     "specfact-import-from-code",
     "specfact-plan-init",
+    "specfact-plan-add-feature",
+    "specfact-plan-add-story",
+    "specfact-plan-update-idea",
+    "specfact-plan-update-feature",
     "specfact-plan-select",
     "specfact-plan-promote",
     "specfact-plan-compare",
     "specfact-plan-review",
     "specfact-sync",
+    "specfact-enforce",
+    "specfact-repro",
 ]
 
 

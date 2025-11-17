@@ -4,6 +4,37 @@ description: Select active plan from available plan bundles
 
 # SpecFact Plan Select Command
 
+## ⚠️ CRITICAL: This is a CLI Usage Prompt, NOT an Implementation Guide
+
+**THIS PROMPT IS FOR USING THE EXISTING CLI COMMAND, NOT FOR IMPLEMENTING IT.**
+
+### Quick Summary
+
+- ✅ **DO**: Execute `specfact plan select` CLI command (it already exists)
+- ✅ **DO**: Parse and format CLI output for the user
+- ✅ **DO**: Read plan bundle YAML files for display purposes (when user requests details)
+- ❌ **DON'T**: Write code to implement this command
+- ❌ **DON'T**: Modify `.specfact/plans/config.yaml` directly (the CLI handles this)
+- ❌ **DON'T**: Implement plan loading, selection, or config writing logic
+- ❌ **DON'T**: Create new Python functions or classes for plan selection
+
+**The `specfact plan select` command already exists and handles all the logic. Your job is to execute it and present its output to the user.**
+
+### What You Should Do
+
+1. **Execute the CLI**: Run `specfact plan select` (or `specfact plan select <plan>` if user provides a plan)
+2. **Format output**: Parse the CLI's Rich table output and convert it to a Markdown table for Copilot readability
+3. **Handle user input**: If user wants details, read the plan bundle YAML file (read-only) to display information
+4. **Execute selection**: When user selects a plan, execute `specfact plan select <number>` or `specfact plan select <plan_name>`
+5. **Present results**: Show the CLI's output to confirm the selection
+
+### What You Should NOT Do
+
+- Do NOT write Python code to implement plan selection
+- Do NOT modify `.specfact/plans/config.yaml` directly
+- Do NOT create new functions or classes
+- Do NOT implement file scanning, metadata extraction, or config writing logic
+
 ## User Input
 
 ```text
@@ -14,14 +45,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## ⚠️ CRITICAL: CLI Usage Enforcement
 
-**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly.
+**YOU MUST ALWAYS EXECUTE THE SPECFACT CLI COMMAND**. Never create artifacts directly or implement functionality.
 
 ### Rules
 
-1. **ALWAYS execute CLI first**: Run `specfact plan select` before any plan selection
-2. **NEVER create YAML/JSON directly**: All config updates must be CLI-generated
-3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
-4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+1. **ALWAYS execute CLI first**: Run `specfact plan select` (the command already exists) - execute the CLI command before any other operations
+2. **NEVER write code**: Do not implement plan selection logic - the CLI handles this
+3. **NEVER create YAML/JSON directly**: All config updates must be done via CLI execution
+4. **NEVER bypass CLI validation**: The CLI ensures schema compliance and metadata - use it, don't bypass its validation
+5. **Use CLI output as grounding**: Parse and format the CLI's output, don't regenerate or recreate it - use the CLI output as the source of truth
 
 ### What Happens If You Don't Follow This
 
@@ -43,7 +75,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Display a numbered list of available plan bundles and allow the user to select one as the active plan. The active plan is tracked in `.specfact/plans/config.yaml` and will be used as the default for all plan operations.
+**Execute the existing `specfact plan select` CLI command** to display a numbered list of available plan bundles and allow the user to select one as the active plan. The CLI command handles all the logic - you just need to execute it and format its output.
 
 ## Operating Constraints
 
@@ -60,9 +92,9 @@ Display a numbered list of available plan bundles and allow the user to select o
 
 ## Execution Steps
 
-### 1. Execute CLI Command (REQUIRED)
+### 1. Execute CLI Command (REQUIRED - The Command Already Exists)
 
-**ALWAYS execute the specfact CLI** to list and select plans:
+**The `specfact plan select` command already exists. Execute it to list and select plans:**
 
 ```bash
 # Interactive mode (no arguments)
@@ -77,12 +109,14 @@ specfact plan select <plan_name>
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
-**The CLI performs**:
+**The CLI command (which already exists) performs**:
 
 - Scans `.specfact/plans/` for all `*.bundle.yaml` files
 - Extracts metadata for each plan
 - Displays numbered list (if no plan argument provided)
 - Updates `.specfact/plans/config.yaml` with selected plan
+
+**You don't need to implement any of this - just execute the CLI command.**
 
 **Important**: The plan is a **positional argument**, not a `--plan` option. Use:
 
@@ -134,9 +168,10 @@ specfact plan select <plan_name>
 
 **If user requests details** (e.g., "1 details" or "show 1"):
 
-1. **Load the plan bundle** to extract detailed information:
-   - Read the plan bundle YAML file
+1. **Read the plan bundle YAML file** (for display only - don't modify it):
+   - Use file reading tools to load the plan bundle YAML file
    - Extract: idea section, product themes, feature list (first 10 features), business context, metadata
+   - **Note**: This is just for displaying information to the user. The CLI handles all actual selection logic.
 
 2. **Present detailed information**:
 
@@ -215,11 +250,13 @@ specfact plan select main.bundle.yaml
 - **Config location**: Show where the config was updated
 - **Next steps**: Explain how this affects other commands
 
-## Reference: CLI Behavior
+## Reference: What the CLI Command Does (For Your Understanding Only)
 
-### 1. List Available Plans (Reference - CLI Handles This)
+**⚠️ IMPORTANT**: This section describes what the existing CLI command does internally. You should NOT implement this logic - just execute the CLI command.
 
-**Load all plan bundles** from `.specfact/plans/` directory:
+### 1. List Available Plans (The CLI Command Handles This)
+
+**The CLI command loads all plan bundles** from `.specfact/plans/` directory:
 
 - Scan for all `*.bundle.yaml` files
 - Extract metadata for each plan:
@@ -293,13 +330,15 @@ specfact plan select main.bundle.yaml
 - Exit without changes
 - Do not execute any CLI commands
 
-### 4. Update Active Plan Config
+### 4. Update Active Plan Config (The CLI Command Handles This)
 
-**Write to `.specfact/plans/config.yaml`**:
+**The CLI command writes to `.specfact/plans/config.yaml`** when you execute `specfact plan select <plan>`:
 
 ```yaml
 active_plan: specfact-cli.2025-11-04T23-35-00.bundle.yaml
 ```
+
+**You should NOT write this file directly - execute the CLI command instead.**
 
 ## Expected Output
 
@@ -328,14 +367,15 @@ Create a plan with:
 
 ## Interactive Flow
 
-**Step 1**: Check if `--plan` is provided in user input or arguments.
+**Step 1**: Check if a plan argument is provided in user input.
 
-- **If provided**: Set that plan as active directly (skip list display)
-- **If missing**: Display numbered list and ask for selection
+- **If provided**: Execute `specfact plan select <plan>` directly (the CLI handles setting it as active)
+- **If missing**: Execute `specfact plan select` (interactive mode - the CLI displays the list)
 
-**Step 2**: Format plans as a **Markdown table** (copilot-friendly):
+**Step 2**: Format the CLI output as a **Markdown table** (copilot-friendly):
 
-- Parse CLI output (Rich table format)
+- Execute `specfact plan select` (if no plan argument provided)
+- Parse the CLI's output (Rich table format)
 - Convert to Markdown table with columns: #, Status, Plan Name, Features, Stories, Stage, Modified
 - Include selection instructions with examples
 
@@ -348,9 +388,9 @@ Create a plan with:
 
 **Step 4**: Handle user input:
 
-- **If details requested**: Load plan bundle, show detailed information, ask for confirmation
-- **If selection provided**: Execute `specfact plan select <number>` or `specfact plan select <plan_name>` (positional argument, NOT `--plan` option)
-- **If quit**: Exit without changes
+- **If details requested**: Read plan bundle YAML file (for display only), show detailed information, ask for confirmation
+- **If selection provided**: Execute `specfact plan select <number>` or `specfact plan select <plan_name>` (positional argument, NOT `--plan` option) - the CLI handles the selection
+- **If quit**: Exit without executing any CLI commands
 
 **Step 5**: Present results and confirm selection.
 

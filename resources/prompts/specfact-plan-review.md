@@ -18,12 +18,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ### Rules
 
-1. **ALWAYS execute CLI first**: Run `specfact plan review` before any analysis
-2. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
-3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
-4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
-5. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
-6. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, etc.). All operations must be performed via CLI commands.
+1. **ALWAYS execute CLI first**: Run `specfact plan review` before any analysis - execute the CLI command before any other operations
+2. **NEVER write code**: Do not implement review logic - the CLI handles this
+3. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
+4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, Clarification objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, AmbiguityScanner, etc.). All operations must be performed via CLI commands.
+8. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information unless for display purposes (e.g., showing plan details to user). Use CLI commands (`specfact plan review --list-questions`, `specfact plan select`) to get plan information.
 
 ### What Happens If You Don't Follow This
 
@@ -36,6 +38,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 - ❌ Requires knowledge of internal code structure
 
 ### Available CLI Commands for Plan Updates
+
+**For updating idea section (OPTIONAL - business metadata)**:
+
+- `specfact plan update-idea --title <title> --narrative <narrative> --target-users <users> --value-hypothesis <hypothesis> --constraints <constraints> --plan <path>`
+  - Updates idea section metadata (optional business context, not technical implementation)
+  - **Note**: Idea section is OPTIONAL - provides business context and metadata
+  - All parameters are optional - use only what you need
+  - Works in CI/CD, Copilot, and interactive modes
+  - Example: `specfact plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt" --constraints "Python 3.11+, Maintain backward compatibility"`
 
 **For updating features**:
 
@@ -84,6 +95,14 @@ specfact plan update-feature --key FEATURE-001 --title "New Title" --plan <path>
 Review a plan bundle to identify ambiguities, missing information, and unknowns. Systematically resolve these through targeted questions to make the plan ready for promotion (draft → review → approved).
 
 **Note**: This review workflow is expected to run BEFORE promoting from `draft` to `review` stage. If the user explicitly states they are skipping review (e.g., exploratory spike), you may proceed, but must warn that promotion readiness may be incomplete.
+
+**Automatic Enrichment Requests**: If the user requests automatic enrichment (e.g., "enrich missing details automatically"), you should:
+
+1. Identify Partial categories from the coverage summary
+2. Use CLI commands to enrich the most impactful Partial categories
+3. Focus on high-value improvements (Completion Signals, Edge Cases)
+4. Report what was enriched and what remains Partial
+5. Explain that Partial categories don't block promotion but enrichment improves quality
 
 ## Operating Constraints
 
@@ -162,6 +181,15 @@ specfact plan review --non-interactive --plan <plan_path> --answers '{"Q001": "a
 - Current stage (should be `draft` for review)
 - Existing clarifications (if any)
 - Questions list (if `--list-questions` used)
+- **Coverage Summary**: Pay special attention to Partial categories - they indicate areas that could be enriched but don't block promotion
+
+**Understanding CLI Output**:
+
+When the CLI reports "No critical ambiguities detected. Plan is ready for promotion" but shows ⚠️ Partial categories, this means:
+
+- **Critical categories** (Functional Scope, Feature Completeness, Constraints) are all Clear or Partial (not Missing)
+- **Partial categories** are not critical enough to block promotion, but enrichment would improve plan quality
+- The plan can be promoted, but consider enriching Partial categories for better completeness
 
 ### 2. Get Questions from CLI (Copilot Mode) or Analyze Directly (Interactive Mode)
 
@@ -277,7 +305,84 @@ specfact plan review --list-questions --plan <plan_path> --max-questions 5
 - Plan-level execution details (unless blocking correctness)
 - Speculative tech stack questions (unless blocking functional clarity)
 
-**If no valid questions exist**, immediately report: "No critical ambiguities detected. Plan is ready for promotion."
+**If no valid questions exist**, analyze the coverage summary:
+
+**Understanding Coverage Status**:
+
+- **✅ Clear**: Category has no ambiguities or all findings are resolved
+- **⚠️ Partial**: Category has some findings, but they're not high-priority enough to generate questions (low impact × uncertainty score)
+- **❌ Missing**: Category has critical findings that block promotion (high impact × uncertainty)
+
+**Critical vs Important Categories**:
+
+- **Critical categories** (block promotion if Missing):
+  - Functional Scope & Behavior
+  - Feature/Story Completeness
+  - Constraints & Tradeoffs
+
+- **Important categories** (warn if Missing or Partial, but don't block):
+  - Domain & Data Model
+  - Interaction & UX Flow
+  - Integration & External Dependencies
+  - Edge Cases & Failure Handling
+  - Completion Signals
+
+**When No Questions Are Generated**:
+
+1. **If Partial categories exist**: Explain what "Partial" means and provide enrichment guidance:
+   - **Partial = Some gaps exist but not critical enough for questions**
+   - **Action**: Use CLI commands to manually enrich these categories (see "Manual Enrichment" section below)
+   - **Example**: If "Completion Signals: Partial", many stories have acceptance criteria but they're not testable (missing "must", "should", "verify", "validate", "check" keywords)
+
+2. **If Missing critical categories**: Report warning and suggest using `specfact plan update-idea` or `specfact plan update-feature` to fill gaps
+   - **Note**: Idea section is OPTIONAL - provides business context, not technical implementation
+   - Report: "No high-priority questions generated, but missing critical categories detected. Consider using `specfact plan update-idea` to add optional business metadata."
+
+3. **If all categories are Clear**: Report: "No critical ambiguities detected. Plan is ready for promotion."
+
+**Spec-Kit Sync Integration**:
+
+If the user mentions they plan to sync to Spec-Kit later (e.g., "I'll sync to spec-kit after review"), you should:
+
+1. **Reassure them**: The `specfact sync spec-kit` command automatically generates all required Spec-Kit fields:
+   - Frontmatter (Feature Branch, Created date, Status) in spec.md
+   - INVSEST criteria in spec.md
+   - Scenarios (Primary, Alternate, Exception, Recovery) in spec.md
+   - Constitution Check (Article VII, VIII, IX) in plan.md
+   - Phases (Phase 0, 1, 2, -1) in plan.md and tasks.md
+   - Technology Stack in plan.md
+   - Story mappings ([US1], [US2]) in tasks.md
+
+2. **Focus on plan bundle enrichment**: During review, focus on enriching the plan bundle itself (acceptance criteria, constraints, stories) rather than worrying about Spec-Kit-specific formatting
+
+3. **Explain the workflow**:
+   - Review enriches plan bundle → Sync generates complete Spec-Kit artifacts → Optional customization if needed
+
+**Manual Enrichment for Partial Categories**:
+
+When categories are marked as "Partial", you can enrich them using CLI commands:
+
+- **Completion Signals (Partial)**: Stories have acceptance criteria but they're not testable
+  - Use `specfact plan update-feature` to add testable acceptance criteria with keywords like "must", "should", "verify", "validate", "check"
+  - Example: Change "Get contract-first test status" → "Must verify contract-first test status is returned correctly"
+
+- **Edge Cases (Partial)**: Stories have <3 acceptance criteria and no edge case keywords
+  - Use `specfact plan update-feature` to add edge case acceptance criteria
+  - Add keywords like "edge", "corner", "boundary", "limit", "invalid", "null", "empty"
+  - Example: Add "Must handle null input gracefully" or "Must validate boundary conditions"
+
+- **Integration (Partial)**: Features mention integration keywords but lack constraints
+  - Use `specfact plan update-feature --constraints` to add external dependency constraints
+  - Example: `--constraints "API rate limits: 100 req/min, Timeout: 30s, Retry: 3 attempts"`
+
+- **Data Model (Partial)**: Features mention data keywords but lack constraints
+  - Use `specfact plan update-feature --constraints` to add data model constraints
+  - Example: `--constraints "Entity uniqueness: email must be unique, Max records: 10,000 per user"`
+
+- **Interaction/UX (Partial)**: Stories mention UX keywords but lack error handling
+  - Use `specfact plan update-feature` to add error handling acceptance criteria
+  - Add keywords like "error", "empty", "invalid", "validation", "failure"
+  - Example: Add "Must display clear error message on invalid input"
 
 ### 4. Sequential Questioning Loop
 
@@ -454,6 +559,8 @@ specfact plan review --plan <plan_path> --answers '{"Q001": "answer1"}'
 
 **After questioning loop ends or early termination**:
 
+**If questions were asked and answered**:
+
 ```markdown
 ✓ Review complete!
 
@@ -466,16 +573,54 @@ specfact plan review --plan <plan_path> --answers '{"Q001": "answer1"}'
 
 **Coverage Summary**:
 
-| Category | Status |
-|----------|--------|
-| Functional Scope | ✅ Resolved (was Partial, now addressed) |
-| Data Model | ✅ Clear (already sufficient) |
-| Non-Functional | ✅ Resolved (was Missing, now addressed) |
-| Edge Cases | ⏸ Deferred (exceeds question quota, better suited for planning) |
-| Terminology | ✅ Clear (already sufficient) |
+| Category | Status | Notes |
+|----------|--------|-------|
+| Functional Scope | ✅ Clear | Resolved (was Partial, now addressed) |
+| Data Model | ✅ Clear | Already sufficient |
+| Non-Functional | ✅ Clear | Resolved (was Missing, now addressed) |
+| Edge Cases | ⚠️ Partial | Deferred (exceeds question quota, see enrichment guide) |
+| Completion Signals | ⚠️ Partial | Some stories need testable acceptance criteria |
+| Terminology | ✅ Clear | Already sufficient |
 
 **Next Steps**:
 - Plan is ready for promotion to `review` stage
+- Run: `/specfact-cli/specfact-plan-promote review`
+- Optional: Enrich Partial categories using CLI commands (see Manual Enrichment section)
+```
+
+**If no questions were generated but Partial categories exist**:
+
+```markdown
+✓ Review analysis complete!
+
+**Plan Bundle**: `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.yaml`
+**Status**: No critical ambiguities detected (all critical categories are Clear)
+
+**Coverage Summary**:
+
+| Category | Status | Meaning |
+|----------|--------|---------|
+| Functional Scope | ✅ Clear | No ambiguities detected |
+| Data Model | ⚠️ Partial | Some features mention data but lack constraints (not critical) |
+| Interaction/UX | ⚠️ Partial | Some stories mention UX but lack error handling (not critical) |
+| Integration | ⚠️ Partial | Some features mention integration but lack constraints (not critical) |
+| Edge Cases | ⚠️ Partial | Some stories have <3 acceptance criteria (not critical) |
+| Completion Signals | ⚠️ Partial | Some acceptance criteria are not testable (not critical) |
+| Constraints | ✅ Clear | No ambiguities detected |
+
+**Understanding "Partial" Status**:
+
+⚠️ **Partial** means the category has some gaps, but they're not high-priority enough to generate questions. The plan can still be promoted, but enrichment would improve quality.
+
+**Enrichment Options**:
+
+1. **Automatic Enrichment** (if user requested): Use CLI commands to enrich Partial categories (see Manual Enrichment section)
+2. **Manual Enrichment**: Use `specfact plan update-feature` commands to add missing constraints/acceptance criteria
+3. **Defer**: Proceed with promotion and enrich later during implementation
+
+**Next Steps**:
+- Plan can be promoted (no critical blockers)
+- Optional: Run enrichment to improve Partial categories
 - Run: `/specfact-cli/specfact-plan-promote review`
 ```
 
@@ -483,6 +628,7 @@ specfact plan review --plan <plan_path> --answers '{"Q001": "answer1"}'
 
 - Recommend whether to proceed to promotion or run review again
 - Flag high-impact deferred items with rationale
+- Explain what "Partial" means and when enrichment is recommended vs optional
 
 ## Guidelines
 

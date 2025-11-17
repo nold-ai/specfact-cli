@@ -587,6 +587,180 @@ def add_story(
             raise typer.Exit(1) from e
 
 
+@app.command("update-idea")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+def update_idea(
+    title: str | None = typer.Option(None, "--title", help="Idea title"),
+    narrative: str | None = typer.Option(None, "--narrative", help="Idea narrative (brief description)"),
+    target_users: str | None = typer.Option(None, "--target-users", help="Target user personas (comma-separated)"),
+    value_hypothesis: str | None = typer.Option(None, "--value-hypothesis", help="Value hypothesis statement"),
+    constraints: str | None = typer.Option(None, "--constraints", help="Idea-level constraints (comma-separated)"),
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: active plan or latest)",
+    ),
+) -> None:
+    """
+    Update idea section metadata in a plan bundle (optional business context).
+
+    This command allows updating idea properties (title, narrative, target users,
+    value hypothesis, constraints) in non-interactive environments (CI/CD, Copilot).
+
+    Note: The idea section is OPTIONAL - it provides business context and metadata,
+    not technical implementation details. All parameters are optional.
+
+    Example:
+        specfact plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt"
+        specfact plan update-idea --constraints "Python 3.11+, Maintain backward compatibility"
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    telemetry_metadata = {}
+
+    with telemetry.track_command("plan.update_idea", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            default_plan = SpecFactStructure.get_default_plan_path()
+            if default_plan.exists():
+                plan = default_plan
+                print_info(f"Using default plan: {plan}")
+            else:
+                # Find latest plan bundle
+                base_path = Path(".")
+                plans_dir = base_path / SpecFactStructure.PLANS
+                if plans_dir.exists():
+                    plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if plan_files:
+                        plan = plan_files[0]
+                        print_info(f"Using latest plan: {plan}")
+                    else:
+                        print_error(f"No plan bundles found in {plans_dir}")
+                        print_error("Create one with: specfact plan init --interactive")
+                        raise typer.Exit(1)
+                else:
+                    print_error(f"Plans directory not found: {plans_dir}")
+                    print_error("Create one with: specfact plan init --interactive")
+                    raise typer.Exit(1)
+
+        # Type guard: ensure plan is not None
+        if plan is None:
+            print_error("Plan bundle path is required")
+            raise typer.Exit(1)
+
+        if not plan.exists():
+            print_error(f"Plan bundle not found: {plan}")
+            raise typer.Exit(1)
+
+        print_section("SpecFact CLI - Update Idea")
+
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
+
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Create idea section if it doesn't exist
+            if existing_plan.idea is None:
+                existing_plan.idea = Idea(
+                    title=title or "Untitled",
+                    narrative=narrative or "",
+                    target_users=[],
+                    value_hypothesis="",
+                    constraints=[],
+                    metrics=None,
+                )
+                print_info("Created new idea section")
+
+            # Track what was updated
+            updates_made = []
+
+            # Update title if provided
+            if title is not None:
+                existing_plan.idea.title = title
+                updates_made.append("title")
+
+            # Update narrative if provided
+            if narrative is not None:
+                existing_plan.idea.narrative = narrative
+                updates_made.append("narrative")
+
+            # Update target_users if provided
+            if target_users is not None:
+                target_users_list = [u.strip() for u in target_users.split(",")] if target_users else []
+                existing_plan.idea.target_users = target_users_list
+                updates_made.append("target_users")
+
+            # Update value_hypothesis if provided
+            if value_hypothesis is not None:
+                existing_plan.idea.value_hypothesis = value_hypothesis
+                updates_made.append("value_hypothesis")
+
+            # Update constraints if provided
+            if constraints is not None:
+                constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
+                existing_plan.idea.constraints = constraints_list
+                updates_made.append("constraints")
+
+            if not updates_made:
+                print_warning(
+                    "No updates specified. Use --title, --narrative, --target-users, --value-hypothesis, or --constraints"
+                )
+                raise typer.Exit(1)
+
+            # Validate updated plan (always passes for PlanBundle model)
+            print_info("Validating updated plan...")
+
+            # Save updated plan
+            # Type guard: ensure plan is not None (should never happen here, but type checker needs it)
+            if plan is None:
+                print_error("Plan bundle path is required")
+                raise typer.Exit(1)
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(existing_plan, plan)
+
+            record(
+                {
+                    "updates": updates_made,
+                    "idea_exists": existing_plan.idea is not None,
+                }
+            )
+
+            print_success("Idea section updated successfully")
+            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+            if title:
+                console.print(f"[dim]Title: {title}[/dim]")
+            if narrative:
+                console.print(
+                    f"[dim]Narrative: {narrative[:80]}...[/dim]"
+                    if len(narrative) > 80
+                    else f"[dim]Narrative: {narrative}[/dim]"
+                )
+            if target_users:
+                target_users_list = [u.strip() for u in target_users.split(",")] if target_users else []
+                console.print(f"[dim]Target Users: {', '.join(target_users_list)}[/dim]")
+            if value_hypothesis:
+                console.print(
+                    f"[dim]Value Hypothesis: {value_hypothesis[:80]}...[/dim]"
+                    if len(value_hypothesis) > 80
+                    else f"[dim]Value Hypothesis: {value_hypothesis}[/dim]"
+                )
+            if constraints:
+                constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
+                console.print(f"[dim]Constraints: {', '.join(constraints_list)}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to update idea: {e}")
+            raise typer.Exit(1) from e
+
+
 @app.command("update-feature")
 @beartype
 @require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
@@ -1698,8 +1872,9 @@ def review(
                 print_info(f"Using default plan: {plan}")
             else:
                 # Find latest plan bundle
-                plans_dir = SpecFactStructure.get_plans_dir()
-                if plans_dir and plans_dir.exists():
+                base_path = Path(".")
+                plans_dir = base_path / SpecFactStructure.PLANS
+                if plans_dir.exists():
                     plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
                     if plan_files:
                         plan = plan_files[0]
@@ -1713,7 +1888,12 @@ def review(
                     print_error("Create one with: specfact plan init --interactive")
                     raise typer.Exit(1)
 
-        if plan is None or not plan.exists():
+        # Type guard: ensure plan is not None
+        if plan is None:
+            print_error("Plan bundle path is required")
+            raise typer.Exit(1)
+
+        if not plan.exists():
             print_error(f"Plan bundle not found: {plan}")
             raise typer.Exit(1)
 

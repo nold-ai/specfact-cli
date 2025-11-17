@@ -13,14 +13,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## ⚠️ CRITICAL: CLI Usage Enforcement
 
-**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly.
+**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly or implement functionality.
 
 ### Rules
 
-1. **ALWAYS execute CLI first**: Run `specfact plan init` before any plan creation
-2. **NEVER create YAML/JSON directly**: All plan bundles must be CLI-generated
-3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
-4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+1. **ALWAYS execute CLI first**: Run `specfact plan init` before any plan creation - execute the CLI command before any other operations
+2. **NEVER write code**: Do not implement plan initialization logic - the CLI handles this
+3. **NEVER create YAML/JSON directly**: All plan bundles must be CLI-generated
+4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, etc.). All operations must be performed via CLI commands.
 
 ### What Happens If You Don't Follow This
 
@@ -28,6 +31,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 - ❌ Missing metadata and telemetry
 - ❌ Format inconsistencies
 - ❌ Validation failures
+- ❌ Works only in Copilot mode, fails in CI/CD
+- ❌ Breaks when CLI internals change
+- ❌ Requires knowledge of internal code structure
 
 ## ⏸️ Wait States: User Input Required
 

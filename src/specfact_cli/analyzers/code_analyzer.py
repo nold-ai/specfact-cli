@@ -93,6 +93,9 @@ class CodeAnalyzer:
         # Enhance features with dependency information
         self._enhance_features_with_dependencies()
 
+        # Extract technology stack from dependency files
+        technology_constraints = self._extract_technology_stack_from_dependencies()
+
         # If sequential format, update all keys now that we know the total count
         if self.key_format == "sequential":
             for idx, feature in enumerate(self.features, start=1):
@@ -110,6 +113,7 @@ class CodeAnalyzer:
         idea = Idea(
             title=title,
             narrative=f"Auto-derived plan from brownfield analysis of {title}",
+            constraints=technology_constraints,
             metrics=None,
         )
 
@@ -788,6 +792,239 @@ class CodeAnalyzer:
             # Find dependencies for this feature's module
             # This is simplified - would need to track which module each feature comes from
             pass
+
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def _extract_technology_stack_from_dependencies(self) -> list[str]:
+        """
+        Extract technology stack from dependency files (requirements.txt, pyproject.toml).
+
+        Returns:
+            List of technology constraints extracted from dependency files
+        """
+        constraints: list[str] = []
+
+        # Try to read requirements.txt
+        requirements_file = self.repo_path / "requirements.txt"
+        if requirements_file.exists():
+            try:
+                content = requirements_file.read_text(encoding="utf-8")
+                # Parse requirements.txt format: package==version or package>=version
+                for line in content.splitlines():
+                    line = line.strip()
+                    # Skip comments and empty lines
+                    if not line or line.startswith("#"):
+                        continue
+
+                    # Remove version specifiers for framework detection
+                    package = (
+                        line.split("==")[0]
+                        .split(">=")[0]
+                        .split(">")[0]
+                        .split("<=")[0]
+                        .split("<")[0]
+                        .split("~=")[0]
+                        .strip()
+                    )
+                    package_lower = package.lower()
+
+                    # Detect Python version requirement
+                    if package_lower == "python":
+                        # Extract version from line
+                        if ">=" in line:
+                            version = line.split(">=")[1].split(",")[0].strip()
+                            constraints.append(f"Python {version}+")
+                        elif "==" in line:
+                            version = line.split("==")[1].split(",")[0].strip()
+                            constraints.append(f"Python {version}")
+
+                    # Detect frameworks
+                    framework_map = {
+                        "fastapi": "FastAPI framework",
+                        "django": "Django framework",
+                        "flask": "Flask framework",
+                        "typer": "Typer for CLI",
+                        "tornado": "Tornado framework",
+                        "bottle": "Bottle framework",
+                    }
+
+                    if package_lower in framework_map:
+                        constraints.append(framework_map[package_lower])
+
+                    # Detect databases
+                    db_map = {
+                        "psycopg2": "PostgreSQL database",
+                        "psycopg2-binary": "PostgreSQL database",
+                        "mysql-connector-python": "MySQL database",
+                        "pymongo": "MongoDB database",
+                        "redis": "Redis database",
+                        "sqlalchemy": "SQLAlchemy ORM",
+                    }
+
+                    if package_lower in db_map:
+                        constraints.append(db_map[package_lower])
+
+                    # Detect testing tools
+                    test_map = {
+                        "pytest": "pytest for testing",
+                        "unittest": "unittest for testing",
+                        "nose": "nose for testing",
+                        "tox": "tox for testing",
+                    }
+
+                    if package_lower in test_map:
+                        constraints.append(test_map[package_lower])
+
+                    # Detect deployment tools
+                    deploy_map = {
+                        "docker": "Docker for containerization",
+                        "kubernetes": "Kubernetes for orchestration",
+                    }
+
+                    if package_lower in deploy_map:
+                        constraints.append(deploy_map[package_lower])
+
+                    # Detect data validation
+                    if package_lower == "pydantic":
+                        constraints.append("Pydantic for data validation")
+            except Exception:
+                # If reading fails, continue silently
+                pass
+
+        # Try to read pyproject.toml
+        pyproject_file = self.repo_path / "pyproject.toml"
+        if pyproject_file.exists():
+            try:
+                import tomli  # type: ignore[import-untyped]
+
+                content = pyproject_file.read_text(encoding="utf-8")
+                data = tomli.loads(content)
+
+                # Extract Python version requirement
+                if "project" in data and "requires-python" in data["project"]:
+                    python_req = data["project"]["requires-python"]
+                    if python_req:
+                        constraints.append(f"Python {python_req}")
+
+                # Extract dependencies
+                if "project" in data and "dependencies" in data["project"]:
+                    deps = data["project"]["dependencies"]
+                    for dep in deps:
+                        # Similar parsing as requirements.txt
+                        package = (
+                            dep.split("==")[0]
+                            .split(">=")[0]
+                            .split(">")[0]
+                            .split("<=")[0]
+                            .split("<")[0]
+                            .split("~=")[0]
+                            .strip()
+                        )
+                        package_lower = package.lower()
+
+                        # Apply same mapping as requirements.txt
+                        framework_map = {
+                            "fastapi": "FastAPI framework",
+                            "django": "Django framework",
+                            "flask": "Flask framework",
+                            "typer": "Typer for CLI",
+                            "tornado": "Tornado framework",
+                            "bottle": "Bottle framework",
+                        }
+
+                        if package_lower in framework_map:
+                            constraints.append(framework_map[package_lower])
+
+                        db_map = {
+                            "psycopg2": "PostgreSQL database",
+                            "psycopg2-binary": "PostgreSQL database",
+                            "mysql-connector-python": "MySQL database",
+                            "pymongo": "MongoDB database",
+                            "redis": "Redis database",
+                            "sqlalchemy": "SQLAlchemy ORM",
+                        }
+
+                        if package_lower in db_map:
+                            constraints.append(db_map[package_lower])
+
+                        if package_lower == "pydantic":
+                            constraints.append("Pydantic for data validation")
+            except ImportError:
+                # tomli not available, try tomllib (Python 3.11+)
+                try:
+                    import tomllib  # type: ignore[import-untyped]
+
+                    # tomllib.load() takes a file object opened in binary mode
+                    with pyproject_file.open("rb") as f:
+                        data = tomllib.load(f)
+
+                    # Extract Python version requirement
+                    if "project" in data and "requires-python" in data["project"]:
+                        python_req = data["project"]["requires-python"]
+                        if python_req:
+                            constraints.append(f"Python {python_req}")
+
+                    # Extract dependencies
+                    if "project" in data and "dependencies" in data["project"]:
+                        deps = data["project"]["dependencies"]
+                        for dep in deps:
+                            package = (
+                                dep.split("==")[0]
+                                .split(">=")[0]
+                                .split(">")[0]
+                                .split("<=")[0]
+                                .split("<")[0]
+                                .split("~=")[0]
+                                .strip()
+                            )
+                            package_lower = package.lower()
+
+                            framework_map = {
+                                "fastapi": "FastAPI framework",
+                                "django": "Django framework",
+                                "flask": "Flask framework",
+                                "typer": "Typer for CLI",
+                                "tornado": "Tornado framework",
+                                "bottle": "Bottle framework",
+                            }
+
+                            if package_lower in framework_map:
+                                constraints.append(framework_map[package_lower])
+
+                            db_map = {
+                                "psycopg2": "PostgreSQL database",
+                                "psycopg2-binary": "PostgreSQL database",
+                                "mysql-connector-python": "MySQL database",
+                                "pymongo": "MongoDB database",
+                                "redis": "Redis database",
+                                "sqlalchemy": "SQLAlchemy ORM",
+                            }
+
+                            if package_lower in db_map:
+                                constraints.append(db_map[package_lower])
+
+                            if package_lower == "pydantic":
+                                constraints.append("Pydantic for data validation")
+                except ImportError:
+                    # Neither tomli nor tomllib available, skip
+                    pass
+            except Exception:
+                # If parsing fails, continue silently
+                pass
+
+        # Remove duplicates while preserving order
+        seen: set[str] = set()
+        unique_constraints: list[str] = []
+        for constraint in constraints:
+            if constraint not in seen:
+                seen.add(constraint)
+                unique_constraints.append(constraint)
+
+        # Default fallback if nothing extracted
+        if not unique_constraints:
+            unique_constraints = ["Python 3.11+", "Typer for CLI", "Pydantic for data validation"]
+
+        return unique_constraints
 
     def _get_module_dependencies(self, module_name: str) -> list[str]:
         """Get list of modules that the given module depends on."""

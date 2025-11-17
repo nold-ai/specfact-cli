@@ -13,14 +13,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## ⚠️ CRITICAL: CLI Usage Enforcement
 
-**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly.
+**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly or implement functionality.
 
 ### Rules
 
-1. **ALWAYS execute CLI first**: Run `specfact sync spec-kit` before any sync operation
-2. **NEVER create YAML/JSON directly**: All sync operations must be CLI-generated
-3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
-4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+1. **ALWAYS execute CLI first**: Run `specfact sync spec-kit` before any sync operation - execute the CLI command before any other operations
+2. **NEVER write code**: Do not implement sync logic - the CLI handles this
+3. **NEVER create YAML/JSON directly**: All sync operations must be CLI-generated
+4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, SpecKit artifacts, or any internal data structures. The CLI is THE interface - use it exclusively.
+7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, SpecKit converter, etc.). All operations must be performed via CLI commands.
 
 ### What Happens If You Don't Follow This
 
@@ -28,6 +31,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 - ❌ Missing metadata and telemetry
 - ❌ Format inconsistencies
 - ❌ Validation failures
+- ❌ Works only in Copilot mode, fails in CI/CD
+- ❌ Breaks when CLI internals change
+- ❌ Requires knowledge of internal code structure
 
 ## ⏸️ Wait States: User Input Required
 
@@ -112,6 +118,25 @@ When exporting to Spec-Kit (bidirectional sync), the generated artifacts are **f
 
 This ensures exported Spec-Kit artifacts work seamlessly with Spec-Kit slash commands.
 
+**⚠️ Spec-Kit Requirements Fulfillment:**
+
+The CLI automatically generates all required Spec-Kit fields during sync. However, you may want to customize some fields for your project:
+
+1. **Constitution Check Gates** (plan.md): Default gates are provided, but you may want to customize Article VII/VIII/IX checks for your project
+2. **Phase Organization** (plan.md, tasks.md): Default phases are auto-generated, but you may want to reorganize tasks into different phases
+3. **Feature Branch Name** (spec.md): Auto-generated from feature key, but you can customize if needed
+4. **INVSEST Criteria** (spec.md): Auto-generated as "YES" for all criteria, but you may want to adjust based on story characteristics
+
+**Optional Customization Workflow:**
+
+If you want to customize Spec-Kit-specific fields, you can:
+
+1. **After sync**: Edit the generated `spec.md`, `plan.md`, and `tasks.md` files directly
+2. **Before sync**: Use `specfact plan review` to enrich plan bundle with additional context that will be reflected in Spec-Kit artifacts
+3. **During sync** (if implemented): The CLI may prompt for customization options in interactive mode
+
+**Note**: All Spec-Kit fields are auto-generated with sensible defaults, so manual customization is **optional** unless you have specific project requirements.
+
 ## Interactive Flow
 
 **Step 1**: Check if `--bidirectional` or sync direction is specified in user input.
@@ -163,12 +188,33 @@ This ensures exported Spec-Kit artifacts work seamlessly with Spec-Kit slash com
   - **If yes**: Find latest auto-derived plan in `.specfact/plans/` and add `--plan PATH`
   - **If no**: Use default main plan
 
-**Step 5**: Confirm execution.
+**Step 5**: Check if user wants to customize Spec-Kit-specific fields (OPTIONAL).
+
+- **If bidirectional sync is enabled**: Ask user if they want to customize Spec-Kit fields and **WAIT**:
+
+  ```text
+  "The sync will generate complete Spec-Kit artifacts with all required fields (frontmatter, INVSEST, Constitution Check, Phases, etc.).
+  
+  Do you want to customize any Spec-Kit-specific fields? (y/n)
+  - Constitution Check gates (Article VII/VIII/IX)
+  - Phase organization
+  - Feature branch names
+  - INVSEST criteria adjustments
+  
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
+  - **If yes**: Note that customization will be done after sync (edit generated files)
+  - **If no**: Proceed with default auto-generated fields
+
+- **If unidirectional sync**: Skip this step (no Spec-Kit artifacts generated)
+
+**Step 6**: Confirm execution.
 
 - Show summary and **WAIT**:
 
   ```text
-  "Will sync [DIRECTION] in [REPO_PATH] [with overwrite mode if enabled] [using PLAN_PATH if specified]. 
+  "Will sync [DIRECTION] in [REPO_PATH] [with overwrite mode if enabled] [using PLAN_PATH if specified] [with Spec-Kit customization if requested]. 
   Continue? (y/n)
   [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
   ```
@@ -176,7 +222,7 @@ This ensures exported Spec-Kit artifacts work seamlessly with Spec-Kit slash com
 - **If yes**: Execute CLI command
 - **If no**: Cancel or ask for changes
 
-**Step 6**: Execute CLI command with confirmed arguments.
+**Step 7**: Execute CLI command with confirmed arguments.
 
 ```bash
 specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>] [--overwrite]
@@ -185,9 +231,17 @@ specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>]
 **Capture CLI output**:
 
 - Sync summary (features updated/added)
-- Spec-Kit artifacts created/updated
+- Spec-Kit artifacts created/updated (with all required fields auto-generated)
 - SpecFact artifacts created/updated
 - Any error messages or warnings
+
+**Step 8**: If Spec-Kit artifacts were generated and user requested customization, provide guidance.
+
+- **If bidirectional sync completed**: Remind user that all Spec-Kit fields are auto-generated and ready for `/speckit.analyze`
+- **If customization was requested**: Guide user to edit generated files:
+  - `specs/<feature-num>-<feature-name>/spec.md` - Customize frontmatter, INVSEST, scenarios
+  - `specs/<feature-num>-<feature-name>/plan.md` - Customize Constitution Check, Phases, Technology Stack
+  - `specs/<feature-num>-<feature-name>/tasks.md` - Customize phase organization, story mappings
 
 ## Expected Output
 

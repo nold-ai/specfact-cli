@@ -386,7 +386,7 @@ class SpecKitConverter:
             (feature_dir / "spec.md").write_text(spec_content, encoding="utf-8")
 
             # Generate plan.md
-            plan_content = self._generate_plan_markdown(feature)
+            plan_content = self._generate_plan_markdown(feature, plan_bundle)
             (feature_dir / "plan.md").write_text(plan_content, encoding="utf-8")
 
             # Generate tasks.md
@@ -471,17 +471,81 @@ class SpecKitConverter:
                         # Categorize scenarios based on keywords
                         scenario_text = f"{given}, {when}, {then}"
                         acc_lower = acc.lower()
-                        if any(keyword in acc_lower for keyword in ["error", "exception", "fail", "invalid"]):
+                        if any(keyword in acc_lower for keyword in ["error", "exception", "fail", "invalid", "reject"]):
                             scenarios_exception.append(scenario_text)
-                        elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback"]):
+                        elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback", "retry"]):
                             scenarios_recovery.append(scenario_text)
-                        elif any(keyword in acc_lower for keyword in ["alternate", "alternative", "different"]):
+                        elif any(
+                            keyword in acc_lower for keyword in ["alternate", "alternative", "different", "optional"]
+                        ):
                             scenarios_alternate.append(scenario_text)
                         else:
                             scenarios_primary.append(scenario_text)
                     else:
-                        lines.append(f"{acc_idx}. {acc}")
-                        scenarios_primary.append(acc)
+                        # Convert simple acceptance to Given/When/Then format for better scenario extraction
+                        acc_lower = acc.lower()
+
+                        # Generate Given/When/Then from simple acceptance
+                        if "must" in acc_lower or "should" in acc_lower or "will" in acc_lower:
+                            # Extract action and outcome
+                            if "verify" in acc_lower or "validate" in acc_lower:
+                                action = (
+                                    acc.replace("Must verify", "")
+                                    .replace("Must validate", "")
+                                    .replace("Should verify", "")
+                                    .replace("Should validate", "")
+                                    .strip()
+                                )
+                                given = "user performs action"
+                                when = f"system {action}"
+                                then = f"{action} succeeds"
+                            elif "handle" in acc_lower or "display" in acc_lower:
+                                action = (
+                                    acc.replace("Must handle", "")
+                                    .replace("Must display", "")
+                                    .replace("Should handle", "")
+                                    .replace("Should display", "")
+                                    .strip()
+                                )
+                                given = "error condition occurs"
+                                when = "system processes error"
+                                then = f"system {action}"
+                            else:
+                                # Generic conversion
+                                given = "user interacts with system"
+                                when = "action is performed"
+                                then = acc.replace("Must", "").replace("Should", "").replace("Will", "").strip()
+
+                            lines.append(f"{acc_idx}. **Given** {given}, **When** {when}, **Then** {then}")
+
+                            # Categorize based on keywords
+                            scenario_text = f"{given}, {when}, {then}"
+                            if any(
+                                keyword in acc_lower
+                                for keyword in ["error", "exception", "fail", "invalid", "reject", "handle error"]
+                            ):
+                                scenarios_exception.append(scenario_text)
+                            elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback"]):
+                                scenarios_recovery.append(scenario_text)
+                            elif any(
+                                keyword in acc_lower
+                                for keyword in ["alternate", "alternative", "different", "optional"]
+                            ):
+                                scenarios_alternate.append(scenario_text)
+                            else:
+                                scenarios_primary.append(scenario_text)
+                        else:
+                            # Keep original format but still categorize
+                            lines.append(f"{acc_idx}. {acc}")
+                            acc_lower = acc.lower()
+                            if any(keyword in acc_lower for keyword in ["error", "exception", "fail", "invalid"]):
+                                scenarios_exception.append(acc)
+                            elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback"]):
+                                scenarios_recovery.append(acc)
+                            elif any(keyword in acc_lower for keyword in ["alternate", "alternative", "different"]):
+                                scenarios_alternate.append(acc)
+                            else:
+                                scenarios_primary.append(acc)
 
                 lines.append("")
 
@@ -548,8 +612,9 @@ class SpecKitConverter:
 
     @beartype
     @require(lambda feature: isinstance(feature, Feature), "Must be Feature instance")
+    @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @ensure(lambda result: isinstance(result, str), "Must return string")
-    def _generate_plan_markdown(self, feature: Feature) -> str:
+    def _generate_plan_markdown(self, feature: Feature, plan_bundle: PlanBundle) -> str:
         """Generate Spec-Kit plan.md content from SpecFact feature."""
         lines = [f"# Implementation Plan: {feature.title}", ""]
         lines.append("## Summary")
@@ -558,21 +623,49 @@ class SpecKitConverter:
 
         lines.append("## Technical Context")
         lines.append("")
-        lines.append("**Language/Version**: Python 3.11+")
+
+        # Extract technology stack from constraints
+        technology_stack = self._extract_technology_stack(feature, plan_bundle)
+        language_version = next((s for s in technology_stack if "Python" in s), "Python 3.11+")
+
+        lines.append(f"**Language/Version**: {language_version}")
         lines.append("")
 
         lines.append("**Primary Dependencies:**")
         lines.append("")
-        # Could extract from feature context if available
-        lines.append("- `typer` - CLI framework")
-        lines.append("- `pydantic` - Data validation")
+        # Extract dependencies from technology stack
+        dependencies = [
+            s
+            for s in technology_stack
+            if any(fw in s.lower() for fw in ["typer", "fastapi", "django", "flask", "pydantic", "sqlalchemy"])
+        ]
+        if dependencies:
+            for dep in dependencies[:5]:  # Limit to top 5
+                # Format: "FastAPI framework" -> "fastapi - Web framework"
+                dep_lower = dep.lower()
+                if "fastapi" in dep_lower:
+                    lines.append("- `fastapi` - Web framework")
+                elif "django" in dep_lower:
+                    lines.append("- `django` - Web framework")
+                elif "flask" in dep_lower:
+                    lines.append("- `flask` - Web framework")
+                elif "typer" in dep_lower:
+                    lines.append("- `typer` - CLI framework")
+                elif "pydantic" in dep_lower:
+                    lines.append("- `pydantic` - Data validation")
+                elif "sqlalchemy" in dep_lower:
+                    lines.append("- `sqlalchemy` - ORM")
+                else:
+                    lines.append(f"- {dep}")
+        else:
+            lines.append("- `typer` - CLI framework")
+            lines.append("- `pydantic` - Data validation")
         lines.append("")
 
         lines.append("**Technology Stack:**")
         lines.append("")
-        lines.append("- Python 3.11+")
-        lines.append("- Typer for CLI")
-        lines.append("- Pydantic for data validation")
+        for stack_item in technology_stack:
+            lines.append(f"- {stack_item}")
         lines.append("")
 
         lines.append("**Constraints:**")
@@ -724,6 +817,92 @@ class SpecKitConverter:
             lines.append("")
 
         return "\n".join(lines)
+
+    @beartype
+    @require(lambda feature: isinstance(feature, Feature), "Must be Feature instance")
+    @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    @ensure(lambda result: len(result) > 0, "Must have at least one stack item")
+    def _extract_technology_stack(self, feature: Feature, plan_bundle: PlanBundle) -> list[str]:
+        """
+        Extract technology stack from feature and plan bundle constraints.
+
+        Args:
+            feature: Feature to extract stack from
+            plan_bundle: Plan bundle containing idea-level constraints
+
+        Returns:
+            List of technology stack items
+        """
+        stack: list[str] = []
+        seen: set[str] = set()
+
+        # Extract from idea-level constraints (project-wide)
+        if plan_bundle.idea and plan_bundle.idea.constraints:
+            for constraint in plan_bundle.idea.constraints:
+                constraint_lower = constraint.lower()
+
+                # Extract Python version
+                if "python" in constraint_lower and constraint not in seen:
+                    stack.append(constraint)
+                    seen.add(constraint)
+
+                # Extract frameworks
+                for fw in ["fastapi", "django", "flask", "typer", "tornado", "bottle"]:
+                    if fw in constraint_lower and constraint not in seen:
+                        stack.append(constraint)
+                        seen.add(constraint)
+                        break
+
+                # Extract databases
+                for db in ["postgres", "postgresql", "mysql", "sqlite", "redis", "mongodb", "cassandra"]:
+                    if db in constraint_lower and constraint not in seen:
+                        stack.append(constraint)
+                        seen.add(constraint)
+                        break
+
+        # Extract from feature-level constraints (feature-specific)
+        if feature.constraints:
+            for constraint in feature.constraints:
+                constraint_lower = constraint.lower()
+
+                # Skip if already added from idea constraints
+                if constraint in seen:
+                    continue
+
+                # Extract frameworks
+                for fw in ["fastapi", "django", "flask", "typer", "tornado", "bottle"]:
+                    if fw in constraint_lower:
+                        stack.append(constraint)
+                        seen.add(constraint)
+                        break
+
+                # Extract databases
+                for db in ["postgres", "postgresql", "mysql", "sqlite", "redis", "mongodb", "cassandra"]:
+                    if db in constraint_lower:
+                        stack.append(constraint)
+                        seen.add(constraint)
+                        break
+
+                # Extract testing tools
+                for test in ["pytest", "unittest", "nose", "tox"]:
+                    if test in constraint_lower:
+                        stack.append(constraint)
+                        seen.add(constraint)
+                        break
+
+                # Extract deployment tools
+                for deploy in ["docker", "kubernetes", "aws", "gcp", "azure"]:
+                    if deploy in constraint_lower:
+                        stack.append(constraint)
+                        seen.add(constraint)
+                        break
+
+        # Default fallback if nothing extracted
+        if not stack:
+            stack = ["Python 3.11+", "Typer for CLI", "Pydantic for data validation"]
+
+        return stack
 
     @beartype
     @require(lambda feature_key: isinstance(feature_key, str), "Must be string")

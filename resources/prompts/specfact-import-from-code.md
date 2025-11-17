@@ -30,12 +30,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ### Rules
 
-1. **ALWAYS execute CLI first**: Run `specfact import from-code` before any analysis
-2. **NEVER create YAML/JSON directly**: All artifacts must be CLI-generated
-3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
-4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
-5. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
-6. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, EnrichmentParser, etc.). All operations must be performed via CLI commands.
+1. **ALWAYS execute CLI first**: Run `specfact import from-code` before any analysis - execute the CLI command before any other operations
+2. **NEVER write code**: Do not implement import logic - the CLI handles this
+3. **NEVER create YAML/JSON directly**: All artifacts must be CLI-generated
+4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, EnrichmentParser, etc.). All operations must be performed via CLI commands.
+8. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information unless for enrichment analysis (Phase 2). Use CLI commands to get plan information. After enrichment, always apply via CLI using `--enrichment` flag.
 
 ### What Happens If You Don't Follow This
 
@@ -50,18 +52,22 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Available CLI Commands for Plan Updates
 
 **For updating features** (after enrichment):
+
 - `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft <true/false> --plan <path>`
   - Updates existing feature metadata (title, outcomes, acceptance criteria, constraints, confidence, draft status)
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-feature --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`
 
 **For adding features**:
+
 - `specfact plan add-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --plan <path>`
 
 **For adding stories**:
+
 - `specfact plan add-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --plan <path>`
 
 **❌ FORBIDDEN**: Direct Python code manipulation like:
+
 ```python
 # ❌ NEVER DO THIS:
 from specfact_cli.models.plan import PlanBundle, Feature
@@ -71,6 +77,7 @@ generator.generate(plan_bundle, plan_path)  # Bypassing CLI
 ```
 
 **✅ CORRECT**: Use CLI commands:
+
 ```bash
 # ✅ ALWAYS DO THIS:
 specfact plan update-feature --key FEATURE-001 --title "New Title" --plan <path>
