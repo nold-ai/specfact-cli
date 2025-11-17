@@ -24,6 +24,7 @@ from specfact_cli.generators.report_generator import ReportFormat, ReportGenerat
 from specfact_cli.models.deviation import Deviation, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Release, Story
+from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import (
     display_summary,
     print_error,
@@ -76,50 +77,66 @@ def init(
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    print_section("SpecFact CLI - Plan Builder")
+    telemetry_metadata = {
+        "interactive": interactive,
+        "scaffold": scaffold,
+    }
 
-    # Create .specfact structure if requested
-    if scaffold:
-        print_info("Creating .specfact/ directory structure...")
-        SpecFactStructure.scaffold_project()
-        print_success("Directory structure created")
-    else:
-        # Ensure minimum structure exists
-        SpecFactStructure.ensure_structure()
+    with telemetry.track_command("plan.init", telemetry_metadata) as record:
+        print_section("SpecFact CLI - Plan Builder")
 
-    # Use default path if not specified
-    if out is None:
-        out = SpecFactStructure.get_default_plan_path()
-
-    if not interactive:
-        # Non-interactive mode: create minimal plan
-        _create_minimal_plan(out)
-        return
-
-    # Interactive mode: guided plan creation
-    try:
-        plan = _build_plan_interactively()
-
-        # Generate plan file
-        out.parent.mkdir(parents=True, exist_ok=True)
-        generator = PlanGenerator()
-        generator.generate(plan, out)
-
-        print_success(f"Plan created successfully: {out}")
-
-        # Validate
-        is_valid, error, _ = validate_plan_bundle(out)
-        if is_valid:
-            print_success("Plan validation passed")
+        # Create .specfact structure if requested
+        if scaffold:
+            print_info("Creating .specfact/ directory structure...")
+            SpecFactStructure.scaffold_project()
+            print_success("Directory structure created")
         else:
-            print_warning(f"Plan has validation issues: {error}")
+            # Ensure minimum structure exists
+            SpecFactStructure.ensure_structure()
 
-    except KeyboardInterrupt:
-        print_warning("\nPlan creation cancelled")
-        raise typer.Exit(1) from None
-    except Exception as e:
-        print_error(f"Failed to create plan: {e}")
-        raise typer.Exit(1) from e
+        # Use default path if not specified
+        if out is None:
+            out = SpecFactStructure.get_default_plan_path()
+
+        if not interactive:
+            # Non-interactive mode: create minimal plan
+            _create_minimal_plan(out)
+            record({"plan_type": "minimal"})
+            return
+
+        # Interactive mode: guided plan creation
+        try:
+            plan = _build_plan_interactively()
+
+            # Generate plan file
+            out.parent.mkdir(parents=True, exist_ok=True)
+            generator = PlanGenerator()
+            generator.generate(plan, out)
+
+            # Record plan statistics
+            record(
+                {
+                    "plan_type": "interactive",
+                    "features_count": len(plan.features) if plan.features else 0,
+                    "stories_count": sum(len(f.stories) for f in plan.features) if plan.features else 0,
+                }
+            )
+
+            print_success(f"Plan created successfully: {out}")
+
+            # Validate
+            is_valid, error, _ = validate_plan_bundle(out)
+            if is_valid:
+                print_success("Plan validation passed")
+            else:
+                print_warning(f"Plan has validation issues: {error}")
+
+        except KeyboardInterrupt:
+            print_warning("\nPlan creation cancelled")
+            raise typer.Exit(1) from None
+        except Exception as e:
+            print_error(f"Failed to create plan: {e}")
+            raise typer.Exit(1) from e
 
 
 def _create_minimal_plan(out: Path) -> None:
@@ -347,76 +364,87 @@ def add_feature(
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    # Use default path if not specified
-    if plan is None:
-        plan = SpecFactStructure.get_default_plan_path()
+    telemetry_metadata = {
+        "feature_key": key,
+    }
+
+    with telemetry.track_command("plan.add_feature", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
         if not plan.exists():
-            print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
-            raise typer.Exit(1)
-        print_info(f"Using default plan: {plan}")
-
-    if not plan.exists():
-        print_error(f"Plan bundle not found: {plan}")
-        raise typer.Exit(1)
-
-    print_section("SpecFact CLI - Add Feature")
-
-    try:
-        # Load existing plan
-        print_info(f"Loading plan: {plan}")
-        validation_result = validate_plan_bundle(plan)
-        assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-        is_valid, error, existing_plan = validation_result
-
-        if not is_valid or existing_plan is None:
-            print_error(f"Plan validation failed: {error}")
+            print_error(f"Plan bundle not found: {plan}")
             raise typer.Exit(1)
 
-        # Check if feature key already exists
-        existing_keys = {f.key for f in existing_plan.features}
-        if key in existing_keys:
-            print_error(f"Feature '{key}' already exists in plan")
-            raise typer.Exit(1)
+        print_section("SpecFact CLI - Add Feature")
 
-        # Parse outcomes and acceptance (comma-separated strings)
-        outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
-        acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
 
-        # Create new feature
-        new_feature = Feature(
-            key=key,
-            title=title,
-            outcomes=outcomes_list,
-            acceptance=acceptance_list,
-            constraints=[],
-            stories=[],
-            confidence=1.0,
-            draft=False,
-        )
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
 
-        # Add feature to plan
-        existing_plan.features.append(new_feature)
+            # Check if feature key already exists
+            existing_keys = {f.key for f in existing_plan.features}
+            if key in existing_keys:
+                print_error(f"Feature '{key}' already exists in plan")
+                raise typer.Exit(1)
 
-        # Validate updated plan (always passes for PlanBundle model)
-        print_info("Validating updated plan...")
+            # Parse outcomes and acceptance (comma-separated strings)
+            outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+            acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
 
-        # Save updated plan
-        print_info(f"Saving plan to: {plan}")
-        generator = PlanGenerator()
-        generator.generate(existing_plan, plan)
+            # Create new feature
+            new_feature = Feature(
+                key=key,
+                title=title,
+                outcomes=outcomes_list,
+                acceptance=acceptance_list,
+                constraints=[],
+                stories=[],
+                confidence=1.0,
+                draft=False,
+            )
 
-        print_success(f"Feature '{key}' added successfully")
-        console.print(f"[dim]Feature: {title}[/dim]")
-        if outcomes_list:
-            console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
-        if acceptance_list:
-            console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+            # Add feature to plan
+            existing_plan.features.append(new_feature)
 
-    except typer.Exit:
-        raise
-    except Exception as e:
-        print_error(f"Failed to add feature: {e}")
-        raise typer.Exit(1) from e
+            # Validate updated plan (always passes for PlanBundle model)
+            print_info("Validating updated plan...")
+
+            # Save updated plan
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(existing_plan, plan)
+
+            record(
+                {
+                    "total_features": len(existing_plan.features),
+                    "outcomes_count": len(outcomes_list),
+                    "acceptance_count": len(acceptance_list),
+                }
+            )
+
+            print_success(f"Feature '{key}' added successfully")
+            console.print(f"[dim]Feature: {title}[/dim]")
+            if outcomes_list:
+                console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
+            if acceptance_list:
+                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to add feature: {e}")
+            raise typer.Exit(1) from e
 
 
 @app.command("add-story")
@@ -455,90 +483,103 @@ def add_story(
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    # Use default path if not specified
-    if plan is None:
-        plan = SpecFactStructure.get_default_plan_path()
+    telemetry_metadata = {
+        "feature_key": feature,
+        "story_key": key,
+    }
+
+    with telemetry.track_command("plan.add_story", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
         if not plan.exists():
-            print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
-            raise typer.Exit(1)
-        print_info(f"Using default plan: {plan}")
-
-    if not plan.exists():
-        print_error(f"Plan bundle not found: {plan}")
-        raise typer.Exit(1)
-
-    print_section("SpecFact CLI - Add Story")
-
-    try:
-        # Load existing plan
-        print_info(f"Loading plan: {plan}")
-        validation_result = validate_plan_bundle(plan)
-        assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-        is_valid, error, existing_plan = validation_result
-
-        if not is_valid or existing_plan is None:
-            print_error(f"Plan validation failed: {error}")
+            print_error(f"Plan bundle not found: {plan}")
             raise typer.Exit(1)
 
-        # Find parent feature
-        parent_feature = None
-        for f in existing_plan.features:
-            if f.key == feature:
-                parent_feature = f
-                break
+        print_section("SpecFact CLI - Add Story")
 
-        if parent_feature is None:
-            print_error(f"Feature '{feature}' not found in plan")
-            console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
-            raise typer.Exit(1)
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
 
-        # Check if story key already exists in feature
-        existing_story_keys = {s.key for s in parent_feature.stories}
-        if key in existing_story_keys:
-            print_error(f"Story '{key}' already exists in feature '{feature}'")
-            raise typer.Exit(1)
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
 
-        # Parse acceptance (comma-separated string)
-        acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+            # Find parent feature
+            parent_feature = None
+            for f in existing_plan.features:
+                if f.key == feature:
+                    parent_feature = f
+                    break
 
-        # Create new story
-        new_story = Story(
-            key=key,
-            title=title,
-            acceptance=acceptance_list,
-            tags=[],
-            story_points=story_points,
-            value_points=value_points,
-            tasks=[],
-            confidence=1.0,
-            draft=draft,
-        )
+            if parent_feature is None:
+                print_error(f"Feature '{feature}' not found in plan")
+                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                raise typer.Exit(1)
 
-        # Add story to feature
-        parent_feature.stories.append(new_story)
+            # Check if story key already exists in feature
+            existing_story_keys = {s.key for s in parent_feature.stories}
+            if key in existing_story_keys:
+                print_error(f"Story '{key}' already exists in feature '{feature}'")
+                raise typer.Exit(1)
 
-        # Validate updated plan (always passes for PlanBundle model)
-        print_info("Validating updated plan...")
+            # Parse acceptance (comma-separated string)
+            acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
 
-        # Save updated plan
-        print_info(f"Saving plan to: {plan}")
-        generator = PlanGenerator()
-        generator.generate(existing_plan, plan)
+            # Create new story
+            new_story = Story(
+                key=key,
+                title=title,
+                acceptance=acceptance_list,
+                tags=[],
+                story_points=story_points,
+                value_points=value_points,
+                tasks=[],
+                confidence=1.0,
+                draft=draft,
+            )
 
-        print_success(f"Story '{key}' added to feature '{feature}'")
-        console.print(f"[dim]Story: {title}[/dim]")
-        if acceptance_list:
-            console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
-        if story_points:
-            console.print(f"[dim]Story Points: {story_points}[/dim]")
-        if value_points:
-            console.print(f"[dim]Value Points: {value_points}[/dim]")
+            # Add story to feature
+            parent_feature.stories.append(new_story)
 
-    except typer.Exit:
-        raise
-    except Exception as e:
-        print_error(f"Failed to add story: {e}")
-        raise typer.Exit(1) from e
+            # Validate updated plan (always passes for PlanBundle model)
+            print_info("Validating updated plan...")
+
+            # Save updated plan
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(existing_plan, plan)
+
+            record(
+                {
+                    "total_stories": len(parent_feature.stories),
+                    "acceptance_count": len(acceptance_list),
+                    "story_points": story_points if story_points else 0,
+                    "value_points": value_points if value_points else 0,
+                }
+            )
+
+            print_success(f"Story '{key}' added to feature '{feature}'")
+            console.print(f"[dim]Story: {title}[/dim]")
+            if acceptance_list:
+                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+            if story_points:
+                console.print(f"[dim]Story Points: {story_points}[/dim]")
+            if value_points:
+                console.print(f"[dim]Value Points: {value_points}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to add story: {e}")
+            raise typer.Exit(1) from e
 
 
 @app.command("compare")
@@ -593,12 +634,45 @@ def compare(
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    # Ensure .specfact structure exists
-    SpecFactStructure.ensure_structure()
+    telemetry_metadata = {
+        "code_vs_plan": code_vs_plan,
+        "format": format.lower(),
+    }
 
-    # Handle --code-vs-plan convenience alias
-    if code_vs_plan:
-        # Auto-detect manual plan (default)
+    with telemetry.track_command("plan.compare", telemetry_metadata) as record:
+        # Ensure .specfact structure exists
+        SpecFactStructure.ensure_structure()
+
+        # Handle --code-vs-plan convenience alias
+        if code_vs_plan:
+            # Auto-detect manual plan (default)
+            if manual is None:
+                manual = SpecFactStructure.get_default_plan_path()
+                if not manual.exists():
+                    print_error(
+                        f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive"
+                    )
+                    raise typer.Exit(1)
+                print_info(f"Using default manual plan: {manual}")
+
+            # Auto-detect latest code-derived plan
+            if auto is None:
+                auto = SpecFactStructure.get_latest_brownfield_report()
+                if auto is None:
+                    plans_dir = Path(SpecFactStructure.PLANS)
+                    print_error(
+                        f"No code-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                    )
+                    raise typer.Exit(1)
+                print_info(f"Using latest code-derived plan: {auto}")
+
+            # Override help text to emphasize code vs plan drift
+            print_section("Code vs Plan Drift Detection")
+            console.print(
+                "[dim]Comparing intended design (manual plan) vs actual implementation (code-derived plan)[/dim]\n"
+            )
+
+        # Use default paths if not specified (smart defaults)
         if manual is None:
             manual = SpecFactStructure.get_default_plan_path()
             if not manual.exists():
@@ -608,217 +682,204 @@ def compare(
                 raise typer.Exit(1)
             print_info(f"Using default manual plan: {manual}")
 
-        # Auto-detect latest code-derived plan
         if auto is None:
+            # Use smart default: find latest auto-derived plan
             auto = SpecFactStructure.get_latest_brownfield_report()
             if auto is None:
                 plans_dir = Path(SpecFactStructure.PLANS)
                 print_error(
-                    f"No code-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                    f"No auto-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
                 )
                 raise typer.Exit(1)
-            print_info(f"Using latest code-derived plan: {auto}")
+            print_info(f"Using latest auto-derived plan: {auto}")
 
-        # Override help text to emphasize code vs plan drift
-        print_section("Code vs Plan Drift Detection")
-        console.print(
-            "[dim]Comparing intended design (manual plan) vs actual implementation (code-derived plan)[/dim]\n"
-        )
+        if out is None:
+            # Use smart default: timestamped comparison report
+            extension = {"markdown": "md", "json": "json", "yaml": "yaml"}[format.lower()]
+            out = SpecFactStructure.get_comparison_report_path(format=extension)
+            print_info(f"Writing comparison report to: {out}")
 
-    # Use default paths if not specified (smart defaults)
-    if manual is None:
-        manual = SpecFactStructure.get_default_plan_path()
-        if not manual.exists():
-            print_error(f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive")
+        print_section("SpecFact CLI - Plan Comparison")
+
+        # Validate inputs (after defaults are set)
+        if manual is not None and not manual.exists():
+            print_error(f"Manual plan not found: {manual}")
             raise typer.Exit(1)
-        print_info(f"Using default manual plan: {manual}")
 
-    if auto is None:
-        # Use smart default: find latest auto-derived plan
-        auto = SpecFactStructure.get_latest_brownfield_report()
-        if auto is None:
-            plans_dir = Path(SpecFactStructure.PLANS)
-            print_error(
-                f"No auto-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+        if auto is not None and not auto.exists():
+            print_error(f"Auto plan not found: {auto}")
+            raise typer.Exit(1)
+
+        # Validate format
+        if format.lower() not in ("markdown", "json", "yaml"):
+            print_error(f"Invalid format: {format}. Must be markdown, json, or yaml")
+            raise typer.Exit(1)
+
+        try:
+            # Load plans
+            # Note: validate_plan_bundle returns tuple[bool, str | None, PlanBundle | None] when given a Path
+            print_info(f"Loading manual plan: {manual}")
+            validation_result = validate_plan_bundle(manual)
+            # Type narrowing: when Path is passed, always returns tuple
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, manual_plan = validation_result
+            if not is_valid or manual_plan is None:
+                print_error(f"Manual plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            print_info(f"Loading auto plan: {auto}")
+            validation_result = validate_plan_bundle(auto)
+            # Type narrowing: when Path is passed, always returns tuple
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, auto_plan = validation_result
+            if not is_valid or auto_plan is None:
+                print_error(f"Auto plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Compare plans
+            print_info("Comparing plans...")
+            comparator = PlanComparator()
+            report = comparator.compare(
+                manual_plan,
+                auto_plan,
+                manual_label=str(manual),
+                auto_label=str(auto),
             )
-            raise typer.Exit(1)
-        print_info(f"Using latest auto-derived plan: {auto}")
 
-    if out is None:
-        # Use smart default: timestamped comparison report
-        extension = {"markdown": "md", "json": "json", "yaml": "yaml"}[format.lower()]
-        out = SpecFactStructure.get_comparison_report_path(format=extension)
-        print_info(f"Writing comparison report to: {out}")
+            # Record comparison results
+            record(
+                {
+                    "total_deviations": report.total_deviations,
+                    "high_count": report.high_count,
+                    "medium_count": report.medium_count,
+                    "low_count": report.low_count,
+                    "manual_features": len(manual_plan.features) if manual_plan.features else 0,
+                    "auto_features": len(auto_plan.features) if auto_plan.features else 0,
+                }
+            )
 
-    print_section("SpecFact CLI - Plan Comparison")
+            # Display results
+            print_section("Comparison Results")
 
-    # Validate inputs (after defaults are set)
-    if manual is not None and not manual.exists():
-        print_error(f"Manual plan not found: {manual}")
-        raise typer.Exit(1)
+            console.print(f"[cyan]Manual Plan:[/cyan] {manual}")
+            console.print(f"[cyan]Auto Plan:[/cyan] {auto}")
+            console.print(f"[cyan]Total Deviations:[/cyan] {report.total_deviations}\n")
 
-    if auto is not None and not auto.exists():
-        print_error(f"Auto plan not found: {auto}")
-        raise typer.Exit(1)
-
-    # Validate format
-    if format.lower() not in ("markdown", "json", "yaml"):
-        print_error(f"Invalid format: {format}. Must be markdown, json, or yaml")
-        raise typer.Exit(1)
-
-    try:
-        # Load plans
-        # Note: validate_plan_bundle returns tuple[bool, str | None, PlanBundle | None] when given a Path
-        print_info(f"Loading manual plan: {manual}")
-        validation_result = validate_plan_bundle(manual)
-        # Type narrowing: when Path is passed, always returns tuple
-        assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-        is_valid, error, manual_plan = validation_result
-        if not is_valid or manual_plan is None:
-            print_error(f"Manual plan validation failed: {error}")
-            raise typer.Exit(1)
-
-        print_info(f"Loading auto plan: {auto}")
-        validation_result = validate_plan_bundle(auto)
-        # Type narrowing: when Path is passed, always returns tuple
-        assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-        is_valid, error, auto_plan = validation_result
-        if not is_valid or auto_plan is None:
-            print_error(f"Auto plan validation failed: {error}")
-            raise typer.Exit(1)
-
-        # Compare plans
-        print_info("Comparing plans...")
-        comparator = PlanComparator()
-        report = comparator.compare(
-            manual_plan,
-            auto_plan,
-            manual_label=str(manual),
-            auto_label=str(auto),
-        )
-
-        # Display results
-        print_section("Comparison Results")
-
-        console.print(f"[cyan]Manual Plan:[/cyan] {manual}")
-        console.print(f"[cyan]Auto Plan:[/cyan] {auto}")
-        console.print(f"[cyan]Total Deviations:[/cyan] {report.total_deviations}\n")
-
-        if report.total_deviations == 0:
-            print_success("No deviations found! Plans are identical.")
-        else:
-            # Show severity summary
-            console.print("[bold]Deviation Summary:[/bold]")
-            console.print(f"  🔴 [bold red]HIGH:[/bold red] {report.high_count}")
-            console.print(f"  🟡 [bold yellow]MEDIUM:[/bold yellow] {report.medium_count}")
-            console.print(f"  🔵 [bold blue]LOW:[/bold blue] {report.low_count}\n")
-
-            # Show detailed table
-            table = Table(title="Deviations by Type and Severity")
-            table.add_column("Severity", style="bold")
-            table.add_column("Type", style="cyan")
-            table.add_column("Description", style="white", no_wrap=False)
-            table.add_column("Location", style="dim")
-
-            for deviation in report.deviations:
-                severity_icon = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🔵"}[deviation.severity.value]
-                table.add_row(
-                    f"{severity_icon} {deviation.severity.value}",
-                    deviation.type.value.replace("_", " ").title(),
-                    deviation.description[:80] + "..." if len(deviation.description) > 80 else deviation.description,
-                    deviation.location,
-                )
-
-            console.print(table)
-
-        # Generate report file if requested
-        if out:
-            print_info(f"Generating {format} report...")
-            generator = ReportGenerator()
-
-            # Map format string to enum
-            format_map = {
-                "markdown": ReportFormat.MARKDOWN,
-                "json": ReportFormat.JSON,
-                "yaml": ReportFormat.YAML,
-            }
-
-            report_format = format_map.get(format.lower(), ReportFormat.MARKDOWN)
-            generator.generate_deviation_report(report, out, report_format)
-
-            print_success(f"Report written to: {out}")
-
-        # Apply enforcement rules if config exists
-        from specfact_cli.utils.structure import SpecFactStructure
-
-        # Determine base path from plan paths (use manual plan's parent directory)
-        base_path = manual.parent if manual else None
-        # If base_path is not a repository root, find the repository root
-        if base_path:
-            # Walk up to find repository root (where .specfact would be)
-            current = base_path.resolve()
-            while current != current.parent:
-                if (current / SpecFactStructure.ROOT).exists():
-                    base_path = current
-                    break
-                current = current.parent
+            if report.total_deviations == 0:
+                print_success("No deviations found! Plans are identical.")
             else:
-                # If we didn't find .specfact, use the plan's directory
-                # But resolve to absolute path first
-                base_path = manual.parent.resolve()
+                # Show severity summary
+                console.print("[bold]Deviation Summary:[/bold]")
+                console.print(f"  🔴 [bold red]HIGH:[/bold red] {report.high_count}")
+                console.print(f"  🟡 [bold yellow]MEDIUM:[/bold yellow] {report.medium_count}")
+                console.print(f"  🔵 [bold blue]LOW:[/bold blue] {report.low_count}\n")
 
-        config_path = SpecFactStructure.get_enforcement_config_path(base_path)
-        if config_path.exists():
-            try:
-                from specfact_cli.utils.yaml_utils import load_yaml
+                # Show detailed table
+                table = Table(title="Deviations by Type and Severity")
+                table.add_column("Severity", style="bold")
+                table.add_column("Type", style="cyan")
+                table.add_column("Description", style="white", no_wrap=False)
+                table.add_column("Location", style="dim")
 
-                config_data = load_yaml(config_path)
-                enforcement_config = EnforcementConfig(**config_data)
+                for deviation in report.deviations:
+                    severity_icon = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🔵"}[deviation.severity.value]
+                    table.add_row(
+                        f"{severity_icon} {deviation.severity.value}",
+                        deviation.type.value.replace("_", " ").title(),
+                        deviation.description[:80] + "..."
+                        if len(deviation.description) > 80
+                        else deviation.description,
+                        deviation.location,
+                    )
 
-                if enforcement_config.enabled and report.total_deviations > 0:
-                    print_section("Enforcement Rules")
-                    console.print(f"[dim]Using enforcement config: {config_path}[/dim]\n")
+                console.print(table)
 
-                    # Check for blocking deviations
-                    blocking_deviations: list[Deviation] = []
-                    for deviation in report.deviations:
-                        action = enforcement_config.get_action(deviation.severity.value)
-                        action_icon = {"BLOCK": "🚫", "WARN": "⚠️", "LOG": "📝"}[action.value]
+            # Generate report file if requested
+            if out:
+                print_info(f"Generating {format} report...")
+                generator = ReportGenerator()
 
-                        console.print(
-                            f"{action_icon} [{deviation.severity.value}] {deviation.type.value}: "
-                            f"[dim]{action.value}[/dim]"
-                        )
+                # Map format string to enum
+                format_map = {
+                    "markdown": ReportFormat.MARKDOWN,
+                    "json": ReportFormat.JSON,
+                    "yaml": ReportFormat.YAML,
+                }
 
-                        if enforcement_config.should_block_deviation(deviation.severity.value):
-                            blocking_deviations.append(deviation)
+                report_format = format_map.get(format.lower(), ReportFormat.MARKDOWN)
+                generator.generate_deviation_report(report, out, report_format)
 
-                    if blocking_deviations:
-                        print_error(
-                            f"\n❌ Enforcement BLOCKED: {len(blocking_deviations)} deviation(s) violate quality gates"
-                        )
-                        console.print("[dim]Fix the blocking deviations or adjust enforcement config[/dim]")
-                        raise typer.Exit(1)
-                    print_success("\n✅ Enforcement PASSED: No blocking deviations")
+                print_success(f"Report written to: {out}")
 
-            except typer.Exit:
-                # Re-raise typer.Exit (for enforcement blocking)
-                raise
-            except Exception as e:
-                print_warning(f"Could not load enforcement config: {e}")
+            # Apply enforcement rules if config exists
+            from specfact_cli.utils.structure import SpecFactStructure
 
-        # Note: Finding deviations without enforcement is a successful comparison result
-        # Exit code 0 indicates successful execution (even if deviations were found)
-        # Use the report file, stdout, or enforcement config to determine if deviations are critical
-        if report.total_deviations > 0:
-            print_warning(f"\n{report.total_deviations} deviation(s) found")
+            # Determine base path from plan paths (use manual plan's parent directory)
+            base_path = manual.parent if manual else None
+            # If base_path is not a repository root, find the repository root
+            if base_path:
+                # Walk up to find repository root (where .specfact would be)
+                current = base_path.resolve()
+                while current != current.parent:
+                    if (current / SpecFactStructure.ROOT).exists():
+                        base_path = current
+                        break
+                    current = current.parent
+                else:
+                    # If we didn't find .specfact, use the plan's directory
+                    # But resolve to absolute path first
+                    base_path = manual.parent.resolve()
 
-    except KeyboardInterrupt:
-        print_warning("\nComparison cancelled")
-        raise typer.Exit(1) from None
-    except Exception as e:
-        print_error(f"Comparison failed: {e}")
-        raise typer.Exit(1) from e
+            config_path = SpecFactStructure.get_enforcement_config_path(base_path)
+            if config_path.exists():
+                try:
+                    from specfact_cli.utils.yaml_utils import load_yaml
+
+                    config_data = load_yaml(config_path)
+                    enforcement_config = EnforcementConfig(**config_data)
+
+                    if enforcement_config.enabled and report.total_deviations > 0:
+                        print_section("Enforcement Rules")
+                        console.print(f"[dim]Using enforcement config: {config_path}[/dim]\n")
+
+                        # Check for blocking deviations
+                        blocking_deviations: list[Deviation] = []
+                        for deviation in report.deviations:
+                            action = enforcement_config.get_action(deviation.severity.value)
+                            action_icon = {"BLOCK": "🚫", "WARN": "⚠️", "LOG": "📝"}[action.value]
+
+                            console.print(
+                                f"{action_icon} [{deviation.severity.value}] {deviation.type.value}: "
+                                f"[dim]{action.value}[/dim]"
+                            )
+
+                            if enforcement_config.should_block_deviation(deviation.severity.value):
+                                blocking_deviations.append(deviation)
+
+                        if blocking_deviations:
+                            print_error(
+                                f"\n❌ Enforcement BLOCKED: {len(blocking_deviations)} deviation(s) violate quality gates"
+                            )
+                            console.print("[dim]Fix the blocking deviations or adjust enforcement config[/dim]")
+                            raise typer.Exit(1)
+                        print_success("\n✅ Enforcement PASSED: No blocking deviations")
+
+                except Exception as e:
+                    print_warning(f"Could not load enforcement config: {e}")
+                    raise typer.Exit(1) from e
+
+            # Note: Finding deviations without enforcement is a successful comparison result
+            # Exit code 0 indicates successful execution (even if deviations were found)
+            # Use the report file, stdout, or enforcement config to determine if deviations are critical
+            if report.total_deviations > 0:
+                print_warning(f"\n{report.total_deviations} deviation(s) found")
+
+        except KeyboardInterrupt:
+            print_warning("\nComparison cancelled")
+            raise typer.Exit(1) from None
+        except Exception as e:
+            print_error(f"Comparison failed: {e}")
+            raise typer.Exit(1) from e
 
 
 @app.command("select")
@@ -843,122 +904,134 @@ def select(
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    print_section("SpecFact CLI - Plan Selection")
+    telemetry_metadata = {}
 
-    # List all available plans
-    plans = SpecFactStructure.list_plans()
+    with telemetry.track_command("plan.select", telemetry_metadata) as record:
+        print_section("SpecFact CLI - Plan Selection")
 
-    if not plans:
-        print_warning("No plan bundles found in .specfact/plans/")
-        print_info("Create a plan with:")
-        print_info("  - specfact plan init")
-        print_info("  - specfact import from-code")
-        raise typer.Exit(1)
+        # List all available plans
+        plans = SpecFactStructure.list_plans()
 
-    # If plan provided, try to resolve it
-    if plan is not None:
-        # Try as number first
-        if isinstance(plan, str) and plan.isdigit():
-            plan_num = int(plan)
-            if 1 <= plan_num <= len(plans):
-                selected_plan = plans[plan_num - 1]
+        if not plans:
+            print_warning("No plan bundles found in .specfact/plans/")
+            print_info("Create a plan with:")
+            print_info("  - specfact plan init")
+            print_info("  - specfact import from-code")
+            raise typer.Exit(1)
+
+        # If plan provided, try to resolve it
+        if plan is not None:
+            # Try as number first
+            if isinstance(plan, str) and plan.isdigit():
+                plan_num = int(plan)
+                if 1 <= plan_num <= len(plans):
+                    selected_plan = plans[plan_num - 1]
+                else:
+                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(plans)}")
+                    raise typer.Exit(1)
             else:
-                print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(plans)}")
-                raise typer.Exit(1)
+                # Try as name
+                plan_name = str(plan)
+                # Remove .bundle.yaml suffix if present
+                if plan_name.endswith(".bundle.yaml"):
+                    plan_name = plan_name
+                elif not plan_name.endswith(".yaml"):
+                    plan_name = f"{plan_name}.bundle.yaml"
+
+                # Find matching plan
+                selected_plan = None
+                for p in plans:
+                    if p["name"] == plan_name or p["name"] == plan:
+                        selected_plan = p
+                        break
+
+                if selected_plan is None:
+                    print_error(f"Plan not found: {plan}")
+                    print_info("Available plans:")
+                    for i, p in enumerate(plans, 1):
+                        print_info(f"  {i}. {p['name']}")
+                    raise typer.Exit(1)
         else:
-            # Try as name
-            plan_name = str(plan)
-            # Remove .bundle.yaml suffix if present
-            if plan_name.endswith(".bundle.yaml"):
-                plan_name = plan_name
-            elif not plan_name.endswith(".yaml"):
-                plan_name = f"{plan_name}.bundle.yaml"
+            # Interactive selection - display numbered list
+            console.print("\n[bold]Available Plans:[/bold]\n")
 
-            # Find matching plan
-            selected_plan = None
-            for p in plans:
-                if p["name"] == plan_name or p["name"] == plan:
-                    selected_plan = p
-                    break
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("#", style="dim", width=4)
+            table.add_column("Status", style="dim", width=10)
+            table.add_column("Plan Name", style="bold", width=50)
+            table.add_column("Features", justify="right", width=10)
+            table.add_column("Stories", justify="right", width=10)
+            table.add_column("Stage", width=12)
+            table.add_column("Modified", style="dim", width=20)
 
-            if selected_plan is None:
-                print_error(f"Plan not found: {plan}")
-                print_info("Available plans:")
-                for i, p in enumerate(plans, 1):
-                    print_info(f"  {i}. {p['name']}")
-                raise typer.Exit(1)
-    else:
-        # Interactive selection - display numbered list
-        console.print("\n[bold]Available Plans:[/bold]\n")
+            for i, p in enumerate(plans, 1):
+                status = "[ACTIVE]" if p.get("active") else ""
+                plan_name = str(p["name"])
+                features_count = str(p["features"])
+                stories_count = str(p["stories"])
+                stage = str(p.get("stage", "unknown"))
+                modified = str(p["modified"])
+                modified_display = modified[:19] if len(modified) > 19 else modified
+                table.add_row(
+                    str(i),
+                    status,
+                    plan_name,
+                    features_count,
+                    stories_count,
+                    stage,
+                    modified_display,
+                )
 
-        table = Table(show_header=True, header_style="bold cyan")
-        table.add_column("#", style="dim", width=4)
-        table.add_column("Status", style="dim", width=10)
-        table.add_column("Plan Name", style="bold", width=50)
-        table.add_column("Features", justify="right", width=10)
-        table.add_column("Stories", justify="right", width=10)
-        table.add_column("Stage", width=12)
-        table.add_column("Modified", style="dim", width=20)
+            console.print(table)
+            console.print()
 
-        for i, p in enumerate(plans, 1):
-            status = "[ACTIVE]" if p.get("active") else ""
-            plan_name = str(p["name"])
-            features_count = str(p["features"])
-            stories_count = str(p["stories"])
-            stage = str(p.get("stage", "unknown"))
-            modified = str(p["modified"])
-            modified_display = modified[:19] if len(modified) > 19 else modified
-            table.add_row(
-                str(i),
-                status,
-                plan_name,
-                features_count,
-                stories_count,
-                stage,
-                modified_display,
-            )
+            # Prompt for selection
+            selection = ""
+            try:
+                selection = prompt_text(f"Select a plan by number (1-{len(plans)}) or 'q' to quit: ").strip()
 
-        console.print(table)
-        console.print()
+                if selection.lower() in ("q", "quit", ""):
+                    print_info("Selection cancelled")
+                    raise typer.Exit(0)
 
-        # Prompt for selection
-        selection = ""
-        try:
-            selection = prompt_text(f"Select a plan by number (1-{len(plans)}) or 'q' to quit: ").strip()
+                plan_num = int(selection)
+                if not (1 <= plan_num <= len(plans)):
+                    print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(plans)}")
+                    raise typer.Exit(1)
 
-            if selection.lower() in ("q", "quit", ""):
-                print_info("Selection cancelled")
-                raise typer.Exit(0)
+                selected_plan = plans[plan_num - 1]
+            except ValueError:
+                print_error(f"Invalid input: {selection}. Please enter a number.")
+                raise typer.Exit(1) from None
+            except KeyboardInterrupt:
+                print_warning("\nSelection cancelled")
+                raise typer.Exit(1) from None
 
-            plan_num = int(selection)
-            if not (1 <= plan_num <= len(plans)):
-                print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(plans)}")
-                raise typer.Exit(1)
+        # Set as active plan
+        plan_name = str(selected_plan["name"])
+        SpecFactStructure.set_active_plan(plan_name)
 
-            selected_plan = plans[plan_num - 1]
-        except ValueError:
-            print_error(f"Invalid input: {selection}. Please enter a number.")
-            raise typer.Exit(1) from None
-        except KeyboardInterrupt:
-            print_warning("\nSelection cancelled")
-            raise typer.Exit(1) from None
+        record(
+            {
+                "plans_available": len(plans),
+                "selected_plan": plan_name,
+                "features": selected_plan["features"],
+                "stories": selected_plan["stories"],
+            }
+        )
 
-    # Set as active plan
-    plan_name = str(selected_plan["name"])
-    SpecFactStructure.set_active_plan(plan_name)
+        print_success(f"Active plan set to: {plan_name}")
+        print_info(f"  Features: {selected_plan['features']}")
+        print_info(f"  Stories: {selected_plan['stories']}")
+        print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
 
-    print_success(f"Active plan set to: {plan_name}")
-    print_info(f"  Features: {selected_plan['features']}")
-    print_info(f"  Stories: {selected_plan['stories']}")
-    print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
-
-    print_info("\nThis plan will now be used as the default for:")
-    print_info("  - specfact plan compare")
-    print_info("  - specfact plan promote")
-    print_info("  - specfact plan add-feature")
-    print_info("  - specfact plan add-story")
-    print_info("  - specfact plan sync --shared")
-    print_info("  - specfact sync spec-kit")
+        print_info("\nThis plan will now be used as the default for:")
+        print_info("  - specfact plan compare")
+        print_info("  - specfact plan promote")
+        print_info("  - specfact plan add-feature")
+        print_info("  - specfact plan add-story")
+        print_info("  - specfact plan sync --shared")
+        print_info("  - specfact sync spec-kit")
 
 
 @app.command("sync")
@@ -1022,46 +1095,52 @@ def sync(
     from specfact_cli.commands.sync import sync_spec_kit
     from specfact_cli.utils.structure import SpecFactStructure
 
-    if not shared:
-        print_error("This command requires --shared flag")
-        print_info("Use 'specfact plan sync --shared' to enable shared plans sync")
-        print_info("Or use 'specfact sync spec-kit --bidirectional' for direct sync")
-        raise typer.Exit(1)
+    telemetry_metadata = {
+        "shared": shared,
+        "watch": watch,
+        "overwrite": overwrite,
+        "interval": interval,
+    }
 
-    # Use default repo if not specified
-    if repo is None:
-        repo = Path(".").resolve()
-        print_info(f"Using current directory: {repo}")
+    with telemetry.track_command("plan.sync", telemetry_metadata) as record:
+        if not shared:
+            print_error("This command requires --shared flag")
+            print_info("Use 'specfact plan sync --shared' to enable shared plans sync")
+            print_info("Or use 'specfact sync spec-kit --bidirectional' for direct sync")
+            raise typer.Exit(1)
 
-    # Use default plan if not specified
-    if plan is None:
-        plan = SpecFactStructure.get_default_plan_path()
-        if not plan.exists():
-            print_warning(f"Default plan not found: {plan}")
-            print_info("Using default plan path (will be created if needed)")
-        else:
-            print_info(f"Using active plan: {plan}")
+        # Use default repo if not specified
+        if repo is None:
+            repo = Path(".").resolve()
+            print_info(f"Using current directory: {repo}")
 
-    print_section("Shared Plans Sync")
-    console.print("[dim]Bidirectional sync between Spec-Kit and SpecFact for team collaboration[/dim]\n")
+        # Use default plan if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_warning(f"Default plan not found: {plan}")
+                print_info("Using default plan path (will be created if needed)")
+            else:
+                print_info(f"Using active plan: {plan}")
 
-    # Call the underlying sync command
-    try:
-        # Call sync_spec_kit with bidirectional=True
-        sync_spec_kit(
-            repo=repo,
-            bidirectional=True,  # Always bidirectional for shared plans
-            plan=plan,
-            overwrite=overwrite,
-            watch=watch,
-            interval=interval,
-        )
-    except typer.Exit:
-        # Re-raise typer.Exit to preserve exit codes
-        raise
-    except Exception as e:
-        print_error(f"Shared plans sync failed: {e}")
-        raise typer.Exit(1) from e
+        print_section("Shared Plans Sync")
+        console.print("[dim]Bidirectional sync between Spec-Kit and SpecFact for team collaboration[/dim]\n")
+
+        # Call the underlying sync command
+        try:
+            # Call sync_spec_kit with bidirectional=True
+            sync_spec_kit(
+                repo=repo,
+                bidirectional=True,  # Always bidirectional for shared plans
+                plan=plan,
+                overwrite=overwrite,
+                watch=watch,
+                interval=interval,
+            )
+            record({"sync_completed": True})
+        except Exception as e:
+            print_error(f"Shared plans sync failed: {e}")
+            raise typer.Exit(1) from e
 
 
 @app.command("promote")
@@ -1104,152 +1183,165 @@ def promote(
 
     from specfact_cli.utils.structure import SpecFactStructure
 
-    # Use default path if not specified
-    if plan is None:
-        plan = SpecFactStructure.get_default_plan_path()
+    telemetry_metadata = {
+        "target_stage": stage,
+        "validate": validate,
+        "force": force,
+    }
+
+    with telemetry.track_command("plan.promote", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
         if not plan.exists():
-            print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
-            raise typer.Exit(1)
-        print_info(f"Using default plan: {plan}")
-
-    if not plan.exists():
-        print_error(f"Plan bundle not found: {plan}")
-        raise typer.Exit(1)
-
-    print_section("SpecFact CLI - Plan Promotion")
-
-    try:
-        # Load existing plan
-        print_info(f"Loading plan: {plan}")
-        validation_result = validate_plan_bundle(plan)
-        assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-        is_valid, error, bundle = validation_result
-
-        if not is_valid or bundle is None:
-            print_error(f"Plan validation failed: {error}")
+            print_error(f"Plan bundle not found: {plan}")
             raise typer.Exit(1)
 
-        # Check current stage
-        current_stage = "draft"
-        if bundle.metadata:
-            current_stage = bundle.metadata.stage
+        print_section("SpecFact CLI - Plan Promotion")
 
-        print_info(f"Current stage: {current_stage}")
-        print_info(f"Target stage: {stage}")
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, bundle = validation_result
 
-        # Validate stage progression
-        stage_order = {"draft": 0, "review": 1, "approved": 2, "released": 3}
-        current_order = stage_order.get(current_stage, 0)
-        target_order = stage_order.get(stage, 0)
-
-        if target_order < current_order:
-            print_error(f"Cannot promote backward: {current_stage} → {stage}")
-            print_error("Only forward promotion is allowed (draft → review → approved → released)")
-            raise typer.Exit(1)
-
-        if target_order == current_order:
-            print_warning(f"Plan is already at stage: {stage}")
-            raise typer.Exit(0)
-
-        # Validate promotion rules
-        print_info("Checking promotion rules...")
-
-        # Draft → Review: All features must have at least one story
-        if current_stage == "draft" and stage == "review":
-            features_without_stories = [f for f in bundle.features if len(f.stories) == 0]
-            if features_without_stories:
-                print_error(f"Cannot promote to review: {len(features_without_stories)} feature(s) without stories")
-                console.print("[dim]Features without stories:[/dim]")
-                for f in features_without_stories[:5]:
-                    console.print(f"  - {f.key}: {f.title}")
-                if len(features_without_stories) > 5:
-                    console.print(f"  ... and {len(features_without_stories) - 5} more")
-                if not force:
-                    raise typer.Exit(1)
-
-        # Review → Approved: All features must pass validation
-        if current_stage == "review" and stage == "approved" and validate:
-            print_info("Validating all features...")
-            incomplete_features: list[Feature] = []
-            for f in bundle.features:
-                if not f.acceptance:
-                    incomplete_features.append(f)
-                for s in f.stories:
-                    if not s.acceptance:
-                        incomplete_features.append(f)
-                        break
-
-            if incomplete_features:
-                print_warning(f"{len(incomplete_features)} feature(s) have incomplete acceptance criteria")
-                if not force:
-                    console.print("[dim]Use --force to promote anyway[/dim]")
-                    raise typer.Exit(1)
-
-        # Approved → Released: All features must be implemented (future check)
-        if current_stage == "approved" and stage == "released":
-            print_warning("Release promotion: Implementation verification not yet implemented")
-            if not force:
-                console.print("[dim]Use --force to promote to released stage[/dim]")
+            if not is_valid or bundle is None:
+                print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
 
-        # Run validation if enabled
-        if validate:
-            print_info("Running validation...")
-            validation_result = validate_plan_bundle(bundle)
-            if isinstance(validation_result, ValidationReport):
-                if not validation_result.passed:
-                    deviation_count = len(validation_result.deviations)
-                    print_warning(f"Validation found {deviation_count} issue(s)")
+            # Check current stage
+            current_stage = "draft"
+            if bundle.metadata:
+                current_stage = bundle.metadata.stage
+
+            print_info(f"Current stage: {current_stage}")
+            print_info(f"Target stage: {stage}")
+
+            # Validate stage progression
+            stage_order = {"draft": 0, "review": 1, "approved": 2, "released": 3}
+            current_order = stage_order.get(current_stage, 0)
+            target_order = stage_order.get(stage, 0)
+
+            if target_order < current_order:
+                print_error(f"Cannot promote backward: {current_stage} → {stage}")
+                print_error("Only forward promotion is allowed (draft → review → approved → released)")
+                raise typer.Exit(1)
+
+            if target_order == current_order:
+                print_warning(f"Plan is already at stage: {stage}")
+                raise typer.Exit(0)
+
+            # Validate promotion rules
+            print_info("Checking promotion rules...")
+
+            # Draft → Review: All features must have at least one story
+            if current_stage == "draft" and stage == "review":
+                features_without_stories = [f for f in bundle.features if len(f.stories) == 0]
+                if features_without_stories:
+                    print_error(f"Cannot promote to review: {len(features_without_stories)} feature(s) without stories")
+                    console.print("[dim]Features without stories:[/dim]")
+                    for f in features_without_stories[:5]:
+                        console.print(f"  - {f.key}: {f.title}")
+                    if len(features_without_stories) > 5:
+                        console.print(f"  ... and {len(features_without_stories) - 5} more")
+                if not force:
+                    raise typer.Exit(1)
+
+            # Review → Approved: All features must pass validation
+            if current_stage == "review" and stage == "approved" and validate:
+                print_info("Validating all features...")
+                incomplete_features: list[Feature] = []
+                for f in bundle.features:
+                    if not f.acceptance:
+                        incomplete_features.append(f)
+                    for s in f.stories:
+                        if not s.acceptance:
+                            incomplete_features.append(f)
+                            break
+
+                if incomplete_features:
+                    print_warning(f"{len(incomplete_features)} feature(s) have incomplete acceptance criteria")
                     if not force:
                         console.print("[dim]Use --force to promote anyway[/dim]")
                         raise typer.Exit(1)
+
+            # Approved → Released: All features must be implemented (future check)
+            if current_stage == "approved" and stage == "released":
+                print_warning("Release promotion: Implementation verification not yet implemented")
+                if not force:
+                    console.print("[dim]Use --force to promote to released stage[/dim]")
+                    raise typer.Exit(1)
+
+            # Run validation if enabled
+            if validate:
+                print_info("Running validation...")
+                validation_result = validate_plan_bundle(bundle)
+                if isinstance(validation_result, ValidationReport):
+                    if not validation_result.passed:
+                        deviation_count = len(validation_result.deviations)
+                        print_warning(f"Validation found {deviation_count} issue(s)")
+                        if not force:
+                            console.print("[dim]Use --force to promote anyway[/dim]")
+                            raise typer.Exit(1)
+                    else:
+                        print_success("Validation passed")
                 else:
                     print_success("Validation passed")
-            else:
-                print_success("Validation passed")
 
-        # Update metadata
-        print_info(f"Promoting plan: {current_stage} → {stage}")
+            # Update metadata
+            print_info(f"Promoting plan: {current_stage} → {stage}")
 
-        # Get user info
-        promoted_by = (
-            os.environ.get("USER") or os.environ.get("USERNAME") or os.environ.get("GIT_AUTHOR_NAME") or "unknown"
-        )
+            # Get user info
+            promoted_by = (
+                os.environ.get("USER") or os.environ.get("USERNAME") or os.environ.get("GIT_AUTHOR_NAME") or "unknown"
+            )
 
-        # Create or update metadata
-        if bundle.metadata is None:
-            bundle.metadata = Metadata(stage=stage, promoted_at=None, promoted_by=None)
+            # Create or update metadata
+            if bundle.metadata is None:
+                bundle.metadata = Metadata(stage=stage, promoted_at=None, promoted_by=None)
 
-        bundle.metadata.stage = stage
-        bundle.metadata.promoted_at = datetime.now(UTC).isoformat()
-        bundle.metadata.promoted_by = promoted_by
+            bundle.metadata.stage = stage
+            bundle.metadata.promoted_at = datetime.now(UTC).isoformat()
+            bundle.metadata.promoted_by = promoted_by
 
-        # Write updated plan
-        print_info(f"Saving plan to: {plan}")
-        generator = PlanGenerator()
-        generator.generate(bundle, plan)
+            # Write updated plan
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(bundle, plan)
 
-        # Display summary
-        print_success(f"Plan promoted: {current_stage} → {stage}")
-        console.print(f"[dim]Promoted at: {bundle.metadata.promoted_at}[/dim]")
-        console.print(f"[dim]Promoted by: {promoted_by}[/dim]")
+            record(
+                {
+                    "current_stage": current_stage,
+                    "target_stage": stage,
+                    "features_count": len(bundle.features) if bundle.features else 0,
+                }
+            )
 
-        # Show next steps
-        console.print("\n[bold]Next Steps:[/bold]")
-        if stage == "review":
-            console.print("  • Review plan bundle for completeness")
-            console.print("  • Add stories to features if missing")
-            console.print("  • Run: specfact plan promote --stage approved")
-        elif stage == "approved":
-            console.print("  • Plan is approved for implementation")
-            console.print("  • Begin feature development")
-            console.print("  • Run: specfact plan promote --stage released (after implementation)")
-        elif stage == "released":
-            console.print("  • Plan is released and should be immutable")
-            console.print("  • Create new plan bundle for future changes")
+            # Display summary
+            print_success(f"Plan promoted: {current_stage} → {stage}")
+            console.print(f"[dim]Promoted at: {bundle.metadata.promoted_at}[/dim]")
+            console.print(f"[dim]Promoted by: {promoted_by}[/dim]")
 
-    except typer.Exit:
-        raise
-    except Exception as e:
-        print_error(f"Failed to promote plan: {e}")
-        raise typer.Exit(1) from e
+            # Show next steps
+            console.print("\n[bold]Next Steps:[/bold]")
+            if stage == "review":
+                console.print("  • Review plan bundle for completeness")
+                console.print("  • Add stories to features if missing")
+                console.print("  • Run: specfact plan promote --stage approved")
+            elif stage == "approved":
+                console.print("  • Plan is approved for implementation")
+                console.print("  • Begin feature development")
+                console.print("  • Run: specfact plan promote --stage released (after implementation)")
+            elif stage == "released":
+                console.print("  • Plan is released and should be immutable")
+                console.print("  • Create new plan bundle for future changes")
+
+        except Exception as e:
+            print_error(f"Failed to promote plan: {e}")
+            raise typer.Exit(1) from e

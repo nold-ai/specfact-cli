@@ -1,0 +1,35 @@
+# SpecFact CLI Telemetry Configuration
+# 
+# This is an example configuration file for SpecFact CLI telemetry.
+# 
+# To use this template:
+#   1. Copy this file to ~/.specfact/telemetry.yaml
+#   2. Customize the settings below
+#   3. Replace YOUR_BASE64_ENCODED_CREDENTIALS_HERE with your actual credentials
+#
+# For more information, see: docs/reference/telemetry.md
+
+# Enable telemetry (required)
+enabled: true
+
+# OTLP endpoint (HTTPS recommended for corporate environments)
+# Example for Grafana Cloud EU:
+# Get the exact endpoint from: Grafana Cloud Dashboard > Connections > OpenTelemetry > Send traces
+endpoint: "https://otlp-gateway-prod-eu-west-2.grafana.net/otlp/v1/traces"
+
+# Authentication headers
+# For Grafana Cloud, get credentials from: Dashboard > Connections > OpenTelemetry > Send traces
+# Format: "Basic <base64(instance-id:api-key)>"
+# The token from Grafana Cloud setup wizard can be used directly
+headers:
+  Authorization: "Basic YOUR_BASE64_ENCODED_CREDENTIALS_HERE"
+
+# Optional: Advanced configuration
+service_name: "specfact-cli"        # Custom service name (default: "specfact-cli")
+service_namespace: "cli"             # Service namespace (default: "cli") - used by Grafana Cloud
+deployment_environment: "production" # Deployment environment (default: "production") - used by Grafana Cloud
+batch_size: 512                      # Batch size (default: 512)
+batch_timeout: 5                     # Batch timeout in seconds (default: 5)
+export_timeout: 10                   # Export timeout in seconds (default: 10)
+debug: false                         # Enable console output for debugging (default: false)
+local_path: "~/.specfact/telemetry.log"  # Local log file path (default: ~/.specfact/telemetry.log)
