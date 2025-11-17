@@ -46,6 +46,7 @@ except ImportError:  # pragma: no cover - optional dependency
 LOGGER = logging.getLogger(__name__)
 
 OPT_IN_FILE = Path.home() / ".specfact" / "telemetry.opt-in"
+TELEMETRY_CONFIG_FILE = Path.home() / ".specfact" / "telemetry.yaml"
 DEFAULT_LOCAL_LOG = Path.home() / ".specfact" / "telemetry.log"
 
 ALLOWED_FIELDS = {
@@ -87,6 +88,26 @@ def _read_opt_in_file() -> bool:
     return _coerce_bool(content)
 
 
+def _read_config_file() -> dict[str, Any]:
+    """Read telemetry configuration from ~/.specfact/telemetry.yaml if it exists."""
+    if not TELEMETRY_CONFIG_FILE.exists():
+        return {}
+
+    try:
+        from specfact_cli.utils.yaml_utils import load_yaml
+
+        config = load_yaml(TELEMETRY_CONFIG_FILE)
+        if not isinstance(config, dict):
+            LOGGER.warning("Invalid telemetry config file format: expected dict, got %s", type(config))
+            return {}
+        return config
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        LOGGER.warning("Failed to read telemetry config file: %s", e)
+        return {}
+
+
 def _parse_headers(raw: str | None) -> dict[str, str]:
     """Parse comma-separated header string into a dictionary."""
     if not raw:
@@ -117,7 +138,15 @@ class TelemetrySettings:
     @classmethod
     @beartype
     def from_env(cls) -> TelemetrySettings:
-        """Build telemetry settings from environment variables and opt-in file."""
+        """
+        Build telemetry settings from environment variables, config file, and opt-in file.
+
+        Precedence (highest to lowest):
+        1. Environment variables (override everything)
+        2. Config file (~/.specfact/telemetry.yaml)
+        3. Simple opt-in file (~/.specfact/telemetry.opt-in) - for backward compatibility
+        4. Defaults (disabled)
+        """
         # Disable in test environments (GitHub pattern)
         if os.getenv("TEST_MODE") == "true" or os.getenv("PYTEST_CURRENT_TEST"):
             return cls(
@@ -129,21 +158,51 @@ class TelemetrySettings:
                 opt_in_source="disabled",
             )
 
-        env_flag = os.getenv("SPECFACT_TELEMETRY_OPT_IN")
-        enabled = _coerce_bool(env_flag)
-        opt_in_source = "env" if enabled else "disabled"
+        # Step 1: Read config file (if exists)
+        config = _read_config_file()
 
+        # Step 2: Check environment variables (override config file)
+        env_flag = os.getenv("SPECFACT_TELEMETRY_OPT_IN")
+        if env_flag is not None:
+            enabled = _coerce_bool(env_flag)
+            opt_in_source = "env" if enabled else "disabled"
+        else:
+            # Check config file for enabled flag (can be bool or string)
+            config_enabled = config.get("enabled", False)
+            if isinstance(config_enabled, bool):
+                enabled = config_enabled
+            elif isinstance(config_enabled, str):
+                enabled = _coerce_bool(config_enabled)
+            else:
+                enabled = False
+            opt_in_source = "config" if enabled else "disabled"
+
+        # Step 3: Fallback to simple opt-in file (backward compatibility)
         if not enabled:
             file_enabled = _read_opt_in_file()
             if file_enabled:
                 enabled = True
                 opt_in_source = "file"
 
-        endpoint = os.getenv("SPECFACT_TELEMETRY_ENDPOINT")
-        headers = _parse_headers(os.getenv("SPECFACT_TELEMETRY_HEADERS"))
-        local_path_str = os.getenv("SPECFACT_TELEMETRY_LOCAL_PATH", str(DEFAULT_LOCAL_LOG))
+        # Step 4: Get endpoint (env var > config file > None)
+        endpoint = os.getenv("SPECFACT_TELEMETRY_ENDPOINT") or config.get("endpoint")
+
+        # Step 5: Get headers (env var > config file > empty dict)
+        env_headers = _parse_headers(os.getenv("SPECFACT_TELEMETRY_HEADERS"))
+        config_headers = config.get("headers", {})
+        headers = (
+            {**config_headers, **env_headers} if isinstance(config_headers, dict) else env_headers
+        )  # Env vars override config file
+
+        # Step 6: Get local path (env var > config file > default)
+        local_path_str = (
+            os.getenv("SPECFACT_TELEMETRY_LOCAL_PATH") or config.get("local_path") or str(DEFAULT_LOCAL_LOG)
+        )
         local_path = Path(local_path_str).expanduser()
-        debug = _coerce_bool(os.getenv("SPECFACT_TELEMETRY_DEBUG"))
+
+        # Step 7: Get debug flag (env var > config file > False)
+        env_debug = os.getenv("SPECFACT_TELEMETRY_DEBUG")
+        debug = _coerce_bool(env_debug) if env_debug is not None else config.get("debug", False)
 
         return cls(
             enabled=enabled,
@@ -208,27 +267,46 @@ class TelemetryManager:
             )
             return
 
-        # Allow user to customize service name
-        service_name = os.getenv("SPECFACT_TELEMETRY_SERVICE_NAME", "specfact-cli")
+        # Read config file for service name and batch settings (env vars override config)
+        config = _read_config_file()
+
+        # Allow user to customize service name (env var > config file > default)
+        service_name = os.getenv("SPECFACT_TELEMETRY_SERVICE_NAME") or config.get("service_name") or "specfact-cli"
+        # Allow user to customize service namespace (env var > config file > default)
+        service_namespace = (
+            os.getenv("SPECFACT_TELEMETRY_SERVICE_NAMESPACE") or config.get("service_namespace") or "cli"
+        )
+        # Allow user to customize deployment environment (env var > config file > default)
+        deployment_environment = (
+            os.getenv("SPECFACT_TELEMETRY_DEPLOYMENT_ENVIRONMENT")
+            or config.get("deployment_environment")
+            or "production"
+        )
         resource = Resource.create(
             {
                 "service.name": service_name,
+                "service.namespace": service_namespace,
                 "service.version": __version__,
+                "deployment.environment": deployment_environment,
                 "telemetry.opt_in_source": self._settings.opt_in_source,
             }
         )
         provider = TracerProvider(resource=resource)
 
         # Configure exporter (timeout is handled by BatchSpanProcessor)
-        export_timeout = int(os.getenv("SPECFACT_TELEMETRY_EXPORT_TIMEOUT", "10"))
+        # Export timeout (env var > config file > default)
+        export_timeout_str = os.getenv("SPECFACT_TELEMETRY_EXPORT_TIMEOUT") or str(config.get("export_timeout", "10"))
+        export_timeout = int(export_timeout_str)
         exporter = OTLPSpanExporter(
             endpoint=self._settings.endpoint,
             headers=self._settings.headers or None,
         )
 
-        # Allow user to configure batch settings
-        batch_size = int(os.getenv("SPECFACT_TELEMETRY_BATCH_SIZE", "512"))
-        batch_timeout_ms = int(os.getenv("SPECFACT_TELEMETRY_BATCH_TIMEOUT", "5")) * 1000  # Convert to milliseconds
+        # Allow user to configure batch settings (env var > config file > default)
+        batch_size_str = os.getenv("SPECFACT_TELEMETRY_BATCH_SIZE") or str(config.get("batch_size", "512"))
+        batch_timeout_str = os.getenv("SPECFACT_TELEMETRY_BATCH_TIMEOUT") or str(config.get("batch_timeout", "5"))
+        batch_size = int(batch_size_str)
+        batch_timeout_ms = int(batch_timeout_str) * 1000  # Convert to milliseconds
         export_timeout_ms = export_timeout * 1000  # Convert to milliseconds
 
         provider.add_span_processor(

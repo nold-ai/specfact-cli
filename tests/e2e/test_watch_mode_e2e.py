@@ -8,6 +8,7 @@ when files are created/modified on either Spec-Kit or SpecFact side.
 from __future__ import annotations
 
 import os
+import shutil
 import threading
 import time
 from contextlib import suppress
@@ -282,8 +283,8 @@ features:
 
                 # Comprehensive cleanup: Remove all files and directories recursively
                 # This ensures TemporaryDirectory can clean up properly
-                # Retry cleanup up to 3 times with brief delays
-                for attempt in range(3):
+                # Retry cleanup up to 5 times with brief delays
+                for attempt in range(5):
                     try:
                         # Remove all files first
                         for root, dirs, files in os.walk(repo_path, topdown=False):
@@ -295,12 +296,22 @@ features:
                             for dir_name in dirs:
                                 dir_path = Path(root) / dir_name
                                 with suppress(OSError, PermissionError):
-                                    dir_path.rmdir()
+                                    # Try rmdir first, if it fails try removing recursively
+                                    try:
+                                        dir_path.rmdir()
+                                    except OSError:
+                                        # If rmdir fails, try removing recursively
+                                        with suppress(OSError, PermissionError):
+                                            shutil.rmtree(dir_path, ignore_errors=True)
                         # Success - break out of retry loop
                         break
                     except (OSError, PermissionError):
-                        if attempt < 2:  # Don't sleep on last attempt
-                            time.sleep(0.2)  # Brief delay before retry
+                        if attempt < 4:  # Not the last attempt
+                            time.sleep(0.3)
+                        else:
+                            # Last attempt failed - try one more aggressive cleanup
+                            with suppress(OSError, PermissionError):
+                                shutil.rmtree(repo_path, ignore_errors=True)
 
     def test_watch_mode_detects_repository_changes(self) -> None:
         """Test that watch mode detects and syncs repository code changes."""

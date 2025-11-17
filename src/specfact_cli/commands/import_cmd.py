@@ -86,83 +86,91 @@ def from_spec_kit(
     from specfact_cli.importers.speckit_scanner import SpecKitScanner
     from specfact_cli.utils.structure import SpecFactStructure
 
-    console.print(f"[bold cyan]Importing Spec-Kit project from:[/bold cyan] {repo}")
+    telemetry_metadata = {
+        "dry_run": dry_run,
+        "write": write,
+        "force": force,
+    }
 
-    # Scan Spec-Kit structure
-    scanner = SpecKitScanner(repo)
+    with telemetry.track_command("import.from_spec_kit", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Importing Spec-Kit project from:[/bold cyan] {repo}")
 
-    if not scanner.is_speckit_repo():
-        console.print("[bold red]✗[/bold red] Not a Spec-Kit repository")
-        console.print("[dim]Expected: .specify/ directory[/dim]")
-        raise typer.Exit(1)
+        # Scan Spec-Kit structure
+        scanner = SpecKitScanner(repo)
 
-    structure = scanner.scan_structure()
-
-    if dry_run:
-        console.print("[yellow]→ Dry run mode - no files will be written[/yellow]")
-        console.print("\n[bold]Detected Structure:[/bold]")
-        console.print(f"  - Specs Directory: {structure.get('specs_dir', 'Not found')}")
-        console.print(f"  - Memory Directory: {structure.get('specify_memory_dir', 'Not found')}")
-        if structure.get("feature_dirs"):
-            console.print(f"  - Features Found: {len(structure['feature_dirs'])}")
-        if structure.get("memory_files"):
-            console.print(f"  - Memory Files: {len(structure['memory_files'])}")
-        return
-
-    if not write:
-        console.print("[yellow]→ Use --write to actually convert files[/yellow]")
-        console.print("[dim]Use --dry-run to preview changes[/dim]")
-        return
-
-    # Ensure SpecFact structure exists
-    SpecFactStructure.ensure_structure(repo)
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        # Step 1: Discover features from markdown artifacts
-        task = progress.add_task("Discovering Spec-Kit features...", total=None)
-        features = scanner.discover_features()
-        if not features:
-            console.print("[bold red]✗[/bold red] No features found in Spec-Kit repository")
-            console.print("[dim]Expected: specs/*/spec.md files[/dim]")
+        if not scanner.is_speckit_repo():
+            console.print("[bold red]✗[/bold red] Not a Spec-Kit repository")
+            console.print("[dim]Expected: .specify/ directory[/dim]")
             raise typer.Exit(1)
-        progress.update(task, description=f"✓ Discovered {len(features)} features")
 
-        # Step 2: Convert protocol
-        task = progress.add_task("Converting protocol...", total=None)
-        converter = SpecKitConverter(repo)
-        protocol = None
-        plan_bundle = None
-        try:
-            protocol = converter.convert_protocol()
-            progress.update(task, description=f"✓ Protocol converted ({len(protocol.states)} states)")
+        structure = scanner.scan_structure()
 
-            # Step 3: Convert plan
-            task = progress.add_task("Converting plan bundle...", total=None)
-            plan_bundle = converter.convert_plan()
-            progress.update(task, description=f"✓ Plan converted ({len(plan_bundle.features)} features)")
+        if dry_run:
+            console.print("[yellow]→ Dry run mode - no files will be written[/yellow]")
+            console.print("\n[bold]Detected Structure:[/bold]")
+            console.print(f"  - Specs Directory: {structure.get('specs_dir', 'Not found')}")
+            console.print(f"  - Memory Directory: {structure.get('specify_memory_dir', 'Not found')}")
+            if structure.get("feature_dirs"):
+                console.print(f"  - Features Found: {len(structure['feature_dirs'])}")
+            if structure.get("memory_files"):
+                console.print(f"  - Memory Files: {len(structure['memory_files'])}")
+            record({"dry_run": True, "features_found": len(structure.get("feature_dirs", []))})
+            return
 
-            # Step 4: Generate Semgrep rules
-            task = progress.add_task("Generating Semgrep rules...", total=None)
-            _semgrep_path = converter.generate_semgrep_rules()  # Not used yet
-            progress.update(task, description="✓ Semgrep rules generated")
+        if not write:
+            console.print("[yellow]→ Use --write to actually convert files[/yellow]")
+            console.print("[dim]Use --dry-run to preview changes[/dim]")
+            return
 
-            # Step 5: Generate GitHub Action workflow
-            task = progress.add_task("Generating GitHub Action workflow...", total=None)
-            repo_name = repo.name if isinstance(repo, Path) else None
-            _workflow_path = converter.generate_github_action(repo_name=repo_name)  # Not used yet
-            progress.update(task, description="✓ GitHub Action workflow generated")
+        # Ensure SpecFact structure exists
+        SpecFactStructure.ensure_structure(repo)
 
-        except Exception as e:
-            console.print(f"[bold red]✗[/bold red] Conversion failed: {e}")
-            raise typer.Exit(1) from e
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            # Step 1: Discover features from markdown artifacts
+            task = progress.add_task("Discovering Spec-Kit features...", total=None)
+            features = scanner.discover_features()
+            if not features:
+                console.print("[bold red]✗[/bold red] No features found in Spec-Kit repository")
+                console.print("[dim]Expected: specs/*/spec.md files[/dim]")
+                raise typer.Exit(1)
+            progress.update(task, description=f"✓ Discovered {len(features)} features")
 
-    # Generate report
-    if report and protocol and plan_bundle:
-        report_content = f"""# Spec-Kit Import Report
+            # Step 2: Convert protocol
+            task = progress.add_task("Converting protocol...", total=None)
+            converter = SpecKitConverter(repo)
+            protocol = None
+            plan_bundle = None
+            try:
+                protocol = converter.convert_protocol()
+                progress.update(task, description=f"✓ Protocol converted ({len(protocol.states)} states)")
+
+                # Step 3: Convert plan
+                task = progress.add_task("Converting plan bundle...", total=None)
+                plan_bundle = converter.convert_plan()
+                progress.update(task, description=f"✓ Plan converted ({len(plan_bundle.features)} features)")
+
+                # Step 4: Generate Semgrep rules
+                task = progress.add_task("Generating Semgrep rules...", total=None)
+                _semgrep_path = converter.generate_semgrep_rules()  # Not used yet
+                progress.update(task, description="✓ Semgrep rules generated")
+
+                # Step 5: Generate GitHub Action workflow
+                task = progress.add_task("Generating GitHub Action workflow...", total=None)
+                repo_name = repo.name if isinstance(repo, Path) else None
+                _workflow_path = converter.generate_github_action(repo_name=repo_name)  # Not used yet
+                progress.update(task, description="✓ GitHub Action workflow generated")
+
+            except Exception as e:
+                console.print(f"[bold red]✗[/bold red] Conversion failed: {e}")
+                raise typer.Exit(1) from e
+
+        # Generate report
+        if report and protocol and plan_bundle:
+            report_content = f"""# Spec-Kit Import Report
 
 ## Repository: {repo}
 
@@ -184,15 +192,26 @@ def from_spec_kit(
 ## Features
 {chr(10).join(f"- {f.title} ({f.key})" for f in plan_bundle.features)}
 """
-        report.parent.mkdir(parents=True, exist_ok=True)
-        report.write_text(report_content, encoding="utf-8")
-        console.print(f"[dim]Report written to: {report}[/dim]")
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(report_content, encoding="utf-8")
+            console.print(f"[dim]Report written to: {report}[/dim]")
 
-    console.print("[bold green]✓[/bold green] Import complete!")
-    console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")
-    console.print("[dim]Plan: .specfact/plans/main.bundle.yaml[/dim]")
-    console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
-    console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
+        console.print("[bold green]✓[/bold green] Import complete!")
+        console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")
+        console.print("[dim]Plan: .specfact/plans/main.bundle.yaml[/dim]")
+        console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
+        console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
+
+        # Record import results
+        if protocol and plan_bundle:
+            record(
+                {
+                    "states_found": len(protocol.states),
+                    "transitions": len(protocol.transitions),
+                    "features_extracted": len(plan_bundle.features),
+                    "total_stories": sum(len(f.stories) for f in plan_bundle.features),
+                }
+            )
 
 
 @app.command("from-code")

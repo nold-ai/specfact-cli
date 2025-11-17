@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from specfact_cli.telemetry import TelemetryManager, TelemetrySettings
+from specfact_cli.telemetry import (
+    TelemetryManager,
+    TelemetrySettings,
+)
 
 
 def test_track_command_disabled(tmp_path: Path) -> None:
@@ -152,3 +155,91 @@ def test_export_timeout_configuration(tmp_path: Path, monkeypatch: pytest.Monkey
     # Export timeout is used in exporter initialization, so we can't easily test it
     # without mocking OpenTelemetry. But we can verify the env var is read.
     assert os.getenv("SPECFACT_TELEMETRY_EXPORT_TIMEOUT") == "30"
+
+
+def test_config_file_support(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that telemetry settings can be read from config file."""
+    from specfact_cli.utils.yaml_utils import dump_yaml
+
+    # Create config file
+    config_file = tmp_path / "telemetry.yaml"
+    config_data = {
+        "enabled": True,
+        "endpoint": "https://example.com/v1/traces",
+        "headers": {
+            "Authorization": "Basic test123",
+        },
+        "service_name": "my-specfact",
+        "batch_size": "1024",
+        "batch_timeout": "10",
+        "export_timeout": "30",
+        "debug": True,
+    }
+    dump_yaml(config_data, config_file)
+
+    # Mock the config file path and disable test environment detection
+    monkeypatch.setattr("specfact_cli.telemetry.TELEMETRY_CONFIG_FILE", config_file)
+    monkeypatch.delenv("SPECFACT_TELEMETRY_OPT_IN", raising=False)
+    monkeypatch.delenv("SPECFACT_TELEMETRY_ENDPOINT", raising=False)
+    monkeypatch.delenv("TEST_MODE", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+    settings = TelemetrySettings.from_env()
+    assert settings.enabled
+    assert settings.endpoint == "https://example.com/v1/traces"
+    assert settings.headers == {"Authorization": "Basic test123"}
+    assert settings.debug
+    assert settings.opt_in_source == "config"
+
+    # Verify manager can be initialized with config file settings
+    manager = TelemetryManager(settings=settings)
+    assert manager is not None
+
+
+def test_config_file_env_var_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that environment variables override config file settings."""
+    from specfact_cli.utils.yaml_utils import dump_yaml
+
+    # Create config file
+    config_file = tmp_path / "telemetry.yaml"
+    config_data = {
+        "enabled": True,
+        "endpoint": "https://config-file.com/v1/traces",
+        "headers": {
+            "Authorization": "Basic config123",
+        },
+    }
+    dump_yaml(config_data, config_file)
+
+    # Mock the config file path and disable test environment detection
+    monkeypatch.setattr("specfact_cli.telemetry.TELEMETRY_CONFIG_FILE", config_file)
+    monkeypatch.setenv("SPECFACT_TELEMETRY_OPT_IN", "true")
+    monkeypatch.setenv("SPECFACT_TELEMETRY_ENDPOINT", "https://env-var.com/v1/traces")
+    monkeypatch.setenv("SPECFACT_TELEMETRY_HEADERS", "Authorization: Basic env123")
+    monkeypatch.delenv("TEST_MODE", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+    settings = TelemetrySettings.from_env()
+    assert settings.enabled
+    # Environment variables should override config file
+    assert settings.endpoint == "https://env-var.com/v1/traces"
+    assert settings.headers == {"Authorization": "Basic env123"}
+    assert settings.opt_in_source == "env"
+
+
+def test_config_file_backward_compatibility(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that simple opt-in file still works for backward compatibility."""
+    # Create simple opt-in file (old method)
+    opt_in_file = tmp_path / "telemetry.opt-in"
+    opt_in_file.write_text("true")
+
+    # Mock both file paths and disable test environment detection
+    monkeypatch.setattr("specfact_cli.telemetry.OPT_IN_FILE", opt_in_file)
+    monkeypatch.setattr("specfact_cli.telemetry.TELEMETRY_CONFIG_FILE", tmp_path / "nonexistent.yaml")
+    monkeypatch.delenv("SPECFACT_TELEMETRY_OPT_IN", raising=False)
+    monkeypatch.delenv("TEST_MODE", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+    settings = TelemetrySettings.from_env()
+    assert settings.enabled
+    assert settings.opt_in_source == "file"

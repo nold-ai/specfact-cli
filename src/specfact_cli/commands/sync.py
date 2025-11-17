@@ -20,6 +20,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli.models.plan import PlanBundle
 from specfact_cli.sync.speckit_sync import SpecKitSync
+from specfact_cli.telemetry import telemetry
 
 
 app = typer.Typer(help="Synchronize Spec-Kit artifacts and repository changes")
@@ -347,72 +348,83 @@ def sync_spec_kit(
     Example:
         specfact sync spec-kit --repo . --bidirectional
     """
+    telemetry_metadata = {
+        "bidirectional": bidirectional,
+        "watch": watch,
+        "overwrite": overwrite,
+        "interval": interval,
+    }
 
-    console.print(f"[bold cyan]Syncing Spec-Kit artifacts from:[/bold cyan] {repo}")
+    with telemetry.track_command("sync.spec_kit", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Syncing Spec-Kit artifacts from:[/bold cyan] {repo}")
 
-    # Resolve repo path to ensure it's absolute and valid (do this once at the start)
-    resolved_repo = repo.resolve()
-    if not resolved_repo.exists():
-        console.print(f"[red]Error:[/red] Repository path does not exist: {resolved_repo}")
-        raise typer.Exit(1)
-    if not resolved_repo.is_dir():
-        console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
-        raise typer.Exit(1)
+        # Resolve repo path to ensure it's absolute and valid (do this once at the start)
+        resolved_repo = repo.resolve()
+        if not resolved_repo.exists():
+            console.print(f"[red]Error:[/red] Repository path does not exist: {resolved_repo}")
+            raise typer.Exit(1)
+        if not resolved_repo.is_dir():
+            console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
+            raise typer.Exit(1)
 
-    # Watch mode implementation
-    if watch:
-        from specfact_cli.sync.watcher import FileChange, SyncWatcher
+        # Watch mode implementation
+        if watch:
+            from specfact_cli.sync.watcher import FileChange, SyncWatcher
 
-        console.print("[bold cyan]Watch mode enabled[/bold cyan]")
-        console.print(f"[dim]Watching for changes every {interval} seconds[/dim]\n")
+            console.print("[bold cyan]Watch mode enabled[/bold cyan]")
+            console.print(f"[dim]Watching for changes every {interval} seconds[/dim]\n")
 
-        @beartype
-        @require(lambda changes: isinstance(changes, list), "Changes must be a list")
-        @require(
-            lambda changes: all(hasattr(c, "change_type") for c in changes),
-            "All changes must have change_type attribute",
+            @beartype
+            @require(lambda changes: isinstance(changes, list), "Changes must be a list")
+            @require(
+                lambda changes: all(hasattr(c, "change_type") for c in changes),
+                "All changes must have change_type attribute",
+            )
+            @ensure(lambda result: result is None, "Must return None")
+            def sync_callback(changes: list[FileChange]) -> None:
+                """Handle file changes and trigger sync."""
+                spec_kit_changes = [c for c in changes if c.change_type == "spec_kit"]
+                specfact_changes = [c for c in changes if c.change_type == "specfact"]
+
+                if spec_kit_changes or specfact_changes:
+                    console.print(f"[cyan]Detected {len(changes)} change(s), syncing...[/cyan]")
+                    # Perform one-time sync (bidirectional if enabled)
+                    try:
+                        # Re-validate resolved_repo before use (may have been cleaned up)
+                        if not resolved_repo.exists():
+                            console.print(f"[yellow]⚠[/yellow] Repository path no longer exists: {resolved_repo}\n")
+                            return
+                        if not resolved_repo.is_dir():
+                            console.print(
+                                f"[yellow]⚠[/yellow] Repository path is no longer a directory: {resolved_repo}\n"
+                            )
+                            return
+                        # Use resolved_repo from outer scope (already resolved and validated)
+                        _perform_sync_operation(
+                            repo=resolved_repo,
+                            bidirectional=bidirectional,
+                            plan=plan,
+                            overwrite=overwrite,
+                        )
+                        console.print("[green]✓[/green] Sync complete\n")
+                    except Exception as e:
+                        console.print(f"[red]✗[/red] Sync failed: {e}\n")
+
+            # Use resolved_repo for watcher (already resolved and validated)
+            watcher = SyncWatcher(resolved_repo, sync_callback, interval=interval)
+            watcher.watch()
+            record({"watch_mode": True})
+            return
+
+        # Perform sync operation (extracted to avoid recursion in watch mode)
+        # Use resolved_repo (already resolved and validated above)
+        _perform_sync_operation(
+            repo=resolved_repo,
+            bidirectional=bidirectional,
+            plan=plan,
+            overwrite=overwrite,
         )
-        @ensure(lambda result: result is None, "Must return None")
-        def sync_callback(changes: list[FileChange]) -> None:
-            """Handle file changes and trigger sync."""
-            spec_kit_changes = [c for c in changes if c.change_type == "spec_kit"]
-            specfact_changes = [c for c in changes if c.change_type == "specfact"]
-
-            if spec_kit_changes or specfact_changes:
-                console.print(f"[cyan]Detected {len(changes)} change(s), syncing...[/cyan]")
-                # Perform one-time sync (bidirectional if enabled)
-                try:
-                    # Re-validate resolved_repo before use (may have been cleaned up)
-                    if not resolved_repo.exists():
-                        console.print(f"[yellow]⚠[/yellow] Repository path no longer exists: {resolved_repo}\n")
-                        return
-                    if not resolved_repo.is_dir():
-                        console.print(f"[yellow]⚠[/yellow] Repository path is no longer a directory: {resolved_repo}\n")
-                        return
-                    # Use resolved_repo from outer scope (already resolved and validated)
-                    _perform_sync_operation(
-                        repo=resolved_repo,
-                        bidirectional=bidirectional,
-                        plan=plan,
-                        overwrite=overwrite,
-                    )
-                    console.print("[green]✓[/green] Sync complete\n")
-                except Exception as e:
-                    console.print(f"[red]✗[/red] Sync failed: {e}\n")
-
-        # Use resolved_repo for watcher (already resolved and validated)
-        watcher = SyncWatcher(resolved_repo, sync_callback, interval=interval)
-        watcher.watch()
-        return
-
-    # Perform sync operation (extracted to avoid recursion in watch mode)
-    # Use resolved_repo (already resolved and validated above)
-    _perform_sync_operation(
-        repo=resolved_repo,
-        bidirectional=bidirectional,
-        plan=plan,
-        overwrite=overwrite,
-    )
+        record({"sync_completed": True})
 
 
 @app.command("repository")
@@ -460,101 +472,119 @@ def sync_repository(
     """
     from specfact_cli.sync.repository_sync import RepositorySync
 
-    console.print(f"[bold cyan]Syncing repository changes from:[/bold cyan] {repo}")
+    telemetry_metadata = {
+        "watch": watch,
+        "interval": interval,
+        "confidence": confidence,
+    }
 
-    # Resolve repo path to ensure it's absolute and valid (do this once at the start)
-    resolved_repo = repo.resolve()
-    if not resolved_repo.exists():
-        console.print(f"[red]Error:[/red] Repository path does not exist: {resolved_repo}")
-        raise typer.Exit(1)
-    if not resolved_repo.is_dir():
-        console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
-        raise typer.Exit(1)
+    with telemetry.track_command("sync.repository", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Syncing repository changes from:[/bold cyan] {repo}")
 
-    if target is None:
-        target = resolved_repo / ".specfact"
+        # Resolve repo path to ensure it's absolute and valid (do this once at the start)
+        resolved_repo = repo.resolve()
+        if not resolved_repo.exists():
+            console.print(f"[red]Error:[/red] Repository path does not exist: {resolved_repo}")
+            raise typer.Exit(1)
+        if not resolved_repo.is_dir():
+            console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
+            raise typer.Exit(1)
 
-    sync = RepositorySync(resolved_repo, target, confidence_threshold=confidence)
+        if target is None:
+            target = resolved_repo / ".specfact"
 
-    if watch:
-        from specfact_cli.sync.watcher import FileChange, SyncWatcher
+        sync = RepositorySync(resolved_repo, target, confidence_threshold=confidence)
 
-        console.print("[bold cyan]Watch mode enabled[/bold cyan]")
-        console.print(f"[dim]Watching for changes every {interval} seconds[/dim]\n")
+        if watch:
+            from specfact_cli.sync.watcher import FileChange, SyncWatcher
 
-        @beartype
-        @require(lambda changes: isinstance(changes, list), "Changes must be a list")
-        @require(
-            lambda changes: all(hasattr(c, "change_type") for c in changes),
-            "All changes must have change_type attribute",
-        )
-        @ensure(lambda result: result is None, "Must return None")
-        def sync_callback(changes: list[FileChange]) -> None:
-            """Handle file changes and trigger sync."""
-            code_changes = [c for c in changes if c.change_type == "code"]
+            console.print("[bold cyan]Watch mode enabled[/bold cyan]")
+            console.print(f"[dim]Watching for changes every {interval} seconds[/dim]\n")
 
-            if code_changes:
-                console.print(f"[cyan]Detected {len(code_changes)} code change(s), syncing...[/cyan]")
-                # Perform repository sync
-                try:
-                    # Re-validate resolved_repo before use (may have been cleaned up)
-                    if not resolved_repo.exists():
-                        console.print(f"[yellow]⚠[/yellow] Repository path no longer exists: {resolved_repo}\n")
-                        return
-                    if not resolved_repo.is_dir():
-                        console.print(f"[yellow]⚠[/yellow] Repository path is no longer a directory: {resolved_repo}\n")
-                        return
-                    # Use resolved_repo from outer scope (already resolved and validated)
-                    result = sync.sync_repository_changes(resolved_repo)
-                    if result.status == "success":
-                        console.print("[green]✓[/green] Repository sync complete\n")
-                    elif result.status == "deviation_detected":
-                        console.print(f"[yellow]⚠[/yellow] Deviations detected: {len(result.deviations)}\n")
-                    else:
-                        console.print(f"[red]✗[/red] Sync failed: {result.status}\n")
-                except Exception as e:
-                    console.print(f"[red]✗[/red] Sync failed: {e}\n")
+            @beartype
+            @require(lambda changes: isinstance(changes, list), "Changes must be a list")
+            @require(
+                lambda changes: all(hasattr(c, "change_type") for c in changes),
+                "All changes must have change_type attribute",
+            )
+            @ensure(lambda result: result is None, "Must return None")
+            def sync_callback(changes: list[FileChange]) -> None:
+                """Handle file changes and trigger sync."""
+                code_changes = [c for c in changes if c.change_type == "code"]
 
-        # Use resolved_repo for watcher (already resolved and validated)
-        watcher = SyncWatcher(resolved_repo, sync_callback, interval=interval)
-        watcher.watch()
-        return
+                if code_changes:
+                    console.print(f"[cyan]Detected {len(code_changes)} code change(s), syncing...[/cyan]")
+                    # Perform repository sync
+                    try:
+                        # Re-validate resolved_repo before use (may have been cleaned up)
+                        if not resolved_repo.exists():
+                            console.print(f"[yellow]⚠[/yellow] Repository path no longer exists: {resolved_repo}\n")
+                            return
+                        if not resolved_repo.is_dir():
+                            console.print(
+                                f"[yellow]⚠[/yellow] Repository path is no longer a directory: {resolved_repo}\n"
+                            )
+                            return
+                        # Use resolved_repo from outer scope (already resolved and validated)
+                        result = sync.sync_repository_changes(resolved_repo)
+                        if result.status == "success":
+                            console.print("[green]✓[/green] Repository sync complete\n")
+                        elif result.status == "deviation_detected":
+                            console.print(f"[yellow]⚠[/yellow] Deviations detected: {len(result.deviations)}\n")
+                        else:
+                            console.print(f"[red]✗[/red] Sync failed: {result.status}\n")
+                    except Exception as e:
+                        console.print(f"[red]✗[/red] Sync failed: {e}\n")
 
-    # Use resolved_repo (already resolved and validated above)
-    # Disable Progress in test mode to avoid LiveError conflicts
-    if _is_test_mode():
-        # In test mode, just run the sync without Progress
-        result = sync.sync_repository_changes(resolved_repo)
-    else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            # Step 1: Detect code changes
-            task = progress.add_task("Detecting code changes...", total=None)
+            # Use resolved_repo for watcher (already resolved and validated)
+            watcher = SyncWatcher(resolved_repo, sync_callback, interval=interval)
+            watcher.watch()
+            record({"watch_mode": True})
+            return
+
+        # Use resolved_repo (already resolved and validated above)
+        # Disable Progress in test mode to avoid LiveError conflicts
+        if _is_test_mode():
+            # In test mode, just run the sync without Progress
             result = sync.sync_repository_changes(resolved_repo)
-            progress.update(task, description=f"✓ Detected {len(result.code_changes)} code changes")
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                # Step 1: Detect code changes
+                task = progress.add_task("Detecting code changes...", total=None)
+                result = sync.sync_repository_changes(resolved_repo)
+                progress.update(task, description=f"✓ Detected {len(result.code_changes)} code changes")
 
-            # Step 2: Show plan updates
-            if result.plan_updates:
-                task = progress.add_task("Updating plan artifacts...", total=None)
-                total_features = sum(update.get("features", 0) for update in result.plan_updates)
-                progress.update(task, description=f"✓ Updated plan artifacts ({total_features} features)")
+                # Step 2: Show plan updates
+                if result.plan_updates:
+                    task = progress.add_task("Updating plan artifacts...", total=None)
+                    total_features = sum(update.get("features", 0) for update in result.plan_updates)
+                    progress.update(task, description=f"✓ Updated plan artifacts ({total_features} features)")
 
-            # Step 3: Show deviations
-            if result.deviations:
-                task = progress.add_task("Tracking deviations...", total=None)
-                progress.update(task, description=f"✓ Found {len(result.deviations)} deviations")
+                # Step 3: Show deviations
+                if result.deviations:
+                    task = progress.add_task("Tracking deviations...", total=None)
+                    progress.update(task, description=f"✓ Found {len(result.deviations)} deviations")
 
-    # Report results
-    console.print(f"[bold cyan]Code Changes:[/bold cyan] {len(result.code_changes)}")
-    if result.plan_updates:
-        console.print(f"[bold cyan]Plan Updates:[/bold cyan] {len(result.plan_updates)}")
-    if result.deviations:
-        console.print(f"[yellow]⚠[/yellow] Found {len(result.deviations)} deviations from manual plan")
-        console.print("[dim]Run 'specfact plan compare' for detailed deviation report[/dim]")
-    else:
-        console.print("[bold green]✓[/bold green] No deviations detected")
+        # Record sync results
+        record(
+            {
+                "code_changes": len(result.code_changes),
+                "plan_updates": len(result.plan_updates) if result.plan_updates else 0,
+                "deviations": len(result.deviations) if result.deviations else 0,
+            }
+        )
 
-    console.print("[bold green]✓[/bold green] Repository sync complete!")
+        # Report results
+        console.print(f"[bold cyan]Code Changes:[/bold cyan] {len(result.code_changes)}")
+        if result.plan_updates:
+            console.print(f"[bold cyan]Plan Updates:[/bold cyan] {len(result.plan_updates)}")
+        if result.deviations:
+            console.print(f"[yellow]⚠[/yellow] Found {len(result.deviations)} deviations from manual plan")
+            console.print("[dim]Run 'specfact plan compare' for detailed deviation report[/dim]")
+        else:
+            console.print("[bold green]✓[/bold green] No deviations detected")
+        console.print("[bold green]✓[/bold green] Repository sync complete!")
