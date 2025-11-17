@@ -9,23 +9,80 @@ description: Synchronize Spec-Kit artifacts with SpecFact plans bidirectionally.
 $ARGUMENTS
 ```
 
+You **MUST** consider the user input before proceeding (if not empty).
+
+## ⚠️ CRITICAL: CLI Usage Enforcement
+
+**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly.
+
+### Rules
+
+1. **ALWAYS execute CLI first**: Run `specfact sync spec-kit` before any sync operation
+2. **NEVER create YAML/JSON directly**: All sync operations must be CLI-generated
+3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
+4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+
+### What Happens If You Don't Follow This
+
+- ❌ Artifacts may not match CLI schema versions
+- ❌ Missing metadata and telemetry
+- ❌ Format inconsistencies
+- ❌ Validation failures
+
+## ⏸️ Wait States: User Input Required
+
+**When user input is required, you MUST wait for the user's response.**
+
+### Wait State Rules
+
+1. **Never assume**: If input is missing, ask and wait
+2. **Never continue**: Do not proceed until user responds
+3. **Be explicit**: Clearly state what information you need
+4. **Provide options**: Give examples or default suggestions
+
+## Goal
+
+Synchronize Spec-Kit artifacts with SpecFact plan bundles bidirectionally. This command enables seamless integration between Spec-Kit workflows and SpecFact contract-driven development, allowing teams to use either tooling while maintaining consistency.
+
+**Note**: This is a **read-write operation** - it modifies both Spec-Kit and SpecFact artifacts to keep them in sync.
+
 ## Action Required
 
 **If arguments provided**: Execute `specfact sync spec-kit` immediately with provided arguments.
 
-**If arguments missing**: Ask user interactively for:
+**If arguments missing**: Ask user interactively for each missing argument and **WAIT for their response**:
 
-1. **Sync direction**: "Unidirectional (Spec-Kit → SpecFact)" or "Bidirectional (both directions)"?
-2. **Repository path**: "Which repository path? (default: current directory)"
+1. **Sync direction**: "Sync direction? (1) Unidirectional: Spec-Kit → SpecFact, (2) Bidirectional: both directions"
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
+
+2. **Repository path**: "Repository path? (default: current directory '.')"
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
+
 3. **Confirmation**: Confirm before executing
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
 
-**Only execute after** getting necessary information from user.
+**Only execute CLI after** getting necessary information from user.
+
+## Operating Constraints
+
+**STRICTLY READ-WRITE**: This command modifies Spec-Kit and SpecFact artifacts. All sync operations must be performed by the specfact CLI.
+
+**Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment. No need to specify `--mode` flag. Mode is detected from:
+
+- Environment variables (`SPECFACT_MODE`)
+- CoPilot API availability
+- IDE integration (VS Code/Cursor with CoPilot)
+- Defaults to CI/CD mode if none detected
 
 ## Command
 
 ```bash
 specfact sync spec-kit [--repo PATH] [--bidirectional] [--plan PATH] [--overwrite] [--watch] [--interval SECONDS]
 ```
+
+**Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
+
+**CRITICAL**: Always execute this CLI command. Never perform sync operations directly.
 
 ## Quick Reference
 
@@ -59,36 +116,78 @@ This ensures exported Spec-Kit artifacts work seamlessly with Spec-Kit slash com
 
 **Step 1**: Check if `--bidirectional` or sync direction is specified in user input.
 
-- **If missing**: Ask user: "Sync direction? (1) Unidirectional: Spec-Kit → SpecFact, (2) Bidirectional: both directions"
+- **If missing**: Ask user and **WAIT**:
+
+  ```text
+  "Sync direction? (1) Unidirectional: Spec-Kit → SpecFact, (2) Bidirectional: both directions
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
 - **If provided**: Use specified direction
 
 **Step 2**: Check if `--repo` is specified.
 
-- **If missing**: Ask user: "Repository path? (default: current directory '.')"
+- **If missing**: Ask user and **WAIT**:
+
+  ```text
+  "Repository path? (default: current directory '.')
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
 - **If provided**: Use specified path
 
 **Step 3**: Check if intent is clear for SpecFact → Spec-Kit sync.
 
-- **If bidirectional is enabled OR user input mentions "update spec-kit" or "sync to spec-kit"**: Ask about overwrite mode
-  - Ask user: "How should SpecFact → Spec-Kit sync work? (1) Merge: Keep existing Spec-Kit artifacts and update/merge, (2) Overwrite: Delete all existing Spec-Kit artifacts and replace with SpecFact plan"
+- **If bidirectional is enabled OR user input mentions "update spec-kit" or "sync to spec-kit"**: Ask about overwrite mode and **WAIT**:
+
+  ```text
+  "How should SpecFact → Spec-Kit sync work? 
+  (1) Merge: Keep existing Spec-Kit artifacts and update/merge, 
+  (2) Overwrite: Delete all existing Spec-Kit artifacts and replace with SpecFact plan
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
   - **If merge (default)**: Use without `--overwrite`
   - **If overwrite**: Add `--overwrite` flag
 - **If intent is not clear**: Skip this step
 
 **Step 4**: Check if `--plan` should be specified.
 
-- **If user input mentions "auto-derived", "from code", "brownfield", or "code2spec"**: Suggest using auto-derived plan
-  - Ask user: "Use auto-derived plan (from codebase) instead of main plan? (y/n)"
-  - **If yes**: Find latest auto-derived plan in `.specfact/reports/brownfield/` and add `--plan PATH`
+- **If user input mentions "auto-derived", "from code", "brownfield", or "code2spec"**: Suggest using auto-derived plan and **WAIT**:
+
+  ```text
+  "Use auto-derived plan (from codebase) instead of main plan? (y/n)
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
+  - **If yes**: Find latest auto-derived plan in `.specfact/plans/` and add `--plan PATH`
   - **If no**: Use default main plan
 
 **Step 5**: Confirm execution.
 
-- Show summary: "Will sync [DIRECTION] in [REPO_PATH] [with overwrite mode if enabled] [using PLAN_PATH if specified]. Continue? (y/n)"
-- **If yes**: Execute command
+- Show summary and **WAIT**:
+
+  ```text
+  "Will sync [DIRECTION] in [REPO_PATH] [with overwrite mode if enabled] [using PLAN_PATH if specified]. 
+  Continue? (y/n)
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
+- **If yes**: Execute CLI command
 - **If no**: Cancel or ask for changes
 
-**Step 6**: Execute command with confirmed arguments.
+**Step 6**: Execute CLI command with confirmed arguments.
+
+```bash
+specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>] [--overwrite]
+```
+
+**Capture CLI output**:
+
+- Sync summary (features updated/added)
+- Spec-Kit artifacts created/updated
+- SpecFact artifacts created/updated
+- Any error messages or warnings
 
 ## Expected Output
 

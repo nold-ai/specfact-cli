@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.5.0"
+version = "0.6.0"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -135,6 +135,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.default.scripts]
+validate-prompts = "python tools/validate_prompts.py"
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"

@@ -125,6 +125,7 @@ class CodeAnalyzer:
             product=product,
             features=self.features,
             metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            clarifications=None,
         )
 
     def _should_skip_file(self, file_path: Path) -> bool:

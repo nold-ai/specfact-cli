@@ -115,6 +115,7 @@ SPECFACT_COMMANDS = [
     "specfact-plan-select",
     "specfact-plan-promote",
     "specfact-plan-compare",
+    "specfact-plan-review",
     "specfact-sync",
 ]
 
