@@ -38,6 +38,9 @@ specfact repro --verbose
 - `plan init` - Initialize new plan
 - `plan add-feature` - Add feature to plan
 - `plan add-story` - Add story to feature
+- `plan update-feature` - Update existing feature metadata
+- `plan review` - Review plan bundle to resolve ambiguities
+- `plan select` - Select active plan from available bundles
 - `plan compare` - Compare plans (detect drift)
 - `plan sync --shared` - Enable shared plans (team collaboration)
 
@@ -267,6 +270,245 @@ specfact plan add-story \
   --title "Parse Spec-Kit artifacts" \
   --acceptance "Schema validation passes"
 ```
+
+#### `plan update-feature`
+
+Update an existing feature's metadata in a plan bundle:
+
+```bash
+specfact plan update-feature [OPTIONS]
+```
+
+**Options:**
+
+- `--key TEXT` - Feature key to update (e.g., FEATURE-001) (required)
+- `--title TEXT` - Feature title
+- `--outcomes TEXT` - Expected outcomes (comma-separated)
+- `--acceptance TEXT` - Acceptance criteria (comma-separated)
+- `--constraints TEXT` - Constraints (comma-separated)
+- `--confidence FLOAT` - Confidence score (0.0-1.0)
+- `--draft BOOL` - Mark as draft (true/false)
+- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+
+**Example:**
+
+```bash
+# Update feature title and outcomes
+specfact plan update-feature \
+  --key FEATURE-001 \
+  --title "Updated Feature Title" \
+  --outcomes "Outcome 1, Outcome 2"
+
+# Update acceptance criteria and confidence
+specfact plan update-feature \
+  --key FEATURE-001 \
+  --acceptance "Criterion 1, Criterion 2" \
+  --confidence 0.9
+
+# Update multiple fields at once
+specfact plan update-feature \
+  --key FEATURE-001 \
+  --title "New Title" \
+  --outcomes "Outcome 1, Outcome 2" \
+  --acceptance "Acceptance 1, Acceptance 2" \
+  --constraints "Constraint 1, Constraint 2" \
+  --confidence 0.85 \
+  --draft false
+```
+
+**What it does:**
+
+- Updates existing feature metadata (title, outcomes, acceptance criteria, constraints, confidence, draft status)
+- Works in CI/CD, Copilot, and interactive modes
+- Validates plan bundle structure after update
+- Preserves existing feature data (only updates specified fields)
+
+**Use cases:**
+
+- **After enrichment**: Update features added via enrichment that need metadata completion
+- **CI/CD automation**: Update features programmatically in non-interactive environments
+- **Copilot mode**: Update features without needing internal code knowledge
+
+#### `plan review`
+
+Review plan bundle to identify and resolve ambiguities:
+
+```bash
+specfact plan review [OPTIONS]
+```
+
+**Options:**
+
+- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or latest in `.specfact/plans/`)
+- `--max-questions INT` - Maximum questions per session (default: 5)
+- `--category TEXT` - Focus on specific taxonomy category (optional)
+- `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
+- `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
+- `--non-interactive` - Non-interactive mode (for CI/CD automation)
+
+**Modes:**
+
+- **Interactive Mode**: Asks questions one at a time, integrates answers immediately
+- **Copilot Mode**: Three-phase workflow:
+  1. Get questions: `specfact plan review --list-questions`
+  2. Ask user: LLM presents questions and collects answers
+  3. Feed answers: `specfact plan review --answers <file>`
+- **CI/CD Mode**: Use `--non-interactive` with `--answers` for automation
+
+**Example:**
+
+```bash
+# Interactive review
+specfact plan review --plan .specfact/plans/main.bundle.yaml
+
+# Get questions for Copilot mode
+specfact plan review --list-questions --max-questions 5
+
+# Feed answers back (Copilot mode)
+specfact plan review --answers answers.json
+
+# CI/CD automation
+specfact plan review --non-interactive --answers answers.json
+```
+
+**What it does:**
+
+1. **Analyzes** plan bundle for ambiguities using structured taxonomy (10 categories)
+2. **Identifies** missing information, unclear requirements, and unknowns
+3. **Asks** targeted questions (max 5 per session) to resolve ambiguities
+4. **Integrates** answers back into plan bundle incrementally
+5. **Validates** plan bundle structure after each update
+6. **Reports** coverage summary and promotion readiness
+
+**Taxonomy Categories:**
+
+- Functional Scope & Behavior
+- Domain & Data Model
+- Interaction & UX Flow
+- Non-Functional Quality Attributes
+- Integration & External Dependencies
+- Edge Cases & Failure Handling
+- Constraints & Tradeoffs
+- Terminology & Consistency
+- Completion Signals
+- Feature/Story Completeness
+
+**Answers Format:**
+
+The `--answers` parameter accepts either a JSON file path or JSON string:
+
+```json
+{
+  "Q001": "Answer for question 1",
+  "Q002": "Answer for question 2"
+}
+```
+
+**Integration Points:**
+
+Answers are integrated into plan bundle sections based on category:
+
+- Functional ambiguity → `features[].acceptance[]` or `idea.narrative`
+- Data model → `features[].constraints[]`
+- Non-functional → `features[].constraints[]` or `idea.constraints[]`
+- Edge cases → `features[].acceptance[]` or `stories[].acceptance[]`
+
+**Output:**
+
+- Questions asked count
+- Sections touched (integration points)
+- Coverage summary (per category status)
+- Next steps (promotion readiness)
+
+#### `plan promote`
+
+Promote a plan bundle through development stages with quality gate validation:
+
+```bash
+specfact plan promote [OPTIONS]
+```
+
+**Options:**
+
+- `--stage TEXT` - Target stage (draft, review, approved, released) (required)
+- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+- `--validate/--no-validate` - Run validation before promotion (default: true)
+- `--force` - Force promotion even if validation fails (default: false)
+
+**Stages:**
+
+- **draft**: Initial state - can be modified freely
+- **review**: Plan is ready for review - should be stable
+- **approved**: Plan approved for implementation
+- **released**: Plan released and should be immutable
+
+**Example:**
+
+```bash
+# Promote to review stage
+specfact plan promote --stage review
+
+# Promote to approved with validation
+specfact plan promote --stage approved --validate
+
+# Force promotion (bypasses validation)
+specfact plan promote --stage released --force
+```
+
+**What it does:**
+
+1. **Validates promotion rules**:
+   - **Draft → Review**: All features must have at least one story
+   - **Review → Approved**: All features and stories must have acceptance criteria
+   - **Approved → Released**: Implementation verification (future check)
+
+2. **Checks coverage status** (when `--validate` is enabled):
+   - **Critical categories** (block promotion if Missing):
+     - Functional Scope & Behavior
+     - Feature/Story Completeness
+     - Constraints & Tradeoffs
+   - **Important categories** (warn if Missing or Partial):
+     - Domain & Data Model
+     - Integration & External Dependencies
+     - Non-Functional Quality Attributes
+
+3. **Updates metadata**: Sets stage, `promoted_at` timestamp, and `promoted_by` user
+
+4. **Saves plan bundle** with updated metadata
+
+**Coverage Validation:**
+
+The promotion command now validates coverage status to ensure plans are complete before promotion:
+
+- **Blocks promotion** if critical categories are Missing (unless `--force`)
+- **Warns and prompts** if important categories are Missing or Partial (unless `--force`)
+- **Suggests** running `specfact plan review` to resolve missing categories
+
+**Validation Errors:**
+
+If promotion fails due to validation:
+
+```bash
+❌ Cannot promote to review: 1 critical category(ies) are Missing
+Missing critical categories:
+  - Constraints & Tradeoffs
+
+Run 'specfact plan review' to resolve these ambiguities
+```
+
+**Use `--force` to bypass** (not recommended):
+
+```bash
+specfact plan promote --stage review --force
+```
+
+**Next Steps:**
+
+After successful promotion, the CLI suggests next actions:
+
+- **draft → review**: Review plan bundle, add stories if missing
+- **review → approved**: Plan is ready for implementation
+- **approved → released**: Plan is released and should be immutable
 
 #### `plan select`
 
@@ -810,22 +1052,74 @@ repro:
 
 ## Shell Completion
 
-### Bash
+SpecFact CLI supports native shell completion for bash, zsh, and fish **without requiring any extensions**. Completion works automatically once installed.
+
+### Quick Install
+
+Use Typer's built-in completion commands:
 
 ```bash
+# Auto-detect shell and install (recommended)
+specfact --install-completion
+
+# Explicitly specify shell
+specfact --install-completion bash   # or zsh, fish
+```
+
+### Show Completion Script
+
+To view the completion script without installing:
+
+```bash
+# Auto-detect shell
+specfact --show-completion
+
+# Explicitly specify shell
+specfact --show-completion bash
+```
+
+### Manual Installation
+
+You can also manually add completion to your shell config:
+
+#### Bash
+
+```bash
+# Add to ~/.bashrc
 eval "$(_SPECFACT_COMPLETE=bash_source specfact)"
 ```
 
-### Zsh
+#### Zsh
 
 ```bash
+# Add to ~/.zshrc
 eval "$(_SPECFACT_COMPLETE=zsh_source specfact)"
 ```
 
-### Fish
+#### Fish
+
+```fish
+# Add to ~/.config/fish/config.fish
+eval (env _SPECFACT_COMPLETE=fish_source specfact)
+```
+
+### PowerShell
+
+PowerShell completion requires the `click-pwsh` extension:
+
+```powershell
+pip install click-pwsh
+python -m click_pwsh install specfact
+```
+
+### Ubuntu/Debian Notes
+
+On Ubuntu and Debian systems, `/bin/sh` points to `dash` instead of `bash`. SpecFact CLI automatically normalizes shell detection to use `bash` for completion, so auto-detection works correctly even on these systems.
+
+If you encounter "Shell sh not supported" errors, explicitly specify the shell:
 
 ```bash
-eval (env _SPECFACT_COMPLETE=fish_source specfact)
+specfact --install-completion bash
 ```
 
 ---

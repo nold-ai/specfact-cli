@@ -155,6 +155,7 @@ class SpecKitConverter:
             product=product,
             features=features,
             metadata=None,
+            clarifications=None,
         )
 
         # Write to file if output path provided

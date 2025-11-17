@@ -8,7 +8,40 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
+
+
+# Patch shellingham before Typer imports it to normalize "sh" to "bash"
+# This fixes auto-detection on Ubuntu where /bin/sh points to dash
+try:
+    import shellingham
+
+    # Store original function
+    _original_detect_shell = shellingham.detect_shell
+
+    def _normalized_detect_shell(pid=None, max_depth=10):  # type: ignore[misc]
+        """Normalized shell detection that maps 'sh' to 'bash'."""
+        shell_name, shell_path = _original_detect_shell(pid, max_depth)  # type: ignore[misc]
+        if shell_name:
+            shell_lower = shell_name.lower()
+            # Map shell names using our normalization
+            shell_map = {
+                "sh": "bash",  # sh is bash-compatible
+                "bash": "bash",
+                "zsh": "zsh",
+                "fish": "fish",
+                "powershell": "powershell",
+                "pwsh": "powershell",
+                "ps1": "powershell",
+            }
+            normalized = shell_map.get(shell_lower, shell_lower)
+            return (normalized, shell_path)
+        return (shell_name, shell_path)
+
+    # Patch shellingham's detect_shell function
+    shellingham.detect_shell = _normalized_detect_shell
+except ImportError:
+    # shellingham not available, will use fallback logic
+    pass
 
 import typer
 from beartype import beartype
@@ -36,14 +69,27 @@ SHELL_MAP = {
 
 
 def normalize_shell_in_argv() -> None:
-    """Normalize shell names in sys.argv before Typer processes them."""
-    if len(sys.argv) >= 3 and sys.argv[1] in ("--show-completion", "--install-completion"):
-        shell_arg = sys.argv[2]
-        shell_normalized = shell_arg.lower().strip()
-        mapped_shell = SHELL_MAP.get(shell_normalized)
-        if mapped_shell and mapped_shell != shell_normalized:
-            # Replace "sh" with "bash" in argv
-            sys.argv[2] = mapped_shell
+    """Normalize shell names in sys.argv before Typer processes them.
+
+    Also handles auto-detection case where Typer detects "sh" instead of "bash".
+    """
+    if len(sys.argv) >= 2 and sys.argv[1] in ("--show-completion", "--install-completion"):
+        # If shell is provided as argument, normalize it
+        if len(sys.argv) >= 3:
+            shell_arg = sys.argv[2]
+            shell_normalized = shell_arg.lower().strip()
+            mapped_shell = SHELL_MAP.get(shell_normalized, shell_normalized)
+            if mapped_shell != shell_normalized:
+                # Replace "sh" with "bash" in argv (or other mapped shells)
+                sys.argv[2] = mapped_shell
+        else:
+            # Auto-detection case: Typer will detect shell, but we need to ensure
+            # it doesn't detect "sh". We'll intercept after Typer detects it.
+            # For now, explicitly pass "bash" if SHELL env var points to sh/bash
+            shell_env = os.environ.get("SHELL", "")
+            if shell_env and ("sh" in shell_env.lower() or "bash" in shell_env.lower()):
+                # Force bash if shell is sh or bash
+                sys.argv.append("bash")
 
 
 # Note: Shell normalization happens in cli_main() before app() is called
@@ -53,7 +99,7 @@ def normalize_shell_in_argv() -> None:
 app = typer.Typer(
     name="specfact",
     help="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
-    add_completion=False,  # Disable built-in completion (we provide custom commands with shell normalization)
+    add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
 )
 
@@ -149,200 +195,6 @@ def hello() -> None:
     )
 
 
-# Default path option (module-level singleton to avoid B008)
-_DEFAULT_PATH_OPTION = typer.Option(
-    None,
-    "--path",
-    help="Path to shell configuration file (auto-detected if not provided)",
-)
-
-
-@app.command()
-@beartype
-def install_completion(
-    shell: str = typer.Argument(..., help="Shell name: bash, sh, zsh, fish, powershell, pwsh, ps1"),
-    path: Path | None = _DEFAULT_PATH_OPTION,
-) -> None:
-    """
-    Install shell completion for SpecFact CLI.
-
-    Supported shells:
-    - bash, sh (bash-compatible)
-    - zsh
-    - fish
-    - powershell, pwsh, ps1 (PowerShell)
-
-    Example:
-        specfact install-completion bash
-        specfact install-completion zsh
-        specfact install-completion powershell
-    """
-    # Normalize shell name
-    shell_normalized = shell.lower().strip()
-    mapped_shell = SHELL_MAP.get(shell_normalized)
-
-    if not mapped_shell:
-        console.print(f"[bold red]✗[/bold red] Unsupported shell: {shell}")
-        console.print(
-            f"\n[dim]Supported shells: {', '.join(sorted(set(SHELL_MAP.values())))}, sh (mapped to bash)[/dim]"
-        )
-        raise typer.Exit(1)
-
-    # Generate completion script using subprocess to call CLI with completion env var
-    try:
-        import subprocess
-
-        if mapped_shell == "powershell":
-            # PowerShell completion requires click-pwsh extension
-            completion_script = "# PowerShell completion requires click-pwsh extension\n"
-            completion_script += "# Install: pip install click-pwsh\n"
-            completion_script += "# Then run: python -m click_pwsh install specfact\n"
-        else:
-            # Use subprocess to get completion script from Typer/Click
-            env = os.environ.copy()
-            env["_SPECFACT_COMPLETE"] = f"{mapped_shell}_source"
-
-            # Call the CLI with completion environment variable to get script
-            result = subprocess.run(
-                [sys.executable, "-m", "specfact_cli.cli"],
-                env=env,
-                capture_output=True,
-                text=True,
-            )
-
-            if result.returncode == 0 and result.stdout:
-                completion_script = result.stdout
-            else:
-                # Fallback: Provide instructions for manual installation
-                completion_script = f"# SpecFact CLI completion for {mapped_shell}\n"
-                completion_script += f"# Add to your {mapped_shell} config file:\n"
-                completion_script += f'eval "$(_SPECFACT_COMPLETE={mapped_shell}_source specfact)"\n'
-
-        # Determine config file path if not provided
-        if path is None:
-            if mapped_shell == "bash":
-                path = Path.home() / ".bashrc"
-            elif mapped_shell == "zsh":
-                path = Path.home() / ".zshrc"
-            elif mapped_shell == "fish":
-                path = Path.home() / ".config" / "fish" / "config.fish"
-                path.parent.mkdir(parents=True, exist_ok=True)
-            elif mapped_shell == "powershell":
-                # PowerShell profile location
-                profile_paths = [
-                    Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1",
-                    Path.home() / ".config" / "powershell" / "Microsoft.PowerShell_profile.ps1",
-                ]
-                for profile_path in profile_paths:
-                    if profile_path.parent.exists() or profile_path.parent.parent.exists():
-                        path = profile_path
-                        path.parent.mkdir(parents=True, exist_ok=True)
-                        break
-                else:
-                    # Default to first option
-                    path = profile_paths[0]
-                    path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Ensure path is not None
-        if path is None:
-            console.print("[bold red]✗[/bold red] Could not determine shell configuration file path")
-            raise typer.Exit(1)
-
-        # Check if already installed
-        if path.exists():
-            with path.open(encoding="utf-8") as f:
-                content = f.read()
-                if "specfact" in content and ("_SPECFACT_COMPLETE" in content or "_SPECFACT" in content):
-                    console.print(f"[yellow]⚠[/yellow] Completion already installed in {path}")
-                    console.print("[dim]Remove existing completion and re-run to update.[/dim]")
-                    raise typer.Exit(0)
-
-        # Append completion script
-        with path.open("a", encoding="utf-8") as f:
-            f.write(f"\n# SpecFact CLI completion for {mapped_shell}\n")
-            f.write(completion_script)
-            if completion_script and not completion_script.endswith("\n"):
-                f.write("\n")
-
-        console.print(f"[bold green]✓[/bold green] Completion installed for {mapped_shell} in {path}")
-        if mapped_shell != "powershell":
-            console.print(f"[dim]Reload your shell or run: source {path}[/dim]")
-        else:
-            console.print("[dim]Reload your PowerShell session to enable completion.[/dim]")
-
-    except Exception as e:
-        console.print(f"[bold red]✗[/bold red] Failed to install completion: {e}")
-        raise typer.Exit(1) from e
-
-
-@app.command()
-@beartype
-def show_completion(
-    shell: str = typer.Argument(..., help="Shell name: bash, sh, zsh, fish, powershell, pwsh, ps1"),
-) -> None:
-    """
-    Show shell completion script for SpecFact CLI.
-
-    Supported shells:
-    - bash, sh (bash-compatible)
-    - zsh
-    - fish
-    - powershell, pwsh, ps1 (PowerShell)
-
-    Example:
-        specfact show-completion bash
-        specfact show-completion zsh
-    """
-    # Normalize shell name
-    shell_normalized = shell.lower().strip()
-    mapped_shell = SHELL_MAP.get(shell_normalized)
-
-    if not mapped_shell:
-        console.print(f"[bold red]✗[/bold red] Unsupported shell: {shell}")
-        console.print(
-            f"\n[dim]Supported shells: {', '.join(sorted(set(SHELL_MAP.values())))}, sh (mapped to bash)[/dim]"
-        )
-        raise typer.Exit(1)
-
-    # Generate completion script using subprocess to call CLI with completion env var
-    try:
-        import subprocess
-
-        if mapped_shell == "powershell":
-            # PowerShell completion requires click-pwsh extension
-            completion_script = "# PowerShell completion requires click-pwsh extension\n"
-            completion_script += "# Install: pip install click-pwsh\n"
-            completion_script += "# Then run: python -m click_pwsh install specfact\n"
-        else:
-            # Use subprocess to get completion script from Typer/Click
-            # Normalize shell name in subprocess call
-            env = os.environ.copy()
-            env["_SPECFACT_COMPLETE"] = f"{mapped_shell}_source"
-
-            # Call the CLI with completion environment variable to get script
-            # Note: We need to bypass our own command and use Typer's built-in
-            result = subprocess.run(
-                [sys.executable, "-m", "specfact_cli.cli"],
-                env=env,
-                capture_output=True,
-                text=True,
-            )
-
-            if result.returncode == 0 and result.stdout and result.stdout.strip():
-                completion_script = result.stdout
-            else:
-                # Fallback: Provide instructions for manual installation
-                completion_script = f"# SpecFact CLI completion for {mapped_shell}\n"
-                completion_script += f"# Add to your {mapped_shell} config file:\n"
-                completion_script += f'eval "$(_SPECFACT_COMPLETE={mapped_shell}_source specfact)"\n'
-
-        print(completion_script)
-
-    except Exception as e:
-        console.print(f"[bold red]✗[/bold red] Failed to generate completion script: {e}")
-        raise typer.Exit(1) from e
-
-
 # Register command groups
 app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
 app.add_typer(plan.app, name="plan", help="Manage development plans")
@@ -354,8 +206,23 @@ app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integrati
 
 def cli_main() -> None:
     """Entry point for the CLI application."""
+    # Normalize shell names in argv for Typer's built-in completion commands
+    normalize_shell_in_argv()
+
+    # Intercept Typer's shell detection for --show-completion and --install-completion
+    # when no shell is provided (auto-detection case)
+    # On Ubuntu, shellingham detects "sh" (dash) instead of "bash", so we force "bash"
+    if len(sys.argv) >= 2 and sys.argv[1] in ("--show-completion", "--install-completion") and len(sys.argv) == 2:
+        # Auto-detection case: Typer will use shellingham to detect shell
+        # On Ubuntu, this often detects "sh" (dash) instead of "bash"
+        # Force "bash" if SHELL env var suggests bash/sh to avoid "sh not supported" error
+        shell_env = os.environ.get("SHELL", "").lower()
+        if "sh" in shell_env or "bash" in shell_env:
+            # Force bash by adding it to argv before Typer's auto-detection runs
+            sys.argv.append("bash")
+
     # Intercept completion environment variable and normalize shell names
-    # (This handles completion scripts generated by our custom commands)
+    # (This handles completion scripts generated by Typer's built-in commands)
     completion_env = os.environ.get("_SPECFACT_COMPLETE")
     if completion_env:
         # Extract shell name from completion env var (format: "shell_source" or "shell")

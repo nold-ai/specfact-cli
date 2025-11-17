@@ -12,9 +12,51 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## ⚠️ CRITICAL: CLI Usage Enforcement
+
+**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly.
+
+### Rules
+
+1. **ALWAYS execute CLI first**: Run `specfact plan promote` before any promotion
+2. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
+3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
+4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+
+### What Happens If You Don't Follow This
+
+- ❌ Artifacts may not match CLI schema versions
+- ❌ Missing metadata and telemetry
+- ❌ Format inconsistencies
+- ❌ Validation failures
+
+## ⏸️ Wait States: User Input Required
+
+**When user input is required, you MUST wait for the user's response.**
+
+### Wait State Rules
+
+1. **Never assume**: If input is missing, ask and wait
+2. **Never continue**: Do not proceed until user responds
+3. **Be explicit**: Clearly state what information you need
+4. **Provide options**: Give examples or default suggestions
+
 ## Goal
 
 Help the user promote their plan bundle through development stages (draft → review → approved → released) to track progress and ensure quality gates are met.
+
+## Operating Constraints
+
+**STRICTLY READ-WRITE**: This command modifies plan bundle metadata. All updates must be performed by the specfact CLI.
+
+**Command**: `specfact plan promote`
+
+**Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment. No need to specify `--mode` flag. Mode is detected from:
+
+- Environment variables (`SPECFACT_MODE`)
+- CoPilot API availability
+- IDE integration (VS Code/Cursor with CoPilot)
+- Defaults to CI/CD mode if none detected
 
 ## What This Command Does
 
@@ -25,11 +67,9 @@ The `specfact plan promote` command helps move a plan bundle through its lifecyc
 - **approved**: Plan approved for implementation
 - **released**: Plan released and should be immutable
 
-## AI-First Interaction (Primary Approach)
+## Execution Steps
 
-**Key Principle**: Interact directly with the user in the chat/AI IDE interface. Execute the promotion logic directly using Python imports, then present results in chat. Only mention CLI commands as an alternative for pro users who prefer terminal interaction.
-
-### 1. Understand What They Want
+### 1. Parse Arguments and Wait for Missing Input
 
 **Parse user input** to extract:
 
@@ -40,106 +80,60 @@ The `specfact plan promote` command helps move a plan bundle through its lifecyc
 
 **Special cases to handle**:
 
-- **"last imported brownfield plan"** or **"last brownfield"**: Find the latest file in `.specfact/plans/auto-derived.*.bundle.yaml`
+- **"last imported brownfield plan"** or **"last brownfield"**: Find the latest file in `.specfact/plans/` matching pattern `*-<timestamp>.bundle.yaml`
 - **"main plan"** or **"default plan"**: Use `.specfact/plans/main.bundle.yaml`
 - **Missing target stage**: Infer next logical stage (draft→review→approved→released)
 
-**If information is unclear**, ask the user directly in chat (don't redirect to terminal).
+**WAIT STATE**: If information is unclear, ask the user directly and **WAIT for their response**:
 
-### 2. Execute Promotion Directly (AI IDE Chat)
-
-**Load and promote the plan bundle directly** using Python:
-
-1. **Find the plan file** (handle special cases like "last imported brownfield plan")
-2. **Load the plan bundle** using `specfact_cli.validators.schema.validate_plan_bundle()` and `specfact_cli.utils.yaml_utils.load_yaml()`
-3. **Check current stage** from `bundle.metadata.stage` (defaults to "draft" if None)
-4. **Validate promotion rules**:
-   - Cannot promote backward (e.g., review → draft)
-   - **draft → review**: All features must have at least one story
-   - **review → approved**: All features and stories must have acceptance criteria
-   - **approved → released**: Requires confirmation (implementation check not yet implemented)
-5. **Run validation** (if enabled) using `validate_plan_bundle()`
-6. **Update metadata**:
-   - Set `bundle.metadata.stage = target_stage`
-   - Set `bundle.metadata.promoted_at = datetime.now(UTC).isoformat()`
-   - Set `bundle.metadata.promoted_by = os.environ.get("USER") or "unknown"`
-7. **Save the plan** using `specfact_cli.generators.plan_generator.PlanGenerator().generate()`
-8. **Present results** in chat with clear formatting
-
-### 3. Present Results in Chat
-
-**Show results directly in chat** (don't redirect to terminal):
-
-**Execute the promotion directly** using Python imports:
-
-```python
-from pathlib import Path
-from datetime import datetime, UTC
-import os
-from specfact_cli.validators.schema import validate_plan_bundle
-from specfact_cli.utils.yaml_utils import load_yaml
-from specfact_cli.generators.plan_generator import PlanGenerator
-from specfact_cli.models.plan import Metadata
-from specfact_cli.utils.structure import SpecFactStructure
-
-# 1. Find plan file (handle special cases)
-if "last imported brownfield plan" in user_input or "last brownfield" in user_input:
-    plan_path = SpecFactStructure.get_latest_brownfield_report()
-    if not plan_path:
-        # Show error in chat
-        return
-elif "main plan" in user_input or "default plan" in user_input:
-    plan_path = SpecFactStructure.get_default_plan_path()
-else:
-    # Parse explicit path from user input
-    plan_path = Path(...)
-
-# 2. Load plan bundle
-is_valid, error, bundle = validate_plan_bundle(plan_path)
-
-# 3. Check current stage
-current_stage = bundle.metadata.stage if bundle.metadata else "draft"
-
-# 4. Validate promotion rules
-# ... (validation logic)
-
-# 5. Update metadata
-bundle.metadata.stage = target_stage
-bundle.metadata.promoted_at = datetime.now(UTC).isoformat()
-bundle.metadata.promoted_by = os.environ.get("USER") or "unknown"
-
-# 6. Save plan
-generator = PlanGenerator()
-generator.generate(bundle, plan_path)
-
-# 7. Present results in chat
+```text
+"Which plan bundle would you like to promote? 
+(Enter path, 'main plan', or 'last brownfield')
+[WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
 ```
 
-### 4. Handle Common Scenarios
+### 2. Execute CLI Command (REQUIRED)
 
-**If validation fails:**
+**ALWAYS execute the specfact CLI** to perform the promotion:
 
-- Show what's missing directly in chat (e.g., "2 features without stories")
-- List the specific features/stories that need attention
-- Suggest fixes or ask if they want to force promote anyway
-- Don't proceed unless user confirms force promotion
+```bash
+specfact plan promote --stage <target_stage> --plan <plan_path> [--validate] [--force]
+```
 
-**If already at target stage:**
+**Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
-- Inform the user in chat and show current stage
-- Suggest next appropriate stage if relevant
+**The CLI performs**:
 
-**If trying to promote backward:**
+- Plan bundle loading and validation
+- Current stage checking
+- Promotion rule validation (cannot promote backward, quality gates)
+- **Coverage status validation** (checks for missing critical categories)
+- Metadata updates (stage, promoted_at, promoted_by)
+- Plan bundle saving with updated metadata
 
-- Explain why backward promotion isn't allowed (in chat)
-- Show the current stage progression path
-- Ask if they want to promote to a different forward stage
+**Capture CLI output**:
 
-### 5. Present Results in Chat
+- Promotion result (success/failure)
+- Validation results (if enabled)
+- Updated plan bundle path
+- Any error messages or warnings
 
-**After successful promotion**, present results directly in chat:
+**If CLI execution fails**:
 
-**Format example:**
+- Report the error to the user
+- Do not attempt to update plan bundles manually
+- Suggest fixes based on error message
+
+### 3. Present Results
+
+**Present the CLI promotion results** to the user:
+
+- **Promotion status**: Show if promotion succeeded or failed
+- **Current stage**: Show the new stage after promotion
+- **Validation results**: Show any validation warnings or errors
+- **Next steps**: Suggest next actions based on promotion result
+
+**Example CLI output**:
 
 ```markdown
 ✓ Plan Promotion Successful
@@ -160,48 +154,28 @@ generator.generate(bundle, plan_path)
 - When ready, promote to approved: `/specfact-cli/specfact-plan-promote approved`
 ```
 
-**If there are issues**, present them in chat:
+**If there are issues**, present them from CLI output:
 
 ```markdown
-⚠ Cannot Promote to Review
+❌ Plan Promotion Failed
 
-**Issue**: 2 features without stories
+**Plan**: `.specfact/plans/auto-derived-2025-11-04T23-00-41.bundle.yaml`
+**Current Stage**: draft
+**Target Stage**: review
+
+**Validation Errors** (from CLI):
 - FEATURE-001: User Authentication
 - FEATURE-002: Payment Processing
 
-**Fix**: Add at least one story to each feature
-**Alternative**: If you're aware of these issues, I can force promote anyway
+**Coverage Validation**:
+- ❌ Constraints & Tradeoffs: Missing (blocks promotion)
+- ⚠️ Data Model: Partial (warns but allows with confirmation)
+
+**Fix**: 
+- Add at least one story to each feature
+- Run `specfact plan review` to resolve missing critical categories
+**Alternative**: Use `--force` flag to promote anyway (not recommended)
 ```
-
-### 6. CLI Alternative (For Pro Users)
-
-**Only mention CLI as alternative** if the user explicitly asks or prefers terminal interaction:
-
-```markdown
-💡 **Pro Tip**: If you prefer terminal interaction, you can also use:
-
-```bash
-specfact plan promote --stage review --plan .specfact/plans/auto-derived-2025-11-04T23-00-41.bundle.yaml
-```
-
-```
-
-**Key Principle**: CLI commands are mentioned as an alternative, not the primary interaction method.
-
-## Interaction Guidelines
-
-### Primary: Chat-Based Interaction
-
-- **Interact directly in chat**: Don't redirect to terminal unless explicitly requested
-- **Execute promotion logic directly**: Use Python imports to load, validate, update, and save plans
-- **Present results in chat**: Show validation results, promotion status, and next steps directly
-- **Handle special cases**: Understand "last imported brownfield plan", "main plan", etc.
-
-### Secondary: CLI Alternative
-
-- **Only mention CLI when**: User explicitly asks or prefers terminal interaction
-- **Pro users**: CLI commands are available for automation and scripting
-- **Example**: `specfact plan promote --stage review --plan PATH`
 
 ## Tips for the User
 

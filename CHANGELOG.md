@@ -9,6 +9,135 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.0] - 2025-11-17
+
+### Added (0.6.0)
+
+- **Plan Review Command (`specfact plan review`)**
+  - Interactive ambiguity detection and resolution workflow
+  - 10-category taxonomy for identifying missing information (Functional Scope, Data Model, Constraints, etc.)
+  - Prioritized question asking based on impact and uncertainty
+  - Integration of clarifications back into plan bundles
+  - Non-interactive mode with `--list-questions`, `--answers`, and `--non-interactive` flags
+  - Full Copilot workflow support with three-phase pattern (CLI grounding → LLM enrichment → CLI artifact creation)
+  - Comprehensive E2E test suite covering interactive and non-interactive workflows
+
+- **Dual-Stack Enrichment Pattern**
+  - Three-phase workflow for Copilot mode: CLI Grounding, LLM Enrichment, CLI Artifact Creation
+  - Enrichment report parser (`EnrichmentParser`) for applying LLM-generated improvements
+  - Automatic enriched plan creation with naming convention: `<name>.<timestamp>.enriched.<timestamp>.bundle.yaml`
+  - Enrichment reports stored in `.specfact/reports/enrichment/` with self-explaining names
+  - Story validation for enriched features (all enriched features must include stories)
+  - Full integration with `specfact import from-code` command via `--enrichment` flag
+
+- **Coverage Validation in Plan Promotion**
+  - Coverage status checks for critical and important ambiguity categories
+  - Blocks promotion if critical categories (Functional Scope, Feature Completeness, Constraints) are Missing
+  - Warns/prompts if important categories (Data Model, Integration, Non-Functional) are Missing or Partial
+  - `--force` flag to override coverage validation
+  - Suggestions to run `specfact plan review` when categories are missing
+  - Integration with `specfact plan promote` command
+
+- **Plan Update Command (`specfact plan update-feature`)**
+  - CLI-first interface for updating feature metadata
+  - Supports updating title, outcomes, acceptance criteria, constraints, confidence, and draft status
+  - Prevents direct code manipulation, enforcing CLI usage
+  - Full contract-first validation with type checking
+
+- **Prompt Validation System**
+  - Automated prompt validation tool (`tools/validate_prompts.py`)
+  - Validates prompt structure, CLI alignment, wait states, and dual-stack workflow consistency
+  - Comprehensive validation checklist (`PROMPT_VALIDATION_CHECKLIST.md`)
+  - Prompt review and update summaries for tracking prompt improvements
+
+- **Shell Completion Support**
+  - Typer's built-in `--install-completion` and `--show-completion` commands
+  - Automatic shell detection with "sh" → "bash" normalization for Ubuntu/Debian systems
+  - Support for bash, zsh, and fish (PowerShell requires click-pwsh extension)
+  - Removed custom completion commands in favor of Typer's native functionality
+
+### Changed (0.6.0)
+
+- **CLI-First Enforcement**
+  - All prompt templates updated to explicitly require CLI usage
+  - Strict prohibition of direct Python code manipulation
+  - Wait states added to all interactive workflows
+  - Dual-stack enrichment pattern documented and enforced in all relevant prompts
+
+- **Plan Select Command Improvements**
+  - Enhanced table display with line numbers for easier plan selection
+  - Optimized column widths to prevent shrinking and better space distribution
+  - Plans sorted by modification date (ascending: oldest first, newest last)
+  - Copilot-friendly Markdown table formatting in prompts
+  - Interactive "details" workflow for viewing plan information before selection
+
+- **Plan Compare Command Enhancements**
+  - Improved interactive flow with step-by-step prompts
+  - Better error handling and user guidance
+  - Enhanced wait states for user input
+  - Clearer separation between interactive flow and execution steps
+
+- **Prompt Templates Overhaul**
+  - All prompts updated with CLI-first enforcement rules
+  - Wait states explicitly documented for all user interactions
+  - Dual-stack enrichment pattern integrated where applicable
+  - Mode auto-detection documented (removed incorrect `--mode cicd` references)
+  - Enhanced examples and usage patterns
+
+- **Enrichment Workflow**
+  - LLM enrichment now **required** in Copilot mode (not optional)
+  - Enrichment reports must include stories for all missing features
+  - Phase 3 (CLI Artifact Creation) always executes when enrichment is generated
+  - Clear naming convention linking enrichment reports to original plans
+
+### Fixed (0.6.0)
+
+- **Enrichment Parser**
+  - Fixed parsing of stories within missing features in enrichment reports
+  - Enhanced format validation for enrichment report structure
+  - Improved error messages for malformed enrichment reports
+
+- **Plan Review Command**
+  - Fixed JSON parsing for `--answers` argument (supports both file paths and JSON strings)
+  - Fixed exit code handling for `--list-questions` command
+  - Resolved forward reference type annotation errors
+  - Fixed coverage status reporting in review command
+
+- **Shell Completion**
+  - Fixed shell detection on Ubuntu/Debian (normalized "sh" to "bash")
+  - Removed custom completion commands that conflicted with Typer's built-in functionality
+  - Improved shell detection reliability
+
+- **Linting and Type Checking**
+  - Fixed all linting errors in `plan.py`, `test_ambiguity_scanner.py`, and `validate_prompts.py`
+  - Resolved type checking warnings for optional parameters
+  - Fixed contract violations in enrichment parser and ambiguity scanner
+
+- **Test Suite**
+  - Fixed test failures in `test_prioritization_by_impact_uncertainty` (floating-point comparison)
+  - Fixed `test_answers_integration_into_plan` (removed overly strict assertions)
+  - Added missing `clarifications=None` parameters to `PlanBundle` constructors across all tests
+  - Enhanced E2E test coverage for non-interactive workflows
+
+### Documentation (0.6.0)
+
+- **New Documentation**
+  - `docs/internal/cli-first/10-dual-stack-enrichment-pattern.md` - Dual-stack enrichment architecture
+  - `docs/internal/cli-first/11-plan-review-architecture.md` - Plan review command architecture
+  - `docs/prompts/PROMPT_VALIDATION_CHECKLIST.md` - Comprehensive prompt validation guide
+  - `docs/prompts/README.md` - Prompt documentation overview
+
+- **Enhanced Documentation**
+  - `docs/reference/commands.md` - Added `plan review`, `plan update-feature`, and enhanced `plan promote` documentation
+  - All prompt templates updated with CLI-first enforcement and wait states
+  - Internal tracking documents updated with completion status
+
+- **Updated Dates**
+  - All documentation files updated with correct dates (2025-11-17)
+  - Removed placeholder dates (2025-01-XX) from examples and documentation
+
+---
+
 ## [0.5.0] - 2025-11-09
 
 ### Added (0.5.0)
@@ -310,10 +439,10 @@ All notable changes to this project will be documented in this file.
   - Consistent with `specfact-sync.md` template pattern
 
 - **Shell Completion Support Enhancements**
-  - Custom `install-completion` and `show-completion` commands
-  - Support for bash, sh, zsh, and PowerShell
-  - Better user guidance for installation paths
-  - Disabled Typer's built-in completion options to avoid conflicts
+  - Typer's built-in `--install-completion` and `--show-completion` commands (with Ubuntu/Debian shell normalization)
+  - Automatic shell detection with "sh" → "bash" normalization for Ubuntu/Debian systems
+  - Support for bash, zsh, and fish (PowerShell requires click-pwsh extension)
+  - Removed custom `install-completion` and `show-completion` commands in favor of Typer's built-in functionality
 
 - **Feature Key Normalization Utilities** (`src/specfact_cli/utils/feature_keys.py`)
   - `normalize_feature_key()` - Normalize keys for consistent comparison

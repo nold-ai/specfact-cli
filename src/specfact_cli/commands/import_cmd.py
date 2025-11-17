@@ -260,6 +260,11 @@ def from_code(
         "--key-format",
         help="Feature key format: 'classname' (FEATURE-CLASSNAME) or 'sequential' (FEATURE-001)",
     ),
+    enrichment: Path | None = typer.Option(
+        None,
+        "--enrichment",
+        help="Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)",
+    ),
 ) -> None:
     """
     Import plan bundle from existing codebase (one-way import).
@@ -267,8 +272,13 @@ def from_code(
     Analyzes code structure using AI-first semantic understanding or AST-based fallback
     to generate a plan bundle that represents the current system.
 
+    Supports dual-stack enrichment workflow: apply LLM-generated enrichment report
+    to refine the auto-detected plan bundle (add missing features, adjust confidence scores,
+    add business context).
+
     Example:
         specfact import from-code --repo . --out brownfield-plan.yaml
+        specfact import from-code --repo . --enrichment enrichment-report.md
     """
     from specfact_cli.agents.analyze_agent import AnalyzeAgent
     from specfact_cli.agents.registry import get_agent
@@ -291,7 +301,17 @@ def from_code(
     SpecFactStructure.ensure_structure(repo)
 
     # Use default paths if not specified (relative to repo)
-    if out is None:
+    # If enrichment is provided, try to derive original plan path and create enriched copy
+    original_plan_path: Path | None = None
+    if enrichment and enrichment.exists():
+        original_plan_path = SpecFactStructure.get_plan_bundle_from_enrichment(enrichment, base_path=repo)
+        if original_plan_path:
+            # Create enriched plan path with clear label
+            out = SpecFactStructure.get_enriched_plan_path(original_plan_path, base_path=repo)
+        else:
+            # Enrichment provided but original plan not found, use default naming
+            out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name)
+    elif out is None:
         out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name)
 
     if report is None:
@@ -312,51 +332,108 @@ def from_code(
 
     with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
         try:
-            # Use AI-first approach in CoPilot mode, fallback to AST in CI/CD mode
-            if routing_result.execution_mode == "agent":
-                console.print("[dim]Mode: CoPilot (AI-first import)[/dim]")
-                # Get agent for this command
-                agent = get_agent("import from-code")
-                if agent and isinstance(agent, AnalyzeAgent):
-                    # Build context for agent
-                    context = {
-                        "workspace": str(repo),
-                        "current_file": None,  # TODO: Get from IDE in Phase 4.2+
-                        "selection": None,  # TODO: Get from IDE in Phase 4.2+
-                    }
-                    # Inject context (for future LLM integration)
-                    _enhanced_context = agent.inject_context(context)
-                    # Use AI-first import
-                    console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
-                    plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=name)
-                    console.print("[green]✓[/green] AI import complete")
+            # If enrichment is provided and original plan exists, load it instead of analyzing
+            if enrichment and original_plan_path and original_plan_path.exists():
+                console.print(f"[dim]Loading original plan for enrichment: {original_plan_path.name}[/dim]")
+                import yaml
+
+                from specfact_cli.models.plan import PlanBundle
+
+                with original_plan_path.open() as f:
+                    plan_data = yaml.safe_load(f)
+                plan_bundle = PlanBundle.model_validate(plan_data)
+                total_stories = sum(len(f.stories) for f in plan_bundle.features)
+                console.print(
+                    f"[green]✓[/green] Loaded original plan: {len(plan_bundle.features)} features, {total_stories} stories"
+                )
+            else:
+                # Use AI-first approach in CoPilot mode, fallback to AST in CI/CD mode
+                if routing_result.execution_mode == "agent":
+                    console.print("[dim]Mode: CoPilot (AI-first import)[/dim]")
+                    # Get agent for this command
+                    agent = get_agent("import from-code")
+                    if agent and isinstance(agent, AnalyzeAgent):
+                        # Build context for agent
+                        context = {
+                            "workspace": str(repo),
+                            "current_file": None,  # TODO: Get from IDE in Phase 4.2+
+                            "selection": None,  # TODO: Get from IDE in Phase 4.2+
+                        }
+                        # Inject context (for future LLM integration)
+                        _enhanced_context = agent.inject_context(context)
+                        # Use AI-first import
+                        console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
+                        plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=name)
+                        console.print("[green]✓[/green] AI import complete")
+                    else:
+                        # Fallback to AST if agent not available
+                        console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
+                        from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+                        console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
+                        analyzer = CodeAnalyzer(
+                            repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                        )
+                        plan_bundle = analyzer.analyze()
                 else:
-                    # Fallback to AST if agent not available
-                    console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
+                    # CI/CD mode: use AST-based import (no LLM available)
+                    console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
                     from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                    console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
+                    console.print("\n[cyan]🔍 Importing Python files...[/cyan]")
                     analyzer = CodeAnalyzer(
                         repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
                     )
                     plan_bundle = analyzer.analyze()
-            else:
-                # CI/CD mode: use AST-based import (no LLM available)
-                console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
-                from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                console.print("\n[cyan]🔍 Importing Python files...[/cyan]")
-                analyzer = CodeAnalyzer(repo, confidence_threshold=confidence, key_format=key_format, plan_name=name)
-                plan_bundle = analyzer.analyze()
+                console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
+                console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
 
-            console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
-            console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
+                # Show summary
+                total_stories = sum(len(f.stories) for f in plan_bundle.features)
+                console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
 
-            # Show summary
-            total_stories = sum(len(f.stories) for f in plan_bundle.features)
-            console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
+                record_event({"features_detected": len(plan_bundle.features), "stories_detected": total_stories})
 
-            record_event({"features_detected": len(plan_bundle.features), "stories_detected": total_stories})
+            # Apply enrichment if provided
+            if enrichment:
+                if not enrichment.exists():
+                    console.print(f"[bold red]✗ Enrichment report not found: {enrichment}[/bold red]")
+                    raise typer.Exit(1)
+
+                console.print(f"\n[cyan]📝 Applying enrichment from: {enrichment}[/cyan]")
+                from specfact_cli.utils.enrichment_parser import EnrichmentParser, apply_enrichment
+
+                try:
+                    parser = EnrichmentParser()
+                    enrichment_report = parser.parse(enrichment)
+                    plan_bundle = apply_enrichment(plan_bundle, enrichment_report)
+
+                    # Report enrichment results
+                    if enrichment_report.missing_features:
+                        console.print(
+                            f"[green]✓[/green] Added {len(enrichment_report.missing_features)} missing features"
+                        )
+                    if enrichment_report.confidence_adjustments:
+                        console.print(
+                            f"[green]✓[/green] Adjusted confidence for {len(enrichment_report.confidence_adjustments)} features"
+                        )
+                    if enrichment_report.business_context.get("priorities") or enrichment_report.business_context.get(
+                        "constraints"
+                    ):
+                        console.print("[green]✓[/green] Applied business context")
+
+                    # Update enrichment metrics
+                    record_event(
+                        {
+                            "enrichment_applied": True,
+                            "features_added": len(enrichment_report.missing_features),
+                            "confidence_adjusted": len(enrichment_report.confidence_adjustments),
+                        }
+                    )
+                except Exception as e:
+                    console.print(f"[bold red]✗ Failed to apply enrichment: {e}[/bold red]")
+                    raise typer.Exit(1) from e
 
             # Generate plan file
             out.parent.mkdir(parents=True, exist_ok=True)
@@ -364,7 +441,11 @@ def from_code(
             generator.generate(plan_bundle, out)
 
             console.print("[bold green]✓ Import complete![/bold green]")
-            console.print(f"[dim]Plan bundle written to: {out}[/dim]")
+            if enrichment and original_plan_path and original_plan_path.exists():
+                console.print(f"[dim]Original plan: {original_plan_path.name}[/dim]")
+                console.print(f"[dim]Enriched plan: {out.name}[/dim]")
+            else:
+                console.print(f"[dim]Plan bundle written to: {out}[/dim]")
 
             # Validate generated plan
             is_valid, error, _ = validate_plan_bundle(out)
@@ -383,7 +464,15 @@ def from_code(
 - **Total Stories**: {total_stories}
 - **Detected Themes**: {", ".join(plan_bundle.product.themes)}
 - **Confidence Threshold**: {confidence}
-
+"""
+            if enrichment and original_plan_path and original_plan_path.exists():
+                report_content += f"""
+## Enrichment Applied
+- **Original Plan**: `{original_plan_path}`
+- **Enriched Plan**: `{out}`
+- **Enrichment Report**: `{enrichment}`
+"""
+            report_content += f"""
 ## Output Files
 - **Plan Bundle**: `{out}`
 - **Import Report**: `{report}`

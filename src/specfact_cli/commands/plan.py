@@ -7,6 +7,7 @@ features, and stories.
 
 from __future__ import annotations
 
+import json
 from contextlib import suppress
 from datetime import UTC
 from pathlib import Path
@@ -14,16 +15,18 @@ from typing import Any
 
 import typer
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
 from specfact_cli.models.deviation import Deviation, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Release, Story
+from specfact_cli.modes import detect_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import (
     display_summary,
@@ -148,6 +151,7 @@ def _create_minimal_plan(out: Path) -> None:
         product=Product(themes=[], releases=[]),
         features=[],
         metadata=None,
+        clarifications=None,
     )
 
     generator = PlanGenerator()
@@ -252,6 +256,7 @@ def _build_plan_interactively() -> PlanBundle:
         product=product,
         features=features,
         metadata=None,
+        clarifications=None,
     )
 
     # Final summary
@@ -579,6 +584,154 @@ def add_story(
 
         except Exception as e:
             print_error(f"Failed to add story: {e}")
+            raise typer.Exit(1) from e
+
+
+@app.command("update-feature")
+@beartype
+@require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+def update_feature(
+    key: str = typer.Option(..., "--key", help="Feature key to update (e.g., FEATURE-001)"),
+    title: str | None = typer.Option(None, "--title", help="Feature title"),
+    outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
+    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
+    constraints: str | None = typer.Option(None, "--constraints", help="Constraints (comma-separated)"),
+    confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
+    draft: bool | None = typer.Option(None, "--draft", help="Mark as draft (true/false)"),
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+    ),
+) -> None:
+    """
+    Update an existing feature's metadata in a plan bundle.
+
+    This command allows updating feature properties (title, outcomes, acceptance criteria,
+    constraints, confidence, draft status) in non-interactive environments (CI/CD, Copilot).
+
+    Example:
+        specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2"
+        specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    telemetry_metadata = {
+        "feature_key": key,
+    }
+
+    with telemetry.track_command("plan.update_feature", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
+        if not plan.exists():
+            print_error(f"Plan bundle not found: {plan}")
+            raise typer.Exit(1)
+
+        print_section("SpecFact CLI - Update Feature")
+
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
+
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Find feature to update
+            feature_to_update = None
+            for f in existing_plan.features:
+                if f.key == key:
+                    feature_to_update = f
+                    break
+
+            if feature_to_update is None:
+                print_error(f"Feature '{key}' not found in plan")
+                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                raise typer.Exit(1)
+
+            # Track what was updated
+            updates_made = []
+
+            # Update title if provided
+            if title is not None:
+                feature_to_update.title = title
+                updates_made.append("title")
+
+            # Update outcomes if provided
+            if outcomes is not None:
+                outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+                feature_to_update.outcomes = outcomes_list
+                updates_made.append("outcomes")
+
+            # Update acceptance criteria if provided
+            if acceptance is not None:
+                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                feature_to_update.acceptance = acceptance_list
+                updates_made.append("acceptance")
+
+            # Update constraints if provided
+            if constraints is not None:
+                constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
+                feature_to_update.constraints = constraints_list
+                updates_made.append("constraints")
+
+            # Update confidence if provided
+            if confidence is not None:
+                if not (0.0 <= confidence <= 1.0):
+                    print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                    raise typer.Exit(1)
+                feature_to_update.confidence = confidence
+                updates_made.append("confidence")
+
+            # Update draft status if provided
+            if draft is not None:
+                feature_to_update.draft = draft
+                updates_made.append("draft")
+
+            if not updates_made:
+                print_warning(
+                    "No updates specified. Use --title, --outcomes, --acceptance, --constraints, --confidence, or --draft"
+                )
+                raise typer.Exit(1)
+
+            # Validate updated plan (always passes for PlanBundle model)
+            print_info("Validating updated plan...")
+
+            # Save updated plan
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(existing_plan, plan)
+
+            record(
+                {
+                    "updates": updates_made,
+                    "total_features": len(existing_plan.features),
+                }
+            )
+
+            print_success(f"Feature '{key}' updated successfully")
+            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+            if title:
+                console.print(f"[dim]Title: {title}[/dim]")
+            if outcomes:
+                outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+                console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
+            if acceptance:
+                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to update feature: {e}")
             raise typer.Exit(1) from e
 
 
@@ -955,14 +1108,18 @@ def select(
             # Interactive selection - display numbered list
             console.print("\n[bold]Available Plans:[/bold]\n")
 
-            table = Table(show_header=True, header_style="bold cyan")
-            table.add_column("#", style="dim", width=4)
-            table.add_column("Status", style="dim", width=10)
-            table.add_column("Plan Name", style="bold", width=50)
-            table.add_column("Features", justify="right", width=10)
-            table.add_column("Stories", justify="right", width=10)
-            table.add_column("Stage", width=12)
-            table.add_column("Modified", style="dim", width=20)
+            # Create table with optimized column widths
+            # "#" column: fixed at 4 chars (never shrinks)
+            # Features/Stories/Stage: minimal widths to avoid wasting space
+            # Plan Name: flexible to use remaining space (most important)
+            table = Table(show_header=True, header_style="bold cyan", expand=False)
+            table.add_column("#", style="bold yellow", justify="right", width=4, min_width=4, no_wrap=True)
+            table.add_column("Status", style="dim", width=8, min_width=6)
+            table.add_column("Plan Name", style="bold", min_width=30)  # Flexible, gets most space
+            table.add_column("Features", justify="right", width=8, min_width=6)  # Reduced from 10
+            table.add_column("Stories", justify="right", width=8, min_width=6)  # Reduced from 10
+            table.add_column("Stage", width=8, min_width=6)  # Reduced from 10 to 8 (draft/review/approved/released fit)
+            table.add_column("Modified", style="dim", width=19, min_width=15)  # Slightly reduced
 
             for i, p in enumerate(plans, 1):
                 status = "[ACTIVE]" if p.get("active") else ""
@@ -973,7 +1130,7 @@ def select(
                 modified = str(p["modified"])
                 modified_display = modified[:19] if len(modified) > 19 else modified
                 table.add_row(
-                    str(i),
+                    f"[bold yellow]{i}[/bold yellow]",
                     status,
                     plan_name,
                     features_count,
@@ -1250,8 +1407,81 @@ def promote(
                         console.print(f"  - {f.key}: {f.title}")
                     if len(features_without_stories) > 5:
                         console.print(f"  ... and {len(features_without_stories) - 5} more")
-                if not force:
-                    raise typer.Exit(1)
+                    if not force:
+                        raise typer.Exit(1)
+
+                # Check coverage status for critical categories
+                if validate:
+                    from specfact_cli.analyzers.ambiguity_scanner import (
+                        AmbiguityScanner,
+                        AmbiguityStatus,
+                        TaxonomyCategory,
+                    )
+
+                    print_info("Checking coverage status...")
+                    scanner = AmbiguityScanner()
+                    report = scanner.scan(bundle)
+
+                    # Critical categories that block promotion if Missing
+                    critical_categories = [
+                        TaxonomyCategory.FUNCTIONAL_SCOPE,
+                        TaxonomyCategory.FEATURE_COMPLETENESS,
+                        TaxonomyCategory.CONSTRAINTS,
+                    ]
+
+                    # Important categories that warn if Missing or Partial
+                    important_categories = [
+                        TaxonomyCategory.DATA_MODEL,
+                        TaxonomyCategory.INTEGRATION,
+                        TaxonomyCategory.NON_FUNCTIONAL,
+                    ]
+
+                    missing_critical: list[TaxonomyCategory] = []
+                    missing_important: list[TaxonomyCategory] = []
+                    partial_important: list[TaxonomyCategory] = []
+
+                    if report.coverage:
+                        for category, status in report.coverage.items():
+                            if category in critical_categories and status == AmbiguityStatus.MISSING:
+                                missing_critical.append(category)
+                            elif category in important_categories:
+                                if status == AmbiguityStatus.MISSING:
+                                    missing_important.append(category)
+                                elif status == AmbiguityStatus.PARTIAL:
+                                    partial_important.append(category)
+
+                    # Block promotion if critical categories are Missing
+                    if missing_critical:
+                        print_error(
+                            f"Cannot promote to review: {len(missing_critical)} critical category(ies) are Missing"
+                        )
+                        console.print("[dim]Missing critical categories:[/dim]")
+                        for cat in missing_critical:
+                            console.print(f"  - {cat.value}")
+                        console.print("\n[dim]Run 'specfact plan review' to resolve these ambiguities[/dim]")
+                        if not force:
+                            raise typer.Exit(1)
+
+                    # Warn if important categories are Missing or Partial
+                    if missing_important or partial_important:
+                        print_warning(
+                            f"Plan has {len(missing_important)} missing and {len(partial_important)} partial important category(ies)"
+                        )
+                        if missing_important:
+                            console.print("[dim]Missing important categories:[/dim]")
+                            for cat in missing_important:
+                                console.print(f"  - {cat.value}")
+                        if partial_important:
+                            console.print("[dim]Partial important categories:[/dim]")
+                            for cat in partial_important:
+                                console.print(f"  - {cat.value}")
+                        if not force:
+                            console.print("\n[dim]Consider running 'specfact plan review' to improve coverage[/dim]")
+                            console.print("[dim]Use --force to promote anyway[/dim]")
+                            if not prompt_confirm(
+                                "Continue with promotion despite missing/partial categories?", default=False
+                            ):
+                                raise typer.Exit(1)
 
             # Review → Approved: All features must pass validation
             if current_stage == "review" and stage == "approved" and validate:
@@ -1269,6 +1499,43 @@ def promote(
                     print_warning(f"{len(incomplete_features)} feature(s) have incomplete acceptance criteria")
                     if not force:
                         console.print("[dim]Use --force to promote anyway[/dim]")
+                        raise typer.Exit(1)
+
+                # Check coverage status for critical categories
+                from specfact_cli.analyzers.ambiguity_scanner import (
+                    AmbiguityScanner,
+                    AmbiguityStatus,
+                    TaxonomyCategory,
+                )
+
+                print_info("Checking coverage status...")
+                scanner_approved = AmbiguityScanner()
+                report_approved = scanner_approved.scan(bundle)
+
+                # Critical categories that block promotion if Missing
+                critical_categories_approved = [
+                    TaxonomyCategory.FUNCTIONAL_SCOPE,
+                    TaxonomyCategory.FEATURE_COMPLETENESS,
+                    TaxonomyCategory.CONSTRAINTS,
+                ]
+
+                missing_critical_approved: list[TaxonomyCategory] = []
+
+                if report_approved.coverage:
+                    for category, status in report_approved.coverage.items():
+                        if category in critical_categories_approved and status == AmbiguityStatus.MISSING:
+                            missing_critical_approved.append(category)
+
+                # Block promotion if critical categories are Missing
+                if missing_critical_approved:
+                    print_error(
+                        f"Cannot promote to approved: {len(missing_critical_approved)} critical category(ies) are Missing"
+                    )
+                    console.print("[dim]Missing critical categories:[/dim]")
+                    for cat in missing_critical_approved:
+                        console.print(f"  - {cat.value}")
+                    console.print("\n[dim]Run 'specfact plan review' to resolve these ambiguities[/dim]")
+                    if not force:
                         raise typer.Exit(1)
 
             # Approved → Released: All features must be implemented (future check)
@@ -1345,3 +1612,556 @@ def promote(
         except Exception as e:
             print_error(f"Failed to promote plan: {e}")
             raise typer.Exit(1) from e
+
+
+@app.command("review")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda max_questions: max_questions > 0, "Max questions must be positive")
+def review(
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: active plan or latest)",
+    ),
+    max_questions: int = typer.Option(
+        5,
+        "--max-questions",
+        min=1,
+        max=10,
+        help="Maximum questions per session (default: 5)",
+    ),
+    category: str | None = typer.Option(
+        None,
+        "--category",
+        help="Focus on specific taxonomy category (optional)",
+    ),
+    list_questions: bool = typer.Option(
+        False,
+        "--list-questions",
+        help="Output questions in JSON format without asking (for Copilot mode)",
+    ),
+    answers: str | None = typer.Option(
+        None,
+        "--answers",
+        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file.",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Non-interactive mode (for CI/CD automation)",
+    ),
+) -> None:
+    """
+    Review plan bundle to identify and resolve ambiguities.
+
+    Analyzes the plan bundle for missing information, unclear requirements,
+    and unknowns. Asks targeted questions to resolve ambiguities and make
+    the plan ready for promotion.
+
+    Example:
+        specfact plan review
+        specfact plan review --plan .specfact/plans/main.bundle.yaml
+        specfact plan review --max-questions 3 --category "Functional Scope"
+        specfact plan review --list-questions  # Output questions as JSON
+        specfact plan review --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
+    """
+    from datetime import date, datetime
+
+    from specfact_cli.analyzers.ambiguity_scanner import (
+        AmbiguityScanner,
+        AmbiguityStatus,
+        TaxonomyCategory,
+    )
+    from specfact_cli.models.plan import Clarification, Clarifications, ClarificationSession
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    # Detect operational mode
+    mode = detect_mode()
+    is_non_interactive = non_interactive or (answers is not None) or list_questions
+
+    telemetry_metadata = {
+        "max_questions": max_questions,
+        "category": category,
+        "list_questions": list_questions,
+        "non_interactive": is_non_interactive,
+        "mode": mode.value,
+    }
+
+    with telemetry.track_command("plan.review", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            # Try to find active plan or latest
+            default_plan = SpecFactStructure.get_default_plan_path()
+            if default_plan.exists():
+                plan = default_plan
+                print_info(f"Using default plan: {plan}")
+            else:
+                # Find latest plan bundle
+                plans_dir = SpecFactStructure.get_plans_dir()
+                if plans_dir and plans_dir.exists():
+                    plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if plan_files:
+                        plan = plan_files[0]
+                        print_info(f"Using latest plan: {plan}")
+                    else:
+                        print_error(f"No plan bundles found in {plans_dir}")
+                        print_error("Create one with: specfact plan init --interactive")
+                        raise typer.Exit(1)
+                else:
+                    print_error(f"Plans directory not found: {plans_dir}")
+                    print_error("Create one with: specfact plan init --interactive")
+                    raise typer.Exit(1)
+
+        if plan is None or not plan.exists():
+            print_error(f"Plan bundle not found: {plan}")
+            raise typer.Exit(1)
+
+        print_section("SpecFact CLI - Plan Review")
+
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, bundle = validation_result
+
+            if not is_valid or bundle is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Check current stage
+            current_stage = "draft"
+            if bundle.metadata:
+                current_stage = bundle.metadata.stage
+
+            print_info(f"Current stage: {current_stage}")
+
+            if current_stage not in ("draft", "review"):
+                print_warning("Review is typically run on 'draft' or 'review' stage plans")
+                if not is_non_interactive and not prompt_confirm("Continue anyway?", default=False):
+                    raise typer.Exit(0)
+                if is_non_interactive:
+                    print_info("Continuing in non-interactive mode")
+
+            # Initialize clarifications if needed
+            if bundle.clarifications is None:
+                bundle.clarifications = Clarifications(sessions=[])
+
+            # Scan for ambiguities
+            print_info("Scanning plan bundle for ambiguities...")
+            scanner = AmbiguityScanner()
+            report = scanner.scan(bundle)
+
+            # Filter by category if specified
+            if category:
+                try:
+                    target_category = TaxonomyCategory(category)
+                    if report.findings:
+                        report.findings = [f for f in report.findings if f.category == target_category]
+                except ValueError:
+                    print_warning(f"Unknown category: {category}, ignoring filter")
+                    category = None
+
+            # Prioritize questions by (Impact x Uncertainty)
+            findings_list = report.findings or []
+            prioritized_findings = sorted(
+                findings_list,
+                key=lambda f: f.impact * f.uncertainty,
+                reverse=True,
+            )
+
+            # Filter out findings that already have clarifications
+            existing_question_ids = set()
+            for session in bundle.clarifications.sessions:
+                for q in session.questions:
+                    existing_question_ids.add(q.id)
+
+            # Generate question IDs and filter
+            question_counter = 1
+            candidate_questions: list[tuple[AmbiguityFinding, str]] = []
+            for finding in prioritized_findings:
+                if finding.question and (question_id := f"Q{question_counter:03d}") not in existing_question_ids:
+                    # Generate question ID and add if not already answered
+                    question_counter += 1
+                    candidate_questions.append((finding, question_id))
+
+            # Limit to max_questions
+            questions_to_ask = candidate_questions[:max_questions]
+
+            if not questions_to_ask:
+                # Check coverage status to determine if plan is truly ready for promotion
+                critical_categories = [
+                    TaxonomyCategory.FUNCTIONAL_SCOPE,
+                    TaxonomyCategory.FEATURE_COMPLETENESS,
+                    TaxonomyCategory.CONSTRAINTS,
+                ]
+
+                missing_critical: list[TaxonomyCategory] = []
+                if report.coverage:
+                    for category, status in report.coverage.items():
+                        if category in critical_categories and status == AmbiguityStatus.MISSING:
+                            missing_critical.append(category)
+
+                if missing_critical:
+                    print_warning(
+                        f"Plan has {len(missing_critical)} critical category(ies) marked as Missing, but no high-priority questions remain"
+                    )
+                    console.print("[dim]Missing critical categories:[/dim]")
+                    for cat in missing_critical:
+                        console.print(f"  - {cat.value}")
+                    console.print("\n[bold]Coverage Summary:[/bold]")
+                    if report.coverage:
+                        for cat, status in report.coverage.items():
+                            status_icon = (
+                                "✅"
+                                if status == AmbiguityStatus.CLEAR
+                                else "⚠️"
+                                if status == AmbiguityStatus.PARTIAL
+                                else "❌"
+                            )
+                            console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    console.print(
+                        "\n[bold]⚠️ Warning:[/bold] Plan may not be ready for promotion due to missing critical categories"
+                    )
+                    console.print("[dim]Consider addressing these categories before promoting[/dim]")
+                else:
+                    print_success("No critical ambiguities detected. Plan is ready for promotion.")
+                    console.print("\n[bold]Coverage Summary:[/bold]")
+                    if report.coverage:
+                        for cat, status in report.coverage.items():
+                            status_icon = (
+                                "✅"
+                                if status == AmbiguityStatus.CLEAR
+                                else "⚠️"
+                                if status == AmbiguityStatus.PARTIAL
+                                else "❌"
+                            )
+                            console.print(f"  {status_icon} {cat.value}: {status.value}")
+                raise typer.Exit(0)
+
+            # Handle --list-questions mode
+            if list_questions:
+                questions_json = []
+                for finding, question_id in questions_to_ask:
+                    questions_json.append(
+                        {
+                            "id": question_id,
+                            "category": finding.category.value,
+                            "question": finding.question,
+                            "impact": finding.impact,
+                            "uncertainty": finding.uncertainty,
+                            "related_sections": finding.related_sections or [],
+                        }
+                    )
+                # Output JSON to stdout (for Copilot mode parsing)
+                import sys
+
+                sys.stdout.write(json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2))
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                raise typer.Exit(0)
+
+            # Parse answers if provided
+            answers_dict: dict[str, str] = {}
+            if answers:
+                try:
+                    # Try to parse as JSON string first
+                    try:
+                        answers_dict = json.loads(answers)
+                    except json.JSONDecodeError:
+                        # If JSON parsing fails, try as file path
+                        answers_path = Path(answers)
+                        if answers_path.exists() and answers_path.is_file():
+                            answers_dict = json.loads(answers_path.read_text())
+                        else:
+                            raise ValueError(f"Invalid JSON string and file not found: {answers}") from None
+
+                    if not isinstance(answers_dict, dict):
+                        print_error("--answers must be a JSON object with question_id -> answer mappings")
+                        raise typer.Exit(1)
+                except (json.JSONDecodeError, ValueError) as e:
+                    print_error(f"Invalid JSON in --answers: {e}")
+                    raise typer.Exit(1) from e
+
+            print_info(f"Found {len(questions_to_ask)} question(s) to resolve")
+
+            # Create or get today's session
+            today = date.today().isoformat()
+            today_session: ClarificationSession | None = None
+            for session in bundle.clarifications.sessions:
+                if session.date == today:
+                    today_session = session
+                    break
+
+            if today_session is None:
+                today_session = ClarificationSession(date=today, questions=[])
+                bundle.clarifications.sessions.append(today_session)
+
+            # Ask questions sequentially
+            questions_asked = 0
+            for finding, question_id in questions_to_ask:
+                questions_asked += 1
+
+                # Get answer (interactive or from --answers)
+                if question_id in answers_dict:
+                    # Non-interactive: use provided answer
+                    answer = answers_dict[question_id]
+                    if not isinstance(answer, str) or not answer.strip():
+                        print_error(f"Answer for {question_id} must be a non-empty string")
+                        raise typer.Exit(1)
+                    console.print(f"\n[bold cyan]Question {questions_asked}/{len(questions_to_ask)}[/bold cyan]")
+                    console.print(f"[dim]Category: {finding.category.value}[/dim]")
+                    console.print(f"[bold]Q: {finding.question}[/bold]")
+                    console.print(f"[dim]Answer (from --answers): {answer}[/dim]")
+                else:
+                    # Interactive: prompt user
+                    if is_non_interactive:
+                        # In non-interactive mode without --answers, skip this question
+                        print_warning(f"Skipping {question_id}: no answer provided in non-interactive mode")
+                        continue
+
+                    console.print(f"\n[bold cyan]Question {questions_asked}/{len(questions_to_ask)}[/bold cyan]")
+                    console.print(f"[dim]Category: {finding.category.value}[/dim]")
+                    console.print(f"[bold]Q: {finding.question}[/bold]")
+
+                    # Get answer from user
+                    answer = prompt_text("Your answer (<=5 words recommended):", required=True)
+
+                # Validate answer length (warn if too long, but allow)
+                if len(answer.split()) > 5:
+                    print_warning("Answer is longer than 5 words. Consider a shorter, more focused answer.")
+
+                # Integrate answer into plan bundle
+                integration_points = _integrate_clarification(bundle, finding, answer)
+
+                # Create clarification record
+                clarification = Clarification(
+                    id=question_id,
+                    category=finding.category.value,
+                    question=finding.question or "",
+                    answer=answer,
+                    integrated_into=integration_points,
+                    timestamp=datetime.now(UTC).isoformat(),
+                )
+
+                today_session.questions.append(clarification)
+
+                # Save plan bundle after each answer (atomic)
+                print_info("Saving plan bundle...")
+                generator = PlanGenerator()
+                if plan is not None:
+                    generator.generate(bundle, plan)
+
+                print_success("Answer recorded and integrated into plan bundle")
+
+                # Ask if user wants to continue (only in interactive mode)
+                if (
+                    not is_non_interactive
+                    and questions_asked < len(questions_to_ask)
+                    and not prompt_confirm("Continue to next question?", default=True)
+                ):
+                    break
+
+            # Final validation
+            print_info("Validating updated plan bundle...")
+            validation_result = validate_plan_bundle(bundle)
+            if isinstance(validation_result, ValidationReport):
+                if not validation_result.passed:
+                    print_warning(f"Validation found {len(validation_result.deviations)} issue(s)")
+                else:
+                    print_success("Validation passed")
+            else:
+                print_success("Validation passed")
+
+            # Display summary
+            print_success(f"Review complete: {questions_asked} question(s) answered")
+            console.print(f"\n[bold]Plan Bundle:[/bold] {plan}")
+            console.print(f"[bold]Questions Asked:[/bold] {questions_asked}")
+
+            if today_session.questions:
+                console.print("\n[bold]Sections Touched:[/bold]")
+                all_sections = set()
+                for q in today_session.questions:
+                    all_sections.update(q.integrated_into)
+                for section in sorted(all_sections):
+                    console.print(f"  • {section}")
+
+            # Coverage summary
+            console.print("\n[bold]Coverage Summary:[/bold]")
+            if report.coverage:
+                for cat, status in report.coverage.items():
+                    status_icon = (
+                        "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
+                    )
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
+
+            # Next steps
+            console.print("\n[bold]Next Steps:[/bold]")
+            if current_stage == "draft":
+                console.print("  • Review plan bundle for completeness")
+                console.print("  • Run: specfact plan promote --stage review")
+            elif current_stage == "review":
+                console.print("  • Plan is ready for approval")
+                console.print("  • Run: specfact plan promote --stage approved")
+
+            record(
+                {
+                    "questions_asked": questions_asked,
+                    "findings_count": len(report.findings) if report.findings else 0,
+                    "priority_score": report.priority_score,
+                }
+            )
+
+        except KeyboardInterrupt:
+            print_warning("Review interrupted by user")
+            raise typer.Exit(0) from None
+        except typer.Exit:
+            # Re-raise typer.Exit (used for --list-questions and other early exits)
+            raise
+        except Exception as e:
+            print_error(f"Failed to review plan: {e}")
+            raise typer.Exit(1) from e
+
+
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda answer: isinstance(answer, str) and bool(answer.strip()), "Answer must be non-empty string")
+@ensure(lambda result: isinstance(result, list), "Must return list of integration points")
+def _integrate_clarification(
+    bundle: PlanBundle,
+    finding: AmbiguityFinding,
+    answer: str,
+) -> list[str]:
+    """
+    Integrate clarification answer into plan bundle.
+
+    Args:
+        bundle: Plan bundle to update
+        finding: Ambiguity finding with related sections
+        answer: User-provided answer
+
+    Returns:
+        List of integration points (section paths)
+    """
+    from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
+    integration_points: list[str] = []
+
+    category = finding.category
+
+    # Functional Scope → idea.narrative, idea.target_users, features[].outcomes
+    if category == TaxonomyCategory.FUNCTIONAL_SCOPE:
+        related_sections = finding.related_sections or []
+        if (
+            "idea.narrative" in related_sections
+            and bundle.idea
+            and (not bundle.idea.narrative or len(bundle.idea.narrative) < 20)
+        ):
+            bundle.idea.narrative = answer
+            integration_points.append("idea.narrative")
+        elif "idea.target_users" in related_sections and bundle.idea:
+            if bundle.idea.target_users is None:
+                bundle.idea.target_users = []
+            if answer not in bundle.idea.target_users:
+                bundle.idea.target_users.append(answer)
+                integration_points.append("idea.target_users")
+        else:
+            # Try to find feature by related section
+            for section in related_sections:
+                if section.startswith("features.") and ".outcomes" in section:
+                    feature_key = section.split(".")[1]
+                    for feature in bundle.features:
+                        if feature.key == feature_key:
+                            if answer not in feature.outcomes:
+                                feature.outcomes.append(answer)
+                                integration_points.append(section)
+                            break
+
+    # Data Model, Integration, Constraints → features[].constraints
+    elif category in (
+        TaxonomyCategory.DATA_MODEL,
+        TaxonomyCategory.INTEGRATION,
+        TaxonomyCategory.CONSTRAINTS,
+    ):
+        related_sections = finding.related_sections or []
+        for section in related_sections:
+            if section.startswith("features.") and ".constraints" in section:
+                feature_key = section.split(".")[1]
+                for feature in bundle.features:
+                    if feature.key == feature_key:
+                        if answer not in feature.constraints:
+                            feature.constraints.append(answer)
+                            integration_points.append(section)
+                        break
+            elif section == "idea.constraints" and bundle.idea:
+                if bundle.idea.constraints is None:
+                    bundle.idea.constraints = []
+                if answer not in bundle.idea.constraints:
+                    bundle.idea.constraints.append(answer)
+                    integration_points.append(section)
+
+    # Edge Cases, Completion Signals → features[].acceptance, stories[].acceptance
+    elif category in (TaxonomyCategory.EDGE_CASES, TaxonomyCategory.COMPLETION_SIGNALS):
+        related_sections = finding.related_sections or []
+        for section in related_sections:
+            if section.startswith("features."):
+                parts = section.split(".")
+                if len(parts) >= 3:
+                    feature_key = parts[1]
+                    if parts[2] == "acceptance":
+                        for feature in bundle.features:
+                            if feature.key == feature_key:
+                                if answer not in feature.acceptance:
+                                    feature.acceptance.append(answer)
+                                    integration_points.append(section)
+                                break
+                    elif parts[2] == "stories" and len(parts) >= 5:
+                        story_key = parts[3]
+                        if parts[4] == "acceptance":
+                            for feature in bundle.features:
+                                if feature.key == feature_key:
+                                    for story in feature.stories:
+                                        if story.key == story_key:
+                                            if answer not in story.acceptance:
+                                                story.acceptance.append(answer)
+                                                integration_points.append(section)
+                                            break
+                                    break
+
+    # Feature Completeness → features[].stories, features[].acceptance
+    elif category == TaxonomyCategory.FEATURE_COMPLETENESS:
+        related_sections = finding.related_sections or []
+        for section in related_sections:
+            if section.startswith("features."):
+                parts = section.split(".")
+                if len(parts) >= 3:
+                    feature_key = parts[1]
+                    if parts[2] == "stories":
+                        # This would require creating a new story - skip for now
+                        # (stories should be added via add-story command)
+                        pass
+                    elif parts[2] == "acceptance":
+                        for feature in bundle.features:
+                            if feature.key == feature_key:
+                                if answer not in feature.acceptance:
+                                    feature.acceptance.append(answer)
+                                    integration_points.append(section)
+                                break
+
+    # Non-Functional → idea.constraints (with quantification)
+    elif (
+        category == TaxonomyCategory.NON_FUNCTIONAL
+        and finding.related_sections
+        and "idea.constraints" in finding.related_sections
+        and bundle.idea
+    ):
+        if bundle.idea.constraints is None:
+            bundle.idea.constraints = []
+        if answer not in bundle.idea.constraints:
+            # Try to quantify vague terms
+            quantified_answer = answer
+            bundle.idea.constraints.append(quantified_answer)
+            integration_points.append("idea.constraints")
+
+    return integration_points
