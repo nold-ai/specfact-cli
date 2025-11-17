@@ -2013,6 +2013,7 @@ class TestBrownfieldAnalysisWorkflow:
         print(f"✅ {user_centric_count}/{total_stories} stories are user-centric")
         assert user_centric_count == total_stories, "All stories should be user-centric"
 
+    @pytest.mark.timeout(60)
     def test_task_extraction_from_methods(self):
         """
         Verify tasks are properly extracted from method names.
