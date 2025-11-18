@@ -46,6 +46,16 @@ specfact import from-code --repo ./legacy-app --name your-project
 
 **Time saved:** 60-120 hours of manual documentation → **8 seconds**
 
+**💡 Tip**: After importing, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration. This auto-generates a constitution from your repository analysis:
+
+```bash
+# If suggested, accept to auto-generate
+# Or run manually:
+specfact constitution bootstrap --repo .
+```
+
+This is especially useful if you plan to sync with Spec-Kit later.
+
 ### Step 1.2: Review Extracted Specs
 
 ```bash

@@ -29,6 +29,13 @@ class TestSyncCommandIntegration:
             specify_dir.mkdir(parents=True)
             (specify_dir / "constitution.md").write_text("# Constitution\n")
 
+            # Create minimal feature spec (required for sync)
+            specs_dir = repo_path / "specs" / "001-test-feature"
+            specs_dir.mkdir(parents=True)
+            (specs_dir / "spec.md").write_text(
+                "# Feature Specification: Test Feature\n\n## User Scenarios & Testing\n\n### User Story 1 - Test Story (Priority: P1)\nTest story\n"
+            )
+
             result = runner.invoke(app, ["sync", "spec-kit", "--repo", str(repo_path)])
 
             assert result.exit_code == 0

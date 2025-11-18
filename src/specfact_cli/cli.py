@@ -52,7 +52,7 @@ from rich.panel import Panel
 from specfact_cli import __version__
 
 # Import command modules
-from specfact_cli.commands import enforce, import_cmd, init, plan, repro, sync
+from specfact_cli.commands import constitution, enforce, import_cmd, init, plan, repro, sync
 from specfact_cli.modes import OperationalMode, detect_mode
 
 
@@ -196,6 +196,7 @@ def hello() -> None:
 
 
 # Register command groups
+app.add_typer(constitution.app, name="constitution", help="Manage project constitutions")
 app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
 app.add_typer(plan.app, name="plan", help="Manage development plans")
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")

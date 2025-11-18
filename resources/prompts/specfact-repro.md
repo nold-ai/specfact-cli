@@ -205,31 +205,37 @@ specfact repro \
 ### Validation Checks
 
 **Lint Checks (ruff)**:
+
 - Code style and formatting
 - Common Python issues
 - Import organization
 
 **Async Patterns (semgrep)**:
+
 - Async/await anti-patterns
 - Potential race conditions
 - Async best practices
 
 **Type Checking (basedpyright)**:
+
 - Type annotation compliance
 - Type safety issues
 - Missing type hints
 
 **Contract Exploration (CrossHair)**:
+
 - Contract violation detection
 - Edge case discovery
 - Property validation
 
 **Property Tests (pytest tests/contracts/)**:
+
 - Contract-based tests
 - Property-based testing
 - Contract compliance
 
 **Smoke Tests (pytest tests/smoke/)**:
+
 - Basic functionality tests
 - Integration smoke tests
 - Quick validation
@@ -260,4 +266,3 @@ specfact repro \
 {ARGS}
 
 --- End Command ---
-

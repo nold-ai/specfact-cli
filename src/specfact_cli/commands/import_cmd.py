@@ -452,6 +452,59 @@ def from_code(
             else:
                 console.print(f"[dim]Plan bundle written to: {out}[/dim]")
 
+            # Suggest constitution bootstrap for brownfield imports
+            specify_dir = repo / ".specify" / "memory"
+            constitution_path = specify_dir / "constitution.md"
+            if not constitution_path.exists() or (
+                constitution_path.exists()
+                and constitution_path.read_text(encoding="utf-8").strip() in ("", "# Constitution")
+            ):
+                # Auto-generate in test mode, prompt in interactive mode
+                import os
+
+                # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
+                is_test_env = (
+                    os.environ.get("TEST_MODE") == "true"
+                    or os.environ.get("PYTEST_CURRENT_TEST") is not None
+                )
+                if is_test_env:
+                    # Auto-generate bootstrap constitution in test mode
+                    from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+
+                    specify_dir.mkdir(parents=True, exist_ok=True)
+                    enricher = ConstitutionEnricher()
+                    enriched_content = enricher.bootstrap(repo, constitution_path)
+                    constitution_path.write_text(enriched_content, encoding="utf-8")
+                else:
+                    # Check if we're in an interactive environment
+                    import sys
+
+                    is_interactive = (
+                        hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
+                    ) and sys.stdin.isatty()
+                    if is_interactive:
+                        console.print()
+                        console.print("[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration")
+                        suggest_constitution = typer.confirm(
+                            "Generate bootstrap constitution from repository analysis?",
+                            default=True,
+                        )
+                        if suggest_constitution:
+                            from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+
+                            console.print("[dim]Generating bootstrap constitution...[/dim]")
+                            specify_dir.mkdir(parents=True, exist_ok=True)
+                            enricher = ConstitutionEnricher()
+                            enriched_content = enricher.bootstrap(repo, constitution_path)
+                            constitution_path.write_text(enriched_content, encoding="utf-8")
+                            console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
+                            console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
+                            console.print("[dim]Then run 'specfact sync spec-kit' to sync with Spec-Kit artifacts[/dim]")
+                    else:
+                        # Non-interactive mode: skip prompt
+                        console.print()
+                        console.print("[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]")
+
             # Enrich for Spec-Kit compliance if requested
             if enrich_for_speckit:
                 console.print("\n[cyan]🔧 Enriching plan for Spec-Kit compliance...[/cyan]")

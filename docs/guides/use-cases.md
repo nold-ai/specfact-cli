@@ -240,7 +240,24 @@ Review:
 - `.semgrep/async-anti-patterns.yaml` - Anti-pattern rules (if async patterns detected)
 - `.github/workflows/specfact-gate.yml` - CI workflow (optional)
 
-#### 4. Enable Bidirectional Sync (Optional)
+#### 4: Generate Constitution (If Missing)
+
+Before syncing, ensure you have a valid constitution:
+
+```bash
+# Auto-generate from repository analysis (recommended for brownfield)
+specfact constitution bootstrap --repo .
+
+# Validate completeness
+specfact constitution validate
+
+# Or enrich existing minimal constitution
+specfact constitution enrich --repo .
+```
+
+**Note**: The `sync spec-kit` command will detect if the constitution is missing or minimal and suggest bootstrap automatically.
+
+#### 5. Enable Bidirectional Sync (Optional)
 
 Keep Spec-Kit and SpecFact synchronized:
 
@@ -260,7 +277,7 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
 - Automatic conflict resolution with priority rules
 
-#### 5. Enable Enforcement
+#### 6. Enable Enforcement
 
 ```bash
 # Start in shadow mode (observe only)
@@ -273,7 +290,7 @@ specfact enforce stage --preset balanced
 specfact enforce stage --preset strict
 ```
 
-#### 6. Validate
+#### 7. Validate
 
 ```bash
 specfact repro --verbose

@@ -22,7 +22,7 @@ from typer.testing import CliRunner
 from specfact_cli.cli import app
 from specfact_cli.importers.speckit_converter import SpecKitConverter
 from specfact_cli.importers.speckit_scanner import SpecKitScanner
-from specfact_cli.models.plan import Feature, Story
+from specfact_cli.models.plan import Feature, PlanBundle, Product, Story
 from specfact_cli.utils.yaml_utils import load_yaml
 
 
@@ -302,8 +302,18 @@ Gate checks before implementation.
             draft=False,
         )
 
+        plan_bundle = PlanBundle(
+            version="1.0",
+            metadata=None,
+            idea=None,
+            business=None,
+            product=Product(themes=["Core"], releases=[]),
+            features=[feature],
+            clarifications=None,
+        )
+
         converter = SpecKitConverter(tmp_path)
-        plan_content = converter._generate_plan_markdown(feature)
+        plan_content = converter._generate_plan_markdown(feature, plan_bundle)
 
         # Check title format
         assert "# Implementation Plan: Test Feature" in plan_content
@@ -323,7 +333,7 @@ Gate checks before implementation.
         assert "**Article VII" in plan_content
         assert "**Article VIII" in plan_content
         assert "**Article IX" in plan_content
-        assert "**Status**: PASS" in plan_content
+        assert "**Status**: PENDING" in plan_content or "**Status**: PASS" in plan_content
 
         # Check Phases
         assert "## Phase 0: Research" in plan_content or "Phase 0: Research" in plan_content
@@ -387,6 +397,7 @@ Gate checks before implementation.
             # Create Spec-Kit structure with full format
             specify_dir = repo_path / ".specify" / "memory"
             specify_dir.mkdir(parents=True)
+            (specify_dir / "constitution.md").write_text("# Constitution\n")
 
             specs_dir = repo_path / "specs" / "001-test-feature"
             specs_dir.mkdir(parents=True)

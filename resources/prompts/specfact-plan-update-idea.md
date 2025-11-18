@@ -209,4 +209,3 @@ The idea section is **OPTIONAL** and provides:
 {ARGS}
 
 --- End Command ---
-

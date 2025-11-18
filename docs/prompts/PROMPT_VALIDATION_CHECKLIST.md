@@ -75,6 +75,13 @@ The validator checks:
     - [ ] Explanation: Stories are required for promotion validation
   - [ ] Phase 3: CLI Artifact Creation documented
   - [ ] Enrichment report location specified (`.specfact/reports/enrichment/`)
+- [ ] **Auto-enrichment workflow** (for `plan review`):
+  - [ ] `--auto-enrich` flag documented with when to use it
+  - [ ] LLM reasoning guidance for detecting when enrichment is needed
+  - [ ] Post-enrichment analysis steps documented
+  - [ ] Two-phase enrichment strategy (automatic + LLM-enhanced refinement)
+  - [ ] Continuous improvement loop documented
+  - [ ] Examples of enrichment output and refinement process
 - [ ] **Execution steps**: Clear, sequential steps
 - [ ] **Error handling**: Instructions for handling errors
 - [ ] **Validation**: CLI validation steps documented
@@ -154,6 +161,24 @@ For each prompt, test the following scenarios:
    - ✅ Uses CLI to save updated plan bundle after each answer
    - ✅ Follows interactive Q&A workflow correctly
 
+#### Scenario 4a: Plan Review with Auto-Enrichment (for plan-review)
+
+1. Invoke `/specfact-plan-review` with a plan bundle that has vague acceptance criteria or incomplete requirements
+2. Verify the LLM:
+   - ✅ **Detects need for enrichment**: Recognizes vague patterns ("is implemented", "System MUST Helper class", generic tasks)
+   - ✅ **Suggests or uses `--auto-enrich`**: Either suggests using `--auto-enrich` flag or automatically uses it based on plan quality indicators
+   - ✅ **Executes enrichment**: Runs `specfact plan review --auto-enrich --plan <path>`
+   - ✅ **Parses enrichment results**: Captures enrichment summary (features updated, stories updated, acceptance criteria enhanced, etc.)
+   - ✅ **Analyzes enrichment quality**: Uses LLM reasoning to review what was enhanced
+   - ✅ **Identifies generic patterns**: Finds placeholder text like "interact with the system" that needs refinement
+   - ✅ **Proposes specific refinements**: Suggests domain-specific improvements using CLI commands
+   - ✅ **Executes refinements**: Uses `specfact plan update-feature` to refine generic improvements
+   - ✅ **Re-runs review**: Executes `specfact plan review` again to verify improvements
+3. Test with explicit enrichment request (e.g., "enrich the plan"):
+   - ✅ Uses `--auto-enrich` flag immediately
+   - ✅ Reviews enrichment results
+   - ✅ Suggests further improvements if needed
+
 #### Scenario 5: Plan Selection Workflow (for plan-select)
 
 1. Invoke `/specfact-plan-select` without arguments
@@ -205,6 +230,12 @@ After testing, review:
 - [ ] **Wait states respected**: LLM waits for user input when needed
 - [ ] **Enrichment workflow** (if applicable): Three-phase workflow followed correctly
 - [ ] **Review workflow** (if applicable): Interactive Q&A workflow followed correctly, clarifications saved via CLI
+- [ ] **Auto-enrichment workflow** (if applicable):
+  - [ ] LLM detects when enrichment is needed (vague criteria, incomplete requirements, generic tasks)
+  - [ ] Uses `--auto-enrich` flag appropriately
+  - [ ] Analyzes enrichment results with reasoning
+  - [ ] Proposes and executes specific refinements using CLI commands
+  - [ ] Iterates until plan quality meets standards
 - [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (positional arguments)
 - [ ] **Promotion workflow** (if applicable): Coverage validation respected, suggestions to run `plan review` when categories are Missing
 - [ ] **Error handling**: Errors handled gracefully without assumptions
@@ -257,6 +288,18 @@ After testing, review:
 - Emphasize that `--force` should only be used when explicitly requested
 - Document critical vs important categories
 
+### ❌ Missing Auto-Enrichment
+
+**Symptom**: LLM doesn't detect or use `--auto-enrich` flag when plan has vague acceptance criteria or incomplete requirements
+
+**Fix**:
+
+- Update prompt to document `--auto-enrich` flag and when to use it
+- Add LLM reasoning guidance for detecting enrichment needs
+- Document decision flow for when to suggest or use auto-enrichment
+- Add examples of enrichment output and refinement process
+- Emphasize two-phase approach: automatic enrichment + LLM-enhanced refinement
+
 ## Validation Commands
 
 ```bash
@@ -301,6 +344,11 @@ The following prompts are available for SpecFact CLI commands:
 - `specfact-import-from-code.md` - Import codebase structure (brownfield)
 - `specfact-sync.md` - Synchronize Spec-Kit artifacts and repository changes
 
+### Constitution Management
+
+- Constitution commands are integrated into `specfact-sync.md` and `specfact-import-from-code.md` workflows
+- Constitution bootstrap/enrich/validate commands are suggested automatically when constitution is missing or minimal
+
 ### Validation & Enforcement
 
 - `specfact-enforce.md` - Configure quality gates and enforcement modes
@@ -309,4 +357,21 @@ The following prompts are available for SpecFact CLI commands:
 ---
 
 **Last Updated**: 2025-11-18  
-**Version**: 1.4
+**Version**: 1.6
+
+## Changelog
+
+### Version 1.6 (2025-11-18)
+
+- Added constitution management commands integration
+- Updated sync prompt to include constitution bootstrap/enrich/validate commands
+- Added constitution bootstrap suggestion workflow for brownfield projects
+- Updated prerequisites section to document constitution command options
+
+### Version 1.5 (2025-11-18)
+
+- Added auto-enrichment workflow validation for `plan review` command
+- Added Scenario 4a: Plan Review with Auto-Enrichment
+- Added checks for enrichment detection, execution, and refinement
+- Added common issue: Missing Auto-Enrichment
+- Updated flow logic section to include auto-enrichment workflow documentation requirements

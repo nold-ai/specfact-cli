@@ -307,6 +307,8 @@ specfact import from-spec-kit --repo ./my-speckit-project --dry-run
 ✅ Found specs/001-user-authentication/tasks.md
 ✅ Found .specify/memory/constitution.md
 
+**💡 Tip**: If constitution is missing or minimal, run `specfact constitution bootstrap --repo .` to auto-generate from repository analysis.
+
 📊 Migration Preview:
   - Will create: .specfact/plans/main.bundle.yaml
   - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)

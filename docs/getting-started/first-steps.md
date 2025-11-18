@@ -45,6 +45,12 @@ cat .specfact/plans/my-project-*.bundle.yaml
 
 Review the auto-generated plan to understand what SpecFact discovered about your codebase.
 
+**💡 Tip**: If you plan to sync with Spec-Kit later, the import command will suggest generating a bootstrap constitution. You can also run it manually:
+
+```bash
+specfact constitution bootstrap --repo .
+```
+
 ### Step 3: Add Contracts to Critical Functions
 
 ```bash
@@ -217,6 +223,9 @@ ls -la .specfact/
 Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
+# Generate constitution if missing (auto-suggested during sync)
+specfact constitution bootstrap --repo .
+
 # One-time bidirectional sync
 specfact sync spec-kit --repo . --bidirectional
 
@@ -226,6 +235,7 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 
 **What happens**:
 
+- **Constitution bootstrap**: Auto-generates constitution from repository analysis (if missing or minimal)
 - Syncs changes between Spec-Kit and SpecFact
 - Bidirectional: changes in either direction are synced
 - Watch mode: continuously monitors for changes

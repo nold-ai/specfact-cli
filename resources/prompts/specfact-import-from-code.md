@@ -570,6 +570,28 @@ To compare plans, normalize feature keys by removing prefixes and underscores, t
 
 **Important**: This is a **one-way import** - it imports from code into SpecFact format. It does NOT perform consistency checking on Spec-Kit artifacts. For Spec-Kit artifact consistency checking, use Spec-Kit's `/speckit.analyze` command instead.
 
+## Constitution Bootstrap (Optional)
+
+After a brownfield import, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration:
+
+**If constitution is missing or minimal**:
+
+- The CLI will suggest: "Generate bootstrap constitution from repository analysis?"
+- **Recommended**: Accept the suggestion to auto-generate a constitution from your repository
+- **Command**: `specfact constitution bootstrap --repo .`
+- **What it does**: Analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution
+- **Next steps**: Review the generated constitution, then run `specfact sync spec-kit` to sync with Spec-Kit artifacts
+
+**If you decline the suggestion**:
+
+- You can run `specfact constitution bootstrap --repo .` manually later
+- Or use `/speckit.constitution` command in your AI assistant for manual creation
+
+**Validation**:
+
+- After generating or updating the constitution, run `specfact constitution validate` to check completeness
+- The constitution must be populated (not just template placeholders) before syncing with Spec-Kit
+
 ## Context
 
 {ARGS}

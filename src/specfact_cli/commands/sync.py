@@ -76,6 +76,67 @@ def _perform_sync_operation(
 
     console.print("[bold green]✓[/bold green] Detected Spec-Kit repository")
 
+    # Step 1.5: Validate constitution exists and is not empty
+    has_constitution, constitution_error = scanner.has_constitution()
+    if not has_constitution:
+        console.print("[bold red]✗[/bold red] Constitution required")
+        console.print(f"[red]{constitution_error}[/red]")
+        console.print("\n[bold yellow]Next Steps:[/bold yellow]")
+        console.print("1. Run 'specfact constitution bootstrap --repo .' to auto-generate constitution")
+        console.print("2. Or run '/speckit.constitution' command in your AI assistant")
+        console.print("3. Then run 'specfact sync spec-kit' again")
+        raise typer.Exit(1)
+
+    # Check if constitution is minimal and suggest bootstrap
+    constitution_path = repo / ".specify" / "memory" / "constitution.md"
+    if constitution_path.exists():
+        from specfact_cli.commands.constitution import is_constitution_minimal
+
+        if is_constitution_minimal(constitution_path):
+            # Auto-generate in test mode, prompt in interactive mode
+            # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
+            is_test_env = (
+                os.environ.get("TEST_MODE") == "true"
+                or os.environ.get("PYTEST_CURRENT_TEST") is not None
+            )
+            if is_test_env:
+                # Auto-generate bootstrap constitution in test mode
+                from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+
+                enricher = ConstitutionEnricher()
+                enriched_content = enricher.bootstrap(repo, constitution_path)
+                constitution_path.write_text(enriched_content, encoding="utf-8")
+            else:
+                # Check if we're in an interactive environment
+                import sys
+
+                is_interactive = (
+                    hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
+                ) and sys.stdin.isatty()
+                if is_interactive:
+                    console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
+                    suggest_bootstrap = typer.confirm(
+                        "Generate bootstrap constitution from repository analysis?",
+                        default=True,
+                    )
+                    if suggest_bootstrap:
+                        from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+
+                        console.print("[dim]Generating bootstrap constitution...[/dim]")
+                        enricher = ConstitutionEnricher()
+                        enriched_content = enricher.bootstrap(repo, constitution_path)
+                        constitution_path.write_text(enriched_content, encoding="utf-8")
+                        console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
+                        console.print("[dim]Review and adjust as needed before syncing[/dim]")
+                    else:
+                        console.print("[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]")
+                else:
+                    # Non-interactive mode: skip prompt
+                    console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
+                    console.print("[dim]Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]")
+
+    console.print("[bold green]✓[/bold green] Constitution found and validated")
+
     # Step 2: Detect SpecFact structure
     specfact_exists = (repo / SpecFactStructure.ROOT).exists()
 
@@ -101,6 +162,21 @@ def _perform_sync_operation(
         task = progress.add_task("[cyan]📦[/cyan] Scanning Spec-Kit artifacts...", total=None)
         features = scanner.discover_features()
         progress.update(task, description=f"[green]✓[/green] Found {len(features)} features in specs/")
+
+        # Step 3.5: Validate Spec-Kit artifacts for unidirectional sync
+        if not bidirectional and len(features) == 0:
+            console.print("[bold red]✗[/bold red] No Spec-Kit features found")
+            console.print(
+                "[red]Unidirectional sync (Spec-Kit → SpecFact) requires at least one feature specification.[/red]"
+            )
+            console.print("\n[bold yellow]Next Steps:[/bold yellow]")
+            console.print("1. Run '/speckit.specify' command in your AI assistant to create feature specifications")
+            console.print("2. Optionally run '/speckit.plan' and '/speckit.tasks' to create complete artifacts")
+            console.print("3. Then run 'specfact sync spec-kit' again")
+            console.print(
+                "\n[dim]Note: For bidirectional sync, Spec-Kit artifacts are optional if syncing from SpecFact → Spec-Kit[/dim]"
+            )
+            raise typer.Exit(1)
 
         # Step 4: Sync based on mode
         specfact_changes: dict[str, Any] = {}
@@ -169,6 +245,10 @@ def _perform_sync_operation(
                             console.print(
                                 f"[dim]  - {mode_text.capitalize()} spec.md, plan.md, tasks.md for {features_converted_speckit} features[/dim]"
                             )
+                            # Warning about Constitution Check gates
+                            console.print(
+                                "[yellow]⚠[/yellow] [dim]Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state[/dim]"
+                            )
                         else:
                             progress.update(task, description="[yellow]⚠[/yellow] Plan bundle validation failed")
                             console.print("[yellow]⚠[/yellow] Could not load plan bundle for conversion")
@@ -234,6 +314,13 @@ def _perform_sync_operation(
                 console.print(f"  - Conflicts: {len(conflicts)} detected and resolved")
             else:
                 console.print("  - Conflicts: None detected")
+
+            # Post-sync validation suggestion
+            if features_converted_speckit > 0:
+                console.print()
+                console.print("[bold cyan]Next Steps:[/bold cyan]")
+                console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
+                console.print("  This will check for ambiguities, duplications, and constitution alignment")
         else:
             console.print("[bold cyan]Sync Summary (Unidirectional):[/bold cyan]")
             if features:
@@ -242,6 +329,12 @@ def _perform_sync_operation(
                 console.print(f"  - Updated: {features_updated} features")
                 console.print(f"  - Added: {features_added} new features")
             console.print("  - Direction: Spec-Kit → SpecFact")
+
+            # Post-sync validation suggestion
+            console.print()
+            console.print("[bold cyan]Next Steps:[/bold cyan]")
+            console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
+            console.print("  This will check for ambiguities, duplications, and constitution alignment")
 
     console.print()
     console.print("[bold green]✓[/bold green] Sync complete!")

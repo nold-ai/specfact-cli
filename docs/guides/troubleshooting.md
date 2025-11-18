@@ -247,6 +247,83 @@ Common issues and solutions for SpecFact CLI.
 
 ---
 
+## Constitution Issues
+
+### Constitution Missing or Minimal
+
+**Issue**: `Constitution required` or `Constitution is minimal` when running `sync spec-kit`
+
+**Solutions**:
+
+1. **Auto-generate bootstrap constitution** (recommended for brownfield):
+
+   ```bash
+   specfact constitution bootstrap --repo .
+   ```
+
+   This analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution.
+
+2. **Enrich existing minimal constitution**:
+
+   ```bash
+   specfact constitution enrich --repo .
+   ```
+
+   This fills placeholders in an existing constitution with repository context.
+
+3. **Validate constitution completeness**:
+
+   ```bash
+   specfact constitution validate
+   ```
+
+   This checks if the constitution is complete and ready for use.
+
+4. **Manual creation** (for greenfield):
+
+   - Run `/speckit.constitution` command in your AI assistant
+   - Fill in the constitution template manually
+
+**When to use each option**:
+
+- **Bootstrap** (brownfield): Use when you want to extract principles from existing codebase
+- **Enrich** (existing constitution): Use when you have a minimal constitution with placeholders
+- **Manual** (greenfield): Use when starting a new project and want full control
+
+### Constitution Validation Fails
+
+**Issue**: `specfact constitution validate` reports issues
+
+**Solutions**:
+
+1. **Check for placeholders**:
+
+   ```bash
+   grep -r "\[.*\]" .specify/memory/constitution.md
+   ```
+
+2. **Run enrichment**:
+
+   ```bash
+   specfact constitution enrich --repo .
+   ```
+
+3. **Review validation output**:
+
+   ```bash
+   specfact constitution validate --constitution .specify/memory/constitution.md
+   ```
+
+   The output will list specific issues (missing sections, placeholders, etc.).
+
+4. **Fix issues manually** or re-run bootstrap:
+
+   ```bash
+   specfact constitution bootstrap --repo . --overwrite
+   ```
+
+---
+
 ## Plan Comparison Issues
 
 ### Plans Not Found

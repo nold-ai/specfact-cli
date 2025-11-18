@@ -1825,6 +1825,11 @@ def review(
         "--non-interactive",
         help="Non-interactive mode (for CI/CD automation)",
     ),
+    auto_enrich: bool = typer.Option(
+        False,
+        "--auto-enrich",
+        help="Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching",
+    ),
 ) -> None:
     """
     Review plan bundle to identify and resolve ambiguities.
@@ -1927,6 +1932,43 @@ def review(
             # Initialize clarifications if needed
             if bundle.clarifications is None:
                 bundle.clarifications = Clarifications(sessions=[])
+
+            # Auto-enrich if requested (before scanning for ambiguities)
+            if auto_enrich:
+                print_info(
+                    "Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
+                )
+                from specfact_cli.enrichers.plan_enricher import PlanEnricher
+
+                enricher = PlanEnricher()
+                enrichment_summary = enricher.enrich_plan(bundle)
+
+                if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
+                    # Save enriched plan bundle
+                    generator = PlanGenerator()
+                    generator.generate(bundle, plan)
+                    print_success(
+                        f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
+                        f"{enrichment_summary['stories_updated']} stories updated"
+                    )
+                    if enrichment_summary["acceptance_criteria_enhanced"] > 0:
+                        console.print(
+                            f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
+                        )
+                    if enrichment_summary["requirements_enhanced"] > 0:
+                        console.print(
+                            f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]"
+                        )
+                    if enrichment_summary["tasks_enhanced"] > 0:
+                        console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
+                    if enrichment_summary["changes"]:
+                        console.print("\n[bold]Changes made:[/bold]")
+                        for change in enrichment_summary["changes"][:10]:  # Show first 10 changes
+                            console.print(f"[dim]  - {change}[/dim]")
+                        if len(enrichment_summary["changes"]) > 10:
+                            console.print(f"[dim]  ... and {len(enrichment_summary['changes']) - 10} more[/dim]")
+                else:
+                    print_info("No enrichments needed - plan bundle is already well-specified")
 
             # Scan for ambiguities
             print_info("Scanning plan bundle for ambiguities...")
@@ -2129,8 +2171,8 @@ def review(
 
                 # Save plan bundle after each answer (atomic)
                 print_info("Saving plan bundle...")
-                generator = PlanGenerator()
                 if plan is not None:
+                    generator = PlanGenerator()
                     generator.generate(bundle, plan)
 
                 print_success("Answer recorded and integrated into plan bundle")

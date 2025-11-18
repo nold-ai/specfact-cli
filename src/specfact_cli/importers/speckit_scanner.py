@@ -56,6 +56,71 @@ class SpecKitScanner:
         return specify_dir.exists() and specify_dir.is_dir()
 
     @beartype
+    @ensure(lambda result: isinstance(result, tuple), "Must return tuple")
+    @ensure(lambda result: len(result) == 2, "Must return (bool, str) tuple")
+    def has_constitution(self) -> tuple[bool, str]:
+        """
+        Check if constitution.md exists and is not empty.
+
+        Returns:
+            Tuple of (exists_and_valid, error_message)
+            - exists_and_valid: True if constitution exists and has content
+            - error_message: Empty string if valid, otherwise error description
+        """
+        memory_dir = self.repo_path / self.SPECIFY_MEMORY_DIR
+        constitution_file = memory_dir / "constitution.md"
+
+        if not memory_dir.exists():
+            return (
+                False,
+                f"Spec-Kit memory directory not found: {memory_dir}\n"
+                "The constitution must be created before syncing.\n"
+                "Run '/speckit.constitution' command first to create the project constitution.",
+            )
+
+        if not constitution_file.exists():
+            return (
+                False,
+                f"Constitution file not found: {constitution_file}\n"
+                "The constitution is required before syncing Spec-Kit artifacts.\n"
+                "Run '/speckit.constitution' command first to create the project constitution.",
+            )
+
+        # Check if file is empty or only contains whitespace/placeholders
+        try:
+            content = constitution_file.read_text(encoding="utf-8").strip()
+            if not content:
+                return (
+                    False,
+                    f"Constitution file is empty: {constitution_file}\n"
+                    "The constitution must be populated before syncing.\n"
+                    "Run '/speckit.constitution' command to fill in the constitution template.",
+                )
+
+            # Check if file only contains template placeholders (no actual content)
+            # Look for patterns like [PROJECT_NAME], [PRINCIPLE_1_NAME], etc.
+            placeholder_pattern = r"\[[A-Z_0-9]+\]"
+            placeholder_count = len(re.findall(placeholder_pattern, content))
+            # If more than 50% of lines contain placeholders, consider it a template
+            lines = [line.strip() for line in content.split("\n") if line.strip()]
+            if lines and placeholder_count > len(lines) * 0.5:
+                return (
+                    False,
+                    f"Constitution file contains only template placeholders: {constitution_file}\n"
+                    "The constitution must be filled in before syncing.\n"
+                    "Run '/speckit.constitution' command to replace placeholders with actual project principles.",
+                )
+
+            return (True, "")
+        except Exception as e:
+            return (
+                False,
+                f"Error reading constitution file: {constitution_file}\n"
+                f"Error: {e!s}\n"
+                "Please ensure the constitution file is readable and try again.",
+            )
+
+    @beartype
     @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
     @ensure(lambda result: "is_speckit" in result, "Must include is_speckit key")
     def scan_structure(self) -> dict[str, Any]:

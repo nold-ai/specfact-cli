@@ -428,23 +428,59 @@ class AmbiguityScanner:
                             related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
                         )
                     )
-                elif not any(
-                    keyword in acc.lower()
-                    for acc in story.acceptance
-                    for keyword in ["must", "should", "will", "verify", "validate", "check"]
-                ):
-                    # Check if acceptance criteria are measurable
-                    findings.append(
-                        AmbiguityFinding(
-                            category=TaxonomyCategory.COMPLETION_SIGNALS,
-                            status=AmbiguityStatus.PARTIAL,
-                            description=f"Story {story.key} acceptance criteria may not be testable",
-                            impact=0.5,
-                            uncertainty=0.4,
-                            question=f"Are the acceptance criteria for story {story.key} measurable and testable?",
-                            related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
+                else:
+                    # Check for vague acceptance criteria patterns
+                    vague_patterns = [
+                        "is implemented",
+                        "is functional",
+                        "works",
+                        "is done",
+                        "is complete",
+                        "is ready",
+                    ]
+                    vague_criteria = [
+                        acc for acc in story.acceptance if any(pattern in acc.lower() for pattern in vague_patterns)
+                    ]
+
+                    if vague_criteria:
+                        findings.append(
+                            AmbiguityFinding(
+                                category=TaxonomyCategory.COMPLETION_SIGNALS,
+                                status=AmbiguityStatus.PARTIAL,
+                                description=f"Story {story.key} has vague acceptance criteria: {', '.join(vague_criteria[:2])}",
+                                impact=0.7,
+                                uncertainty=0.6,
+                                question=f"Story {story.key} has vague acceptance criteria. Should these be converted to testable Given/When/Then format?",
+                                related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
+                            )
                         )
-                    )
+                    elif not any(
+                        keyword in acc.lower()
+                        for acc in story.acceptance
+                        for keyword in [
+                            "must",
+                            "should",
+                            "will",
+                            "verify",
+                            "validate",
+                            "check",
+                            "given",
+                            "when",
+                            "then",
+                        ]
+                    ):
+                        # Check if acceptance criteria are measurable
+                        findings.append(
+                            AmbiguityFinding(
+                                category=TaxonomyCategory.COMPLETION_SIGNALS,
+                                status=AmbiguityStatus.PARTIAL,
+                                description=f"Story {story.key} acceptance criteria may not be testable",
+                                impact=0.5,
+                                uncertainty=0.4,
+                                question=f"Are the acceptance criteria for story {story.key} measurable and testable?",
+                                related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
+                            )
+                        )
 
         return findings
 
@@ -481,5 +517,76 @@ class AmbiguityScanner:
                         related_sections=[f"features.{feature.key}.acceptance"],
                     )
                 )
+
+            # Check for incomplete requirements in outcomes
+            for outcome in feature.outcomes:
+                # Check for incomplete patterns like "System MUST Helper class" (missing verb/object)
+                incomplete_patterns = [
+                    "system must",
+                    "system should",
+                    "must",
+                    "should",
+                ]
+                outcome_lower = outcome.lower()
+                # Check if outcome starts with pattern but is incomplete (missing verb after "must" or ends abruptly)
+                for pattern in incomplete_patterns:
+                    if outcome_lower.startswith(pattern):
+                        # Check if it's incomplete (e.g., "System MUST Helper class" - missing verb)
+                        remaining = outcome_lower[len(pattern) :].strip()
+                        # If remaining is just a noun phrase without a verb, it's likely incomplete
+                        if (
+                            remaining
+                            and len(remaining.split()) < 3
+                            and any(
+                                keyword in remaining
+                                for keyword in ["class", "helper", "module", "component", "service", "function"]
+                            )
+                        ):
+                            findings.append(
+                                AmbiguityFinding(
+                                    category=TaxonomyCategory.FEATURE_COMPLETENESS,
+                                    status=AmbiguityStatus.PARTIAL,
+                                    description=f"Feature {feature.key} has incomplete requirement: '{outcome}' (missing verb/action)",
+                                    impact=0.6,
+                                    uncertainty=0.5,
+                                    question=f"Feature {feature.key} requirement '{outcome}' appears incomplete. What should the system do?",
+                                    related_sections=[f"features.{feature.key}.outcomes"],
+                                )
+                            )
+                            break
+
+            # Check for generic tasks in stories
+            for story in feature.stories:
+                if story.tasks:
+                    generic_patterns = [
+                        "implement",
+                        "create",
+                        "add",
+                        "set up",
+                    ]
+                    generic_tasks = [
+                        task
+                        for task in story.tasks
+                        if any(
+                            pattern in task.lower()
+                            and not any(
+                                detail in task.lower()
+                                for detail in ["file", "path", "method", "class", "component", "module", "function"]
+                            )
+                            for pattern in generic_patterns
+                        )
+                    ]
+                    if generic_tasks:
+                        findings.append(
+                            AmbiguityFinding(
+                                category=TaxonomyCategory.FEATURE_COMPLETENESS,
+                                status=AmbiguityStatus.PARTIAL,
+                                description=f"Story {story.key} has generic tasks without implementation details: {', '.join(generic_tasks[:2])}",
+                                impact=0.4,
+                                uncertainty=0.3,
+                                question=f"Story {story.key} has generic tasks. Should these include file paths, method names, or component references?",
+                                related_sections=[f"features.{feature.key}.stories.{story.key}.tasks"],
+                            )
+                        )
 
         return findings

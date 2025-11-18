@@ -416,6 +416,11 @@ Show plan summary:
 
 **Note**: Plans created with this command can later be exported to Spec-Kit format using `specfact sync spec-kit --bidirectional`. The export will generate fully compatible Spec-Kit artifacts (spec.md, plan.md, tasks.md) with all required fields including INVSEST criteria, Scenarios, Constitution Check, and Phase organization.
 
+**Prerequisites for Spec-Kit Sync**: Before running `specfact sync spec-kit --bidirectional`, ensure you have:
+
+- Constitution (`.specify/memory/constitution.md`) created via `/speckit.constitution` command
+- The constitution must be populated (not just template placeholders)
+
 ## Output Format
 
 ### Plan Bundle Structure

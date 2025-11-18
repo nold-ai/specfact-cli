@@ -54,6 +54,12 @@ specfact repro --verbose
 - `sync spec-kit` - Sync with Spec-Kit artifacts
 - `sync repository` - Sync code changes
 
+**Constitution Management:**
+
+- `constitution bootstrap` - Generate bootstrap constitution from repository analysis
+- `constitution enrich` - Auto-enrich existing constitution with repository context
+- `constitution validate` - Validate constitution completeness
+
 **Setup:**
 
 - `init` - Initialize IDE integration
@@ -907,6 +913,145 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 - Code changes → Plan artifact updates
 - Deviations from manual plans
 - Feature/story extraction from code
+
+---
+
+### `constitution` - Manage Project Constitutions
+
+Manage project constitutions for Spec-Kit integration. Auto-generate bootstrap templates from repository analysis.
+
+#### `constitution bootstrap`
+
+Generate bootstrap constitution from repository analysis:
+
+```bash
+specfact constitution bootstrap [OPTIONS]
+```
+
+**Options:**
+
+- `--repo PATH` - Repository path (default: current directory)
+- `--output PATH` - Output path for constitution (default: `.specify/memory/constitution.md`)
+- `--overwrite` - Overwrite existing constitution if it exists
+
+**Example:**
+
+```bash
+# Generate bootstrap constitution
+specfact constitution bootstrap --repo .
+
+# Generate with custom output path
+specfact constitution bootstrap --repo . --output custom-constitution.md
+
+# Overwrite existing constitution
+specfact constitution bootstrap --repo . --overwrite
+```
+
+**What it does:**
+
+- Analyzes repository context (README.md, pyproject.toml, .cursor/rules/, docs/rules/)
+- Extracts project metadata (name, description, technology stack)
+- Extracts development principles from rule files
+- Generates bootstrap constitution template with:
+  - Project name and description
+  - Core principles (extracted from repository)
+  - Development workflow guidelines
+  - Quality standards
+  - Governance rules
+- Creates constitution at `.specify/memory/constitution.md` (Spec-Kit convention)
+
+**When to use:**
+
+- **After brownfield import**: Run `specfact import from-code` → Suggested automatically
+- **Before Spec-Kit sync**: Run before `specfact sync spec-kit` to ensure constitution exists
+- **Manual setup**: Generate constitution for new Spec-Kit projects
+
+**Integration:**
+
+- **Auto-suggested** during `specfact import from-code` (brownfield imports)
+- **Auto-detected** during `specfact sync spec-kit` (if constitution is minimal)
+
+---
+
+#### `constitution enrich`
+
+Auto-enrich existing constitution with repository context:
+
+```bash
+specfact constitution enrich [OPTIONS]
+```
+
+**Options:**
+
+- `--repo PATH` - Repository path (default: current directory)
+- `--constitution PATH` - Path to constitution file (default: `.specify/memory/constitution.md`)
+
+**Example:**
+
+```bash
+# Enrich existing constitution
+specfact constitution enrich --repo .
+
+# Enrich specific constitution file
+specfact constitution enrich --repo . --constitution custom-constitution.md
+```
+
+**What it does:**
+
+- Analyzes repository context (same as bootstrap)
+- Fills remaining placeholders in existing constitution
+- Adds additional principles extracted from repository
+- Updates workflow and quality standards sections
+
+**When to use:**
+
+- Constitution has placeholders that need filling
+- Repository context has changed (new rules, updated README)
+- Manual constitution needs enrichment with repository details
+
+---
+
+#### `constitution validate`
+
+Validate constitution completeness:
+
+```bash
+specfact constitution validate [OPTIONS]
+```
+
+**Options:**
+
+- `--constitution PATH` - Path to constitution file (default: `.specify/memory/constitution.md`)
+
+**Example:**
+
+```bash
+# Validate default constitution
+specfact constitution validate
+
+# Validate specific constitution file
+specfact constitution validate --constitution custom-constitution.md
+```
+
+**What it checks:**
+
+- Constitution exists and is not empty
+- No unresolved placeholders remain
+- Has "Core Principles" section
+- Has at least one numbered principle
+- Has "Governance" section
+- Has version and ratification date
+
+**Output:**
+
+- ✅ Valid: Constitution is complete and ready for use
+- ❌ Invalid: Lists specific issues found (placeholders, missing sections, etc.)
+
+**When to use:**
+
+- Before syncing with Spec-Kit (`specfact sync spec-kit` requires valid constitution)
+- After manual edits to verify completeness
+- In CI/CD pipelines to ensure constitution quality
 
 ---
 

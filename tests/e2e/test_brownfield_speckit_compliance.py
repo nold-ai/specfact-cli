@@ -109,7 +109,7 @@ class TestBrownfieldSpeckitComplianceE2E:
 
             # Step 2: Create Spec-Kit structure
             specify_dir = brownfield_repo / ".specify" / "memory"
-            specify_dir.mkdir(parents=True)
+            specify_dir.mkdir(parents=True, exist_ok=True)
             (specify_dir / "constitution.md").write_text("# Constitution\n")
 
             # Step 3: Sync to Spec-Kit with compliance check

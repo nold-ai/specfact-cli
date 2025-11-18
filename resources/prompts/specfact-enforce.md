@@ -147,17 +147,20 @@ specfact enforce stage --preset strict
 ### Enforcement Presets
 
 **minimal**:
+
 - Log all violations
 - Never block execution
 - Best for: Development, exploration, learning
 
 **balanced** (default):
+
 - Block HIGH severity violations
 - Warn on MEDIUM severity violations
 - Log LOW severity violations
 - Best for: Most production use cases
 
 **strict**:
+
 - Block all MEDIUM+ severity violations
 - Log LOW severity violations
 - Best for: Critical systems, compliance requirements
@@ -180,4 +183,3 @@ specfact enforce stage --preset strict
 {ARGS}
 
 --- End Command ---
-

@@ -104,9 +104,41 @@ specfact sync spec-kit [--repo PATH] [--bidirectional] [--plan PATH] [--overwrit
 **What it does:**
 
 1. Detects Spec-Kit repository (exits with error if not found)
-2. Auto-creates SpecFact structure if missing
-3. Syncs Spec-Kit → SpecFact (unidirectional) or both directions (bidirectional)
-4. Reports sync summary with features updated/added
+2. **Validates prerequisites**:
+   - Constitution (`.specify/memory/constitution.md`) must exist and be populated (not just template placeholders)
+   - For unidirectional sync: At least one `spec.md` file must exist in `specs/` directories
+3. Auto-creates SpecFact structure if missing
+4. Syncs Spec-Kit → SpecFact (unidirectional) or both directions (bidirectional)
+5. Reports sync summary with features updated/added
+
+**Prerequisites:**
+
+Before running sync, ensure you have:
+
+1. **Constitution** (REQUIRED for all sync operations):
+   - **Option 1 (Recommended for brownfield)**: Run `specfact constitution bootstrap --repo .` to auto-generate from repository analysis
+     - This analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution
+     - Perfect for brownfield projects where you want to extract principles from existing codebase
+   - **Option 2 (Manual)**: Run `/speckit.constitution` command in your AI assistant and fill in the template
+     - Use this for greenfield projects or when you want full manual control
+   - **Enrichment**: If you have a minimal constitution, run `specfact constitution enrich --repo .` to fill placeholders
+   - **Validation**: Run `specfact constitution validate` to check completeness before sync
+   - The constitution must be populated (not just template placeholders like `[PROJECT_NAME]`)
+
+2. **Spec-Kit Features** (REQUIRED for unidirectional sync):
+   - Run `/speckit.specify` command to create at least one feature specification
+   - Creates `specs/[###-feature-name]/spec.md` files
+   - Optional: Run `/speckit.plan` and `/speckit.tasks` for complete artifacts
+
+3. **SpecFact Plan** (REQUIRED for bidirectional sync when syncing SpecFact → Spec-Kit):
+   - Must have a valid plan bundle at `.specfact/plans/main.bundle.yaml` (or specify with `--plan`)
+
+**Validation Errors:**
+
+If prerequisites are missing, the CLI will exit with clear error messages:
+
+- **Constitution missing or empty**: "Constitution required. Run 'specfact constitution bootstrap --repo .' to auto-generate, or '/speckit.constitution' command to create manually."
+- **No features found (unidirectional sync)**: "No Spec-Kit features found. Run '/speckit.specify' command first."
 
 **Spec-Kit Format Compatibility:**
 
@@ -117,6 +149,17 @@ When exporting to Spec-Kit (bidirectional sync), the generated artifacts are **f
 - **tasks.md**: Phase organization (Phase 1: Setup, Phase 2: Foundational, Phase 3+: User Stories), Parallel markers [P], Story mappings
 
 This ensures exported Spec-Kit artifacts work seamlessly with Spec-Kit slash commands.
+
+**Workflow Integration:**
+
+After running `specfact sync spec-kit --bidirectional`, you can immediately run `/speckit.analyze` to validate consistency across all artifacts. The sync command ensures all prerequisites for `/speckit.analyze` are met:
+
+- ✅ Constitution (`.specify/memory/constitution.md`) - Validated before sync
+- ✅ spec.md - Generated during sync
+- ✅ plan.md - Generated during sync
+- ✅ tasks.md - Generated during sync
+
+**Note**: `/speckit.analyze` is a read-only analysis command that checks for inconsistencies, duplications, ambiguities, and constitution alignment across the three core artifacts. It does not modify files.
 
 **⚠️ Spec-Kit Requirements Fulfillment:**
 
@@ -235,13 +278,25 @@ specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>]
 - SpecFact artifacts created/updated
 - Any error messages or warnings
 
-**Step 8**: If Spec-Kit artifacts were generated and user requested customization, provide guidance.
+**Step 8**: After sync completes, guide user on next steps.
+
+- **Always suggest validation**: After successful sync, remind user to run `/speckit.analyze`:
+
+  ```text
+  "Sync completed successfully! Run '/speckit.analyze' to validate artifact consistency and quality.
+  This will check for ambiguities, duplications, and constitution alignment."
+  ```
 
 - **If bidirectional sync completed**: Remind user that all Spec-Kit fields are auto-generated and ready for `/speckit.analyze`
+  - **Note**: `/speckit.analyze` requires `spec.md`, `plan.md`, and `tasks.md` to exist. The sync command generates all three files, so artifacts are ready for analysis.
+  - **Constitution requirement**: `/speckit.analyze` also requires the constitution (`.specify/memory/constitution.md`) which is validated before sync, so this prerequisite is already met.
+  - **Constitution Check status**: Generated `plan.md` files have Constitution Check gates set to "PENDING" - users should review and check gates based on their project's actual state
+
 - **If customization was requested**: Guide user to edit generated files:
   - `specs/<feature-num>-<feature-name>/spec.md` - Customize frontmatter, INVSEST, scenarios
   - `specs/<feature-num>-<feature-name>/plan.md` - Customize Constitution Check, Phases, Technology Stack
   - `specs/<feature-num>-<feature-name>/tasks.md` - Customize phase organization, story mappings
+  - **After customization**: User should run `/speckit.analyze` to validate consistency across all artifacts
 
 ## Expected Output
 
@@ -250,9 +305,10 @@ specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>]
 ```bash
 Syncing Spec-Kit artifacts from: /path/to/repo
 ✓ Detected Spec-Kit repository
-✓ Detected SpecFact structure (or created automatically)
+✓ Constitution found and validated
 📦 Scanning Spec-Kit artifacts...
 ✓ Found 5 features in specs/
+✓ Detected SpecFact structure (or created automatically)
 📝 Converting to SpecFact format...
   - Updated 2 features
   - Added 0 new features
@@ -262,11 +318,80 @@ Sync Summary (Unidirectional):
   - Updated: 2 features
   - Added: 0 new features
   - Direction: Spec-Kit → SpecFact
+
+Next Steps:
+  Run '/speckit.analyze' to validate artifact consistency and quality
+  This will check for ambiguities, duplications, and constitution alignment
+
+✓ Sync complete!
+```
+
+**Error example (missing constitution):**
+
+```bash
+Syncing Spec-Kit artifacts from: /path/to/repo
+✓ Detected Spec-Kit repository
+✗ Constitution required
+Constitution file not found: .specify/memory/constitution.md
+The constitution is required before syncing Spec-Kit artifacts.
+
+Next Steps:
+1. Run 'specfact constitution bootstrap --repo .' to auto-generate from repository analysis (recommended for brownfield)
+   OR run '/speckit.constitution' command in your AI assistant to create manually (for greenfield)
+2. Review and adjust the generated constitution as needed
+3. Run 'specfact constitution validate' to check completeness
+4. Then run 'specfact sync spec-kit' again
+```
+
+**Error example (minimal constitution detected):**
+
+```bash
+Syncing Spec-Kit artifacts from: /path/to/repo
+✓ Detected Spec-Kit repository
+⚠ Constitution is minimal (essentially empty)
+Generate bootstrap constitution from repository analysis? (y/n): y
+Generating bootstrap constitution...
+✓ Bootstrap constitution generated
+Review and adjust as needed before syncing
+
+Next Steps:
+1. Review the generated constitution at .specify/memory/constitution.md
+2. Adjust principles and sections as needed
+3. Run 'specfact constitution validate' to check completeness
+4. Then run 'specfact sync spec-kit' again
+```
+
+**Error example (no features for unidirectional sync):**
+
+```bash
+Syncing Spec-Kit artifacts from: /path/to/repo
+✓ Detected Spec-Kit repository
+✓ Constitution found and validated
+📦 Scanning Spec-Kit artifacts...
+✓ Found 0 features in specs/
+✗ No Spec-Kit features found
+Unidirectional sync (Spec-Kit → SpecFact) requires at least one feature specification.
+
+Next Steps:
+1. Run '/speckit.specify' command in your AI assistant to create feature specifications
+2. Optionally run '/speckit.plan' and '/speckit.tasks' to create complete artifacts
+3. Then run 'specfact sync spec-kit' again
+
+Note: For bidirectional sync, Spec-Kit artifacts are optional if syncing from SpecFact → Spec-Kit
 ```
 
 **Bidirectional sync** adds:
 
 ```bash
+Syncing Spec-Kit artifacts from: /path/to/repo
+✓ Detected Spec-Kit repository
+✓ Constitution found and validated
+📦 Scanning Spec-Kit artifacts...
+✓ Found 2 features in specs/
+✓ Detected SpecFact structure
+📝 Converting Spec-Kit → SpecFact...
+  - Updated 2 features
+  - Added 0 new features
 🔄 Converting SpecFact → Spec-Kit...
 ✓ Converted 2 features to Spec-Kit
 ✓ Generated Spec-Kit compatible artifacts:
@@ -280,11 +405,28 @@ Sync Summary (Bidirectional):
   - SpecFact → Spec-Kit: 2 features converted to Spec-Kit markdown
   - Format Compatibility: ✅ Full (works with /speckit.analyze, /speckit.implement, /speckit.checklist)
   - Conflicts: None detected
+
+⚠ Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state
+
+Next Steps:
+  Run '/speckit.analyze' to validate artifact consistency and quality
+  This will check for ambiguities, duplications, and constitution alignment
+
+✓ Sync complete!
 ```
 
 **Bidirectional sync with overwrite** adds:
 
 ```bash
+Syncing Spec-Kit artifacts from: /path/to/repo
+✓ Detected Spec-Kit repository
+✓ Constitution found and validated
+📦 Scanning Spec-Kit artifacts...
+✓ Found 2 features in specs/
+✓ Detected SpecFact structure
+📝 Converting Spec-Kit → SpecFact...
+  - Updated 2 features
+  - Added 0 new features
 🔄 Converting SpecFact → Spec-Kit...
 ⚠ Overwrite mode: Removing existing Spec-Kit artifacts...
 ✓ Existing artifacts removed
@@ -300,6 +442,14 @@ Sync Summary (Bidirectional):
   - SpecFact → Spec-Kit: 32 features converted to Spec-Kit markdown (overwritten)
   - Format Compatibility: ✅ Full (works with /speckit.analyze, /speckit.implement, /speckit.checklist)
   - Conflicts: None detected
+
+⚠ Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state
+
+Next Steps:
+  Run '/speckit.analyze' to validate artifact consistency and quality
+  This will check for ambiguities, duplications, and constitution alignment
+
+✓ Sync complete!
 ```
 
 ## Context

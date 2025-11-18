@@ -96,19 +96,47 @@ Review a plan bundle to identify ambiguities, missing information, and unknowns.
 
 **Note**: This review workflow is expected to run BEFORE promoting from `draft` to `review` stage. If the user explicitly states they are skipping review (e.g., exploratory spike), you may proceed, but must warn that promotion readiness may be incomplete.
 
-**Automatic Enrichment Requests**: If the user requests automatic enrichment (e.g., "enrich missing details automatically"), you should:
+**Automatic Enrichment Strategy**:
 
-1. Identify Partial categories from the coverage summary
-2. Use CLI commands to enrich the most impactful Partial categories
-3. Focus on high-value improvements (Completion Signals, Edge Cases)
-4. Report what was enriched and what remains Partial
-5. Explain that Partial categories don't block promotion but enrichment improves quality
+The CLI now supports automatic enrichment via `--auto-enrich` flag. Use this when:
+
+1. **User explicitly requests enrichment**: "enrich", "auto-fix", "improve quality", "fix vague criteria"
+2. **Plan quality indicators suggest it**: Vague acceptance criteria, incomplete requirements, generic tasks detected
+3. **After Spec-Kit sync**: If user mentions issues from `/speckit.analyze` (vague acceptance criteria, incomplete requirements)
+
+**Enrichment Workflow**:
+
+1. **Run with `--auto-enrich`**: Execute `specfact plan review --auto-enrich` to automatically fix common issues
+2. **Review enrichment results**: Analyze what was enhanced and verify improvements
+3. **LLM reasoning**: Use your reasoning to:
+   - Verify enhancements are contextually appropriate
+   - Identify any generic improvements that need refinement
+   - Suggest specific manual improvements for edge cases
+4. **Follow-up enrichment**: If auto-enrichment made generic improvements, use CLI commands to refine them:
+   - `specfact plan update-feature` to add specific file paths, method names, or component references
+   - `specfact plan update-feature` to refine Given/When/Then scenarios with specific actions
+   - `specfact plan update-feature` to add domain-specific constraints
+
+**Example Enrichment Flow**:
+
+```bash
+# Step 1: Auto-enrich to fix common issues
+specfact plan review --auto-enrich --plan <plan_path>
+
+# Step 2: LLM analyzes results and suggests refinements
+# "Auto-enrichment enhanced 8 acceptance criteria. The Given/When/Then format is good,
+#  but we should make the 'When' clause more specific. For example, 'When they interact
+#  with the system' could be 'When they call the configure() method with valid parameters'."
+
+# Step 3: Manual refinement using CLI commands
+specfact plan update-feature --key FEATURE-001 --acceptance "Given a developer wants to configure Git operations, When they call the configure() method with valid parameters, Then the configuration is validated and stored" --plan <plan_path>
+```
 
 ## Operating Constraints
 
 **STRICTLY READ-WRITE**: This command modifies plan bundle metadata and content. All updates must be performed by the specfact CLI.
 
-**Command**: `specfact plan review`
+**Command**: `specfact plan review [--auto-enrich]`
 
 **Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment. No need to specify `--mode` flag. Mode is detected from:
 
@@ -121,6 +149,21 @@ Review a plan bundle to identify ambiguities, missing information, and unknowns.
 
 - **CLI Mode**: Interactive Q&A with free-text input, simple multiple-choice when applicable
 - **Copilot Mode**: Reasoning-enhanced questions with recommendations, similar to Spec-Kit clarify
+
+**Auto-Enrichment Feature**:
+
+The `--auto-enrich` flag automatically enhances the plan bundle before scanning for ambiguities:
+
+- **Vague acceptance criteria** (e.g., "is implemented", "is functional", "works") → Converted to testable Given/When/Then format
+- **Incomplete requirements** (e.g., "System MUST Helper class") → Enhanced with verbs and actions (e.g., "System MUST provide a Helper class for [feature] operations")
+- **Generic tasks** (e.g., "Implement [story]") → Enhanced with implementation details (file paths, methods, components)
+
+**When to Use Auto-Enrichment**:
+
+- **Before first review**: Use `--auto-enrich` when reviewing a plan bundle imported from code or Spec-Kit to automatically fix common quality issues
+- **After sync from Spec-Kit**: If `/speckit.analyze` reports vague acceptance criteria or incomplete requirements, use `--auto-enrich` to fix them automatically
+- **Before promotion**: Use `--auto-enrich` to improve plan quality before promoting from `draft` to `review` stage
+- **LLM Reasoning**: In Copilot mode, analyze the plan bundle first, then decide if auto-enrichment would be beneficial based on the coverage summary
 
 ## What This Command Does
 
@@ -152,6 +195,30 @@ In Copilot mode, follow this three-phase workflow:
 - Plan bundle path (default: active plan or latest in `.specfact/plans/`)
 - Max questions per session (default: 5)
 - Category focus (optional, to focus on specific taxonomy category)
+- Auto-enrichment flag (if user requests automatic enrichment or if plan appears to need it)
+
+**LLM Reasoning for Auto-Enrichment**:
+
+In Copilot mode, you should **reason about whether auto-enrichment is needed**:
+
+1. **Check if plan was imported from code or Spec-Kit**: If the user mentions "after sync" or "imported from code", auto-enrichment is likely beneficial
+2. **Analyze plan quality indicators**: If you see patterns like:
+   - Vague acceptance criteria ("is implemented", "is functional")
+   - Incomplete requirements ("System MUST Helper class")
+   - Generic tasks without implementation details
+   Then suggest using `--auto-enrich`
+3. **User intent**: If user explicitly requests "enrich", "improve", "fix vague criteria", or mentions issues from `/speckit.analyze`, use `--auto-enrich`
+
+**Decision Flow**:
+
+```text
+IF user mentions "after sync" OR "imported" OR "vague criteria" OR "incomplete requirements":
+    → Use --auto-enrich flag
+ELSE IF plan appears to have quality issues (based on initial scan):
+    → Suggest --auto-enrich to user and wait for confirmation
+ELSE:
+    → Proceed with normal review (no auto-enrichment)
+```
 
 **WAIT STATE**: If plan path is unclear, ask the user:
 
@@ -166,6 +233,9 @@ In Copilot mode, follow this three-phase workflow:
 ```bash
 # Get questions as JSON (for Copilot mode)
 specfact plan review --list-questions --plan <plan_path> --max-questions 5
+
+# With auto-enrichment (if needed)
+specfact plan review --auto-enrich --list-questions --plan <plan_path> --max-questions 5
 ```
 
 **In CI/CD Mode**: Use `--non-interactive` flag:
@@ -173,6 +243,9 @@ specfact plan review --list-questions --plan <plan_path> --max-questions 5
 ```bash
 # Non-interactive mode (for automation)
 specfact plan review --non-interactive --plan <plan_path> --answers '{"Q001": "answer1", "Q002": "answer2"}'
+
+# With auto-enrichment
+specfact plan review --auto-enrich --non-interactive --plan <plan_path> --answers '{"Q001": "answer1"}'
 ```
 
 **Capture from CLI**:
@@ -180,8 +253,32 @@ specfact plan review --non-interactive --plan <plan_path> --answers '{"Q001": "a
 - Plan bundle loaded successfully
 - Current stage (should be `draft` for review)
 - Existing clarifications (if any)
+- **Auto-enrichment summary** (if `--auto-enrich` was used):
+  - Features updated
+  - Stories updated
+  - Acceptance criteria enhanced
+  - Requirements enhanced
+  - Tasks enhanced
+  - List of changes made
 - Questions list (if `--list-questions` used)
 - **Coverage Summary**: Pay special attention to Partial categories - they indicate areas that could be enriched but don't block promotion
+
+**Understanding Auto-Enrichment Output**:
+
+When `--auto-enrich` is used, the CLI will output:
+
+```bash
+Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)...
+✓ Auto-enriched plan bundle: 2 features, 5 stories updated
+  - Enhanced 8 acceptance criteria
+  - Enhanced 3 requirements
+  - Enhanced 4 tasks
+
+Changes made:
+  - Feature FEATURE-001: Enhanced requirement 'System MUST Helper class' → 'System MUST provide a Helper class for git operations operations'
+  - Story STORY-001: Enhanced acceptance criteria 'is implemented' → 'Given a developer wants to use configure git operations, When they interact with the system, Then configure git operations is functional and verified'
+  ...
+```
 
 **Understanding CLI Output**:
 
@@ -190,6 +287,18 @@ When the CLI reports "No critical ambiguities detected. Plan is ready for promot
 - **Critical categories** (Functional Scope, Feature Completeness, Constraints) are all Clear or Partial (not Missing)
 - **Partial categories** are not critical enough to block promotion, but enrichment would improve plan quality
 - The plan can be promoted, but consider enriching Partial categories for better completeness
+
+**LLM Post-Enrichment Analysis**:
+
+After auto-enrichment runs, you should:
+
+1. **Review the changes**: Analyze what was enhanced and verify it makes sense
+2. **Check for remaining issues**: Look for patterns that weren't caught by auto-enrichment
+3. **Suggest further improvements**: Use LLM reasoning to identify additional enhancements:
+   - Are the Given/When/Then scenarios specific enough?
+   - Do the enhanced requirements capture the full intent?
+   - Are the task enhancements accurate for the codebase structure?
+4. **Propose manual refinements**: If auto-enrichment made generic improvements, suggest specific refinements using CLI commands
 
 ### 2. Get Questions from CLI (Copilot Mode) or Analyze Directly (Interactive Mode)
 
@@ -358,31 +467,51 @@ If the user mentions they plan to sync to Spec-Kit later (e.g., "I'll sync to sp
 3. **Explain the workflow**:
    - Review enriches plan bundle → Sync generates complete Spec-Kit artifacts → Optional customization if needed
 
-**Manual Enrichment for Partial Categories**:
+**Enrichment Strategy for Partial Categories**:
 
-When categories are marked as "Partial", you can enrich them using CLI commands:
+When categories are marked as "Partial", use this two-phase approach:
 
-- **Completion Signals (Partial)**: Stories have acceptance criteria but they're not testable
-  - Use `specfact plan update-feature` to add testable acceptance criteria with keywords like "must", "should", "verify", "validate", "check"
-  - Example: Change "Get contract-first test status" → "Must verify contract-first test status is returned correctly"
+**Phase 1: Automatic Enrichment** (use `--auto-enrich` flag):
 
-- **Edge Cases (Partial)**: Stories have <3 acceptance criteria and no edge case keywords
+- **Completion Signals (Partial)**: Auto-enriches vague acceptance criteria ("is implemented", "is functional") → Given/When/Then format
+- **Feature Completeness (Partial)**: Auto-enriches incomplete requirements ("System MUST Helper class") → Complete requirements with verbs
+- **Feature Completeness (Partial)**: Auto-enriches generic tasks → Tasks with implementation details
+
+**Phase 2: LLM-Enhanced Manual Refinement** (after auto-enrichment):
+
+After auto-enrichment, use LLM reasoning to refine generic improvements:
+
+- **Completion Signals (Partial)**: Review auto-enriched Given/When/Then scenarios and refine with specific actions:
+  - Generic: "When they interact with the system"
+  - Refined: "When they call the `configure()` method with valid parameters"
+  - Use: `specfact plan update-feature --key <key> --acceptance "<refined criteria>" --plan <path>`
+
+- **Edge Cases (Partial)**: Add domain-specific edge cases:
   - Use `specfact plan update-feature` to add edge case acceptance criteria
   - Add keywords like "edge", "corner", "boundary", "limit", "invalid", "null", "empty"
-  - Example: Add "Must handle null input gracefully" or "Must validate boundary conditions"
+  - Example: Add "Given invalid Git repository path, When configure() is called, Then system returns clear error message"
 
-- **Integration (Partial)**: Features mention integration keywords but lack constraints
+- **Integration (Partial)**: Add specific external dependency constraints:
   - Use `specfact plan update-feature --constraints` to add external dependency constraints
   - Example: `--constraints "API rate limits: 100 req/min, Timeout: 30s, Retry: 3 attempts"`
 
-- **Data Model (Partial)**: Features mention data keywords but lack constraints
+- **Data Model (Partial)**: Add specific data model constraints:
   - Use `specfact plan update-feature --constraints` to add data model constraints
   - Example: `--constraints "Entity uniqueness: email must be unique, Max records: 10,000 per user"`
 
-- **Interaction/UX (Partial)**: Stories mention UX keywords but lack error handling
+- **Interaction/UX (Partial)**: Add specific error handling scenarios:
   - Use `specfact plan update-feature` to add error handling acceptance criteria
   - Add keywords like "error", "empty", "invalid", "validation", "failure"
-  - Example: Add "Must display clear error message on invalid input"
+  - Example: Add "Given user submits invalid input, When validation runs, Then system displays clear error message with field-specific guidance"
+
+**LLM Reasoning for Refinement**:
+
+When refining auto-enriched content, consider:
+
+1. **Context from codebase**: Research the actual codebase structure to suggest accurate file paths, method names, and component references
+2. **Domain knowledge**: Use domain-specific terminology and patterns appropriate for the feature
+3. **Testability**: Ensure refined acceptance criteria are truly testable (can be verified with automated tests)
+4. **Specificity**: Replace generic placeholders with specific, actionable details
 
 ### 4. Sequential Questioning Loop
 
@@ -614,15 +743,27 @@ specfact plan review --plan <plan_path> --answers '{"Q001": "answer1"}'
 
 **Enrichment Options**:
 
-1. **Automatic Enrichment** (if user requested): Use CLI commands to enrich Partial categories (see Manual Enrichment section)
-2. **Manual Enrichment**: Use `specfact plan update-feature` commands to add missing constraints/acceptance criteria
-3. **Defer**: Proceed with promotion and enrich later during implementation
+- **Automatic Enrichment** (recommended first step): Use `--auto-enrich` flag to automatically fix vague acceptance criteria, incomplete requirements, and generic tasks
+
+  ```bash
+  specfact plan review --auto-enrich --plan <plan_path>
+  ```
+
+- **LLM-Enhanced Refinement** (after auto-enrichment): Use LLM reasoning to:
+
+  - Review auto-enrichment results and verify contextually appropriate improvements
+  - Identify generic improvements that need domain-specific refinement
+  - Suggest specific manual improvements using CLI commands
+
+- **Manual Enrichment**: Use `specfact plan update-feature` commands to add missing constraints/acceptance criteria with specific details
+
+- **Defer**: Proceed with promotion and enrich later during implementation (not recommended if Partial categories are high-impact)
 
 **Next Steps**:
+
 - Plan can be promoted (no critical blockers)
 - Optional: Run enrichment to improve Partial categories
 - Run: `/specfact-cli/specfact-plan-promote review`
-```
 
 **If Outstanding or Deferred remain**:
 
@@ -655,6 +796,71 @@ A plan is ready for promotion when:
 - Constraints are explicit and measurable
 - Terminology is consistent
 - No contradictory statements remain
+
+### LLM Reasoning for Continuous Improvement
+
+**After auto-enrichment, use LLM reasoning to further improve the plan**:
+
+1. **Analyze Enrichment Quality**:
+   - Review each enhanced acceptance criteria: Is the Given/When/Then scenario specific enough?
+   - Check enhanced requirements: Do they capture the full intent with appropriate verbs?
+   - Evaluate task enhancements: Are file paths and method names accurate for the codebase?
+
+2. **Identify Generic Patterns**:
+   - Look for placeholder text like "interact with the system" → Suggest specific actions
+   - Find generic file paths like "src/specfact_cli/..." → Research actual codebase structure
+   - Detect vague component names → Suggest specific class/function names from codebase
+
+3. **Research Codebase Context**:
+   - Search for actual file paths, method names, and component structures
+   - Identify domain-specific patterns and terminology
+   - Understand the actual implementation approach to suggest accurate refinements
+
+4. **Propose Specific Refinements**:
+   - Use `specfact plan update-feature` to refine generic Given/When/Then scenarios
+   - Add specific file paths, method names, or component references to tasks
+   - Enhance requirements with domain-specific details
+
+5. **Validate Improvements**:
+   - Ensure all refinements are testable and measurable
+   - Verify terminology consistency across all enhancements
+   - Check that refinements align with codebase structure and patterns
+
+**Example LLM Reasoning Process**:
+
+```text
+1. Auto-enrichment enhanced: "is implemented" → "Given a developer wants to use configure git operations, When they interact with the system, Then configure git operations is functional and verified"
+
+2. LLM Analysis:
+
+   - ✅ Given clause is contextually appropriate
+   - ⚠️ When clause is too generic ("interact with the system")
+   - ✅ Then clause captures the outcome
+
+3. Codebase Research:
+
+   - Search for Git operations configuration methods
+   - Find: `src/specfact_cli/utils/git_operations.py` with `configure()` method
+   - Identify: Method signature `configure(repo_path: Path, config: dict) -> bool`
+
+4. Proposed Refinement:
+
+   - "Given a developer wants to configure Git operations, When they call configure(repo_path, config) with valid parameters, Then the method returns True and configuration is persisted"
+
+5. Execute Refinement:
+
+   ```bash
+   specfact plan update-feature --key FEATURE-001 --acceptance "Given a developer wants to configure Git operations, When they call configure(repo_path, config) with valid parameters, Then the method returns True and configuration is persisted" --plan <path>
+   ```
+
+**Continuous Improvement Loop**:
+
+1. Run `--auto-enrich` to fix common issues automatically
+2. Use LLM reasoning to analyze enrichment results
+3. Research codebase for specific details
+4. Propose and execute refinements using CLI commands
+5. Re-run review to verify improvements
+6. Iterate until plan quality meets promotion standards
 
 ## Context
 

@@ -439,7 +439,17 @@ class SpecKitConverter:
                 lines.append(f"### User Story {idx} - {story.title} (Priority: {priority})")
                 lines.append(f"Users can {story.title}")
                 lines.append("")
-                lines.append("**Why this priority**: Core functionality")
+                # Extract priority rationale from story tags, feature outcomes, or use default
+                priority_rationale = "Core functionality"
+                if story.tags:
+                    for tag in story.tags:
+                        if tag.startswith(("priority:", "rationale:")):
+                            priority_rationale = tag.split(":", 1)[1].strip()
+                            break
+                if (not priority_rationale or priority_rationale == "Core functionality") and feature.outcomes:
+                    # Try to extract from feature outcomes
+                    priority_rationale = feature.outcomes[0] if len(feature.outcomes[0]) < 100 else "Core functionality"
+                lines.append(f"**Why this priority**: {priority_rationale}")
                 lines.append("")
 
                 # INVSEST criteria (CRITICAL for /speckit.analyze and /speckit.checklist)
@@ -611,8 +621,7 @@ class SpecKitConverter:
         return "\n".join(lines)
 
     @beartype
-    @require(lambda feature: isinstance(feature, Feature), "Must be Feature instance")
-    @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
+    @require(lambda feature, plan_bundle: isinstance(feature, Feature) and isinstance(plan_bundle, PlanBundle), "Must be Feature and PlanBundle instances")
     @ensure(lambda result: isinstance(result, str), "Must return string")
     def _generate_plan_markdown(self, feature: Feature, plan_bundle: PlanBundle) -> str:
         """Generate Spec-Kit plan.md content from SpecFact feature."""
@@ -697,7 +706,9 @@ class SpecKitConverter:
         lines.append("- [ ] Contracts defined?")
         lines.append("- [ ] Contract tests written?")
         lines.append("")
-        lines.append("**Status**: PASS")
+        # Status should be PENDING until gates are actually checked
+        # Users should review and check gates based on their project's actual state
+        lines.append("**Status**: PENDING")
         lines.append("")
 
         # Phases section
