@@ -36,6 +36,77 @@ class TestCodeAnalyzer:
         assert analyzer._should_skip_file(Path(".venv/lib/foo.py"))
         assert not analyzer._should_skip_file(Path("src/foo.py"))
 
+    def test_extract_technology_stack_from_requirements_txt(self):
+        """Test technology stack extraction from requirements.txt."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create a simple Python file
+            (src_path / "service.py").write_text("class Service: pass")
+
+            # Create requirements.txt
+            (repo_path / "requirements.txt").write_text("python>=3.11\nfastapi==0.104.1\npydantic>=2.0.0\n")
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+            plan_bundle = analyzer.analyze()
+
+            # Verify technology stack was extracted
+            assert plan_bundle.idea is not None
+            constraints = plan_bundle.idea.constraints
+            assert len(constraints) > 0
+
+            constraint_str = " ".join(constraints).lower()
+            assert "python" in constraint_str or "fastapi" in constraint_str
+
+    def test_extract_technology_stack_from_pyproject_toml(self):
+        """Test technology stack extraction from pyproject.toml."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create a simple Python file
+            (src_path / "service.py").write_text("class Service: pass")
+
+            # Create pyproject.toml
+            (repo_path / "pyproject.toml").write_text(
+                '[project]\nrequires-python = ">=3.12"\ndependencies = ["django>=4.2.0"]\n'
+            )
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+            plan_bundle = analyzer.analyze()
+
+            # Verify technology stack was extracted
+            assert plan_bundle.idea is not None
+            constraints = plan_bundle.idea.constraints
+            assert len(constraints) > 0
+
+            constraint_str = " ".join(constraints).lower()
+            assert "python" in constraint_str or "django" in constraint_str
+
+    def test_extract_technology_stack_fallback_to_defaults(self):
+        """Test that defaults are used when no dependency files exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create a simple Python file
+            (src_path / "service.py").write_text("class Service: pass")
+
+            # No dependency files
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+            plan_bundle = analyzer.analyze()
+
+            # Verify defaults are used
+            assert plan_bundle.idea is not None
+            constraints = plan_bundle.idea.constraints
+            # Should have some constraints (defaults)
+            assert len(constraints) > 0
+
     def test_extract_themes_from_imports(self):
         """Test theme extraction from imports."""
         code = dedent(

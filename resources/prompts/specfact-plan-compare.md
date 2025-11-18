@@ -9,24 +9,121 @@ description: Compare manual and auto-derived plans to detect deviations and inco
 $ARGUMENTS
 ```
 
+You **MUST** consider the user input before proceeding (if not empty).
+
+## ⚠️ CRITICAL: CLI Usage Enforcement
+
+**YOU MUST ALWAYS USE THE SPECFACT CLI**. Never create artifacts directly or implement functionality.
+
+### Rules
+
+1. **ALWAYS execute CLI first**: Run `specfact plan compare` before any comparison - execute the CLI command before any other operations
+2. **NEVER write code**: Do not implement comparison logic - the CLI handles this
+3. **NEVER create YAML/JSON directly**: All comparison reports must be CLI-generated
+4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+6. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information. Use CLI commands to get plan information. The CLI provides all necessary data through its output.
+7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Deviation class, etc.). All operations must be performed via CLI commands.
+
+### What Happens If You Don't Follow This
+
+- ❌ Artifacts may not match CLI schema versions
+- ❌ Missing metadata and telemetry
+- ❌ Format inconsistencies
+- ❌ Validation failures
+- ❌ Works only in Copilot mode, fails in CI/CD
+- ❌ Breaks when CLI internals change
+- ❌ Requires knowledge of internal code structure
+- ❌ Out-of-sync information if bundle files are read directly
+
+## ⏸️ Wait States: User Input Required
+
+**When user input is required, you MUST wait for the user's response.**
+
+### Wait State Rules
+
+1. **Never assume**: If input is missing, ask and wait
+2. **Never continue**: Do not proceed until user responds
+3. **Be explicit**: Clearly state what information you need
+4. **Provide options**: Give examples or default suggestions
+
+## Goal
+
+Compare a manual plan bundle with an auto-derived plan bundle to detect deviations, mismatches, and missing features. This command helps identify gaps between planned features and actual implementation, ensuring alignment between specification and code.
+
+**Note**: This is a **read-only comparison** operation - it generates comparison reports but does not modify plan bundles.
+
 ## Action Required
 
-**If arguments provided**: Execute `specfact plan compare` immediately with provided arguments.
+### Use CLI to Resolve Plan Numbers/Names
 
-**If arguments missing**: Ask user interactively for:
+**⚠️ CRITICAL**: If user provides plan numbers (e.g., "19 vs 20") or plan names, you MUST use the CLI to resolve them to actual file paths. NEVER search for files directly.
 
-1. **Manual plan path**: "Which manual plan to compare? (default: .specfact/plans/main.bundle.yaml)"
-2. **Auto plan path**: "Which auto-derived plan to compare? (default: latest in .specfact/reports/brownfield/)"
+### Step 1: Resolve Plan Paths Using CLI
+
+**If user input contains plan numbers** (e.g., "19 vs 20", "compare 1 and 2"):
+
+1. **List available plans using CLI**:
+
+   ```bash
+   specfact plan select
+   ```
+
+   - Parse the CLI table output to get plan names for the specified numbers
+   - Extract the full plan file names from the table
+
+2. **Get full plan paths using CLI**:
+
+   ```bash
+   specfact plan select <plan_number>
+   ```
+
+   - This will output the full plan name/path
+   - Use this to construct the full path: `.specfact/plans/<plan_name>`
+
+**If user input contains plan names** (e.g., "main.bundle.yaml vs auto-derived.bundle.yaml"):
+
+- Use the plan names directly (may need to add `.bundle.yaml` suffix if missing)
+- Verify paths exist by attempting to use them with the CLI
+
+**If arguments provided as paths**: Use them directly.
+
+**If arguments missing**: Ask user interactively for each missing argument and **WAIT for their response**:
+
+1. **Manual plan path**: "Which manual plan to compare? (Enter plan number, plan name, or path. Default: .specfact/plans/main.bundle.yaml)"
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
+
+2. **Auto plan path**: "Which auto-derived plan to compare? (Enter plan number, plan name, or path. Default: latest in .specfact/plans/)"
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
+
 3. **Output format**: "Output format? (1) Markdown, (2) JSON, (3) YAML (default: markdown)"
-4. **Output file**: "Save report to file? (optional, default: auto-generated with timestamp)"
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
 
-**Only execute after** getting necessary information from user.
+4. **Output file**: "Save report to file? (optional, default: auto-generated with timestamp)"
+   - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
+
+**Only execute CLI after** resolving plan paths and getting necessary information from user.
+
+## Operating Constraints
+
+**STRICTLY READ-ONLY**: Do **not** modify the codebase. All comparison reports must be generated by the specfact CLI.
+
+**Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment. No need to specify `--mode` flag. Mode is detected from:
+
+- Environment variables (`SPECFACT_MODE`)
+- CoPilot API availability
+- IDE integration (VS Code/Cursor with CoPilot)
+- Defaults to CI/CD mode if none detected
 
 ## Command
 
 ```bash
 specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yaml}] [--out PATH]
 ```
+
+**Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
+
+**CRITICAL**: Always execute this CLI command. Never create comparison reports directly.
 
 ## Quick Reference
 
@@ -49,39 +146,136 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 
 ## Interactive Flow
 
-**Step 1**: Check if `--manual` is specified.
+### Use CLI to Resolve Plan Paths
 
-- **If missing**: Check if default path (`.specfact/plans/main.bundle.yaml`) exists
-  - **If exists**: Use default path
-  - **If not exists**: Ask user: "Manual plan not found at default location. Enter path to manual plan bundle, or create one with `specfact plan init --interactive`?"
-- **If provided**: Use specified path
+**⚠️ CRITICAL**: **NEVER search for files directly**. Always use CLI commands to resolve plan numbers/names to file paths.
 
-**Step 2**: Check if `--auto` is specified.
+**Step 1**: Parse user input to identify plan selections.
 
-- **If missing**: Try to find latest auto-derived plan in `.specfact/plans/`
-  - **If found**: Ask user: "Use latest auto-derived plan: [PATH]? (y/n, or enter different path)"
-  - **If not found**: Ask user: "No auto-derived plans found. Enter path to auto-derived plan bundle, or generate one with `specfact import from-code --repo . --name my-project`?"
-- **If provided**: Use specified path
+- **If user input contains plan numbers** (e.g., "19 vs 20", "compare 1 and 2"):
+  1. **Execute CLI to list plans**:
+
+     ```bash
+     specfact plan select
+     ```
+
+  2. **Parse CLI table output** to extract plan names for the specified numbers
+  3. **Get full plan paths** by executing:
+
+     ```bash
+     specfact plan select <plan_number>
+     ```
+
+     - Parse the CLI output to get the full plan name
+     - Construct full path: `.specfact/plans/<plan_name>`
+
+- **If user input contains plan names** (e.g., "main.bundle.yaml vs auto-derived.bundle.yaml"):
+  - Use plan names directly (may need to add `.bundle.yaml` suffix if missing)
+  - Construct full path: `.specfact/plans/<plan_name>`
+
+- **If user input contains full paths**: Use them directly
+
+**Step 2**: Resolve manual plan path.
+
+- **If plan number/name provided**: Use CLI to resolve (see Step 1)
+- **If missing**: Check if default path (`.specfact/plans/main.bundle.yaml`) exists using CLI
+  - **Verify using CLI**: Attempt to use the path with `specfact plan compare` - if it fails, the file doesn't exist
+  - **If not exists**: Ask user and **WAIT**:
+
+    ```text
+    "Manual plan not found at default location. Enter plan number, plan name, or path to manual plan bundle, 
+    or create one with `specfact plan init --interactive`?
+    [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+    ```
+
+**Step 3**: Resolve auto plan path.
+
+- **If plan number/name provided**: Use CLI to resolve (see Step 1)
+- **If missing**: Use CLI to find latest auto-derived plan
+  - **Execute CLI to list plans**:
+
+    ```bash
+    specfact plan select
+    ```
+
+  - **Parse CLI output** to find latest auto-derived plan (by modification date)
+  - **If found**: Ask user and **WAIT**:
+
+    ```text
+    "Use latest auto-derived plan: [PLAN_NAME]? (y/n, or enter different plan number/name/path)
+    [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+    ```
+
+  - **If not found**: Ask user and **WAIT**:
+
+    ```text
+    "No auto-derived plans found. Enter plan number, plan name, or path to auto-derived plan bundle, 
+    or generate one with `specfact import from-code --repo . --name my-project`?
+    [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+    ```
 
 **Step 3**: Check if `--format` is specified.
 
-- **If missing**: Ask user: "Output format? (1) Markdown, (2) JSON, (3) YAML (default: markdown)"
+- **If missing**: Ask user and **WAIT**:
+
+  ```text
+  "Output format? (1) Markdown, (2) JSON, (3) YAML (default: markdown)
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
 - **If provided**: Use specified format
 
 **Step 4**: Check if `--out` is specified.
 
-- **If missing**: Ask user: "Save report to file? (y/n, default: auto-generated in .specfact/reports/comparison/)"
+- **If missing**: Ask user and **WAIT**:
+
+  ```text
+  "Save report to file? (y/n, default: auto-generated in .specfact/reports/comparison/)
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
   - **If yes**: Generate default path with timestamp and format extension
   - **If no**: Skip file output (display in console only)
 - **If provided**: Use specified path
 
 **Step 5**: Confirm execution.
 
-- Show summary: "Will compare [MANUAL_PATH] vs [AUTO_PATH] and save report as [OUT_PATH] in [FORMAT] format. Continue? (y/n)"
-- **If yes**: Execute command
+- Show summary and **WAIT**:
+
+  ```text
+  "Will compare [MANUAL_PATH] vs [AUTO_PATH] and save report as [OUT_PATH] in [FORMAT] format. 
+  Continue? (y/n)
+  [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
+  ```
+
+- **If yes**: Execute CLI command
 - **If no**: Cancel or ask for changes
 
-**Step 6**: Execute command with confirmed arguments.
+**Step 6**: Execute CLI command with confirmed arguments.
+
+**⚠️ CRITICAL**: Use the resolved file paths (not plan numbers) in the CLI command:
+
+```bash
+specfact plan compare --manual <MANUAL_PATH> --auto <AUTO_PATH> --format <FORMAT> --out <OUT_PATH>
+```
+
+**Example**: If user said "19 vs 20", and CLI resolved them to:
+
+- Plan 19: `specfact-import-test-v2.2025-11-17T13-53-31.bundle.yaml`
+- Plan 20: `specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.yaml`
+
+Then execute:
+
+```bash
+specfact plan compare --manual .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.bundle.yaml --auto .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.yaml
+```
+
+**Capture CLI output**:
+
+- Comparison report path (if `--out` specified)
+- Deviation counts and severity breakdown
+- Console output with summary
+- Any error messages or warnings
 
 ## Expected Output
 
@@ -137,7 +331,45 @@ Fix the blocking deviations or adjust enforcement config
 
 ## Execution Steps
 
-### 3. Validate Plan Bundles
+### 1. Execute CLI Command (REQUIRED)
+
+**ALWAYS execute the specfact CLI** to perform the comparison:
+
+```bash
+specfact plan compare --manual <manual_path> --auto <auto_path> --format <format> --out <output_path>
+```
+
+**The CLI performs**:
+
+- Plan bundle loading and validation
+- Feature and story comparison
+- Deviation detection and severity assignment
+- Report generation (Markdown, JSON, or YAML)
+- Enforcement rule checking (if `.specfact/enforcement.yaml` exists)
+
+**Capture CLI output**:
+
+- Comparison report path (if `--out` specified)
+- Deviation counts (HIGH, MEDIUM, LOW)
+- Console summary
+- Any error messages or warnings
+
+**If CLI execution fails**:
+
+- Report the error to the user
+- Do not attempt to create comparison reports manually
+- Suggest fixes based on error message
+
+### 2. Present Results
+
+**Present the CLI-generated comparison report** to the user:
+
+- **Report location**: Show where the CLI wrote the report file (if `--out` specified)
+- **Deviation summary**: Show counts by severity (HIGH, MEDIUM, LOW)
+- **Key deviations**: Highlight critical deviations from CLI output
+- **Next steps**: Suggest actions based on deviations found
+
+### 3. Validate Plan Bundles (Reference - CLI Handles This)
 
 Load and validate both plan bundles:
 

@@ -124,6 +124,7 @@
 - [Commands](reference/commands.md) - Complete command reference
 - [Architecture](reference/architecture.md) - Technical design
 - [Operational Modes](reference/modes.md) - CI/CD vs CoPilot modes
+- [Telemetry](reference/telemetry.md) - Privacy-first, opt-in analytics
 - [Feature Keys](reference/feature-keys.md) - Key normalization
 - [Directory Structure](reference/directory-structure.md) - Project layout
 

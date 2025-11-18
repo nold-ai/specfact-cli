@@ -30,6 +30,7 @@ class SpecFactStructure:
     REPORTS_BROWNFIELD = f"{ROOT}/reports/brownfield"
     REPORTS_COMPARISON = f"{ROOT}/reports/comparison"
     REPORTS_ENFORCEMENT = f"{ROOT}/reports/enforcement"
+    REPORTS_ENRICHMENT = f"{ROOT}/reports/enrichment"
     GATES_RESULTS = f"{ROOT}/gates/results"
     CACHE = f"{ROOT}/cache"
 
@@ -76,6 +77,7 @@ class SpecFactStructure:
         (base_path / cls.REPORTS_BROWNFIELD).mkdir(parents=True, exist_ok=True)
         (base_path / cls.REPORTS_COMPARISON).mkdir(parents=True, exist_ok=True)
         (base_path / cls.REPORTS_ENFORCEMENT).mkdir(parents=True, exist_ok=True)
+        (base_path / cls.REPORTS_ENRICHMENT).mkdir(parents=True, exist_ok=True)
         (base_path / cls.GATES_RESULTS).mkdir(parents=True, exist_ok=True)
         (base_path / cls.CACHE).mkdir(parents=True, exist_ok=True)
 
@@ -264,8 +266,10 @@ class SpecFactStructure:
             except Exception:
                 pass
 
-        # Find all plan bundles
-        for plan_file in sorted(plans_dir.glob("*.bundle.yaml"), reverse=True):
+        # Find all plan bundles, sorted by modification date (oldest first, newest last)
+        plan_files = list(plans_dir.glob("*.bundle.yaml"))
+        plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=False)
+        for plan_file in plan_files_sorted:
             if plan_file.name == "config.yaml":
                 continue
 
@@ -393,6 +397,175 @@ class SpecFactStructure:
 
     @classmethod
     @beartype
+    @require(lambda plan_bundle_path: isinstance(plan_bundle_path, Path), "Plan bundle path must be Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_enrichment_report_path(cls, plan_bundle_path: Path, base_path: Path | None = None) -> Path:
+        """
+        Get enrichment report path based on plan bundle path.
+
+        The enrichment report is named to match the plan bundle, replacing
+        `.bundle.yaml` with `.enrichment.md` and placing it in the enrichment reports directory.
+
+        Args:
+            plan_bundle_path: Path to plan bundle file (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to enrichment report (e.g., `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`)
+
+        Examples:
+            >>> plan = Path('.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml')
+            >>> SpecFactStructure.get_enrichment_report_path(plan)
+            Path('.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md')
+        """
+        if base_path is None:
+            base_path = Path(".")
+        else:
+            # Normalize base_path to repository root (avoid recursive .specfact creation)
+            base_path = Path(base_path).resolve()
+            # If base_path contains .specfact, find the repository root
+            parts = base_path.parts
+            if ".specfact" in parts:
+                # Find the index of .specfact and go up to repository root
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
+
+        # Extract filename from plan bundle path
+        plan_filename = plan_bundle_path.name
+
+        # Replace .bundle.yaml with .enrichment.md
+        if plan_filename.endswith(".bundle.yaml"):
+            enrichment_filename = plan_filename.replace(".bundle.yaml", ".enrichment.md")
+        else:
+            # Fallback: append .enrichment.md if pattern doesn't match
+            enrichment_filename = f"{plan_bundle_path.stem}.enrichment.md"
+
+        directory = base_path / cls.REPORTS_ENRICHMENT
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory / enrichment_filename
+
+    @classmethod
+    @beartype
+    @require(
+        lambda enrichment_report_path: isinstance(enrichment_report_path, Path), "Enrichment report path must be Path"
+    )
+    @ensure(lambda result: result is None or isinstance(result, Path), "Must return None or Path")
+    def get_plan_bundle_from_enrichment(
+        cls, enrichment_report_path: Path, base_path: Path | None = None
+    ) -> Path | None:
+        """
+        Get original plan bundle path from enrichment report path.
+
+        Derives the original plan bundle path by reversing the enrichment report naming convention.
+        The enrichment report is named to match the plan bundle, so we can reverse this.
+
+        Args:
+            enrichment_report_path: Path to enrichment report (e.g., `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`)
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to original plan bundle, or None if not found
+
+        Examples:
+            >>> enrichment = Path('.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md')
+            >>> SpecFactStructure.get_plan_bundle_from_enrichment(enrichment)
+            Path('.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml')
+        """
+        if base_path is None:
+            base_path = Path(".")
+        else:
+            # Normalize base_path to repository root
+            base_path = Path(base_path).resolve()
+            parts = base_path.parts
+            if ".specfact" in parts:
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
+
+        # Extract filename from enrichment report path
+        enrichment_filename = enrichment_report_path.name
+
+        # Replace .enrichment.md with .bundle.yaml
+        if enrichment_filename.endswith(".enrichment.md"):
+            plan_filename = enrichment_filename.replace(".enrichment.md", ".bundle.yaml")
+        else:
+            # Fallback: try to construct from stem
+            plan_filename = f"{enrichment_report_path.stem}.bundle.yaml"
+
+        plan_path = base_path / cls.PLANS / plan_filename
+        return plan_path if plan_path.exists() else None
+
+    @classmethod
+    @beartype
+    @require(lambda original_plan_path: isinstance(original_plan_path, Path), "Original plan path must be Path")
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_enriched_plan_path(cls, original_plan_path: Path, base_path: Path | None = None) -> Path:
+        """
+        Get enriched plan bundle path based on original plan bundle path.
+
+        Creates a path for an enriched plan bundle with a clear "enriched" label and timestamp.
+        Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml`
+
+        Args:
+            original_plan_path: Path to original plan bundle (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to enriched plan bundle (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml`)
+
+        Examples:
+            >>> plan = Path('.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml')
+            >>> SpecFactStructure.get_enriched_plan_path(plan)
+            Path('.specfact/plans/specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml')
+        """
+        if base_path is None:
+            base_path = Path(".")
+        else:
+            # Normalize base_path to repository root
+            base_path = Path(base_path).resolve()
+            parts = base_path.parts
+            if ".specfact" in parts:
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
+
+        # Extract original plan filename
+        original_filename = original_plan_path.name
+
+        # Extract name and original timestamp from filename
+        # Format: <name>.<timestamp>.bundle.yaml
+        if original_filename.endswith(".bundle.yaml"):
+            name_with_timestamp = original_filename.replace(".bundle.yaml", "")
+            # Split name and timestamp (timestamp is after last dot before .bundle.yaml)
+            # Pattern: <name>.<timestamp> -> we want to insert .enriched.<new-timestamp>
+            parts_name = name_with_timestamp.rsplit(".", 1)
+            if len(parts_name) == 2:
+                # Has timestamp: <name>.<timestamp>
+                name_part = parts_name[0]
+                original_timestamp = parts_name[1]
+            else:
+                # No timestamp found, use whole name
+                name_part = name_with_timestamp
+                original_timestamp = None
+        else:
+            # Fallback: use stem
+            name_part = original_plan_path.stem
+            original_timestamp = None
+
+        # Generate new timestamp for enrichment
+        enrichment_timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+
+        # Build enriched filename
+        if original_timestamp:
+            enriched_filename = f"{name_part}.{original_timestamp}.enriched.{enrichment_timestamp}.bundle.yaml"
+        else:
+            enriched_filename = f"{name_part}.enriched.{enrichment_timestamp}.bundle.yaml"
+
+        directory = base_path / cls.PLANS
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory / enriched_filename
+
+    @classmethod
+    @beartype
     @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     @ensure(lambda result: result is None or isinstance(result, Path), "Must return None or Path")
     def get_latest_brownfield_report(cls, base_path: Path | None = None) -> Path | None:
@@ -462,6 +635,10 @@ This directory contains SpecFact CLI artifacts for contract-driven development.
 - `plans/` - Plan bundles (versioned in git)
 - `protocols/` - FSM protocol definitions (versioned)
 - `reports/` - Analysis reports (gitignored)
+  - `brownfield/` - Brownfield import analysis reports
+  - `comparison/` - Plan comparison reports
+  - `enforcement/` - Enforcement validation reports
+  - `enrichment/` - LLM enrichment reports (matched to plan bundles by name/timestamp)
 - `gates/` - Enforcement configuration and results
 - `cache/` - Tool caches (gitignored)
 

@@ -307,6 +307,8 @@ specfact import from-spec-kit --repo ./my-speckit-project --dry-run
 ✅ Found specs/001-user-authentication/tasks.md
 ✅ Found .specify/memory/constitution.md
 
+**💡 Tip**: If constitution is missing or minimal, run `specfact constitution bootstrap --repo .` to auto-generate from repository analysis.
+
 📊 Migration Preview:
   - Will create: .specfact/plans/main.bundle.yaml
   - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
@@ -384,8 +386,12 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 **What it syncs**:
 
 - **Spec-Kit → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/plans/*.yaml`
-- **SpecFact → Spec-Kit**: Changes to `.specfact/plans/*.yaml` → Updated Spec-Kit markdown (preserves structure)
+- **SpecFact → Spec-Kit**: Changes to `.specfact/plans/*.yaml` → Updated Spec-Kit markdown with all required fields auto-generated:
+  - **spec.md**: Frontmatter, INVSEST criteria, Scenarios (Primary, Alternate, Exception, Recovery)
+  - **plan.md**: Constitution Check, Phases, Technology Stack (from constraints)
+  - **tasks.md**: Phase organization, Story mappings ([US1], [US2]), Parallel markers
 - **Team collaboration**: Multiple developers can work on the same plan with automated synchronization
+- **No manual editing required**: All Spec-Kit fields are auto-generated - ready for `/speckit.analyze` without additional work
 
 ### **Step 5: Enable Enforcement**
 

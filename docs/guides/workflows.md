@@ -95,6 +95,8 @@ echo "# New Feature" >> specs/002-new-feature/spec.md
 - `.specify/memory/constitution.md` ↔ SpecFact business context
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ `.specfact/protocols/*.yaml`
 
+**Note**: When syncing from SpecFact to Spec-Kit, all required Spec-Kit fields (frontmatter, INVSEST criteria, Constitution Check, Phases, Technology Stack, Story mappings) are automatically generated. No manual editing required - generated artifacts are ready for `/speckit.analyze`.
+
 ---
 
 ## Repository Sync Workflow

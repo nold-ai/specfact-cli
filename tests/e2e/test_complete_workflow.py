@@ -122,6 +122,7 @@ class TestCompleteWorkflow:
             product=product,
             features=[feature1, feature2],
             metadata=None,
+            clarifications=None,
         )
 
         # Step 6: Validate with Pydantic
@@ -245,6 +246,7 @@ class TestCompleteWorkflow:
                 ),
             ],
             metadata=None,
+            clarifications=None,
         )
 
         # Step 2: Create an "auto-derived" plan (actual implementation)
@@ -271,6 +273,7 @@ class TestCompleteWorkflow:
                 # Missing FEATURE-002 entirely
             ],
             metadata=None,
+            clarifications=None,
         )
 
         # Step 3: Compare and create deviation report
@@ -351,6 +354,7 @@ class TestCompleteWorkflow:
             product=product,
             features=[feature],
             metadata=None,
+            clarifications=None,
         )
 
         # Save plan
@@ -541,6 +545,7 @@ class TestGeneratorE2EWorkflows:
                 ),
             ],
             metadata=None,
+            clarifications=None,
         )
         # Original plan content (removed duplicate)
         original_plan = PlanBundle(
@@ -631,6 +636,7 @@ class TestGeneratorE2EWorkflows:
                 ),
             ],
             metadata=None,
+            clarifications=None,
         )
 
         # Step 2: Generate plan to file
@@ -864,6 +870,7 @@ class TestGeneratorE2EWorkflows:
                 )
             ],
             metadata=None,
+            clarifications=None,
         )
 
         plan_gen = PlanGenerator()
@@ -1141,6 +1148,7 @@ class TestPlanCreationE2E:
                 value_hypothesis="Improve test coverage by 80%",
                 metrics={"coverage_increase": 0.8, "test_speed": 2.5},
             ),
+            clarifications=None,
             business=Business(
                 segments=["DevTools", "Enterprise"],
                 problems=["Low test coverage", "Slow test execution"],
@@ -1310,6 +1318,7 @@ class TestPlanCreationE2E:
             product=Product(themes=[], releases=[]),
             features=[],
             metadata=None,
+            clarifications=None,
         )
 
         generator = PlanGenerator()
@@ -1453,6 +1462,7 @@ class TestPlanComparisonWorkflow:
             product=manual_product,
             features=manual_features,
             metadata=None,
+            clarifications=None,
         )
 
         manual_path = workspace / "contracts" / "plans" / "manual.yaml"
@@ -1520,6 +1530,7 @@ class TestPlanComparisonWorkflow:
             product=auto_product,
             features=auto_features,
             metadata=None,
+            clarifications=None,
         )
 
         auto_path = workspace / "contracts" / "plans" / "auto-derived.yaml"
@@ -1619,6 +1630,7 @@ class TestPlanComparisonWorkflow:
             product=auto_product,
             features=auto_features,
             metadata=None,
+            clarifications=None,
         )
 
         auto_path = workspace / "contracts" / "plans" / "brownfield-auto.yaml"
@@ -1673,6 +1685,7 @@ class TestPlanComparisonWorkflow:
             product=manual_product,
             features=manual_features,
             metadata=None,
+            clarifications=None,
         )
 
         manual_path = workspace / "contracts" / "plans" / "manual-target.yaml"
@@ -1727,6 +1740,7 @@ class TestPlanComparisonWorkflow:
                 ),
             ],
             metadata=None,
+            clarifications=None,
         )
 
         generator.generate(improved_auto_plan, auto_path)
@@ -1909,6 +1923,7 @@ class TestBrownfieldAnalysisWorkflow:
 
             print("✅ CLI import from-code on specfact-cli: COMPLETE")
 
+    @pytest.mark.timeout(60)
     def test_self_analysis_consistency(self):
         """
         Test that analyzing specfact-cli multiple times produces consistent results.
@@ -1942,6 +1957,7 @@ class TestBrownfieldAnalysisWorkflow:
         print(f"✅ Both runs found: {len(plan1.features)} features, {stories1} stories")
         print("✅ Analysis consistency: VERIFIED")
 
+    @pytest.mark.timeout(60)
     def test_story_points_fibonacci_compliance(self):
         """
         Verify all discovered stories use valid Fibonacci numbers for points.
@@ -1997,6 +2013,7 @@ class TestBrownfieldAnalysisWorkflow:
         print(f"✅ {user_centric_count}/{total_stories} stories are user-centric")
         assert user_centric_count == total_stories, "All stories should be user-centric"
 
+    @pytest.mark.timeout(60)
     def test_task_extraction_from_methods(self):
         """
         Verify tasks are properly extracted from method names.

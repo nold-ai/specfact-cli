@@ -86,6 +86,32 @@ class Metadata(BaseModel):
     promoted_by: str | None = Field(None, description="User who performed last promotion")
 
 
+class Clarification(BaseModel):
+    """Single clarification Q&A."""
+
+    id: str = Field(..., description="Unique question ID (e.g., Q001)")
+    category: str = Field(..., description="Taxonomy category (Functional Scope, Data Model, etc.)")
+    question: str = Field(..., description="Clarification question")
+    answer: str = Field(..., description="User-provided answer")
+    integrated_into: list[str] = Field(
+        default_factory=list, description="Plan sections updated (e.g., 'features.FEATURE-001.acceptance')"
+    )
+    timestamp: str = Field(..., description="ISO timestamp of answer")
+
+
+class ClarificationSession(BaseModel):
+    """Session of clarifications."""
+
+    date: str = Field(..., description="Session date (YYYY-MM-DD)")
+    questions: list[Clarification] = Field(default_factory=list, description="Questions asked in this session")
+
+
+class Clarifications(BaseModel):
+    """Plan bundle clarifications."""
+
+    sessions: list[ClarificationSession] = Field(default_factory=list, description="Clarification sessions")
+
+
 class PlanBundle(BaseModel):
     """Complete plan bundle model."""
 
@@ -95,3 +121,4 @@ class PlanBundle(BaseModel):
     product: Product = Field(..., description="Product definition")
     features: list[Feature] = Field(default_factory=list, description="Product features")
     metadata: Metadata | None = Field(None, description="Plan bundle metadata")
+    clarifications: Clarifications | None = Field(None, description="Plan clarifications (Q&A sessions)")

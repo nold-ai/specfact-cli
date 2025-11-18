@@ -7,6 +7,7 @@ Complete technical reference for SpecFact CLI.
 - **[Commands](commands.md)** - Complete command reference with all options
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
 - **[Operational Modes](modes.md)** - CI/CD vs CoPilot modes
+- **[Telemetry](telemetry.md)** - Opt-in analytics and privacy guarantees
 - **[Feature Keys](feature-keys.md)** - Key normalization and formats
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
 

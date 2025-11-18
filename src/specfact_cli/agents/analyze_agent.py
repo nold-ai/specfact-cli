@@ -387,4 +387,5 @@ Dependencies: {len(dependencies)} dependency files found
             product=product,
             features=[],
             metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            clarifications=None,
         )
