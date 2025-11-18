@@ -305,10 +305,17 @@ packages = [
     "src/specfact_cli",
 ]
 
+[tool.hatch.build.targets.wheel.force-include]
+"resources/prompts" = "specfact_cli/resources/prompts"
+"resources/templates" = "specfact_cli/resources/templates"
+"resources/schemas" = "specfact_cli/resources/schemas"
+"resources/mappings" = "specfact_cli/resources/mappings"
+
 [tool.hatch.build.targets.sdist]
 # Only include essential files in source distribution
 include = [
     "/src",
+    "/resources",
     "/README.md",
     "/LICENSE.md",
     "/pyproject.toml",
