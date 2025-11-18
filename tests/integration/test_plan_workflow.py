@@ -272,6 +272,7 @@ class TestPlanBundleEdgeCases:
             confidence=0.8,
             story_points=None,
             value_points=None,
+            scenarios=None,
         )
 
         assert len(story.tags) == 2

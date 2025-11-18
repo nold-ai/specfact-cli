@@ -26,6 +26,14 @@ class Story(BaseModel):
     tasks: list[str] = Field(default_factory=list, description="Implementation tasks (methods, functions)")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
     draft: bool = Field(default=False, description="Whether this is a draft story")
+    scenarios: dict[str, list[str]] | None = Field(
+        None,
+        description="Scenarios extracted from control flow: primary, alternate, exception, recovery (Given/When/Then format)",
+    )
+    contracts: dict[str, Any] | None = Field(
+        None,
+        description="API contracts extracted from function signatures: parameters, return_type, preconditions, postconditions, error_contracts",
+    )
 
 
 class Feature(BaseModel):
@@ -84,6 +92,13 @@ class Metadata(BaseModel):
     stage: str = Field(default="draft", description="Plan stage (draft, review, approved, released)")
     promoted_at: str | None = Field(None, description="ISO timestamp of last promotion")
     promoted_by: str | None = Field(None, description="User who performed last promotion")
+    analysis_scope: str | None = Field(
+        None, description="Analysis scope: 'full' for entire repository, 'partial' for subdirectory analysis"
+    )
+    entry_point: str | None = Field(None, description="Entry point path for partial analysis (relative to repo root)")
+    external_dependencies: list[str] = Field(
+        default_factory=list, description="List of external modules/packages imported from outside entry point"
+    )
 
 
 class Clarification(BaseModel):

@@ -63,6 +63,7 @@ class TestPlanGeneratorIntegration:
                             acceptance=["API client implemented", "Rate limiting handled", "Error handling complete"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         )
                     ],
                 )

@@ -117,3 +117,4 @@ reports/
 
 # Jekyll bundle
 vendor/
+_site/

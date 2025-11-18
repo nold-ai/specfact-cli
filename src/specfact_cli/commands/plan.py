@@ -551,6 +551,8 @@ def add_story(
                 tasks=[],
                 confidence=1.0,
                 draft=draft,
+                contracts=None,
+                scenarios=None,
             )
 
             # Add story to feature
@@ -1745,7 +1747,14 @@ def promote(
 
             # Create or update metadata
             if bundle.metadata is None:
-                bundle.metadata = Metadata(stage=stage, promoted_at=None, promoted_by=None)
+                bundle.metadata = Metadata(
+                    stage=stage,
+                    promoted_at=None,
+                    promoted_by=None,
+                    analysis_scope=None,
+                    entry_point=None,
+                    external_dependencies=[],
+                )
 
             bundle.metadata.stage = stage
             bundle.metadata.promoted_at = datetime.now(UTC).isoformat()

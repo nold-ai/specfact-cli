@@ -648,7 +648,12 @@ class TestPlanAddStory:
                     acceptance=[],
                     stories=[
                         Story(
-                            key="STORY-000", title="Existing Story", acceptance=[], story_points=None, value_points=None
+                            key="STORY-000",
+                            title="Existing Story",
+                            acceptance=[],
+                            story_points=None,
+                            value_points=None,
+                            scenarios=None,
                         )
                     ],
                 )

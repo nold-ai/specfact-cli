@@ -451,9 +451,9 @@ Constitution supersedes all other practices. Amendments require documentation.
             os.chdir(old_cwd)
 
         # Typer uses exit code 2 for missing files (file validation error before our code runs)
-        # Check both stdout and stderr for error messages
+        # Check stdout for error messages (stderr may not be separately captured)
         assert result.exit_code in (1, 2)
-        error_output = (result.stdout + result.stderr).lower()
+        error_output = result.stdout.lower()
         assert (
             "does not exist" in error_output
             or "not found" in error_output

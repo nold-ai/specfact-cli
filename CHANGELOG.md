@@ -9,6 +9,38 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.2] - 2025-11-19
+
+### Added (0.6.2)
+
+- **Phase 2: Contract Extraction (Step 2.1)**
+  - Contract extraction for all features (100% coverage - 45/45 features have contracts)
+  - `ContractExtractor` module extracts API contracts from function signatures, type hints, and validation logic
+  - Contracts automatically included in `plan.md` files with "Contract Definitions" section
+  - Article IX compliance: Contracts defined checkbox automatically checked when contracts exist
+  - Full integration with `CodeAnalyzer` and `SpecKitConverter` for seamless contract extraction
+
+### Fixed (0.6.2)
+
+- **Acceptance Criteria Parsing**
+  - Fixed malformed acceptance criteria parsing in `SpecKitConverter._generate_spec_markdown()`
+  - Implemented regex-based extraction to properly handle type hints (e.g., `dict[str, Any]`) in Given/When/Then format
+  - Prevents truncation of acceptance criteria when commas appear inside type hints
+  - Added proper `import re` statement to `speckit_converter.py`
+
+- **Feature Numbering in Spec-Kit Artifacts**
+  - Fixed feature directory numbering to use sequential numbers (001-, 002-, 003-) instead of all "000-"
+  - Features are now properly numbered when converting SpecFact to Spec-Kit format
+
+### Changed (0.6.2)
+
+- **Spec-Kit Converter Enhancements**
+  - Enhanced `_generate_spec_markdown()` to use regex for robust Given/When/Then parsing
+  - Improved contract section generation in `plan.md` files
+  - Better handling of complex type hints in acceptance criteria
+
+---
+
 ## [0.6.1] - 2025-11-18
 
 ### Added (0.6.1)

@@ -22,6 +22,7 @@
 - **Contract-first**: All public APIs must have `@icontract` decorators and `@beartype` type checking
 - **CLI focus**: Commands should follow typer patterns with rich console output
 - **Data validation**: Use Pydantic models for all data structures
+- **Documentation and Planning**: Work directly with major artifacts (strategic plans, implementation plans, etc.). Do NOT create plans for plans, tracking documents for tracking documents, or status artifacts for status artifacts. Only create new documentation artifacts when they add clear value and are not redundant with existing artifacts. Update existing artifacts with status annotations rather than creating separate status files.
 - Always finish each output listing which rulesets have been applied in your implementation and which AI (LLM) provider and model (including the version) you are using in your actual request for clarity. Ensure the model version is accurate and reflects what is currently running.
 
 <available_instructions>

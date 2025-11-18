@@ -36,6 +36,7 @@ def sample_plan(tmp_path):
                         acceptance=["Story acceptance"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     )
                 ],
             )

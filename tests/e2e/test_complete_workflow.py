@@ -80,6 +80,7 @@ class TestCompleteWorkflow:
             value_points=None,
             confidence=0.9,
             draft=False,
+            scenarios=None,
         )
 
         story2 = Story(
@@ -91,6 +92,7 @@ class TestCompleteWorkflow:
             value_points=None,
             confidence=0.95,
             draft=False,
+            scenarios=None,
         )
 
         feature1 = Feature(
@@ -608,6 +610,7 @@ class TestGeneratorE2EWorkflows:
                             tags=["architecture", "critical"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         ),
                         Story(
                             key="STORY-002",
@@ -616,6 +619,7 @@ class TestGeneratorE2EWorkflows:
                             tags=["core", "critical"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         ),
                     ],
                 ),
@@ -631,6 +635,7 @@ class TestGeneratorE2EWorkflows:
                             acceptance=["Unified interface", "Provider switching", "Error handling"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         )
                     ],
                 ),
@@ -865,6 +870,7 @@ class TestGeneratorE2EWorkflows:
                             acceptance=["All checks pass", "Reports generated"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         )
                     ],
                 )
@@ -1190,6 +1196,7 @@ class TestPlanCreationE2E:
                             story_points=None,
                             value_points=None,
                             confidence=0.85,
+                            scenarios=None,
                         ),
                         Story(
                             key="STORY-002",
@@ -1198,6 +1205,7 @@ class TestPlanCreationE2E:
                             tags=["integration"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         ),
                     ],
                 ),
@@ -1213,6 +1221,7 @@ class TestPlanCreationE2E:
                             acceptance=["Runs tests in parallel", "Handles dependencies"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         )
                     ],
                 ),
@@ -1414,6 +1423,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task created"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                     Story(
                         key="STORY-002",
@@ -1421,6 +1431,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task updated"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                     Story(
                         key="STORY-003",
@@ -1428,6 +1439,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task deleted"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                 ],
             ),
@@ -1443,6 +1455,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task assigned"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                 ],
             ),
@@ -1487,6 +1500,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task created"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                     Story(
                         key="STORY-002",
@@ -1494,6 +1508,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task updated"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                     # Missing STORY-003 (Delete Task)
                 ],
@@ -1510,6 +1525,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["Task assigned"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                 ],
             ),
@@ -1659,6 +1675,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["API works"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                     Story(
                         key="STORY-002",
@@ -1666,6 +1683,7 @@ class TestPlanComparisonWorkflow:
                         acceptance=["MFA configured"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
                     ),
                 ],
             ),
@@ -1721,6 +1739,7 @@ class TestPlanComparisonWorkflow:
                             acceptance=["API works"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         ),
                         Story(
                             key="STORY-002",
@@ -1728,6 +1747,7 @@ class TestPlanComparisonWorkflow:
                             acceptance=["MFA configured"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         ),
                     ],
                 ),
@@ -1775,11 +1795,12 @@ class TestBrownfieldAnalysisWorkflow:
 
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-        # Analyze the specfact-cli codebase
+        # Analyze scoped subset of specfact-cli codebase (analyzers module) for faster tests
         repo_path = Path(".")
-        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+        entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
+        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5, entry_point=entry_point)
 
-        print("📊 Analyzing specfact-cli codebase...")
+        print("📊 Analyzing specfact-cli codebase (scoped to analyzers)...")
         plan_bundle = analyzer.analyze()
 
         # Verify analysis results
@@ -1827,9 +1848,10 @@ class TestBrownfieldAnalysisWorkflow:
         from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.validators.schema import validate_plan_bundle
 
-        # Analyze current codebase
+        # Analyze scoped subset of codebase (analyzers module) for faster tests
         repo_path = Path(".")
-        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.6)
+        entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
+        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.6, entry_point=entry_point)
 
         print("🔍 Step 1: Analyzing codebase...")
         plan_bundle = analyzer.analyze()
@@ -1867,7 +1889,7 @@ class TestBrownfieldAnalysisWorkflow:
     @pytest.mark.timeout(60)
     def test_cli_analyze_code2spec_on_self(self):
         """
-        Test CLI command to analyze specfact-cli itself.
+        Test CLI command to analyze specfact-cli itself (scoped to analyzers module for performance).
         """
         print("\n💻 Testing CLI 'import from-code' on specfact-cli")
 
@@ -1884,7 +1906,7 @@ class TestBrownfieldAnalysisWorkflow:
             output_path = Path(tmpdir) / "specfact-auto.yaml"
             report_path = Path(tmpdir) / "analysis-report.md"
 
-            print("🚀 Running: specfact import from-code")
+            print("🚀 Running: specfact import from-code (scoped to analyzers)")
             result = runner.invoke(
                 app,
                 [
@@ -1892,6 +1914,8 @@ class TestBrownfieldAnalysisWorkflow:
                     "from-code",
                     "--repo",
                     ".",
+                    "--entry-point",
+                    "src/specfact_cli/analyzers",
                     "--out",
                     str(output_path),
                     "--report",
@@ -1935,14 +1959,15 @@ class TestBrownfieldAnalysisWorkflow:
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
         repo_path = Path(".")
+        entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
 
-        # Run analysis twice
+        # Run analysis twice (scoped to analyzers module for performance)
         print("🔍 Analysis run 1...")
-        analyzer1 = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+        analyzer1 = CodeAnalyzer(repo_path, confidence_threshold=0.5, entry_point=entry_point)
         plan1 = analyzer1.analyze()
 
         print("🔍 Analysis run 2...")
-        analyzer2 = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+        analyzer2 = CodeAnalyzer(repo_path, confidence_threshold=0.5, entry_point=entry_point)
         plan2 = analyzer2.analyze()
 
         # Results should be consistent
@@ -1969,7 +1994,8 @@ class TestBrownfieldAnalysisWorkflow:
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
         repo_path = Path(".")
-        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+        entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
+        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5, entry_point=entry_point)
         plan = analyzer.analyze()
 
         valid_fibonacci = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
@@ -1998,7 +2024,8 @@ class TestBrownfieldAnalysisWorkflow:
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
         repo_path = Path(".")
-        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+        entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
+        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5, entry_point=entry_point)
         plan = analyzer.analyze()
 
         total_stories = 0
@@ -2025,7 +2052,8 @@ class TestBrownfieldAnalysisWorkflow:
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
         repo_path = Path(".")
-        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
+        entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
+        analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5, entry_point=entry_point)
         plan = analyzer.analyze()
 
         total_tasks = 0

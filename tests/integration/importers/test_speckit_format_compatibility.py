@@ -248,6 +248,7 @@ Gate checks before implementation.
             value_points=None,
             confidence=1.0,
             draft=False,
+            scenarios=None,
         )
 
         feature = Feature(
@@ -352,6 +353,7 @@ Gate checks before implementation.
             value_points=None,
             confidence=1.0,
             draft=False,
+            scenarios=None,
         )
 
         feature = Feature(

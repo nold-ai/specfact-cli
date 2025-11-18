@@ -95,10 +95,7 @@ def _perform_sync_operation(
         if is_constitution_minimal(constitution_path):
             # Auto-generate in test mode, prompt in interactive mode
             # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-            is_test_env = (
-                os.environ.get("TEST_MODE") == "true"
-                or os.environ.get("PYTEST_CURRENT_TEST") is not None
-            )
+            is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
             if is_test_env:
                 # Auto-generate bootstrap constitution in test mode
                 from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
@@ -110,9 +107,7 @@ def _perform_sync_operation(
                 # Check if we're in an interactive environment
                 import sys
 
-                is_interactive = (
-                    hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
-                ) and sys.stdin.isatty()
+                is_interactive = (hasattr(sys.stdin, "isatty") and sys.stdin.isatty()) and sys.stdin.isatty()
                 if is_interactive:
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
                     suggest_bootstrap = typer.confirm(
@@ -129,7 +124,9 @@ def _perform_sync_operation(
                         console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
                         console.print("[dim]Review and adjust as needed before syncing[/dim]")
                     else:
-                        console.print("[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]")
+                        console.print(
+                            "[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]"
+                        )
                 else:
                     # Non-interactive mode: skip prompt
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")

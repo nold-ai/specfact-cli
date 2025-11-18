@@ -47,6 +47,7 @@ class TestPlanGenerator:
                             acceptance=["Criterion 1", "Criterion 2"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
                         )
                     ],
                 )
