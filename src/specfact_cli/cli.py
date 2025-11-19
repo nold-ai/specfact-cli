@@ -132,6 +132,7 @@ def print_banner() -> None:
     # Smooth gradient from bright cyan (top) to blue (bottom) - 6 lines for ASCII art
     # Using Rich's gradient colors: bright_cyan → cyan → bright_blue → blue
     gradient_colors = [
+        "black",     # Empty line
         "blue",      # Line 1 - darkest at top
         "blue",      # Line 2
         "cyan",      # Line 3
