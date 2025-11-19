@@ -110,6 +110,19 @@ console = Console()
 _current_mode: OperationalMode | None = None
 
 
+def print_banner() -> None:
+    """Print SpecFact CLI ASCII art banner."""
+    banner = """███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗
+██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   
+╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   
+███████║██║     ███████╗╚██████╗███████╗██║  ██║╚██████╗   ██║   
+╚══════╝╚═╝     ╚══════╝ ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝   ╚═╝   
+
+        Spec→Contract→Sentinel for Contract-Driven Development"""
+    console.print(banner, style="bold cyan")
+
+
 def version_callback(value: bool) -> None:
     """Show version information."""
     if value:
@@ -175,6 +188,7 @@ def main(
     - Default to CI/CD mode
     """
     # Show help if no command provided (avoids user confusion)
+    # Note: Banner is already shown in cli_main() if help is requested
     if ctx.invoked_subcommand is None:
         # Show help by calling Typer's help callback
         ctx.get_help()
@@ -221,6 +235,17 @@ def cli_main() -> None:
     # Normalize shell names in argv for Typer's built-in completion commands
     normalize_shell_in_argv()
 
+    # Show banner if help is requested or no command provided
+    # Check before Typer processes arguments to intercept help requests
+    show_banner = False
+    if len(sys.argv) == 1:
+        # No arguments - will show help
+        show_banner = True
+    elif len(sys.argv) >= 2:
+        # Check if help is explicitly requested
+        if sys.argv[1] in ("--help", "-h", "help"):
+            show_banner = True
+
     # Intercept Typer's shell detection for --show-completion and --install-completion
     # when no shell is provided (auto-detection case)
     # On Ubuntu, shellingham detects "sh" (dash) instead of "bash", so we force "bash"
@@ -250,6 +275,11 @@ def cli_main() -> None:
                 os.environ["_SPECFACT_COMPLETE"] = f"{mapped_shell}_source"
             else:
                 os.environ["_SPECFACT_COMPLETE"] = mapped_shell
+
+    # Show banner before help if requested
+    if show_banner:
+        print_banner()
+        console.print()  # Empty line after banner
 
     try:
         app()
