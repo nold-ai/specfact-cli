@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.7] - 2025-11-19
+
+### Added (0.6.7)
+
+- **Banner Display**
+  - Added ASCII art banner display by default for all commands
+  - Banner shows with gradient effect (blue → cyan → white)
+  - Improves brand recognition and visual appeal
+  - Added `--no-banner` flag to suppress banner (useful for CI/CD)
+
+### Changed (0.6.7)
+
+- **CLI Banner Behavior**
+  - Banner now displays by default when executing any command
+  - Banner shows with help output (`--help` or `-h`)
+  - Banner shows with version output (`--version` or `-v`)
+  - Use `--no-banner` to suppress for automated scripts and CI/CD
+
+### Documentation (0.6.7)
+
+- **Command Reference Updates**
+  - Added `--no-banner` to global options documentation
+  - Added "Banner Display" section explaining banner behavior
+  - Added example for suppressing banner in CI/CD environments
+
+---
+
 ## [0.6.6] - 2025-11-19
 
 ### Added (0.6.6)
