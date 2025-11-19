@@ -54,11 +54,13 @@ specfact repro --verbose
 - `sync spec-kit` - Sync with Spec-Kit artifacts
 - `sync repository` - Sync code changes
 
-**Constitution Management:**
+**Constitution Management (Spec-Kit Compatibility):**
 
-- `constitution bootstrap` - Generate bootstrap constitution from repository analysis
-- `constitution enrich` - Auto-enrich existing constitution with repository context
-- `constitution validate` - Validate constitution completeness
+- `constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
+- `constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
+- `constitution validate` - Validate constitution completeness (for Spec-Kit format)
+
+**Note**: The `constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
 
 **Setup:**
 
@@ -975,7 +977,15 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 
 ### `constitution` - Manage Project Constitutions
 
-Manage project constitutions for Spec-Kit integration. Auto-generate bootstrap templates from repository analysis.
+Manage project constitutions for Spec-Kit format compatibility. Auto-generate bootstrap templates from repository analysis.
+
+**Note**: These commands are for **Spec-Kit format compatibility** only. SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when:
+
+- Syncing with Spec-Kit artifacts (`specfact sync spec-kit`)
+- Working in Spec-Kit format (using `/speckit.*` commands)
+- Migrating from Spec-Kit to SpecFact format
+
+If you're using SpecFact standalone (without Spec-Kit), you don't need constitutions - use `specfact plan` commands instead.
 
 #### `constitution bootstrap`
 
@@ -1019,9 +1029,12 @@ specfact constitution bootstrap --repo . --overwrite
 
 **When to use:**
 
-- **After brownfield import**: Run `specfact import from-code` → Suggested automatically
-- **Before Spec-Kit sync**: Run before `specfact sync spec-kit` to ensure constitution exists
+- **Spec-Kit sync operations**: Required before `specfact sync spec-kit` (bidirectional sync)
+- **Spec-Kit format projects**: When working with Spec-Kit artifacts (using `/speckit.*` commands)
+- **After brownfield import (if syncing to Spec-Kit)**: Run `specfact import from-code` → Suggested automatically if Spec-Kit sync is planned
 - **Manual setup**: Generate constitution for new Spec-Kit projects
+
+**Note**: If you're using SpecFact standalone (without Spec-Kit), you don't need constitutions. Use `specfact plan` commands instead for plan management.
 
 **Integration:**
 
@@ -1032,7 +1045,7 @@ specfact constitution bootstrap --repo . --overwrite
 
 #### `constitution enrich`
 
-Auto-enrich existing constitution with repository context:
+Auto-enrich existing constitution with repository context (Spec-Kit format):
 
 ```bash
 specfact constitution enrich [OPTIONS]
@@ -1070,7 +1083,7 @@ specfact constitution enrich --repo . --constitution custom-constitution.md
 
 #### `constitution validate`
 
-Validate constitution completeness:
+Validate constitution completeness (Spec-Kit format):
 
 ```bash
 specfact constitution validate [OPTIONS]

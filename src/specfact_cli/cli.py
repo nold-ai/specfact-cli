@@ -203,7 +203,11 @@ def hello() -> None:
 
 
 # Register command groups
-app.add_typer(constitution.app, name="constitution", help="Manage project constitutions")
+app.add_typer(
+    constitution.app,
+    name="constitution",
+    help="Manage project constitutions (Spec-Kit compatibility layer)",
+)
 app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
 app.add_typer(plan.app, name="plan", help="Manage development plans")
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")

@@ -92,7 +92,7 @@ All notable changes to this project will be documented in this file.
 ### Changed (0.6.4)
 
 - **Template Directory Lookup Logic**
-  - Enhanced priority order: Development → importlib.resources → importlib.util → comprehensive search → __file__ fallback
+  - Enhanced priority order: Development → importlib.resources → importlib.util → comprehensive search → `__file__` fallback
   - All paths now use `.resolve()` for cross-platform compatibility
   - Better handling of `Traversable` to `Path` conversion from `importlib.resources.files()`
   - Improved exception handling with specific error messages for each failure type
