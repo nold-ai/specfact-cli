@@ -76,8 +76,9 @@ specfact [OPTIONS] COMMAND [ARGS]...
 
 **Global Options:**
 
-- `--version` - Show version and exit
-- `--help` - Show help message and exit
+- `--version`, `-v` - Show version and exit
+- `--help`, `-h` - Show help message and exit
+- `--no-banner` - Hide ASCII art banner (useful for CI/CD)
 - `--verbose` - Enable verbose output
 - `--quiet` - Suppress non-error output
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
@@ -102,6 +103,20 @@ Examples:
 - Omitting the flag leaves the value unchanged (if optional) or uses the default
 
 **Note**: Some boolean flags support `--no-flag` syntax (e.g., `--draft/--no-draft`), while others are simple presence flags (e.g., `--shadow-only`). Check command help with `specfact <command> --help` for specific flag behavior.
+
+**Banner Display:**
+
+The CLI displays an ASCII art banner by default for brand recognition and visual appeal. The banner shows:
+
+- When executing any command (unless `--no-banner` is specified)
+- With help output (`--help` or `-h`)
+- With version output (`--version` or `-v`)
+
+To suppress the banner (useful for CI/CD or automated scripts):
+
+```bash
+specfact --no-banner <command>
+```
 
 **Examples:**
 
