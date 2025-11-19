@@ -9,6 +9,53 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.6] - 2025-11-19
+
+### Added (0.6.6)
+
+- **CLI Help Improvements**
+  - Added automatic help display when `specfact` is executed without parameters
+  - Prevents user confusion by showing help screen instead of silent failure
+  - Added `-h` as alias for `--help` flag (standard CLI convention)
+  - Added `-v` as alias for `--version` flag (already existed, now documented)
+
+### Changed (0.6.6)
+
+- **CLI Entry Point Behavior**
+  - `specfact` without arguments now automatically shows help screen
+  - Improved user experience by providing immediate guidance when no command is specified
+
+### Fixed (0.6.6)
+
+- **Boolean Flag Documentation**
+  - Fixed misleading help text for `--draft` flag in `plan update-feature` command
+  - Updated help text to clarify: use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged
+  - Fixed prompt templates to show correct boolean flag usage (not `--draft true/false`)
+  - Updated all documentation to reflect correct Typer boolean flag syntax
+
+- **Entry Point Flag Documentation**
+  - Enhanced `--entry-point` flag documentation in `import from-code` command
+  - Added use cases: multi-project repos, large codebases, incremental modernization
+  - Updated prompt templates to include `--entry-point` usage examples
+  - Added validation checklist items for `--entry-point` flag usage
+
+### Documentation (0.6.6)
+
+- **Prompt Validation Checklist Updates**
+  - Added boolean flag validation checks (Version 1.7)
+  - Added `--entry-point` flag documentation requirements
+  - Added common issue: "Wrong Boolean Flag Usage" with fix guidance
+  - Updated Scenario 2 to verify boolean flag usage
+  - Added checks for `--entry-point` usage in partial analysis scenarios
+
+- **End-User Documentation**
+  - Added "Boolean Flags" section to command reference explaining correct usage
+  - Enhanced `--entry-point` documentation with detailed use cases
+  - Updated all command examples to show correct boolean flag syntax
+  - Added warnings about incorrect usage (`--flag true` vs `--flag`)
+
+---
+
 ## [0.6.4] - 2025-11-19
 
 ### Fixed (0.6.4)

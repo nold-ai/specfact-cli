@@ -52,6 +52,10 @@ The validator checks:
 - [ ] **Command examples**: Examples show actual CLI usage with correct flags
 - [ ] **Flag documentation**: All flags are documented with defaults and descriptions
 - [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags (e.g., `specfact plan select 20` not `specfact plan select --plan 20`)
+- [ ] **Boolean flags documented correctly**: Boolean flags use `--flag/--no-flag` syntax, not `--flag true/false`
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False) or omit (leaves unchanged)
+- [ ] **Entry point flag documented** (for `import from-code`): `--entry-point` flag is documented with use cases (multi-project repos, partial analysis, incremental modernization)
 
 ### 3. Wait States & User Input
 
@@ -133,6 +137,8 @@ For each prompt, test the following scenarios:
 2. Verify the LLM:
    - ✅ Executes the CLI command immediately
    - ✅ Uses the provided arguments correctly
+   - ✅ Uses boolean flags correctly (`--draft` not `--draft true`)
+   - ✅ Uses `--entry-point` when user specifies partial analysis
    - ✅ Does NOT create artifacts directly
    - ✅ Parses CLI output correctly
 
@@ -271,6 +277,18 @@ After testing, review:
 - Add examples showing correct syntax
 - Add warning about common mistakes (e.g., "NOT `specfact plan select --plan 20` (this will fail)")
 
+### ❌ Wrong Boolean Flag Usage
+
+**Symptom**: LLM uses `--flag true` or `--flag false` when flag is boolean (e.g., `--draft true` instead of `--draft`)
+
+**Fix**:
+
+- Verify actual CLI command signature (use `specfact <command> --help`)
+- Update prompt to explicitly state boolean flag syntax: `--flag` sets True, `--no-flag` sets False, omit to leave unchanged
+- Add examples showing correct syntax: `--draft` (not `--draft true`)
+- Add warning about common mistakes: "NOT `--draft true` (this will fail - Typer boolean flags don't accept values)"
+- Document when to use `--no-flag` vs omitting the flag entirely
+
 ### ❌ Missing Enrichment Workflow
 
 **Symptom**: LLM doesn't follow three-phase workflow for import-from-code
@@ -356,10 +374,18 @@ The following prompts are available for SpecFact CLI commands:
 
 ---
 
-**Last Updated**: 2025-11-18  
-**Version**: 1.6
+**Last Updated**: 2025-11-19  
+**Version**: 1.7
 
 ## Changelog
+
+### Version 1.7 (2025-11-19)
+
+- Added boolean flag validation checks
+- Added `--entry-point` flag documentation requirements
+- Added common issue: Wrong Boolean Flag Usage
+- Updated Scenario 2 to verify boolean flag usage
+- Added checks for `--entry-point` usage in partial analysis scenarios
 
 ### Version 1.6 (2025-11-18)
 

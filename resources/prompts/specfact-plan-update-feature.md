@@ -85,7 +85,7 @@ The `specfact plan update-feature` command:
 - Acceptance criteria (optional, comma-separated)
 - Constraints (optional, comma-separated)
 - Confidence (optional, 0.0-1.0)
-- Draft status (optional, true/false)
+- Draft status (optional, boolean flag: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged)
 - Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.yaml`)
 
 **WAIT STATE**: If feature key is missing, ask the user:
@@ -155,10 +155,16 @@ specfact plan update-feature \
   --constraints "Python 3.11+, Test coverage >= 80%" \
   --plan <plan_path>
 
-# Mark as draft
+# Mark as draft (boolean flag: --draft sets True, --no-draft sets False)
 specfact plan update-feature \
   --key FEATURE-001 \
-  --draft true \
+  --draft \
+  --plan <plan_path>
+
+# Unmark draft (set to False)
+specfact plan update-feature \
+  --key FEATURE-001 \
+  --no-draft \
   --plan <plan_path>
 ```
 
@@ -209,7 +215,9 @@ specfact plan update-feature \
 - **Partial updates**: Only specified fields are updated, others remain unchanged
 - **Comma-separated lists**: Outcomes, acceptance, and constraints use comma-separated strings
 - **Confidence range**: Must be between 0.0 and 1.0
-- **Draft status**: Use `true` or `false` (boolean)
+- **Draft status**: Boolean flag - use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False) or omit (leaves unchanged)
 
 ### Field Guidelines
 

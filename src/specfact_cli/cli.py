@@ -101,6 +101,7 @@ app = typer.Typer(
     help="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},  # Add -h as alias for --help
 )
 
 console = Console()
@@ -173,6 +174,12 @@ def main(
     - Auto-detect from environment (CoPilot API, IDE integration)
     - Default to CI/CD mode
     """
+    # Show help if no command provided (avoids user confusion)
+    if ctx.invoked_subcommand is None:
+        # Show help by calling Typer's help callback
+        ctx.get_help()
+        raise typer.Exit()
+
     # Store mode in context for commands to access
     if ctx.obj is None:
         ctx.obj = {}

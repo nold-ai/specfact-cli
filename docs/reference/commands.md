@@ -86,6 +86,21 @@ specfact [OPTIONS] COMMAND [ARGS]...
 - `copilot` - CoPilot-enabled mode (interactive, enhanced prompts)
 - Auto-detection: Checks CoPilot API availability and IDE integration
 
+**Boolean Flags:**
+
+Boolean flags in SpecFact CLI work differently from value flags:
+
+- ✅ **CORRECT**: `--flag` (sets True) or `--no-flag` (sets False) or omit (uses default)
+- ❌ **WRONG**: `--flag true` or `--flag false` (Typer boolean flags don't accept values)
+
+Examples:
+
+- `--draft` sets draft status to True
+- `--no-draft` sets draft status to False (when supported)
+- Omitting the flag leaves the value unchanged (if optional) or uses the default
+
+**Note**: Some boolean flags support `--no-flag` syntax (e.g., `--draft/--no-draft`), while others are simple presence flags (e.g., `--shadow-only`). Check command help with `specfact <command> --help` for specific flag behavior.
+
 **Examples:**
 
 ```bash
@@ -160,6 +175,11 @@ specfact import from-code [OPTIONS]
 - `--shadow-only` - Observe without blocking
 - `--report PATH` - Write import report
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
+- `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
+  - **Multi-project repositories (monorepos)**: Analyze one project at a time (e.g., `--entry-point projects/api-service`)
+  - **Large codebases**: Focus on specific modules or subsystems for faster analysis
+  - **Incremental modernization**: Modernize one part of the codebase at a time
+  - Example: `--entry-point src/core` analyzes only `src/core/` and its subdirectories
 
 **Note**: The `--name` option allows you to provide a meaningful name for the imported plan. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. If not provided, the AI will ask you interactively for a name.
 
@@ -180,14 +200,28 @@ specfact import from-code [OPTIONS]
 
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
 
-**Example:**
+**Examples:**
 
 ```bash
+# Full repository analysis
 specfact import from-code \
   --repo ./my-project \
   --confidence 0.7 \
   --shadow-only \
   --report reports/analysis.md
+
+# Partial analysis (analyze only specific subdirectory)
+specfact import from-code \
+  --repo ./my-project \
+  --entry-point src/core \
+  --confidence 0.7 \
+  --name core-module
+
+# Multi-project codebase (analyze one project at a time)
+specfact import from-code \
+  --repo ./monorepo \
+  --entry-point projects/api-service \
+  --name api-service-plan
 ```
 
 **What it does:**
@@ -198,6 +232,23 @@ specfact import from-code \
 - Infers API surfaces from type hints
 - Detects async anti-patterns with Semgrep
 - Generates plan bundle with confidence scores
+
+**Partial Repository Coverage:**
+
+The `--entry-point` parameter enables partial analysis of large codebases:
+
+- **Multi-project codebases**: Analyze individual projects within a monorepo separately
+- **Focused analysis**: Analyze specific modules or subdirectories for faster feedback
+- **Incremental modernization**: Modernize one module at a time, creating separate plan bundles per module
+- **Performance**: Faster analysis when you only need to understand a subset of the codebase
+
+**Note on Multi-Project Codebases:**
+
+When working with multiple projects in a single repository, Spec-Kit integration (via `sync spec-kit`) may create artifacts at nested folder levels. This is a known limitation (see [GitHub Spec-Kit issue #299](https://github.com/github/spec-kit/issues/299)). For now, it's recommended to:
+
+- Use `--entry-point` to analyze each project separately
+- Create separate plan bundles for each project
+- Run `specfact init` from the repository root to ensure IDE integration works correctly (templates are copied to root-level `.github/`, `.cursor/`, etc. directories)
 
 ---
 
@@ -293,7 +344,8 @@ specfact plan update-feature [OPTIONS]
 - `--acceptance TEXT` - Acceptance criteria (comma-separated)
 - `--constraints TEXT` - Constraints (comma-separated)
 - `--confidence FLOAT` - Confidence score (0.0-1.0)
-- `--draft BOOL` - Mark as draft (true/false)
+- `--draft/--no-draft` - Mark as draft (use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged)
+  - **Note**: Boolean flags don't accept values - use `--draft` (not `--draft true`) or `--no-draft` (not `--draft false`)
 - `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
 
 **Example:**
@@ -319,7 +371,12 @@ specfact plan update-feature \
   --acceptance "Acceptance 1, Acceptance 2" \
   --constraints "Constraint 1, Constraint 2" \
   --confidence 0.85 \
-  --draft false
+  --no-draft
+
+# Mark as draft (boolean flag: --draft sets True)
+specfact plan update-feature \
+  --key FEATURE-001 \
+  --draft
 ```
 
 **What it does:**
@@ -1087,9 +1144,11 @@ specfact init --ide cursor --force
 **What it does:**
 
 1. Detects your IDE (or uses `--ide` flag)
-2. Copies prompt templates from `resources/prompts/` to IDE-specific location
+2. Copies prompt templates from `resources/prompts/` to IDE-specific location **at the repository root level**
 3. Creates/updates VS Code settings.json if needed (for VS Code/Copilot)
 4. Makes slash commands available in your IDE
+
+**Important:** Templates are always copied to the repository root level (where `.github/`, `.cursor/`, etc. directories must reside for IDE recognition). The `--repo` parameter specifies the repository root path. For multi-project codebases, run `specfact init` from the repository root to ensure IDE integration works correctly.
 
 **IDE-Specific Locations:**
 

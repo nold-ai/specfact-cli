@@ -50,7 +50,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating features**:
 
-- `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft <true/false> --plan <path>`
+- `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft --plan <path>`
+  - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
   - Updates existing feature metadata (title, outcomes, acceptance criteria, constraints, confidence, draft status)
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-feature --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`

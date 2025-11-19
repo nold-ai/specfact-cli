@@ -35,6 +35,10 @@ SpecFact CLI is designed specifically for your situation. It provides:
 ```bash
 # Analyze your legacy codebase
 specfact import from-code --repo ./legacy-app --name customer-system
+
+# For large codebases or multi-project repos, analyze specific modules:
+specfact import from-code --repo ./legacy-app --entry-point src/core --name core-module
+specfact import from-code --repo ./legacy-app --entry-point src/api --name api-module
 ```
 
 **What you get:**
@@ -61,6 +65,25 @@ specfact import from-code --repo ./legacy-app --name customer-system
 ```
 
 **Time saved:** 60-120 hours of manual documentation work → **8 seconds**
+
+**💡 Partial Repository Coverage:**
+
+For large codebases or monorepos with multiple projects, you can analyze specific subdirectories using `--entry-point`:
+
+```bash
+# Analyze only the core module
+specfact import from-code --repo . --entry-point src/core --name core-plan
+
+# Analyze only the API service
+specfact import from-code --repo . --entry-point projects/api-service --name api-plan
+```
+
+This enables:
+
+- **Faster analysis** - Focus on specific modules for quicker feedback
+- **Incremental modernization** - Modernize one module at a time
+- **Multi-plan support** - Create separate plan bundles for different projects/modules
+- **Better organization** - Keep plans organized by project boundaries
 
 **💡 Tip**: After importing, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration. This auto-generates a constitution from your repository analysis:
 

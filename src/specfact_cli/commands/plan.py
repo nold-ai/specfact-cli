@@ -774,7 +774,11 @@ def update_feature(
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
     constraints: str | None = typer.Option(None, "--constraints", help="Constraints (comma-separated)"),
     confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
-    draft: bool | None = typer.Option(None, "--draft", help="Mark as draft (true/false)"),
+    draft: bool | None = typer.Option(
+        None,
+        "--draft/--no-draft",
+        help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
     plan: Path | None = typer.Option(
         None,
         "--plan",

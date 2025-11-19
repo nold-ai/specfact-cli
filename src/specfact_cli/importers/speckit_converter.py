@@ -398,8 +398,8 @@ class SpecKitConverter:
             feature_dir = self.repo_path / "specs" / f"{feature_num:03d}-{feature_name}"
             feature_dir.mkdir(parents=True, exist_ok=True)
 
-            # Generate spec.md
-            spec_content = self._generate_spec_markdown(feature)
+            # Generate spec.md (pass calculated feature_num to avoid recalculation)
+            spec_content = self._generate_spec_markdown(feature, feature_num=feature_num)
             (feature_dir / "spec.md").write_text(spec_content, encoding="utf-8")
 
             # Generate plan.md
@@ -416,14 +416,29 @@ class SpecKitConverter:
 
     @beartype
     @require(lambda feature: isinstance(feature, Feature), "Must be Feature instance")
+    @require(
+        lambda feature_num: feature_num is None or feature_num > 0,
+        "Feature number must be None or positive",
+    )
     @ensure(lambda result: isinstance(result, str), "Must return string")
     @ensure(lambda result: len(result) > 0, "Result must be non-empty")
-    def _generate_spec_markdown(self, feature: Feature) -> str:
-        """Generate Spec-Kit spec.md content from SpecFact feature."""
+    def _generate_spec_markdown(self, feature: Feature, feature_num: int | None = None) -> str:
+        """
+        Generate Spec-Kit spec.md content from SpecFact feature.
+
+        Args:
+            feature: Feature to generate spec for
+            feature_num: Optional pre-calculated feature number (avoids recalculation with fallback)
+        """
         from datetime import datetime
 
         # Extract feature branch from feature key (FEATURE-001 -> 001-feature-name)
-        feature_num = self._extract_feature_number(feature.key)
+        # Use provided feature_num if available, otherwise extract from key (with fallback to 1)
+        if feature_num is None:
+            feature_num = self._extract_feature_number(feature.key)
+            if feature_num == 0:
+                # Fallback: use 1 if no number found (shouldn't happen if called from convert_to_speckit)
+                feature_num = 1
         feature_name = self._to_feature_dir_name(feature.title)
         feature_branch = f"{feature_num:03d}-{feature_name}"
 
