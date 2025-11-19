@@ -222,4 +222,3 @@ class TestContractExtractionIntegration:
                 # Check that complex types are handled
                 param_types = [p["type"] for p in contracts["parameters"]]
                 assert any("list" in str(t).lower() or "dict" in str(t).lower() for t in param_types)
-

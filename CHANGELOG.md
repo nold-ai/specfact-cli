@@ -9,6 +9,49 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.4] - 2025-11-19
+
+### Fixed (0.6.4)
+
+- **IDE Setup Template Directory Lookup**
+  - Fixed template directory detection for `specfact init` command when running via `uvx`
+  - Enhanced cross-platform package location detection (Windows, Linux, macOS)
+  - Added comprehensive search across all installation types:
+    - User site-packages (`~/.local/lib/python3.X/site-packages` on Linux/macOS, `%APPDATA%\Python\Python3X\site-packages` on Windows)
+    - System site-packages (platform-specific locations)
+    - Virtual environments (venv, conda, etc.)
+    - uvx cache locations (`~/.cache/uv/archive-v0/...` on Linux/macOS, `%LOCALAPPDATA%\uv\cache\archive-v0\...` on Windows)
+  - Improved error messages with detailed debug output showing all attempted locations
+  - Added fallback mechanisms for edge cases and minimal Python installations
+
+- **CLI Entry Point Alias**
+  - Added `specfact-cli` entry point alias for `uvx` compatibility
+  - Now supports both `uvx specfact-cli` and `uvx --from specfact-cli specfact` usage patterns
+
+### Added (0.6.4)
+
+- **Cross-Platform Package Location Utilities**
+  - New `get_package_installation_locations()` function in `ide_setup.py` for comprehensive package discovery
+  - New `find_package_resources_path()` function for locating package resources across all installation types
+  - Platform-specific path resolution with proper handling of symlinks, case sensitivity, and path separators
+  - Enhanced debug output showing all lookup attempts and found locations
+
+- **Debug Output for Template Lookup**
+  - Added detailed debug messages for each template directory lookup step
+  - Shows all attempted locations with success/failure indicators
+  - Provides platform and Python version information on failure
+  - Helps diagnose installation and path resolution issues
+
+### Changed (0.6.4)
+
+- **Template Directory Lookup Logic**
+  - Enhanced priority order: Development → importlib.resources → importlib.util → comprehensive search → __file__ fallback
+  - All paths now use `.resolve()` for cross-platform compatibility
+  - Better handling of `Traversable` to `Path` conversion from `importlib.resources.files()`
+  - Improved exception handling with specific error messages for each failure type
+
+---
+
 ## [0.6.2] - 2025-11-19
 
 ### Added (0.6.2)

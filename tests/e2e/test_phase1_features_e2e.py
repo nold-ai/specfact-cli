@@ -246,7 +246,6 @@ class TestPhase1FeaturesE2E:
                     requirement_found = True
                     # Check that requirements are complete (not just fragments)
                     for req in acceptance:
-                        req_lower = req.lower()
                         # Should have action verbs and objects
                         assert len(req.split()) > 5, f"Requirement should be complete: {req}"
 
@@ -388,20 +387,10 @@ class TestPhase1FeaturesE2E:
 
             # Step 1.3: Complete requirements and NFRs
             requirement_found = False
-            nfr_found = False
             for feature in features:
                 acceptance = feature.get("acceptance", [])
                 if acceptance:
                     requirement_found = True
-
-                constraints = feature.get("constraints", [])
-                for constraint in constraints:
-                    if any(
-                        keyword in constraint.lower()
-                        for keyword in ["performance", "security", "reliability", "maintainability"]
-                    ):
-                        nfr_found = True
-                        break
 
             assert requirement_found, "Step 1.3: Should have complete requirements"
             # NFRs may not be present in all features, so we check if any feature has them
@@ -413,4 +402,3 @@ class TestPhase1FeaturesE2E:
 
         finally:
             os.environ.pop("TEST_MODE", None)
-

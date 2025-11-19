@@ -260,4 +260,3 @@ class TestContractExtractor:
         assert len(contracts["parameters"]) == 0
         assert contracts["return_type"] is not None
         assert contracts["return_type"]["type"] in ("None", "NoneType", "null")
-
