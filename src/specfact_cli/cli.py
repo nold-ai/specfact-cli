@@ -109,18 +109,22 @@ console = Console()
 # Global mode context (set by --mode flag or auto-detected)
 _current_mode: OperationalMode | None = None
 
+# Global banner flag (set by --no-banner flag)
+_show_banner: bool = True
+
 
 def print_banner() -> None:
     """Print SpecFact CLI ASCII art banner with smooth gradient effect."""
     from rich.text import Text
 
     banner_lines = [
-        "███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗",
-        "██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝",
-        "███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   ",
-        "╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   ",
-        "███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
-        "╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
+        "",
+        "  ███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗",
+        "  ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝",
+        "  ███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   ",
+        "  ╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   ",
+        "  ███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
+        "  ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
         "",
         "        Spec→Contract→Sentinel for Contract-Driven Development",
     ]
@@ -195,6 +199,11 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
+    no_banner: bool = typer.Option(
+        False,
+        "--no-banner",
+        help="Hide ASCII art banner (useful for CI/CD)",
+    ),
     mode: str | None = typer.Option(
         None,
         "--mode",
@@ -213,8 +222,11 @@ def main(
     - Auto-detect from environment (CoPilot API, IDE integration)
     - Default to CI/CD mode
     """
+    global _show_banner
+    # Set banner flag based on --no-banner option
+    _show_banner = not no_banner
+
     # Show help if no command provided (avoids user confusion)
-    # Note: Banner is already shown in cli_main() if help is requested
     if ctx.invoked_subcommand is None:
         # Show help by calling Typer's help callback
         ctx.get_help()
@@ -261,16 +273,12 @@ def cli_main() -> None:
     # Normalize shell names in argv for Typer's built-in completion commands
     normalize_shell_in_argv()
 
-    # Show banner if help is requested or no command provided
-    # Check before Typer processes arguments to intercept help requests
-    show_banner = False
-    if len(sys.argv) == 1:
-        # No arguments - will show help
-        show_banner = True
-    elif len(sys.argv) >= 2:
-        # Check if help is explicitly requested
-        if sys.argv[1] in ("--help", "-h", "help"):
-            show_banner = True
+    # Check if --no-banner flag is present (before Typer processes it)
+    no_banner_requested = "--no-banner" in sys.argv
+
+    # Show banner by default unless --no-banner is specified
+    # Banner shows for: no args, --help/-h, or any command (unless --no-banner)
+    show_banner = not no_banner_requested
 
     # Intercept Typer's shell detection for --show-completion and --install-completion
     # when no shell is provided (auto-detection case)
@@ -302,7 +310,8 @@ def cli_main() -> None:
             else:
                 os.environ["_SPECFACT_COMPLETE"] = mapped_shell
 
-    # Show banner before help if requested
+    # Show banner by default (unless --no-banner is specified)
+    # Only show once, before Typer processes the command
     if show_banner:
         print_banner()
         console.print()  # Empty line after banner
