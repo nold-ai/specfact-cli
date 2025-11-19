@@ -111,16 +111,42 @@ _current_mode: OperationalMode | None = None
 
 
 def print_banner() -> None:
-    """Print SpecFact CLI ASCII art banner."""
-    banner = """███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗
-██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝
-███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   
-╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   
-███████║██║     ███████╗╚██████╗███████╗██║  ██║╚██████╗   ██║   
-╚══════╝╚═╝     ╚══════╝ ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝   ╚═╝   
+    """Print SpecFact CLI ASCII art banner with smooth gradient effect."""
+    from rich.text import Text
 
-        Spec→Contract→Sentinel for Contract-Driven Development"""
-    console.print(banner, style="bold cyan")
+    banner_lines = [
+        "███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗",
+        "██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝",
+        "███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   ",
+        "╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   ",
+        "███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
+        "╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
+        "",
+        "        Spec→Contract→Sentinel for Contract-Driven Development",
+    ]
+
+    # Smooth gradient from bright cyan (top) to blue (bottom) - 6 lines for ASCII art
+    # Using Rich's gradient colors: bright_cyan → cyan → bright_blue → blue
+    gradient_colors = [
+        "bright_cyan",      # Line 1 - brightest at top
+        "cyan",             # Line 2
+        "bright_blue",      # Line 3
+        "blue",             # Line 4
+        "blue",             # Line 5
+        "blue",             # Line 6 - darkest at bottom
+    ]
+
+    for i, line in enumerate(banner_lines):
+        if line.strip():  # Only apply gradient to non-empty lines
+            if i < len(gradient_colors):
+                # Apply gradient color to ASCII art lines
+                text = Text(line, style=f"bold {gradient_colors[i]}")
+                console.print(text)
+            else:
+                # Tagline in cyan (after empty line)
+                console.print(line, style="cyan")
+        else:
+            console.print()  # Empty line
 
 
 def version_callback(value: bool) -> None:
