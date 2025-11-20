@@ -222,7 +222,12 @@ class TestListFindingsOutput:
         assert "Category" in result.stdout or "category" in result.stdout.lower()
         assert "Status" in result.stdout or "status" in result.stdout.lower()
         # Description may be truncated as "Descri…" in table output
-        assert "Descri" in result.stdout or "descri" in result.stdout.lower() or "Description" in result.stdout or "description" in result.stdout.lower()
+        assert (
+            "Descri" in result.stdout
+            or "descri" in result.stdout.lower()
+            or "Description" in result.stdout
+            or "description" in result.stdout.lower()
+        )
 
     def test_list_findings_default_format_non_interactive(self, workspace: Path, incomplete_plan: Path, monkeypatch):
         """Test --list-findings defaults to JSON in non-interactive mode."""
@@ -783,4 +788,3 @@ class TestCompleteBatchWorkflow:
         assert story_1.story_points == 8
         assert story_1.value_points == 5
         assert story_1.confidence == 0.9
-

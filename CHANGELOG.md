@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.7.0] - 2025-01-21
+## [0.7.0] - 2025-11-20
 
 ### Added (0.7.0)
 
@@ -1202,7 +1202,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased]
+## [0.2.0]
 
 ### Added (2025-10-31) - Integration Test Suite
 
@@ -1549,7 +1549,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format markdown --ou
 specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out report.json
 ```
 
-### Added (2025-10-30) - Semgrep Integration & Documentation
+### Added (0.2.0)
 
 - **Semgrep Integration** (`tools/semgrep/`)
   - Added comprehensive README.md documenting all 13 async anti-pattern rules
@@ -1563,7 +1563,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - 13 rules covering ERROR, WARNING, and INFO severities
   - Includes usage examples for CLI, GitHub Actions, and pre-commit hooks
 
-### Added (2025-10-30) - Phase 1 Foundation Complete
+### Added (0.2.0) - Phase 1 Foundation Complete
 
 - **Data Models** (CLI-First Spec Compliant)
   - Enhanced `plan.py` with Business, Release models and full Story/Feature fields
@@ -1602,7 +1602,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - Alphabetically sorted `__all__` exports
   - Line length compliance (≤120 characters)
 
-### Changed
+### Changed (0.2.0)
 
 - Moved common utilities from `src/common/` to `src/specfact_cli/common/`
 - Removed heavyweight `platform_base.py` (agent-system dependency)
@@ -1610,7 +1610,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
 - Simplified `text_utils.py` to standalone utility class
 - Updated all dependencies to latest PyPI versions
 
-### Fixed
+### Fixed (0.2.0)
 
 - Dependency conflicts in pyproject.toml
 - Import paths for common utilities
@@ -1643,7 +1643,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - Added explicit None values for optional parameters
   - Added type ignore comments for intentional validation errors
 
-### Added (2025-10-30) - Phase 3 CLI Commands Started
+### Added (0.2.0) - Phase 3 CLI Commands Started
 
 - **Interactive Prompt Utilities** (`utils/prompts.py`)
   - `prompt_text()`: Text input with required/optional support
@@ -1664,7 +1664,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - ~160 lines of implementation
   - **73% test coverage** with comprehensive integration tests
 
-### Testing
+### Testing (0.2.0)
 
 - **Unit Tests** (`tests/unit/utils/test_prompts.py`)
   - 27 tests for prompt utilities
@@ -1686,7 +1686,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
 
 - **Total**: **40 new tests**, all passing, **164 total tests** in suite
 
-### Fixed (CLI Commands)
+### Fixed (0.2.0) - CLI Commands
 
 - **PlanGenerator**: Switched from Jinja2 templates to direct YAML serialization for reliability
 - **Minimal plan generation**: Now correctly generates valid YAML with proper structure

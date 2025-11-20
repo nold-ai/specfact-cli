@@ -785,7 +785,9 @@ def update_idea(
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
 def update_feature(
-    key: str | None = typer.Option(None, "--key", help="Feature key to update (e.g., FEATURE-001). Required unless --batch-updates is provided."),
+    key: str | None = typer.Option(
+        None, "--key", help="Feature key to update (e.g., FEATURE-001). Required unless --batch-updates is provided."
+    ),
     title: str | None = typer.Option(None, "--title", help="Feature title"),
     outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
@@ -819,7 +821,7 @@ def update_feature(
         # Single feature update
         specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2"
         specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
-        
+
         # Batch updates from file
         specfact plan update-feature --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
     """
@@ -940,7 +942,9 @@ def update_feature(
                     if "constraints" in update_item:
                         constraints_val = update_item["constraints"]
                         if isinstance(constraints_val, str):
-                            constraints_list = [c.strip() for c in constraints_val.split(",")] if constraints_val else []
+                            constraints_list = (
+                                [c.strip() for c in constraints_val.split(",")] if constraints_val else []
+                            )
                         elif isinstance(constraints_val, list):
                             constraints_list = constraints_val
                         else:
@@ -986,7 +990,9 @@ def update_feature(
                 if failed_updates:
                     print_warning(f"{len(failed_updates)} update(s) failed:")
                     for failed in failed_updates:
-                        console.print(f"[dim]  - {failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]")
+                        console.print(
+                            f"[dim]  - {failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]"
+                        )
 
             else:
                 # Single feature update (existing logic)
@@ -1095,8 +1101,12 @@ def update_feature(
 )
 @require(lambda confidence: confidence is None or (0.0 <= confidence <= 1.0), "Confidence must be 0.0-1.0 if provided")
 def update_story(
-    feature: str | None = typer.Option(None, "--feature", help="Parent feature key (e.g., FEATURE-001). Required unless --batch-updates is provided."),
-    key: str | None = typer.Option(None, "--key", help="Story key to update (e.g., STORY-001). Required unless --batch-updates is provided."),
+    feature: str | None = typer.Option(
+        None, "--feature", help="Parent feature key (e.g., FEATURE-001). Required unless --batch-updates is provided."
+    ),
+    key: str | None = typer.Option(
+        None, "--key", help="Story key to update (e.g., STORY-001). Required unless --batch-updates is provided."
+    ),
     title: str | None = typer.Option(None, "--title", help="Story title"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
     story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity: 0-100)"),
@@ -1131,7 +1141,7 @@ def update_story(
         # Single story update
         specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title"
         specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
-        
+
         # Batch updates from file
         specfact plan update-story --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
     """
@@ -1215,7 +1225,13 @@ def update_story(
                             break
 
                     if parent_feature is None:
-                        failed_updates.append({"feature": update_feature, "key": update_key, "error": f"Feature '{update_feature}' not found in plan"})
+                        failed_updates.append(
+                            {
+                                "feature": update_feature,
+                                "key": update_key,
+                                "error": f"Feature '{update_feature}' not found in plan",
+                            }
+                        )
                         continue
 
                     # Find story to update
@@ -1226,7 +1242,13 @@ def update_story(
                             break
 
                     if story_to_update is None:
-                        failed_updates.append({"feature": update_feature, "key": update_key, "error": f"Story '{update_key}' not found in feature '{update_feature}'"})
+                        failed_updates.append(
+                            {
+                                "feature": update_feature,
+                                "key": update_key,
+                                "error": f"Story '{update_key}' not found in feature '{update_feature}'",
+                            }
+                        )
                         continue
 
                     # Track what was updated
@@ -1244,7 +1266,9 @@ def update_story(
                         elif isinstance(acceptance_val, list):
                             acceptance_list = acceptance_val
                         else:
-                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Invalid 'acceptance' format"})
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Invalid 'acceptance' format"}
+                            )
                             continue
                         story_to_update.acceptance = acceptance_list
                         updates_made.append("acceptance")
@@ -1252,7 +1276,9 @@ def update_story(
                     if "story_points" in update_item:
                         sp_val = update_item["story_points"]
                         if not isinstance(sp_val, int) or not (0 <= sp_val <= 100):
-                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Story points must be 0-100"})
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Story points must be 0-100"}
+                            )
                             continue
                         story_to_update.story_points = sp_val
                         updates_made.append("story_points")
@@ -1260,7 +1286,9 @@ def update_story(
                     if "value_points" in update_item:
                         vp_val = update_item["value_points"]
                         if not isinstance(vp_val, int) or not (0 <= vp_val <= 100):
-                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Value points must be 0-100"})
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Value points must be 0-100"}
+                            )
                             continue
                         story_to_update.value_points = vp_val
                         updates_made.append("value_points")
@@ -1268,7 +1296,9 @@ def update_story(
                     if "confidence" in update_item:
                         conf_val = update_item["confidence"]
                         if not isinstance(conf_val, (int, float)) or not (0.0 <= conf_val <= 1.0):
-                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Confidence must be 0.0-1.0"})
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Confidence must be 0.0-1.0"}
+                            )
                             continue
                         story_to_update.confidence = float(conf_val)
                         updates_made.append("confidence")
@@ -1281,7 +1311,9 @@ def update_story(
                         successful_updates += 1
                         console.print(f"[dim]✓ Updated {update_feature}/{update_key}: {', '.join(updates_made)}[/dim]")
                     else:
-                        failed_updates.append({"feature": update_feature, "key": update_key, "error": "No valid update fields provided"})
+                        failed_updates.append(
+                            {"feature": update_feature, "key": update_key, "error": "No valid update fields provided"}
+                        )
 
                 # Save updated plan after all batch updates
                 print_info("Validating updated plan...")
@@ -1301,7 +1333,9 @@ def update_story(
                 if failed_updates:
                     print_warning(f"{len(failed_updates)} update(s) failed:")
                     for failed in failed_updates:
-                        console.print(f"[dim]  - {failed.get('feature', 'Unknown')}/{failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]")
+                        console.print(
+                            f"[dim]  - {failed.get('feature', 'Unknown')}/{failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]"
+                        )
 
             else:
                 # Single story update (existing logic)
@@ -2675,14 +2709,12 @@ def _find_plan_path(plan: Path | None) -> Path | None:
         if plan_files:
             print_info(f"Using latest plan: {plan_files[0]}")
             return plan_files[0]
-        else:
-            print_error(f"No plan bundles found in {plans_dir}")
-            print_error("Create one with: specfact plan init --interactive")
-            return None
-    else:
-        print_error(f"Plans directory not found: {plans_dir}")
+        print_error(f"No plan bundles found in {plans_dir}")
         print_error("Create one with: specfact plan init --interactive")
         return None
+    print_error(f"Plans directory not found: {plans_dir}")
+    print_error("Create one with: specfact plan init --interactive")
+    return None
 
 
 @beartype
@@ -2711,7 +2743,10 @@ def _load_and_validate_plan(plan: Path) -> tuple[bool, PlanBundle | None]:
 
 
 @beartype
-@require(lambda bundle, plan, auto_enrich: isinstance(bundle, PlanBundle) and plan is not None and isinstance(plan, Path), "Bundle must be PlanBundle and plan must be non-None Path")
+@require(
+    lambda bundle, plan, auto_enrich: isinstance(bundle, PlanBundle) and plan is not None and isinstance(plan, Path),
+    "Bundle must be PlanBundle and plan must be non-None Path",
+)
 @ensure(lambda result: result is None, "Must return None")
 def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -> None:
     """
@@ -2746,9 +2781,7 @@ def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -
                 f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
             )
         if enrichment_summary["requirements_enhanced"] > 0:
-            console.print(
-                f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]"
-            )
+            console.print(f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]")
         if enrichment_summary["tasks_enhanced"] > 0:
             console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
         if enrichment_summary["changes"]:
@@ -2763,7 +2796,10 @@ def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -
 
 @beartype
 @require(lambda report: report is not None, "Report must not be None")
-@require(lambda findings_format: findings_format is None or isinstance(findings_format, str), "Findings format must be None or str")
+@require(
+    lambda findings_format: findings_format is None or isinstance(findings_format, str),
+    "Findings format must be None or str",
+)
 @require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
 @ensure(lambda result: result is None, "Must return None")
 def _output_findings(
@@ -2802,8 +2838,10 @@ def _output_findings(
         findings_list = report.findings or []
         for finding in sorted(findings_list, key=lambda f: f.impact * f.uncertainty, reverse=True):
             status_icon = (
-                "✅" if finding.status == AmbiguityStatus.CLEAR
-                else "⚠️" if finding.status == AmbiguityStatus.PARTIAL
+                "✅"
+                if finding.status == AmbiguityStatus.CLEAR
+                else "⚠️"
+                if finding.status == AmbiguityStatus.PARTIAL
                 else "❌"
             )
             priority = finding.impact * finding.uncertainty
@@ -2824,9 +2862,7 @@ def _output_findings(
             console.print("\n[bold]Coverage Summary:[/bold]")
             for cat, status in report.coverage.items():
                 status_icon = (
-                    "✅" if status == AmbiguityStatus.CLEAR
-                    else "⚠️" if status == AmbiguityStatus.PARTIAL
-                    else "❌"
+                    "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
                 console.print(f"  {status_icon} {cat.value}: {status.value}")
 
@@ -2846,22 +2882,23 @@ def _output_findings(
                 }
                 for f in (report.findings or [])
             ],
-            "coverage": {
-                cat.value: status.value for cat, status in (report.coverage or {}).items()
-            },
+            "coverage": {cat.value: status.value for cat, status in (report.coverage or {}).items()},
             "total_findings": len(report.findings or []),
             "priority_score": report.priority_score,
         }
 
         import sys
+
         if output_format_str == "json":
             sys.stdout.write(json.dumps(findings_data, indent=2))
         else:  # yaml
             from ruamel.yaml import YAML
+
             yaml = YAML()
             yaml.default_flow_style = False
             yaml.preserve_quotes = True
             from io import StringIO
+
             output = StringIO()
             yaml.dump(findings_data, output)
             sys.stdout.write(output.getvalue())
@@ -3037,7 +3074,6 @@ def review(
         TaxonomyCategory,
     )
     from specfact_cli.models.plan import Clarification, Clarifications, ClarificationSession
-    from specfact_cli.utils.structure import SpecFactStructure
 
     # Detect operational mode
     mode = detect_mode()
