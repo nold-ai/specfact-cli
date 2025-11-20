@@ -81,6 +81,8 @@ specfact import from-spec-kit --repo ./my-project --dry-run
 
 That's it! 🎉
 
+> Need machine-readable artifacts? Use `specfact --output-format json …` (or the per-command `--output-format` flag) to emit plan bundles and reports as JSON instead of YAML.
+
 ---
 
 ## See It In Action

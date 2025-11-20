@@ -64,7 +64,7 @@ Add a new feature to an existing plan bundle. The feature will be added with the
 
 The `specfact plan add-feature` command:
 
-1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.yaml` or active plan)
+1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.<format>` or active plan)
 2. **Validates** the plan bundle structure
 3. **Checks** if the feature key already exists (prevents duplicates)
 4. **Creates** a new feature with specified metadata
@@ -82,7 +82,7 @@ The `specfact plan add-feature` command:
 - Feature title (required)
 - Outcomes (optional, comma-separated)
 - Acceptance criteria (optional, comma-separated)
-- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.yaml`)
+- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.<format>`)
 
 **WAIT STATE**: If required arguments are missing, ask the user:
 
@@ -152,7 +152,7 @@ specfact plan add-feature \
 **Title**: Feature Title
 **Outcomes**: Outcome 1, Outcome 2
 **Acceptance**: Criterion 1, Criterion 2
-**Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/main.bundle.<format>`
 
 **Next Steps**:
 - Add stories to this feature: `/specfact-cli/specfact-plan-add-story`

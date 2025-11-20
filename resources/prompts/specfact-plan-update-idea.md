@@ -165,7 +165,7 @@ specfact plan update-idea \
 ✓ Idea section updated successfully!
 
 **Updated Fields**: title, target_users, value_hypothesis
-**Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/main.bundle.<format>`
 
 **Idea Metadata**:
 - Title: Project Title

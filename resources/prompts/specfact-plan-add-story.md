@@ -64,7 +64,7 @@ Add a new story to an existing feature in a plan bundle. The story will be added
 
 The `specfact plan add-story` command:
 
-1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.yaml` or active plan)
+1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.<format>` or active plan)
 2. **Validates** the plan bundle structure
 3. **Finds** the parent feature by key
 4. **Checks** if the story key already exists in the feature (prevents duplicates)
@@ -86,7 +86,7 @@ The `specfact plan add-story` command:
 - Story points (optional, 0-100)
 - Value points (optional, 0-100)
 - Draft status (optional, default: false)
-- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.yaml`)
+- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.<format>`)
 
 **WAIT STATE**: If required arguments are missing, ask the user:
 
@@ -173,7 +173,7 @@ specfact plan add-story \
 **Acceptance**: Criterion 1, Criterion 2
 **Story Points**: 5
 **Value Points**: 3
-**Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/main.bundle.<format>`
 
 **Next Steps**:
 - Add more stories: `/specfact-cli/specfact-plan-add-story`

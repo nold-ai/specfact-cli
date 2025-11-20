@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Annotated
 
 
 # Patch shellingham before Typer imports it to normalize "sh" to "bash"
@@ -49,11 +50,12 @@ from icontract import ViolationError
 from rich.console import Console
 from rich.panel import Panel
 
-from specfact_cli import __version__
+from specfact_cli import __version__, runtime
 
 # Import command modules
 from specfact_cli.commands import constitution, enforce, import_cmd, init, plan, repro, sync
 from specfact_cli.modes import OperationalMode, detect_mode
+from specfact_cli.utils.structured_io import StructuredFormat
 
 
 # Map shell names for completion support
@@ -171,6 +173,7 @@ def mode_callback(value: str | None) -> None:
             console.print(f"[bold red]✗[/bold red] Invalid mode: {value}")
             console.print("Valid modes: cicd, copilot")
             raise typer.Exit(1) from None
+        runtime.set_operational_mode(_current_mode)
 
 
 @beartype
@@ -186,6 +189,7 @@ def get_current_mode() -> OperationalMode:
         return _current_mode
     # Auto-detect if not explicitly set
     _current_mode = detect_mode(explicit_mode=None)
+    runtime.set_operational_mode(_current_mode)
     return _current_mode
 
 
@@ -211,6 +215,29 @@ def main(
         callback=mode_callback,
         help="Operational mode: cicd (fast, deterministic) or copilot (enhanced, interactive)",
     ),
+    input_format: Annotated[
+        StructuredFormat,
+        typer.Option(
+            "--input-format",
+            help="Default structured input format (yaml or json)",
+            case_sensitive=False,
+        ),
+    ] = StructuredFormat.YAML,
+    output_format: Annotated[
+        StructuredFormat,
+        typer.Option(
+            "--output-format",
+            help="Default structured output format for generated files (yaml or json)",
+            case_sensitive=False,
+        ),
+    ] = StructuredFormat.YAML,
+    interaction: Annotated[
+        bool | None,
+        typer.Option(
+            "--non-interactive/--interactive",
+            help="Force interaction mode (default auto based on CI/CD detection)",
+        ),
+    ] = None,
 ) -> None:
     """
     SpecFact CLI - Spec→Contract→Sentinel for contract-driven development.
@@ -226,6 +253,9 @@ def main(
     global _show_banner
     # Set banner flag based on --no-banner option
     _show_banner = not no_banner
+
+    runtime.configure_io_formats(input_format=input_format, output_format=output_format)
+    runtime.set_non_interactive_override(interaction)
 
     # Show help if no command provided (avoids user confusion)
     if ctx.invoked_subcommand is None:

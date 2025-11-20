@@ -334,7 +334,11 @@ Gate checks before implementation.
         assert "**Article VII" in plan_content
         assert "**Article VIII" in plan_content
         assert "**Article IX" in plan_content
-        assert "**Status**: PENDING" in plan_content or "**Status**: PASS" in plan_content or "**Status**: FAIL" in plan_content
+        assert (
+            "**Status**: PENDING" in plan_content
+            or "**Status**: PASS" in plan_content
+            or "**Status**: FAIL" in plan_content
+        )
 
         # Check Phases
         assert "## Phase 0: Research" in plan_content or "Phase 0: Research" in plan_content

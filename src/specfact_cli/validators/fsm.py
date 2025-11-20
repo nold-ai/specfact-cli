@@ -14,7 +14,7 @@ from icontract import ensure, require
 
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.protocol import Protocol
-from specfact_cli.utils.yaml_utils import load_yaml
+from specfact_cli.utils.structured_io import load_structured_file
 
 
 class FSMValidator:
@@ -48,7 +48,7 @@ class FSMValidator:
 
         if protocol is None:
             # Load protocol from file
-            data = load_yaml(protocol_path)  # type: ignore
+            data = load_structured_file(protocol_path)  # type: ignore[arg-type]
             self.protocol = Protocol(**data)
         else:
             self.protocol = protocol

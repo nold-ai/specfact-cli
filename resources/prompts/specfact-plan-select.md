@@ -172,7 +172,7 @@ specfact plan select --non-interactive --last 5                     # Show last 
 
 **The CLI command (which already exists) performs**:
 
-- Scans `.specfact/plans/` for all `*.bundle.yaml` files
+- Scans `.specfact/plans/` for all `*.bundle.<format>` files
 - Extracts metadata for each plan
 - Displays numbered list (if no plan argument provided)
 - Updates `.specfact/plans/config.yaml` with selected plan
@@ -187,7 +187,7 @@ specfact plan select --non-interactive --last 5                     # Show last 
 Use:
 
 - `specfact plan select --non-interactive 20` (select by number - ALWAYS with --non-interactive)
-- `specfact plan select --non-interactive main.bundle.yaml` (select by name - ALWAYS with --non-interactive)
+- `specfact plan select --non-interactive main.bundle.<format>` (select by name - ALWAYS with --non-interactive)
 - `specfact plan select --non-interactive --current` (get active plan)
 - `specfact plan select --non-interactive --last 1` (get most recent plan)
 - NOT `specfact plan select --plan 20` (this will fail)
@@ -216,9 +216,9 @@ Use:
 
 | # | Status | Plan Name | Features | Stories | Stage | Modified |
 |---|--------|-----------|----------|---------|-------|----------|
-| 1 | | specfact-cli.2025-11-04T23-35-00.bundle.yaml | 32 | 80 | draft | 2025-11-04T23:35:00 |
-| 2 | [ACTIVE] | main.bundle.yaml | 62 | 73 | approved | 2025-11-04T22:17:22 |
-| 3 | | api-client-v2.2025-11-04T22-17-22.bundle.yaml | 19 | 45 | draft | 2025-11-04T22:17:22 |
+| 1 | | specfact-cli.2025-11-04T23-35-00.bundle.<format> | 32 | 80 | draft | 2025-11-04T23:35:00 |
+| 2 | [ACTIVE] | main.bundle.<format> | 62 | 73 | approved | 2025-11-04T22:17:22 |
+| 3 | | api-client-v2.2025-11-04T22-17-22.bundle.<format> | 19 | 45 | draft | 2025-11-04T22:17:22 |
 
 **Selection Options:**
 - Enter a **number** (1-3) to select that plan
@@ -245,7 +245,7 @@ Use:
 2. **Present detailed information**:
 
 ```markdown
-## Plan Details: specfact-cli.2025-11-04T23-35-00.bundle.yaml
+## Plan Details: specfact-cli.2025-11-04T23-35-00.bundle.<format>
 
 **Overview:**
 - Features: 32
@@ -294,18 +294,18 @@ Use:
 specfact plan select --non-interactive 20
 ```
 
-**If user provided a plan name** (e.g., "main.bundle.yaml"):
+**If user provided a plan name** (e.g., "main.bundle.<format>"):
 
 ```bash
 # Use the plan name directly as positional argument - ALWAYS with --non-interactive
-specfact plan select --non-interactive main.bundle.yaml
+specfact plan select --non-interactive main.bundle.<format>
 ```
 
 **If you need to resolve a number to a plan name first** (for logging/display purposes):
 
 ```python
 # Example: User selected "1"
-# Resolve: plans[0]["name"] → "specfact-cli.2025-11-04T23-35-00.bundle.yaml"
+# Resolve: plans[0]["name"] → "specfact-cli.2025-11-04T23-35-00.bundle.<format>"
 # Then execute: specfact plan select 1  (use the number, not the name)
 ```
 
@@ -327,7 +327,7 @@ specfact plan select --non-interactive main.bundle.yaml
 
 **The CLI command loads all plan bundles** from `.specfact/plans/` directory:
 
-- Scan for all `*.bundle.yaml` files
+- Scan for all `*.bundle.<format>` files
 - Extract metadata for each plan:
   - Plan name (filename)
   - Number of features
@@ -348,9 +348,9 @@ specfact plan select --non-interactive main.bundle.yaml
 
 | # | Status | Plan Name | Features | Stories | Stage | Modified |
 |---|--------|-----------|----------|---------|-------|----------|
-| 1 | | specfact-cli.2025-11-04T23-35-00.bundle.yaml | 32 | 80 | draft | 2025-11-04T23:35:00 |
-| 2 | [ACTIVE] | main.bundle.yaml | 62 | 73 | approved | 2025-11-04T22:17:22 |
-| 3 | | api-client-v2.2025-11-04T22-17-22.bundle.yaml | 19 | 45 | draft | 2025-11-04T22:17:22 |
+| 1 | | specfact-cli.2025-11-04T23-35-00.bundle.<format> | 32 | 80 | draft | 2025-11-04T23:35:00 |
+| 2 | [ACTIVE] | main.bundle.<format> | 62 | 73 | approved | 2025-11-04T22:17:22 |
+| 3 | | api-client-v2.2025-11-04T22-17-22.bundle.<format> | 19 | 45 | draft | 2025-11-04T22:17:22 |
 
 **Selection Options:**
 - Enter a **number** (1-3) to select that plan
@@ -388,7 +388,7 @@ specfact plan select --non-interactive main.bundle.yaml
 - If yes: Execute `specfact plan select --non-interactive <number>` (use number as positional argument with --non-interactive, NOT `--plan` option)
 - If no: Return to plan list and ask for selection again
 
-**If user provides a plan name directly** (e.g., "main.bundle.yaml"):
+**If user provides a plan name directly** (e.g., "main.bundle.<format>"):
 
 - Validate the plan exists in the plans list
 - Execute: `specfact plan select --non-interactive <plan_name>` (use plan name as positional argument with --non-interactive, NOT `--plan` option)
@@ -404,7 +404,7 @@ specfact plan select --non-interactive main.bundle.yaml
 **The CLI command writes to `.specfact/plans/config.yaml`** when you execute `specfact plan select <plan>`:
 
 ```yaml
-active_plan: specfact-cli.2025-11-04T23-35-00.bundle.yaml
+active_plan: specfact-cli.2025-11-04T23-35-00.bundle.<format>
 ```
 
 **You should NOT write this file directly - execute the CLI command instead.**
@@ -414,7 +414,7 @@ active_plan: specfact-cli.2025-11-04T23-35-00.bundle.yaml
 **After selection**:
 
 ```markdown
-✓ Active plan set to: specfact-cli.2025-11-04T23-35-00.bundle.yaml
+✓ Active plan set to: specfact-cli.2025-11-04T23-35-00.bundle.<format>
 
 This plan will now be used as the default for:
   - specfact plan compare
@@ -465,7 +465,7 @@ Create a plan with:
 
 - Number selection (e.g., "1", "2", "3") - Select plan directly
 - Number with "details" (e.g., "1 details", "show 1") - Show plan details first
-- Plan name (e.g., "main.bundle.yaml") - Select by name
+- Plan name (e.g., "main.bundle.<format>") - Select by name
 - Quit command (e.g., "q", "quit") - Cancel
 
 **Step 6**: Handle user input:
