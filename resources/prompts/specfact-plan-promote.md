@@ -19,10 +19,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan promote` before any promotion
-2. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
-3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
-4. **NEVER search bundle files directly**: Use CLI commands to get plan information (stage, metadata, etc.)
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it or read files directly
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use appropriate flags to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
+6. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
+7. **NEVER search bundle files directly**: Use CLI commands to get plan information (stage, metadata, etc.)
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate it or read files directly
 
 ### What Happens If You Don't Follow This
 
@@ -105,7 +108,7 @@ specfact plan select --stages draft,review        # Filter by stages
 specfact plan select --last 5                     # Show last 5 plans
 ```
 
-**⚠️ Note on Interactive Prompt**: 
+**⚠️ Note on Interactive Prompt**:
 
 - **For CI/CD/non-interactive use**: Use `--non-interactive` flag with `--current` or `--last 1` to avoid prompts
 - **For interactive use**: This command will display a table and then wait for user input. The copilot should:

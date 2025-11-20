@@ -198,13 +198,15 @@ specfact import from-code [OPTIONS]
 - `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--shadow-only` - Observe without blocking
-- `--report PATH` - Write import report
+- `--report PATH` - Write import report (default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
 - `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
   - **Multi-project repositories (monorepos)**: Analyze one project at a time (e.g., `--entry-point projects/api-service`)
   - **Large codebases**: Focus on specific modules or subsystems for faster analysis
   - **Incremental modernization**: Modernize one part of the codebase at a time
   - Example: `--entry-point src/core` analyzes only `src/core/` and its subdirectories
+- `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)
+- `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
 
 **Note**: The `--name` option allows you to provide a meaningful name for the imported plan. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. If not provided, the AI will ask you interactively for a name.
 
@@ -293,14 +295,23 @@ specfact plan init [OPTIONS]
 
 **Options:**
 
-- `--interactive` - Interactive wizard (recommended)
-- `--template NAME` - Use template (default, minimal, full)
-- `--out PATH` - Output path (default: `.specfact/plans/main bundle` following the current `--output-format`)
+- `--interactive/--no-interactive` - Interactive mode with prompts (default: `--interactive`)
+  - Use `--no-interactive` for CI/CD automation to avoid interactive prompts
+- `--out PATH` - Output plan bundle path (default: `.specfact/plans/main.bundle.<format>` following the current `--output-format`)
+- `--scaffold/--no-scaffold` - Create complete `.specfact/` directory structure (default: `--scaffold`)
+- `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 
 **Example:**
 
 ```bash
+# Interactive mode (recommended for manual plan creation)
 specfact plan init --interactive
+
+# Non-interactive mode (CI/CD automation)
+specfact plan init --no-interactive --out .specfact/plans/main.bundle.yaml
+
+# With custom output path
+specfact plan init --interactive --out .specfact/plans/feature-auth.bundle.json
 ```
 
 #### `plan add-feature`
@@ -339,11 +350,14 @@ specfact plan add-story [OPTIONS]
 
 **Options:**
 
-- `--feature TEXT` - Feature key (required)
-- `--key TEXT` - Story key (STORY-XXX) (required)
+- `--feature TEXT` - Parent feature key (required)
+- `--key TEXT` - Story key (e.g., STORY-001) (required)
 - `--title TEXT` - Story title (required)
-- `--acceptance TEXT` - Acceptance criteria (multiple allowed)
-- `--plan PATH` - Plan bundle path
+- `--acceptance TEXT` - Acceptance criteria (comma-separated)
+- `--story-points INT` - Story points (complexity: 0-100)
+- `--value-points INT` - Value points (business value: 0-100)
+- `--draft` - Mark story as draft
+- `--plan PATH` - Plan bundle path (default: active plan in `.specfact/plans` using current format)
 
 **Example:**
 
@@ -365,7 +379,7 @@ specfact plan update-feature [OPTIONS]
 
 **Options:**
 
-- `--key TEXT` - Feature key to update (e.g., FEATURE-001) (required)
+- `--key TEXT` - Feature key to update (e.g., FEATURE-001) (required unless `--batch-updates` is provided)
 - `--title TEXT` - Feature title
 - `--outcomes TEXT` - Expected outcomes (comma-separated)
 - `--acceptance TEXT` - Acceptance criteria (comma-separated)
@@ -373,12 +387,34 @@ specfact plan update-feature [OPTIONS]
 - `--confidence FLOAT` - Confidence score (0.0-1.0)
 - `--draft/--no-draft` - Mark as draft (use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged)
   - **Note**: Boolean flags don't accept values - use `--draft` (not `--draft true`) or `--no-draft` (not `--draft false`)
+- `--batch-updates PATH` - Path to JSON/YAML file with multiple feature updates (preferred for bulk updates via Copilot LLM enrichment)
+  - **File format**: List of objects with `key` and update fields (title, outcomes, acceptance, constraints, confidence, draft)
+  - **Example file** (`updates.json`):
+
+    ```json
+    [
+      {
+        "key": "FEATURE-001",
+        "title": "Updated Feature 1",
+        "outcomes": ["Outcome 1", "Outcome 2"],
+        "acceptance": ["Acceptance 1", "Acceptance 2"],
+        "confidence": 0.9
+      },
+      {
+        "key": "FEATURE-002",
+        "title": "Updated Feature 2",
+        "acceptance": ["Acceptance 3"],
+        "confidence": 0.85
+      }
+    ]
+    ```
+
 - `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
 
 **Example:**
 
 ```bash
-# Update feature title and outcomes
+# Single feature update
 specfact plan update-feature \
   --key FEATURE-001 \
   --title "Updated Feature Title" \
@@ -390,21 +426,47 @@ specfact plan update-feature \
   --acceptance "Criterion 1, Criterion 2" \
   --confidence 0.9
 
-# Update multiple fields at once
+# Batch updates from file (preferred for multiple features)
 specfact plan update-feature \
-  --key FEATURE-001 \
-  --title "New Title" \
-  --outcomes "Outcome 1, Outcome 2" \
-  --acceptance "Acceptance 1, Acceptance 2" \
-  --constraints "Constraint 1, Constraint 2" \
-  --confidence 0.85 \
-  --no-draft
+  --batch-updates updates.json \
+  --plan .specfact/plans/main.bundle.yaml
 
-# Mark as draft (boolean flag: --draft sets True)
+# Batch updates with YAML format
 specfact plan update-feature \
-  --key FEATURE-001 \
-  --draft
+  --batch-updates updates.yaml \
+  --plan .specfact/plans/main.bundle.yaml
 ```
+
+**Batch Update File Format:**
+
+The `--batch-updates` file must contain a list of update objects. Each object must have a `key` field and can include any combination of update fields:
+
+```json
+[
+  {
+    "key": "FEATURE-001",
+    "title": "Updated Feature 1",
+    "outcomes": ["Outcome 1", "Outcome 2"],
+    "acceptance": ["Acceptance 1", "Acceptance 2"],
+    "constraints": ["Constraint 1"],
+    "confidence": 0.9,
+    "draft": false
+  },
+  {
+    "key": "FEATURE-002",
+    "title": "Updated Feature 2",
+    "acceptance": ["Acceptance 3"],
+    "confidence": 0.85
+  }
+]
+```
+
+**When to Use Batch Updates:**
+
+- **Multiple features need refinement**: After plan review identifies multiple features with missing information
+- **Copilot LLM enrichment**: When LLM generates comprehensive updates for multiple features at once
+- **Bulk acceptance criteria updates**: When enhancing multiple features with specific file paths, method names, or component references
+- **CI/CD automation**: When applying multiple updates programmatically from external tools
 
 **What it does:**
 
@@ -419,6 +481,118 @@ specfact plan update-feature \
 - **CI/CD automation**: Update features programmatically in non-interactive environments
 - **Copilot mode**: Update features without needing internal code knowledge
 
+#### `plan update-story`
+
+Update an existing story's metadata in a plan bundle:
+
+```bash
+specfact plan update-story [OPTIONS]
+```
+
+**Options:**
+
+- `--feature TEXT` - Parent feature key (e.g., FEATURE-001) (required unless `--batch-updates` is provided)
+- `--key TEXT` - Story key to update (e.g., STORY-001) (required unless `--batch-updates` is provided)
+- `--title TEXT` - Story title
+- `--acceptance TEXT` - Acceptance criteria (comma-separated)
+- `--story-points INT` - Story points (complexity: 0-100)
+- `--value-points INT` - Value points (business value: 0-100)
+- `--confidence FLOAT` - Confidence score (0.0-1.0)
+- `--draft/--no-draft` - Mark as draft (use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged)
+  - **Note**: Boolean flags don't accept values - use `--draft` (not `--draft true`) or `--no-draft` (not `--draft false`)
+- `--batch-updates PATH` - Path to JSON/YAML file with multiple story updates (preferred for bulk updates via Copilot LLM enrichment)
+  - **File format**: List of objects with `feature`, `key` and update fields (title, acceptance, story_points, value_points, confidence, draft)
+  - **Example file** (`story_updates.json`):
+
+    ```json
+    [
+      {
+        "feature": "FEATURE-001",
+        "key": "STORY-001",
+        "title": "Updated Story 1",
+        "acceptance": ["Given X, When Y, Then Z"],
+        "story_points": 5,
+        "value_points": 3,
+        "confidence": 0.9
+      },
+      {
+        "feature": "FEATURE-002",
+        "key": "STORY-002",
+        "acceptance": ["Given A, When B, Then C"],
+        "confidence": 0.85
+      }
+    ]
+    ```
+
+- `--plan PATH` - Plan bundle path (default: active plan in `.specfact/plans` using current format)
+
+**Example:**
+
+```bash
+# Single story update
+specfact plan update-story \
+  --feature FEATURE-001 \
+  --key STORY-001 \
+  --title "Updated Story Title" \
+  --acceptance "Given X, When Y, Then Z"
+
+# Update story points and confidence
+specfact plan update-story \
+  --feature FEATURE-001 \
+  --key STORY-001 \
+  --story-points 5 \
+  --confidence 0.9
+
+# Batch updates from file (preferred for multiple stories)
+specfact plan update-story \
+  --batch-updates story_updates.json \
+  --plan .specfact/plans/main.bundle.yaml
+
+# Batch updates with YAML format
+specfact plan update-story \
+  --batch-updates story_updates.yaml \
+  --plan .specfact/plans/main.bundle.yaml
+```
+
+**Batch Update File Format:**
+
+The `--batch-updates` file must contain a list of update objects. Each object must have `feature` and `key` fields and can include any combination of update fields:
+
+```json
+[
+  {
+    "feature": "FEATURE-001",
+    "key": "STORY-001",
+    "title": "Updated Story 1",
+    "acceptance": ["Given X, When Y, Then Z"],
+    "story_points": 5,
+    "value_points": 3,
+    "confidence": 0.9,
+    "draft": false
+  },
+  {
+    "feature": "FEATURE-002",
+    "key": "STORY-002",
+    "acceptance": ["Given A, When B, Then C"],
+    "confidence": 0.85
+  }
+]
+```
+
+**When to Use Batch Updates:**
+
+- **Multiple stories need refinement**: After plan review identifies multiple stories with missing information
+- **Copilot LLM enrichment**: When LLM generates comprehensive updates for multiple stories at once
+- **Bulk acceptance criteria updates**: When enhancing multiple stories with specific file paths, method names, or component references
+- **CI/CD automation**: When applying multiple updates programmatically from external tools
+
+**What it does:**
+
+- Updates existing story metadata (title, acceptance criteria, story points, value points, confidence, draft status)
+- Works in CI/CD, Copilot, and interactive modes
+- Validates plan bundle structure after update
+- Preserves existing story data (only updates specified fields)
+
 #### `plan review`
 
 Review plan bundle to identify and resolve ambiguities:
@@ -430,16 +604,23 @@ specfact plan review [OPTIONS]
 **Options:**
 
 - `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or latest in `.specfact/plans/`)
-- `--max-questions INT` - Maximum questions per session (default: 5)
+- `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
 - `--category TEXT` - Focus on specific taxonomy category (optional)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
+- `--list-findings` - Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment
+- `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
 - `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
 - `--non-interactive` - Non-interactive mode (for CI/CD automation)
+- `--auto-enrich` - Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching
 
 **Modes:**
 
 - **Interactive Mode**: Asks questions one at a time, integrates answers immediately
 - **Copilot Mode**: Three-phase workflow:
+  1. Get findings: `specfact plan review --list-findings --findings-format json` (preferred for bulk updates)
+  2. LLM enrichment: Analyze findings and generate batch update files
+  3. Apply updates: `specfact plan update-feature --batch-updates <file>` or `specfact plan update-story --batch-updates <file>`
+- **Alternative Copilot Mode**: Question-based workflow:
   1. Get questions: `specfact plan review --list-questions`
   2. Ask user: LLM presents questions and collects answers
   3. Feed answers: `specfact plan review --answers <file>`
@@ -451,15 +632,56 @@ specfact plan review [OPTIONS]
 # Interactive review
 specfact plan review --plan .specfact/plans/main.bundle.yaml
 
-# Get questions for Copilot mode
+# Get all findings for bulk updates (preferred for Copilot mode)
+specfact plan review --list-findings --findings-format json
+
+# Get findings as table (interactive mode)
+specfact plan review --list-findings --findings-format table
+
+# Get questions for question-based workflow
 specfact plan review --list-questions --max-questions 5
 
-# Feed answers back (Copilot mode)
+# Feed answers back (question-based workflow)
 specfact plan review --answers answers.json
 
 # CI/CD automation
 specfact plan review --non-interactive --answers answers.json
 ```
+
+**Findings Output Format:**
+
+The `--list-findings` option outputs all ambiguities and findings in a structured format:
+
+```json
+{
+  "findings": [
+    {
+      "category": "Feature/Story Completeness",
+      "status": "Missing",
+      "description": "Feature FEATURE-001 has no stories",
+      "impact": 0.9,
+      "uncertainty": 0.8,
+      "priority": 0.72,
+      "question": "What stories should be added to FEATURE-001?",
+      "related_sections": ["features[0]"]
+    }
+  ],
+  "coverage": {
+    "Functional Scope & Behavior": "Missing",
+    "Feature/Story Completeness": "Missing"
+  },
+  "total_findings": 5,
+  "priority_score": 0.65
+}
+```
+
+**Bulk Update Workflow (Recommended for Copilot Mode):**
+
+1. **List findings**: `specfact plan review --list-findings --findings-format json > findings.json`
+2. **LLM analyzes findings**: Generate batch update files based on findings
+3. **Apply feature updates**: `specfact plan update-feature --batch-updates feature_updates.json`
+4. **Apply story updates**: `specfact plan update-story --batch-updates story_updates.json`
+5. **Verify**: Run `specfact plan review` again to confirm improvements
 
 **What it does:**
 

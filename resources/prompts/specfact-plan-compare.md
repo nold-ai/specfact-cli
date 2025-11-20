@@ -18,12 +18,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan compare` before any comparison - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement comparison logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All comparison reports must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information. Use CLI commands to get plan information. The CLI provides all necessary data through its output.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Deviation class, etc.). All operations must be performed via CLI commands.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--non-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER write code**: Do not implement comparison logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All comparison reports must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER read artifacts directly for updates**: Do NOT read plan bundle files directly to extract information for updates. Use CLI commands to get plan information. The CLI provides all necessary data through its output.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Deviation class, etc.). All operations must be performed via CLI commands.
 
 ### What Happens If You Don't Follow This
 

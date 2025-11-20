@@ -9,6 +9,73 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.7.0] - 2025-01-21
+
+### Added (0.7.0)
+
+- **Batch Update Support for Plan Updates**
+  - New `--batch-updates` option for `specfact plan update-feature` command
+  - New `--batch-updates` option for `specfact plan update-story` command
+  - Supports JSON and YAML file formats for bulk updates
+  - Preferred workflow for Copilot LLM enrichment when multiple features/stories need refinement
+  - Enables efficient bulk updates after plan review or LLM enrichment
+  - File format: List of objects with required keys (`key` for features, `feature`+`key` for stories) and optional update fields
+
+- **Enhanced Plan Review with Detailed Findings Output**
+  - New `--list-findings` option for `specfact plan review` command
+  - Outputs all ambiguities and findings in structured format (JSON/YAML) or as table (interactive mode)
+  - New `--findings-format` option to specify output format (`json`, `yaml`, `table`)
+  - Preferred for bulk update workflow in Copilot mode
+  - Provides comprehensive findings list for LLM enrichment and batch update generation
+  - Findings include category, status, description, impact, uncertainty, priority, and related sections
+
+- **Comprehensive E2E Test Suite for Batch Updates**
+  - New `tests/e2e/test_plan_review_batch_updates.py` with comprehensive test coverage
+  - Tests for interactive and non-interactive plan review workflows
+  - Tests for batch feature updates via file upload
+  - Tests for batch story updates via file upload
+  - Tests for findings output in different formats (JSON, YAML, table)
+  - Tests for complete Copilot LLM enrichment workflow with batch updates
+  - All tests passing with full coverage of batch update functionality
+
+### Changed (0.7.0)
+
+- **Plan Review Command Refactoring**
+  - Refactored `review` function to reduce complexity by extracting helper functions
+  - Added `_find_plan_path()` helper for plan path resolution
+  - Added `_load_and_validate_plan()` helper for plan loading and validation
+  - Added `_handle_auto_enrichment()` helper for auto-enrichment logic
+  - Added `_output_findings()` helper for findings output in various formats
+  - Improved code maintainability and reduced cyclomatic complexity
+
+- **Documentation Updates**
+  - Updated `docs/reference/commands.md` with batch update documentation
+  - Added batch update examples and file format specifications
+  - Updated `resources/prompts/specfact-plan-review.md` to prefer batch update workflow
+  - Updated `resources/prompts/specfact-plan-update-feature.md` with batch update guidance
+  - Enhanced prompt templates to recommend batch updates when multiple items need refinement
+  - Added bulk update workflow documentation for Copilot mode
+
+- **Prompt Template Enhancements**
+  - Updated plan review prompt to prefer bulk update workflow over question-based workflow
+  - Added guidance on when to use batch updates vs single updates
+  - Enhanced examples with batch update file formats
+  - Improved workflow recommendations for Copilot LLM enrichment scenarios
+
+### Fixed (0.7.0)
+
+- **Type Checking Errors**
+  - Fixed missing `scenarios` and `contracts` parameters in `Story` constructor calls in test files
+  - Added explicit `scenarios=None, contracts=None` to resolve basedpyright type errors
+  - All type checking errors resolved
+
+- **Contract Validation**
+  - Fixed contract decorator parameter handling in helper functions
+  - Improved contract validation for `_handle_auto_enrichment()` function
+  - Enhanced type safety across refactored helper functions
+
+---
+
 ## [Unreleased]
 
 ### Added

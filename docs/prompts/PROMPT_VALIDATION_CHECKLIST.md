@@ -41,11 +41,15 @@ The validator checks:
 - [ ] **CLI command matches**: The command in the prompt matches the actual CLI command
 - [ ] **CLI enforcement rules present**:
   - [ ] "ALWAYS execute CLI first"
+  - [ ] "ALWAYS use non-interactive mode for CI/CD" (explicitly requires `--non-interactive` or `--no-interactive` flags to avoid timeouts in Copilot environments)
+  - [ ] "ALWAYS use tools for read/write" (explicitly requires using file reading tools like `read_file` for display purposes only, CLI commands for all write operations)
+  - [ ] "NEVER modify .specfact folder directly" (explicitly forbids creating, modifying, or deleting files in `.specfact/` folder directly)
   - [ ] "NEVER create YAML/JSON directly"
   - [ ] "NEVER bypass CLI validation"
   - [ ] "Use CLI output as grounding"
   - [ ] "NEVER manipulate internal code" (explicitly forbids direct Python code manipulation)
   - [ ] "No internal knowledge required" (explicitly states that internal implementation details should not be needed)
+  - [ ] "NEVER read artifacts directly for updates" (explicitly forbids reading files directly for update operations, only for display purposes)
 - [ ] **Available CLI commands documented**: Prompt lists available CLI commands for plan updates (e.g., `update-idea`, `update-feature`, `add-feature`, `add-story`)
 - [ ] **FORBIDDEN examples present**: Prompt shows examples of what NOT to do (direct code manipulation)
 - [ ] **CORRECT examples present**: Prompt shows examples of what TO do (using CLI commands)
@@ -280,6 +284,36 @@ After testing, review:
 
 **Fix**: Strengthen CLI enforcement section, add more examples of what NOT to do
 
+### ❌ LLM Uses Interactive Mode in CI/CD
+
+**Symptom**: LLM uses interactive prompts that cause timeouts in Copilot environments
+
+**Fix**:
+
+- Add explicit requirement to use `--non-interactive` or `--no-interactive` flags
+- Document that interactive mode should only be used when user explicitly requests it
+- Add examples showing non-interactive CLI command usage
+
+### ❌ LLM Modifies .specfact Folder Directly
+
+**Symptom**: LLM creates, modifies, or deletes files in `.specfact/` folder directly instead of using CLI commands
+
+**Fix**:
+
+- Add explicit prohibition against direct `.specfact/` folder modifications
+- Emphasize that all operations must go through CLI commands
+- Add examples showing correct CLI usage vs incorrect direct file manipulation
+
+### ❌ LLM Uses Direct File Manipulation Instead of Tools
+
+**Symptom**: LLM uses direct file write operations instead of CLI commands or file reading tools
+
+**Fix**:
+
+- Add explicit requirement to use file reading tools (e.g., `read_file`) for display purposes only
+- Emphasize that all write operations must use CLI commands
+- Add examples showing correct tool usage vs incorrect direct manipulation
+
 ### ❌ LLM Assumes Values
 
 **Symptom**: LLM continues without waiting for user input
@@ -400,10 +434,18 @@ The following prompts are available for SpecFact CLI commands:
 
 ---
 
-**Last Updated**: 2025-11-20  
-**Version**: 1.9
+**Last Updated**: 2025-01-XX  
+**Version**: 1.10
 
 ## Changelog
+
+### Version 1.10 (2025-01-XX)
+
+- Added non-interactive mode enforcement requirements
+- Added tool-based read/write instructions requirements
+- Added prohibition against direct `.specfact/` folder modifications
+- Added new common issues: LLM Uses Interactive Mode in CI/CD, LLM Modifies .specfact Folder Directly, LLM Uses Direct File Manipulation Instead of Tools
+- Updated CLI enforcement rules checklist to include new requirements
 
 ### Version 1.9 (2025-11-20)
 

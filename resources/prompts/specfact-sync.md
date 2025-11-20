@@ -18,12 +18,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact sync spec-kit` before any sync operation - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement sync logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All sync operations must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, SpecKit artifacts, or any internal data structures. The CLI is THE interface - use it exclusively.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, SpecKit converter, etc.). All operations must be performed via CLI commands.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use appropriate flags to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` or `.specify/` folders directly. All operations must go through the CLI or Spec-Kit commands.
+5. **NEVER write code**: Do not implement sync logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All sync operations must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, SpecKit artifacts, or any internal data structures. The CLI is THE interface - use it exclusively.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, SpecKit converter, etc.). All operations must be performed via CLI commands.
 
 ### What Happens If You Don't Follow This
 
@@ -174,9 +177,11 @@ The CLI automatically generates all required Spec-Kit fields during sync. Howeve
 
 If you want to customize Spec-Kit-specific fields, you can:
 
-1. **After sync**: Edit the generated `spec.md`, `plan.md`, and `tasks.md` files directly
-2. **Before sync**: Use `specfact plan review` to enrich plan bundle with additional context that will be reflected in Spec-Kit artifacts
+1. **Before sync**: Use `specfact plan review` to enrich plan bundle with additional context that will be reflected in Spec-Kit artifacts
+2. **After sync**: Use Spec-Kit commands (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`) to customize the generated Spec-Kit artifacts - **DO NOT edit files directly in .specify/ or .specfact/ folders**
 3. **During sync** (if implemented): The CLI may prompt for customization options in interactive mode
+
+**⚠️ CRITICAL**: Never edit `.specfact/` or `.specify/` artifacts directly. Always use CLI commands or Spec-Kit commands for modifications.
 
 **Note**: All Spec-Kit fields are auto-generated with sensible defaults, so manual customization is **optional** unless you have specific project requirements.
 

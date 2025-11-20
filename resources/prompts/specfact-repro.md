@@ -19,13 +19,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact repro` before any analysis - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement validation logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All validation reports must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify validation results or any internal data structures. The CLI is THE interface - use it exclusively.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (ReproChecker, validation tools, etc.). All operations must be performed via CLI commands.
-8. **NEVER read artifacts directly**: Do NOT read validation report files directly to extract information unless for display purposes. Use CLI output to get validation results.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use appropriate flags to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER write code**: Do not implement validation logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All validation reports must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER manipulate internal code**: Do NOT use Python code to directly modify validation results or any internal data structures. The CLI is THE interface - use it exclusively.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (ReproChecker, validation tools, etc.). All operations must be performed via CLI commands.
+11. **NEVER read artifacts directly for updates**: Do NOT read validation report files directly to extract information for updates. Use CLI output to get validation results.
 
 ### What Happens If You Don't Follow This
 

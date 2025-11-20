@@ -19,13 +19,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan review` before any analysis - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement review logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, Clarification objects, or any internal data structures. The CLI is THE interface - use it exclusively.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, AmbiguityScanner, etc.). All operations must be performed via CLI commands.
-8. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information unless for display purposes (e.g., showing plan details to user). Use CLI commands (`specfact plan review --list-questions`, `specfact plan select`) to get plan information.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--no-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER write code**: Do not implement review logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, Clarification objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, AmbiguityScanner, etc.). All operations must be performed via CLI commands.
+11. **NEVER read artifacts directly for updates**: Do NOT read plan bundle files directly to extract information for updates. Use CLI commands (`specfact plan review --list-questions`, `specfact plan select`) to get plan information.
 
 ### What Happens If You Don't Follow This
 
@@ -50,13 +53,37 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating features**:
 
-- `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft --plan <path>`
+- **Single feature update**: `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft --plan <path>`
   - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
   - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
   - Updates existing feature metadata (title, outcomes, acceptance criteria, constraints, confidence, draft status)
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-feature --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`
+
+- **Batch feature updates (PREFERRED for multiple features)**: `specfact plan update-feature --batch-updates <file> --plan <path>`
+  - **File format**: JSON/YAML list of objects with `key` and update fields
+  - **When to use**: When multiple features need refinement (after plan review, after LLM enrichment, bulk updates)
+  - **Example file** (`feature_updates.json`):
+
+    ```json
+    [
+      {
+        "key": "FEATURE-001",
+        "title": "Updated Feature 1",
+        "outcomes": ["Outcome 1", "Outcome 2"],
+        "acceptance": ["Acceptance 1", "Acceptance 2"],
+        "confidence": 0.9
+      },
+      {
+        "key": "FEATURE-002",
+        "acceptance": ["Acceptance 3"],
+        "confidence": 0.85
+      }
+    ]
+    ```
+
+  - **Example command**: `specfact plan update-feature --batch-updates feature_updates.json --plan <path>`
 
 **For adding features**:
 
@@ -68,13 +95,40 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating stories**:
 
-- `specfact plan update-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --confidence <confidence> --draft/--no-draft --plan <path>`
+- **Single story update**: `specfact plan update-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --confidence <confidence> --draft/--no-draft --plan <path>`
   - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
   - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
   - Updates existing story metadata (title, acceptance criteria, story points, value points, confidence, draft status)
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Given X, When Y, Then Z" --story-points 5`
+
+- **Batch story updates (PREFERRED for multiple stories)**: `specfact plan update-story --batch-updates <file> --plan <path>`
+  - **File format**: JSON/YAML list of objects with `feature`, `key` and update fields
+  - **When to use**: When multiple stories need refinement (after plan review, after LLM enrichment, bulk updates)
+  - **Example file** (`story_updates.json`):
+
+    ```json
+    [
+      {
+        "feature": "FEATURE-001",
+        "key": "STORY-001",
+        "title": "Updated Story 1",
+        "acceptance": ["Given X, When Y, Then Z"],
+        "story_points": 5,
+        "value_points": 3,
+        "confidence": 0.9
+      },
+      {
+        "feature": "FEATURE-002",
+        "key": "STORY-002",
+        "acceptance": ["Given A, When B, Then C"],
+        "confidence": 0.85
+      }
+    ]
+    ```
+
+  - **Example command**: `specfact plan update-story --batch-updates story_updates.json --plan <path>`
 
 **❌ FORBIDDEN**: Direct Python code manipulation like:
 
@@ -195,15 +249,23 @@ The `specfact plan review` command:
 
 ### ⚠️ **CRITICAL: Copilot Mode Workflow**
 
-In Copilot mode, follow this three-phase workflow:
+In Copilot mode, follow this **preferred bulk update workflow** (recommended when multiple features/stories need refinement):
+
+1. **Phase 1: Get Findings** - Execute `specfact plan review --list-findings --findings-format json` to get all findings in structured format
+2. **Phase 2: LLM Enrichment** - Analyze findings and generate batch update files (feature_updates.json, story_updates.json)
+3. **Phase 3: Apply Batch Updates** - Execute `specfact plan update-feature --batch-updates feature_updates.json` and `specfact plan update-story --batch-updates story_updates.json`
+
+**Alternative question-based workflow** (for interactive Q&A):
 
 1. **Phase 1: Get Questions** - Execute `specfact plan review --list-questions` to get questions in JSON format
 2. **Phase 2: Ask User** - Present questions to user one at a time, collect answers
 3. **Phase 3: Feed Answers** - Write answers to a JSON file, then execute `specfact plan review --answers answers.json` to integrate answers
 
-**⚠️ IMPORTANT**: Always use a JSON file path (not inline JSON string) to avoid parsing issues and ensure proper formatting.
+**⚠️ IMPORTANT**:
 
-**Never create clarifications directly in YAML**. Always use the CLI to integrate answers.
+- **Prefer bulk update workflow** when multiple features/stories need refinement (after plan review, after LLM enrichment)
+- Always use a JSON file path (not inline JSON string) to avoid parsing issues and ensure proper formatting
+- **Never create clarifications directly in YAML**. Always use the CLI to integrate answers
 
 ### 1. Parse Arguments and Load Plan Bundle
 
@@ -245,10 +307,23 @@ ELSE:
 [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
 ```
 
-**In Copilot Mode**: Use `--list-questions` to get questions in structured format:
+**In Copilot Mode (Preferred: Bulk Update Workflow)**: Use `--list-findings` to get all findings for batch updates:
 
 ```bash
-# Get questions as JSON (for Copilot mode)
+# Get all findings as JSON (preferred for bulk updates)
+specfact plan review --list-findings --findings-format json --plan <plan_path>
+
+# With auto-enrichment (if needed)
+specfact plan review --auto-enrich --list-findings --findings-format json --plan <plan_path>
+
+# Get findings as table (interactive mode)
+specfact plan review --list-findings --findings-format table --plan <plan_path>
+```
+
+**In Copilot Mode (Alternative: Question-Based Workflow)**: Use `--list-questions` to get questions in structured format:
+
+```bash
+# Get questions as JSON (for question-based workflow)
 specfact plan review --list-questions --plan <plan_path> --max-questions 5
 
 # With auto-enrichment (if needed)
@@ -306,13 +381,19 @@ Look for patterns in the "Changes made" list:
 - Replace "works correctly" → specific return values, state changes, or assertions
 - Add class names, method signatures, file paths where relevant
 
-**Step 4: Apply Refinements** (use CLI commands):
+**Step 4: Apply Refinements** (use CLI commands - prefer batch updates when multiple items need refinement):
 
 ```bash
-# For story-level acceptance criteria, use update-story:
+# PREFERRED: Batch updates for multiple stories (when 2+ stories need refinement)
+specfact plan update-story --batch-updates story_updates.json --plan <path>
+
+# PREFERRED: Batch updates for multiple features (when 2+ features need refinement)
+specfact plan update-feature --batch-updates feature_updates.json --plan <path>
+
+# Single story update (use only when single story needs refinement):
 specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined-code-specific-criteria>" --plan <path>
 
-# For feature-level acceptance criteria, use update-feature:
+# Single feature update (use only when single feature needs refinement):
 specfact plan update-feature --key <feature-key> --acceptance "<refined-code-specific-criteria>" --plan <path>
 ```
 

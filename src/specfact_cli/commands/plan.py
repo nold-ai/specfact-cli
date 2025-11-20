@@ -783,10 +783,9 @@ def update_idea(
 
 @app.command("update-feature")
 @beartype
-@require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
 def update_feature(
-    key: str = typer.Option(..., "--key", help="Feature key to update (e.g., FEATURE-001)"),
+    key: str | None = typer.Option(None, "--key", help="Feature key to update (e.g., FEATURE-001). Required unless --batch-updates is provided."),
     title: str | None = typer.Option(None, "--title", help="Feature title"),
     outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
@@ -796,6 +795,11 @@ def update_feature(
         None,
         "--draft/--no-draft",
         help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
+    batch_updates: Path | None = typer.Option(
+        None,
+        "--batch-updates",
+        help="Path to JSON/YAML file with multiple feature updates. File format: list of objects with 'key' and update fields (title, outcomes, acceptance, constraints, confidence, draft).",
     ),
     plan: Path | None = typer.Option(
         None,
@@ -809,14 +813,30 @@ def update_feature(
     This command allows updating feature properties (title, outcomes, acceptance criteria,
     constraints, confidence, draft status) in non-interactive environments (CI/CD, Copilot).
 
+    Supports both single feature updates and batch updates via --batch-updates file.
+
     Example:
+        # Single feature update
         specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2"
         specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+        
+        # Batch updates from file
+        specfact plan update-feature --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
     """
     from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    # Validate that either key or batch_updates is provided
+    if not key and not batch_updates:
+        print_error("Either --key or --batch-updates must be provided")
+        raise typer.Exit(1)
+
+    if key and batch_updates:
+        print_error("Cannot use both --key and --batch-updates. Use --batch-updates for multiple updates.")
+        raise typer.Exit(1)
 
     telemetry_metadata = {
-        "feature_key": key,
+        "batch_mode": batch_updates is not None,
     }
 
     with telemetry.track_command("plan.update_feature", telemetry_metadata) as record:
@@ -845,88 +865,217 @@ def update_feature(
                 print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
 
-            # Find feature to update
-            feature_to_update = None
-            for f in existing_plan.features:
-                if f.key == key:
-                    feature_to_update = f
-                    break
-
-            if feature_to_update is None:
-                print_error(f"Feature '{key}' not found in plan")
-                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
-                raise typer.Exit(1)
-
-            # Track what was updated
-            updates_made = []
-
-            # Update title if provided
-            if title is not None:
-                feature_to_update.title = title
-                updates_made.append("title")
-
-            # Update outcomes if provided
-            if outcomes is not None:
-                outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
-                feature_to_update.outcomes = outcomes_list
-                updates_made.append("outcomes")
-
-            # Update acceptance criteria if provided
-            if acceptance is not None:
-                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
-                feature_to_update.acceptance = acceptance_list
-                updates_made.append("acceptance")
-
-            # Update constraints if provided
-            if constraints is not None:
-                constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
-                feature_to_update.constraints = constraints_list
-                updates_made.append("constraints")
-
-            # Update confidence if provided
-            if confidence is not None:
-                if not (0.0 <= confidence <= 1.0):
-                    print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+            # Handle batch updates
+            if batch_updates:
+                if not batch_updates.exists():
+                    print_error(f"Batch updates file not found: {batch_updates}")
                     raise typer.Exit(1)
-                feature_to_update.confidence = confidence
-                updates_made.append("confidence")
 
-            # Update draft status if provided
-            if draft is not None:
-                feature_to_update.draft = draft
-                updates_made.append("draft")
+                print_info(f"Loading batch updates from: {batch_updates}")
+                batch_data = load_structured_file(batch_updates)
 
-            if not updates_made:
-                print_warning(
-                    "No updates specified. Use --title, --outcomes, --acceptance, --constraints, --confidence, or --draft"
+                if not isinstance(batch_data, list):
+                    print_error("Batch updates file must contain a list of update objects")
+                    raise typer.Exit(1)
+
+                total_updates = 0
+                successful_updates = 0
+                failed_updates = []
+
+                for update_item in batch_data:
+                    if not isinstance(update_item, dict):
+                        failed_updates.append({"item": update_item, "error": "Not a dictionary"})
+                        continue
+
+                    update_key = update_item.get("key")
+                    if not update_key:
+                        failed_updates.append({"item": update_item, "error": "Missing 'key' field"})
+                        continue
+
+                    total_updates += 1
+
+                    # Find feature to update
+                    feature_to_update = None
+                    for f in existing_plan.features:
+                        if f.key == update_key:
+                            feature_to_update = f
+                            break
+
+                    if feature_to_update is None:
+                        failed_updates.append({"key": update_key, "error": f"Feature '{update_key}' not found in plan"})
+                        continue
+
+                    # Track what was updated
+                    updates_made = []
+
+                    # Update fields from batch item
+                    if "title" in update_item:
+                        feature_to_update.title = update_item["title"]
+                        updates_made.append("title")
+
+                    if "outcomes" in update_item:
+                        outcomes_val = update_item["outcomes"]
+                        if isinstance(outcomes_val, str):
+                            outcomes_list = [o.strip() for o in outcomes_val.split(",")] if outcomes_val else []
+                        elif isinstance(outcomes_val, list):
+                            outcomes_list = outcomes_val
+                        else:
+                            failed_updates.append({"key": update_key, "error": "Invalid 'outcomes' format"})
+                            continue
+                        feature_to_update.outcomes = outcomes_list
+                        updates_made.append("outcomes")
+
+                    if "acceptance" in update_item:
+                        acceptance_val = update_item["acceptance"]
+                        if isinstance(acceptance_val, str):
+                            acceptance_list = [a.strip() for a in acceptance_val.split(",")] if acceptance_val else []
+                        elif isinstance(acceptance_val, list):
+                            acceptance_list = acceptance_val
+                        else:
+                            failed_updates.append({"key": update_key, "error": "Invalid 'acceptance' format"})
+                            continue
+                        feature_to_update.acceptance = acceptance_list
+                        updates_made.append("acceptance")
+
+                    if "constraints" in update_item:
+                        constraints_val = update_item["constraints"]
+                        if isinstance(constraints_val, str):
+                            constraints_list = [c.strip() for c in constraints_val.split(",")] if constraints_val else []
+                        elif isinstance(constraints_val, list):
+                            constraints_list = constraints_val
+                        else:
+                            failed_updates.append({"key": update_key, "error": "Invalid 'constraints' format"})
+                            continue
+                        feature_to_update.constraints = constraints_list
+                        updates_made.append("constraints")
+
+                    if "confidence" in update_item:
+                        conf_val = update_item["confidence"]
+                        if not isinstance(conf_val, (int, float)) or not (0.0 <= conf_val <= 1.0):
+                            failed_updates.append({"key": update_key, "error": "Confidence must be 0.0-1.0"})
+                            continue
+                        feature_to_update.confidence = float(conf_val)
+                        updates_made.append("confidence")
+
+                    if "draft" in update_item:
+                        feature_to_update.draft = bool(update_item["draft"])
+                        updates_made.append("draft")
+
+                    if updates_made:
+                        successful_updates += 1
+                        console.print(f"[dim]✓ Updated {update_key}: {', '.join(updates_made)}[/dim]")
+                    else:
+                        failed_updates.append({"key": update_key, "error": "No valid update fields provided"})
+
+                # Save updated plan after all batch updates
+                print_info("Validating updated plan...")
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "batch_total": total_updates,
+                        "batch_successful": successful_updates,
+                        "batch_failed": len(failed_updates),
+                        "total_features": len(existing_plan.features),
+                    }
                 )
-                raise typer.Exit(1)
 
-            # Validate updated plan (always passes for PlanBundle model)
-            print_info("Validating updated plan...")
+                print_success(f"Batch update complete: {successful_updates}/{total_updates} features updated")
+                if failed_updates:
+                    print_warning(f"{len(failed_updates)} update(s) failed:")
+                    for failed in failed_updates:
+                        console.print(f"[dim]  - {failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]")
 
-            # Save updated plan
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(existing_plan, plan)
+            else:
+                # Single feature update (existing logic)
+                if not key:
+                    print_error("--key is required when not using --batch-updates")
+                    raise typer.Exit(1)
 
-            record(
-                {
-                    "updates": updates_made,
-                    "total_features": len(existing_plan.features),
-                }
-            )
+                # Find feature to update
+                feature_to_update = None
+                for f in existing_plan.features:
+                    if f.key == key:
+                        feature_to_update = f
+                        break
 
-            print_success(f"Feature '{key}' updated successfully")
-            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
-            if title:
-                console.print(f"[dim]Title: {title}[/dim]")
-            if outcomes:
-                outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
-                console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
-            if acceptance:
-                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
-                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+                if feature_to_update is None:
+                    print_error(f"Feature '{key}' not found in plan")
+                    console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                    raise typer.Exit(1)
+
+                # Track what was updated
+                updates_made = []
+
+                # Update title if provided
+                if title is not None:
+                    feature_to_update.title = title
+                    updates_made.append("title")
+
+                # Update outcomes if provided
+                if outcomes is not None:
+                    outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+                    feature_to_update.outcomes = outcomes_list
+                    updates_made.append("outcomes")
+
+                # Update acceptance criteria if provided
+                if acceptance is not None:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    feature_to_update.acceptance = acceptance_list
+                    updates_made.append("acceptance")
+
+                # Update constraints if provided
+                if constraints is not None:
+                    constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
+                    feature_to_update.constraints = constraints_list
+                    updates_made.append("constraints")
+
+                # Update confidence if provided
+                if confidence is not None:
+                    if not (0.0 <= confidence <= 1.0):
+                        print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                        raise typer.Exit(1)
+                    feature_to_update.confidence = confidence
+                    updates_made.append("confidence")
+
+                # Update draft status if provided
+                if draft is not None:
+                    feature_to_update.draft = draft
+                    updates_made.append("draft")
+
+                if not updates_made:
+                    print_warning(
+                        "No updates specified. Use --title, --outcomes, --acceptance, --constraints, --confidence, or --draft"
+                    )
+                    raise typer.Exit(1)
+
+                # Validate updated plan (always passes for PlanBundle model)
+                print_info("Validating updated plan...")
+
+                # Save updated plan
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "updates": updates_made,
+                        "total_features": len(existing_plan.features),
+                    }
+                )
+
+                print_success(f"Feature '{key}' updated successfully")
+                console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+                if title:
+                    console.print(f"[dim]Title: {title}[/dim]")
+                if outcomes:
+                    outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+                    console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
+                if acceptance:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
 
         except Exception as e:
             print_error(f"Failed to update feature: {e}")
@@ -935,8 +1084,6 @@ def update_feature(
 
 @app.command("update-story")
 @beartype
-@require(lambda feature: isinstance(feature, str) and len(feature) > 0, "Feature must be non-empty string")
-@require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
 @require(
     lambda story_points: story_points is None or (story_points >= 0 and story_points <= 100),
@@ -948,8 +1095,8 @@ def update_feature(
 )
 @require(lambda confidence: confidence is None or (0.0 <= confidence <= 1.0), "Confidence must be 0.0-1.0 if provided")
 def update_story(
-    feature: str = typer.Option(..., "--feature", help="Parent feature key (e.g., FEATURE-001)"),
-    key: str = typer.Option(..., "--key", help="Story key to update (e.g., STORY-001)"),
+    feature: str | None = typer.Option(None, "--feature", help="Parent feature key (e.g., FEATURE-001). Required unless --batch-updates is provided."),
+    key: str | None = typer.Option(None, "--key", help="Story key to update (e.g., STORY-001). Required unless --batch-updates is provided."),
     title: str | None = typer.Option(None, "--title", help="Story title"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
     story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity: 0-100)"),
@@ -959,6 +1106,11 @@ def update_story(
         None,
         "--draft/--no-draft",
         help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
+    batch_updates: Path | None = typer.Option(
+        None,
+        "--batch-updates",
+        help="Path to JSON/YAML file with multiple story updates. File format: list of objects with 'feature', 'key' and update fields (title, acceptance, story_points, value_points, confidence, draft).",
     ),
     plan: Path | None = typer.Option(
         None,
@@ -973,16 +1125,30 @@ def update_story(
     story points, value points, confidence, draft status) in non-interactive
     environments (CI/CD, Copilot).
 
+    Supports both single story updates and batch updates via --batch-updates file.
+
     Example:
+        # Single story update
         specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title"
         specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
-        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Given X, When Y, Then Z" --story-points 5
+        
+        # Batch updates from file
+        specfact plan update-story --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
     """
     from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    # Validate that either (feature and key) or batch_updates is provided
+    if not (feature and key) and not batch_updates:
+        print_error("Either (--feature and --key) or --batch-updates must be provided")
+        raise typer.Exit(1)
+
+    if (feature or key) and batch_updates:
+        print_error("Cannot use both (--feature/--key) and --batch-updates. Use --batch-updates for multiple updates.")
+        raise typer.Exit(1)
 
     telemetry_metadata = {
-        "feature_key": feature,
-        "story_key": key,
+        "batch_mode": batch_updates is not None,
     }
 
     with telemetry.track_command("plan.update_story", telemetry_metadata) as record:
@@ -1011,101 +1177,233 @@ def update_story(
                 print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
 
-            # Find parent feature
-            parent_feature = None
-            for f in existing_plan.features:
-                if f.key == feature:
-                    parent_feature = f
-                    break
-
-            if parent_feature is None:
-                print_error(f"Feature '{feature}' not found in plan")
-                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
-                raise typer.Exit(1)
-
-            # Find story to update
-            story_to_update = None
-            for s in parent_feature.stories:
-                if s.key == key:
-                    story_to_update = s
-                    break
-
-            if story_to_update is None:
-                print_error(f"Story '{key}' not found in feature '{feature}'")
-                console.print(f"[dim]Available stories: {', '.join(s.key for s in parent_feature.stories)}[/dim]")
-                raise typer.Exit(1)
-
-            # Track what was updated
-            updates_made = []
-
-            # Update title if provided
-            if title is not None:
-                story_to_update.title = title
-                updates_made.append("title")
-
-            # Update acceptance criteria if provided
-            if acceptance is not None:
-                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
-                story_to_update.acceptance = acceptance_list
-                updates_made.append("acceptance")
-
-            # Update story points if provided
-            if story_points is not None:
-                story_to_update.story_points = story_points
-                updates_made.append("story_points")
-
-            # Update value points if provided
-            if value_points is not None:
-                story_to_update.value_points = value_points
-                updates_made.append("value_points")
-
-            # Update confidence if provided
-            if confidence is not None:
-                if not (0.0 <= confidence <= 1.0):
-                    print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+            # Handle batch updates
+            if batch_updates:
+                if not batch_updates.exists():
+                    print_error(f"Batch updates file not found: {batch_updates}")
                     raise typer.Exit(1)
-                story_to_update.confidence = confidence
-                updates_made.append("confidence")
 
-            # Update draft status if provided
-            if draft is not None:
-                story_to_update.draft = draft
-                updates_made.append("draft")
+                print_info(f"Loading batch updates from: {batch_updates}")
+                batch_data = load_structured_file(batch_updates)
 
-            if not updates_made:
-                print_warning(
-                    "No updates specified. Use --title, --acceptance, --story-points, --value-points, --confidence, or --draft"
+                if not isinstance(batch_data, list):
+                    print_error("Batch updates file must contain a list of update objects")
+                    raise typer.Exit(1)
+
+                total_updates = 0
+                successful_updates = 0
+                failed_updates = []
+
+                for update_item in batch_data:
+                    if not isinstance(update_item, dict):
+                        failed_updates.append({"item": update_item, "error": "Not a dictionary"})
+                        continue
+
+                    update_feature = update_item.get("feature")
+                    update_key = update_item.get("key")
+                    if not update_feature or not update_key:
+                        failed_updates.append({"item": update_item, "error": "Missing 'feature' or 'key' field"})
+                        continue
+
+                    total_updates += 1
+
+                    # Find parent feature
+                    parent_feature = None
+                    for f in existing_plan.features:
+                        if f.key == update_feature:
+                            parent_feature = f
+                            break
+
+                    if parent_feature is None:
+                        failed_updates.append({"feature": update_feature, "key": update_key, "error": f"Feature '{update_feature}' not found in plan"})
+                        continue
+
+                    # Find story to update
+                    story_to_update = None
+                    for s in parent_feature.stories:
+                        if s.key == update_key:
+                            story_to_update = s
+                            break
+
+                    if story_to_update is None:
+                        failed_updates.append({"feature": update_feature, "key": update_key, "error": f"Story '{update_key}' not found in feature '{update_feature}'"})
+                        continue
+
+                    # Track what was updated
+                    updates_made = []
+
+                    # Update fields from batch item
+                    if "title" in update_item:
+                        story_to_update.title = update_item["title"]
+                        updates_made.append("title")
+
+                    if "acceptance" in update_item:
+                        acceptance_val = update_item["acceptance"]
+                        if isinstance(acceptance_val, str):
+                            acceptance_list = [a.strip() for a in acceptance_val.split(",")] if acceptance_val else []
+                        elif isinstance(acceptance_val, list):
+                            acceptance_list = acceptance_val
+                        else:
+                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Invalid 'acceptance' format"})
+                            continue
+                        story_to_update.acceptance = acceptance_list
+                        updates_made.append("acceptance")
+
+                    if "story_points" in update_item:
+                        sp_val = update_item["story_points"]
+                        if not isinstance(sp_val, int) or not (0 <= sp_val <= 100):
+                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Story points must be 0-100"})
+                            continue
+                        story_to_update.story_points = sp_val
+                        updates_made.append("story_points")
+
+                    if "value_points" in update_item:
+                        vp_val = update_item["value_points"]
+                        if not isinstance(vp_val, int) or not (0 <= vp_val <= 100):
+                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Value points must be 0-100"})
+                            continue
+                        story_to_update.value_points = vp_val
+                        updates_made.append("value_points")
+
+                    if "confidence" in update_item:
+                        conf_val = update_item["confidence"]
+                        if not isinstance(conf_val, (int, float)) or not (0.0 <= conf_val <= 1.0):
+                            failed_updates.append({"feature": update_feature, "key": update_key, "error": "Confidence must be 0.0-1.0"})
+                            continue
+                        story_to_update.confidence = float(conf_val)
+                        updates_made.append("confidence")
+
+                    if "draft" in update_item:
+                        story_to_update.draft = bool(update_item["draft"])
+                        updates_made.append("draft")
+
+                    if updates_made:
+                        successful_updates += 1
+                        console.print(f"[dim]✓ Updated {update_feature}/{update_key}: {', '.join(updates_made)}[/dim]")
+                    else:
+                        failed_updates.append({"feature": update_feature, "key": update_key, "error": "No valid update fields provided"})
+
+                # Save updated plan after all batch updates
+                print_info("Validating updated plan...")
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "batch_total": total_updates,
+                        "batch_successful": successful_updates,
+                        "batch_failed": len(failed_updates),
+                    }
                 )
-                raise typer.Exit(1)
 
-            # Validate updated plan (always passes for PlanBundle model)
-            print_info("Validating updated plan...")
+                print_success(f"Batch update complete: {successful_updates}/{total_updates} stories updated")
+                if failed_updates:
+                    print_warning(f"{len(failed_updates)} update(s) failed:")
+                    for failed in failed_updates:
+                        console.print(f"[dim]  - {failed.get('feature', 'Unknown')}/{failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]")
 
-            # Save updated plan
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(existing_plan, plan)
+            else:
+                # Single story update (existing logic)
+                if not feature or not key:
+                    print_error("--feature and --key are required when not using --batch-updates")
+                    raise typer.Exit(1)
 
-            record(
-                {
-                    "updates": updates_made,
-                    "total_stories": len(parent_feature.stories),
-                }
-            )
+                # Find parent feature
+                parent_feature = None
+                for f in existing_plan.features:
+                    if f.key == feature:
+                        parent_feature = f
+                        break
 
-            print_success(f"Story '{key}' in feature '{feature}' updated successfully")
-            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
-            if title:
-                console.print(f"[dim]Title: {title}[/dim]")
-            if acceptance:
-                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
-                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
-            if story_points is not None:
-                console.print(f"[dim]Story Points: {story_points}[/dim]")
-            if value_points is not None:
-                console.print(f"[dim]Value Points: {value_points}[/dim]")
-            if confidence is not None:
-                console.print(f"[dim]Confidence: {confidence}[/dim]")
+                if parent_feature is None:
+                    print_error(f"Feature '{feature}' not found in plan")
+                    console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                    raise typer.Exit(1)
+
+                # Find story to update
+                story_to_update = None
+                for s in parent_feature.stories:
+                    if s.key == key:
+                        story_to_update = s
+                        break
+
+                if story_to_update is None:
+                    print_error(f"Story '{key}' not found in feature '{feature}'")
+                    console.print(f"[dim]Available stories: {', '.join(s.key for s in parent_feature.stories)}[/dim]")
+                    raise typer.Exit(1)
+
+                # Track what was updated
+                updates_made = []
+
+                # Update title if provided
+                if title is not None:
+                    story_to_update.title = title
+                    updates_made.append("title")
+
+                # Update acceptance criteria if provided
+                if acceptance is not None:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    story_to_update.acceptance = acceptance_list
+                    updates_made.append("acceptance")
+
+                # Update story points if provided
+                if story_points is not None:
+                    story_to_update.story_points = story_points
+                    updates_made.append("story_points")
+
+                # Update value points if provided
+                if value_points is not None:
+                    story_to_update.value_points = value_points
+                    updates_made.append("value_points")
+
+                # Update confidence if provided
+                if confidence is not None:
+                    if not (0.0 <= confidence <= 1.0):
+                        print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                        raise typer.Exit(1)
+                    story_to_update.confidence = confidence
+                    updates_made.append("confidence")
+
+                # Update draft status if provided
+                if draft is not None:
+                    story_to_update.draft = draft
+                    updates_made.append("draft")
+
+                if not updates_made:
+                    print_warning(
+                        "No updates specified. Use --title, --acceptance, --story-points, --value-points, --confidence, or --draft"
+                    )
+                    raise typer.Exit(1)
+
+                # Validate updated plan (always passes for PlanBundle model)
+                print_info("Validating updated plan...")
+
+                # Save updated plan
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "updates": updates_made,
+                        "total_stories": len(parent_feature.stories),
+                    }
+                )
+
+                print_success(f"Story '{key}' in feature '{feature}' updated successfully")
+                console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+                if title:
+                    console.print(f"[dim]Title: {title}[/dim]")
+                if acceptance:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+                if story_points is not None:
+                    console.print(f"[dim]Story Points: {story_points}[/dim]")
+                if value_points is not None:
+                    console.print(f"[dim]Value Points: {value_points}[/dim]")
+                if confidence is not None:
+                    console.print(f"[dim]Confidence: {confidence}[/dim]")
 
         except Exception as e:
             print_error(f"Failed to update story: {e}")
@@ -2341,7 +2639,242 @@ def promote(
 
 
 @beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@ensure(lambda result: result is None or isinstance(result, Path), "Must return Path or None")
+def _find_plan_path(plan: Path | None) -> Path | None:
+    """
+    Find plan path (default, latest, or provided).
+
+    Args:
+        plan: Provided plan path or None
+
+    Returns:
+        Plan path or None if not found
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    if plan is not None:
+        return plan
+
+    # Try to find active plan or latest
+    default_plan = SpecFactStructure.get_default_plan_path()
+    if default_plan.exists():
+        print_info(f"Using default plan: {default_plan}")
+        return default_plan
+
+    # Find latest plan bundle
+    base_path = Path(".")
+    plans_dir = base_path / SpecFactStructure.PLANS
+    if plans_dir.exists():
+        plan_files = [
+            p
+            for p in plans_dir.glob("*.bundle.*")
+            if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
+        ]
+        plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
+        if plan_files:
+            print_info(f"Using latest plan: {plan_files[0]}")
+            return plan_files[0]
+        else:
+            print_error(f"No plan bundles found in {plans_dir}")
+            print_error("Create one with: specfact plan init --interactive")
+            return None
+    else:
+        print_error(f"Plans directory not found: {plans_dir}")
+        print_error("Create one with: specfact plan init --interactive")
+        return None
+
+
+@beartype
+@require(lambda plan: plan is not None and isinstance(plan, Path), "Plan must be non-None Path")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (bool, PlanBundle | None) tuple")
+def _load_and_validate_plan(plan: Path) -> tuple[bool, PlanBundle | None]:
+    """
+    Load and validate plan bundle.
+
+    Args:
+        plan: Path to plan bundle
+
+    Returns:
+        Tuple of (is_valid, plan_bundle)
+    """
+    print_info(f"Loading plan: {plan}")
+    validation_result = validate_plan_bundle(plan)
+    assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+    is_valid, error, bundle = validation_result
+
+    if not is_valid or bundle is None:
+        print_error(f"Plan validation failed: {error}")
+        return (False, None)
+
+    return (True, bundle)
+
+
+@beartype
+@require(lambda bundle, plan, auto_enrich: isinstance(bundle, PlanBundle) and plan is not None and isinstance(plan, Path), "Bundle must be PlanBundle and plan must be non-None Path")
+@ensure(lambda result: result is None, "Must return None")
+def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -> None:
+    """
+    Handle auto-enrichment if requested.
+
+    Args:
+        bundle: Plan bundle to enrich
+        plan: Path to plan bundle
+        auto_enrich: Whether to auto-enrich
+    """
+    if not auto_enrich:
+        return
+
+    print_info(
+        "Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
+    )
+    from specfact_cli.enrichers.plan_enricher import PlanEnricher
+
+    enricher = PlanEnricher()
+    enrichment_summary = enricher.enrich_plan(bundle)
+
+    if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
+        # Save enriched plan bundle
+        generator = PlanGenerator()
+        generator.generate(bundle, plan)
+        print_success(
+            f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
+            f"{enrichment_summary['stories_updated']} stories updated"
+        )
+        if enrichment_summary["acceptance_criteria_enhanced"] > 0:
+            console.print(
+                f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
+            )
+        if enrichment_summary["requirements_enhanced"] > 0:
+            console.print(
+                f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]"
+            )
+        if enrichment_summary["tasks_enhanced"] > 0:
+            console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
+        if enrichment_summary["changes"]:
+            console.print("\n[bold]Changes made:[/bold]")
+            for change in enrichment_summary["changes"][:10]:  # Show first 10 changes
+                console.print(f"[dim]  - {change}[/dim]")
+            if len(enrichment_summary["changes"]) > 10:
+                console.print(f"[dim]  ... and {len(enrichment_summary['changes']) - 10} more[/dim]")
+    else:
+        print_info("No enrichments needed - plan bundle is already well-specified")
+
+
+@beartype
+@require(lambda report: report is not None, "Report must not be None")
+@require(lambda findings_format: findings_format is None or isinstance(findings_format, str), "Findings format must be None or str")
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+@ensure(lambda result: result is None, "Must return None")
+def _output_findings(
+    report: Any,  # AmbiguityReport (imported locally to avoid circular dependency)
+    findings_format: str | None,
+    is_non_interactive: bool,
+) -> None:
+    """
+    Output findings in structured format or table.
+
+    Args:
+        report: Ambiguity report
+        findings_format: Output format (json, yaml, table)
+        is_non_interactive: Whether in non-interactive mode
+    """
+    from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus
+
+    # Determine output format
+    output_format_str = findings_format
+    if not output_format_str:
+        # Default: json for non-interactive, table for interactive
+        output_format_str = "json" if is_non_interactive else "table"
+
+    output_format_str = output_format_str.lower()
+
+    if output_format_str == "table":
+        # Interactive table output
+        findings_table = Table(title="Plan Review Findings", show_header=True, header_style="bold magenta")
+        findings_table.add_column("Category", style="cyan", no_wrap=True)
+        findings_table.add_column("Status", style="yellow")
+        findings_table.add_column("Description", style="white")
+        findings_table.add_column("Impact", justify="right", style="green")
+        findings_table.add_column("Uncertainty", justify="right", style="blue")
+        findings_table.add_column("Priority", justify="right", style="bold")
+
+        findings_list = report.findings or []
+        for finding in sorted(findings_list, key=lambda f: f.impact * f.uncertainty, reverse=True):
+            status_icon = (
+                "✅" if finding.status == AmbiguityStatus.CLEAR
+                else "⚠️" if finding.status == AmbiguityStatus.PARTIAL
+                else "❌"
+            )
+            priority = finding.impact * finding.uncertainty
+            findings_table.add_row(
+                finding.category.value,
+                f"{status_icon} {finding.status.value}",
+                finding.description[:80] + "..." if len(finding.description) > 80 else finding.description,
+                f"{finding.impact:.2f}",
+                f"{finding.uncertainty:.2f}",
+                f"{priority:.2f}",
+            )
+
+        console.print("\n")
+        console.print(findings_table)
+
+        # Also show coverage summary
+        if report.coverage:
+            console.print("\n[bold]Coverage Summary:[/bold]")
+            for cat, status in report.coverage.items():
+                status_icon = (
+                    "✅" if status == AmbiguityStatus.CLEAR
+                    else "⚠️" if status == AmbiguityStatus.PARTIAL
+                    else "❌"
+                )
+                console.print(f"  {status_icon} {cat.value}: {status.value}")
+
+    elif output_format_str in ("json", "yaml"):
+        # Structured output (JSON or YAML)
+        findings_data = {
+            "findings": [
+                {
+                    "category": f.category.value,
+                    "status": f.status.value,
+                    "description": f.description,
+                    "impact": f.impact,
+                    "uncertainty": f.uncertainty,
+                    "priority": f.impact * f.uncertainty,
+                    "question": f.question,
+                    "related_sections": f.related_sections or [],
+                }
+                for f in (report.findings or [])
+            ],
+            "coverage": {
+                cat.value: status.value for cat, status in (report.coverage or {}).items()
+            },
+            "total_findings": len(report.findings or []),
+            "priority_score": report.priority_score,
+        }
+
+        import sys
+        if output_format_str == "json":
+            sys.stdout.write(json.dumps(findings_data, indent=2))
+        else:  # yaml
+            from ruamel.yaml import YAML
+            yaml = YAML()
+            yaml.default_flow_style = False
+            yaml.preserve_quotes = True
+            from io import StringIO
+            output = StringIO()
+            yaml.dump(findings_data, output)
+            sys.stdout.write(output.getvalue())
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    else:
+        print_error(f"Invalid findings format: {findings_format}. Must be 'json', 'yaml', or 'table'")
+        raise typer.Exit(1)
+
+
+@beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda bundle: bundle is not None, "Bundle must not be None")
 @ensure(lambda result: isinstance(result, int), "Must return int")
 def _deduplicate_features(bundle: PlanBundle) -> int:
     """
@@ -2453,6 +2986,17 @@ def review(
         "--list-questions",
         help="Output questions in JSON format without asking (for Copilot mode)",
     ),
+    list_findings: bool = typer.Option(
+        False,
+        "--list-findings",
+        help="Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment.",
+    ),
+    findings_format: str | None = typer.Option(
+        None,
+        "--findings-format",
+        help="Output format for --list-findings: json, yaml, or table (default: json for non-interactive, table for interactive)",
+        case_sensitive=False,
+    ),
     answers: str | None = typer.Option(
         None,
         "--answers",
@@ -2481,6 +3025,8 @@ def review(
         specfact plan review --plan .specfact/plans/main.bundle.<format>
         specfact plan review --max-questions 3 --category "Functional Scope"
         specfact plan review --list-questions  # Output questions as JSON
+        specfact plan review --list-findings --findings-format json  # Output all findings as JSON (for bulk updates)
+        specfact plan review --list-findings  # Output all findings as table (interactive) or JSON (non-interactive)
         specfact plan review --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
     """
     from datetime import date, datetime
@@ -2506,56 +3052,21 @@ def review(
     }
 
     with telemetry.track_command("plan.review", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            # Try to find active plan or latest
-            default_plan = SpecFactStructure.get_default_plan_path()
-            if default_plan.exists():
-                plan = default_plan
-                print_info(f"Using default plan: {plan}")
-            else:
-                # Find latest plan bundle
-                base_path = Path(".")
-                plans_dir = base_path / SpecFactStructure.PLANS
-                if plans_dir.exists():
-                    plan_files = [
-                        p
-                        for p in plans_dir.glob("*.bundle.*")
-                        if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
-                    ]
-                    plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
-                    if plan_files:
-                        plan = plan_files[0]
-                        print_info(f"Using latest plan: {plan}")
-                    else:
-                        print_error(f"No plan bundles found in {plans_dir}")
-                        print_error("Create one with: specfact plan init --interactive")
-                        raise typer.Exit(1)
-                else:
-                    print_error(f"Plans directory not found: {plans_dir}")
-                    print_error("Create one with: specfact plan init --interactive")
-                    raise typer.Exit(1)
-
-        # Type guard: ensure plan is not None
-        if plan is None:
-            print_error("Plan bundle path is required")
+        # Find plan path
+        plan_path = _find_plan_path(plan)
+        if plan_path is None:
             raise typer.Exit(1)
 
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        if not plan_path.exists():
+            print_error(f"Plan bundle not found: {plan_path}")
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Plan Review")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, bundle = validation_result
-
+            # Load and validate plan
+            is_valid, bundle = _load_and_validate_plan(plan_path)
             if not is_valid or bundle is None:
-                print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
 
             # Deduplicate features by normalized key (clean up duplicates from previous syncs)
@@ -2563,7 +3074,7 @@ def review(
             if duplicates_removed > 0:
                 # Write back deduplicated bundle immediately
                 generator = PlanGenerator()
-                generator.generate(bundle, plan)
+                generator.generate(bundle, plan_path)
                 print_success(f"✓ Removed {duplicates_removed} duplicate features from plan bundle")
 
             # Check current stage
@@ -2585,41 +3096,7 @@ def review(
                 bundle.clarifications = Clarifications(sessions=[])
 
             # Auto-enrich if requested (before scanning for ambiguities)
-            if auto_enrich:
-                print_info(
-                    "Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
-                )
-                from specfact_cli.enrichers.plan_enricher import PlanEnricher
-
-                enricher = PlanEnricher()
-                enrichment_summary = enricher.enrich_plan(bundle)
-
-                if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
-                    # Save enriched plan bundle
-                    generator = PlanGenerator()
-                    generator.generate(bundle, plan)
-                    print_success(
-                        f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
-                        f"{enrichment_summary['stories_updated']} stories updated"
-                    )
-                    if enrichment_summary["acceptance_criteria_enhanced"] > 0:
-                        console.print(
-                            f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
-                        )
-                    if enrichment_summary["requirements_enhanced"] > 0:
-                        console.print(
-                            f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]"
-                        )
-                    if enrichment_summary["tasks_enhanced"] > 0:
-                        console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
-                    if enrichment_summary["changes"]:
-                        console.print("\n[bold]Changes made:[/bold]")
-                        for change in enrichment_summary["changes"][:10]:  # Show first 10 changes
-                            console.print(f"[dim]  - {change}[/dim]")
-                        if len(enrichment_summary["changes"]) > 10:
-                            console.print(f"[dim]  ... and {len(enrichment_summary['changes']) - 10} more[/dim]")
-                else:
-                    print_info("No enrichments needed - plan bundle is already well-specified")
+            _handle_auto_enrichment(bundle, plan_path, auto_enrich)
 
             # Scan for ambiguities
             print_info("Scanning plan bundle for ambiguities...")
@@ -2635,6 +3112,11 @@ def review(
                 except ValueError:
                     print_warning(f"Unknown category: {category}, ignoring filter")
                     category = None
+
+            # Handle --list-findings mode
+            if list_findings:
+                _output_findings(report, findings_format, is_non_interactive)
+                raise typer.Exit(0)
 
             # Prioritize questions by (Impact x Uncertainty)
             findings_list = report.findings or []
