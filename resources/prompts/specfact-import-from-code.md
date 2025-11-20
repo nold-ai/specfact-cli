@@ -134,7 +134,11 @@ When in copilot mode, follow this three-phase workflow:
 **ALWAYS execute CLI first** to get structured, validated output:
 
 ```bash
+# Full repository analysis
 specfact import from-code --repo <path> --name <name> --confidence <score>
+
+# Partial repository analysis (analyze only specific subdirectory)
+specfact import from-code --repo <path> --name <name> --entry-point <subdirectory> --confidence <score>
 ```
 
 **Note**: Mode is auto-detected by the CLI (CI/CD in non-interactive environments, CoPilot when in IDE/Copilot session). No need to specify `--mode` flag.
@@ -245,6 +249,11 @@ Extract arguments from user input:
 - `--report PATH` - Analysis report path (optional, default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - `--shadow-only` - Observe mode without enforcing (optional)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
+- `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
+  - Multi-project repositories (monorepos): Analyze one project at a time
+  - Large codebases: Focus on specific modules or subsystems
+  - Incremental modernization: Modernize one part of the codebase at a time
+  - Example: `--entry-point projects/api-service` analyzes only `projects/api-service/` and its subdirectories
 
 **Important**: If `--name` is not provided, **ask the user interactively** for a meaningful plan name and **WAIT for their response**. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence.
 
@@ -261,7 +270,11 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g `'I'\''m Groo
 **ALWAYS execute the specfact CLI first** to get structured, validated output:
 
 ```bash
+# Full repository analysis
 specfact import from-code --repo <repo_path> --name <plan_name> --confidence <confidence>
+
+# Partial repository analysis (analyze only specific subdirectory)
+specfact import from-code --repo <repo_path> --name <plan_name> --entry-point <subdirectory> --confidence <confidence>
 ```
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
@@ -271,7 +284,22 @@ specfact import from-code --repo <repo_path> --name <plan_name> --confidence <co
 - Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
 - Analysis report path: `.specfact/reports/brownfield/analysis-<timestamp>.md`
 - Metadata: feature counts, story counts, average confidence, execution time
+- **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found during import)
 - Any error messages or warnings
+
+**Understanding Deduplication**:
+
+The CLI automatically deduplicates features during import using normalized key matching. However, when importing from code, you should also review for **semantic/logical duplicates**:
+
+1. **Review feature titles and descriptions**: Look for features that represent the same functionality with different names
+   - Example: "Git Operations Manager" vs "Git Operations Handler" (both handle git operations)
+   - Example: "Telemetry Settings" vs "Telemetry Configuration" (both configure telemetry)
+2. **Check code coverage**: If multiple features reference the same code files/modules, they might be the same feature
+3. **Analyze class relationships**: Features derived from related classes (e.g., parent/child classes) might be duplicates
+4. **Suggest consolidation**: When semantic duplicates are found:
+   - Use `specfact plan update-feature` to merge information into one feature
+   - Use `specfact plan add-feature` to create a consolidated feature if needed
+   - Document which features were consolidated and why
 
 **If CLI execution fails**:
 
@@ -484,6 +512,7 @@ metadata:
 - Research codebase for additional context
 - Identify missing features/stories
 - Suggest confidence adjustments
+- **Review for semantic duplicates**: After automated deduplication, identify features that represent the same functionality with different names or cover the same code modules
 - Extract business context
 - **Always generate and save enrichment report** when in Copilot mode
 

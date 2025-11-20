@@ -27,13 +27,13 @@ jobs:
           # Patterns match .gitignore: /test_*.py, /debug_*.py, /trigger_*.py, /temp_*.py
           # These are files at the root level, not in subdirectories
           CHANGED_FILES=$(git diff origin/main...HEAD --name-only)
-          
+
           # Check for temporary Python files at root (not in tests/ or any subdirectory)
           TEMP_FILES=$(echo "$CHANGED_FILES" | grep -E "^(temp_|debug_|trigger_|test_).*\.py$" | grep -v "^tests/" | grep -v "/" || true)
-          
+
           # Also check for analysis artifacts at root
           ARTIFACT_FILES=$(echo "$CHANGED_FILES" | grep -E "^(functional_coverage|migration_analysis|messaging_migration_plan)\.json$" | grep -v "/" || true)
-          
+
           if [ -n "$TEMP_FILES" ] || [ -n "$ARTIFACT_FILES" ]; then
             echo "❌ Temporary files detected in PR:"
             [ -n "$TEMP_FILES" ] && echo "$TEMP_FILES"
@@ -50,7 +50,7 @@ jobs:
         run: |
           # Check for WIP commits in PR
           WIP_COMMITS=$(git log origin/main..HEAD --oneline | grep -i "wip\|todo\|fixme\|xxx" || true)
-          
+
           if [ -n "$WIP_COMMITS" ]; then
             echo "⚠️ WIP commits detected (may be intentional):"
             echo "$WIP_COMMITS"
@@ -64,7 +64,7 @@ jobs:
         run: |
           # Check for files larger than 1MB
           LARGE_FILES=$(git diff origin/main...HEAD --name-only | xargs -I {} find {} -size +1M 2>/dev/null || true)
-          
+
           if [ -n "$LARGE_FILES" ]; then
             echo "⚠️ Large files detected:"
             echo "$LARGE_FILES"
@@ -72,4 +72,3 @@ jobs:
           else
             echo "✅ No large files detected"
           fi
-

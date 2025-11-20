@@ -65,7 +65,15 @@ def incomplete_plan(workspace: Path) -> Path:
                 draft=False,
             ),
         ],
-        metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+        metadata=Metadata(
+            stage="draft",
+            promoted_at=None,
+            promoted_by=None,
+            analysis_scope=None,
+            entry_point=None,
+            external_dependencies=[],
+            summary=None,
+        ),
         clarifications=None,
     )
 
@@ -157,7 +165,15 @@ class TestPlanReviewNonInteractive:
                     draft=False,
                 )
             ],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                external_dependencies=[],
+                summary=None,
+            ),
             clarifications=None,
         )
 

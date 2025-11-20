@@ -403,7 +403,7 @@ class TestCodeAnalyzer:
             plan_bundle = analyzer.analyze()
 
             assert plan_bundle is not None
-            assert plan_bundle.version == "1.0"
+            assert plan_bundle.version == "1.1"
             assert plan_bundle.idea is not None
             assert plan_bundle.product is not None
             assert len(plan_bundle.features) > 0

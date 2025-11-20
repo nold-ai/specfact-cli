@@ -419,6 +419,8 @@ def apply_enrichment(plan_bundle: PlanBundle, enrichment: EnrichmentReport) -> P
                         tasks=story_data.get("tasks", []),
                         confidence=story_data.get("confidence", 0.8),
                         draft=False,
+                        scenarios=None,
+                        contracts=None,
                     )
                     stories.append(story)
 

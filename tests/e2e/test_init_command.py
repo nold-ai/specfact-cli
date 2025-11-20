@@ -187,6 +187,24 @@ class TestInitCommandE2E:
 
         monkeypatch.setattr(importlib.util, "find_spec", mock_find_spec)
 
+        # Mock get_package_installation_locations to return empty list to avoid slow search
+        def mock_get_locations(package_name: str) -> list:
+            return []  # Return empty to simulate no package found
+
+        monkeypatch.setattr(
+            "specfact_cli.utils.ide_setup.get_package_installation_locations",
+            mock_get_locations,
+        )
+
+        # Mock find_package_resources_path to return None to avoid slow search
+        def mock_find_resources(package_name: str, resource_subpath: str):
+            return None  # Return None to simulate no resources found
+
+        monkeypatch.setattr(
+            "specfact_cli.utils.ide_setup.find_package_resources_path",
+            mock_find_resources,
+        )
+
         # Don't create templates directory
         old_cwd = os.getcwd()
         try:

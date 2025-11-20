@@ -50,7 +50,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating features**:
 
-- `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft <true/false> --plan <path>`
+- `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft --plan <path>`
+  - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
   - Updates existing feature metadata (title, outcomes, acceptance criteria, constraints, confidence, draft status)
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-feature --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`
@@ -62,6 +65,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 **For adding stories**:
 
 - `specfact plan add-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --plan <path>`
+
+**For updating stories**:
+
+- `specfact plan update-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --confidence <confidence> --draft/--no-draft --plan <path>`
+  - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
+  - Updates existing story metadata (title, acceptance criteria, story points, value points, confidence, draft status)
+  - Works in CI/CD, Copilot, and interactive modes
+  - Example: `specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Given X, When Y, Then Z" --story-points 5`
 
 **❌ FORBIDDEN**: Direct Python code manipulation like:
 
@@ -113,8 +126,8 @@ The CLI now supports automatic enrichment via `--auto-enrich` flag. Use this whe
    - Identify any generic improvements that need refinement
    - Suggest specific manual improvements for edge cases
 4. **Follow-up enrichment**: If auto-enrichment made generic improvements, use CLI commands to refine them:
-   - `specfact plan update-feature` to add specific file paths, method names, or component references
-   - `specfact plan update-feature` to refine Given/When/Then scenarios with specific actions
+   - `specfact plan update-feature` to add specific file paths, method names, or component references to feature-level acceptance criteria
+   - `specfact plan update-story` to refine story-level acceptance criteria with specific actions, method calls, and testable assertions
    - `specfact plan update-feature` to add domain-specific constraints
 
 **Example Enrichment Flow**:
@@ -158,6 +171,8 @@ The `--auto-enrich` flag automatically enhances the plan bundle before scanning 
 - **Incomplete requirements** (e.g., "System MUST Helper class") → Enhanced with verbs and actions (e.g., "System MUST provide a Helper class for [feature] operations")
 - **Generic tasks** (e.g., "Implement [story]") → Enhanced with implementation details (file paths, methods, components)
 
+**⚠️ IMPORTANT LIMITATION**: Auto-enrichment creates **generic templates** (e.g., "Given a user wants to use {story}, When they interact with the system, Then {story} works correctly"). These are NOT testable and MUST be refined by LLM with code-specific details. The LLM MUST automatically refine all generic criteria after auto-enrichment runs (see "LLM Post-Enrichment Analysis & Automatic Refinement" section below).
+
 **When to Use Auto-Enrichment**:
 
 - **Before first review**: Use `--auto-enrich` when reviewing a plan bundle imported from code or Spec-Kit to automatically fix common quality issues
@@ -184,7 +199,9 @@ In Copilot mode, follow this three-phase workflow:
 
 1. **Phase 1: Get Questions** - Execute `specfact plan review --list-questions` to get questions in JSON format
 2. **Phase 2: Ask User** - Present questions to user one at a time, collect answers
-3. **Phase 3: Feed Answers** - Execute `specfact plan review --answers '{"Q001": "answer1", ...}'` to integrate answers
+3. **Phase 3: Feed Answers** - Write answers to a JSON file, then execute `specfact plan review --answers answers.json` to integrate answers
+
+**⚠️ IMPORTANT**: Always use a JSON file path (not inline JSON string) to avoid parsing issues and ensure proper formatting.
 
 **Never create clarifications directly in YAML**. Always use the CLI to integrate answers.
 
@@ -251,6 +268,7 @@ specfact plan review --auto-enrich --non-interactive --plan <plan_path> --answer
 **Capture from CLI**:
 
 - Plan bundle loaded successfully
+- **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found)
 - Current stage (should be `draft` for review)
 - Existing clarifications (if any)
 - **Auto-enrichment summary** (if `--auto-enrich` was used):
@@ -262,6 +280,89 @@ specfact plan review --auto-enrich --non-interactive --plan <plan_path> --answer
   - List of changes made
 - Questions list (if `--list-questions` used)
 - **Coverage Summary**: Pay special attention to Partial categories - they indicate areas that could be enriched but don't block promotion
+
+**⚠️ CRITICAL: Automatic Refinement After Auto-Enrichment**:
+
+**If auto-enrichment was used, you MUST automatically refine generic acceptance criteria BEFORE proceeding with questions.**
+
+**Step 1: Identify Generic Criteria** (from auto-enrichment output):
+
+Look for patterns in the "Changes made" list:
+
+- Generic templates: "Given a user wants to use {story}, When they interact with the system, Then {story} works correctly"
+- Vague actions: "interact with the system", "perform the action", "access the system"
+- Vague outcomes: "works correctly", "is functional", "works as expected"
+
+**Step 2: Research Codebase** (for each story with generic criteria):
+
+- Find the actual class and method names
+- Identify method signatures and parameters
+- Check test files for actual test patterns
+- Understand return values and assertions
+
+**Step 3: Generate Code-Specific Criteria** (replace generic with specific):
+
+- Replace "interact with the system" → specific method calls with parameters
+- Replace "works correctly" → specific return values, state changes, or assertions
+- Add class names, method signatures, file paths where relevant
+
+**Step 4: Apply Refinements** (use CLI commands):
+
+```bash
+# For story-level acceptance criteria, use update-story:
+specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined-code-specific-criteria>" --plan <path>
+
+# For feature-level acceptance criteria, use update-feature:
+specfact plan update-feature --key <feature-key> --acceptance "<refined-code-specific-criteria>" --plan <path>
+```
+
+**Step 5: Verify** (before proceeding):
+
+- All generic criteria replaced with code-specific criteria
+- All criteria mention specific methods, classes, or file paths
+- All criteria are testable (can be verified with automated tests)
+
+**Only after Step 5 is complete, proceed with questions.**
+
+**Understanding Deduplication**:
+
+The CLI automatically deduplicates features during review using normalized key matching:
+
+1. **Exact matches**: Features with identical normalized keys are automatically deduplicated
+   - Example: `FEATURE-001` and `001_FEATURE_NAME` normalize to the same key
+2. **Prefix matches**: Abbreviated class names vs full Spec-Kit directory names
+   - Example: `FEATURE-IDEINTEGRATION` (from code analysis) vs `041_IDE_INTEGRATION_SYSTEM` (from Spec-Kit)
+   - Only matches when at least one key has a numbered prefix (Spec-Kit origin) to avoid false positives
+   - Requires minimum 10 characters, 6+ character difference, and <75% length ratio
+
+**LLM Semantic Deduplication**:
+
+After automated deduplication, you should review the plan bundle for **semantic/logical duplicates** that automated matching might miss:
+
+1. **Review feature titles and descriptions**: Look for features that represent the same functionality with different names
+   - Example: "Git Operations Manager" vs "Git Operations Handler" (both handle git operations)
+   - Example: "Telemetry Settings" vs "Telemetry Configuration" (both configure telemetry)
+2. **Check feature stories**: Features with overlapping or identical user stories may be duplicates
+3. **Analyze acceptance criteria**: Features with similar acceptance criteria covering the same functionality
+4. **Check code references**: If multiple features reference the same code files/modules, they might be the same feature
+5. **Suggest consolidation**: When semantic duplicates are found:
+   - Use `specfact plan update-feature` to merge information into one feature
+   - Use `specfact plan add-feature` to create a consolidated feature if needed
+   - Document which features were consolidated and why
+
+**Example Semantic Duplicate Detection**:
+
+```text
+After review, analyze the plan bundle and identify:
+- Features with similar titles but different keys
+- Features covering the same code modules
+- Features with overlapping user stories or acceptance criteria
+- Features that represent the same functionality
+
+If semantic duplicates are found, suggest consolidation:
+"Found semantic duplicates: FEATURE-GITOPERATIONS and FEATURE-GITOPERATIONSHANDLER
+both cover git operations. Should I consolidate these into a single feature?"
+```
 
 **Understanding Auto-Enrichment Output**:
 
@@ -288,17 +389,90 @@ When the CLI reports "No critical ambiguities detected. Plan is ready for promot
 - **Partial categories** are not critical enough to block promotion, but enrichment would improve plan quality
 - The plan can be promoted, but consider enriching Partial categories for better completeness
 
-**LLM Post-Enrichment Analysis**:
+**LLM Post-Enrichment Analysis & Automatic Refinement**:
 
-After auto-enrichment runs, you should:
+**⚠️ CRITICAL**: After auto-enrichment runs, you MUST automatically refine the generic acceptance criteria with code-specific, testable details. The auto-enrichment creates generic templates (e.g., "Given a user wants to use {story}, When they interact with the system, Then {story} works correctly"), but these are NOT testable. You should IMMEDIATELY replace them with specific, code-based criteria.
 
-1. **Review the changes**: Analyze what was enhanced and verify it makes sense
-2. **Check for remaining issues**: Look for patterns that weren't caught by auto-enrichment
-3. **Suggest further improvements**: Use LLM reasoning to identify additional enhancements:
-   - Are the Given/When/Then scenarios specific enough?
-   - Do the enhanced requirements capture the full intent?
-   - Are the task enhancements accurate for the codebase structure?
-4. **Propose manual refinements**: If auto-enrichment made generic improvements, suggest specific refinements using CLI commands
+**Why This Matters**:
+
+- **Generic criteria are NOT testable**: "When they interact with the system" cannot be verified
+- **Test-based criteria are better**: "When extract_article_viii_evidence() is called" is specific and testable
+- **Auto-enrichment makes things worse**: It replaces test-based criteria with generic templates
+- **LLM reasoning is required**: Only LLM can understand codebase context and create specific criteria
+
+**Automatic Refinement Workflow (MANDATORY after auto-enrichment)**:
+
+1. **Parse auto-enrichment output**: Identify which acceptance criteria were enhanced (look for generic patterns like "interact with the system", "works correctly", "is functional and verified")
+2. **Research codebase context**: For each enhanced story, find the actual:
+   - Class names and method signatures (e.g., `ContractFirstTestManager.extract_article_viii_evidence()`)
+   - File paths and module structure (e.g., `src/specfact_cli/enrichers/plan_enricher.py`)
+   - Test patterns and validation logic (check test files for actual test cases)
+   - Actual behavior and return values (e.g., returns `dict` with `'status'` key)
+3. **Generate code-specific criteria**: Replace generic templates with specific, testable criteria:
+   - **Generic (BAD)**: "Given a user wants to use as a developer, i can configure contract first test manager, When they interact with the system, Then as a developer, i can configure contract first test manager works correctly"
+   - **Code-specific (GOOD)**: "Given a ContractFirstTestManager instance is available, When extract_article_viii_evidence(repo_path: Path) is called, Then the method returns a dict with 'status' key equal to 'PASS' or 'FAIL' and 'frameworks_detected' list"
+4. **Apply refinements automatically**: Use `specfact plan update-feature` to replace ALL generic criteria with code-specific ones BEFORE asking questions
+5. **Verify testability**: Ensure all refined criteria can be verified with automated tests (include specific method names, parameters, return values, assertions)
+
+**Example Automatic Refinement Process**:
+
+```markdown
+1. Auto-enrichment enhanced: "is implemented" → "Given a user wants to use configure git operations, When they interact with the system, Then configure git operations works correctly"
+
+2. LLM Analysis:
+   - Story: "As a developer, I can configure Contract First Test Manager"
+   - Feature: "Contract First Test Manager"
+   - Research codebase: Find `ContractFirstTestManager` class and its methods
+
+3. Codebase Research:
+   - Find: `src/specfact_cli/enrichers/plan_enricher.py` with `PlanEnricher` class
+   - Methods: `enrich_plan()`, `_enhance_vague_acceptance_criteria()`, etc.
+   - Test patterns: Check test files for actual test cases
+
+4. Generate Code-Specific Criteria:
+   - "Given a developer wants to configure Contract First Test Manager, When they call `PlanEnricher.enrich_plan(plan_bundle: PlanBundle)` with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts"
+
+5. Apply via CLI:
+   ```bash
+   # For story-level acceptance criteria:
+   specfact plan update-story --feature FEATURE-CONTRACTFIRSTTESTMANAGER --key STORY-001 --acceptance "Given a developer wants to configure Contract First Test Manager, When they call PlanEnricher.enrich_plan(plan_bundle: PlanBundle) with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts" --plan <path>
+   
+   # For feature-level acceptance criteria:
+   specfact plan update-feature --key FEATURE-CONTRACTFIRSTTESTMANAGER --acceptance "Given a developer wants to configure Contract First Test Manager, When they call PlanEnricher.enrich_plan(plan_bundle: PlanBundle) with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts" --plan <path>
+   ```
+
+**When to Apply Automatic Refinement**:
+
+- **MANDATORY after auto-enrichment**: If `--auto-enrich` was used, you MUST automatically refine ALL generic criteria BEFORE asking questions. Do not proceed with questions until generic criteria are replaced.
+- **During review**: When questions ask about vague acceptance criteria, provide code-specific refinements immediately
+- **Before promotion**: Ensure all acceptance criteria are code-specific and testable (no generic placeholders)
+
+**Refinement Priority**:
+
+1. **High Priority (Do First)**: Criteria containing generic patterns:
+   - "interact with the system"
+   - "works correctly" / "works as expected" / "is functional"
+   - "perform the action"
+   - "access the system"
+   - Any criteria that doesn't mention specific methods, classes, or file paths
+
+2. **Medium Priority**: Criteria that are testable but could be more specific:
+   - Add method signatures
+   - Add parameter types
+   - Add return value assertions
+   - Add file path references
+
+3. **Low Priority**: Criteria that are already code-specific:
+   - Preserve test-based criteria (don't replace with generic)
+   - Only enhance if missing important details
+
+**Refinement Quality Checklist**:
+
+- ✅ **Specific method names**: Include actual class.method() signatures
+- ✅ **Specific file paths**: Reference actual code locations when relevant
+- ✅ **Testable outcomes**: Include specific return values, state changes, or observable behaviors
+- ✅ **Domain-specific**: Use terminology from the actual codebase
+- ✅ **No generic placeholders**: Avoid "interact with the system", "works correctly", "is functional"
 
 ### 2. Get Questions from CLI (Copilot Mode) or Analyze Directly (Interactive Mode)
 
@@ -484,7 +658,8 @@ After auto-enrichment, use LLM reasoning to refine generic improvements:
 - **Completion Signals (Partial)**: Review auto-enriched Given/When/Then scenarios and refine with specific actions:
   - Generic: "When they interact with the system"
   - Refined: "When they call the `configure()` method with valid parameters"
-  - Use: `specfact plan update-feature --key <key> --acceptance "<refined criteria>" --plan <path>`
+  - Use: `specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined criteria>" --plan <path>` for story-level criteria
+  - Use: `specfact plan update-feature --key <key> --acceptance "<refined criteria>" --plan <path>` for feature-level criteria
 
 - **Edge Cases (Partial)**: Add domain-specific edge cases:
   - Use `specfact plan update-feature` to add edge case acceptance criteria
@@ -602,42 +777,123 @@ Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" 
 
 **⚠️ CRITICAL**: In Copilot mode, after collecting all answers from the user, you MUST feed them back to the CLI using `--answers`:
 
-```bash
-# Feed all answers back to CLI (Copilot mode) - using file path (recommended)
-specfact plan review --plan <plan_path> --answers answers.json
+**Step 1: Create answers JSON file** (ALWAYS use file, not inline JSON):
 
-# Alternative: using JSON string (may have Rich markup parsing issues)
-specfact plan review --plan <plan_path> --answers '{"Q001": "answer1", "Q002": "answer2", "Q003": "answer3"}'
+```bash
+# Create answers.json file with all answers
+cat > answers.json << 'EOF'
+{
+  "Q001": "Developers, DevOps engineers",
+  "Q002": "Yes",
+  "Q003": "Yes",
+  "Q004": "Yes",
+  "Q005": "Yes"
+}
+EOF
+```
+
+**Step 2: Feed answers to CLI** (using file path - RECOMMENDED):
+
+```bash
+# Feed all answers back to CLI (Copilot mode) - using file path (RECOMMENDED)
+specfact plan review --plan <plan_path> --answers answers.json
+```
+
+**⚠️ AVOID inline JSON strings** - They can cause parsing issues with special characters, quotes, and Rich markup:
+
+```bash
+# ❌ NOT RECOMMENDED: Inline JSON string (may have parsing issues)
+specfact plan review --plan <plan_path> --answers '{"Q001": "answer1", "Q002": "answer2"}'
 ```
 
 **Format**: The `--answers` parameter accepts either:
 
-- **JSON file path**: Path to a JSON file containing question_id -> answer mappings
-- **JSON string**: Direct JSON object (may have Rich markup parsing issues, prefer file path)
+- **✅ JSON file path** (RECOMMENDED): Path to a JSON file containing question_id -> answer mappings
+  - More reliable parsing
+  - Easier to validate JSON syntax
+  - Avoids shell escaping issues
+  - Better for complex answers with special characters
+  
+- **⚠️ JSON string** (NOT RECOMMENDED): Direct JSON object (may have Rich markup parsing issues, shell escaping problems)
+  - Only use for simple, single-answer cases
+  - Requires careful quote escaping
+  - Can fail with special characters
 
 **JSON Structure**:
 
 - Keys: Question IDs (e.g., "Q001", "Q002")
 - Values: Answer strings (≤5 words recommended)
 
+**⚠️ CRITICAL: Boolean-Like Answer Values**:
+
+When providing answers that are boolean-like strings (e.g., "Yes", "No", "True", "False", "On", "Off"), ensure they are:
+
+1. **Always quoted in JSON**: Use `"Yes"` not `Yes` (JSON requires quotes for strings)
+2. **Provided as strings**: Never use JSON booleans `true`/`false` - always use string values `"Yes"`/`"No"`
+
+**❌ WRONG** (causes YAML validation errors):
+
+```json
+{
+  "Q001": "Developers, DevOps engineers",
+  "Q002": true,  // ❌ JSON boolean - will cause validation error
+  "Q003": Yes    // ❌ Unquoted string - invalid JSON
+}
+```
+
+**✅ CORRECT**:
+
+```json
+{
+  "Q001": "Developers, DevOps engineers",
+  "Q002": "Yes",  // ✅ Quoted string
+  "Q003": "No"    // ✅ Quoted string
+}
+```
+
+**Why This Matters**:
+
+- YAML parsers interpret unquoted "Yes", "No", "True", "False", "On", "Off" as boolean values
+- The CLI expects all answers to be strings (validated with `isinstance(answer, str)`)
+- Boolean values in JSON will cause validation errors: "Answer for Q002 must be a non-empty string"
+- The YAML serializer now automatically quotes boolean-like strings, but JSON parsing must still provide strings
+
 **Example JSON file** (`answers.json`):
 
 ```json
 {
-  "Q001": "Test narrative answer",
-  "Q002": "Test story answer"
+  "Q001": "Developers, DevOps engineers",
+  "Q002": "Yes",
+  "Q003": "Yes",
+  "Q004": "Yes",
+  "Q005": "Yes"
 }
 ```
 
 **Usage**:
 
 ```bash
-# Using file path (recommended)
+# ✅ RECOMMENDED: Using file path
 specfact plan review --plan <plan_path> --answers answers.json
 
-# Using JSON string (may have parsing issues)
+# ⚠️ NOT RECOMMENDED: Using JSON string (only for simple cases)
 specfact plan review --plan <plan_path> --answers '{"Q001": "answer1"}'
 ```
+
+**Validation After Feeding Answers**:
+
+After feeding answers, always verify the plan bundle is valid:
+
+```bash
+# Verify plan bundle is valid (should not show validation errors)
+specfact plan review --plan <plan_path> --list-questions --max-questions 1
+```
+
+If you see validation errors like "Input should be a valid string", check:
+
+1. All answers in JSON file are quoted strings (not booleans)
+2. JSON file syntax is valid (use `python3 -m json.tool answers.json` to validate)
+3. No unquoted boolean-like strings ("Yes", "No", "True", "False")
 
 **In Interactive Mode**: The CLI automatically integrates answers after each question.
 
@@ -825,6 +1081,157 @@ A plan is ready for promotion when:
    - Ensure all refinements are testable and measurable
    - Verify terminology consistency across all enhancements
    - Check that refinements align with codebase structure and patterns
+
+## Troubleshooting
+
+### Common Errors and Solutions
+
+#### Error: "Plan validation failed: Validation error: Input should be a valid string"
+
+**Cause**: Answers in clarifications section are stored as booleans instead of strings.
+
+**Symptoms**:
+
+- Error message: `clarifications.sessions.0.questions.X.answer: Input should be a valid string`
+- Plan bundle fails to load or validate
+
+**Solution**:
+
+1. **Check JSON file format**:
+
+   ```bash
+   # Validate JSON syntax
+   python3 -m json.tool answers.json
+   ```
+
+2. **Ensure all answers are quoted strings**:
+
+   ```json
+   {
+     "Q001": "Developers, DevOps engineers",  // ✅ Quoted string
+     "Q002": "Yes",  // ✅ Quoted string (not true or unquoted Yes)
+     "Q003": "No"    // ✅ Quoted string (not false or unquoted No)
+   }
+   ```
+
+3. **Fix existing plan bundle** (if already corrupted):
+
+   ```bash
+   # Use sed to quote unquoted "Yes" values in YAML
+   sed -i "s/^      answer: Yes$/      answer: 'Yes'/" .specfact/plans/<plan>.bundle.yaml
+   sed -i "s/^      answer: No$/      answer: 'No'/" .specfact/plans/<plan>.bundle.yaml
+   ```
+
+4. **Verify fix**:
+
+   ```bash
+   # Check that all answers are strings
+   python3 -c "import yaml; data = yaml.safe_load(open('.specfact/plans/<plan>.bundle.yaml')); print('All strings:', all(isinstance(q['answer'], str) for s in data['clarifications']['sessions'] for q in s['questions']))"
+   ```
+
+#### Error: "Invalid JSON in --answers"
+
+**Cause**: JSON syntax error in answers file or inline JSON string.
+
+**Solution**:
+
+1. **Validate JSON syntax**:
+
+   ```bash
+   python3 -m json.tool answers.json
+   ```
+
+2. **Check for common issues**:
+   - Missing quotes around string values
+   - Trailing commas
+   - Unclosed brackets or braces
+   - Special characters not escaped
+
+3. **Use file path instead of inline JSON** (recommended):
+
+   ```bash
+   # ✅ Better: Use file
+   specfact plan review --answers answers.json
+   
+   # ⚠️ Avoid: Inline JSON (can have escaping issues)
+   specfact plan review --answers '{"Q001": "answer"}'
+   ```
+
+#### Error: "Answer for Q002 must be a non-empty string"
+
+**Cause**: Answer value is not a string (e.g., boolean `true`/`false` or `null`).
+
+**Solution**:
+
+1. **Ensure all answers are strings in JSON**:
+
+   ```json
+   {
+     "Q002": "Yes"  // ✅ String
+   }
+   ```
+
+   Not:
+
+   ```json
+   {
+     "Q002": true   // ❌ Boolean
+     "Q002": null   // ❌ Null
+   }
+   ```
+
+2. **Validate before feeding to CLI**:
+
+   ```bash
+   # Check all values are strings
+   python3 -c "import json; data = json.load(open('answers.json')); print('All strings:', all(isinstance(v, str) for v in data.values()))"
+   ```
+
+#### Error: "Feature 'FEATURE-001' not found in plan"
+
+**Cause**: Feature key doesn't exist in plan bundle.
+
+**Solution**:
+
+1. **List available features**:
+
+   ```bash
+   specfact plan select --list-features
+   ```
+
+2. **Use correct feature key** (case-sensitive, exact match required)
+
+#### Error: "Story 'STORY-001' not found in feature 'FEATURE-001'"
+
+**Cause**: Story key doesn't exist in the specified feature.
+
+**Solution**:
+
+1. **List stories in feature**:
+
+   ```bash
+   # Check plan bundle YAML for story keys
+   grep -A 5 "key: FEATURE-001" .specfact/plans/<plan>.bundle.yaml | grep "key: STORY"
+   ```
+
+2. **Use correct story key** (case-sensitive, exact match required)
+
+### Prevention Checklist
+
+Before feeding answers to CLI:
+
+- [ ] **JSON file syntax is valid** (use `python3 -m json.tool` to validate)
+- [ ] **All answer values are quoted strings** (not booleans, not null)
+- [ ] **Boolean-like strings are quoted** ("Yes", "No", "True", "False", "On", "Off")
+- [ ] **Using file path** (not inline JSON string) for complex answers
+- [ ] **No trailing commas** in JSON
+- [ ] **All question IDs match** (Q001, Q002, etc. from `--list-questions` output)
+
+After feeding answers:
+
+- [ ] **Plan bundle validates** (run `specfact plan review --list-questions --max-questions 1`)
+- [ ] **No validation errors** in CLI output
+- [ ] **All clarifications saved** (check `clarifications.sessions` in YAML)
 
 **Example LLM Reasoning Process**:
 

@@ -51,7 +51,15 @@ def test_review_workflow_with_incomplete_plan(tmp_path: Path) -> None:
                 draft=False,
             )
         ],
-        metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+        metadata=Metadata(
+            stage="draft",
+            promoted_at=None,
+            promoted_by=None,
+            analysis_scope=None,
+            entry_point=None,
+            external_dependencies=[],
+            summary=None,
+        ),
         clarifications=None,
     )
 

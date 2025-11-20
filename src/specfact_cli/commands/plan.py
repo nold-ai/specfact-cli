@@ -551,6 +551,8 @@ def add_story(
                 tasks=[],
                 confidence=1.0,
                 draft=draft,
+                contracts=None,
+                scenarios=None,
             )
 
             # Add story to feature
@@ -772,7 +774,11 @@ def update_feature(
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
     constraints: str | None = typer.Option(None, "--constraints", help="Constraints (comma-separated)"),
     confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
-    draft: bool | None = typer.Option(None, "--draft", help="Mark as draft (true/false)"),
+    draft: bool | None = typer.Option(
+        None,
+        "--draft/--no-draft",
+        help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
     plan: Path | None = typer.Option(
         None,
         "--plan",
@@ -906,6 +912,185 @@ def update_feature(
 
         except Exception as e:
             print_error(f"Failed to update feature: {e}")
+            raise typer.Exit(1) from e
+
+
+@app.command("update-story")
+@beartype
+@require(lambda feature: isinstance(feature, str) and len(feature) > 0, "Feature must be non-empty string")
+@require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(
+    lambda story_points: story_points is None or (story_points >= 0 and story_points <= 100),
+    "Story points must be 0-100 if provided",
+)
+@require(
+    lambda value_points: value_points is None or (value_points >= 0 and value_points <= 100),
+    "Value points must be 0-100 if provided",
+)
+@require(lambda confidence: confidence is None or (0.0 <= confidence <= 1.0), "Confidence must be 0.0-1.0 if provided")
+def update_story(
+    feature: str = typer.Option(..., "--feature", help="Parent feature key (e.g., FEATURE-001)"),
+    key: str = typer.Option(..., "--key", help="Story key to update (e.g., STORY-001)"),
+    title: str | None = typer.Option(None, "--title", help="Story title"),
+    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
+    story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity: 0-100)"),
+    value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value: 0-100)"),
+    confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
+    draft: bool | None = typer.Option(
+        None,
+        "--draft/--no-draft",
+        help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+    ),
+) -> None:
+    """
+    Update an existing story's metadata in a plan bundle.
+
+    This command allows updating story properties (title, acceptance criteria,
+    story points, value points, confidence, draft status) in non-interactive
+    environments (CI/CD, Copilot).
+
+    Example:
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title"
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Given X, When Y, Then Z" --story-points 5
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    telemetry_metadata = {
+        "feature_key": feature,
+        "story_key": key,
+    }
+
+    with telemetry.track_command("plan.update_story", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
+        if not plan.exists():
+            print_error(f"Plan bundle not found: {plan}")
+            raise typer.Exit(1)
+
+        print_section("SpecFact CLI - Update Story")
+
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
+
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Find parent feature
+            parent_feature = None
+            for f in existing_plan.features:
+                if f.key == feature:
+                    parent_feature = f
+                    break
+
+            if parent_feature is None:
+                print_error(f"Feature '{feature}' not found in plan")
+                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                raise typer.Exit(1)
+
+            # Find story to update
+            story_to_update = None
+            for s in parent_feature.stories:
+                if s.key == key:
+                    story_to_update = s
+                    break
+
+            if story_to_update is None:
+                print_error(f"Story '{key}' not found in feature '{feature}'")
+                console.print(f"[dim]Available stories: {', '.join(s.key for s in parent_feature.stories)}[/dim]")
+                raise typer.Exit(1)
+
+            # Track what was updated
+            updates_made = []
+
+            # Update title if provided
+            if title is not None:
+                story_to_update.title = title
+                updates_made.append("title")
+
+            # Update acceptance criteria if provided
+            if acceptance is not None:
+                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                story_to_update.acceptance = acceptance_list
+                updates_made.append("acceptance")
+
+            # Update story points if provided
+            if story_points is not None:
+                story_to_update.story_points = story_points
+                updates_made.append("story_points")
+
+            # Update value points if provided
+            if value_points is not None:
+                story_to_update.value_points = value_points
+                updates_made.append("value_points")
+
+            # Update confidence if provided
+            if confidence is not None:
+                if not (0.0 <= confidence <= 1.0):
+                    print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                    raise typer.Exit(1)
+                story_to_update.confidence = confidence
+                updates_made.append("confidence")
+
+            # Update draft status if provided
+            if draft is not None:
+                story_to_update.draft = draft
+                updates_made.append("draft")
+
+            if not updates_made:
+                print_warning(
+                    "No updates specified. Use --title, --acceptance, --story-points, --value-points, --confidence, or --draft"
+                )
+                raise typer.Exit(1)
+
+            # Validate updated plan (always passes for PlanBundle model)
+            print_info("Validating updated plan...")
+
+            # Save updated plan
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(existing_plan, plan)
+
+            record(
+                {
+                    "updates": updates_made,
+                    "total_stories": len(parent_feature.stories),
+                }
+            )
+
+            print_success(f"Story '{key}' in feature '{feature}' updated successfully")
+            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+            if title:
+                console.print(f"[dim]Title: {title}[/dim]")
+            if acceptance:
+                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+            if story_points is not None:
+                console.print(f"[dim]Story Points: {story_points}[/dim]")
+            if value_points is not None:
+                console.print(f"[dim]Value Points: {value_points}[/dim]")
+            if confidence is not None:
+                console.print(f"[dim]Confidence: {confidence}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to update story: {e}")
             raise typer.Exit(1) from e
 
 
@@ -1212,10 +1397,42 @@ def compare(
 @app.command("select")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, str), "Plan must be None or str")
+@require(lambda last: last is None or last > 0, "Last must be None or positive integer")
 def select(
     plan: str | None = typer.Argument(
         None,
         help="Plan name or number to select (e.g., 'main.bundle.yaml' or '1')",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Non-interactive mode (for CI/CD automation). Disables interactive prompts.",
+    ),
+    current: bool = typer.Option(
+        False,
+        "--current",
+        help="Show only the currently active plan",
+    ),
+    stages: str | None = typer.Option(
+        None,
+        "--stages",
+        help="Filter by stages (comma-separated, e.g., 'draft,review,approved')",
+    ),
+    last: int | None = typer.Option(
+        None,
+        "--last",
+        help="Show last N plans by modification time (most recent first)",
+        min=1,
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.yaml')",
+    ),
+    plan_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
     ),
 ) -> None:
     """
@@ -1224,20 +1441,47 @@ def select(
     Displays a numbered list of available plans and allows selection by number or name.
     The selected plan becomes the active plan tracked in `.specfact/plans/config.yaml`.
 
+    Filter Options:
+        --current          Show only the currently active plan (non-interactive, auto-selects)
+        --stages STAGES    Filter by stages (comma-separated: draft,review,approved,released)
+        --last N           Show last N plans by modification time (most recent first)
+        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.yaml')
+        --id HASH          Select by content hash ID (non-interactive, from metadata.summary.content_hash)
+
     Example:
-        specfact plan select                    # Interactive selection
-        specfact plan select 1                 # Select by number
-        specfact plan select main.bundle.yaml   # Select by name
+        specfact plan select                              # Interactive selection
+        specfact plan select 1                           # Select by number
+        specfact plan select main.bundle.yaml            # Select by name (positional)
+        specfact plan select --current                   # Show only active plan (auto-selects)
+        specfact plan select --stages draft,review       # Filter by stages
+        specfact plan select --last 5                    # Show last 5 plans
+        specfact plan select --non-interactive --last 1  # CI/CD: get most recent plan
+        specfact plan select --name main.bundle.yaml     # CI/CD: select by exact filename
+        specfact plan select --id abc123def456           # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    telemetry_metadata = {}
+    telemetry_metadata = {
+        "non_interactive": non_interactive,
+        "current": current,
+        "stages": stages,
+        "last": last,
+        "name": name is not None,
+        "plan_id": plan_id is not None,
+    }
 
     with telemetry.track_command("plan.select", telemetry_metadata) as record:
         print_section("SpecFact CLI - Plan Selection")
 
         # List all available plans
-        plans = SpecFactStructure.list_plans()
+        # Performance optimization: If --last N is specified, only process N+10 most recent files
+        # This avoids processing all 31 files when user only wants last 5
+        max_files_to_process = None
+        if last is not None:
+            # Process a few more files than requested to account for filtering
+            max_files_to_process = last + 10
+
+        plans = SpecFactStructure.list_plans(max_files=max_files_to_process)
 
         if not plans:
             print_warning("No plan bundles found in .specfact/plans/")
@@ -1246,18 +1490,156 @@ def select(
             print_info("  - specfact import from-code")
             raise typer.Exit(1)
 
+        # Apply filters
+        filtered_plans = plans.copy()
+
+        # Filter by current/active (non-interactive: auto-selects if single match)
+        if current:
+            filtered_plans = [p for p in filtered_plans if p.get("active", False)]
+            if not filtered_plans:
+                print_warning("No active plan found")
+                raise typer.Exit(1)
+            # Auto-select in non-interactive mode when --current is provided
+            if non_interactive and len(filtered_plans) == 1:
+                selected_plan = filtered_plans[0]
+                plan_name = str(selected_plan["name"])
+                SpecFactStructure.set_active_plan(plan_name)
+                record(
+                    {
+                        "plans_available": len(plans),
+                        "plans_filtered": len(filtered_plans),
+                        "selected_plan": plan_name,
+                        "features": selected_plan["features"],
+                        "stories": selected_plan["stories"],
+                        "auto_selected": True,
+                    }
+                )
+                print_success(f"Active plan (--current): {plan_name}")
+                print_info(f"  Features: {selected_plan['features']}")
+                print_info(f"  Stories: {selected_plan['stories']}")
+                print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+                raise typer.Exit(0)
+
+        # Filter by stages
+        if stages:
+            stage_list = [s.strip().lower() for s in stages.split(",")]
+            valid_stages = {"draft", "review", "approved", "released", "unknown"}
+            invalid_stages = [s for s in stage_list if s not in valid_stages]
+            if invalid_stages:
+                print_error(f"Invalid stage(s): {', '.join(invalid_stages)}")
+                print_info(f"Valid stages: {', '.join(sorted(valid_stages))}")
+                raise typer.Exit(1)
+            filtered_plans = [p for p in filtered_plans if str(p.get("stage", "unknown")).lower() in stage_list]
+
+        # Filter by last N (most recent first)
+        if last:
+            # Sort by modification time (most recent first) and take last N
+            # Handle None values by using empty string as fallback for sorting
+            filtered_plans = sorted(filtered_plans, key=lambda p: p.get("modified") or "", reverse=True)[:last]
+
+        if not filtered_plans:
+            print_warning("No plans match the specified filters")
+            raise typer.Exit(1)
+
+        # Handle --name flag (non-interactive selection by exact filename)
+        if name is not None:
+            non_interactive = True  # Force non-interactive when --name is used
+            plan_name = str(name)
+            # Add .bundle.yaml suffix if not present
+            if not plan_name.endswith(".bundle.yaml") and not plan_name.endswith(".yaml"):
+                plan_name = f"{plan_name}.bundle.yaml"
+
+            selected_plan = None
+            for p in plans:  # Search all plans, not just filtered
+                if p["name"] == plan_name:
+                    selected_plan = p
+                    break
+
+            if selected_plan is None:
+                print_error(f"Plan not found: {plan_name}")
+                raise typer.Exit(1)
+
+            # Set as active and exit
+            SpecFactStructure.set_active_plan(plan_name)
+            record(
+                {
+                    "plans_available": len(plans),
+                    "plans_filtered": len(filtered_plans),
+                    "selected_plan": plan_name,
+                    "features": selected_plan["features"],
+                    "stories": selected_plan["stories"],
+                    "selected_by": "name",
+                }
+            )
+            print_success(f"Active plan (--name): {plan_name}")
+            print_info(f"  Features: {selected_plan['features']}")
+            print_info(f"  Stories: {selected_plan['stories']}")
+            print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+            raise typer.Exit(0)
+
+        # Handle --id flag (non-interactive selection by content hash)
+        if plan_id is not None:
+            non_interactive = True  # Force non-interactive when --id is used
+            # Need to load plan bundles to get content_hash from summary
+            from pathlib import Path
+
+            from specfact_cli.utils.yaml_utils import load_yaml
+
+            selected_plan = None
+            plans_dir = Path(".specfact/plans")
+
+            for p in plans:
+                plan_file = plans_dir / str(p["name"])
+                if plan_file.exists():
+                    try:
+                        plan_data = load_yaml(plan_file)
+                        metadata = plan_data.get("metadata", {})
+                        summary = metadata.get("summary", {})
+                        content_hash = summary.get("content_hash")
+
+                        # Match by full hash or first 8 chars (short ID)
+                        if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
+                            selected_plan = p
+                            break
+                    except Exception:
+                        continue
+
+            if selected_plan is None:
+                print_error(f"Plan not found with ID: {plan_id}")
+                print_info("Tip: Use 'specfact plan select' to see available plans and their IDs")
+                raise typer.Exit(1)
+
+            # Set as active and exit
+            plan_name = str(selected_plan["name"])
+            SpecFactStructure.set_active_plan(plan_name)
+            record(
+                {
+                    "plans_available": len(plans),
+                    "plans_filtered": len(filtered_plans),
+                    "selected_plan": plan_name,
+                    "features": selected_plan["features"],
+                    "stories": selected_plan["stories"],
+                    "selected_by": "id",
+                }
+            )
+            print_success(f"Active plan (--id): {plan_name}")
+            print_info(f"  Features: {selected_plan['features']}")
+            print_info(f"  Stories: {selected_plan['stories']}")
+            print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+            raise typer.Exit(0)
+
         # If plan provided, try to resolve it
         if plan is not None:
-            # Try as number first
+            # Try as number first (using filtered list)
             if isinstance(plan, str) and plan.isdigit():
                 plan_num = int(plan)
-                if 1 <= plan_num <= len(plans):
-                    selected_plan = plans[plan_num - 1]
+                if 1 <= plan_num <= len(filtered_plans):
+                    selected_plan = filtered_plans[plan_num - 1]
                 else:
-                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(plans)}")
+                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(filtered_plans)}")
                     raise typer.Exit(1)
             else:
-                # Try as name
+                # Try as name (search in filtered list first, then all plans)
                 plan_name = str(plan)
                 # Remove .bundle.yaml suffix if present
                 if plan_name.endswith(".bundle.yaml"):
@@ -1265,21 +1647,31 @@ def select(
                 elif not plan_name.endswith(".yaml"):
                     plan_name = f"{plan_name}.bundle.yaml"
 
-                # Find matching plan
+                # Find matching plan in filtered list first
                 selected_plan = None
-                for p in plans:
+                for p in filtered_plans:
                     if p["name"] == plan_name or p["name"] == plan:
                         selected_plan = p
                         break
 
+                # If not found in filtered list, search all plans (for better error message)
+                if selected_plan is None:
+                    for p in plans:
+                        if p["name"] == plan_name or p["name"] == plan:
+                            print_warning(f"Plan '{plan}' exists but is filtered out by current options")
+                            print_info("Available filtered plans:")
+                            for i, p in enumerate(filtered_plans, 1):
+                                print_info(f"  {i}. {p['name']}")
+                            raise typer.Exit(1)
+
                 if selected_plan is None:
                     print_error(f"Plan not found: {plan}")
-                    print_info("Available plans:")
-                    for i, p in enumerate(plans, 1):
+                    print_info("Available filtered plans:")
+                    for i, p in enumerate(filtered_plans, 1):
                         print_info(f"  {i}. {p['name']}")
                     raise typer.Exit(1)
         else:
-            # Interactive selection - display numbered list
+            # Display numbered list
             console.print("\n[bold]Available Plans:[/bold]\n")
 
             # Create table with optimized column widths
@@ -1295,7 +1687,7 @@ def select(
             table.add_column("Stage", width=8, min_width=6)  # Reduced from 10 to 8 (draft/review/approved/released fit)
             table.add_column("Modified", style="dim", width=19, min_width=15)  # Slightly reduced
 
-            for i, p in enumerate(plans, 1):
+            for i, p in enumerate(filtered_plans, 1):
                 status = "[ACTIVE]" if p.get("active") else ""
                 plan_name = str(p["name"])
                 features_count = str(p["features"])
@@ -1316,27 +1708,42 @@ def select(
             console.print(table)
             console.print()
 
-            # Prompt for selection
-            selection = ""
-            try:
-                selection = prompt_text(f"Select a plan by number (1-{len(plans)}) or 'q' to quit: ").strip()
-
-                if selection.lower() in ("q", "quit", ""):
-                    print_info("Selection cancelled")
-                    raise typer.Exit(0)
-
-                plan_num = int(selection)
-                if not (1 <= plan_num <= len(plans)):
-                    print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(plans)}")
+            # Handle selection (interactive or non-interactive)
+            if non_interactive:
+                # Non-interactive mode: select first plan (or error if multiple)
+                if len(filtered_plans) == 1:
+                    selected_plan = filtered_plans[0]
+                    print_info(f"Non-interactive mode: auto-selecting plan '{selected_plan['name']}'")
+                else:
+                    print_error(
+                        f"Non-interactive mode requires exactly one plan, but {len(filtered_plans)} plans match filters"
+                    )
+                    print_info("Use --current, --last 1, or specify a plan name/number to select a single plan")
                     raise typer.Exit(1)
+            else:
+                # Interactive selection - prompt for selection
+                selection = ""
+                try:
+                    selection = prompt_text(
+                        f"Select a plan by number (1-{len(filtered_plans)}) or 'q' to quit: "
+                    ).strip()
 
-                selected_plan = plans[plan_num - 1]
-            except ValueError:
-                print_error(f"Invalid input: {selection}. Please enter a number.")
-                raise typer.Exit(1) from None
-            except KeyboardInterrupt:
-                print_warning("\nSelection cancelled")
-                raise typer.Exit(1) from None
+                    if selection.lower() in ("q", "quit", ""):
+                        print_info("Selection cancelled")
+                        raise typer.Exit(0)
+
+                    plan_num = int(selection)
+                    if not (1 <= plan_num <= len(filtered_plans)):
+                        print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(filtered_plans)}")
+                        raise typer.Exit(1)
+
+                    selected_plan = filtered_plans[plan_num - 1]
+                except ValueError:
+                    print_error(f"Invalid input: {selection}. Please enter a number.")
+                    raise typer.Exit(1) from None
+                except KeyboardInterrupt:
+                    print_warning("\nSelection cancelled")
+                    raise typer.Exit(1) from None
 
         # Set as active plan
         plan_name = str(selected_plan["name"])
@@ -1345,6 +1752,7 @@ def select(
         record(
             {
                 "plans_available": len(plans),
+                "plans_filtered": len(filtered_plans),
                 "selected_plan": plan_name,
                 "features": selected_plan["features"],
                 "stories": selected_plan["stories"],
@@ -1363,6 +1771,134 @@ def select(
         print_info("  - specfact plan add-story")
         print_info("  - specfact plan sync --shared")
         print_info("  - specfact sync spec-kit")
+
+
+@app.command("upgrade")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda all_plans: isinstance(all_plans, bool), "All plans must be bool")
+@require(lambda dry_run: isinstance(dry_run, bool), "Dry run must be bool")
+def upgrade(
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to specific plan bundle to upgrade (default: active plan)",
+    ),
+    all_plans: bool = typer.Option(
+        False,
+        "--all",
+        help="Upgrade all plan bundles in .specfact/plans/",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be upgraded without making changes",
+    ),
+) -> None:
+    """
+    Upgrade plan bundles to the latest schema version.
+
+    Migrates plan bundles from older schema versions to the current version.
+    This ensures compatibility with the latest features and performance optimizations.
+
+    Examples:
+        specfact plan upgrade                    # Upgrade active plan
+        specfact plan upgrade --plan path/to/plan.bundle.yaml  # Upgrade specific plan
+        specfact plan upgrade --all             # Upgrade all plans
+        specfact plan upgrade --all --dry-run   # Preview upgrades without changes
+    """
+    from specfact_cli.migrations.plan_migrator import PlanMigrator, get_current_schema_version
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    current_version = get_current_schema_version()
+    migrator = PlanMigrator()
+
+    print_section(f"Plan Bundle Upgrade (Schema {current_version})")
+
+    # Determine which plans to upgrade
+    plans_to_upgrade: list[Path] = []
+
+    if all_plans:
+        # Get all plan bundles
+        plans = SpecFactStructure.list_plans()
+        plans_dir = Path(".specfact/plans")
+        for plan_info in plans:
+            plan_path = plans_dir / str(plan_info["name"])
+            if plan_path.exists():
+                plans_to_upgrade.append(plan_path)
+    elif plan:
+        # Use specified plan
+        if not plan.exists():
+            print_error(f"Plan file not found: {plan}")
+            raise typer.Exit(1)
+        plans_to_upgrade.append(plan)
+    else:
+        # Use active plan
+        config_path = Path(".specfact/plans/config.yaml")
+        if config_path.exists():
+            import yaml
+
+            with config_path.open() as f:
+                config = yaml.safe_load(f) or {}
+            active_plan_name = config.get("active_plan")
+            if active_plan_name:
+                active_plan_path = Path(".specfact/plans") / active_plan_name
+                if active_plan_path.exists():
+                    plans_to_upgrade.append(active_plan_path)
+                else:
+                    print_error(f"Active plan not found: {active_plan_name}")
+                    raise typer.Exit(1)
+            else:
+                print_error("No active plan set. Use --plan to specify a plan or --all to upgrade all plans.")
+                raise typer.Exit(1)
+        else:
+            print_error("No plan configuration found. Use --plan to specify a plan or --all to upgrade all plans.")
+            raise typer.Exit(1)
+
+    if not plans_to_upgrade:
+        print_warning("No plans found to upgrade")
+        raise typer.Exit(0)
+
+    # Check and upgrade each plan
+    upgraded_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    for plan_path in plans_to_upgrade:
+        try:
+            needs_migration, reason = migrator.check_migration_needed(plan_path)
+            if not needs_migration:
+                print_info(f"✓ {plan_path.name}: {reason}")
+                skipped_count += 1
+                continue
+
+            if dry_run:
+                print_warning(f"Would upgrade: {plan_path.name} ({reason})")
+                upgraded_count += 1
+            else:
+                print_info(f"Upgrading: {plan_path.name} ({reason})...")
+                bundle, was_migrated = migrator.load_and_migrate(plan_path, dry_run=False)
+                if was_migrated:
+                    print_success(f"✓ Upgraded {plan_path.name} to schema {bundle.version}")
+                    upgraded_count += 1
+                else:
+                    print_info(f"✓ {plan_path.name}: Already up to date")
+                    skipped_count += 1
+        except Exception as e:
+            print_error(f"✗ Failed to upgrade {plan_path.name}: {e}")
+            error_count += 1
+
+    # Summary
+    print()
+    if dry_run:
+        print_info(f"Dry run complete: {upgraded_count} would be upgraded, {skipped_count} up to date")
+    else:
+        print_success(f"Upgrade complete: {upgraded_count} upgraded, {skipped_count} up to date")
+        if error_count > 0:
+            print_warning(f"{error_count} errors occurred")
+
+    if error_count > 0:
+        raise typer.Exit(1)
 
 
 @app.command("sync")
@@ -1745,7 +2281,15 @@ def promote(
 
             # Create or update metadata
             if bundle.metadata is None:
-                bundle.metadata = Metadata(stage=stage, promoted_at=None, promoted_by=None)
+                bundle.metadata = Metadata(
+                    stage=stage,
+                    promoted_at=None,
+                    promoted_by=None,
+                    analysis_scope=None,
+                    entry_point=None,
+                    external_dependencies=[],
+                    summary=None,
+                )
 
             bundle.metadata.stage = stage
             bundle.metadata.promoted_at = datetime.now(UTC).isoformat()
@@ -1786,6 +2330,92 @@ def promote(
         except Exception as e:
             print_error(f"Failed to promote plan: {e}")
             raise typer.Exit(1) from e
+
+
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@ensure(lambda result: isinstance(result, int), "Must return int")
+def _deduplicate_features(bundle: PlanBundle) -> int:
+    """
+    Deduplicate features by normalized key (clean up duplicates from previous syncs).
+
+    Uses prefix matching to handle abbreviated vs full names (e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM).
+
+    Args:
+        bundle: Plan bundle to deduplicate
+
+    Returns:
+        Number of duplicates removed
+    """
+    from specfact_cli.utils.feature_keys import normalize_feature_key
+
+    seen_normalized_keys: set[str] = set()
+    deduplicated_features: list[Feature] = []
+
+    for existing_feature in bundle.features:
+        normalized_key = normalize_feature_key(existing_feature.key)
+
+        # Check for exact match first
+        if normalized_key in seen_normalized_keys:
+            continue
+
+        # Check for prefix match (abbreviated vs full names)
+        # e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM
+        # Only match if shorter is a PREFIX of longer with significant length difference
+        # AND at least one key has a numbered prefix (041_, 042-, etc.) indicating Spec-Kit origin
+        # This avoids false positives like SMARTCOVERAGE vs SMARTCOVERAGEMANAGER (both from code analysis)
+        matched = False
+        for seen_key in seen_normalized_keys:
+            shorter = min(normalized_key, seen_key, key=len)
+            longer = max(normalized_key, seen_key, key=len)
+
+            # Check if at least one of the original keys has a numbered prefix (Spec-Kit format)
+            import re
+
+            has_speckit_key = bool(
+                re.match(r"^\d{3}[_-]", existing_feature.key)
+                or any(
+                    re.match(r"^\d{3}[_-]", f.key)
+                    for f in deduplicated_features
+                    if normalize_feature_key(f.key) == seen_key
+                )
+            )
+
+            # More conservative matching:
+            # 1. At least one key must have numbered prefix (Spec-Kit origin)
+            # 2. Shorter must be at least 10 chars
+            # 3. Longer must start with shorter (prefix match)
+            # 4. Length difference must be at least 6 chars
+            # 5. Shorter must be < 75% of longer (to ensure significant difference)
+            length_diff = len(longer) - len(shorter)
+            length_ratio = len(shorter) / len(longer) if len(longer) > 0 else 1.0
+
+            if (
+                has_speckit_key
+                and len(shorter) >= 10
+                and longer.startswith(shorter)
+                and length_diff >= 6
+                and length_ratio < 0.75
+            ):
+                matched = True
+                # Prefer the longer (full) name - update the existing feature's key if needed
+                if len(normalized_key) > len(seen_key):
+                    # Current feature has longer name - update the existing one
+                    for dedup_feature in deduplicated_features:
+                        if normalize_feature_key(dedup_feature.key) == seen_key:
+                            dedup_feature.key = existing_feature.key
+                            break
+                break
+
+        if not matched:
+            seen_normalized_keys.add(normalized_key)
+            deduplicated_features.append(existing_feature)
+
+    duplicates_removed = len(bundle.features) - len(deduplicated_features)
+    if duplicates_removed > 0:
+        bundle.features = deduplicated_features
+
+    return duplicates_removed
 
 
 @app.command("review")
@@ -1914,6 +2544,14 @@ def review(
             if not is_valid or bundle is None:
                 print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
+
+            # Deduplicate features by normalized key (clean up duplicates from previous syncs)
+            duplicates_removed = _deduplicate_features(bundle)
+            if duplicates_removed > 0:
+                # Write back deduplicated bundle immediately
+                generator = PlanGenerator()
+                generator.generate(bundle, plan)
+                print_success(f"✓ Removed {duplicates_removed} duplicate features from plan bundle")
 
             # Check current stage
             current_stage = "draft"

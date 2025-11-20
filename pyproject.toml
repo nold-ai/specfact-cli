@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.6.1"
+version = "0.6.9"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -106,6 +106,7 @@ Trademarks = "https://github.com/nold-ai/specfact-cli/blob/main/TRADEMARKS.md"
 
 [project.scripts]
 specfact = "specfact_cli.cli:cli_main"
+specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 
 # [project.entry-points."pytest11"] # Add if you have pytest plugins
 # specfact_test_plugin = "specfact_cli.pytest_plugin"

@@ -274,9 +274,49 @@ specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>]
 **Capture CLI output**:
 
 - Sync summary (features updated/added)
+- **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found)
 - Spec-Kit artifacts created/updated (with all required fields auto-generated)
 - SpecFact artifacts created/updated
 - Any error messages or warnings
+
+**Understanding Deduplication**:
+
+The CLI automatically deduplicates features during sync using normalized key matching:
+
+1. **Exact matches**: Features with identical normalized keys are automatically deduplicated
+   - Example: `FEATURE-001` and `001_FEATURE_NAME` normalize to the same key
+2. **Prefix matches**: Abbreviated class names vs full Spec-Kit directory names
+   - Example: `FEATURE-IDEINTEGRATION` (from code analysis) vs `041_IDE_INTEGRATION_SYSTEM` (from Spec-Kit)
+   - Only matches when at least one key has a numbered prefix (Spec-Kit origin) to avoid false positives
+   - Requires minimum 10 characters, 6+ character difference, and <75% length ratio
+
+**LLM Semantic Deduplication**:
+
+After automated deduplication, you should review the plan bundle for **semantic/logical duplicates** that automated matching might miss:
+
+1. **Review feature titles and descriptions**: Look for features that represent the same functionality with different names
+   - Example: "Git Operations Manager" vs "Git Operations Handler" (both handle git operations)
+   - Example: "Telemetry Settings" vs "Telemetry Configuration" (both configure telemetry)
+2. **Check feature stories**: Features with overlapping or identical user stories may be duplicates
+3. **Analyze code coverage**: If multiple features reference the same code files/modules, they might be the same feature
+4. **Suggest consolidation**: When semantic duplicates are found:
+   - Use `specfact plan update-feature` to merge information into one feature
+   - Use `specfact plan add-feature` to create a consolidated feature if needed
+   - Remove duplicate features using appropriate CLI commands
+
+**Example Semantic Duplicate Detection**:
+
+```text
+After sync, review the plan bundle and identify:
+- Features with similar titles but different keys
+- Features covering the same code modules
+- Features with overlapping user stories
+- Features that represent the same functionality
+
+If semantic duplicates are found, suggest consolidation:
+"Found semantic duplicates: FEATURE-GITOPERATIONS and FEATURE-GITOPERATIONSHANDLER
+both cover git operations. Should I consolidate these into a single feature?"
+```
 
 **Step 8**: After sync completes, guide user on next steps.
 

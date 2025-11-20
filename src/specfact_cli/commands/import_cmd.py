@@ -270,6 +270,11 @@ def from_code(
         "--enrich-for-speckit",
         help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)",
     ),
+    entry_point: Path | None = typer.Option(
+        None,
+        "--entry-point",
+        help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories.",
+    ),
 ) -> None:
     """
     Import plan bundle from existing codebase (one-way import).
@@ -375,9 +380,19 @@ def from_code(
                         console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
                         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                        console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
+                        console.print(
+                            "\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]"
+                        )
+                        if entry_point:
+                            console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
+                        else:
+                            console.print("[cyan]🔍 Analyzing codebase (AST-based fallback)...[/cyan]\n")
                         analyzer = CodeAnalyzer(
-                            repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                            repo,
+                            confidence_threshold=confidence,
+                            key_format=key_format,
+                            plan_name=name,
+                            entry_point=entry_point,
                         )
                         plan_bundle = analyzer.analyze()
                 else:
@@ -385,9 +400,17 @@ def from_code(
                     console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
                     from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                    console.print("\n[cyan]🔍 Importing Python files...[/cyan]")
+                    console.print("\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]")
+                    if entry_point:
+                        console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
+                    else:
+                        console.print("[cyan]🔍 Analyzing codebase...[/cyan]\n")
                     analyzer = CodeAnalyzer(
-                        repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                        repo,
+                        confidence_threshold=confidence,
+                        key_format=key_format,
+                        plan_name=name,
+                        entry_point=entry_point,
                     )
                     plan_bundle = analyzer.analyze()
 
@@ -463,10 +486,7 @@ def from_code(
                 import os
 
                 # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-                is_test_env = (
-                    os.environ.get("TEST_MODE") == "true"
-                    or os.environ.get("PYTEST_CURRENT_TEST") is not None
-                )
+                is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
                 if is_test_env:
                     # Auto-generate bootstrap constitution in test mode
                     from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
@@ -479,12 +499,12 @@ def from_code(
                     # Check if we're in an interactive environment
                     import sys
 
-                    is_interactive = (
-                        hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
-                    ) and sys.stdin.isatty()
+                    is_interactive = (hasattr(sys.stdin, "isatty") and sys.stdin.isatty()) and sys.stdin.isatty()
                     if is_interactive:
                         console.print()
-                        console.print("[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration")
+                        console.print(
+                            "[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration"
+                        )
                         suggest_constitution = typer.confirm(
                             "Generate bootstrap constitution from repository analysis?",
                             default=True,
@@ -499,11 +519,15 @@ def from_code(
                             constitution_path.write_text(enriched_content, encoding="utf-8")
                             console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
                             console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
-                            console.print("[dim]Then run 'specfact sync spec-kit' to sync with Spec-Kit artifacts[/dim]")
+                            console.print(
+                                "[dim]Then run 'specfact sync spec-kit' to sync with Spec-Kit artifacts[/dim]"
+                            )
                     else:
                         # Non-interactive mode: skip prompt
                         console.print()
-                        console.print("[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]")
+                        console.print(
+                            "[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]"
+                        )
 
             # Enrich for Spec-Kit compliance if requested
             if enrich_for_speckit:
@@ -564,6 +588,8 @@ def from_code(
                                 story_points=3,
                                 value_points=None,
                                 confidence=0.8,
+                                scenarios=None,
+                                contracts=None,
                             )
                             feature.stories.append(edge_case_story)
 

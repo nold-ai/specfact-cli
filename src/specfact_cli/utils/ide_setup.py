@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import os
 import re
+import site
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -387,3 +389,164 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
 
     console.print(f"[green]Updated:[/green] {settings_path}")
     return settings_path
+
+
+@beartype
+@ensure(
+    lambda result: isinstance(result, list) and all(isinstance(p, Path) for p in result), "Must return list of Paths"
+)
+def get_package_installation_locations(package_name: str) -> list[Path]:
+    """
+    Get all possible installation locations for a Python package across different OS and installation types.
+
+    This function searches for package locations in:
+    - User site-packages (per-user installations: ~/.local/lib/python3.X/site-packages)
+    - System site-packages (global installations: /usr/lib/python3.X/site-packages, C:\\Python3X\\Lib\\site-packages)
+    - Virtual environments (venv, conda, etc.)
+    - uvx cache locations (~/.cache/uv/archive-v0/...)
+
+    Args:
+        package_name: Name of the package to locate (e.g., "specfact_cli")
+
+    Returns:
+        List of Path objects representing possible package installation locations
+
+    Examples:
+        >>> locations = get_package_installation_locations("specfact_cli")
+        >>> len(locations) > 0
+        True
+    """
+    locations: list[Path] = []
+
+    # Method 1: Use importlib.util.find_spec() to find the actual installed location
+    try:
+        import importlib.util
+
+        spec = importlib.util.find_spec(package_name)
+        if spec and spec.origin:
+            package_path = Path(spec.origin).parent.resolve()
+            locations.append(package_path)
+    except Exception:
+        pass
+
+    # Method 2: Check all site-packages directories (user + system)
+    try:
+        # User site-packages (per-user installation)
+        # Linux/macOS: ~/.local/lib/python3.X/site-packages
+        # Windows: %APPDATA%\\Python\\Python3X\\site-packages
+        user_site = site.getusersitepackages()
+        if user_site:
+            user_package_path = Path(user_site) / package_name
+            if user_package_path.exists():
+                locations.append(user_package_path.resolve())
+    except Exception:
+        pass
+
+    try:
+        # System site-packages (global installation)
+        # Linux: /usr/lib/python3.X/dist-packages, /usr/local/lib/python3.X/dist-packages
+        # macOS: /Library/Frameworks/Python.framework/Versions/X/lib/pythonX.X/site-packages
+        # Windows: C:\\Python3X\\Lib\\site-packages
+        system_sites = site.getsitepackages()
+        for site_path in system_sites:
+            system_package_path = Path(site_path) / package_name
+            if system_package_path.exists():
+                locations.append(system_package_path.resolve())
+    except Exception:
+        pass
+
+    # Method 3: Check sys.path for additional locations (virtual environments, etc.)
+    for path_str in sys.path:
+        if not path_str or path_str == "":
+            continue
+        try:
+            path = Path(path_str).resolve()
+            if path.exists() and path.is_dir():
+                # Check if package is directly in this path
+                package_path = path / package_name
+                if package_path.exists():
+                    locations.append(package_path.resolve())
+                # Check if this is a site-packages directory
+                if path.name == "site-packages" or "site-packages" in path.parts:
+                    package_path = path / package_name
+                    if package_path.exists():
+                        locations.append(package_path.resolve())
+        except Exception:
+            continue
+
+    # Method 4: Check uvx cache locations (common on Linux/macOS/Windows)
+    # uvx stores packages in cache directories with varying structures
+    if sys.platform != "win32":
+        # Linux/macOS: ~/.cache/uv/archive-v0/.../lib/python3.X/site-packages/
+        uvx_cache_base = Path.home() / ".cache" / "uv" / "archive-v0"
+        if uvx_cache_base.exists():
+            for archive_dir in uvx_cache_base.iterdir():
+                if archive_dir.is_dir():
+                    # Look for site-packages directories (rglob finds all matches)
+                    for site_packages_dir in archive_dir.rglob("site-packages"):
+                        if site_packages_dir.is_dir():
+                            package_path = site_packages_dir / package_name
+                            if package_path.exists():
+                                locations.append(package_path.resolve())
+    else:
+        # Windows: Check %LOCALAPPDATA%\\uv\\cache\\archive-v0\\
+        localappdata = os.environ.get("LOCALAPPDATA")
+        if localappdata:
+            uvx_cache_base = Path(localappdata) / "uv" / "cache" / "archive-v0"
+            if uvx_cache_base.exists():
+                for archive_dir in uvx_cache_base.iterdir():
+                    if archive_dir.is_dir():
+                        # Look for site-packages directories
+                        for site_packages_dir in archive_dir.rglob("site-packages"):
+                            if site_packages_dir.is_dir():
+                                package_path = site_packages_dir / package_name
+                                if package_path.exists():
+                                    locations.append(package_path.resolve())
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_locations: list[Path] = []
+    for loc in locations:
+        loc_str = str(loc)
+        if loc_str not in seen:
+            seen.add(loc_str)
+            unique_locations.append(loc)
+
+    return unique_locations
+
+
+@beartype
+@require(lambda package_name: isinstance(package_name, str) and len(package_name) > 0, "Package name must be non-empty")
+@ensure(
+    lambda result: result is None or (isinstance(result, Path) and result.exists()),
+    "Result must be None or existing Path",
+)
+def find_package_resources_path(package_name: str, resource_subpath: str) -> Path | None:
+    """
+    Find the path to a resource within an installed package.
+
+    Searches across all possible installation locations (user, system, venv, uvx cache)
+    to find the package and then locates the resource subpath.
+
+    Args:
+        package_name: Name of the package (e.g., "specfact_cli")
+        resource_subpath: Subpath within the package (e.g., "resources/prompts")
+
+    Returns:
+        Path to the resource directory if found, None otherwise
+
+    Examples:
+        >>> path = find_package_resources_path("specfact_cli", "resources/prompts")
+        >>> path is None or path.exists()
+        True
+    """
+    # Get all possible package installation locations
+    package_locations = get_package_installation_locations(package_name)
+
+    # Try each location
+    for package_path in package_locations:
+        resource_path = (package_path / resource_subpath).resolve()
+        if resource_path.exists():
+            return resource_path
+
+    return None

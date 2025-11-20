@@ -60,6 +60,64 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - **Always committed to git** - these are the source of truth
 - Use descriptive names: `legacy-<component>.bundle.yaml` (brownfield), `feature-<name>.bundle.yaml`
 
+**Plan Bundle Structure:**
+
+Plan bundles are YAML files with the following structure:
+
+```yaml
+version: "1.1"  # Schema version (current: 1.1)
+
+metadata:
+  stage: "draft"  # draft, review, approved, released
+  summary:  # Summary metadata for fast access (added in v1.1)
+    features_count: 5
+    stories_count: 12
+    themes_count: 2
+    releases_count: 1
+    content_hash: "abc123def456..."  # SHA256 hash for integrity
+    computed_at: "2025-01-15T10:30:00"
+
+idea:
+  title: "Project Title"
+  narrative: "Project description"
+  # ... other idea fields
+
+product:
+  themes: ["Theme1", "Theme2"]
+  releases: [...]
+
+features:
+  - key: "FEATURE-001"
+    title: "Feature Title"
+    stories: [...]
+    # ... other feature fields
+```
+
+**Summary Metadata (v1.1+):**
+
+Plan bundles version 1.1 and later include summary metadata in the `metadata.summary` section. This provides:
+
+- **Fast access**: Read plan counts without parsing entire file (44% faster performance)
+- **Integrity verification**: Content hash detects plan modifications
+- **Performance optimization**: Only reads first 50KB for large files (>10MB)
+
+**Upgrading Plan Bundles:**
+
+Use `specfact plan upgrade` to migrate older plan bundles to the latest schema:
+
+```bash
+# Upgrade active plan
+specfact plan upgrade
+
+# Upgrade all plans
+specfact plan upgrade --all
+
+# Preview upgrades
+specfact plan upgrade --dry-run
+```
+
+See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
+
 **Example**:
 
 ```bash

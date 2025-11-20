@@ -238,9 +238,21 @@ class TestPlanCompareCommand:
         product = Product(themes=[], releases=[])
 
         story1 = Story(
-            key="STORY-001", title="Login API", acceptance=["API works"], story_points=None, value_points=None
+            key="STORY-001",
+            title="Login API",
+            acceptance=["API works"],
+            story_points=None,
+            value_points=None,
+            scenarios=None,
         )
-        story2 = Story(key="STORY-002", title="Login UI", acceptance=["UI works"], story_points=None, value_points=None)
+        story2 = Story(
+            key="STORY-002",
+            title="Login UI",
+            acceptance=["UI works"],
+            story_points=None,
+            value_points=None,
+            scenarios=None,
+        )
 
         feature_manual = Feature(
             key="FEATURE-001",

@@ -293,7 +293,7 @@ Order management service for creating and fulfilling orders.
 
             # Verify plan content
             plan_data = load_yaml(plan_path)
-            assert plan_data["version"] == "1.0"
+            assert plan_data["version"] == "1.1"
             assert "features" in plan_data
             assert len(plan_data["features"]) >= 1
 

@@ -111,8 +111,9 @@ hatch test --cover -v tests/unit/common/test_logger_setup.py
 
 1. **Analyze Impact**: Understand system-wide effects before changes
 2. **Run Tests**: `hatch run smart-test` (≥80% coverage required)
-3. **Update Documentation**: Keep docs/ current with changes
-4. **Version Control**: Update CHANGELOG.md, sync versions in pyproject.toml/setup.py
+3. **Update Documentation**: Keep docs/ current with changes. **IMPORTANT** DO NOT create internal docs that should not be visible to end users in the specfact-cli repo folder. Instead use the respective internal repository for such documentation.
+4. **Version Control**: Update CHANGELOG.md
+5. Sync versions in across `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__py`
 
 ### **Strict Testing Requirements (NO EXCEPTIONS)**
 

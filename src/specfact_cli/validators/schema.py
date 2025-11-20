@@ -20,6 +20,13 @@ from specfact_cli.models.plan import PlanBundle
 from specfact_cli.models.protocol import Protocol
 
 
+# Try to use faster CLoader if available (C extension), fallback to SafeLoader
+try:
+    from yaml import CLoader as YamlLoader  # type: ignore[attr-defined]
+except ImportError:
+    from yaml import SafeLoader as YamlLoader  # type: ignore[assignment]
+
+
 class SchemaValidator:
     """Schema validator for plan bundles and protocols."""
 
@@ -141,8 +148,10 @@ def validate_plan_bundle(
     # Otherwise treat as path
     path = plan_or_path
     try:
-        with path.open("r") as f:
-            data = yaml.safe_load(f)
+        with path.open("r", encoding="utf-8") as f:
+            # Use CLoader for faster parsing (10-100x faster than SafeLoader)
+            # Falls back to SafeLoader if C extension not available
+            data = yaml.load(f, Loader=YamlLoader)  # type: ignore[arg-type]
 
         bundle = PlanBundle(**data)
         return True, None, bundle
@@ -180,8 +189,10 @@ def validate_protocol(protocol_or_path: Protocol | Path) -> ValidationReport | t
     # Otherwise treat as path
     path = protocol_or_path
     try:
-        with path.open("r") as f:
-            data = yaml.safe_load(f)
+        with path.open("r", encoding="utf-8") as f:
+            # Use CLoader for faster parsing (10-100x faster than SafeLoader)
+            # Falls back to SafeLoader if C extension not available
+            data = yaml.load(f, Loader=YamlLoader)  # type: ignore[arg-type]
 
         protocol = Protocol(**data)
         return True, None, protocol

@@ -19,12 +19,20 @@ Detailed use cases and examples for SpecFact CLI.
 #### 1. Analyze Code
 
 ```bash
-# CI/CD mode (fast, deterministic)
+# CI/CD mode (fast, deterministic) - Full repository
 specfact import from-code \
   --repo . \
   --shadow-only \
   --confidence 0.7 \
   --report analysis.md
+
+# Partial analysis (large codebases or monorepos)
+specfact import from-code \
+  --repo . \
+  --entry-point src/core \
+  --confidence 0.7 \
+  --name core-module \
+  --report analysis-core.md
 
 # CoPilot mode (enhanced prompts, interactive)
 specfact --mode copilot import from-code \

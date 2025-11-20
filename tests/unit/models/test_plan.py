@@ -23,19 +23,23 @@ class TestStory:
         Note: story_points and value_points are optional (Field(None, ...)).
         """
         # Valid boundaries
-        story_min = Story(key="STORY-001", title="Test", confidence=0.0, story_points=None, value_points=None)
+        story_min = Story(
+            key="STORY-001", title="Test", confidence=0.0, story_points=None, value_points=None, scenarios=None
+        )
         assert story_min.confidence == 0.0
 
-        story_max = Story(key="STORY-002", title="Test", confidence=1.0, story_points=None, value_points=None)
+        story_max = Story(
+            key="STORY-002", title="Test", confidence=1.0, story_points=None, value_points=None, scenarios=None
+        )
         assert story_max.confidence == 1.0
 
         # Invalid confidence (too high) - Pydantic validates
         with pytest.raises(ValidationError):
-            Story(key="STORY-003", title="Test", confidence=1.5, story_points=None, value_points=None)
+            Story(key="STORY-003", title="Test", confidence=1.5, story_points=None, value_points=None, scenarios=None)
 
         # Invalid confidence (negative) - Pydantic validates
         with pytest.raises(ValidationError):
-            Story(key="STORY-004", title="Test", confidence=-0.1, story_points=None, value_points=None)
+            Story(key="STORY-004", title="Test", confidence=-0.1, story_points=None, value_points=None, scenarios=None)
 
 
 class TestFeature:
@@ -48,8 +52,8 @@ class TestFeature:
         """
         # Pydantic validates types and structure
         stories = [
-            Story(key="STORY-001", title="Login", story_points=None, value_points=None),
-            Story(key="STORY-002", title="Logout", story_points=None, value_points=None),
+            Story(key="STORY-001", title="Login", story_points=None, value_points=None, scenarios=None),
+            Story(key="STORY-002", title="Logout", story_points=None, value_points=None, scenarios=None),
         ]
 
         feature = Feature(

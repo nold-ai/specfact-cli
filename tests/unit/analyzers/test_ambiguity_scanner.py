@@ -130,6 +130,7 @@ def test_scan_completion_signals_missing_acceptance() -> None:
                         tasks=[],
                         confidence=0.8,
                         draft=False,
+                        scenarios=None,
                     )
                 ],
                 confidence=0.8,
@@ -250,6 +251,7 @@ def test_scan_coverage_status() -> None:
                         tasks=["Task 1"],
                         confidence=0.9,
                         draft=False,
+                        scenarios=None,
                     )
                 ],
                 confidence=0.9,

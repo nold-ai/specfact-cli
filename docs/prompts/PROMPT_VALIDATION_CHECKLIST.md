@@ -51,7 +51,12 @@ The validator checks:
 - [ ] **CORRECT examples present**: Prompt shows examples of what TO do (using CLI commands)
 - [ ] **Command examples**: Examples show actual CLI usage with correct flags
 - [ ] **Flag documentation**: All flags are documented with defaults and descriptions
+- [ ] **Filter options documented** (for `plan select`): `--current`, `--stages`, `--last`, `--non-interactive` flags are documented with use cases and examples
 - [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags (e.g., `specfact plan select 20` not `specfact plan select --plan 20`)
+- [ ] **Boolean flags documented correctly**: Boolean flags use `--flag/--no-flag` syntax, not `--flag true/false`
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False) or omit (leaves unchanged)
+- [ ] **Entry point flag documented** (for `import from-code`): `--entry-point` flag is documented with use cases (multi-project repos, partial analysis, incremental modernization)
 
 ### 3. Wait States & User Input
 
@@ -79,9 +84,25 @@ The validator checks:
   - [ ] `--auto-enrich` flag documented with when to use it
   - [ ] LLM reasoning guidance for detecting when enrichment is needed
   - [ ] Post-enrichment analysis steps documented
+  - [ ] **MANDATORY automatic refinement**: LLM must automatically refine generic criteria with code-specific details after auto-enrichment
   - [ ] Two-phase enrichment strategy (automatic + LLM-enhanced refinement)
   - [ ] Continuous improvement loop documented
   - [ ] Examples of enrichment output and refinement process
+  - [ ] **Generic criteria detection**: Instructions to identify and replace generic patterns ("interact with the system", "works correctly")
+  - [ ] **Code-specific criteria generation**: Instructions to research codebase and create testable criteria with method names, parameters, return values
+- [ ] **Feature deduplication** (for `sync`, `plan review`, `import from-code`):
+  - [ ] **Automated deduplication documented**: CLI automatically deduplicates features using normalized key matching
+  - [ ] **Deduplication scope explained**:
+    - [ ] Exact normalized key matches (e.g., `FEATURE-001` vs `001_FEATURE_NAME`)
+    - [ ] Prefix matches for Spec-Kit features (e.g., `FEATURE-IDEINTEGRATION` vs `041_IDE_INTEGRATION_SYSTEM`)
+    - [ ] Only matches when at least one key has numbered prefix (Spec-Kit origin) to avoid false positives
+  - [ ] **LLM semantic deduplication guidance**: Instructions for LLM to identify semantic/logical duplicates that automated deduplication might miss
+    - [ ] Review feature titles and descriptions for semantic similarity
+    - [ ] Identify features that represent the same functionality with different names
+    - [ ] Suggest consolidation when multiple features cover the same code/functionality
+    - [ ] Use `specfact plan update-feature` or `specfact plan add-feature` to consolidate
+  - [ ] **Deduplication output**: CLI shows "✓ Removed N duplicate features" - LLM should acknowledge this
+  - [ ] **Post-deduplication review**: LLM should review remaining features for semantic duplicates
 - [ ] **Execution steps**: Clear, sequential steps
 - [ ] **Error handling**: Instructions for handling errors
 - [ ] **Validation**: CLI validation steps documented
@@ -133,6 +154,8 @@ For each prompt, test the following scenarios:
 2. Verify the LLM:
    - ✅ Executes the CLI command immediately
    - ✅ Uses the provided arguments correctly
+   - ✅ Uses boolean flags correctly (`--draft` not `--draft true`)
+   - ✅ Uses `--entry-point` when user specifies partial analysis
    - ✅ Does NOT create artifacts directly
    - ✅ Parses CLI output correctly
 
@@ -196,6 +219,15 @@ For each prompt, test the following scenarios:
    - ✅ Uses **positional argument** syntax: `specfact plan select 20` (NOT `--plan 20`)
    - ✅ Confirms selection with CLI output
    - ✅ Does NOT create config.yaml directly
+5. Test filter options:
+   - ✅ Uses `--current` flag to show only active plan: `specfact plan select --current`
+   - ✅ Uses `--stages` flag to filter by stages: `specfact plan select --stages draft,review`
+   - ✅ Uses `--last N` flag to show recent plans: `specfact plan select --last 5`
+6. Test non-interactive mode (CI/CD):
+   - ✅ Uses `--non-interactive` flag with `--current`: `specfact plan select --non-interactive --current`
+   - ✅ Uses `--non-interactive` flag with `--last 1`: `specfact plan select --non-interactive --last 1`
+   - ✅ Handles error when multiple plans match filters in non-interactive mode
+   - ✅ Does NOT prompt for input when `--non-interactive` is used
 
 #### Scenario 6: Plan Promotion with Coverage Validation (for plan-promote)
 
@@ -236,7 +268,7 @@ After testing, review:
   - [ ] Analyzes enrichment results with reasoning
   - [ ] Proposes and executes specific refinements using CLI commands
   - [ ] Iterates until plan quality meets standards
-- [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (positional arguments)
+- [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (positional arguments), filter options (`--current`, `--stages`, `--last`), non-interactive mode (`--non-interactive`)
 - [ ] **Promotion workflow** (if applicable): Coverage validation respected, suggestions to run `plan review` when categories are Missing
 - [ ] **Error handling**: Errors handled gracefully without assumptions
 
@@ -270,6 +302,18 @@ After testing, review:
 - Update prompt to explicitly state positional vs option arguments
 - Add examples showing correct syntax
 - Add warning about common mistakes (e.g., "NOT `specfact plan select --plan 20` (this will fail)")
+
+### ❌ Wrong Boolean Flag Usage
+
+**Symptom**: LLM uses `--flag true` or `--flag false` when flag is boolean (e.g., `--draft true` instead of `--draft`)
+
+**Fix**:
+
+- Verify actual CLI command signature (use `specfact <command> --help`)
+- Update prompt to explicitly state boolean flag syntax: `--flag` sets True, `--no-flag` sets False, omit to leave unchanged
+- Add examples showing correct syntax: `--draft` (not `--draft true`)
+- Add warning about common mistakes: "NOT `--draft true` (this will fail - Typer boolean flags don't accept values)"
+- Document when to use `--no-flag` vs omitting the flag entirely
 
 ### ❌ Missing Enrichment Workflow
 
@@ -356,10 +400,35 @@ The following prompts are available for SpecFact CLI commands:
 
 ---
 
-**Last Updated**: 2025-11-18  
-**Version**: 1.6
+**Last Updated**: 2025-11-20  
+**Version**: 1.9
 
 ## Changelog
+
+### Version 1.9 (2025-11-20)
+
+- Added filter options validation for `plan select` command (`--current`, `--stages`, `--last`)
+- Added non-interactive mode validation for `plan select` command (`--non-interactive`)
+- Updated Scenario 5 to include filter options and non-interactive mode testing
+- Added filter options documentation requirements to CLI alignment checklist
+- Updated selection workflow checklist to include filter options and non-interactive mode
+
+### Version 1.8 (2025-11-20)
+
+- Added feature deduplication validation checks
+- Added automated deduplication documentation requirements (exact matches, prefix matches for Spec-Kit features)
+- Added LLM semantic deduplication guidance (identifying semantic/logical duplicates)
+- Added deduplication workflow to testing scenarios
+- Added common issue: Missing Semantic Deduplication
+- Updated Scenario 2 to verify deduplication acknowledgment and semantic review
+
+### Version 1.7 (2025-11-19)
+
+- Added boolean flag validation checks
+- Added `--entry-point` flag documentation requirements
+- Added common issue: Wrong Boolean Flag Usage
+- Updated Scenario 2 to verify boolean flag usage
+- Added checks for `--entry-point` usage in partial analysis scenarios
 
 ### Version 1.6 (2025-11-18)
 

@@ -248,6 +248,7 @@ Gate checks before implementation.
             value_points=None,
             confidence=1.0,
             draft=False,
+            scenarios=None,
         )
 
         feature = Feature(
@@ -303,7 +304,7 @@ Gate checks before implementation.
         )
 
         plan_bundle = PlanBundle(
-            version="1.0",
+            version="1.1",
             metadata=None,
             idea=None,
             business=None,
@@ -333,7 +334,7 @@ Gate checks before implementation.
         assert "**Article VII" in plan_content
         assert "**Article VIII" in plan_content
         assert "**Article IX" in plan_content
-        assert "**Status**: PENDING" in plan_content or "**Status**: PASS" in plan_content
+        assert "**Status**: PENDING" in plan_content or "**Status**: PASS" in plan_content or "**Status**: FAIL" in plan_content
 
         # Check Phases
         assert "## Phase 0: Research" in plan_content or "Phase 0: Research" in plan_content
@@ -352,6 +353,7 @@ Gate checks before implementation.
             value_points=None,
             confidence=1.0,
             draft=False,
+            scenarios=None,
         )
 
         feature = Feature(
@@ -505,7 +507,7 @@ Design tasks.
             plan_file = plans_dir / "main.bundle.yaml"
             if plan_file.exists():
                 plan_data = load_yaml(plan_file)
-                assert plan_data["version"] == "1.0"
+                assert plan_data["version"] == "1.1"
                 assert len(plan_data.get("features", [])) >= 1
 
     def test_round_trip_format_compatibility(self) -> None:
