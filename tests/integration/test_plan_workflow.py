@@ -68,10 +68,11 @@ class TestPlanBundleWorkflow:
             product=product,
             features=features,
             metadata=metadata,
+            clarifications=None,
         )
 
-        # Verify model
-        assert plan_bundle.version == "1.0"
+        # Verify model (uses version from file)
+        assert plan_bundle.version == data["version"]
         assert plan_bundle.idea is not None
         assert plan_bundle.idea.title == "Developer Productivity CLI"
         assert len(plan_bundle.features) == 2
@@ -96,6 +97,7 @@ class TestPlanBundleWorkflow:
             product=product,
             features=features,
             metadata=metadata,
+            clarifications=None,
         )
 
         # Use the validate_plan_bundle function
@@ -140,20 +142,23 @@ class TestPlanBundleWorkflow:
             product=product,
             features=features,
             metadata=metadata,
+            clarifications=None,
         )
 
-        # Convert to dict
-        plan_dict = plan_bundle.model_dump()
+        # Save using PlanGenerator (which updates version to current schema)
+        from specfact_cli.generators.plan_generator import PlanGenerator
 
-        # Save to new file
         output_path = tmp_path / "output-plan.yaml"
-        dump_yaml(plan_dict, output_path)
+        generator = PlanGenerator()
+        generator.generate(plan_bundle, output_path)
 
         # Reload
         reloaded_data = load_yaml(output_path)
 
-        # Verify roundtrip
-        assert reloaded_data["version"] == "1.0"
+        # Verify roundtrip (version updated to current schema version)
+        from specfact_cli.migrations.plan_migrator import get_current_schema_version
+
+        assert reloaded_data["version"] == get_current_schema_version()
         assert reloaded_data["idea"]["title"] == "Developer Productivity CLI"
         assert len(reloaded_data["features"]) == 2
 
@@ -237,7 +242,15 @@ class TestPlanBundleEdgeCases:
             business=None,
             product=product,
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                summary=None,
+            ),
+            clarifications=None,
         )
 
         # Should be valid
@@ -255,7 +268,15 @@ class TestPlanBundleEdgeCases:
             product=product,
             features=[],
             business=None,
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                summary=None,
+            ),
+            clarifications=None,
         )
 
         # Should be valid
@@ -273,6 +294,7 @@ class TestPlanBundleEdgeCases:
             story_points=None,
             value_points=None,
             scenarios=None,
+            contracts=None,
         )
 
         assert len(story.tags) == 2

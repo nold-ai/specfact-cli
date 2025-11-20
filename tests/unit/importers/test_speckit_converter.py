@@ -81,7 +81,7 @@ As a user, I want to test features so that I can validate functionality.
 
         # Contract ensures PlanBundle (covered by return type annotation)
         assert isinstance(plan_bundle, PlanBundle)
-        assert plan_bundle.version == "1.0"
+        assert plan_bundle.version == "1.1"
         assert len(plan_bundle.features) == 1
         assert plan_bundle.features[0].title == "Test Feature"
 

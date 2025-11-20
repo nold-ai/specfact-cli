@@ -18,6 +18,7 @@ from specfact_cli.analyzers.contract_extractor import ContractExtractor
 from specfact_cli.analyzers.control_flow_analyzer import ControlFlowAnalyzer
 from specfact_cli.analyzers.requirement_extractor import RequirementExtractor
 from specfact_cli.analyzers.test_pattern_extractor import TestPatternExtractor
+from specfact_cli.migrations.plan_migrator import get_current_schema_version
 from specfact_cli.models.plan import Feature, Idea, Metadata, PlanBundle, Product, Story
 from specfact_cli.utils.feature_keys import to_classname_key, to_sequential_key
 
@@ -98,7 +99,7 @@ class CodeAnalyzer:
         lambda result: isinstance(result, PlanBundle)
         and hasattr(result, "version")
         and hasattr(result, "features")
-        and result.version == "1.0"  # type: ignore[reportUnknownMemberType]
+        and result.version == get_current_schema_version()  # type: ignore[reportUnknownMemberType]
         and len(result.features) >= 0,  # type: ignore[reportUnknownMemberType]
         "Plan bundle must be valid",
     )
@@ -220,7 +221,7 @@ class CodeAnalyzer:
         )
 
         return PlanBundle(
-            version="1.0",
+            version=get_current_schema_version(),
             idea=idea,
             business=None,
             product=product,

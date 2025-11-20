@@ -20,6 +20,7 @@ from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.protocol_generator import ProtocolGenerator
 from specfact_cli.generators.workflow_generator import WorkflowGenerator
 from specfact_cli.importers.speckit_scanner import SpecKitScanner
+from specfact_cli.migrations.plan_migrator import get_current_schema_version
 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Release, Story
 from specfact_cli.models.protocol import Protocol
 from specfact_cli.utils.structure import SpecFactStructure
@@ -101,7 +102,10 @@ class SpecKitConverter:
 
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
-    @ensure(lambda result: result.version == "1.0", "Must have version 1.0")
+    @ensure(
+        lambda result: result.version == get_current_schema_version(),
+        "Must have current schema version",
+    )
     def convert_plan(self, output_path: Path | None = None) -> PlanBundle:
         """
         Convert Spec-Kit markdown artifacts to SpecFact plan bundle.

@@ -16,6 +16,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.agents.base import AgentMode
+from specfact_cli.migrations.plan_migrator import get_current_schema_version
 from specfact_cli.models.plan import Idea, Metadata, PlanBundle, Product
 
 
@@ -381,7 +382,7 @@ Dependencies: {len(dependencies)} dependency files found
         )
 
         return PlanBundle(
-            version="1.0",
+            version=get_current_schema_version(),
             idea=idea,
             business=None,
             product=product,

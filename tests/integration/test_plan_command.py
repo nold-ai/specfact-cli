@@ -32,7 +32,7 @@ class TestPlanInitNonInteractive:
 
         # Verify content
         plan_data = load_yaml(plan_path)
-        assert plan_data["version"] == "1.0"
+        assert plan_data["version"] == "1.1"
         assert "product" in plan_data
         assert "features" in plan_data
         assert plan_data["features"] == []
@@ -259,7 +259,7 @@ class TestPlanInitValidation:
         plan_data = load_yaml(output_path)
         bundle = PlanBundle(**plan_data)
 
-        assert bundle.version == "1.0"
+        assert bundle.version == "1.1"
         assert isinstance(bundle.product.themes, list)
         assert isinstance(bundle.features, list)
 
