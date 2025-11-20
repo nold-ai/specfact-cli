@@ -386,6 +386,13 @@ Dependencies: {len(dependencies)} dependency files found
             business=None,
             product=product,
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                summary=None,
+            ),
             clarifications=None,
         )
