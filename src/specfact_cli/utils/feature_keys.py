@@ -21,12 +21,14 @@ def normalize_feature_key(key: str) -> str:
     - `FEATURE-CONTRACTFIRSTTESTMANAGER` -> `CONTRACTFIRSTTESTMANAGER`
     - `FEATURE-001` -> `001`
     - `CONTRACT_FIRST_TEST_MANAGER` -> `CONTRACTFIRSTTESTMANAGER`
+    - `041-ide-integration-system` -> `IDEINTEGRATIONSYSTEM`
+    - `047-ide-integration-system` -> `IDEINTEGRATIONSYSTEM` (same as above)
 
     Args:
         key: Feature key in any format
 
     Returns:
-        Normalized key (uppercase, no prefixes, no underscores)
+        Normalized key (uppercase, no prefixes, no underscores, no hyphens)
 
     Examples:
         >>> normalize_feature_key("000_CONTRACT_FIRST_TEST_MANAGER")
@@ -35,9 +37,16 @@ def normalize_feature_key(key: str) -> str:
         'CONTRACTFIRSTTESTMANAGER'
         >>> normalize_feature_key("FEATURE-001")
         '001'
+        >>> normalize_feature_key("041-ide-integration-system")
+        'IDEINTEGRATIONSYSTEM'
     """
-    # Remove common prefixes
-    key = key.replace("FEATURE-", "").replace("000_", "").replace("001_", "")
+    # Remove common prefixes (FEATURE-, and numbered prefixes like 000_, 001_, 002_, etc.)
+    key = key.replace("FEATURE-", "")
+    # Remove numbered prefixes with underscores (000_, 001_, 002_, ..., 999_)
+    key = re.sub(r"^\d{3}_", "", key)
+    # Remove numbered prefixes with hyphens (000-, 001-, 002-, ..., 999-)
+    # This handles Spec-Kit directory format like "041-ide-integration-system"
+    key = re.sub(r"^\d{3}-", "", key)
 
     # Remove underscores and spaces, convert to uppercase
     return re.sub(r"[_\s-]", "", key).upper()

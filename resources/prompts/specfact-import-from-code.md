@@ -284,7 +284,22 @@ specfact import from-code --repo <repo_path> --name <plan_name> --entry-point <s
 - Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
 - Analysis report path: `.specfact/reports/brownfield/analysis-<timestamp>.md`
 - Metadata: feature counts, story counts, average confidence, execution time
+- **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found during import)
 - Any error messages or warnings
+
+**Understanding Deduplication**:
+
+The CLI automatically deduplicates features during import using normalized key matching. However, when importing from code, you should also review for **semantic/logical duplicates**:
+
+1. **Review feature titles and descriptions**: Look for features that represent the same functionality with different names
+   - Example: "Git Operations Manager" vs "Git Operations Handler" (both handle git operations)
+   - Example: "Telemetry Settings" vs "Telemetry Configuration" (both configure telemetry)
+2. **Check code coverage**: If multiple features reference the same code files/modules, they might be the same feature
+3. **Analyze class relationships**: Features derived from related classes (e.g., parent/child classes) might be duplicates
+4. **Suggest consolidation**: When semantic duplicates are found:
+   - Use `specfact plan update-feature` to merge information into one feature
+   - Use `specfact plan add-feature` to create a consolidated feature if needed
+   - Document which features were consolidated and why
 
 **If CLI execution fails**:
 
@@ -497,6 +512,7 @@ metadata:
 - Research codebase for additional context
 - Identify missing features/stories
 - Suggest confidence adjustments
+- **Review for semantic duplicates**: After automated deduplication, identify features that represent the same functionality with different names or cover the same code modules
 - Extract business context
 - **Always generate and save enrichment report** when in Copilot mode
 

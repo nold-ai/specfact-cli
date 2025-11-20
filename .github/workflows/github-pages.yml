@@ -5,20 +5,20 @@ on:
     branches:
       - main
     paths:
-      - 'docs/**'
-      - '.github/workflows/github-pages.yml'
-      - '_config.yml'
-      - 'docs/Gemfile'
-      - 'docs/index.md'
-      - 'docs/assets/**'
-      - 'LICENSE.md'
-      - 'TRADEMARKS.md'
+      - "docs/**"
+      - ".github/workflows/github-pages.yml"
+      - "_config.yml"
+      - "docs/Gemfile"
+      - "docs/index.md"
+      - "docs/assets/**"
+      - "LICENSE.md"
+      - "TRADEMARKS.md"
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to deploy (defaults to main)'
+        description: "Branch to deploy (defaults to main)"
         required: false
-        default: 'main'
+        default: "main"
 
 permissions:
   contents: read
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Ruby (for Jekyll)
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: "3.2"
           bundler-cache: false
           working-directory: ./docs
 
@@ -88,4 +88,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

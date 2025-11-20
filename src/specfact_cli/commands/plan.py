@@ -915,6 +915,185 @@ def update_feature(
             raise typer.Exit(1) from e
 
 
+@app.command("update-story")
+@beartype
+@require(lambda feature: isinstance(feature, str) and len(feature) > 0, "Feature must be non-empty string")
+@require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(
+    lambda story_points: story_points is None or (story_points >= 0 and story_points <= 100),
+    "Story points must be 0-100 if provided",
+)
+@require(
+    lambda value_points: value_points is None or (value_points >= 0 and value_points <= 100),
+    "Value points must be 0-100 if provided",
+)
+@require(lambda confidence: confidence is None or (0.0 <= confidence <= 1.0), "Confidence must be 0.0-1.0 if provided")
+def update_story(
+    feature: str = typer.Option(..., "--feature", help="Parent feature key (e.g., FEATURE-001)"),
+    key: str = typer.Option(..., "--key", help="Story key to update (e.g., STORY-001)"),
+    title: str | None = typer.Option(None, "--title", help="Story title"),
+    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
+    story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity: 0-100)"),
+    value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value: 0-100)"),
+    confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
+    draft: bool | None = typer.Option(
+        None,
+        "--draft/--no-draft",
+        help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+    ),
+) -> None:
+    """
+    Update an existing story's metadata in a plan bundle.
+
+    This command allows updating story properties (title, acceptance criteria,
+    story points, value points, confidence, draft status) in non-interactive
+    environments (CI/CD, Copilot).
+
+    Example:
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title"
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Given X, When Y, Then Z" --story-points 5
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    telemetry_metadata = {
+        "feature_key": feature,
+        "story_key": key,
+    }
+
+    with telemetry.track_command("plan.update_story", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
+        if not plan.exists():
+            print_error(f"Plan bundle not found: {plan}")
+            raise typer.Exit(1)
+
+        print_section("SpecFact CLI - Update Story")
+
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
+
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Find parent feature
+            parent_feature = None
+            for f in existing_plan.features:
+                if f.key == feature:
+                    parent_feature = f
+                    break
+
+            if parent_feature is None:
+                print_error(f"Feature '{feature}' not found in plan")
+                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                raise typer.Exit(1)
+
+            # Find story to update
+            story_to_update = None
+            for s in parent_feature.stories:
+                if s.key == key:
+                    story_to_update = s
+                    break
+
+            if story_to_update is None:
+                print_error(f"Story '{key}' not found in feature '{feature}'")
+                console.print(f"[dim]Available stories: {', '.join(s.key for s in parent_feature.stories)}[/dim]")
+                raise typer.Exit(1)
+
+            # Track what was updated
+            updates_made = []
+
+            # Update title if provided
+            if title is not None:
+                story_to_update.title = title
+                updates_made.append("title")
+
+            # Update acceptance criteria if provided
+            if acceptance is not None:
+                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                story_to_update.acceptance = acceptance_list
+                updates_made.append("acceptance")
+
+            # Update story points if provided
+            if story_points is not None:
+                story_to_update.story_points = story_points
+                updates_made.append("story_points")
+
+            # Update value points if provided
+            if value_points is not None:
+                story_to_update.value_points = value_points
+                updates_made.append("value_points")
+
+            # Update confidence if provided
+            if confidence is not None:
+                if not (0.0 <= confidence <= 1.0):
+                    print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                    raise typer.Exit(1)
+                story_to_update.confidence = confidence
+                updates_made.append("confidence")
+
+            # Update draft status if provided
+            if draft is not None:
+                story_to_update.draft = draft
+                updates_made.append("draft")
+
+            if not updates_made:
+                print_warning(
+                    "No updates specified. Use --title, --acceptance, --story-points, --value-points, --confidence, or --draft"
+                )
+                raise typer.Exit(1)
+
+            # Validate updated plan (always passes for PlanBundle model)
+            print_info("Validating updated plan...")
+
+            # Save updated plan
+            print_info(f"Saving plan to: {plan}")
+            generator = PlanGenerator()
+            generator.generate(existing_plan, plan)
+
+            record(
+                {
+                    "updates": updates_made,
+                    "total_stories": len(parent_feature.stories),
+                }
+            )
+
+            print_success(f"Story '{key}' in feature '{feature}' updated successfully")
+            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+            if title:
+                console.print(f"[dim]Title: {title}[/dim]")
+            if acceptance:
+                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+            if story_points is not None:
+                console.print(f"[dim]Story Points: {story_points}[/dim]")
+            if value_points is not None:
+                console.print(f"[dim]Value Points: {value_points}[/dim]")
+            if confidence is not None:
+                console.print(f"[dim]Confidence: {confidence}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to update story: {e}")
+            raise typer.Exit(1) from e
+
+
 @app.command("compare")
 @beartype
 @require(lambda manual: manual is None or isinstance(manual, Path), "Manual must be None or Path")
@@ -1801,6 +1980,92 @@ def promote(
             raise typer.Exit(1) from e
 
 
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@ensure(lambda result: isinstance(result, int), "Must return int")
+def _deduplicate_features(bundle: PlanBundle) -> int:
+    """
+    Deduplicate features by normalized key (clean up duplicates from previous syncs).
+
+    Uses prefix matching to handle abbreviated vs full names (e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM).
+
+    Args:
+        bundle: Plan bundle to deduplicate
+
+    Returns:
+        Number of duplicates removed
+    """
+    from specfact_cli.utils.feature_keys import normalize_feature_key
+
+    seen_normalized_keys: set[str] = set()
+    deduplicated_features: list[Feature] = []
+
+    for existing_feature in bundle.features:
+        normalized_key = normalize_feature_key(existing_feature.key)
+
+        # Check for exact match first
+        if normalized_key in seen_normalized_keys:
+            continue
+
+        # Check for prefix match (abbreviated vs full names)
+        # e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM
+        # Only match if shorter is a PREFIX of longer with significant length difference
+        # AND at least one key has a numbered prefix (041_, 042-, etc.) indicating Spec-Kit origin
+        # This avoids false positives like SMARTCOVERAGE vs SMARTCOVERAGEMANAGER (both from code analysis)
+        matched = False
+        for seen_key in seen_normalized_keys:
+            shorter = min(normalized_key, seen_key, key=len)
+            longer = max(normalized_key, seen_key, key=len)
+
+            # Check if at least one of the original keys has a numbered prefix (Spec-Kit format)
+            import re
+
+            has_speckit_key = bool(
+                re.match(r"^\d{3}[_-]", existing_feature.key)
+                or any(
+                    re.match(r"^\d{3}[_-]", f.key)
+                    for f in deduplicated_features
+                    if normalize_feature_key(f.key) == seen_key
+                )
+            )
+
+            # More conservative matching:
+            # 1. At least one key must have numbered prefix (Spec-Kit origin)
+            # 2. Shorter must be at least 10 chars
+            # 3. Longer must start with shorter (prefix match)
+            # 4. Length difference must be at least 6 chars
+            # 5. Shorter must be < 75% of longer (to ensure significant difference)
+            length_diff = len(longer) - len(shorter)
+            length_ratio = len(shorter) / len(longer) if len(longer) > 0 else 1.0
+
+            if (
+                has_speckit_key
+                and len(shorter) >= 10
+                and longer.startswith(shorter)
+                and length_diff >= 6
+                and length_ratio < 0.75
+            ):
+                matched = True
+                # Prefer the longer (full) name - update the existing feature's key if needed
+                if len(normalized_key) > len(seen_key):
+                    # Current feature has longer name - update the existing one
+                    for dedup_feature in deduplicated_features:
+                        if normalize_feature_key(dedup_feature.key) == seen_key:
+                            dedup_feature.key = existing_feature.key
+                            break
+                break
+
+        if not matched:
+            seen_normalized_keys.add(normalized_key)
+            deduplicated_features.append(existing_feature)
+
+    duplicates_removed = len(bundle.features) - len(deduplicated_features)
+    if duplicates_removed > 0:
+        bundle.features = deduplicated_features
+
+    return duplicates_removed
+
+
 @app.command("review")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
@@ -1927,6 +2192,14 @@ def review(
             if not is_valid or bundle is None:
                 print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
+
+            # Deduplicate features by normalized key (clean up duplicates from previous syncs)
+            duplicates_removed = _deduplicate_features(bundle)
+            if duplicates_removed > 0:
+                # Write back deduplicated bundle immediately
+                generator = PlanGenerator()
+                generator.generate(bundle, plan)
+                print_success(f"✓ Removed {duplicates_removed} duplicate features from plan bundle")
 
             # Check current stage
             current_stage = "draft"

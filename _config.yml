@@ -97,10 +97,9 @@ minima:
 # sass_dir is only needed for custom SASS partials directory
 sass:
   style: compressed
-  sourcemap: never  # Disable source maps to prevent JSON output
+  sourcemap: never # Disable source maps to prevent JSON output
 
 # Footer
 footer:
   copyright: "© 2025 Nold AI (Owner: Dominikus Nold)"
   trademark: "NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All other trademarks mentioned are the property of their respective owners."
-

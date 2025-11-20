@@ -158,6 +158,25 @@ class PlanEnricher:
 
     @beartype
     @require(lambda acceptance: isinstance(acceptance, str), "Acceptance must be string")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
+    def _is_code_specific_criteria(self, acceptance: str) -> bool:
+        """
+        Check if acceptance criteria are already code-specific (should not be replaced).
+
+        Delegates to shared utility function for consistency.
+
+        Args:
+            acceptance: Acceptance criteria text to check
+
+        Returns:
+            True if criteria are code-specific, False if vague/generic
+        """
+        from specfact_cli.utils.acceptance_criteria import is_code_specific_criteria
+
+        return is_code_specific_criteria(acceptance)
+
+    @beartype
+    @require(lambda acceptance: isinstance(acceptance, str), "Acceptance must be string")
     @require(lambda story_title: isinstance(story_title, str), "Story title must be string")
     @require(lambda feature_title: isinstance(feature_title, str), "Feature title must be string")
     @ensure(lambda result: isinstance(result, str), "Must return string")
@@ -166,14 +185,21 @@ class PlanEnricher:
         """
         Enhance vague acceptance criteria (e.g., "is implemented" → "Given [state], When [action], Then [outcome]").
 
+        This method only enhances vague/generic criteria. Code-specific criteria (containing method names,
+        class names, file paths, type hints) are preserved unchanged.
+
         Args:
             acceptance: Acceptance criteria text to enhance
             story_title: Story title for context
             feature_title: Feature title for context
 
         Returns:
-            Enhanced acceptance criteria in Given/When/Then format
+            Enhanced acceptance criteria in Given/When/Then format, or original if already code-specific
         """
+        # Skip enrichment if criteria are already code-specific
+        if self._is_code_specific_criteria(acceptance):
+            return acceptance
+
         acceptance_lower = acceptance.lower()
         vague_patterns = [
             (

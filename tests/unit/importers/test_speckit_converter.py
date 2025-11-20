@@ -123,7 +123,7 @@ As a user, I want to test features so that I can validate functionality.
 
     def test_convert_to_speckit_sequential_numbering(self, tmp_path: Path) -> None:
         """Test convert_to_speckit uses sequential numbering when feature keys lack numbers."""
-        from specfact_cli.models.plan import Feature, PlanBundle, Product, Story
+        from specfact_cli.models.plan import Feature, PlanBundle, Product
 
         # Create features without numbers in keys (tests the "000-" bug fix)
         features = [

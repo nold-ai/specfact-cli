@@ -9,6 +9,41 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.8] - 2025-11-20
+
+### Fixed (0.6.8)
+
+- **Ambiguity Scanner False Positives**
+  - Fixed false positive detection of vague acceptance criteria for code-specific criteria
+  - Ambiguity scanner now correctly identifies code-specific criteria (containing method signatures, class names, type hints, file paths) and skips them
+  - Prevents flagging testable, code-specific acceptance criteria as vague during plan review
+  - Improved detection accuracy for plans imported from code (code2spec workflow)
+
+- **Acceptance Criteria Detection**
+  - Created shared utility `acceptance_criteria.py` for consistent code-specific detection across modules
+  - Enhanced vague pattern detection with word boundaries (`\b`) to avoid false positives
+  - Prevents matching "works" in "workspace" or "is done" in "is_done_method"
+  - Both `PlanEnricher` and `AmbiguityScanner` now use shared detection logic
+
+### Changed (0.6.8)
+
+- **Code Reusability**
+  - Extracted acceptance criteria detection logic into shared utility module
+  - `PlanEnricher._is_code_specific_criteria()` now delegates to shared utility
+  - `AmbiguityScanner` uses shared utility for consistent detection
+  - Eliminates code duplication and ensures consistent behavior
+
+### Added (0.6.8)
+
+- **Shared Acceptance Criteria Utility**
+  - New `src/specfact_cli/utils/acceptance_criteria.py` module
+  - `is_code_specific_criteria()` function for detecting code-specific vs vague criteria
+  - Detects method signatures, class names, type hints, file paths, specific assertions
+  - Uses word boundaries for accurate vague pattern matching
+  - Full contract-first validation with `@beartype` and `@icontract` decorators
+
+---
+
 ## [0.6.7] - 2025-11-19
 
 ### Added (0.6.7)

@@ -8,12 +8,14 @@ to SpecFact format (plans, protocols).
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.analyzers.constitution_evidence_extractor import ConstitutionEvidenceExtractor
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.protocol_generator import ProtocolGenerator
 from specfact_cli.generators.workflow_generator import WorkflowGenerator
@@ -44,6 +46,7 @@ class SpecKitConverter:
         self.protocol_generator = ProtocolGenerator()
         self.plan_generator = PlanGenerator()
         self.workflow_generator = WorkflowGenerator()
+        self.constitution_extractor = ConstitutionEvidenceExtractor(repo_path)
         self.mapping_file = mapping_file
 
     @beartype
@@ -112,10 +115,10 @@ class SpecKitConverter:
         # Discover features from markdown artifacts
         discovered_features = self.scanner.discover_features()
 
-        # Extract features from markdown data
-        features = self._extract_features_from_markdown(discovered_features)
+        # Extract features from markdown data (empty list if no features found)
+        features = self._extract_features_from_markdown(discovered_features) if discovered_features else []
 
-        # Parse constitution for constraints
+        # Parse constitution for constraints (only if needed for idea creation)
         structure = self.scanner.scan_structure()
         memory_dir = Path(structure.get("specify_memory_dir", "")) if structure.get("specify_memory_dir") else None
         constraints: list[str] = []
@@ -371,7 +374,9 @@ class SpecKitConverter:
     @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @ensure(lambda result: isinstance(result, int), "Must return int (number of features converted)")
     @ensure(lambda result: result >= 0, "Result must be non-negative")
-    def convert_to_speckit(self, plan_bundle: PlanBundle) -> int:
+    def convert_to_speckit(
+        self, plan_bundle: PlanBundle, progress_callback: Callable[[int, int], None] | None = None
+    ) -> int:
         """
         Convert SpecFact plan bundle to Spec-Kit markdown artifacts.
 
@@ -379,19 +384,32 @@ class SpecKitConverter:
 
         Args:
             plan_bundle: SpecFact plan bundle to convert
+            progress_callback: Optional callback function(current, total) to report progress
 
         Returns:
             Number of features converted
         """
         features_converted = 0
+        total_features = len(plan_bundle.features)
+        # Track used feature numbers to avoid duplicates
+        used_feature_nums: set[int] = set()
 
         for idx, feature in enumerate(plan_bundle.features, start=1):
+            # Report progress if callback provided
+            if progress_callback:
+                progress_callback(idx, total_features)
             # Generate feature directory name from key (FEATURE-001 -> 001-feature-name)
-            # Use number from key if available, otherwise use sequential index
-            feature_num = self._extract_feature_number(feature.key)
-            if feature_num == 0:
-                # No number found in key, use sequential numbering (1, 2, 3, ...)
+            # Use number from key if available and not already used, otherwise use sequential index
+            extracted_num = self._extract_feature_number(feature.key)
+            if extracted_num == 0 or extracted_num in used_feature_nums:
+                # No number found in key, or number already used - use sequential numbering
+                # Find next available sequential number starting from idx
                 feature_num = idx
+                while feature_num in used_feature_nums:
+                    feature_num += 1
+            else:
+                feature_num = extracted_num
+            used_feature_nums.add(feature_num)
             feature_name = self._to_feature_dir_name(feature.title)
 
             # Create feature directory
@@ -736,27 +754,37 @@ class SpecKitConverter:
         lines.append("- None at this time")
         lines.append("")
 
-        # Constitution Check section (CRITICAL for /speckit.analyze)
-        lines.append("## Constitution Check")
-        lines.append("")
-        lines.append("**Article VII (Simplicity)**:")
-        lines.append("- [ ] Using ≤3 projects?")
-        lines.append("- [ ] No future-proofing?")
-        lines.append("")
-        lines.append("**Article VIII (Anti-Abstraction)**:")
-        lines.append("- [ ] Using framework directly?")
-        lines.append("- [ ] Single model representation?")
-        lines.append("")
-        lines.append("**Article IX (Integration-First)**:")
-        # Check if contracts are defined in stories
+        # Check if contracts are defined in stories (for Article IX and contract definitions section)
         contracts_defined = any(story.contracts for story in feature.stories if story.contracts)
-        if contracts_defined:
-            lines.append("- [x] Contracts defined?")
-            lines.append("- [ ] Contract tests written?")
-        else:
-            lines.append("- [ ] Contracts defined?")
-            lines.append("- [ ] Contract tests written?")
-        lines.append("")
+
+        # Constitution Check section (CRITICAL for /speckit.analyze)
+        # Extract evidence-based constitution status (Step 2.2)
+        try:
+            constitution_evidence = self.constitution_extractor.extract_all_evidence(self.repo_path)
+            constitution_section = self.constitution_extractor.generate_constitution_check_section(
+                constitution_evidence
+            )
+            lines.append(constitution_section)
+        except Exception:
+            # Fallback to basic constitution check if extraction fails
+            lines.append("## Constitution Check")
+            lines.append("")
+            lines.append("**Article VII (Simplicity)**:")
+            lines.append("- [ ] Evidence extraction pending")
+            lines.append("")
+            lines.append("**Article VIII (Anti-Abstraction)**:")
+            lines.append("- [ ] Evidence extraction pending")
+            lines.append("")
+            lines.append("**Article IX (Integration-First)**:")
+            if contracts_defined:
+                lines.append("- [x] Contracts defined?")
+                lines.append("- [ ] Contract tests written?")
+            else:
+                lines.append("- [ ] Contracts defined?")
+                lines.append("- [ ] Contract tests written?")
+            lines.append("")
+            lines.append("**Status**: PENDING")
+            lines.append("")
 
         # Add contract definitions section if contracts exist (Step 2.1)
         if contracts_defined:
@@ -807,11 +835,6 @@ class SpecKitConverter:
                             lines.append(f"- `{exc_type}`: {condition}")
                         lines.append("")
             lines.append("")
-
-        # Status should be PENDING until gates are actually checked
-        # Users should review and check gates based on their project's actual state
-        lines.append("**Status**: PENDING")
-        lines.append("")
 
         # Phases section
         lines.append("## Phase 0: Research")

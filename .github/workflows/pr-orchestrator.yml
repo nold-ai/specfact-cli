@@ -329,7 +329,7 @@ jobs:
         run: |
           PUBLISHED="${{ steps.publish.outputs.published }}"
           VERSION="${{ steps.publish.outputs.version }}"
-          
+
           {
             echo "## PyPI Publication Summary"
             echo "| Parameter | Value |"
@@ -343,4 +343,3 @@ jobs:
               echo "| Status | ⏭️ Skipped (version not newer) |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-

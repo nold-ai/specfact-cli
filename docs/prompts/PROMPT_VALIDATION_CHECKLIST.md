@@ -83,9 +83,25 @@ The validator checks:
   - [ ] `--auto-enrich` flag documented with when to use it
   - [ ] LLM reasoning guidance for detecting when enrichment is needed
   - [ ] Post-enrichment analysis steps documented
+  - [ ] **MANDATORY automatic refinement**: LLM must automatically refine generic criteria with code-specific details after auto-enrichment
   - [ ] Two-phase enrichment strategy (automatic + LLM-enhanced refinement)
   - [ ] Continuous improvement loop documented
   - [ ] Examples of enrichment output and refinement process
+  - [ ] **Generic criteria detection**: Instructions to identify and replace generic patterns ("interact with the system", "works correctly")
+  - [ ] **Code-specific criteria generation**: Instructions to research codebase and create testable criteria with method names, parameters, return values
+- [ ] **Feature deduplication** (for `sync`, `plan review`, `import from-code`):
+  - [ ] **Automated deduplication documented**: CLI automatically deduplicates features using normalized key matching
+  - [ ] **Deduplication scope explained**:
+    - [ ] Exact normalized key matches (e.g., `FEATURE-001` vs `001_FEATURE_NAME`)
+    - [ ] Prefix matches for Spec-Kit features (e.g., `FEATURE-IDEINTEGRATION` vs `041_IDE_INTEGRATION_SYSTEM`)
+    - [ ] Only matches when at least one key has numbered prefix (Spec-Kit origin) to avoid false positives
+  - [ ] **LLM semantic deduplication guidance**: Instructions for LLM to identify semantic/logical duplicates that automated deduplication might miss
+    - [ ] Review feature titles and descriptions for semantic similarity
+    - [ ] Identify features that represent the same functionality with different names
+    - [ ] Suggest consolidation when multiple features cover the same code/functionality
+    - [ ] Use `specfact plan update-feature` or `specfact plan add-feature` to consolidate
+  - [ ] **Deduplication output**: CLI shows "✓ Removed N duplicate features" - LLM should acknowledge this
+  - [ ] **Post-deduplication review**: LLM should review remaining features for semantic duplicates
 - [ ] **Execution steps**: Clear, sequential steps
 - [ ] **Error handling**: Instructions for handling errors
 - [ ] **Validation**: CLI validation steps documented
@@ -374,10 +390,19 @@ The following prompts are available for SpecFact CLI commands:
 
 ---
 
-**Last Updated**: 2025-11-19  
-**Version**: 1.7
+**Last Updated**: 2025-11-20  
+**Version**: 1.8
 
 ## Changelog
+
+### Version 1.8 (2025-11-20)
+
+- Added feature deduplication validation checks
+- Added automated deduplication documentation requirements (exact matches, prefix matches for Spec-Kit features)
+- Added LLM semantic deduplication guidance (identifying semantic/logical duplicates)
+- Added deduplication workflow to testing scenarios
+- Added common issue: Missing Semantic Deduplication
+- Updated Scenario 2 to verify deduplication acknowledgment and semantic review
 
 ### Version 1.7 (2025-11-19)
 
