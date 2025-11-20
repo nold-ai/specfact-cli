@@ -41,6 +41,7 @@ specfact repro --verbose
 - `plan update-feature` - Update existing feature metadata
 - `plan review` - Review plan bundle to resolve ambiguities
 - `plan select` - Select active plan from available bundles
+- `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
 - `plan sync --shared` - Enable shared plans (team collaboration)
 
@@ -595,7 +596,7 @@ After successful promotion, the CLI suggests next actions:
 Select active plan from available plan bundles:
 
 ```bash
-specfact plan select [PLAN]
+specfact plan select [PLAN] [OPTIONS]
 ```
 
 **Arguments:**
@@ -604,7 +605,12 @@ specfact plan select [PLAN]
 
 **Options:**
 
-- None (interactive selection by default)
+- `--non-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts. Requires exactly one plan to match filters.
+- `--current` - Show only the currently active plan (auto-selects in non-interactive mode)
+- `--stages STAGES` - Filter by stages (comma-separated: `draft,review,approved,released`)
+- `--last N` - Show last N plans by modification time (most recent first)
+- `--name NAME` - Select plan by exact filename (non-interactive, e.g., `main.bundle.yaml`)
+- `--id HASH` - Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)
 
 **Example:**
 
@@ -617,14 +623,54 @@ specfact plan select 1
 
 # Select by name
 specfact plan select main.bundle.yaml
+
+# Show only active plan
+specfact plan select --current
+
+# Filter by stages
+specfact plan select --stages draft,review
+
+# Show last 5 plans
+specfact plan select --last 5
+
+# CI/CD: Get active plan without prompts (auto-selects)
+specfact plan select --non-interactive --current
+
+# CI/CD: Get most recent plan without prompts
+specfact plan select --non-interactive --last 1
+
+# CI/CD: Select by exact filename
+specfact plan select --name main.bundle.yaml
+
+# CI/CD: Select by content hash ID
+specfact plan select --id abc123def456
 ```
 
 **What it does:**
 
 - Lists all available plan bundles in `.specfact/plans/` with metadata (features, stories, stage, modified date)
 - Displays numbered list with active plan indicator
+- Applies filters (current, stages, last N) before display/selection
 - Updates `.specfact/plans/config.yaml` to set the active plan
 - The active plan becomes the default for all plan operations
+
+**Filter Options:**
+
+- `--current`: Filters to show only the currently active plan. In non-interactive mode, automatically selects the active plan without prompts.
+- `--stages`: Filters plans by stage (e.g., `--stages draft,review` shows only draft and review plans)
+- `--last N`: Shows the N most recently modified plans (sorted by modification time, most recent first)
+- `--name NAME`: Selects plan by exact filename (non-interactive). Useful for CI/CD when you know the exact plan name.
+- `--id HASH`: Selects plan by content hash ID from `metadata.summary.content_hash` (non-interactive). Supports full hash or first 8 characters.
+- `--non-interactive`: Disables interactive prompts. If multiple plans match filters, command will error. Use with `--current`, `--last 1`, `--name`, or `--id` for single plan selection in CI/CD.
+
+**Performance Notes:**
+
+The `plan select` command uses optimized metadata reading for fast performance, especially with large plan bundles:
+
+- Plan bundles include summary metadata (features count, stories count, content hash) at the top of the file
+- For large files (>10MB), only the metadata section is read (first 50KB)
+- This provides 44% faster performance compared to full file parsing
+- Summary metadata is automatically added when creating or upgrading plan bundles
 
 **Note**: The active plan is tracked in `.specfact/plans/config.yaml` and replaces the static `main.bundle.yaml` reference. All plan commands (`compare`, `promote`, `add-feature`, `add-story`, `sync spec-kit`) now use the active plan by default.
 
@@ -669,6 +715,71 @@ specfact sync spec-kit --repo . --bidirectional --watch
 - **Team collaboration**: Multiple developers can work on the same plan with automated synchronization
 
 **Note**: This is a convenience wrapper. The underlying command is `sync spec-kit --bidirectional`. See [`sync spec-kit`](#sync-spec-kit) for full details.
+
+#### `plan upgrade`
+
+Upgrade plan bundles to the latest schema version:
+
+```bash
+specfact plan upgrade [OPTIONS]
+```
+
+**Options:**
+
+- `--plan PATH` - Path to specific plan bundle to upgrade (default: active plan)
+- `--all` - Upgrade all plan bundles in `.specfact/plans/`
+- `--dry-run` - Show what would be upgraded without making changes
+
+**Example:**
+
+```bash
+# Preview what would be upgraded
+specfact plan upgrade --dry-run
+
+# Upgrade active plan
+specfact plan upgrade
+
+# Upgrade specific plan
+specfact plan upgrade --plan path/to/plan.bundle.yaml
+
+# Upgrade all plans
+specfact plan upgrade --all
+
+# Preview all upgrades
+specfact plan upgrade --all --dry-run
+```
+
+**What it does:**
+
+- Detects plan bundles with older schema versions or missing summary metadata
+- Migrates plan bundles from older versions to the current version (1.1)
+- Adds summary metadata (features count, stories count, content hash) for performance optimization
+- Preserves all existing plan data while adding new fields
+- Updates plan bundle version to current schema version
+
+**Schema Versions:**
+
+- **Version 1.0**: Initial schema (no summary metadata)
+- **Version 1.1**: Added summary metadata for fast access without full parsing
+
+**When to use:**
+
+- After upgrading SpecFact CLI to a version with new schema features
+- When you notice slow performance with `plan select` (indicates missing summary metadata)
+- Before running batch operations on multiple plan bundles
+- As part of repository maintenance to ensure all plans are up to date
+
+**Migration Details:**
+
+The upgrade process:
+
+1. Detects schema version from plan bundle's `version` field
+2. Checks for missing summary metadata (backward compatibility)
+3. Applies migrations in sequence (supports multi-step migrations)
+4. Computes and adds summary metadata with content hash for integrity verification
+5. Updates plan bundle file with new schema version
+
+**Note**: Upgraded plan bundles are backward compatible. Older CLI versions can still read them, but won't benefit from performance optimizations.
 
 #### `plan compare`
 

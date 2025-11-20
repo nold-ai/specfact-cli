@@ -72,6 +72,12 @@ Compare a manual plan bundle with an auto-derived plan bundle to detect deviatio
    - Parse the CLI table output to get plan names for the specified numbers
    - Extract the full plan file names from the table
 
+   - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
+   ```
+   specfact plan select --non-interactive --current
+   specfact plan select --non-interactive --last 1
+   ```
+
 2. **Get full plan paths using CLI**:
 
    ```bash
@@ -80,6 +86,12 @@ Compare a manual plan bundle with an auto-derived plan bundle to detect deviatio
 
    - This will output the full plan name/path
    - Use this to construct the full path: `.specfact/plans/<plan_name>`
+
+   - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
+   ```
+   specfact plan select --non-interactive --current
+   specfact plan select --non-interactive --last 1
+   ```
 
 **If user input contains plan names** (e.g., "main.bundle.yaml vs auto-derived.bundle.yaml"):
 
@@ -169,6 +181,12 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
      - Parse the CLI output to get the full plan name
      - Construct full path: `.specfact/plans/<plan_name>`
 
+     - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
+     ```
+     specfact plan select --non-interactive --current
+     specfact plan select --non-interactive --last 1
+     ```
+
 - **If user input contains plan names** (e.g., "main.bundle.yaml vs auto-derived.bundle.yaml"):
   - Use plan names directly (may need to add `.bundle.yaml` suffix if missing)
   - Construct full path: `.specfact/plans/<plan_name>`
@@ -199,6 +217,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
     ```
 
   - **Parse CLI output** to find latest auto-derived plan (by modification date)
+  - **For CI/CD/non-interactive**: Use `specfact plan select --non-interactive --last 1` to get most recent plan
   - **If found**: Ask user and **WAIT**:
 
     ```text

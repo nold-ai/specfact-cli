@@ -226,13 +226,18 @@ class SpecFactStructure:
     @classmethod
     @beartype
     @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(lambda max_files: max_files is None or max_files > 0, "Max files must be None or positive")
     @ensure(lambda result: isinstance(result, list), "Must return list")
-    def list_plans(cls, base_path: Path | None = None) -> list[dict[str, str | int]]:
+    def list_plans(
+        cls, base_path: Path | None = None, max_files: int | None = None
+    ) -> list[dict[str, str | int | None]]:
         """
         List all available plan bundles with metadata.
 
         Args:
             base_path: Base directory (default: current directory)
+            max_files: Maximum number of files to process (for performance with many files).
+                      If None, processes all files. If specified, processes most recent files first.
 
         Returns:
             List of plan dictionaries with 'name', 'path', 'features', 'stories', 'size', 'modified' keys
@@ -241,6 +246,7 @@ class SpecFactStructure:
             >>> plans = SpecFactStructure.list_plans()
             >>> plans[0]['name']
             'specfact-cli.2025-11-04T23-35-00.bundle.yaml'
+            >>> plans = SpecFactStructure.list_plans(max_files=5)  # Only process 5 most recent
         """
         if base_path is None:
             base_path = Path(".")
@@ -269,11 +275,19 @@ class SpecFactStructure:
         # Find all plan bundles, sorted by modification date (oldest first, newest last)
         plan_files = list(plans_dir.glob("*.bundle.yaml"))
         plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=False)
+
+        # If max_files specified, only process the most recent N files (for performance)
+        # This is especially useful when using --last N filter
+        if max_files is not None and max_files > 0:
+            # Take most recent files (reverse sort, take last N, then reverse back)
+            plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)[:max_files]
+            plan_files_sorted = sorted(plan_files_sorted, key=lambda p: p.stat().st_mtime, reverse=False)
+
         for plan_file in plan_files_sorted:
             if plan_file.name == "config.yaml":
                 continue
 
-            plan_info: dict[str, str | int] = {
+            plan_info: dict[str, str | int | None] = {
                 "name": plan_file.name,
                 "path": str(plan_file.relative_to(base_path)),
                 "features": 0,
@@ -281,25 +295,132 @@ class SpecFactStructure:
                 "size": plan_file.stat().st_size,
                 "modified": datetime.fromtimestamp(plan_file.stat().st_mtime).isoformat(),
                 "active": plan_file.name == active_plan,
+                "content_hash": None,  # Will be populated from summary if available
             }
 
-            # Try to load plan metadata
+            # Try to load plan metadata using summary (fast path)
+            # Performance: Read only metadata section at top of file, use summary for counts
             try:
-                with plan_file.open() as f:
-                    plan_data = yaml.safe_load(f) or {}
-                    features = plan_data.get("features", [])
-                    plan_info["features"] = len(features)
-                    plan_info["stories"] = sum(len(f.get("stories", [])) for f in features)
-                    if plan_data.get("metadata"):
-                        plan_info["stage"] = plan_data["metadata"].get("stage", "draft")
+                # Read first 50KB to get metadata section (metadata is always at top)
+                with plan_file.open(encoding="utf-8") as f:
+                    content = f.read(50000)  # Read first 50KB (metadata + summary should be here)
+
+                    # Try to parse just the metadata section using YAML
+                    # Look for metadata section boundaries
+                    metadata_start = content.find("metadata:")
+                    if metadata_start != -1:
+                        # Find the end of metadata section (next top-level key or end of content)
+                        metadata_end = len(content)
+                        for key in ["features:", "product:", "idea:", "business:", "version:"]:
+                            key_pos = content.find(f"\n{key}", metadata_start)
+                            if key_pos != -1 and key_pos < metadata_end:
+                                metadata_end = key_pos
+
+                        metadata_section = content[metadata_start:metadata_end]
+
+                        # Parse metadata section
+                        try:
+                            metadata_data = yaml.safe_load(
+                                f"metadata:\n{metadata_section.split('metadata:')[1] if 'metadata:' in metadata_section else metadata_section}"
+                            )
+                            if metadata_data and "metadata" in metadata_data:
+                                metadata = metadata_data["metadata"]
+
+                                # Get stage
+                                plan_info["stage"] = metadata.get("stage", "draft")
+
+                                # Get summary if available (fast path)
+                                if "summary" in metadata and isinstance(metadata["summary"], dict):
+                                    summary = metadata["summary"]
+                                    plan_info["features"] = summary.get("features_count", 0)
+                                    plan_info["stories"] = summary.get("stories_count", 0)
+                                    plan_info["content_hash"] = summary.get("content_hash")
+                                else:
+                                    # Fallback: no summary available, need to count manually
+                                    # For large files, skip counting (will be 0)
+                                    file_size_mb = plan_file.stat().st_size / (1024 * 1024)
+                                    if file_size_mb < 5.0:
+                                        # Only for small files, do full parse
+                                        with plan_file.open() as full_f:
+                                            plan_data = yaml.safe_load(full_f) or {}
+                                            features = plan_data.get("features", [])
+                                            plan_info["features"] = len(features)
+                                            plan_info["stories"] = sum(len(f.get("stories", [])) for f in features)
+                                    else:
+                                        plan_info["features"] = 0
+                                        plan_info["stories"] = 0
+                        except Exception:
+                            # Fallback to regex extraction
+                            stage_match = re.search(
+                                r"metadata:\s*\n\s*stage:\s*['\"]?(\w+)['\"]?", content, re.IGNORECASE
+                            )
+                            if stage_match:
+                                plan_info["stage"] = stage_match.group(1)
+                            else:
+                                plan_info["stage"] = "draft"
+                            plan_info["features"] = 0
+                            plan_info["stories"] = 0
                     else:
+                        # No metadata section found, use defaults
                         plan_info["stage"] = "draft"
+                        plan_info["features"] = 0
+                        plan_info["stories"] = 0
             except Exception:
                 plan_info["stage"] = "unknown"
+                plan_info["features"] = 0
+                plan_info["stories"] = 0
 
             plans.append(plan_info)
 
         return plans
+
+    @classmethod
+    @beartype
+    def update_plan_summary(cls, plan_path: Path, base_path: Path | None = None) -> bool:
+        """
+        Update summary metadata for an existing plan bundle.
+
+        This is a migration helper to add summary metadata to plan bundles
+        that were created before the summary feature was added.
+
+        Args:
+            plan_path: Path to plan bundle file
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            True if summary was updated, False otherwise
+        """
+        if base_path is None:
+            base_path = Path(".")
+
+        plan_file = base_path / plan_path if not plan_path.is_absolute() else plan_path
+
+        if not plan_file.exists():
+            return False
+
+        try:
+            import yaml
+
+            from specfact_cli.generators.plan_generator import PlanGenerator
+            from specfact_cli.models.plan import PlanBundle
+
+            # Load plan bundle
+            with plan_file.open() as f:
+                plan_data = yaml.safe_load(f) or {}
+
+            # Parse as PlanBundle
+            bundle = PlanBundle.model_validate(plan_data)
+
+            # Update summary (with hash for integrity)
+            bundle.update_summary(include_hash=True)
+
+            # Save updated bundle
+            generator = PlanGenerator()
+            generator.generate(bundle, plan_file, update_summary=True)
+
+            return True
+        except Exception:
+            return False
 
     @classmethod
     def get_enforcement_config_path(cls, base_path: Path | None = None) -> Path:

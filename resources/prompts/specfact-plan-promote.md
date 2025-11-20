@@ -89,20 +89,32 @@ The `specfact plan promote` command helps move a plan bundle through its lifecyc
 
 **⚠️ CRITICAL: NEVER search the repository directly or read bundle files. Always use the CLI to get plan information.**
 
-**Execute `specfact plan select` (without arguments) to list all available plans**:
+**Execute `specfact plan select` to list all available plans**:
 
 ```bash
+# Interactive mode (may prompt for input)
 specfact plan select
+
+# Non-interactive mode (for CI/CD - no prompts)
+specfact plan select --non-interactive --current
+specfact plan select --non-interactive --last 1
+
+# Filter options
+specfact plan select --current                    # Show only active plan
+specfact plan select --stages draft,review        # Filter by stages
+specfact plan select --last 5                     # Show last 5 plans
 ```
 
-**⚠️ Note on Interactive Prompt**: This command will display a table and then wait for user input. The copilot should:
+**⚠️ Note on Interactive Prompt**: 
 
-1. **Capture the table output** that appears before the prompt
-2. **Parse the table** to extract plan information including **current stage** (already included in the table)
-3. **Handle the interactive prompt** by either:
-   - Using a timeout to cancel after parsing (e.g., `timeout 5 specfact plan select` or similar)
-   - Sending an interrupt signal after capturing the output
-   - Or in a copilot environment, the output may be available before the prompt blocks
+- **For CI/CD/non-interactive use**: Use `--non-interactive` flag with `--current` or `--last 1` to avoid prompts
+- **For interactive use**: This command will display a table and then wait for user input. The copilot should:
+  1. **Capture the table output** that appears before the prompt
+  2. **Parse the table** to extract plan information including **current stage** (already included in the table)
+  3. **Handle the interactive prompt** by either:
+     - Using a timeout to cancel after parsing (e.g., `timeout 5 specfact plan select` or similar)
+     - Sending an interrupt signal after capturing the output
+     - Or in a copilot environment, the output may be available before the prompt blocks
 
 **This command will**:
 
@@ -229,8 +241,14 @@ If still unclear, ask:
 If the current stage is not clear from the table output, use the CLI to get it:
 
 ```bash
-# Get plan details including current stage
+# Get plan details including current stage (interactive)
 specfact plan select <plan_number>
+
+# Get current plan stage (non-interactive)
+specfact plan select --non-interactive --current
+
+# Get most recent plan stage (non-interactive)
+specfact plan select --non-interactive --last 1
 ```
 
 The CLI output will show:

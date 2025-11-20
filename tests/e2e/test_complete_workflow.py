@@ -81,6 +81,7 @@ class TestCompleteWorkflow:
             confidence=0.9,
             draft=False,
             scenarios=None,
+            contracts=None,
         )
 
         story2 = Story(
@@ -93,6 +94,7 @@ class TestCompleteWorkflow:
             confidence=0.95,
             draft=False,
             scenarios=None,
+            contracts=None,
         )
 
         feature1 = Feature(
@@ -611,6 +613,7 @@ class TestGeneratorE2EWorkflows:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         ),
                         Story(
                             key="STORY-002",
@@ -620,6 +623,7 @@ class TestGeneratorE2EWorkflows:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         ),
                     ],
                 ),
@@ -636,6 +640,7 @@ class TestGeneratorE2EWorkflows:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         )
                     ],
                 ),
@@ -871,6 +876,7 @@ class TestGeneratorE2EWorkflows:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         )
                     ],
                 )
@@ -1197,6 +1203,7 @@ class TestPlanCreationE2E:
                             value_points=None,
                             confidence=0.85,
                             scenarios=None,
+                            contracts=None,
                         ),
                         Story(
                             key="STORY-002",
@@ -1206,6 +1213,7 @@ class TestPlanCreationE2E:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         ),
                     ],
                 ),
@@ -1222,6 +1230,7 @@ class TestPlanCreationE2E:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         )
                     ],
                 ),
@@ -1424,6 +1433,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                     Story(
                         key="STORY-002",
@@ -1432,6 +1442,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                     Story(
                         key="STORY-003",
@@ -1440,6 +1451,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                 ],
             ),
@@ -1456,6 +1468,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                 ],
             ),
@@ -1501,6 +1514,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                     Story(
                         key="STORY-002",
@@ -1509,6 +1523,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                     # Missing STORY-003 (Delete Task)
                 ],
@@ -1526,6 +1541,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                 ],
             ),
@@ -1676,6 +1692,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                     Story(
                         key="STORY-002",
@@ -1684,6 +1701,7 @@ class TestPlanComparisonWorkflow:
                         story_points=None,
                         value_points=None,
                         scenarios=None,
+                        contracts=None,
                     ),
                 ],
             ),
@@ -1740,6 +1758,7 @@ class TestPlanComparisonWorkflow:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         ),
                         Story(
                             key="STORY-002",
@@ -1748,6 +1767,7 @@ class TestPlanComparisonWorkflow:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         ),
                     ],
                 ),

@@ -1397,10 +1397,42 @@ def compare(
 @app.command("select")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, str), "Plan must be None or str")
+@require(lambda last: last is None or last > 0, "Last must be None or positive integer")
 def select(
     plan: str | None = typer.Argument(
         None,
         help="Plan name or number to select (e.g., 'main.bundle.yaml' or '1')",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Non-interactive mode (for CI/CD automation). Disables interactive prompts.",
+    ),
+    current: bool = typer.Option(
+        False,
+        "--current",
+        help="Show only the currently active plan",
+    ),
+    stages: str | None = typer.Option(
+        None,
+        "--stages",
+        help="Filter by stages (comma-separated, e.g., 'draft,review,approved')",
+    ),
+    last: int | None = typer.Option(
+        None,
+        "--last",
+        help="Show last N plans by modification time (most recent first)",
+        min=1,
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.yaml')",
+    ),
+    plan_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
     ),
 ) -> None:
     """
@@ -1409,20 +1441,47 @@ def select(
     Displays a numbered list of available plans and allows selection by number or name.
     The selected plan becomes the active plan tracked in `.specfact/plans/config.yaml`.
 
+    Filter Options:
+        --current          Show only the currently active plan (non-interactive, auto-selects)
+        --stages STAGES    Filter by stages (comma-separated: draft,review,approved,released)
+        --last N           Show last N plans by modification time (most recent first)
+        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.yaml')
+        --id HASH          Select by content hash ID (non-interactive, from metadata.summary.content_hash)
+
     Example:
-        specfact plan select                    # Interactive selection
-        specfact plan select 1                 # Select by number
-        specfact plan select main.bundle.yaml   # Select by name
+        specfact plan select                              # Interactive selection
+        specfact plan select 1                           # Select by number
+        specfact plan select main.bundle.yaml            # Select by name (positional)
+        specfact plan select --current                   # Show only active plan (auto-selects)
+        specfact plan select --stages draft,review       # Filter by stages
+        specfact plan select --last 5                    # Show last 5 plans
+        specfact plan select --non-interactive --last 1  # CI/CD: get most recent plan
+        specfact plan select --name main.bundle.yaml     # CI/CD: select by exact filename
+        specfact plan select --id abc123def456           # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    telemetry_metadata = {}
+    telemetry_metadata = {
+        "non_interactive": non_interactive,
+        "current": current,
+        "stages": stages,
+        "last": last,
+        "name": name is not None,
+        "plan_id": plan_id is not None,
+    }
 
     with telemetry.track_command("plan.select", telemetry_metadata) as record:
         print_section("SpecFact CLI - Plan Selection")
 
         # List all available plans
-        plans = SpecFactStructure.list_plans()
+        # Performance optimization: If --last N is specified, only process N+10 most recent files
+        # This avoids processing all 31 files when user only wants last 5
+        max_files_to_process = None
+        if last is not None:
+            # Process a few more files than requested to account for filtering
+            max_files_to_process = last + 10
+
+        plans = SpecFactStructure.list_plans(max_files=max_files_to_process)
 
         if not plans:
             print_warning("No plan bundles found in .specfact/plans/")
@@ -1431,18 +1490,156 @@ def select(
             print_info("  - specfact import from-code")
             raise typer.Exit(1)
 
+        # Apply filters
+        filtered_plans = plans.copy()
+
+        # Filter by current/active (non-interactive: auto-selects if single match)
+        if current:
+            filtered_plans = [p for p in filtered_plans if p.get("active", False)]
+            if not filtered_plans:
+                print_warning("No active plan found")
+                raise typer.Exit(1)
+            # Auto-select in non-interactive mode when --current is provided
+            if non_interactive and len(filtered_plans) == 1:
+                selected_plan = filtered_plans[0]
+                plan_name = str(selected_plan["name"])
+                SpecFactStructure.set_active_plan(plan_name)
+                record(
+                    {
+                        "plans_available": len(plans),
+                        "plans_filtered": len(filtered_plans),
+                        "selected_plan": plan_name,
+                        "features": selected_plan["features"],
+                        "stories": selected_plan["stories"],
+                        "auto_selected": True,
+                    }
+                )
+                print_success(f"Active plan (--current): {plan_name}")
+                print_info(f"  Features: {selected_plan['features']}")
+                print_info(f"  Stories: {selected_plan['stories']}")
+                print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+                raise typer.Exit(0)
+
+        # Filter by stages
+        if stages:
+            stage_list = [s.strip().lower() for s in stages.split(",")]
+            valid_stages = {"draft", "review", "approved", "released", "unknown"}
+            invalid_stages = [s for s in stage_list if s not in valid_stages]
+            if invalid_stages:
+                print_error(f"Invalid stage(s): {', '.join(invalid_stages)}")
+                print_info(f"Valid stages: {', '.join(sorted(valid_stages))}")
+                raise typer.Exit(1)
+            filtered_plans = [p for p in filtered_plans if str(p.get("stage", "unknown")).lower() in stage_list]
+
+        # Filter by last N (most recent first)
+        if last:
+            # Sort by modification time (most recent first) and take last N
+            # Handle None values by using empty string as fallback for sorting
+            filtered_plans = sorted(filtered_plans, key=lambda p: p.get("modified") or "", reverse=True)[:last]
+
+        if not filtered_plans:
+            print_warning("No plans match the specified filters")
+            raise typer.Exit(1)
+
+        # Handle --name flag (non-interactive selection by exact filename)
+        if name is not None:
+            non_interactive = True  # Force non-interactive when --name is used
+            plan_name = str(name)
+            # Add .bundle.yaml suffix if not present
+            if not plan_name.endswith(".bundle.yaml") and not plan_name.endswith(".yaml"):
+                plan_name = f"{plan_name}.bundle.yaml"
+
+            selected_plan = None
+            for p in plans:  # Search all plans, not just filtered
+                if p["name"] == plan_name:
+                    selected_plan = p
+                    break
+
+            if selected_plan is None:
+                print_error(f"Plan not found: {plan_name}")
+                raise typer.Exit(1)
+
+            # Set as active and exit
+            SpecFactStructure.set_active_plan(plan_name)
+            record(
+                {
+                    "plans_available": len(plans),
+                    "plans_filtered": len(filtered_plans),
+                    "selected_plan": plan_name,
+                    "features": selected_plan["features"],
+                    "stories": selected_plan["stories"],
+                    "selected_by": "name",
+                }
+            )
+            print_success(f"Active plan (--name): {plan_name}")
+            print_info(f"  Features: {selected_plan['features']}")
+            print_info(f"  Stories: {selected_plan['stories']}")
+            print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+            raise typer.Exit(0)
+
+        # Handle --id flag (non-interactive selection by content hash)
+        if plan_id is not None:
+            non_interactive = True  # Force non-interactive when --id is used
+            # Need to load plan bundles to get content_hash from summary
+            from pathlib import Path
+
+            from specfact_cli.utils.yaml_utils import load_yaml
+
+            selected_plan = None
+            plans_dir = Path(".specfact/plans")
+
+            for p in plans:
+                plan_file = plans_dir / str(p["name"])
+                if plan_file.exists():
+                    try:
+                        plan_data = load_yaml(plan_file)
+                        metadata = plan_data.get("metadata", {})
+                        summary = metadata.get("summary", {})
+                        content_hash = summary.get("content_hash")
+
+                        # Match by full hash or first 8 chars (short ID)
+                        if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
+                            selected_plan = p
+                            break
+                    except Exception:
+                        continue
+
+            if selected_plan is None:
+                print_error(f"Plan not found with ID: {plan_id}")
+                print_info("Tip: Use 'specfact plan select' to see available plans and their IDs")
+                raise typer.Exit(1)
+
+            # Set as active and exit
+            plan_name = str(selected_plan["name"])
+            SpecFactStructure.set_active_plan(plan_name)
+            record(
+                {
+                    "plans_available": len(plans),
+                    "plans_filtered": len(filtered_plans),
+                    "selected_plan": plan_name,
+                    "features": selected_plan["features"],
+                    "stories": selected_plan["stories"],
+                    "selected_by": "id",
+                }
+            )
+            print_success(f"Active plan (--id): {plan_name}")
+            print_info(f"  Features: {selected_plan['features']}")
+            print_info(f"  Stories: {selected_plan['stories']}")
+            print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+            raise typer.Exit(0)
+
         # If plan provided, try to resolve it
         if plan is not None:
-            # Try as number first
+            # Try as number first (using filtered list)
             if isinstance(plan, str) and plan.isdigit():
                 plan_num = int(plan)
-                if 1 <= plan_num <= len(plans):
-                    selected_plan = plans[plan_num - 1]
+                if 1 <= plan_num <= len(filtered_plans):
+                    selected_plan = filtered_plans[plan_num - 1]
                 else:
-                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(plans)}")
+                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(filtered_plans)}")
                     raise typer.Exit(1)
             else:
-                # Try as name
+                # Try as name (search in filtered list first, then all plans)
                 plan_name = str(plan)
                 # Remove .bundle.yaml suffix if present
                 if plan_name.endswith(".bundle.yaml"):
@@ -1450,21 +1647,31 @@ def select(
                 elif not plan_name.endswith(".yaml"):
                     plan_name = f"{plan_name}.bundle.yaml"
 
-                # Find matching plan
+                # Find matching plan in filtered list first
                 selected_plan = None
-                for p in plans:
+                for p in filtered_plans:
                     if p["name"] == plan_name or p["name"] == plan:
                         selected_plan = p
                         break
 
+                # If not found in filtered list, search all plans (for better error message)
+                if selected_plan is None:
+                    for p in plans:
+                        if p["name"] == plan_name or p["name"] == plan:
+                            print_warning(f"Plan '{plan}' exists but is filtered out by current options")
+                            print_info("Available filtered plans:")
+                            for i, p in enumerate(filtered_plans, 1):
+                                print_info(f"  {i}. {p['name']}")
+                            raise typer.Exit(1)
+
                 if selected_plan is None:
                     print_error(f"Plan not found: {plan}")
-                    print_info("Available plans:")
-                    for i, p in enumerate(plans, 1):
+                    print_info("Available filtered plans:")
+                    for i, p in enumerate(filtered_plans, 1):
                         print_info(f"  {i}. {p['name']}")
                     raise typer.Exit(1)
         else:
-            # Interactive selection - display numbered list
+            # Display numbered list
             console.print("\n[bold]Available Plans:[/bold]\n")
 
             # Create table with optimized column widths
@@ -1480,7 +1687,7 @@ def select(
             table.add_column("Stage", width=8, min_width=6)  # Reduced from 10 to 8 (draft/review/approved/released fit)
             table.add_column("Modified", style="dim", width=19, min_width=15)  # Slightly reduced
 
-            for i, p in enumerate(plans, 1):
+            for i, p in enumerate(filtered_plans, 1):
                 status = "[ACTIVE]" if p.get("active") else ""
                 plan_name = str(p["name"])
                 features_count = str(p["features"])
@@ -1501,27 +1708,42 @@ def select(
             console.print(table)
             console.print()
 
-            # Prompt for selection
-            selection = ""
-            try:
-                selection = prompt_text(f"Select a plan by number (1-{len(plans)}) or 'q' to quit: ").strip()
-
-                if selection.lower() in ("q", "quit", ""):
-                    print_info("Selection cancelled")
-                    raise typer.Exit(0)
-
-                plan_num = int(selection)
-                if not (1 <= plan_num <= len(plans)):
-                    print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(plans)}")
+            # Handle selection (interactive or non-interactive)
+            if non_interactive:
+                # Non-interactive mode: select first plan (or error if multiple)
+                if len(filtered_plans) == 1:
+                    selected_plan = filtered_plans[0]
+                    print_info(f"Non-interactive mode: auto-selecting plan '{selected_plan['name']}'")
+                else:
+                    print_error(
+                        f"Non-interactive mode requires exactly one plan, but {len(filtered_plans)} plans match filters"
+                    )
+                    print_info("Use --current, --last 1, or specify a plan name/number to select a single plan")
                     raise typer.Exit(1)
+            else:
+                # Interactive selection - prompt for selection
+                selection = ""
+                try:
+                    selection = prompt_text(
+                        f"Select a plan by number (1-{len(filtered_plans)}) or 'q' to quit: "
+                    ).strip()
 
-                selected_plan = plans[plan_num - 1]
-            except ValueError:
-                print_error(f"Invalid input: {selection}. Please enter a number.")
-                raise typer.Exit(1) from None
-            except KeyboardInterrupt:
-                print_warning("\nSelection cancelled")
-                raise typer.Exit(1) from None
+                    if selection.lower() in ("q", "quit", ""):
+                        print_info("Selection cancelled")
+                        raise typer.Exit(0)
+
+                    plan_num = int(selection)
+                    if not (1 <= plan_num <= len(filtered_plans)):
+                        print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(filtered_plans)}")
+                        raise typer.Exit(1)
+
+                    selected_plan = filtered_plans[plan_num - 1]
+                except ValueError:
+                    print_error(f"Invalid input: {selection}. Please enter a number.")
+                    raise typer.Exit(1) from None
+                except KeyboardInterrupt:
+                    print_warning("\nSelection cancelled")
+                    raise typer.Exit(1) from None
 
         # Set as active plan
         plan_name = str(selected_plan["name"])
@@ -1530,6 +1752,7 @@ def select(
         record(
             {
                 "plans_available": len(plans),
+                "plans_filtered": len(filtered_plans),
                 "selected_plan": plan_name,
                 "features": selected_plan["features"],
                 "stories": selected_plan["stories"],
@@ -1548,6 +1771,134 @@ def select(
         print_info("  - specfact plan add-story")
         print_info("  - specfact plan sync --shared")
         print_info("  - specfact sync spec-kit")
+
+
+@app.command("upgrade")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda all_plans: isinstance(all_plans, bool), "All plans must be bool")
+@require(lambda dry_run: isinstance(dry_run, bool), "Dry run must be bool")
+def upgrade(
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to specific plan bundle to upgrade (default: active plan)",
+    ),
+    all_plans: bool = typer.Option(
+        False,
+        "--all",
+        help="Upgrade all plan bundles in .specfact/plans/",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be upgraded without making changes",
+    ),
+) -> None:
+    """
+    Upgrade plan bundles to the latest schema version.
+
+    Migrates plan bundles from older schema versions to the current version.
+    This ensures compatibility with the latest features and performance optimizations.
+
+    Examples:
+        specfact plan upgrade                    # Upgrade active plan
+        specfact plan upgrade --plan path/to/plan.bundle.yaml  # Upgrade specific plan
+        specfact plan upgrade --all             # Upgrade all plans
+        specfact plan upgrade --all --dry-run   # Preview upgrades without changes
+    """
+    from specfact_cli.migrations.plan_migrator import PlanMigrator, get_current_schema_version
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    current_version = get_current_schema_version()
+    migrator = PlanMigrator()
+
+    print_section(f"Plan Bundle Upgrade (Schema {current_version})")
+
+    # Determine which plans to upgrade
+    plans_to_upgrade: list[Path] = []
+
+    if all_plans:
+        # Get all plan bundles
+        plans = SpecFactStructure.list_plans()
+        plans_dir = Path(".specfact/plans")
+        for plan_info in plans:
+            plan_path = plans_dir / str(plan_info["name"])
+            if plan_path.exists():
+                plans_to_upgrade.append(plan_path)
+    elif plan:
+        # Use specified plan
+        if not plan.exists():
+            print_error(f"Plan file not found: {plan}")
+            raise typer.Exit(1)
+        plans_to_upgrade.append(plan)
+    else:
+        # Use active plan
+        config_path = Path(".specfact/plans/config.yaml")
+        if config_path.exists():
+            import yaml
+
+            with config_path.open() as f:
+                config = yaml.safe_load(f) or {}
+            active_plan_name = config.get("active_plan")
+            if active_plan_name:
+                active_plan_path = Path(".specfact/plans") / active_plan_name
+                if active_plan_path.exists():
+                    plans_to_upgrade.append(active_plan_path)
+                else:
+                    print_error(f"Active plan not found: {active_plan_name}")
+                    raise typer.Exit(1)
+            else:
+                print_error("No active plan set. Use --plan to specify a plan or --all to upgrade all plans.")
+                raise typer.Exit(1)
+        else:
+            print_error("No plan configuration found. Use --plan to specify a plan or --all to upgrade all plans.")
+            raise typer.Exit(1)
+
+    if not plans_to_upgrade:
+        print_warning("No plans found to upgrade")
+        raise typer.Exit(0)
+
+    # Check and upgrade each plan
+    upgraded_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    for plan_path in plans_to_upgrade:
+        try:
+            needs_migration, reason = migrator.check_migration_needed(plan_path)
+            if not needs_migration:
+                print_info(f"✓ {plan_path.name}: {reason}")
+                skipped_count += 1
+                continue
+
+            if dry_run:
+                print_warning(f"Would upgrade: {plan_path.name} ({reason})")
+                upgraded_count += 1
+            else:
+                print_info(f"Upgrading: {plan_path.name} ({reason})...")
+                bundle, was_migrated = migrator.load_and_migrate(plan_path, dry_run=False)
+                if was_migrated:
+                    print_success(f"✓ Upgraded {plan_path.name} to schema {bundle.version}")
+                    upgraded_count += 1
+                else:
+                    print_info(f"✓ {plan_path.name}: Already up to date")
+                    skipped_count += 1
+        except Exception as e:
+            print_error(f"✗ Failed to upgrade {plan_path.name}: {e}")
+            error_count += 1
+
+    # Summary
+    print()
+    if dry_run:
+        print_info(f"Dry run complete: {upgraded_count} would be upgraded, {skipped_count} up to date")
+    else:
+        print_success(f"Upgrade complete: {upgraded_count} upgraded, {skipped_count} up to date")
+        if error_count > 0:
+            print_warning(f"{error_count} errors occurred")
+
+    if error_count > 0:
+        raise typer.Exit(1)
 
 
 @app.command("sync")
@@ -1937,6 +2288,7 @@ def promote(
                     analysis_scope=None,
                     entry_point=None,
                     external_dependencies=[],
+                    summary=None,
                 )
 
             bundle.metadata.stage = stage

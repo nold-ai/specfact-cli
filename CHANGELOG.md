@@ -9,6 +9,47 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.9]
+
+### Added (0.6.9)
+
+- **Plan Bundle Upgrade Command**
+  - New `specfact plan upgrade` command to migrate plan bundles from older schema versions to current version
+  - Supports upgrading active plan, specific plan, or all plans with `--all` flag
+  - `--dry-run` option to preview upgrades without making changes
+  - Automatic detection of schema version mismatches and missing summary metadata
+  - Migration path: 1.0 → 1.1 (adds summary metadata)
+
+- **Summary Metadata for Performance**
+  - Plan bundles now include summary metadata (`metadata.summary`) for fast access
+  - Summary includes: `features_count`, `stories_count`, `themes_count`, `releases_count`, `content_hash`, `computed_at`
+  - 44% performance improvement for `plan select` command (3.6s vs 6.5s)
+  - For large files (>10MB), only reads first 50KB to extract metadata
+  - Content hash enables integrity verification of plan bundles
+
+- **Enhanced Plan Select Command**
+  - New `--name NAME` flag: Select plan by exact filename (non-interactive)
+  - New `--id HASH` flag: Select plan by content hash ID (non-interactive)
+  - `--current` flag now auto-selects active plan in non-interactive mode (no prompts)
+  - Improved performance with summary metadata reading
+  - Better CI/CD support with non-interactive selection options
+
+### Changed (0.6.9)
+
+- **Plan Bundle Schema Version**
+  - Current schema version updated to 1.1 (from 1.0)
+  - New plan bundles automatically created with version 1.1
+  - Summary metadata automatically computed when creating/updating plan bundles
+  - `PlanGenerator` now sets version to current schema version automatically
+
+- **Plan Select Performance**
+  - Optimized `list_plans()` to read summary metadata from top of YAML files
+  - Fast path for large files: only reads first 50KB for metadata extraction
+  - Early filtering: when `--last N` is used, only processes N+10 most recent files
+  - Performance improved from 6.5s to 3.6s (44% faster) for typical workloads
+
+---
+
 ## [0.6.8] - 2025-11-20
 
 ### Fixed (0.6.8)

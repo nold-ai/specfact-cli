@@ -216,6 +216,7 @@ class CodeAnalyzer:
             analysis_scope="partial" if self.entry_point else "full",
             entry_point=str(self.entry_point.relative_to(self.repo_path)) if self.entry_point else None,
             external_dependencies=sorted(self.external_dependencies),
+            summary=None,
         )
 
         return PlanBundle(
