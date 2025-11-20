@@ -13,7 +13,7 @@ from icontract import ensure, require
 
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.models.plan import PlanBundle
-from specfact_cli.utils.yaml_utils import load_yaml
+from specfact_cli.utils.structured_io import load_structured_file
 
 
 # Current schema version
@@ -48,7 +48,7 @@ def load_plan_bundle(plan_path: Path) -> PlanBundle:
     Returns:
         PlanBundle instance (may be from older schema)
     """
-    plan_data = load_yaml(plan_path)
+    plan_data = load_structured_file(plan_path)
     return PlanBundle.model_validate(plan_data)
 
 
@@ -190,7 +190,7 @@ class PlanMigrator:
             Tuple of (needs_migration, reason)
         """
         try:
-            plan_data = load_yaml(plan_path)
+            plan_data = load_structured_file(plan_path)
             bundle_version = plan_data.get("version", "1.0")
             current_version = get_current_schema_version()
 

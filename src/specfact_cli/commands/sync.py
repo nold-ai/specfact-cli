@@ -18,6 +18,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from specfact_cli import runtime
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.sync.speckit_sync import SpecKitSync
 from specfact_cli.telemetry import telemetry
@@ -105,10 +106,7 @@ def _perform_sync_operation(
                 constitution_path.write_text(enriched_content, encoding="utf-8")
             else:
                 # Check if we're in an interactive environment
-                import sys
-
-                is_interactive = (hasattr(sys.stdin, "isatty") and sys.stdin.isatty()) and sys.stdin.isatty()
-                if is_interactive:
+                if runtime.is_interactive():
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
                     suggest_bootstrap = typer.confirm(
                         "Generate bootstrap constitution from repository analysis?",
@@ -589,7 +587,7 @@ def sync_spec_kit(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan in .specfact/plans)",
     ),
     overwrite: bool = typer.Option(
         False,

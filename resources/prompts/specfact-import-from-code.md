@@ -20,9 +20,11 @@ You **MUST** consider the user input before proceeding (if not empty).
   - Prompt: "What name would you like to use for this plan? (e.g., 'API Client v2', 'User Authentication', 'Payment Processing')"
   - Wait for user response
   - The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence
-  - Example: User provides "API Client v2" → saved as `api-client-v2.2025-11-04T23-19-31.bundle.yaml`
+  - Example: User provides "API Client v2" → saved as `api-client-v2.2025-11-04T23-19-31.bundle.<format>`
 
 **Step 2**: Proceed with import using the plan name (either provided or obtained from user).
+
+> **Format Note**: Use `specfact --output-format <yaml|json>` (or the command-level `--output-format` flag) to control whether plan bundles from this command are emitted in YAML or JSON. Defaults follow the global CLI setting for CI/CD.
 
 ## ⚠️ CRITICAL: CLI Usage Enforcement
 
@@ -145,7 +147,7 @@ specfact import from-code --repo <path> --name <name> --entry-point <subdirector
 
 **Capture from CLI output**:
 
-- CLI-generated plan bundle (`.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+- CLI-generated plan bundle (`.specfact/plans/<name>-<timestamp>.bundle.<format>`)
 - Analysis report (`.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - Metadata (timestamps, confidence scores, file paths)
 - Telemetry (execution time, file counts, validation results)
@@ -175,10 +177,10 @@ specfact import from-code --repo <path> --name <name> --entry-point <subdirector
 
 **Enrichment Report Location**:
 
-- Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.yaml`)
+- Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.<format>`)
 - Derive enrichment report path by:
-  - Taking the plan bundle filename (e.g., `specfact-import-test.2025-11-17T12-21-48.bundle.yaml`)
-  - Replacing `.bundle.yaml` with `.enrichment.md` (e.g., `specfact-import-test.2025-11-17T12-21-48.enrichment.md`)
+  - Taking the plan bundle filename (e.g., `specfact-import-test.2025-11-17T12-21-48.bundle.<format>`)
+  - Replacing `.bundle.<format>` with `.enrichment.md` (e.g., `specfact-import-test.2025-11-17T12-21-48.enrichment.md`)
   - Placing it in `.specfact/reports/enrichment/` directory
 - Full path example: `.specfact/reports/enrichment/specfact-import-test.2025-11-17T12-21-48.enrichment.md`
 - **Ensure the directory exists**: Create `.specfact/reports/enrichment/` if it doesn't exist
@@ -245,7 +247,7 @@ Extract arguments from user input:
 - `--repo PATH` - Repository path (default: current directory)
 - `--name NAME` - Custom plan name (will be sanitized for filesystem, optional, default: "auto-derived")
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
-- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/<name>-<timestamp>.bundle.<format>`)
 - `--report PATH` - Analysis report path (optional, default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - `--shadow-only` - Observe mode without enforcing (optional)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
@@ -281,7 +283,7 @@ specfact import from-code --repo <repo_path> --name <plan_name> --entry-point <s
 
 **Capture CLI output**:
 
-- Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
+- Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.<format>`
 - Analysis report path: `.specfact/reports/brownfield/analysis-<timestamp>.md`
 - Metadata: feature counts, story counts, average confidence, execution time
 - **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found during import)
@@ -333,10 +335,10 @@ The CLI automatically deduplicates features during import using normalized key m
    - Semantic insights and recommendations
 
 4. **Save enrichment report** to the proper location:
-   - Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
+   - Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
    - Derive enrichment report path by:
-     - Taking the plan bundle filename (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
-     - Replacing `.bundle.yaml` with `.enrichment.md` (e.g., `specfact-cli.2025-11-17T09-26-47.enrichment.md`)
+     - Taking the plan bundle filename (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
+     - Replacing `.bundle.<format>` with `.enrichment.md` (e.g., `specfact-cli.2025-11-17T09-26-47.enrichment.md`)
      - Placing it in `.specfact/reports/enrichment/` directory
    - Full path example: `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`
    - **Ensure the directory exists**: Create `.specfact/reports/enrichment/` if it doesn't exist
@@ -355,8 +357,8 @@ The CLI automatically deduplicates features during import using normalized key m
 
 1. **Save enrichment report** to the enrichment reports directory with a name that matches the plan bundle:
    - Location: `.specfact/reports/enrichment/`
-   - Naming: Use the same name and timestamp as the plan bundle, replacing `.bundle.yaml` with `.enrichment.md`
-   - Example: If plan bundle is `specfact-cli.2025-11-17T09-26-47.bundle.yaml`, save enrichment as `specfact-cli.2025-11-17T09-26-47.enrichment.md`
+   - Naming: Use the same name and timestamp as the plan bundle, replacing `.bundle.<format>` with `.enrichment.md`
+   - Example: If plan bundle is `specfact-cli.2025-11-17T09-26-47.bundle.<format>`, save enrichment as `specfact-cli.2025-11-17T09-26-47.enrichment.md`
    - Full path: `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`
 
 2. **Execute CLI with `--enrichment` flag**:
@@ -372,8 +374,8 @@ The CLI automatically deduplicates features during import using normalized key m
    - Adjust confidence scores
    - Add business context
    - Validate and write the enriched plan bundle as a **new file** with clear naming:
-     - Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml`
-     - Example: `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml`
+     - Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.<format>`
+     - Example: `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>`
      - The original plan bundle remains unchanged
      - The enriched plan is stored as a separate file for comparison and versioning
 
@@ -386,8 +388,8 @@ The CLI automatically deduplicates features during import using normalized key m
 **Enriched Plan Naming Convention**:
 
 - When enrichment is applied, the CLI creates a new enriched plan bundle with a clear label
-- Original plan: `<name>.<timestamp>.bundle.yaml` (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
-- Enriched plan: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml` (e.g., `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml`)
+- Original plan: `<name>.<timestamp>.bundle.<format>` (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
+- Enriched plan: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.<format>` (e.g., `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>`)
 - Both plans are stored in `.specfact/plans/` for comparison and versioning
 - The original plan remains unchanged, allowing you to compare before/after enrichment
 
@@ -418,8 +420,8 @@ If `--report` is provided, generate a Markdown import report:
 ```markdown
 ✓ Import complete!
 
-Original plan: specfact-cli.2025-11-17T09-26-47.bundle.yaml
-Enriched plan: specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml
+Original plan: specfact-cli.2025-11-17T09-26-47.bundle.<format>
+Enriched plan: specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>
 
 CLI Analysis Results:
 - Features identified: 19

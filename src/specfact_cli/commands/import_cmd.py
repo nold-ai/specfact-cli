@@ -15,7 +15,9 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from specfact_cli import runtime
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 
 
 app = typer.Typer(help="Import codebases and Spec-Kit projects to contract format")
@@ -182,7 +184,7 @@ def from_spec_kit(
 
 ## Generated Files
 - **Protocol**: `.specfact/protocols/workflow.protocol.yaml`
-- **Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+- **Plan Bundle**: `.specfact/plans/main bundle (yaml/json based on format settings)`
 - **Semgrep Rules**: `.semgrep/async-anti-patterns.yml`
 - **GitHub Action**: `.github/workflows/specfact-gate.yml`
 
@@ -198,7 +200,7 @@ def from_spec_kit(
 
         console.print("[bold green]✓[/bold green] Import complete!")
         console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")
-        console.print("[dim]Plan: .specfact/plans/main.bundle.yaml[/dim]")
+        console.print("[dim]Plan: .specfact/plans/main bundle (format based on settings)[/dim]")
         console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
         console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
 
@@ -236,7 +238,7 @@ def from_code(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output plan bundle path (default: .specfact/plans/<name>-<timestamp>.bundle.yaml)",
+        help="Output plan bundle path (default: .specfact/plans/<name>-<timestamp>.bundle.<format>)",
     ),
     shadow_only: bool = typer.Option(
         False,
@@ -275,6 +277,12 @@ def from_code(
         "--entry-point",
         help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories.",
     ),
+    output_format: StructuredFormat | None = typer.Option(
+        None,
+        "--output-format",
+        help="Plan bundle output format (yaml or json). Defaults to global --output-format.",
+        case_sensitive=False,
+    ),
 ) -> None:
     """
     Import plan bundle from existing codebase (one-way import).
@@ -310,6 +318,8 @@ def from_code(
     # Ensure .specfact structure exists in the repository being imported
     SpecFactStructure.ensure_structure(repo)
 
+    effective_format = output_format or runtime.get_output_format()
+
     # Use default paths if not specified (relative to repo)
     # If enrichment is provided, try to derive original plan path and create enriched copy
     original_plan_path: Path | None = None
@@ -320,9 +330,11 @@ def from_code(
             out = SpecFactStructure.get_enriched_plan_path(original_plan_path, base_path=repo)
         else:
             # Enrichment provided but original plan not found, use default naming
-            out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name)
+            out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name, format=effective_format)
     elif out is None:
-        out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name)
+        out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name, format=effective_format)
+    else:
+        out = out.with_name(SpecFactStructure.ensure_plan_filename(out.name, effective_format))
 
     if report is None:
         report = SpecFactStructure.get_brownfield_analysis_path(repo)
@@ -333,11 +345,14 @@ def from_code(
     if shadow_only:
         console.print("[yellow]→ Shadow mode - observe without enforcement[/yellow]")
 
+    plan_format = StructuredFormat.from_path(out) if out else effective_format
+
     telemetry_metadata = {
         "mode": mode.value,
         "execution_mode": routing_result.execution_mode,
         "files_analyzed": python_file_count,
         "shadow_mode": shadow_only,
+        "plan_format": plan_format.value,
     }
 
     with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
@@ -345,12 +360,10 @@ def from_code(
             # If enrichment is provided and original plan exists, load it instead of analyzing
             if enrichment and original_plan_path and original_plan_path.exists():
                 console.print(f"[dim]Loading original plan for enrichment: {original_plan_path.name}[/dim]")
-                import yaml
 
                 from specfact_cli.models.plan import PlanBundle
 
-                with original_plan_path.open() as f:
-                    plan_data = yaml.safe_load(f)
+                plan_data = load_structured_file(original_plan_path)
                 plan_bundle = PlanBundle.model_validate(plan_data)
                 total_stories = sum(len(f.stories) for f in plan_bundle.features)
                 console.print(
@@ -466,7 +479,7 @@ def from_code(
             # Generate plan file
             out.parent.mkdir(parents=True, exist_ok=True)
             generator = PlanGenerator()
-            generator.generate(plan_bundle, out)
+            generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
 
             console.print("[bold green]✓ Import complete![/bold green]")
             if enrichment and original_plan_path and original_plan_path.exists():
@@ -497,10 +510,7 @@ def from_code(
                     constitution_path.write_text(enriched_content, encoding="utf-8")
                 else:
                     # Check if we're in an interactive environment
-                    import sys
-
-                    is_interactive = (hasattr(sys.stdin, "isatty") and sys.stdin.isatty()) and sys.stdin.isatty()
-                    if is_interactive:
+                    if runtime.is_interactive():
                         console.print()
                         console.print(
                             "[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration"
@@ -595,7 +605,7 @@ def from_code(
 
                         # Regenerate plan with new stories
                         generator = PlanGenerator()
-                        generator.generate(plan_bundle, out)
+                        generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
                         console.print(
                             f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]"
                         )
@@ -636,7 +646,7 @@ def from_code(
                     if features_updated > 0:
                         # Regenerate plan with enhanced acceptance criteria
                         generator = PlanGenerator()
-                        generator.generate(plan_bundle, out)
+                        generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
                         console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
 
                     console.print("[green]✓ Spec-Kit enrichment complete[/green]")

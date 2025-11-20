@@ -15,6 +15,7 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli import runtime
 from specfact_cli.analyzers.constitution_evidence_extractor import ConstitutionEvidenceExtractor
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.protocol_generator import ProtocolGenerator
@@ -111,7 +112,7 @@ class SpecKitConverter:
         Convert Spec-Kit markdown artifacts to SpecFact plan bundle.
 
         Args:
-            output_path: Optional path to write plan bundle (default: .specfact/plans/main.bundle.yaml)
+            output_path: Optional path to write plan bundle (default: .specfact/plans/main.bundle.<format>)
 
         Returns:
             Generated PlanBundle model
@@ -168,11 +169,14 @@ class SpecKitConverter:
 
         # Write to file if output path provided
         if output_path:
+            output_path = output_path.with_name(SpecFactStructure.ensure_plan_filename(output_path.name))
             SpecFactStructure.ensure_structure(output_path.parent)
             self.plan_generator.generate(plan_bundle, output_path)
         else:
-            # Use default path - construct .specfact/plans/main.bundle.yaml
-            output_path = self.repo_path / ".specfact" / "plans" / "main.bundle.yaml"
+            # Use default path respecting current output format
+            output_path = SpecFactStructure.get_default_plan_path(
+                base_path=self.repo_path, preferred_format=runtime.get_output_format()
+            )
             SpecFactStructure.ensure_structure(self.repo_path)
             self.plan_generator.generate(plan_bundle, output_path)
 

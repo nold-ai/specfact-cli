@@ -113,12 +113,12 @@ Use your AI capabilities to understand the codebase:
 
 2. **Convert to YAML** using proper YAML formatting (2-space indentation, no flow style)
 
-3. **Write to file**: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
+3. **Write to file**: `.specfact/plans/<name>-<timestamp>.bundle.<format>`
    - If no name provided, ask user for a meaningful plan name (e.g., "API Client v2", "User Authentication", "Payment Processing")
    - Name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence
    - Use ISO 8601 timestamp format: `YYYY-MM-DDTHH-MM-SS`
    - Ensure directory exists: `.specfact/plans/`
-   - Example: `.specfact/plans/api-client-v2.2025-11-04T22-17-22.bundle.yaml`
+   - Example: `.specfact/plans/api-client-v2.2025-11-04T22-17-22.bundle.<format>`
 
 ### Step 3: Present Results
 

@@ -56,7 +56,7 @@ def bootstrap(
     This command generates a constitution in Spec-Kit format (`.specify/memory/constitution.md`)
     for compatibility with Spec-Kit artifacts and sync operations.
 
-    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) for internal
+    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.<format>`) for internal
     operations. Constitutions are only needed when syncing with Spec-Kit or working in Spec-Kit format.
 
     Analyzes the repository (README, pyproject.toml, .cursor/rules/, docs/rules/)
@@ -129,7 +129,7 @@ def enrich(
     This command enriches a constitution in Spec-Kit format (`.specify/memory/constitution.md`)
     for compatibility with Spec-Kit artifacts and sync operations.
 
-    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) for internal
+    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.<format>`) for internal
     operations. Constitutions are only needed when syncing with Spec-Kit or working in Spec-Kit format.
 
     Analyzes the repository and enriches the existing constitution with
@@ -219,7 +219,7 @@ def validate(
     This command validates a constitution in Spec-Kit format (`.specify/memory/constitution.md`)
     for compatibility with Spec-Kit artifacts and sync operations.
 
-    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) for internal
+    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.<format>`) for internal
     operations. Constitutions are only needed when syncing with Spec-Kit or working in Spec-Kit format.
 
     Checks if the constitution is complete (no placeholders, has principles,

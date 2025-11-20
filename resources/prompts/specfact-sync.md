@@ -131,7 +131,7 @@ Before running sync, ensure you have:
    - Optional: Run `/speckit.plan` and `/speckit.tasks` for complete artifacts
 
 3. **SpecFact Plan** (REQUIRED for bidirectional sync when syncing SpecFact → Spec-Kit):
-   - Must have a valid plan bundle at `.specfact/plans/main.bundle.yaml` (or specify with `--plan`)
+   - Must have a valid plan bundle at `.specfact/plans/main.bundle.<format>` (or specify with `--plan`)
 
 **Validation Errors:**
 

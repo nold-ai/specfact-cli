@@ -19,6 +19,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli import runtime
 from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.generators.plan_generator import PlanGenerator
@@ -40,6 +41,7 @@ from specfact_cli.utils import (
     prompt_list,
     prompt_text,
 )
+from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 from specfact_cli.validators.schema import validate_plan_bundle
 
 
@@ -59,12 +61,18 @@ def init(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output plan bundle path (default: .specfact/plans/main.bundle.yaml)",
+        help="Output plan bundle path (default: .specfact/plans/main bundle using current format)",
     ),
     scaffold: bool = typer.Option(
         True,
         "--scaffold/--no-scaffold",
         help="Create complete .specfact directory structure",
+    ),
+    output_format: StructuredFormat | None = typer.Option(
+        None,
+        "--output-format",
+        help="Plan bundle format for output (yaml or json). Defaults to global --output-format.",
+        case_sensitive=False,
     ),
 ) -> None:
     """
@@ -76,13 +84,16 @@ def init(
     Example:
         specfact plan init                     # Interactive with scaffold
         specfact plan init --no-interactive    # Minimal plan
-        specfact plan init --out .specfact/plans/feature-auth.bundle.yaml
+        specfact plan init --out .specfact/plans/feature-auth.bundle.json
     """
     from specfact_cli.utils.structure import SpecFactStructure
+
+    effective_format = output_format or runtime.get_output_format()
 
     telemetry_metadata = {
         "interactive": interactive,
         "scaffold": scaffold,
+        "output_format": effective_format.value,
     }
 
     with telemetry.track_command("plan.init", telemetry_metadata) as record:
@@ -99,11 +110,13 @@ def init(
 
         # Use default path if not specified
         if out is None:
-            out = SpecFactStructure.get_default_plan_path()
+            out = SpecFactStructure.get_default_plan_path(preferred_format=effective_format)
+        else:
+            out = out.with_name(SpecFactStructure.ensure_plan_filename(out.name, effective_format))
 
         if not interactive:
             # Non-interactive mode: create minimal plan
-            _create_minimal_plan(out)
+            _create_minimal_plan(out, effective_format)
             record({"plan_type": "minimal"})
             return
 
@@ -114,7 +127,7 @@ def init(
             # Generate plan file
             out.parent.mkdir(parents=True, exist_ok=True)
             generator = PlanGenerator()
-            generator.generate(plan, out)
+            generator.generate(plan, out, format=effective_format)
 
             # Record plan statistics
             record(
@@ -142,7 +155,7 @@ def init(
             raise typer.Exit(1) from e
 
 
-def _create_minimal_plan(out: Path) -> None:
+def _create_minimal_plan(out: Path, format: StructuredFormat) -> None:
     """Create a minimal plan bundle."""
     plan = PlanBundle(
         version="1.0",
@@ -155,7 +168,7 @@ def _create_minimal_plan(out: Path) -> None:
     )
 
     generator = PlanGenerator()
-    generator.generate(plan, out)
+    generator.generate(plan, out, format=format)
     print_success(f"Minimal plan created: {out}")
 
 
@@ -358,7 +371,7 @@ def add_feature(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -477,7 +490,7 @@ def add_story(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -633,7 +646,12 @@ def update_idea(
                 base_path = Path(".")
                 plans_dir = base_path / SpecFactStructure.PLANS
                 if plans_dir.exists():
-                    plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    plan_files = [
+                        p
+                        for p in plans_dir.glob("*.bundle.*")
+                        if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
+                    ]
+                    plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
                     if plan_files:
                         plan = plan_files[0]
                         print_info(f"Using latest plan: {plan}")
@@ -782,7 +800,7 @@ def update_feature(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -945,7 +963,7 @@ def update_story(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -1107,7 +1125,7 @@ def compare(
     manual: Path | None = typer.Option(
         None,
         "--manual",
-        help="Manual plan bundle path (default: .specfact/plans/main.bundle.yaml)",
+        help="Manual plan bundle path (default: active plan in .specfact/plans using current format)",
     ),
     auto: Path | None = typer.Option(
         None,
@@ -1141,7 +1159,7 @@ def compare(
     code-derived plan against the manual plan.
 
     Example:
-        specfact plan compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-<timestamp>.bundle.yaml
+        specfact plan compare --manual .specfact/plans/main.bundle.<format> --auto .specfact/plans/auto-derived-<timestamp>.bundle.<format>
         specfact plan compare --code-vs-plan  # Convenience alias
     """
     from specfact_cli.utils.structure import SpecFactStructure
@@ -1401,7 +1419,7 @@ def compare(
 def select(
     plan: str | None = typer.Argument(
         None,
-        help="Plan name or number to select (e.g., 'main.bundle.yaml' or '1')",
+        help="Plan name or number to select (e.g., 'main.bundle.<format>' or '1')",
     ),
     non_interactive: bool = typer.Option(
         False,
@@ -1427,7 +1445,7 @@ def select(
     name: str | None = typer.Option(
         None,
         "--name",
-        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.yaml')",
+        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.<format>')",
     ),
     plan_id: str | None = typer.Option(
         None,
@@ -1445,18 +1463,18 @@ def select(
         --current          Show only the currently active plan (non-interactive, auto-selects)
         --stages STAGES    Filter by stages (comma-separated: draft,review,approved,released)
         --last N           Show last N plans by modification time (most recent first)
-        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.yaml')
+        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.<format>')
         --id HASH          Select by content hash ID (non-interactive, from metadata.summary.content_hash)
 
     Example:
         specfact plan select                              # Interactive selection
         specfact plan select 1                           # Select by number
-        specfact plan select main.bundle.yaml            # Select by name (positional)
+        specfact plan select main.bundle.json            # Select by name (positional)
         specfact plan select --current                   # Show only active plan (auto-selects)
         specfact plan select --stages draft,review       # Filter by stages
         specfact plan select --last 5                    # Show last 5 plans
         specfact plan select --non-interactive --last 1  # CI/CD: get most recent plan
-        specfact plan select --name main.bundle.yaml     # CI/CD: select by exact filename
+        specfact plan select --name main.bundle.<format> # CI/CD: select by exact filename
         specfact plan select --id abc123def456           # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
@@ -1544,10 +1562,7 @@ def select(
         # Handle --name flag (non-interactive selection by exact filename)
         if name is not None:
             non_interactive = True  # Force non-interactive when --name is used
-            plan_name = str(name)
-            # Add .bundle.yaml suffix if not present
-            if not plan_name.endswith(".bundle.yaml") and not plan_name.endswith(".yaml"):
-                plan_name = f"{plan_name}.bundle.yaml"
+            plan_name = SpecFactStructure.ensure_plan_filename(str(name))
 
             selected_plan = None
             for p in plans:  # Search all plans, not just filtered
@@ -1583,8 +1598,6 @@ def select(
             # Need to load plan bundles to get content_hash from summary
             from pathlib import Path
 
-            from specfact_cli.utils.yaml_utils import load_yaml
-
             selected_plan = None
             plans_dir = Path(".specfact/plans")
 
@@ -1592,9 +1605,9 @@ def select(
                 plan_file = plans_dir / str(p["name"])
                 if plan_file.exists():
                     try:
-                        plan_data = load_yaml(plan_file)
-                        metadata = plan_data.get("metadata", {})
-                        summary = metadata.get("summary", {})
+                        plan_data = load_structured_file(plan_file)
+                        metadata = plan_data.get("metadata", {}) or {}
+                        summary = metadata.get("summary", {}) or {}
                         content_hash = summary.get("content_hash")
 
                         # Match by full hash or first 8 chars (short ID)
@@ -1640,12 +1653,7 @@ def select(
                     raise typer.Exit(1)
             else:
                 # Try as name (search in filtered list first, then all plans)
-                plan_name = str(plan)
-                # Remove .bundle.yaml suffix if present
-                if plan_name.endswith(".bundle.yaml"):
-                    plan_name = plan_name
-                elif not plan_name.endswith(".yaml"):
-                    plan_name = f"{plan_name}.bundle.yaml"
+                plan_name = SpecFactStructure.ensure_plan_filename(str(plan))
 
                 # Find matching plan in filtered list first
                 selected_plan = None
@@ -1664,12 +1672,12 @@ def select(
                                 print_info(f"  {i}. {p['name']}")
                             raise typer.Exit(1)
 
-                if selected_plan is None:
-                    print_error(f"Plan not found: {plan}")
-                    print_info("Available filtered plans:")
-                    for i, p in enumerate(filtered_plans, 1):
-                        print_info(f"  {i}. {p['name']}")
-                    raise typer.Exit(1)
+            if selected_plan is None:
+                print_error(f"Plan not found: {plan}")
+                print_info("Available filtered plans:")
+                for i, p in enumerate(filtered_plans, 1):
+                    print_info(f"  {i}. {p['name']}")
+                raise typer.Exit(1)
         else:
             # Display numbered list
             console.print("\n[bold]Available Plans:[/bold]\n")
@@ -1803,7 +1811,7 @@ def upgrade(
 
     Examples:
         specfact plan upgrade                    # Upgrade active plan
-        specfact plan upgrade --plan path/to/plan.bundle.yaml  # Upgrade specific plan
+        specfact plan upgrade --plan path/to/plan.bundle.<format>  # Upgrade specific plan
         specfact plan upgrade --all             # Upgrade all plans
         specfact plan upgrade --all --dry-run   # Preview upgrades without changes
     """
@@ -2022,7 +2030,7 @@ def promote(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
     validate: bool = typer.Option(
         True,
@@ -2470,7 +2478,7 @@ def review(
 
     Example:
         specfact plan review
-        specfact plan review --plan .specfact/plans/main.bundle.yaml
+        specfact plan review --plan .specfact/plans/main.bundle.<format>
         specfact plan review --max-questions 3 --category "Functional Scope"
         specfact plan review --list-questions  # Output questions as JSON
         specfact plan review --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
@@ -2510,7 +2518,12 @@ def review(
                 base_path = Path(".")
                 plans_dir = base_path / SpecFactStructure.PLANS
                 if plans_dir.exists():
-                    plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    plan_files = [
+                        p
+                        for p in plans_dir.glob("*.bundle.*")
+                        if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
+                    ]
+                    plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
                     if plan_files:
                         plan = plan_files[0]
                         print_info(f"Using latest plan: {plan}")

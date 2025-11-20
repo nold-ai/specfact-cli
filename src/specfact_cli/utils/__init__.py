@@ -27,18 +27,31 @@ from specfact_cli.utils.prompts import (
     prompt_list,
     prompt_text,
 )
+from specfact_cli.utils.structured_io import (
+    StructuredFormat,
+    dump_structured_file,
+    dumps_structured_data,
+    load_structured_file,
+    loads_structured_data,
+    structured_extension,
+)
 from specfact_cli.utils.yaml_utils import YAMLUtils, dump_yaml, load_yaml, string_to_yaml, yaml_to_string
 
 
 __all__ = [
     "GitOperations",
+    "StructuredFormat",
     "YAMLUtils",
     "console",
     "convert_feature_keys",
     "display_summary",
+    "dump_structured_file",
     "dump_yaml",
+    "dumps_structured_data",
     "find_feature_by_normalized_key",
+    "load_structured_file",
     "load_yaml",
+    "loads_structured_data",
     "normalize_feature_key",
     "print_error",
     "print_info",
@@ -51,6 +64,7 @@ __all__ = [
     "prompt_list",
     "prompt_text",
     "string_to_yaml",
+    "structured_extension",
     "to_classname_key",
     "to_sequential_key",
     "to_underscore_key",

@@ -950,7 +950,7 @@ If you see validation errors like "Input should be a valid string", check:
 ✓ Review complete!
 
 **Questions Asked**: 3
-**Plan Bundle**: `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.<format>`
 **Sections Touched**:
 - `features.FEATURE-001.acceptance`
 - `features.FEATURE-002.constraints`
@@ -978,7 +978,7 @@ If you see validation errors like "Input should be a valid string", check:
 ```markdown
 ✓ Review analysis complete!
 
-**Plan Bundle**: `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.<format>`
 **Status**: No critical ambiguities detected (all critical categories are Clear)
 
 **Coverage Summary**:
@@ -1118,15 +1118,15 @@ A plan is ready for promotion when:
 
    ```bash
    # Use sed to quote unquoted "Yes" values in YAML
-   sed -i "s/^      answer: Yes$/      answer: 'Yes'/" .specfact/plans/<plan>.bundle.yaml
-   sed -i "s/^      answer: No$/      answer: 'No'/" .specfact/plans/<plan>.bundle.yaml
+   sed -i "s/^      answer: Yes$/      answer: 'Yes'/" .specfact/plans/<plan>.bundle.<format>
+   sed -i "s/^      answer: No$/      answer: 'No'/" .specfact/plans/<plan>.bundle.<format>
    ```
 
 4. **Verify fix**:
 
    ```bash
    # Check that all answers are strings
-   python3 -c "import yaml; data = yaml.safe_load(open('.specfact/plans/<plan>.bundle.yaml')); print('All strings:', all(isinstance(q['answer'], str) for s in data['clarifications']['sessions'] for q in s['questions']))"
+   python3 -c "import yaml; data = yaml.safe_load(open('.specfact/plans/<plan>.bundle.<format>')); print('All strings:', all(isinstance(q['answer'], str) for s in data['clarifications']['sessions'] for q in s['questions']))"
    ```
 
 #### Error: "Invalid JSON in --answers"
@@ -1211,7 +1211,7 @@ A plan is ready for promotion when:
 
    ```bash
    # Check plan bundle YAML for story keys
-   grep -A 5 "key: FEATURE-001" .specfact/plans/<plan>.bundle.yaml | grep "key: STORY"
+   grep -A 5 "key: FEATURE-001" .specfact/plans/<plan>.bundle.<format> | grep "key: STORY"
    ```
 
 2. **Use correct story key** (case-sensitive, exact match required)

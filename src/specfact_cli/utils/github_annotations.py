@@ -15,6 +15,8 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.utils.structured_io import load_structured_file
+
 
 @beartype
 @require(lambda message: isinstance(message, str) and len(message) > 0, "Message must be non-empty string")
@@ -68,7 +70,10 @@ def create_annotation(
 
 @beartype
 @require(lambda report_path: report_path.exists(), "Report path must exist")
-@require(lambda report_path: report_path.suffix in (".yaml", ".yml"), "Report must be YAML file")
+@require(
+    lambda report_path: report_path.suffix in (".yaml", ".yml", ".json"),
+    "Report must be YAML or JSON file",
+)
 @require(lambda report_path: report_path.is_file(), "Report path must be a file")
 @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
 @ensure(lambda result: "checks" in result or "total_checks" in result, "Report must contain checks or total_checks")
@@ -86,10 +91,8 @@ def parse_repro_report(report_path: Path) -> dict[str, Any]:
         FileNotFoundError: If report file doesn't exist
         ValueError: If report is not valid YAML or doesn't match expected structure
     """
-    from specfact_cli.utils.yaml_utils import load_yaml
-
     try:
-        report = load_yaml(report_path)
+        report = load_structured_file(report_path)
         if not isinstance(report, dict):
             raise ValueError(f"Report must be a dictionary, got {type(report)}")
         return report

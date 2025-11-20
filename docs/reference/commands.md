@@ -26,6 +26,12 @@ specfact sync spec-kit --repo . --bidirectional --watch
 specfact repro --verbose
 ```
 
+### Global Flags
+
+- `--input-format {yaml,json}` - Override default structured input detection for CLI commands (defaults to YAML)
+- `--output-format {yaml,json}` - Control how plan bundles and reports are written (JSON is ideal for CI/copilot automations)
+- `--non-interactive/--interactive` - Force prompt behavior (overrides auto-detection from CI/CD vs Copilot environments)
+
 ### Commands by Workflow
 
 **Import & Analysis:**
@@ -188,7 +194,8 @@ specfact import from-code [OPTIONS]
 
 - `--repo PATH` - Path to repository to import (required)
 - `--name NAME` - Custom plan name (will be sanitized for filesystem, default: "auto-derived")
-- `--out PATH` - Output path for generated plan (default: `.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+- `--out PATH` - Output path for generated plan (default: `.specfact/plans/<name>-<timestamp>.bundle.<format>`)
+- `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--shadow-only` - Observe without blocking
 - `--report PATH` - Write import report
@@ -274,6 +281,8 @@ When working with multiple projects in a single repository, Spec-Kit integration
 
 Create and manage contract-driven development plans.
 
+> Plan commands respect both `.bundle.yaml` and `.bundle.json`. Use `--output-format {yaml,json}` (or the global `specfact --output-format`) to control serialization.
+
 #### `plan init`
 
 Initialize a new plan bundle:
@@ -286,7 +295,7 @@ specfact plan init [OPTIONS]
 
 - `--interactive` - Interactive wizard (recommended)
 - `--template NAME` - Use template (default, minimal, full)
-- `--out PATH` - Output path (default: `.specfact/plans/main.bundle.yaml`)
+- `--out PATH` - Output path (default: `.specfact/plans/main bundle` following the current `--output-format`)
 
 **Example:**
 

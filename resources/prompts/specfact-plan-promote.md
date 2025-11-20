@@ -118,7 +118,7 @@ specfact plan select --last 5                     # Show last 5 plans
 
 **This command will**:
 
-- Scan `.specfact/plans/` for all `*.bundle.yaml` files
+- Scan `.specfact/plans/` for all `*.bundle.<format>` files
 - Extract metadata for each plan (name, features, stories, **stage**, modified date, active status)
 - Display a numbered table with all available plans including **current stage** (before the interactive prompt)
 
@@ -131,9 +131,9 @@ specfact plan select --last 5                     # Show last 5 plans
 
 | # | Status | Plan Name | Features | Stories | Stage | Modified |
 |---|--------|-----------|----------|---------|-------|----------|
-| 1 | | specfact-cli.2025-11-17T08-52-30.bundle.yaml | 32 | 80 | draft | 2025-11-17T08:52:30 |
-| 2 | [ACTIVE] | main.bundle.yaml | 62 | 73 | approved | 2025-11-17T00:16:00 |
-| 3 | | auto-derived.2025-11-16T23-44-17.bundle.yaml | 19 | 45 | draft | 2025-11-16T23:44:17 |
+| 1 | | specfact-cli.2025-11-17T08-52-30.bundle.<format> | 32 | 80 | draft | 2025-11-17T08:52:30 |
+| 2 | [ACTIVE] | main.bundle.<format> | 62 | 73 | approved | 2025-11-17T00:16:00 |
+| 3 | | auto-derived.2025-11-16T23-44-17.bundle.<format> | 19 | 45 | draft | 2025-11-16T23:44:17 |
 ```
 
 **After showing the list, extract and display detailed information for each plan** so the user can make an informed decision:
@@ -141,19 +141,19 @@ specfact plan select --last 5                     # Show last 5 plans
 ```markdown
 **Plan Details**:
 
-1. **specfact-cli.2025-11-17T08-52-30.bundle.yaml**
+1. **specfact-cli.2025-11-17T08-52-30.bundle.<format>**
    - Features: 32
    - Stories: 80
    - Stage: draft
    - Modified: 2025-11-17T08:52:30
 
-2. **main.bundle.yaml** [ACTIVE]
+2. **main.bundle.<format>** [ACTIVE]
    - Features: 62
    - Stories: 73
    - Stage: approved
    - Modified: 2025-11-17T00:16:00
 
-3. **auto-derived.2025-11-16T23-44-17.bundle.yaml**
+3. **auto-derived.2025-11-16T23-44-17.bundle.<format>**
    - Features: 19
    - Stories: 45
    - Stage: draft
@@ -167,7 +167,7 @@ specfact plan select --last 5                     # Show last 5 plans
 - Target stage (draft, review, approved, or released) - infer from context if not explicit
 - Plan selection - can be:
   - Plan number from the list (e.g., "1", "2", "3")
-  - Plan name (e.g., "main.bundle.yaml", "specfact-cli.2025-11-17T08-52-30.bundle.yaml")
+  - Plan name (e.g., "main.bundle.<format>", "specfact-cli.2025-11-17T08-52-30.bundle.<format>")
   - Special cases: "main plan", "active plan", "last brownfield"
 - Validation preference (default: yes)
 - Force promotion (default: no)
@@ -186,7 +186,7 @@ specfact plan select <plan_number>
 This command will output the plan details including the stage, for example:
 
 ```text
-Active plan set to: specfact-import-test-v2.2025-11-17T13-53-31.bundle.yaml
+Active plan set to: specfact-import-test-v2.2025-11-17T13-53-31.bundle.<format>
   Features: 44
   Stories: 101
   Stage: review
@@ -194,7 +194,7 @@ Active plan set to: specfact-import-test-v2.2025-11-17T13-53-31.bundle.yaml
 
 **Special cases to handle**:
 
-- **"main plan"** or **"default plan"**: Use `.specfact/plans/main.bundle.yaml`
+- **"main plan"** or **"default plan"**: Use `.specfact/plans/main.bundle.<format>`
 - **"active plan"**: Use the plan marked as `[ACTIVE]` in the list
 - **"last brownfield"** or **"last imported"**: Find the latest file by modification date from the CLI table
 - **Missing target stage**: Infer next logical stage (draft→review→approved→released) based on current stage from CLI output
@@ -230,9 +230,9 @@ If still unclear, ask:
 
 **Resolve the plan selection to an actual file path**:
 
-- **If user selected a number**: Use the plan name from the CLI table (e.g., plan #1 → `specfact-cli.2025-11-17T08-52-30.bundle.yaml`)
-- **If user selected a plan name**: Use it directly (may need to add `.bundle.yaml` suffix if missing)
-- **If user selected "main plan"**: Use `.specfact/plans/main.bundle.yaml`
+- **If user selected a number**: Use the plan name from the CLI table (e.g., plan #1 → `specfact-cli.2025-11-17T08-52-30.bundle.<format>`)
+- **If user selected a plan name**: Use it directly (may need to add `.bundle.<format>` suffix if missing)
+- **If user selected "main plan"**: Use `.specfact/plans/main.bundle.<format>`
 - **If user selected "active plan"**: Use the plan marked as `[ACTIVE]` from the CLI table
 - **If user selected "last brownfield"**: Use the plan with the latest modification date from the CLI table
 
@@ -315,7 +315,7 @@ specfact plan promote --stage <target_stage> --plan <plan_path> [--validate]
 ```markdown
 ✓ Plan Promotion Successful
 
-**Plan**: `.specfact/plans/auto-derived-2025-11-04T23-00-41.bundle.yaml`
+**Plan**: `.specfact/plans/auto-derived-2025-11-04T23-00-41.bundle.<format>`
 **Stage**: draft → review
 **Promoted at**: 2025-11-04T22:02:43.478499+00:00
 **Promoted by**: dom
@@ -336,7 +336,7 @@ specfact plan promote --stage <target_stage> --plan <plan_path> [--validate]
 ```markdown
 ❌ Plan Promotion Failed
 
-**Plan**: `.specfact/plans/auto-derived-2025-11-04T23-00-41.bundle.yaml`
+**Plan**: `.specfact/plans/auto-derived-2025-11-04T23-00-41.bundle.<format>`
 **Current Stage**: draft
 **Target Stage**: review
 

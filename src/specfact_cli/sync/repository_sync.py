@@ -18,6 +18,7 @@ from icontract import ensure, require
 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.models.plan import PlanBundle
+from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.validators.schema import validate_plan_bundle
 
 
@@ -217,7 +218,7 @@ class RepositorySync:
         deviations: list[dict[str, Any]] = []
 
         # Load manual plan
-        manual_plan_file = target / "plans" / "main.bundle.yaml"
+        manual_plan_file = SpecFactStructure.get_default_plan_path(base_path=target)
         if not manual_plan_file.exists():
             return deviations
 

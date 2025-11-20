@@ -93,16 +93,16 @@ Compare a manual plan bundle with an auto-derived plan bundle to detect deviatio
    specfact plan select --non-interactive --last 1
    ```
 
-**If user input contains plan names** (e.g., "main.bundle.yaml vs auto-derived.bundle.yaml"):
+**If user input contains plan names** (e.g., "main.bundle.<format> vs auto-derived.bundle.<format>"):
 
-- Use the plan names directly (may need to add `.bundle.yaml` suffix if missing)
+- Use the plan names directly (may need to add `.bundle.<format>` suffix if missing)
 - Verify paths exist by attempting to use them with the CLI
 
 **If arguments provided as paths**: Use them directly.
 
 **If arguments missing**: Ask user interactively for each missing argument and **WAIT for their response**:
 
-1. **Manual plan path**: "Which manual plan to compare? (Enter plan number, plan name, or path. Default: .specfact/plans/main.bundle.yaml)"
+1. **Manual plan path**: "Which manual plan to compare? (Enter plan number, plan name, or path. Default: .specfact/plans/main.bundle.<format>)"
    - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
 
 2. **Auto plan path**: "Which auto-derived plan to compare? (Enter plan number, plan name, or path. Default: latest in .specfact/plans/)"
@@ -141,7 +141,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 
 **Arguments:**
 
-- `--manual PATH` - Manual plan bundle path (default: `.specfact/plans/main.bundle.yaml`) - **ASK USER if default not found**
+- `--manual PATH` - Manual plan bundle path (default: `.specfact/plans/main.bundle.<format>`) - **ASK USER if default not found**
 - `--auto PATH` - Auto-derived plan bundle path (default: latest in `.specfact/reports/brownfield/`) - **ASK USER if default not found**
 - `--format {markdown|json|yaml}` - Output format (default: `markdown`) - **ASK USER if not specified**
 - `--out PATH` - Output file path (optional, default: auto-generated in `.specfact/reports/comparison/`)
@@ -187,8 +187,8 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
      specfact plan select --non-interactive --last 1
      ```
 
-- **If user input contains plan names** (e.g., "main.bundle.yaml vs auto-derived.bundle.yaml"):
-  - Use plan names directly (may need to add `.bundle.yaml` suffix if missing)
+- **If user input contains plan names** (e.g., "main.bundle.<format> vs auto-derived.bundle.<format>"):
+  - Use plan names directly (may need to add `.bundle.<format>` suffix if missing)
   - Construct full path: `.specfact/plans/<plan_name>`
 
 - **If user input contains full paths**: Use them directly
@@ -196,7 +196,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 **Step 2**: Resolve manual plan path.
 
 - **If plan number/name provided**: Use CLI to resolve (see Step 1)
-- **If missing**: Check if default path (`.specfact/plans/main.bundle.yaml`) exists using CLI
+- **If missing**: Check if default path (`.specfact/plans/main.bundle.<format>`) exists using CLI
   - **Verify using CLI**: Attempt to use the path with `specfact plan compare` - if it fails, the file doesn't exist
   - **If not exists**: Ask user and **WAIT**:
 
@@ -280,13 +280,13 @@ specfact plan compare --manual <MANUAL_PATH> --auto <AUTO_PATH> --format <FORMAT
 
 **Example**: If user said "19 vs 20", and CLI resolved them to:
 
-- Plan 19: `specfact-import-test-v2.2025-11-17T13-53-31.bundle.yaml`
-- Plan 20: `specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.yaml`
+- Plan 19: `specfact-import-test-v2.2025-11-17T13-53-31.bundle.<format>`
+- Plan 20: `specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.<format>`
 
 Then execute:
 
 ```bash
-specfact plan compare --manual .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.bundle.yaml --auto .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.yaml
+specfact plan compare --manual .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.bundle.<format> --auto .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.<format>
 ```
 
 **Capture CLI output**:
@@ -303,14 +303,14 @@ specfact plan compare --manual .specfact/plans/specfact-import-test-v2.2025-11-1
 ```bash
 SpecFact CLI - Plan Comparator
 
-Manual Plan: .specfact/plans/main.bundle.yaml
-Auto Plan: .specfact/reports/brownfield/auto-derived-2025-11-02T12-00-00.bundle.yaml
+Manual Plan: .specfact/plans/main.bundle.<format>
+Auto Plan: .specfact/reports/brownfield/auto-derived-2025-11-02T12-00-00.bundle.<format>
 Total Deviations: 15
 
 Comparison Results
 
-Manual Plan: .specfact/plans/main.bundle.yaml
-Auto Plan: .specfact/reports/brownfield/auto-derived-2025-11-02T12-00-00.bundle.yaml
+Manual Plan: .specfact/plans/main.bundle.<format>
+Auto Plan: .specfact/reports/brownfield/auto-derived-2025-11-02T12-00-00.bundle.<format>
 Total Deviations: 15
 
 Deviation Summary:
@@ -463,8 +463,8 @@ Create structured report based on format:
 ```markdown
 # Plan Comparison Report
 
-**Manual Plan**: `/path/to/manual.bundle.yaml`
-**Auto Plan**: `/path/to/auto.bundle.yaml`
+**Manual Plan**: `/path/to/manual.bundle.<format>`
+**Auto Plan**: `/path/to/auto.bundle.<format>`
 **Timestamp**: `2025-11-02T12:00:00Z`
 **Total Deviations**: `15`
 
@@ -496,8 +496,8 @@ Create structured report based on format:
 
 ```json
 {
-  "manual_plan": "/path/to/manual.bundle.yaml",
-  "auto_plan": "/path/to/auto.bundle.yaml",
+  "manual_plan": "/path/to/manual.bundle.<format>",
+  "auto_plan": "/path/to/auto.bundle.<format>",
   "timestamp": "2025-11-02T12:00:00Z",
   "total_deviations": 15,
   "severity_counts": {

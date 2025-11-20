@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Structured JSON/YAML Controls**
+  - New global `specfact --input-format/--output-format` options propagate preferred serialization across commands
+  - `specfact plan init` and `specfact import from-code` now expose `--output-format` overrides for per-command control
+  - `PlanGenerator` and `ReportGenerator` can emit JSON or YAML, and `validate_plan_bundle` / `FSMValidator` load either automatically
+  - Added regression tests covering JSON plan generation and validation to protect CI workflows
+
+### Changed
+
+- **CLI + Docs**
+  - Default plan-path helpers/search now detect both `.bundle.yaml` and `.bundle.json`
+  - Repository/prompt docs updated to describe the new format flags and reference `.bundle.<format>` placeholders for slash-commands
+  - `SpecFactStructure` utilities now emit enriched/brownfield filenames preserving the original format so Copilot/CI stay in sync
+
+---
+
 ## [0.6.9]
 
 ### Added (0.6.9)

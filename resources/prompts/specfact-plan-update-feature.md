@@ -66,7 +66,7 @@ Update an existing feature's metadata in a plan bundle. This command allows upda
 
 The `specfact plan update-feature` command:
 
-1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.yaml` or active plan)
+1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.<format>` or active plan)
 2. **Validates** the plan bundle structure
 3. **Finds** the feature by key
 4. **Updates** only the specified fields (all parameters except key are optional)
@@ -86,7 +86,7 @@ The `specfact plan update-feature` command:
 - Constraints (optional, comma-separated)
 - Confidence (optional, 0.0-1.0)
 - Draft status (optional, boolean flag: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged)
-- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.yaml`)
+- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.<format>`)
 
 **WAIT STATE**: If feature key is missing, ask the user:
 
@@ -194,7 +194,7 @@ specfact plan update-feature \
 
 **Feature**: FEATURE-001
 **Updated Fields**: title, outcomes, acceptance, confidence
-**Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/main.bundle.<format>`
 
 **Updated Metadata**:
 - Title: Updated Title

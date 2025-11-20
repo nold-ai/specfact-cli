@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Story
-from specfact_cli.utils.yaml_utils import dump_yaml, load_yaml
+from specfact_cli.utils.yaml_utils import load_yaml
 from specfact_cli.validators.schema import SchemaValidator, validate_plan_bundle
 
 
@@ -106,6 +107,19 @@ class TestPlanBundleWorkflow:
         # Should pass validation
         assert report.passed is True
         assert len(report.deviations) == 0
+
+    def test_validate_plan_bundle_from_json_path(self, sample_plan_path: Path, tmp_path: Path):
+        """Ensure validate_plan_bundle accepts JSON plan bundles."""
+        plan_data = load_yaml(sample_plan_path)
+        json_path = tmp_path / "plan.bundle.json"
+        json_path.write_text(json.dumps(plan_data), encoding="utf-8")
+
+        is_valid, error, parsed = validate_plan_bundle(json_path)
+
+        assert is_valid is True
+        assert error is None
+        assert parsed is not None
+        assert parsed.idea is not None
 
     def test_validate_with_json_schema(self, sample_plan_path: Path, tmp_path: Path):
         """Test validating a plan bundle with JSON Schema."""
