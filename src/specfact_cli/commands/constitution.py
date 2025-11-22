@@ -19,7 +19,9 @@ from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 from specfact_cli.utils import print_error, print_info, print_success
 
 
-app = typer.Typer(help="Manage project constitutions")
+app = typer.Typer(
+    help="Manage project constitutions (Spec-Kit compatibility layer). Generates and validates constitutions at .specify/memory/constitution.md for Spec-Kit format compatibility."
+)
 console = Console()
 
 
@@ -49,7 +51,13 @@ def bootstrap(
     ),
 ) -> None:
     """
-    Generate bootstrap constitution from repository analysis.
+    Generate bootstrap constitution from repository analysis (Spec-Kit compatibility).
+
+    This command generates a constitution in Spec-Kit format (`.specify/memory/constitution.md`)
+    for compatibility with Spec-Kit artifacts and sync operations.
+
+    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.<format>`) for internal
+    operations. Constitutions are only needed when syncing with Spec-Kit or working in Spec-Kit format.
 
     Analyzes the repository (README, pyproject.toml, .cursor/rules/, docs/rules/)
     to extract project metadata, development principles, and quality standards,
@@ -116,7 +124,13 @@ def enrich(
     ),
 ) -> None:
     """
-    Auto-enrich existing constitution with repository context.
+    Auto-enrich existing constitution with repository context (Spec-Kit compatibility).
+
+    This command enriches a constitution in Spec-Kit format (`.specify/memory/constitution.md`)
+    for compatibility with Spec-Kit artifacts and sync operations.
+
+    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.<format>`) for internal
+    operations. Constitutions are only needed when syncing with Spec-Kit or working in Spec-Kit format.
 
     Analyzes the repository and enriches the existing constitution with
     additional principles and details extracted from repository context.
@@ -200,7 +214,13 @@ def validate(
     ),
 ) -> None:
     """
-    Validate constitution completeness.
+    Validate constitution completeness (Spec-Kit compatibility).
+
+    This command validates a constitution in Spec-Kit format (`.specify/memory/constitution.md`)
+    for compatibility with Spec-Kit artifacts and sync operations.
+
+    **Note**: SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.<format>`) for internal
+    operations. Constitutions are only needed when syncing with Spec-Kit or working in Spec-Kit format.
 
     Checks if the constitution is complete (no placeholders, has principles,
     has governance section, etc.).

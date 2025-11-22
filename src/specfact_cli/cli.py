@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Annotated
 
 
 # Patch shellingham before Typer imports it to normalize "sh" to "bash"
@@ -49,11 +50,12 @@ from icontract import ViolationError
 from rich.console import Console
 from rich.panel import Panel
 
-from specfact_cli import __version__
+from specfact_cli import __version__, runtime
 
 # Import command modules
 from specfact_cli.commands import constitution, enforce, import_cmd, init, plan, repro, sync
 from specfact_cli.modes import OperationalMode, detect_mode
+from specfact_cli.utils.structured_io import StructuredFormat
 
 
 # Map shell names for completion support
@@ -101,12 +103,57 @@ app = typer.Typer(
     help="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},  # Add -h as alias for --help
 )
 
 console = Console()
 
 # Global mode context (set by --mode flag or auto-detected)
 _current_mode: OperationalMode | None = None
+
+# Global banner flag (set by --no-banner flag)
+_show_banner: bool = True
+
+
+def print_banner() -> None:
+    """Print SpecFact CLI ASCII art banner with smooth gradient effect."""
+    from rich.text import Text
+
+    banner_lines = [
+        "",
+        "  ███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗",
+        "  ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝",
+        "  ███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   ",
+        "  ╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   ",
+        "  ███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
+        "  ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
+        "",
+        "        Spec→Contract→Sentinel for Contract-Driven Development",
+    ]
+
+    # Smooth gradient from bright cyan (top) to blue (bottom) - 6 lines for ASCII art
+    # Using Rich's gradient colors: bright_cyan → cyan → bright_blue → blue
+    gradient_colors = [
+        "black",  # Empty line
+        "blue",  # Line 1 - darkest at top
+        "blue",  # Line 2
+        "cyan",  # Line 3
+        "cyan",  # Line 4
+        "white",  # Line 5
+        "white",  # Line 6 - lightest at bottom
+    ]
+
+    for i, line in enumerate(banner_lines):
+        if line.strip():  # Only apply gradient to non-empty lines
+            if i < len(gradient_colors):
+                # Apply gradient color to ASCII art lines
+                text = Text(line, style=f"bold {gradient_colors[i]}")
+                console.print(text)
+            else:
+                # Tagline in cyan (after empty line)
+                console.print(line, style="cyan")
+        else:
+            console.print()  # Empty line
 
 
 def version_callback(value: bool) -> None:
@@ -126,6 +173,7 @@ def mode_callback(value: str | None) -> None:
             console.print(f"[bold red]✗[/bold red] Invalid mode: {value}")
             console.print("Valid modes: cicd, copilot")
             raise typer.Exit(1) from None
+        runtime.set_operational_mode(_current_mode)
 
 
 @beartype
@@ -141,6 +189,7 @@ def get_current_mode() -> OperationalMode:
         return _current_mode
     # Auto-detect if not explicitly set
     _current_mode = detect_mode(explicit_mode=None)
+    runtime.set_operational_mode(_current_mode)
     return _current_mode
 
 
@@ -155,12 +204,40 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
+    no_banner: bool = typer.Option(
+        False,
+        "--no-banner",
+        help="Hide ASCII art banner (useful for CI/CD)",
+    ),
     mode: str | None = typer.Option(
         None,
         "--mode",
         callback=mode_callback,
         help="Operational mode: cicd (fast, deterministic) or copilot (enhanced, interactive)",
     ),
+    input_format: Annotated[
+        StructuredFormat,
+        typer.Option(
+            "--input-format",
+            help="Default structured input format (yaml or json)",
+            case_sensitive=False,
+        ),
+    ] = StructuredFormat.YAML,
+    output_format: Annotated[
+        StructuredFormat,
+        typer.Option(
+            "--output-format",
+            help="Default structured output format for generated files (yaml or json)",
+            case_sensitive=False,
+        ),
+    ] = StructuredFormat.YAML,
+    interaction: Annotated[
+        bool | None,
+        typer.Option(
+            "--non-interactive/--interactive",
+            help="Force interaction mode (default auto based on CI/CD detection)",
+        ),
+    ] = None,
 ) -> None:
     """
     SpecFact CLI - Spec→Contract→Sentinel for contract-driven development.
@@ -173,6 +250,19 @@ def main(
     - Auto-detect from environment (CoPilot API, IDE integration)
     - Default to CI/CD mode
     """
+    global _show_banner
+    # Set banner flag based on --no-banner option
+    _show_banner = not no_banner
+
+    runtime.configure_io_formats(input_format=input_format, output_format=output_format)
+    runtime.set_non_interactive_override(interaction)
+
+    # Show help if no command provided (avoids user confusion)
+    if ctx.invoked_subcommand is None:
+        # Show help by calling Typer's help callback
+        ctx.get_help()
+        raise typer.Exit()
+
     # Store mode in context for commands to access
     if ctx.obj is None:
         ctx.obj = {}
@@ -196,7 +286,11 @@ def hello() -> None:
 
 
 # Register command groups
-app.add_typer(constitution.app, name="constitution", help="Manage project constitutions")
+app.add_typer(
+    constitution.app,
+    name="constitution",
+    help="Manage project constitutions (Spec-Kit compatibility layer)",
+)
 app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
 app.add_typer(plan.app, name="plan", help="Manage development plans")
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
@@ -209,6 +303,13 @@ def cli_main() -> None:
     """Entry point for the CLI application."""
     # Normalize shell names in argv for Typer's built-in completion commands
     normalize_shell_in_argv()
+
+    # Check if --no-banner flag is present (before Typer processes it)
+    no_banner_requested = "--no-banner" in sys.argv
+
+    # Show banner by default unless --no-banner is specified
+    # Banner shows for: no args, --help/-h, or any command (unless --no-banner)
+    show_banner = not no_banner_requested
 
     # Intercept Typer's shell detection for --show-completion and --install-completion
     # when no shell is provided (auto-detection case)
@@ -239,6 +340,12 @@ def cli_main() -> None:
                 os.environ["_SPECFACT_COMPLETE"] = f"{mapped_shell}_source"
             else:
                 os.environ["_SPECFACT_COMPLETE"] = mapped_shell
+
+    # Show banner by default (unless --no-banner is specified)
+    # Only show once, before Typer processes the command
+    if show_banner:
+        print_banner()
+        console.print()  # Empty line after banner
 
     try:
         app()

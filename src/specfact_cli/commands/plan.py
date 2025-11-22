@@ -11,7 +11,7 @@ import json
 from contextlib import suppress
 from datetime import UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import typer
 from beartype import beartype
@@ -19,6 +19,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli import runtime
 from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.generators.plan_generator import PlanGenerator
@@ -40,6 +41,7 @@ from specfact_cli.utils import (
     prompt_list,
     prompt_text,
 )
+from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 from specfact_cli.validators.schema import validate_plan_bundle
 
 
@@ -59,12 +61,18 @@ def init(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output plan bundle path (default: .specfact/plans/main.bundle.yaml)",
+        help="Output plan bundle path (default: .specfact/plans/main bundle using current format)",
     ),
     scaffold: bool = typer.Option(
         True,
         "--scaffold/--no-scaffold",
         help="Create complete .specfact directory structure",
+    ),
+    output_format: Optional[StructuredFormat] = typer.Option(
+        None,
+        "--output-format",
+        help="Plan bundle format for output (yaml or json). Defaults to global --output-format.",
+        case_sensitive=False,
     ),
 ) -> None:
     """
@@ -76,13 +84,16 @@ def init(
     Example:
         specfact plan init                     # Interactive with scaffold
         specfact plan init --no-interactive    # Minimal plan
-        specfact plan init --out .specfact/plans/feature-auth.bundle.yaml
+        specfact plan init --out .specfact/plans/feature-auth.bundle.json
     """
     from specfact_cli.utils.structure import SpecFactStructure
+
+    effective_format = output_format or runtime.get_output_format()
 
     telemetry_metadata = {
         "interactive": interactive,
         "scaffold": scaffold,
+        "output_format": effective_format.value,
     }
 
     with telemetry.track_command("plan.init", telemetry_metadata) as record:
@@ -99,11 +110,13 @@ def init(
 
         # Use default path if not specified
         if out is None:
-            out = SpecFactStructure.get_default_plan_path()
+            out = SpecFactStructure.get_default_plan_path(preferred_format=effective_format)
+        else:
+            out = out.with_name(SpecFactStructure.ensure_plan_filename(out.name, effective_format))
 
         if not interactive:
             # Non-interactive mode: create minimal plan
-            _create_minimal_plan(out)
+            _create_minimal_plan(out, effective_format)
             record({"plan_type": "minimal"})
             return
 
@@ -114,7 +127,7 @@ def init(
             # Generate plan file
             out.parent.mkdir(parents=True, exist_ok=True)
             generator = PlanGenerator()
-            generator.generate(plan, out)
+            generator.generate(plan, out, format=effective_format)
 
             # Record plan statistics
             record(
@@ -142,7 +155,7 @@ def init(
             raise typer.Exit(1) from e
 
 
-def _create_minimal_plan(out: Path) -> None:
+def _create_minimal_plan(out: Path, format: StructuredFormat) -> None:
     """Create a minimal plan bundle."""
     plan = PlanBundle(
         version="1.0",
@@ -155,7 +168,7 @@ def _create_minimal_plan(out: Path) -> None:
     )
 
     generator = PlanGenerator()
-    generator.generate(plan, out)
+    generator.generate(plan, out, format=format)
     print_success(f"Minimal plan created: {out}")
 
 
@@ -358,7 +371,7 @@ def add_feature(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -477,7 +490,7 @@ def add_story(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -551,6 +564,8 @@ def add_story(
                 tasks=[],
                 confidence=1.0,
                 draft=draft,
+                contracts=None,
+                scenarios=None,
             )
 
             # Add story to feature
@@ -631,7 +646,12 @@ def update_idea(
                 base_path = Path(".")
                 plans_dir = base_path / SpecFactStructure.PLANS
                 if plans_dir.exists():
-                    plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    plan_files = [
+                        p
+                        for p in plans_dir.glob("*.bundle.*")
+                        if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
+                    ]
+                    plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
                     if plan_files:
                         plan = plan_files[0]
                         print_info(f"Using latest plan: {plan}")
@@ -763,20 +783,30 @@ def update_idea(
 
 @app.command("update-feature")
 @beartype
-@require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
 def update_feature(
-    key: str = typer.Option(..., "--key", help="Feature key to update (e.g., FEATURE-001)"),
+    key: str | None = typer.Option(
+        None, "--key", help="Feature key to update (e.g., FEATURE-001). Required unless --batch-updates is provided."
+    ),
     title: str | None = typer.Option(None, "--title", help="Feature title"),
     outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
     constraints: str | None = typer.Option(None, "--constraints", help="Constraints (comma-separated)"),
     confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
-    draft: bool | None = typer.Option(None, "--draft", help="Mark as draft (true/false)"),
+    draft: bool | None = typer.Option(
+        None,
+        "--draft/--no-draft",
+        help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
+    batch_updates: Path | None = typer.Option(
+        None,
+        "--batch-updates",
+        help="Path to JSON/YAML file with multiple feature updates. File format: list of objects with 'key' and update fields (title, outcomes, acceptance, constraints, confidence, draft).",
+    ),
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
 ) -> None:
     """
@@ -785,14 +815,30 @@ def update_feature(
     This command allows updating feature properties (title, outcomes, acceptance criteria,
     constraints, confidence, draft status) in non-interactive environments (CI/CD, Copilot).
 
+    Supports both single feature updates and batch updates via --batch-updates file.
+
     Example:
+        # Single feature update
         specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2"
         specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+
+        # Batch updates from file
+        specfact plan update-feature --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
     """
     from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    # Validate that either key or batch_updates is provided
+    if not key and not batch_updates:
+        print_error("Either --key or --batch-updates must be provided")
+        raise typer.Exit(1)
+
+    if key and batch_updates:
+        print_error("Cannot use both --key and --batch-updates. Use --batch-updates for multiple updates.")
+        raise typer.Exit(1)
 
     telemetry_metadata = {
-        "feature_key": key,
+        "batch_mode": batch_updates is not None,
     }
 
     with telemetry.track_command("plan.update_feature", telemetry_metadata) as record:
@@ -821,91 +867,580 @@ def update_feature(
                 print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
 
-            # Find feature to update
-            feature_to_update = None
-            for f in existing_plan.features:
-                if f.key == key:
-                    feature_to_update = f
-                    break
-
-            if feature_to_update is None:
-                print_error(f"Feature '{key}' not found in plan")
-                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
-                raise typer.Exit(1)
-
-            # Track what was updated
-            updates_made = []
-
-            # Update title if provided
-            if title is not None:
-                feature_to_update.title = title
-                updates_made.append("title")
-
-            # Update outcomes if provided
-            if outcomes is not None:
-                outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
-                feature_to_update.outcomes = outcomes_list
-                updates_made.append("outcomes")
-
-            # Update acceptance criteria if provided
-            if acceptance is not None:
-                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
-                feature_to_update.acceptance = acceptance_list
-                updates_made.append("acceptance")
-
-            # Update constraints if provided
-            if constraints is not None:
-                constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
-                feature_to_update.constraints = constraints_list
-                updates_made.append("constraints")
-
-            # Update confidence if provided
-            if confidence is not None:
-                if not (0.0 <= confidence <= 1.0):
-                    print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+            # Handle batch updates
+            if batch_updates:
+                if not batch_updates.exists():
+                    print_error(f"Batch updates file not found: {batch_updates}")
                     raise typer.Exit(1)
-                feature_to_update.confidence = confidence
-                updates_made.append("confidence")
 
-            # Update draft status if provided
-            if draft is not None:
-                feature_to_update.draft = draft
-                updates_made.append("draft")
+                print_info(f"Loading batch updates from: {batch_updates}")
+                batch_data = load_structured_file(batch_updates)
 
-            if not updates_made:
-                print_warning(
-                    "No updates specified. Use --title, --outcomes, --acceptance, --constraints, --confidence, or --draft"
+                if not isinstance(batch_data, list):
+                    print_error("Batch updates file must contain a list of update objects")
+                    raise typer.Exit(1)
+
+                total_updates = 0
+                successful_updates = 0
+                failed_updates = []
+
+                for update_item in batch_data:
+                    if not isinstance(update_item, dict):
+                        failed_updates.append({"item": update_item, "error": "Not a dictionary"})
+                        continue
+
+                    update_key = update_item.get("key")
+                    if not update_key:
+                        failed_updates.append({"item": update_item, "error": "Missing 'key' field"})
+                        continue
+
+                    total_updates += 1
+
+                    # Find feature to update
+                    feature_to_update = None
+                    for f in existing_plan.features:
+                        if f.key == update_key:
+                            feature_to_update = f
+                            break
+
+                    if feature_to_update is None:
+                        failed_updates.append({"key": update_key, "error": f"Feature '{update_key}' not found in plan"})
+                        continue
+
+                    # Track what was updated
+                    updates_made = []
+
+                    # Update fields from batch item
+                    if "title" in update_item:
+                        feature_to_update.title = update_item["title"]
+                        updates_made.append("title")
+
+                    if "outcomes" in update_item:
+                        outcomes_val = update_item["outcomes"]
+                        if isinstance(outcomes_val, str):
+                            outcomes_list = [o.strip() for o in outcomes_val.split(",")] if outcomes_val else []
+                        elif isinstance(outcomes_val, list):
+                            outcomes_list = outcomes_val
+                        else:
+                            failed_updates.append({"key": update_key, "error": "Invalid 'outcomes' format"})
+                            continue
+                        feature_to_update.outcomes = outcomes_list
+                        updates_made.append("outcomes")
+
+                    if "acceptance" in update_item:
+                        acceptance_val = update_item["acceptance"]
+                        if isinstance(acceptance_val, str):
+                            acceptance_list = [a.strip() for a in acceptance_val.split(",")] if acceptance_val else []
+                        elif isinstance(acceptance_val, list):
+                            acceptance_list = acceptance_val
+                        else:
+                            failed_updates.append({"key": update_key, "error": "Invalid 'acceptance' format"})
+                            continue
+                        feature_to_update.acceptance = acceptance_list
+                        updates_made.append("acceptance")
+
+                    if "constraints" in update_item:
+                        constraints_val = update_item["constraints"]
+                        if isinstance(constraints_val, str):
+                            constraints_list = (
+                                [c.strip() for c in constraints_val.split(",")] if constraints_val else []
+                            )
+                        elif isinstance(constraints_val, list):
+                            constraints_list = constraints_val
+                        else:
+                            failed_updates.append({"key": update_key, "error": "Invalid 'constraints' format"})
+                            continue
+                        feature_to_update.constraints = constraints_list
+                        updates_made.append("constraints")
+
+                    if "confidence" in update_item:
+                        conf_val = update_item["confidence"]
+                        if not isinstance(conf_val, (int, float)) or not (0.0 <= conf_val <= 1.0):
+                            failed_updates.append({"key": update_key, "error": "Confidence must be 0.0-1.0"})
+                            continue
+                        feature_to_update.confidence = float(conf_val)
+                        updates_made.append("confidence")
+
+                    if "draft" in update_item:
+                        feature_to_update.draft = bool(update_item["draft"])
+                        updates_made.append("draft")
+
+                    if updates_made:
+                        successful_updates += 1
+                        console.print(f"[dim]✓ Updated {update_key}: {', '.join(updates_made)}[/dim]")
+                    else:
+                        failed_updates.append({"key": update_key, "error": "No valid update fields provided"})
+
+                # Save updated plan after all batch updates
+                print_info("Validating updated plan...")
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "batch_total": total_updates,
+                        "batch_successful": successful_updates,
+                        "batch_failed": len(failed_updates),
+                        "total_features": len(existing_plan.features),
+                    }
                 )
-                raise typer.Exit(1)
 
-            # Validate updated plan (always passes for PlanBundle model)
-            print_info("Validating updated plan...")
+                print_success(f"Batch update complete: {successful_updates}/{total_updates} features updated")
+                if failed_updates:
+                    print_warning(f"{len(failed_updates)} update(s) failed:")
+                    for failed in failed_updates:
+                        console.print(
+                            f"[dim]  - {failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]"
+                        )
 
-            # Save updated plan
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(existing_plan, plan)
+            else:
+                # Single feature update (existing logic)
+                if not key:
+                    print_error("--key is required when not using --batch-updates")
+                    raise typer.Exit(1)
 
-            record(
-                {
-                    "updates": updates_made,
-                    "total_features": len(existing_plan.features),
-                }
-            )
+                # Find feature to update
+                feature_to_update = None
+                for f in existing_plan.features:
+                    if f.key == key:
+                        feature_to_update = f
+                        break
 
-            print_success(f"Feature '{key}' updated successfully")
-            console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
-            if title:
-                console.print(f"[dim]Title: {title}[/dim]")
-            if outcomes:
-                outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
-                console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
-            if acceptance:
-                acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
-                console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+                if feature_to_update is None:
+                    print_error(f"Feature '{key}' not found in plan")
+                    console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                    raise typer.Exit(1)
+
+                # Track what was updated
+                updates_made = []
+
+                # Update title if provided
+                if title is not None:
+                    feature_to_update.title = title
+                    updates_made.append("title")
+
+                # Update outcomes if provided
+                if outcomes is not None:
+                    outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+                    feature_to_update.outcomes = outcomes_list
+                    updates_made.append("outcomes")
+
+                # Update acceptance criteria if provided
+                if acceptance is not None:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    feature_to_update.acceptance = acceptance_list
+                    updates_made.append("acceptance")
+
+                # Update constraints if provided
+                if constraints is not None:
+                    constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
+                    feature_to_update.constraints = constraints_list
+                    updates_made.append("constraints")
+
+                # Update confidence if provided
+                if confidence is not None:
+                    if not (0.0 <= confidence <= 1.0):
+                        print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                        raise typer.Exit(1)
+                    feature_to_update.confidence = confidence
+                    updates_made.append("confidence")
+
+                # Update draft status if provided
+                if draft is not None:
+                    feature_to_update.draft = draft
+                    updates_made.append("draft")
+
+                if not updates_made:
+                    print_warning(
+                        "No updates specified. Use --title, --outcomes, --acceptance, --constraints, --confidence, or --draft"
+                    )
+                    raise typer.Exit(1)
+
+                # Validate updated plan (always passes for PlanBundle model)
+                print_info("Validating updated plan...")
+
+                # Save updated plan
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "updates": updates_made,
+                        "total_features": len(existing_plan.features),
+                    }
+                )
+
+                print_success(f"Feature '{key}' updated successfully")
+                console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+                if title:
+                    console.print(f"[dim]Title: {title}[/dim]")
+                if outcomes:
+                    outcomes_list = [o.strip() for o in outcomes.split(",")] if outcomes else []
+                    console.print(f"[dim]Outcomes: {', '.join(outcomes_list)}[/dim]")
+                if acceptance:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
 
         except Exception as e:
             print_error(f"Failed to update feature: {e}")
+            raise typer.Exit(1) from e
+
+
+@app.command("update-story")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(
+    lambda story_points: story_points is None or (story_points >= 0 and story_points <= 100),
+    "Story points must be 0-100 if provided",
+)
+@require(
+    lambda value_points: value_points is None or (value_points >= 0 and value_points <= 100),
+    "Value points must be 0-100 if provided",
+)
+@require(lambda confidence: confidence is None or (0.0 <= confidence <= 1.0), "Confidence must be 0.0-1.0 if provided")
+def update_story(
+    feature: str | None = typer.Option(
+        None, "--feature", help="Parent feature key (e.g., FEATURE-001). Required unless --batch-updates is provided."
+    ),
+    key: str | None = typer.Option(
+        None, "--key", help="Story key to update (e.g., STORY-001). Required unless --batch-updates is provided."
+    ),
+    title: str | None = typer.Option(None, "--title", help="Story title"),
+    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
+    story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity: 0-100)"),
+    value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value: 0-100)"),
+    confidence: float | None = typer.Option(None, "--confidence", help="Confidence score (0.0-1.0)"),
+    draft: bool | None = typer.Option(
+        None,
+        "--draft/--no-draft",
+        help="Mark as draft (use --draft to set True, --no-draft to set False, omit to leave unchanged)",
+    ),
+    batch_updates: Path | None = typer.Option(
+        None,
+        "--batch-updates",
+        help="Path to JSON/YAML file with multiple story updates. File format: list of objects with 'feature', 'key' and update fields (title, acceptance, story_points, value_points, confidence, draft).",
+    ),
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
+    ),
+) -> None:
+    """
+    Update an existing story's metadata in a plan bundle.
+
+    This command allows updating story properties (title, acceptance criteria,
+    story points, value points, confidence, draft status) in non-interactive
+    environments (CI/CD, Copilot).
+
+    Supports both single story updates and batch updates via --batch-updates file.
+
+    Example:
+        # Single story update
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title"
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+
+        # Batch updates from file
+        specfact plan update-story --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    # Validate that either (feature and key) or batch_updates is provided
+    if not (feature and key) and not batch_updates:
+        print_error("Either (--feature and --key) or --batch-updates must be provided")
+        raise typer.Exit(1)
+
+    if (feature or key) and batch_updates:
+        print_error("Cannot use both (--feature/--key) and --batch-updates. Use --batch-updates for multiple updates.")
+        raise typer.Exit(1)
+
+    telemetry_metadata = {
+        "batch_mode": batch_updates is not None,
+    }
+
+    with telemetry.track_command("plan.update_story", telemetry_metadata) as record:
+        # Use default path if not specified
+        if plan is None:
+            plan = SpecFactStructure.get_default_plan_path()
+            if not plan.exists():
+                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+                raise typer.Exit(1)
+            print_info(f"Using default plan: {plan}")
+
+        if not plan.exists():
+            print_error(f"Plan bundle not found: {plan}")
+            raise typer.Exit(1)
+
+        print_section("SpecFact CLI - Update Story")
+
+        try:
+            # Load existing plan
+            print_info(f"Loading plan: {plan}")
+            validation_result = validate_plan_bundle(plan)
+            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+            is_valid, error, existing_plan = validation_result
+
+            if not is_valid or existing_plan is None:
+                print_error(f"Plan validation failed: {error}")
+                raise typer.Exit(1)
+
+            # Handle batch updates
+            if batch_updates:
+                if not batch_updates.exists():
+                    print_error(f"Batch updates file not found: {batch_updates}")
+                    raise typer.Exit(1)
+
+                print_info(f"Loading batch updates from: {batch_updates}")
+                batch_data = load_structured_file(batch_updates)
+
+                if not isinstance(batch_data, list):
+                    print_error("Batch updates file must contain a list of update objects")
+                    raise typer.Exit(1)
+
+                total_updates = 0
+                successful_updates = 0
+                failed_updates = []
+
+                for update_item in batch_data:
+                    if not isinstance(update_item, dict):
+                        failed_updates.append({"item": update_item, "error": "Not a dictionary"})
+                        continue
+
+                    update_feature = update_item.get("feature")
+                    update_key = update_item.get("key")
+                    if not update_feature or not update_key:
+                        failed_updates.append({"item": update_item, "error": "Missing 'feature' or 'key' field"})
+                        continue
+
+                    total_updates += 1
+
+                    # Find parent feature
+                    parent_feature = None
+                    for f in existing_plan.features:
+                        if f.key == update_feature:
+                            parent_feature = f
+                            break
+
+                    if parent_feature is None:
+                        failed_updates.append(
+                            {
+                                "feature": update_feature,
+                                "key": update_key,
+                                "error": f"Feature '{update_feature}' not found in plan",
+                            }
+                        )
+                        continue
+
+                    # Find story to update
+                    story_to_update = None
+                    for s in parent_feature.stories:
+                        if s.key == update_key:
+                            story_to_update = s
+                            break
+
+                    if story_to_update is None:
+                        failed_updates.append(
+                            {
+                                "feature": update_feature,
+                                "key": update_key,
+                                "error": f"Story '{update_key}' not found in feature '{update_feature}'",
+                            }
+                        )
+                        continue
+
+                    # Track what was updated
+                    updates_made = []
+
+                    # Update fields from batch item
+                    if "title" in update_item:
+                        story_to_update.title = update_item["title"]
+                        updates_made.append("title")
+
+                    if "acceptance" in update_item:
+                        acceptance_val = update_item["acceptance"]
+                        if isinstance(acceptance_val, str):
+                            acceptance_list = [a.strip() for a in acceptance_val.split(",")] if acceptance_val else []
+                        elif isinstance(acceptance_val, list):
+                            acceptance_list = acceptance_val
+                        else:
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Invalid 'acceptance' format"}
+                            )
+                            continue
+                        story_to_update.acceptance = acceptance_list
+                        updates_made.append("acceptance")
+
+                    if "story_points" in update_item:
+                        sp_val = update_item["story_points"]
+                        if not isinstance(sp_val, int) or not (0 <= sp_val <= 100):
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Story points must be 0-100"}
+                            )
+                            continue
+                        story_to_update.story_points = sp_val
+                        updates_made.append("story_points")
+
+                    if "value_points" in update_item:
+                        vp_val = update_item["value_points"]
+                        if not isinstance(vp_val, int) or not (0 <= vp_val <= 100):
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Value points must be 0-100"}
+                            )
+                            continue
+                        story_to_update.value_points = vp_val
+                        updates_made.append("value_points")
+
+                    if "confidence" in update_item:
+                        conf_val = update_item["confidence"]
+                        if not isinstance(conf_val, (int, float)) or not (0.0 <= conf_val <= 1.0):
+                            failed_updates.append(
+                                {"feature": update_feature, "key": update_key, "error": "Confidence must be 0.0-1.0"}
+                            )
+                            continue
+                        story_to_update.confidence = float(conf_val)
+                        updates_made.append("confidence")
+
+                    if "draft" in update_item:
+                        story_to_update.draft = bool(update_item["draft"])
+                        updates_made.append("draft")
+
+                    if updates_made:
+                        successful_updates += 1
+                        console.print(f"[dim]✓ Updated {update_feature}/{update_key}: {', '.join(updates_made)}[/dim]")
+                    else:
+                        failed_updates.append(
+                            {"feature": update_feature, "key": update_key, "error": "No valid update fields provided"}
+                        )
+
+                # Save updated plan after all batch updates
+                print_info("Validating updated plan...")
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "batch_total": total_updates,
+                        "batch_successful": successful_updates,
+                        "batch_failed": len(failed_updates),
+                    }
+                )
+
+                print_success(f"Batch update complete: {successful_updates}/{total_updates} stories updated")
+                if failed_updates:
+                    print_warning(f"{len(failed_updates)} update(s) failed:")
+                    for failed in failed_updates:
+                        console.print(
+                            f"[dim]  - {failed.get('feature', 'Unknown')}/{failed.get('key', 'Unknown')}: {failed.get('error', 'Unknown error')}[/dim]"
+                        )
+
+            else:
+                # Single story update (existing logic)
+                if not feature or not key:
+                    print_error("--feature and --key are required when not using --batch-updates")
+                    raise typer.Exit(1)
+
+                # Find parent feature
+                parent_feature = None
+                for f in existing_plan.features:
+                    if f.key == feature:
+                        parent_feature = f
+                        break
+
+                if parent_feature is None:
+                    print_error(f"Feature '{feature}' not found in plan")
+                    console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                    raise typer.Exit(1)
+
+                # Find story to update
+                story_to_update = None
+                for s in parent_feature.stories:
+                    if s.key == key:
+                        story_to_update = s
+                        break
+
+                if story_to_update is None:
+                    print_error(f"Story '{key}' not found in feature '{feature}'")
+                    console.print(f"[dim]Available stories: {', '.join(s.key for s in parent_feature.stories)}[/dim]")
+                    raise typer.Exit(1)
+
+                # Track what was updated
+                updates_made = []
+
+                # Update title if provided
+                if title is not None:
+                    story_to_update.title = title
+                    updates_made.append("title")
+
+                # Update acceptance criteria if provided
+                if acceptance is not None:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    story_to_update.acceptance = acceptance_list
+                    updates_made.append("acceptance")
+
+                # Update story points if provided
+                if story_points is not None:
+                    story_to_update.story_points = story_points
+                    updates_made.append("story_points")
+
+                # Update value points if provided
+                if value_points is not None:
+                    story_to_update.value_points = value_points
+                    updates_made.append("value_points")
+
+                # Update confidence if provided
+                if confidence is not None:
+                    if not (0.0 <= confidence <= 1.0):
+                        print_error(f"Confidence must be between 0.0 and 1.0, got: {confidence}")
+                        raise typer.Exit(1)
+                    story_to_update.confidence = confidence
+                    updates_made.append("confidence")
+
+                # Update draft status if provided
+                if draft is not None:
+                    story_to_update.draft = draft
+                    updates_made.append("draft")
+
+                if not updates_made:
+                    print_warning(
+                        "No updates specified. Use --title, --acceptance, --story-points, --value-points, --confidence, or --draft"
+                    )
+                    raise typer.Exit(1)
+
+                # Validate updated plan (always passes for PlanBundle model)
+                print_info("Validating updated plan...")
+
+                # Save updated plan
+                print_info(f"Saving plan to: {plan}")
+                generator = PlanGenerator()
+                generator.generate(existing_plan, plan)
+
+                record(
+                    {
+                        "updates": updates_made,
+                        "total_stories": len(parent_feature.stories),
+                    }
+                )
+
+                print_success(f"Story '{key}' in feature '{feature}' updated successfully")
+                console.print(f"[dim]Updated fields: {', '.join(updates_made)}[/dim]")
+                if title:
+                    console.print(f"[dim]Title: {title}[/dim]")
+                if acceptance:
+                    acceptance_list = [a.strip() for a in acceptance.split(",")] if acceptance else []
+                    console.print(f"[dim]Acceptance: {', '.join(acceptance_list)}[/dim]")
+                if story_points is not None:
+                    console.print(f"[dim]Story Points: {story_points}[/dim]")
+                if value_points is not None:
+                    console.print(f"[dim]Value Points: {value_points}[/dim]")
+                if confidence is not None:
+                    console.print(f"[dim]Confidence: {confidence}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to update story: {e}")
             raise typer.Exit(1) from e
 
 
@@ -922,7 +1457,7 @@ def compare(
     manual: Path | None = typer.Option(
         None,
         "--manual",
-        help="Manual plan bundle path (default: .specfact/plans/main.bundle.yaml)",
+        help="Manual plan bundle path (default: active plan in .specfact/plans using current format)",
     ),
     auto: Path | None = typer.Option(
         None,
@@ -956,7 +1491,7 @@ def compare(
     code-derived plan against the manual plan.
 
     Example:
-        specfact plan compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-<timestamp>.bundle.yaml
+        specfact plan compare --manual .specfact/plans/main.bundle.<format> --auto .specfact/plans/auto-derived-<timestamp>.bundle.<format>
         specfact plan compare --code-vs-plan  # Convenience alias
     """
     from specfact_cli.utils.structure import SpecFactStructure
@@ -1212,10 +1747,42 @@ def compare(
 @app.command("select")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, str), "Plan must be None or str")
+@require(lambda last: last is None or last > 0, "Last must be None or positive integer")
 def select(
     plan: str | None = typer.Argument(
         None,
-        help="Plan name or number to select (e.g., 'main.bundle.yaml' or '1')",
+        help="Plan name or number to select (e.g., 'main.bundle.<format>' or '1')",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Non-interactive mode (for CI/CD automation). Disables interactive prompts.",
+    ),
+    current: bool = typer.Option(
+        False,
+        "--current",
+        help="Show only the currently active plan",
+    ),
+    stages: str | None = typer.Option(
+        None,
+        "--stages",
+        help="Filter by stages (comma-separated, e.g., 'draft,review,approved')",
+    ),
+    last: int | None = typer.Option(
+        None,
+        "--last",
+        help="Show last N plans by modification time (most recent first)",
+        min=1,
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.<format>')",
+    ),
+    plan_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
     ),
 ) -> None:
     """
@@ -1224,20 +1791,47 @@ def select(
     Displays a numbered list of available plans and allows selection by number or name.
     The selected plan becomes the active plan tracked in `.specfact/plans/config.yaml`.
 
+    Filter Options:
+        --current          Show only the currently active plan (non-interactive, auto-selects)
+        --stages STAGES    Filter by stages (comma-separated: draft,review,approved,released)
+        --last N           Show last N plans by modification time (most recent first)
+        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.<format>')
+        --id HASH          Select by content hash ID (non-interactive, from metadata.summary.content_hash)
+
     Example:
-        specfact plan select                    # Interactive selection
-        specfact plan select 1                 # Select by number
-        specfact plan select main.bundle.yaml   # Select by name
+        specfact plan select                              # Interactive selection
+        specfact plan select 1                           # Select by number
+        specfact plan select main.bundle.json            # Select by name (positional)
+        specfact plan select --current                   # Show only active plan (auto-selects)
+        specfact plan select --stages draft,review       # Filter by stages
+        specfact plan select --last 5                    # Show last 5 plans
+        specfact plan select --non-interactive --last 1  # CI/CD: get most recent plan
+        specfact plan select --name main.bundle.<format> # CI/CD: select by exact filename
+        specfact plan select --id abc123def456           # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    telemetry_metadata = {}
+    telemetry_metadata = {
+        "non_interactive": non_interactive,
+        "current": current,
+        "stages": stages,
+        "last": last,
+        "name": name is not None,
+        "plan_id": plan_id is not None,
+    }
 
     with telemetry.track_command("plan.select", telemetry_metadata) as record:
         print_section("SpecFact CLI - Plan Selection")
 
         # List all available plans
-        plans = SpecFactStructure.list_plans()
+        # Performance optimization: If --last N is specified, only process N+10 most recent files
+        # This avoids processing all 31 files when user only wants last 5
+        max_files_to_process = None
+        if last is not None:
+            # Process a few more files than requested to account for filtering
+            max_files_to_process = last + 10
+
+        plans = SpecFactStructure.list_plans(max_files=max_files_to_process)
 
         if not plans:
             print_warning("No plan bundles found in .specfact/plans/")
@@ -1246,40 +1840,178 @@ def select(
             print_info("  - specfact import from-code")
             raise typer.Exit(1)
 
+        # Apply filters
+        filtered_plans = plans.copy()
+
+        # Filter by current/active (non-interactive: auto-selects if single match)
+        if current:
+            filtered_plans = [p for p in filtered_plans if p.get("active", False)]
+            if not filtered_plans:
+                print_warning("No active plan found")
+                raise typer.Exit(1)
+            # Auto-select in non-interactive mode when --current is provided
+            if non_interactive and len(filtered_plans) == 1:
+                selected_plan = filtered_plans[0]
+                plan_name = str(selected_plan["name"])
+                SpecFactStructure.set_active_plan(plan_name)
+                record(
+                    {
+                        "plans_available": len(plans),
+                        "plans_filtered": len(filtered_plans),
+                        "selected_plan": plan_name,
+                        "features": selected_plan["features"],
+                        "stories": selected_plan["stories"],
+                        "auto_selected": True,
+                    }
+                )
+                print_success(f"Active plan (--current): {plan_name}")
+                print_info(f"  Features: {selected_plan['features']}")
+                print_info(f"  Stories: {selected_plan['stories']}")
+                print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+                raise typer.Exit(0)
+
+        # Filter by stages
+        if stages:
+            stage_list = [s.strip().lower() for s in stages.split(",")]
+            valid_stages = {"draft", "review", "approved", "released", "unknown"}
+            invalid_stages = [s for s in stage_list if s not in valid_stages]
+            if invalid_stages:
+                print_error(f"Invalid stage(s): {', '.join(invalid_stages)}")
+                print_info(f"Valid stages: {', '.join(sorted(valid_stages))}")
+                raise typer.Exit(1)
+            filtered_plans = [p for p in filtered_plans if str(p.get("stage", "unknown")).lower() in stage_list]
+
+        # Filter by last N (most recent first)
+        if last:
+            # Sort by modification time (most recent first) and take last N
+            # Handle None values by using empty string as fallback for sorting
+            filtered_plans = sorted(filtered_plans, key=lambda p: p.get("modified") or "", reverse=True)[:last]
+
+        if not filtered_plans:
+            print_warning("No plans match the specified filters")
+            raise typer.Exit(1)
+
+        # Handle --name flag (non-interactive selection by exact filename)
+        if name is not None:
+            non_interactive = True  # Force non-interactive when --name is used
+            plan_name = SpecFactStructure.ensure_plan_filename(str(name))
+
+            selected_plan = None
+            for p in plans:  # Search all plans, not just filtered
+                if p["name"] == plan_name:
+                    selected_plan = p
+                    break
+
+            if selected_plan is None:
+                print_error(f"Plan not found: {plan_name}")
+                raise typer.Exit(1)
+
+            # Set as active and exit
+            SpecFactStructure.set_active_plan(plan_name)
+            record(
+                {
+                    "plans_available": len(plans),
+                    "plans_filtered": len(filtered_plans),
+                    "selected_plan": plan_name,
+                    "features": selected_plan["features"],
+                    "stories": selected_plan["stories"],
+                    "selected_by": "name",
+                }
+            )
+            print_success(f"Active plan (--name): {plan_name}")
+            print_info(f"  Features: {selected_plan['features']}")
+            print_info(f"  Stories: {selected_plan['stories']}")
+            print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+            raise typer.Exit(0)
+
+        # Handle --id flag (non-interactive selection by content hash)
+        if plan_id is not None:
+            non_interactive = True  # Force non-interactive when --id is used
+            # Need to load plan bundles to get content_hash from summary
+            from pathlib import Path
+
+            selected_plan = None
+            plans_dir = Path(".specfact/plans")
+
+            for p in plans:
+                plan_file = plans_dir / str(p["name"])
+                if plan_file.exists():
+                    try:
+                        plan_data = load_structured_file(plan_file)
+                        metadata = plan_data.get("metadata", {}) or {}
+                        summary = metadata.get("summary", {}) or {}
+                        content_hash = summary.get("content_hash")
+
+                        # Match by full hash or first 8 chars (short ID)
+                        if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
+                            selected_plan = p
+                            break
+                    except Exception:
+                        continue
+
+            if selected_plan is None:
+                print_error(f"Plan not found with ID: {plan_id}")
+                print_info("Tip: Use 'specfact plan select' to see available plans and their IDs")
+                raise typer.Exit(1)
+
+            # Set as active and exit
+            plan_name = str(selected_plan["name"])
+            SpecFactStructure.set_active_plan(plan_name)
+            record(
+                {
+                    "plans_available": len(plans),
+                    "plans_filtered": len(filtered_plans),
+                    "selected_plan": plan_name,
+                    "features": selected_plan["features"],
+                    "stories": selected_plan["stories"],
+                    "selected_by": "id",
+                }
+            )
+            print_success(f"Active plan (--id): {plan_name}")
+            print_info(f"  Features: {selected_plan['features']}")
+            print_info(f"  Stories: {selected_plan['stories']}")
+            print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
+            raise typer.Exit(0)
+
         # If plan provided, try to resolve it
         if plan is not None:
-            # Try as number first
+            # Try as number first (using filtered list)
             if isinstance(plan, str) and plan.isdigit():
                 plan_num = int(plan)
-                if 1 <= plan_num <= len(plans):
-                    selected_plan = plans[plan_num - 1]
+                if 1 <= plan_num <= len(filtered_plans):
+                    selected_plan = filtered_plans[plan_num - 1]
                 else:
-                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(plans)}")
+                    print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(filtered_plans)}")
                     raise typer.Exit(1)
             else:
-                # Try as name
-                plan_name = str(plan)
-                # Remove .bundle.yaml suffix if present
-                if plan_name.endswith(".bundle.yaml"):
-                    plan_name = plan_name
-                elif not plan_name.endswith(".yaml"):
-                    plan_name = f"{plan_name}.bundle.yaml"
+                # Try as name (search in filtered list first, then all plans)
+                plan_name = SpecFactStructure.ensure_plan_filename(str(plan))
 
-                # Find matching plan
+                # Find matching plan in filtered list first
                 selected_plan = None
-                for p in plans:
+                for p in filtered_plans:
                     if p["name"] == plan_name or p["name"] == plan:
                         selected_plan = p
                         break
 
+                # If not found in filtered list, search all plans (for better error message)
                 if selected_plan is None:
-                    print_error(f"Plan not found: {plan}")
-                    print_info("Available plans:")
-                    for i, p in enumerate(plans, 1):
-                        print_info(f"  {i}. {p['name']}")
-                    raise typer.Exit(1)
+                    for p in plans:
+                        if p["name"] == plan_name or p["name"] == plan:
+                            print_warning(f"Plan '{plan}' exists but is filtered out by current options")
+                            print_info("Available filtered plans:")
+                            for i, p in enumerate(filtered_plans, 1):
+                                print_info(f"  {i}. {p['name']}")
+                            raise typer.Exit(1)
+
+            if selected_plan is None:
+                print_error(f"Plan not found: {plan}")
+                print_info("Available filtered plans:")
+                for i, p in enumerate(filtered_plans, 1):
+                    print_info(f"  {i}. {p['name']}")
+                raise typer.Exit(1)
         else:
-            # Interactive selection - display numbered list
+            # Display numbered list
             console.print("\n[bold]Available Plans:[/bold]\n")
 
             # Create table with optimized column widths
@@ -1295,7 +2027,7 @@ def select(
             table.add_column("Stage", width=8, min_width=6)  # Reduced from 10 to 8 (draft/review/approved/released fit)
             table.add_column("Modified", style="dim", width=19, min_width=15)  # Slightly reduced
 
-            for i, p in enumerate(plans, 1):
+            for i, p in enumerate(filtered_plans, 1):
                 status = "[ACTIVE]" if p.get("active") else ""
                 plan_name = str(p["name"])
                 features_count = str(p["features"])
@@ -1316,27 +2048,42 @@ def select(
             console.print(table)
             console.print()
 
-            # Prompt for selection
-            selection = ""
-            try:
-                selection = prompt_text(f"Select a plan by number (1-{len(plans)}) or 'q' to quit: ").strip()
-
-                if selection.lower() in ("q", "quit", ""):
-                    print_info("Selection cancelled")
-                    raise typer.Exit(0)
-
-                plan_num = int(selection)
-                if not (1 <= plan_num <= len(plans)):
-                    print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(plans)}")
+            # Handle selection (interactive or non-interactive)
+            if non_interactive:
+                # Non-interactive mode: select first plan (or error if multiple)
+                if len(filtered_plans) == 1:
+                    selected_plan = filtered_plans[0]
+                    print_info(f"Non-interactive mode: auto-selecting plan '{selected_plan['name']}'")
+                else:
+                    print_error(
+                        f"Non-interactive mode requires exactly one plan, but {len(filtered_plans)} plans match filters"
+                    )
+                    print_info("Use --current, --last 1, or specify a plan name/number to select a single plan")
                     raise typer.Exit(1)
+            else:
+                # Interactive selection - prompt for selection
+                selection = ""
+                try:
+                    selection = prompt_text(
+                        f"Select a plan by number (1-{len(filtered_plans)}) or 'q' to quit: "
+                    ).strip()
 
-                selected_plan = plans[plan_num - 1]
-            except ValueError:
-                print_error(f"Invalid input: {selection}. Please enter a number.")
-                raise typer.Exit(1) from None
-            except KeyboardInterrupt:
-                print_warning("\nSelection cancelled")
-                raise typer.Exit(1) from None
+                    if selection.lower() in ("q", "quit", ""):
+                        print_info("Selection cancelled")
+                        raise typer.Exit(0)
+
+                    plan_num = int(selection)
+                    if not (1 <= plan_num <= len(filtered_plans)):
+                        print_error(f"Invalid selection: {plan_num}. Must be between 1 and {len(filtered_plans)}")
+                        raise typer.Exit(1)
+
+                    selected_plan = filtered_plans[plan_num - 1]
+                except ValueError:
+                    print_error(f"Invalid input: {selection}. Please enter a number.")
+                    raise typer.Exit(1) from None
+                except KeyboardInterrupt:
+                    print_warning("\nSelection cancelled")
+                    raise typer.Exit(1) from None
 
         # Set as active plan
         plan_name = str(selected_plan["name"])
@@ -1345,6 +2092,7 @@ def select(
         record(
             {
                 "plans_available": len(plans),
+                "plans_filtered": len(filtered_plans),
                 "selected_plan": plan_name,
                 "features": selected_plan["features"],
                 "stories": selected_plan["stories"],
@@ -1363,6 +2111,134 @@ def select(
         print_info("  - specfact plan add-story")
         print_info("  - specfact plan sync --shared")
         print_info("  - specfact sync spec-kit")
+
+
+@app.command("upgrade")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda all_plans: isinstance(all_plans, bool), "All plans must be bool")
+@require(lambda dry_run: isinstance(dry_run, bool), "Dry run must be bool")
+def upgrade(
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to specific plan bundle to upgrade (default: active plan)",
+    ),
+    all_plans: bool = typer.Option(
+        False,
+        "--all",
+        help="Upgrade all plan bundles in .specfact/plans/",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be upgraded without making changes",
+    ),
+) -> None:
+    """
+    Upgrade plan bundles to the latest schema version.
+
+    Migrates plan bundles from older schema versions to the current version.
+    This ensures compatibility with the latest features and performance optimizations.
+
+    Examples:
+        specfact plan upgrade                    # Upgrade active plan
+        specfact plan upgrade --plan path/to/plan.bundle.<format>  # Upgrade specific plan
+        specfact plan upgrade --all             # Upgrade all plans
+        specfact plan upgrade --all --dry-run   # Preview upgrades without changes
+    """
+    from specfact_cli.migrations.plan_migrator import PlanMigrator, get_current_schema_version
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    current_version = get_current_schema_version()
+    migrator = PlanMigrator()
+
+    print_section(f"Plan Bundle Upgrade (Schema {current_version})")
+
+    # Determine which plans to upgrade
+    plans_to_upgrade: list[Path] = []
+
+    if all_plans:
+        # Get all plan bundles
+        plans = SpecFactStructure.list_plans()
+        plans_dir = Path(".specfact/plans")
+        for plan_info in plans:
+            plan_path = plans_dir / str(plan_info["name"])
+            if plan_path.exists():
+                plans_to_upgrade.append(plan_path)
+    elif plan:
+        # Use specified plan
+        if not plan.exists():
+            print_error(f"Plan file not found: {plan}")
+            raise typer.Exit(1)
+        plans_to_upgrade.append(plan)
+    else:
+        # Use active plan
+        config_path = Path(".specfact/plans/config.yaml")
+        if config_path.exists():
+            import yaml
+
+            with config_path.open() as f:
+                config = yaml.safe_load(f) or {}
+            active_plan_name = config.get("active_plan")
+            if active_plan_name:
+                active_plan_path = Path(".specfact/plans") / active_plan_name
+                if active_plan_path.exists():
+                    plans_to_upgrade.append(active_plan_path)
+                else:
+                    print_error(f"Active plan not found: {active_plan_name}")
+                    raise typer.Exit(1)
+            else:
+                print_error("No active plan set. Use --plan to specify a plan or --all to upgrade all plans.")
+                raise typer.Exit(1)
+        else:
+            print_error("No plan configuration found. Use --plan to specify a plan or --all to upgrade all plans.")
+            raise typer.Exit(1)
+
+    if not plans_to_upgrade:
+        print_warning("No plans found to upgrade")
+        raise typer.Exit(0)
+
+    # Check and upgrade each plan
+    upgraded_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    for plan_path in plans_to_upgrade:
+        try:
+            needs_migration, reason = migrator.check_migration_needed(plan_path)
+            if not needs_migration:
+                print_info(f"✓ {plan_path.name}: {reason}")
+                skipped_count += 1
+                continue
+
+            if dry_run:
+                print_warning(f"Would upgrade: {plan_path.name} ({reason})")
+                upgraded_count += 1
+            else:
+                print_info(f"Upgrading: {plan_path.name} ({reason})...")
+                bundle, was_migrated = migrator.load_and_migrate(plan_path, dry_run=False)
+                if was_migrated:
+                    print_success(f"✓ Upgraded {plan_path.name} to schema {bundle.version}")
+                    upgraded_count += 1
+                else:
+                    print_info(f"✓ {plan_path.name}: Already up to date")
+                    skipped_count += 1
+        except Exception as e:
+            print_error(f"✗ Failed to upgrade {plan_path.name}: {e}")
+            error_count += 1
+
+    # Summary
+    print()
+    if dry_run:
+        print_info(f"Dry run complete: {upgraded_count} would be upgraded, {skipped_count} up to date")
+    else:
+        print_success(f"Upgrade complete: {upgraded_count} upgraded, {skipped_count} up to date")
+        if error_count > 0:
+            print_warning(f"{error_count} errors occurred")
+
+    if error_count > 0:
+        raise typer.Exit(1)
 
 
 @app.command("sync")
@@ -1486,7 +2362,7 @@ def promote(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
     validate: bool = typer.Option(
         True,
@@ -1745,7 +2621,15 @@ def promote(
 
             # Create or update metadata
             if bundle.metadata is None:
-                bundle.metadata = Metadata(stage=stage, promoted_at=None, promoted_by=None)
+                bundle.metadata = Metadata(
+                    stage=stage,
+                    promoted_at=None,
+                    promoted_by=None,
+                    analysis_scope=None,
+                    entry_point=None,
+                    external_dependencies=[],
+                    summary=None,
+                )
 
             bundle.metadata.stage = stage
             bundle.metadata.promoted_at = datetime.now(UTC).isoformat()
@@ -1788,6 +2672,330 @@ def promote(
             raise typer.Exit(1) from e
 
 
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@ensure(lambda result: result is None or isinstance(result, Path), "Must return Path or None")
+def _find_plan_path(plan: Path | None) -> Path | None:
+    """
+    Find plan path (default, latest, or provided).
+
+    Args:
+        plan: Provided plan path or None
+
+    Returns:
+        Plan path or None if not found
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    if plan is not None:
+        return plan
+
+    # Try to find active plan or latest
+    default_plan = SpecFactStructure.get_default_plan_path()
+    if default_plan.exists():
+        print_info(f"Using default plan: {default_plan}")
+        return default_plan
+
+    # Find latest plan bundle
+    base_path = Path(".")
+    plans_dir = base_path / SpecFactStructure.PLANS
+    if plans_dir.exists():
+        plan_files = [
+            p
+            for p in plans_dir.glob("*.bundle.*")
+            if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
+        ]
+        plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
+        if plan_files:
+            print_info(f"Using latest plan: {plan_files[0]}")
+            return plan_files[0]
+        print_error(f"No plan bundles found in {plans_dir}")
+        print_error("Create one with: specfact plan init --interactive")
+        return None
+    print_error(f"Plans directory not found: {plans_dir}")
+    print_error("Create one with: specfact plan init --interactive")
+    return None
+
+
+@beartype
+@require(lambda plan: plan is not None and isinstance(plan, Path), "Plan must be non-None Path")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (bool, PlanBundle | None) tuple")
+def _load_and_validate_plan(plan: Path) -> tuple[bool, PlanBundle | None]:
+    """
+    Load and validate plan bundle.
+
+    Args:
+        plan: Path to plan bundle
+
+    Returns:
+        Tuple of (is_valid, plan_bundle)
+    """
+    print_info(f"Loading plan: {plan}")
+    validation_result = validate_plan_bundle(plan)
+    assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
+    is_valid, error, bundle = validation_result
+
+    if not is_valid or bundle is None:
+        print_error(f"Plan validation failed: {error}")
+        return (False, None)
+
+    return (True, bundle)
+
+
+@beartype
+@require(
+    lambda bundle, plan, auto_enrich: isinstance(bundle, PlanBundle) and plan is not None and isinstance(plan, Path),
+    "Bundle must be PlanBundle and plan must be non-None Path",
+)
+@ensure(lambda result: result is None, "Must return None")
+def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -> None:
+    """
+    Handle auto-enrichment if requested.
+
+    Args:
+        bundle: Plan bundle to enrich
+        plan: Path to plan bundle
+        auto_enrich: Whether to auto-enrich
+    """
+    if not auto_enrich:
+        return
+
+    print_info(
+        "Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
+    )
+    from specfact_cli.enrichers.plan_enricher import PlanEnricher
+
+    enricher = PlanEnricher()
+    enrichment_summary = enricher.enrich_plan(bundle)
+
+    if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
+        # Save enriched plan bundle
+        generator = PlanGenerator()
+        generator.generate(bundle, plan)
+        print_success(
+            f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
+            f"{enrichment_summary['stories_updated']} stories updated"
+        )
+        if enrichment_summary["acceptance_criteria_enhanced"] > 0:
+            console.print(
+                f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
+            )
+        if enrichment_summary["requirements_enhanced"] > 0:
+            console.print(f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]")
+        if enrichment_summary["tasks_enhanced"] > 0:
+            console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
+        if enrichment_summary["changes"]:
+            console.print("\n[bold]Changes made:[/bold]")
+            for change in enrichment_summary["changes"][:10]:  # Show first 10 changes
+                console.print(f"[dim]  - {change}[/dim]")
+            if len(enrichment_summary["changes"]) > 10:
+                console.print(f"[dim]  ... and {len(enrichment_summary['changes']) - 10} more[/dim]")
+    else:
+        print_info("No enrichments needed - plan bundle is already well-specified")
+
+
+@beartype
+@require(lambda report: report is not None, "Report must not be None")
+@require(
+    lambda findings_format: findings_format is None or isinstance(findings_format, str),
+    "Findings format must be None or str",
+)
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+@ensure(lambda result: result is None, "Must return None")
+def _output_findings(
+    report: Any,  # AmbiguityReport (imported locally to avoid circular dependency)
+    findings_format: str | None,
+    is_non_interactive: bool,
+) -> None:
+    """
+    Output findings in structured format or table.
+
+    Args:
+        report: Ambiguity report
+        findings_format: Output format (json, yaml, table)
+        is_non_interactive: Whether in non-interactive mode
+    """
+    from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus
+
+    # Determine output format
+    output_format_str = findings_format
+    if not output_format_str:
+        # Default: json for non-interactive, table for interactive
+        output_format_str = "json" if is_non_interactive else "table"
+
+    output_format_str = output_format_str.lower()
+
+    if output_format_str == "table":
+        # Interactive table output
+        findings_table = Table(title="Plan Review Findings", show_header=True, header_style="bold magenta")
+        findings_table.add_column("Category", style="cyan", no_wrap=True)
+        findings_table.add_column("Status", style="yellow")
+        findings_table.add_column("Description", style="white")
+        findings_table.add_column("Impact", justify="right", style="green")
+        findings_table.add_column("Uncertainty", justify="right", style="blue")
+        findings_table.add_column("Priority", justify="right", style="bold")
+
+        findings_list = report.findings or []
+        for finding in sorted(findings_list, key=lambda f: f.impact * f.uncertainty, reverse=True):
+            status_icon = (
+                "✅"
+                if finding.status == AmbiguityStatus.CLEAR
+                else "⚠️"
+                if finding.status == AmbiguityStatus.PARTIAL
+                else "❌"
+            )
+            priority = finding.impact * finding.uncertainty
+            findings_table.add_row(
+                finding.category.value,
+                f"{status_icon} {finding.status.value}",
+                finding.description[:80] + "..." if len(finding.description) > 80 else finding.description,
+                f"{finding.impact:.2f}",
+                f"{finding.uncertainty:.2f}",
+                f"{priority:.2f}",
+            )
+
+        console.print("\n")
+        console.print(findings_table)
+
+        # Also show coverage summary
+        if report.coverage:
+            console.print("\n[bold]Coverage Summary:[/bold]")
+            for cat, status in report.coverage.items():
+                status_icon = (
+                    "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
+                )
+                console.print(f"  {status_icon} {cat.value}: {status.value}")
+
+    elif output_format_str in ("json", "yaml"):
+        # Structured output (JSON or YAML)
+        findings_data = {
+            "findings": [
+                {
+                    "category": f.category.value,
+                    "status": f.status.value,
+                    "description": f.description,
+                    "impact": f.impact,
+                    "uncertainty": f.uncertainty,
+                    "priority": f.impact * f.uncertainty,
+                    "question": f.question,
+                    "related_sections": f.related_sections or [],
+                }
+                for f in (report.findings or [])
+            ],
+            "coverage": {cat.value: status.value for cat, status in (report.coverage or {}).items()},
+            "total_findings": len(report.findings or []),
+            "priority_score": report.priority_score,
+        }
+
+        import sys
+
+        if output_format_str == "json":
+            sys.stdout.write(json.dumps(findings_data, indent=2))
+        else:  # yaml
+            from ruamel.yaml import YAML
+
+            yaml = YAML()
+            yaml.default_flow_style = False
+            yaml.preserve_quotes = True
+            from io import StringIO
+
+            output = StringIO()
+            yaml.dump(findings_data, output)
+            sys.stdout.write(output.getvalue())
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    else:
+        print_error(f"Invalid findings format: {findings_format}. Must be 'json', 'yaml', or 'table'")
+        raise typer.Exit(1)
+
+
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda bundle: bundle is not None, "Bundle must not be None")
+@ensure(lambda result: isinstance(result, int), "Must return int")
+def _deduplicate_features(bundle: PlanBundle) -> int:
+    """
+    Deduplicate features by normalized key (clean up duplicates from previous syncs).
+
+    Uses prefix matching to handle abbreviated vs full names (e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM).
+
+    Args:
+        bundle: Plan bundle to deduplicate
+
+    Returns:
+        Number of duplicates removed
+    """
+    from specfact_cli.utils.feature_keys import normalize_feature_key
+
+    seen_normalized_keys: set[str] = set()
+    deduplicated_features: list[Feature] = []
+
+    for existing_feature in bundle.features:
+        normalized_key = normalize_feature_key(existing_feature.key)
+
+        # Check for exact match first
+        if normalized_key in seen_normalized_keys:
+            continue
+
+        # Check for prefix match (abbreviated vs full names)
+        # e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM
+        # Only match if shorter is a PREFIX of longer with significant length difference
+        # AND at least one key has a numbered prefix (041_, 042-, etc.) indicating Spec-Kit origin
+        # This avoids false positives like SMARTCOVERAGE vs SMARTCOVERAGEMANAGER (both from code analysis)
+        matched = False
+        for seen_key in seen_normalized_keys:
+            shorter = min(normalized_key, seen_key, key=len)
+            longer = max(normalized_key, seen_key, key=len)
+
+            # Check if at least one of the original keys has a numbered prefix (Spec-Kit format)
+            import re
+
+            has_speckit_key = bool(
+                re.match(r"^\d{3}[_-]", existing_feature.key)
+                or any(
+                    re.match(r"^\d{3}[_-]", f.key)
+                    for f in deduplicated_features
+                    if normalize_feature_key(f.key) == seen_key
+                )
+            )
+
+            # More conservative matching:
+            # 1. At least one key must have numbered prefix (Spec-Kit origin)
+            # 2. Shorter must be at least 10 chars
+            # 3. Longer must start with shorter (prefix match)
+            # 4. Length difference must be at least 6 chars
+            # 5. Shorter must be < 75% of longer (to ensure significant difference)
+            length_diff = len(longer) - len(shorter)
+            length_ratio = len(shorter) / len(longer) if len(longer) > 0 else 1.0
+
+            if (
+                has_speckit_key
+                and len(shorter) >= 10
+                and longer.startswith(shorter)
+                and length_diff >= 6
+                and length_ratio < 0.75
+            ):
+                matched = True
+                # Prefer the longer (full) name - update the existing feature's key if needed
+                if len(normalized_key) > len(seen_key):
+                    # Current feature has longer name - update the existing one
+                    for dedup_feature in deduplicated_features:
+                        if normalize_feature_key(dedup_feature.key) == seen_key:
+                            dedup_feature.key = existing_feature.key
+                            break
+                break
+
+        if not matched:
+            seen_normalized_keys.add(normalized_key)
+            deduplicated_features.append(existing_feature)
+
+    duplicates_removed = len(bundle.features) - len(deduplicated_features)
+    if duplicates_removed > 0:
+        bundle.features = deduplicated_features
+
+    return duplicates_removed
+
+
 @app.command("review")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
@@ -1815,6 +3023,17 @@ def review(
         "--list-questions",
         help="Output questions in JSON format without asking (for Copilot mode)",
     ),
+    list_findings: bool = typer.Option(
+        False,
+        "--list-findings",
+        help="Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment.",
+    ),
+    findings_format: str | None = typer.Option(
+        None,
+        "--findings-format",
+        help="Output format for --list-findings: json, yaml, or table (default: json for non-interactive, table for interactive)",
+        case_sensitive=False,
+    ),
     answers: str | None = typer.Option(
         None,
         "--answers",
@@ -1840,9 +3059,11 @@ def review(
 
     Example:
         specfact plan review
-        specfact plan review --plan .specfact/plans/main.bundle.yaml
+        specfact plan review --plan .specfact/plans/main.bundle.<format>
         specfact plan review --max-questions 3 --category "Functional Scope"
         specfact plan review --list-questions  # Output questions as JSON
+        specfact plan review --list-findings --findings-format json  # Output all findings as JSON (for bulk updates)
+        specfact plan review --list-findings  # Output all findings as table (interactive) or JSON (non-interactive)
         specfact plan review --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
     """
     from datetime import date, datetime
@@ -1853,7 +3074,6 @@ def review(
         TaxonomyCategory,
     )
     from specfact_cli.models.plan import Clarification, Clarifications, ClarificationSession
-    from specfact_cli.utils.structure import SpecFactStructure
 
     # Detect operational mode
     mode = detect_mode()
@@ -1868,52 +3088,30 @@ def review(
     }
 
     with telemetry.track_command("plan.review", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            # Try to find active plan or latest
-            default_plan = SpecFactStructure.get_default_plan_path()
-            if default_plan.exists():
-                plan = default_plan
-                print_info(f"Using default plan: {plan}")
-            else:
-                # Find latest plan bundle
-                base_path = Path(".")
-                plans_dir = base_path / SpecFactStructure.PLANS
-                if plans_dir.exists():
-                    plan_files = sorted(plans_dir.glob("*.bundle.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
-                    if plan_files:
-                        plan = plan_files[0]
-                        print_info(f"Using latest plan: {plan}")
-                    else:
-                        print_error(f"No plan bundles found in {plans_dir}")
-                        print_error("Create one with: specfact plan init --interactive")
-                        raise typer.Exit(1)
-                else:
-                    print_error(f"Plans directory not found: {plans_dir}")
-                    print_error("Create one with: specfact plan init --interactive")
-                    raise typer.Exit(1)
-
-        # Type guard: ensure plan is not None
-        if plan is None:
-            print_error("Plan bundle path is required")
+        # Find plan path
+        plan_path = _find_plan_path(plan)
+        if plan_path is None:
             raise typer.Exit(1)
 
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        if not plan_path.exists():
+            print_error(f"Plan bundle not found: {plan_path}")
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Plan Review")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, bundle = validation_result
-
+            # Load and validate plan
+            is_valid, bundle = _load_and_validate_plan(plan_path)
             if not is_valid or bundle is None:
-                print_error(f"Plan validation failed: {error}")
                 raise typer.Exit(1)
+
+            # Deduplicate features by normalized key (clean up duplicates from previous syncs)
+            duplicates_removed = _deduplicate_features(bundle)
+            if duplicates_removed > 0:
+                # Write back deduplicated bundle immediately
+                generator = PlanGenerator()
+                generator.generate(bundle, plan_path)
+                print_success(f"✓ Removed {duplicates_removed} duplicate features from plan bundle")
 
             # Check current stage
             current_stage = "draft"
@@ -1934,41 +3132,7 @@ def review(
                 bundle.clarifications = Clarifications(sessions=[])
 
             # Auto-enrich if requested (before scanning for ambiguities)
-            if auto_enrich:
-                print_info(
-                    "Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
-                )
-                from specfact_cli.enrichers.plan_enricher import PlanEnricher
-
-                enricher = PlanEnricher()
-                enrichment_summary = enricher.enrich_plan(bundle)
-
-                if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
-                    # Save enriched plan bundle
-                    generator = PlanGenerator()
-                    generator.generate(bundle, plan)
-                    print_success(
-                        f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
-                        f"{enrichment_summary['stories_updated']} stories updated"
-                    )
-                    if enrichment_summary["acceptance_criteria_enhanced"] > 0:
-                        console.print(
-                            f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
-                        )
-                    if enrichment_summary["requirements_enhanced"] > 0:
-                        console.print(
-                            f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]"
-                        )
-                    if enrichment_summary["tasks_enhanced"] > 0:
-                        console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
-                    if enrichment_summary["changes"]:
-                        console.print("\n[bold]Changes made:[/bold]")
-                        for change in enrichment_summary["changes"][:10]:  # Show first 10 changes
-                            console.print(f"[dim]  - {change}[/dim]")
-                        if len(enrichment_summary["changes"]) > 10:
-                            console.print(f"[dim]  ... and {len(enrichment_summary['changes']) - 10} more[/dim]")
-                else:
-                    print_info("No enrichments needed - plan bundle is already well-specified")
+            _handle_auto_enrichment(bundle, plan_path, auto_enrich)
 
             # Scan for ambiguities
             print_info("Scanning plan bundle for ambiguities...")
@@ -1984,6 +3148,11 @@ def review(
                 except ValueError:
                     print_warning(f"Unknown category: {category}, ignoring filter")
                     category = None
+
+            # Handle --list-findings mode
+            if list_findings:
+                _output_findings(report, findings_format, is_non_interactive)
+                raise typer.Exit(0)
 
             # Prioritize questions by (Impact x Uncertainty)
             findings_list = report.findings or []

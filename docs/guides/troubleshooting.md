@@ -22,10 +22,28 @@ Common issues and solutions for SpecFact CLI.
    pip install --upgrade specfact-cli
    ```
 
-3. **Use uvx** (no installation needed):
+## Plan Select Command is Slow
+
+**Symptom**: `specfact plan select` takes a long time (5+ seconds) to list plans.
+
+**Cause**: Plan bundles may be missing summary metadata (older schema version 1.0).
+
+**Solution**:
+
+```bash
+# Upgrade all plan bundles to latest schema (adds summary metadata)
+specfact plan upgrade --all
+
+# Verify upgrade worked
+specfact plan select --last 5
+```
+
+**Performance Improvement**: After upgrade, `plan select` is 44% faster (3.6s vs 6.5s) and scales better with large plan bundles.
+
+1. **Use uvx** (no installation needed):
 
    ```bash
-   uvx --from specfact-cli specfact --help
+   uvx specfact-cli@latest --help
    ```
 
 ### Permission Denied

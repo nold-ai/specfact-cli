@@ -3,10 +3,13 @@
 Focus: Business logic and edge cases only (@beartype handles type validation).
 """
 
+import json
+
 import pytest
 
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Release, Story
+from specfact_cli.utils.structured_io import StructuredFormat
 
 
 class TestPlanGenerator:
@@ -47,11 +50,14 @@ class TestPlanGenerator:
                             acceptance=["Criterion 1", "Criterion 2"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
+                            contracts=None,
                         )
                     ],
                 )
             ],
             metadata=None,
+            clarifications=None,
         )
 
     @pytest.fixture
@@ -112,6 +118,7 @@ class TestPlanGenerator:
                 releases=[],
             ),
             metadata=None,
+            clarifications=None,
         )
 
         output_path = output_dir / "plan.bundle.yaml"
@@ -121,6 +128,23 @@ class TestPlanGenerator:
         # None values should not appear in output
         assert "null" not in content.lower()
         assert "none" not in content.lower()
+
+    def test_generate_json_output(self, generator, sample_plan_bundle, output_dir):
+        """Test generating plan bundle in JSON format."""
+        output_path = output_dir / "plan.bundle.json"
+
+        generator.generate(sample_plan_bundle, output_path, format=StructuredFormat.JSON)
+
+        assert output_path.exists()
+        data = json.loads(output_path.read_text())
+        assert data["idea"]["title"] == "Test Idea"
+        assert data["features"][0]["key"] == "FEATURE-1"
+
+    def test_render_string_json(self, generator, sample_plan_bundle):
+        """Test rendering plan bundle as JSON string."""
+        rendered = generator.render_string(sample_plan_bundle, format=StructuredFormat.JSON)
+        payload = json.loads(rendered)
+        assert payload["idea"]["title"] == "Test Idea"
 
     def test_generate_from_template(self, generator, output_dir):
         """Test generating file from custom template."""

@@ -30,9 +30,10 @@ Practical guides for using SpecFact CLI effectively.
 
 ### Modernizing Legacy Code? ⭐ PRIMARY
 
-1. **[Brownfield Engineer Guide](brownfield-engineer.md)** ⭐ - Complete modernization guide
-2. **[The Brownfield Journey](brownfield-journey.md)** ⭐ - Step-by-step workflow
-3. **[Use Cases - Brownfield](use-cases.md#use-case-1-brownfield-code-modernization-primary)** ⭐ - Real-world examples
+1. **[Integration Showcases](../examples/integration-showcases/)** ⭐ **START HERE** - Real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+2. **[Brownfield Engineer Guide](brownfield-engineer.md)** ⭐ - Complete modernization guide
+3. **[The Brownfield Journey](brownfield-journey.md)** ⭐ - Step-by-step workflow
+4. **[Use Cases - Brownfield](use-cases.md#use-case-1-brownfield-code-modernization-primary)** ⭐ - Real-world examples
 
 ### For IDE Users
 

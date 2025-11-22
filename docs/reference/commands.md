@@ -26,6 +26,12 @@ specfact sync spec-kit --repo . --bidirectional --watch
 specfact repro --verbose
 ```
 
+### Global Flags
+
+- `--input-format {yaml,json}` - Override default structured input detection for CLI commands (defaults to YAML)
+- `--output-format {yaml,json}` - Control how plan bundles and reports are written (JSON is ideal for CI/copilot automations)
+- `--non-interactive/--interactive` - Force prompt behavior (overrides auto-detection from CI/CD vs Copilot environments)
+
 ### Commands by Workflow
 
 **Import & Analysis:**
@@ -41,6 +47,7 @@ specfact repro --verbose
 - `plan update-feature` - Update existing feature metadata
 - `plan review` - Review plan bundle to resolve ambiguities
 - `plan select` - Select active plan from available bundles
+- `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
 - `plan sync --shared` - Enable shared plans (team collaboration)
 
@@ -54,11 +61,13 @@ specfact repro --verbose
 - `sync spec-kit` - Sync with Spec-Kit artifacts
 - `sync repository` - Sync code changes
 
-**Constitution Management:**
+**Constitution Management (Spec-Kit Compatibility):**
 
-- `constitution bootstrap` - Generate bootstrap constitution from repository analysis
-- `constitution enrich` - Auto-enrich existing constitution with repository context
-- `constitution validate` - Validate constitution completeness
+- `constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
+- `constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
+- `constitution validate` - Validate constitution completeness (for Spec-Kit format)
+
+**Note**: The `constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
 
 **Setup:**
 
@@ -74,8 +83,9 @@ specfact [OPTIONS] COMMAND [ARGS]...
 
 **Global Options:**
 
-- `--version` - Show version and exit
-- `--help` - Show help message and exit
+- `--version`, `-v` - Show version and exit
+- `--help`, `-h` - Show help message and exit
+- `--no-banner` - Hide ASCII art banner (useful for CI/CD)
 - `--verbose` - Enable verbose output
 - `--quiet` - Suppress non-error output
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
@@ -85,6 +95,35 @@ specfact [OPTIONS] COMMAND [ARGS]...
 - `cicd` - CI/CD automation mode (fast, deterministic)
 - `copilot` - CoPilot-enabled mode (interactive, enhanced prompts)
 - Auto-detection: Checks CoPilot API availability and IDE integration
+
+**Boolean Flags:**
+
+Boolean flags in SpecFact CLI work differently from value flags:
+
+- ✅ **CORRECT**: `--flag` (sets True) or `--no-flag` (sets False) or omit (uses default)
+- ❌ **WRONG**: `--flag true` or `--flag false` (Typer boolean flags don't accept values)
+
+Examples:
+
+- `--draft` sets draft status to True
+- `--no-draft` sets draft status to False (when supported)
+- Omitting the flag leaves the value unchanged (if optional) or uses the default
+
+**Note**: Some boolean flags support `--no-flag` syntax (e.g., `--draft/--no-draft`), while others are simple presence flags (e.g., `--shadow-only`). Check command help with `specfact <command> --help` for specific flag behavior.
+
+**Banner Display:**
+
+The CLI displays an ASCII art banner by default for brand recognition and visual appeal. The banner shows:
+
+- When executing any command (unless `--no-banner` is specified)
+- With help output (`--help` or `-h`)
+- With version output (`--version` or `-v`)
+
+To suppress the banner (useful for CI/CD or automated scripts):
+
+```bash
+specfact --no-banner <command>
+```
 
 **Examples:**
 
@@ -155,11 +194,19 @@ specfact import from-code [OPTIONS]
 
 - `--repo PATH` - Path to repository to import (required)
 - `--name NAME` - Custom plan name (will be sanitized for filesystem, default: "auto-derived")
-- `--out PATH` - Output path for generated plan (default: `.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+- `--out PATH` - Output path for generated plan (default: `.specfact/plans/<name>-<timestamp>.bundle.<format>`)
+- `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--shadow-only` - Observe without blocking
-- `--report PATH` - Write import report
+- `--report PATH` - Write import report (default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
+- `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
+  - **Multi-project repositories (monorepos)**: Analyze one project at a time (e.g., `--entry-point projects/api-service`)
+  - **Large codebases**: Focus on specific modules or subsystems for faster analysis
+  - **Incremental modernization**: Modernize one part of the codebase at a time
+  - Example: `--entry-point src/core` analyzes only `src/core/` and its subdirectories
+- `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)
+- `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
 
 **Note**: The `--name` option allows you to provide a meaningful name for the imported plan. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. If not provided, the AI will ask you interactively for a name.
 
@@ -180,14 +227,28 @@ specfact import from-code [OPTIONS]
 
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
 
-**Example:**
+**Examples:**
 
 ```bash
+# Full repository analysis
 specfact import from-code \
   --repo ./my-project \
   --confidence 0.7 \
   --shadow-only \
   --report reports/analysis.md
+
+# Partial analysis (analyze only specific subdirectory)
+specfact import from-code \
+  --repo ./my-project \
+  --entry-point src/core \
+  --confidence 0.7 \
+  --name core-module
+
+# Multi-project codebase (analyze one project at a time)
+specfact import from-code \
+  --repo ./monorepo \
+  --entry-point projects/api-service \
+  --name api-service-plan
 ```
 
 **What it does:**
@@ -199,11 +260,30 @@ specfact import from-code \
 - Detects async anti-patterns with Semgrep
 - Generates plan bundle with confidence scores
 
+**Partial Repository Coverage:**
+
+The `--entry-point` parameter enables partial analysis of large codebases:
+
+- **Multi-project codebases**: Analyze individual projects within a monorepo separately
+- **Focused analysis**: Analyze specific modules or subdirectories for faster feedback
+- **Incremental modernization**: Modernize one module at a time, creating separate plan bundles per module
+- **Performance**: Faster analysis when you only need to understand a subset of the codebase
+
+**Note on Multi-Project Codebases:**
+
+When working with multiple projects in a single repository, Spec-Kit integration (via `sync spec-kit`) may create artifacts at nested folder levels. This is a known limitation (see [GitHub Spec-Kit issue #299](https://github.com/github/spec-kit/issues/299)). For now, it's recommended to:
+
+- Use `--entry-point` to analyze each project separately
+- Create separate plan bundles for each project
+- Run `specfact init` from the repository root to ensure IDE integration works correctly (templates are copied to root-level `.github/`, `.cursor/`, etc. directories)
+
 ---
 
 ### `plan` - Manage Development Plans
 
 Create and manage contract-driven development plans.
+
+> Plan commands respect both `.bundle.yaml` and `.bundle.json`. Use `--output-format {yaml,json}` (or the global `specfact --output-format`) to control serialization.
 
 #### `plan init`
 
@@ -215,14 +295,23 @@ specfact plan init [OPTIONS]
 
 **Options:**
 
-- `--interactive` - Interactive wizard (recommended)
-- `--template NAME` - Use template (default, minimal, full)
-- `--out PATH` - Output path (default: `.specfact/plans/main.bundle.yaml`)
+- `--interactive/--no-interactive` - Interactive mode with prompts (default: `--interactive`)
+  - Use `--no-interactive` for CI/CD automation to avoid interactive prompts
+- `--out PATH` - Output plan bundle path (default: `.specfact/plans/main.bundle.<format>` following the current `--output-format`)
+- `--scaffold/--no-scaffold` - Create complete `.specfact/` directory structure (default: `--scaffold`)
+- `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 
 **Example:**
 
 ```bash
+# Interactive mode (recommended for manual plan creation)
 specfact plan init --interactive
+
+# Non-interactive mode (CI/CD automation)
+specfact plan init --no-interactive --out .specfact/plans/main.bundle.yaml
+
+# With custom output path
+specfact plan init --interactive --out .specfact/plans/feature-auth.bundle.json
 ```
 
 #### `plan add-feature`
@@ -261,11 +350,14 @@ specfact plan add-story [OPTIONS]
 
 **Options:**
 
-- `--feature TEXT` - Feature key (required)
-- `--key TEXT` - Story key (STORY-XXX) (required)
+- `--feature TEXT` - Parent feature key (required)
+- `--key TEXT` - Story key (e.g., STORY-001) (required)
 - `--title TEXT` - Story title (required)
-- `--acceptance TEXT` - Acceptance criteria (multiple allowed)
-- `--plan PATH` - Plan bundle path
+- `--acceptance TEXT` - Acceptance criteria (comma-separated)
+- `--story-points INT` - Story points (complexity: 0-100)
+- `--value-points INT` - Value points (business value: 0-100)
+- `--draft` - Mark story as draft
+- `--plan PATH` - Plan bundle path (default: active plan in `.specfact/plans` using current format)
 
 **Example:**
 
@@ -287,19 +379,42 @@ specfact plan update-feature [OPTIONS]
 
 **Options:**
 
-- `--key TEXT` - Feature key to update (e.g., FEATURE-001) (required)
+- `--key TEXT` - Feature key to update (e.g., FEATURE-001) (required unless `--batch-updates` is provided)
 - `--title TEXT` - Feature title
 - `--outcomes TEXT` - Expected outcomes (comma-separated)
 - `--acceptance TEXT` - Acceptance criteria (comma-separated)
 - `--constraints TEXT` - Constraints (comma-separated)
 - `--confidence FLOAT` - Confidence score (0.0-1.0)
-- `--draft BOOL` - Mark as draft (true/false)
+- `--draft/--no-draft` - Mark as draft (use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged)
+  - **Note**: Boolean flags don't accept values - use `--draft` (not `--draft true`) or `--no-draft` (not `--draft false`)
+- `--batch-updates PATH` - Path to JSON/YAML file with multiple feature updates (preferred for bulk updates via Copilot LLM enrichment)
+  - **File format**: List of objects with `key` and update fields (title, outcomes, acceptance, constraints, confidence, draft)
+  - **Example file** (`updates.json`):
+
+    ```json
+    [
+      {
+        "key": "FEATURE-001",
+        "title": "Updated Feature 1",
+        "outcomes": ["Outcome 1", "Outcome 2"],
+        "acceptance": ["Acceptance 1", "Acceptance 2"],
+        "confidence": 0.9
+      },
+      {
+        "key": "FEATURE-002",
+        "title": "Updated Feature 2",
+        "acceptance": ["Acceptance 3"],
+        "confidence": 0.85
+      }
+    ]
+    ```
+
 - `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
 
 **Example:**
 
 ```bash
-# Update feature title and outcomes
+# Single feature update
 specfact plan update-feature \
   --key FEATURE-001 \
   --title "Updated Feature Title" \
@@ -311,16 +426,47 @@ specfact plan update-feature \
   --acceptance "Criterion 1, Criterion 2" \
   --confidence 0.9
 
-# Update multiple fields at once
+# Batch updates from file (preferred for multiple features)
 specfact plan update-feature \
-  --key FEATURE-001 \
-  --title "New Title" \
-  --outcomes "Outcome 1, Outcome 2" \
-  --acceptance "Acceptance 1, Acceptance 2" \
-  --constraints "Constraint 1, Constraint 2" \
-  --confidence 0.85 \
-  --draft false
+  --batch-updates updates.json \
+  --plan .specfact/plans/main.bundle.yaml
+
+# Batch updates with YAML format
+specfact plan update-feature \
+  --batch-updates updates.yaml \
+  --plan .specfact/plans/main.bundle.yaml
 ```
+
+**Batch Update File Format:**
+
+The `--batch-updates` file must contain a list of update objects. Each object must have a `key` field and can include any combination of update fields:
+
+```json
+[
+  {
+    "key": "FEATURE-001",
+    "title": "Updated Feature 1",
+    "outcomes": ["Outcome 1", "Outcome 2"],
+    "acceptance": ["Acceptance 1", "Acceptance 2"],
+    "constraints": ["Constraint 1"],
+    "confidence": 0.9,
+    "draft": false
+  },
+  {
+    "key": "FEATURE-002",
+    "title": "Updated Feature 2",
+    "acceptance": ["Acceptance 3"],
+    "confidence": 0.85
+  }
+]
+```
+
+**When to Use Batch Updates:**
+
+- **Multiple features need refinement**: After plan review identifies multiple features with missing information
+- **Copilot LLM enrichment**: When LLM generates comprehensive updates for multiple features at once
+- **Bulk acceptance criteria updates**: When enhancing multiple features with specific file paths, method names, or component references
+- **CI/CD automation**: When applying multiple updates programmatically from external tools
 
 **What it does:**
 
@@ -335,6 +481,118 @@ specfact plan update-feature \
 - **CI/CD automation**: Update features programmatically in non-interactive environments
 - **Copilot mode**: Update features without needing internal code knowledge
 
+#### `plan update-story`
+
+Update an existing story's metadata in a plan bundle:
+
+```bash
+specfact plan update-story [OPTIONS]
+```
+
+**Options:**
+
+- `--feature TEXT` - Parent feature key (e.g., FEATURE-001) (required unless `--batch-updates` is provided)
+- `--key TEXT` - Story key to update (e.g., STORY-001) (required unless `--batch-updates` is provided)
+- `--title TEXT` - Story title
+- `--acceptance TEXT` - Acceptance criteria (comma-separated)
+- `--story-points INT` - Story points (complexity: 0-100)
+- `--value-points INT` - Value points (business value: 0-100)
+- `--confidence FLOAT` - Confidence score (0.0-1.0)
+- `--draft/--no-draft` - Mark as draft (use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged)
+  - **Note**: Boolean flags don't accept values - use `--draft` (not `--draft true`) or `--no-draft` (not `--draft false`)
+- `--batch-updates PATH` - Path to JSON/YAML file with multiple story updates (preferred for bulk updates via Copilot LLM enrichment)
+  - **File format**: List of objects with `feature`, `key` and update fields (title, acceptance, story_points, value_points, confidence, draft)
+  - **Example file** (`story_updates.json`):
+
+    ```json
+    [
+      {
+        "feature": "FEATURE-001",
+        "key": "STORY-001",
+        "title": "Updated Story 1",
+        "acceptance": ["Given X, When Y, Then Z"],
+        "story_points": 5,
+        "value_points": 3,
+        "confidence": 0.9
+      },
+      {
+        "feature": "FEATURE-002",
+        "key": "STORY-002",
+        "acceptance": ["Given A, When B, Then C"],
+        "confidence": 0.85
+      }
+    ]
+    ```
+
+- `--plan PATH` - Plan bundle path (default: active plan in `.specfact/plans` using current format)
+
+**Example:**
+
+```bash
+# Single story update
+specfact plan update-story \
+  --feature FEATURE-001 \
+  --key STORY-001 \
+  --title "Updated Story Title" \
+  --acceptance "Given X, When Y, Then Z"
+
+# Update story points and confidence
+specfact plan update-story \
+  --feature FEATURE-001 \
+  --key STORY-001 \
+  --story-points 5 \
+  --confidence 0.9
+
+# Batch updates from file (preferred for multiple stories)
+specfact plan update-story \
+  --batch-updates story_updates.json \
+  --plan .specfact/plans/main.bundle.yaml
+
+# Batch updates with YAML format
+specfact plan update-story \
+  --batch-updates story_updates.yaml \
+  --plan .specfact/plans/main.bundle.yaml
+```
+
+**Batch Update File Format:**
+
+The `--batch-updates` file must contain a list of update objects. Each object must have `feature` and `key` fields and can include any combination of update fields:
+
+```json
+[
+  {
+    "feature": "FEATURE-001",
+    "key": "STORY-001",
+    "title": "Updated Story 1",
+    "acceptance": ["Given X, When Y, Then Z"],
+    "story_points": 5,
+    "value_points": 3,
+    "confidence": 0.9,
+    "draft": false
+  },
+  {
+    "feature": "FEATURE-002",
+    "key": "STORY-002",
+    "acceptance": ["Given A, When B, Then C"],
+    "confidence": 0.85
+  }
+]
+```
+
+**When to Use Batch Updates:**
+
+- **Multiple stories need refinement**: After plan review identifies multiple stories with missing information
+- **Copilot LLM enrichment**: When LLM generates comprehensive updates for multiple stories at once
+- **Bulk acceptance criteria updates**: When enhancing multiple stories with specific file paths, method names, or component references
+- **CI/CD automation**: When applying multiple updates programmatically from external tools
+
+**What it does:**
+
+- Updates existing story metadata (title, acceptance criteria, story points, value points, confidence, draft status)
+- Works in CI/CD, Copilot, and interactive modes
+- Validates plan bundle structure after update
+- Preserves existing story data (only updates specified fields)
+
 #### `plan review`
 
 Review plan bundle to identify and resolve ambiguities:
@@ -346,16 +604,23 @@ specfact plan review [OPTIONS]
 **Options:**
 
 - `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or latest in `.specfact/plans/`)
-- `--max-questions INT` - Maximum questions per session (default: 5)
+- `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
 - `--category TEXT` - Focus on specific taxonomy category (optional)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
+- `--list-findings` - Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment
+- `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
 - `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
 - `--non-interactive` - Non-interactive mode (for CI/CD automation)
+- `--auto-enrich` - Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching
 
 **Modes:**
 
 - **Interactive Mode**: Asks questions one at a time, integrates answers immediately
 - **Copilot Mode**: Three-phase workflow:
+  1. Get findings: `specfact plan review --list-findings --findings-format json` (preferred for bulk updates)
+  2. LLM enrichment: Analyze findings and generate batch update files
+  3. Apply updates: `specfact plan update-feature --batch-updates <file>` or `specfact plan update-story --batch-updates <file>`
+- **Alternative Copilot Mode**: Question-based workflow:
   1. Get questions: `specfact plan review --list-questions`
   2. Ask user: LLM presents questions and collects answers
   3. Feed answers: `specfact plan review --answers <file>`
@@ -367,15 +632,56 @@ specfact plan review [OPTIONS]
 # Interactive review
 specfact plan review --plan .specfact/plans/main.bundle.yaml
 
-# Get questions for Copilot mode
+# Get all findings for bulk updates (preferred for Copilot mode)
+specfact plan review --list-findings --findings-format json
+
+# Get findings as table (interactive mode)
+specfact plan review --list-findings --findings-format table
+
+# Get questions for question-based workflow
 specfact plan review --list-questions --max-questions 5
 
-# Feed answers back (Copilot mode)
+# Feed answers back (question-based workflow)
 specfact plan review --answers answers.json
 
 # CI/CD automation
 specfact plan review --non-interactive --answers answers.json
 ```
+
+**Findings Output Format:**
+
+The `--list-findings` option outputs all ambiguities and findings in a structured format:
+
+```json
+{
+  "findings": [
+    {
+      "category": "Feature/Story Completeness",
+      "status": "Missing",
+      "description": "Feature FEATURE-001 has no stories",
+      "impact": 0.9,
+      "uncertainty": 0.8,
+      "priority": 0.72,
+      "question": "What stories should be added to FEATURE-001?",
+      "related_sections": ["features[0]"]
+    }
+  ],
+  "coverage": {
+    "Functional Scope & Behavior": "Missing",
+    "Feature/Story Completeness": "Missing"
+  },
+  "total_findings": 5,
+  "priority_score": 0.65
+}
+```
+
+**Bulk Update Workflow (Recommended for Copilot Mode):**
+
+1. **List findings**: `specfact plan review --list-findings --findings-format json > findings.json`
+2. **LLM analyzes findings**: Generate batch update files based on findings
+3. **Apply feature updates**: `specfact plan update-feature --batch-updates feature_updates.json`
+4. **Apply story updates**: `specfact plan update-story --batch-updates story_updates.json`
+5. **Verify**: Run `specfact plan review` again to confirm improvements
 
 **What it does:**
 
@@ -521,7 +827,7 @@ After successful promotion, the CLI suggests next actions:
 Select active plan from available plan bundles:
 
 ```bash
-specfact plan select [PLAN]
+specfact plan select [PLAN] [OPTIONS]
 ```
 
 **Arguments:**
@@ -530,7 +836,12 @@ specfact plan select [PLAN]
 
 **Options:**
 
-- None (interactive selection by default)
+- `--non-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts. Requires exactly one plan to match filters.
+- `--current` - Show only the currently active plan (auto-selects in non-interactive mode)
+- `--stages STAGES` - Filter by stages (comma-separated: `draft,review,approved,released`)
+- `--last N` - Show last N plans by modification time (most recent first)
+- `--name NAME` - Select plan by exact filename (non-interactive, e.g., `main.bundle.yaml`)
+- `--id HASH` - Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)
 
 **Example:**
 
@@ -543,14 +854,54 @@ specfact plan select 1
 
 # Select by name
 specfact plan select main.bundle.yaml
+
+# Show only active plan
+specfact plan select --current
+
+# Filter by stages
+specfact plan select --stages draft,review
+
+# Show last 5 plans
+specfact plan select --last 5
+
+# CI/CD: Get active plan without prompts (auto-selects)
+specfact plan select --non-interactive --current
+
+# CI/CD: Get most recent plan without prompts
+specfact plan select --non-interactive --last 1
+
+# CI/CD: Select by exact filename
+specfact plan select --name main.bundle.yaml
+
+# CI/CD: Select by content hash ID
+specfact plan select --id abc123def456
 ```
 
 **What it does:**
 
 - Lists all available plan bundles in `.specfact/plans/` with metadata (features, stories, stage, modified date)
 - Displays numbered list with active plan indicator
+- Applies filters (current, stages, last N) before display/selection
 - Updates `.specfact/plans/config.yaml` to set the active plan
 - The active plan becomes the default for all plan operations
+
+**Filter Options:**
+
+- `--current`: Filters to show only the currently active plan. In non-interactive mode, automatically selects the active plan without prompts.
+- `--stages`: Filters plans by stage (e.g., `--stages draft,review` shows only draft and review plans)
+- `--last N`: Shows the N most recently modified plans (sorted by modification time, most recent first)
+- `--name NAME`: Selects plan by exact filename (non-interactive). Useful for CI/CD when you know the exact plan name.
+- `--id HASH`: Selects plan by content hash ID from `metadata.summary.content_hash` (non-interactive). Supports full hash or first 8 characters.
+- `--non-interactive`: Disables interactive prompts. If multiple plans match filters, command will error. Use with `--current`, `--last 1`, `--name`, or `--id` for single plan selection in CI/CD.
+
+**Performance Notes:**
+
+The `plan select` command uses optimized metadata reading for fast performance, especially with large plan bundles:
+
+- Plan bundles include summary metadata (features count, stories count, content hash) at the top of the file
+- For large files (>10MB), only the metadata section is read (first 50KB)
+- This provides 44% faster performance compared to full file parsing
+- Summary metadata is automatically added when creating or upgrading plan bundles
 
 **Note**: The active plan is tracked in `.specfact/plans/config.yaml` and replaces the static `main.bundle.yaml` reference. All plan commands (`compare`, `promote`, `add-feature`, `add-story`, `sync spec-kit`) now use the active plan by default.
 
@@ -595,6 +946,71 @@ specfact sync spec-kit --repo . --bidirectional --watch
 - **Team collaboration**: Multiple developers can work on the same plan with automated synchronization
 
 **Note**: This is a convenience wrapper. The underlying command is `sync spec-kit --bidirectional`. See [`sync spec-kit`](#sync-spec-kit) for full details.
+
+#### `plan upgrade`
+
+Upgrade plan bundles to the latest schema version:
+
+```bash
+specfact plan upgrade [OPTIONS]
+```
+
+**Options:**
+
+- `--plan PATH` - Path to specific plan bundle to upgrade (default: active plan)
+- `--all` - Upgrade all plan bundles in `.specfact/plans/`
+- `--dry-run` - Show what would be upgraded without making changes
+
+**Example:**
+
+```bash
+# Preview what would be upgraded
+specfact plan upgrade --dry-run
+
+# Upgrade active plan
+specfact plan upgrade
+
+# Upgrade specific plan
+specfact plan upgrade --plan path/to/plan.bundle.yaml
+
+# Upgrade all plans
+specfact plan upgrade --all
+
+# Preview all upgrades
+specfact plan upgrade --all --dry-run
+```
+
+**What it does:**
+
+- Detects plan bundles with older schema versions or missing summary metadata
+- Migrates plan bundles from older versions to the current version (1.1)
+- Adds summary metadata (features count, stories count, content hash) for performance optimization
+- Preserves all existing plan data while adding new fields
+- Updates plan bundle version to current schema version
+
+**Schema Versions:**
+
+- **Version 1.0**: Initial schema (no summary metadata)
+- **Version 1.1**: Added summary metadata for fast access without full parsing
+
+**When to use:**
+
+- After upgrading SpecFact CLI to a version with new schema features
+- When you notice slow performance with `plan select` (indicates missing summary metadata)
+- Before running batch operations on multiple plan bundles
+- As part of repository maintenance to ensure all plans are up to date
+
+**Migration Details:**
+
+The upgrade process:
+
+1. Detects schema version from plan bundle's `version` field
+2. Checks for missing summary metadata (backward compatibility)
+3. Applies migrations in sequence (supports multi-step migrations)
+4. Computes and adds summary metadata with content hash for integrity verification
+5. Updates plan bundle file with new schema version
+
+**Note**: Upgraded plan bundles are backward compatible. Older CLI versions can still read them, but won't benefit from performance optimizations.
 
 #### `plan compare`
 
@@ -918,7 +1334,15 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 
 ### `constitution` - Manage Project Constitutions
 
-Manage project constitutions for Spec-Kit integration. Auto-generate bootstrap templates from repository analysis.
+Manage project constitutions for Spec-Kit format compatibility. Auto-generate bootstrap templates from repository analysis.
+
+**Note**: These commands are for **Spec-Kit format compatibility** only. SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when:
+
+- Syncing with Spec-Kit artifacts (`specfact sync spec-kit`)
+- Working in Spec-Kit format (using `/speckit.*` commands)
+- Migrating from Spec-Kit to SpecFact format
+
+If you're using SpecFact standalone (without Spec-Kit), you don't need constitutions - use `specfact plan` commands instead.
 
 #### `constitution bootstrap`
 
@@ -962,9 +1386,12 @@ specfact constitution bootstrap --repo . --overwrite
 
 **When to use:**
 
-- **After brownfield import**: Run `specfact import from-code` → Suggested automatically
-- **Before Spec-Kit sync**: Run before `specfact sync spec-kit` to ensure constitution exists
+- **Spec-Kit sync operations**: Required before `specfact sync spec-kit` (bidirectional sync)
+- **Spec-Kit format projects**: When working with Spec-Kit artifacts (using `/speckit.*` commands)
+- **After brownfield import (if syncing to Spec-Kit)**: Run `specfact import from-code` → Suggested automatically if Spec-Kit sync is planned
 - **Manual setup**: Generate constitution for new Spec-Kit projects
+
+**Note**: If you're using SpecFact standalone (without Spec-Kit), you don't need constitutions. Use `specfact plan` commands instead for plan management.
 
 **Integration:**
 
@@ -975,7 +1402,7 @@ specfact constitution bootstrap --repo . --overwrite
 
 #### `constitution enrich`
 
-Auto-enrich existing constitution with repository context:
+Auto-enrich existing constitution with repository context (Spec-Kit format):
 
 ```bash
 specfact constitution enrich [OPTIONS]
@@ -1013,7 +1440,7 @@ specfact constitution enrich --repo . --constitution custom-constitution.md
 
 #### `constitution validate`
 
-Validate constitution completeness:
+Validate constitution completeness (Spec-Kit format):
 
 ```bash
 specfact constitution validate [OPTIONS]
@@ -1087,9 +1514,11 @@ specfact init --ide cursor --force
 **What it does:**
 
 1. Detects your IDE (or uses `--ide` flag)
-2. Copies prompt templates from `resources/prompts/` to IDE-specific location
+2. Copies prompt templates from `resources/prompts/` to IDE-specific location **at the repository root level**
 3. Creates/updates VS Code settings.json if needed (for VS Code/Copilot)
 4. Makes slash commands available in your IDE
+
+**Important:** Templates are always copied to the repository root level (where `.github/`, `.cursor/`, etc. directories must reside for IDE recognition). The `--repo` parameter specifies the repository root path. For multi-project codebases, run `specfact init` from the repository root to ensure IDE integration works correctly.
 
 **IDE-Specific Locations:**
 

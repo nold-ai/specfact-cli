@@ -9,7 +9,7 @@ from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
 from specfact_cli.models.plan import PlanBundle
-from specfact_cli.utils.yaml_utils import dump_yaml, yaml_to_string
+from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, dumps_structured_data
 
 
 class PlanGenerator:
@@ -42,23 +42,41 @@ class PlanGenerator:
     @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
     @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
-    def generate(self, plan_bundle: PlanBundle, output_path: Path) -> None:
+    def generate(
+        self,
+        plan_bundle: PlanBundle,
+        output_path: Path,
+        update_summary: bool = True,
+        format: StructuredFormat | None = None,
+    ) -> None:
         """
         Generate plan bundle YAML file from model.
 
         Args:
             plan_bundle: PlanBundle model to generate from
             output_path: Path to write the generated YAML file
+            update_summary: Whether to update summary metadata before writing (default: True)
 
         Raises:
             IOError: If unable to write output file
         """
+        # Update summary metadata before writing (for fast access without full parsing)
+        if update_summary:
+            # Include hash for integrity verification (only when writing, not when reading)
+            plan_bundle.update_summary(include_hash=True)
+
+        # Ensure version is set to current schema version
+        from specfact_cli.migrations.plan_migrator import get_current_schema_version
+
+        plan_bundle.version = get_current_schema_version()
+
         # Convert model to dict, excluding None values
         plan_data = plan_bundle.model_dump(exclude_none=True)
 
         # Write to file using YAML dump
+        resolved_format = format or StructuredFormat.from_path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        dump_yaml(plan_data, output_path)
+        dump_structured_file(plan_data, output_path, resolved_format)
 
     @beartype
     @require(
@@ -91,7 +109,7 @@ class PlanGenerator:
     @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @ensure(lambda result: isinstance(result, str), "Must return string")
     @ensure(lambda result: len(result) > 0, "Result must be non-empty")
-    def render_string(self, plan_bundle: PlanBundle) -> str:
+    def render_string(self, plan_bundle: PlanBundle, format: StructuredFormat = StructuredFormat.YAML) -> str:
         """
         Render plan bundle to YAML string without writing to file.
 
@@ -102,4 +120,4 @@ class PlanGenerator:
             Rendered YAML string
         """
         plan_data = plan_bundle.model_dump(exclude_none=True)
-        return yaml_to_string(plan_data)
+        return dumps_structured_data(plan_data, format)

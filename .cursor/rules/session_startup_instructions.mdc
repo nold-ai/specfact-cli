@@ -21,3 +21,25 @@ alwaysApply: true
 1.2. `CLAUDE.md`: Check for any session-specific goals or instructions (applies to Claude CLI only).
 2. `docs/README.md` to get the latest project status and priorities and see which plan is referenced as being worked on: Understand the current development phase and tasks based on the mentioned plan in the README.md file.
 3. Outline your understanding of the current development phase and tasks based on the mentioned plan in the README.md file, before proceeding with any work. Ask the user for confirmation before proceeding.
+
+## Documentation and Planning Guidelines
+
+**CRITICAL**: When working with planning and documentation:
+
+- **Work directly with major artifacts**: Update strategic plans, implementation plans, and analysis documents directly. Do NOT create plans for plans, tracking documents for tracking documents, or status artifacts for status artifacts.
+- **Update existing artifacts**: Add status annotations (✅ Complete, ⏳ In Progress, 🟡 Pending) directly to existing plan documents rather than creating separate status files.
+- **Consolidate, don't multiply**: Only create new documentation artifacts when they add clear, unique value that cannot be captured in existing artifacts.
+- **Performance metrics**: Record timing and performance data directly in implementation status documents, not in separate performance tracking files.
+- **Test results**: Include test results and validation outcomes in the relevant implementation status or quality analysis documents.
+
+**Examples of what NOT to do**:
+
+- ❌ Creating `PHASE0_TRACKING.md` when `CODE2SPEC_STRATEGIC_PLAN.md` already exists
+- ❌ Creating `STEP1_1_TEST_RESULTS.md` when `PHASE1_IMPLEMENTATION_STATUS.md` can be updated
+- ❌ Creating `PERFORMANCE_METRICS.md` when performance data can go in implementation status
+
+**Examples of what TO do**:
+
+- ✅ Update `CODE2SPEC_STRATEGIC_PLAN.md` with status annotations (✅ Complete, ⏳ Next)
+- ✅ Add test results and performance metrics to `PHASE1_IMPLEMENTATION_STATUS.md`
+- ✅ Update `QUALITY_GAP_ANALYSIS.md` with measurement results and progress

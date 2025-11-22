@@ -21,6 +21,8 @@ You inherited a 5-year-old Python data pipeline with:
 
 ## Step 1: Reverse Engineer Data Pipeline
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE.
+
 ### Extract Specs from Legacy Pipeline
 
 ```bash
@@ -280,6 +282,18 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
 
 ---
 
+## Integration with Your Workflow
+
+SpecFact CLI integrates seamlessly with your existing tools:
+
+- **VS Code**: Use pre-commit hooks to catch breaking changes before commit
+- **Cursor**: AI assistant workflows catch regressions during refactoring
+- **GitHub Actions**: CI/CD integration blocks bad code from merging
+- **Pre-commit hooks**: Local validation prevents breaking changes
+- **Any IDE**: Pure CLI-first approach—works with any editor
+
+**See real examples**: [Integration Showcases](../integration-showcases/) - 5 complete examples showing bugs fixed via integrations
+
 ## Key Takeaways
 
 ### What Worked Well
@@ -288,6 +302,7 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
 2. ✅ **Contracts** enforced data validation at runtime
 3. ✅ **CrossHair** discovered edge cases in data transformations
 4. ✅ **Incremental modernization** reduced risk
+5. ✅ **CLI-first integration** - Works offline, no account required, no vendor lock-in
 
 ### Lessons Learned
 
@@ -300,9 +315,10 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
 
 ## Next Steps
 
-1. **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** - Complete modernization workflow
-2. **[Django Example](brownfield-django-modernization.md)** - Web app modernization
-3. **[Flask API Example](brownfield-flask-api.md)** - API modernization
+1. **[Integration Showcases](../integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+2. **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** - Complete modernization workflow
+3. **[Django Example](brownfield-django-modernization.md)** - Web app modernization
+4. **[Flask API Example](brownfield-flask-api.md)** - API modernization
 
 ---
 

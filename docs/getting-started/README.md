@@ -12,16 +12,27 @@ Choose your preferred installation method:
 
 ### Your First Command
 
+**For Legacy Code Modernization** (Recommended):
+
 ```bash
-# Modernizing legacy code? (Recommended)
-specfact import from-code --repo . --name my-project
+# CLI-only mode (works with uvx, no installation needed)
+uvx specfact-cli@latest import from-code --repo . --name my-project
 
-# Starting a new project?
-specfact plan init --interactive
-
-# Using GitHub Spec-Kit?
-specfact import from-spec-kit --repo ./my-project --dry-run
+# Interactive AI Assistant mode (requires pip install + specfact init)
+# See First Steps guide for IDE integration setup
 ```
+
+**For New Projects**:
+
+```bash
+# CLI-only mode
+uvx specfact-cli@latest plan init --interactive
+
+# Interactive AI Assistant mode (recommended for better results)
+# Requires: pip install specfact-cli && specfact init
+```
+
+**Note**: Interactive AI Assistant mode provides better feature detection and semantic understanding, but requires `pip install specfact-cli` and IDE setup. CLI-only mode works immediately with `uvx` but may show 0 features for simple test cases.
 
 ### Modernizing Legacy Code?
 

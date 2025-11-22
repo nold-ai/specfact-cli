@@ -7,16 +7,21 @@ to SpecFact format (plans, protocols).
 
 from __future__ import annotations
 
+import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli import runtime
+from specfact_cli.analyzers.constitution_evidence_extractor import ConstitutionEvidenceExtractor
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.protocol_generator import ProtocolGenerator
 from specfact_cli.generators.workflow_generator import WorkflowGenerator
 from specfact_cli.importers.speckit_scanner import SpecKitScanner
+from specfact_cli.migrations.plan_migrator import get_current_schema_version
 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Release, Story
 from specfact_cli.models.protocol import Protocol
 from specfact_cli.utils.structure import SpecFactStructure
@@ -43,6 +48,7 @@ class SpecKitConverter:
         self.protocol_generator = ProtocolGenerator()
         self.plan_generator = PlanGenerator()
         self.workflow_generator = WorkflowGenerator()
+        self.constitution_extractor = ConstitutionEvidenceExtractor(repo_path)
         self.mapping_file = mapping_file
 
     @beartype
@@ -97,13 +103,16 @@ class SpecKitConverter:
 
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
-    @ensure(lambda result: result.version == "1.0", "Must have version 1.0")
+    @ensure(
+        lambda result: result.version == get_current_schema_version(),
+        "Must have current schema version",
+    )
     def convert_plan(self, output_path: Path | None = None) -> PlanBundle:
         """
         Convert Spec-Kit markdown artifacts to SpecFact plan bundle.
 
         Args:
-            output_path: Optional path to write plan bundle (default: .specfact/plans/main.bundle.yaml)
+            output_path: Optional path to write plan bundle (default: .specfact/plans/main.bundle.<format>)
 
         Returns:
             Generated PlanBundle model
@@ -111,10 +120,10 @@ class SpecKitConverter:
         # Discover features from markdown artifacts
         discovered_features = self.scanner.discover_features()
 
-        # Extract features from markdown data
-        features = self._extract_features_from_markdown(discovered_features)
+        # Extract features from markdown data (empty list if no features found)
+        features = self._extract_features_from_markdown(discovered_features) if discovered_features else []
 
-        # Parse constitution for constraints
+        # Parse constitution for constraints (only if needed for idea creation)
         structure = self.scanner.scan_structure()
         memory_dir = Path(structure.get("specify_memory_dir", "")) if structure.get("specify_memory_dir") else None
         constraints: list[str] = []
@@ -160,11 +169,14 @@ class SpecKitConverter:
 
         # Write to file if output path provided
         if output_path:
+            output_path = output_path.with_name(SpecFactStructure.ensure_plan_filename(output_path.name))
             SpecFactStructure.ensure_structure(output_path.parent)
             self.plan_generator.generate(plan_bundle, output_path)
         else:
-            # Use default path - construct .specfact/plans/main.bundle.yaml
-            output_path = self.repo_path / ".specfact" / "plans" / "main.bundle.yaml"
+            # Use default path respecting current output format
+            output_path = SpecFactStructure.get_default_plan_path(
+                base_path=self.repo_path, preferred_format=runtime.get_output_format()
+            )
             SpecFactStructure.ensure_structure(self.repo_path)
             self.plan_generator.generate(plan_bundle, output_path)
 
@@ -260,6 +272,16 @@ class SpecKitConverter:
                         if (story_ref and story_ref in story_key) or not story_ref:
                             tasks.append(task.get("description", ""))
 
+            # Extract scenarios from Spec-Kit format (Primary, Alternate, Exception, Recovery)
+            scenarios = story_data.get("scenarios")
+            # Ensure scenarios dict has correct format (filter out empty lists)
+            if scenarios and isinstance(scenarios, dict):
+                # Filter out empty scenario lists
+                filtered_scenarios = {k: v for k, v in scenarios.items() if v and isinstance(v, list) and len(v) > 0}
+                scenarios = filtered_scenarios if filtered_scenarios else None
+            else:
+                scenarios = None
+
             story = Story(
                 key=story_key,
                 title=story_title,
@@ -270,6 +292,8 @@ class SpecKitConverter:
                 tasks=tasks,
                 confidence=0.8,  # High confidence from spec
                 draft=False,
+                scenarios=scenarios,
+                contracts=None,
             )
             stories.append(story)
 
@@ -358,7 +382,9 @@ class SpecKitConverter:
     @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @ensure(lambda result: isinstance(result, int), "Must return int (number of features converted)")
     @ensure(lambda result: result >= 0, "Result must be non-negative")
-    def convert_to_speckit(self, plan_bundle: PlanBundle) -> int:
+    def convert_to_speckit(
+        self, plan_bundle: PlanBundle, progress_callback: Callable[[int, int], None] | None = None
+    ) -> int:
         """
         Convert SpecFact plan bundle to Spec-Kit markdown artifacts.
 
@@ -366,23 +392,40 @@ class SpecKitConverter:
 
         Args:
             plan_bundle: SpecFact plan bundle to convert
+            progress_callback: Optional callback function(current, total) to report progress
 
         Returns:
             Number of features converted
         """
         features_converted = 0
+        total_features = len(plan_bundle.features)
+        # Track used feature numbers to avoid duplicates
+        used_feature_nums: set[int] = set()
 
-        for feature in plan_bundle.features:
+        for idx, feature in enumerate(plan_bundle.features, start=1):
+            # Report progress if callback provided
+            if progress_callback:
+                progress_callback(idx, total_features)
             # Generate feature directory name from key (FEATURE-001 -> 001-feature-name)
-            feature_num = self._extract_feature_number(feature.key)
+            # Use number from key if available and not already used, otherwise use sequential index
+            extracted_num = self._extract_feature_number(feature.key)
+            if extracted_num == 0 or extracted_num in used_feature_nums:
+                # No number found in key, or number already used - use sequential numbering
+                # Find next available sequential number starting from idx
+                feature_num = idx
+                while feature_num in used_feature_nums:
+                    feature_num += 1
+            else:
+                feature_num = extracted_num
+            used_feature_nums.add(feature_num)
             feature_name = self._to_feature_dir_name(feature.title)
 
             # Create feature directory
             feature_dir = self.repo_path / "specs" / f"{feature_num:03d}-{feature_name}"
             feature_dir.mkdir(parents=True, exist_ok=True)
 
-            # Generate spec.md
-            spec_content = self._generate_spec_markdown(feature)
+            # Generate spec.md (pass calculated feature_num to avoid recalculation)
+            spec_content = self._generate_spec_markdown(feature, feature_num=feature_num)
             (feature_dir / "spec.md").write_text(spec_content, encoding="utf-8")
 
             # Generate plan.md
@@ -399,14 +442,29 @@ class SpecKitConverter:
 
     @beartype
     @require(lambda feature: isinstance(feature, Feature), "Must be Feature instance")
+    @require(
+        lambda feature_num: feature_num is None or feature_num > 0,
+        "Feature number must be None or positive",
+    )
     @ensure(lambda result: isinstance(result, str), "Must return string")
     @ensure(lambda result: len(result) > 0, "Result must be non-empty")
-    def _generate_spec_markdown(self, feature: Feature) -> str:
-        """Generate Spec-Kit spec.md content from SpecFact feature."""
+    def _generate_spec_markdown(self, feature: Feature, feature_num: int | None = None) -> str:
+        """
+        Generate Spec-Kit spec.md content from SpecFact feature.
+
+        Args:
+            feature: Feature to generate spec for
+            feature_num: Optional pre-calculated feature number (avoids recalculation with fallback)
+        """
         from datetime import datetime
 
         # Extract feature branch from feature key (FEATURE-001 -> 001-feature-name)
-        feature_num = self._extract_feature_number(feature.key)
+        # Use provided feature_num if available, otherwise extract from key (with fallback to 1)
+        if feature_num is None:
+            feature_num = self._extract_feature_number(feature.key)
+            if feature_num == 0:
+                # Fallback: use 1 if no number found (shouldn't happen if called from convert_to_speckit)
+                feature_num = 1
         feature_name = self._to_feature_dir_name(feature.title)
         feature_branch = f"{feature_num:03d}-{feature_name}"
 
@@ -472,10 +530,20 @@ class SpecKitConverter:
                 for acc_idx, acc in enumerate(story.acceptance, start=1):
                     # Parse Given/When/Then if available
                     if "Given" in acc and "When" in acc and "Then" in acc:
-                        parts = acc.split(", ")
-                        given = parts[0].replace("Given ", "").strip()
-                        when = parts[1].replace("When ", "").strip()
-                        then = parts[2].replace("Then ", "").strip()
+                        # Use regex to properly extract Given/When/Then parts
+                        # This handles commas inside type hints (e.g., "dict[str, Any]")
+                        gwt_pattern = r"Given\s+(.+?),\s*When\s+(.+?),\s*Then\s+(.+?)(?:$|,)"
+                        match = re.search(gwt_pattern, acc, re.IGNORECASE | re.DOTALL)
+                        if match:
+                            given = match.group(1).strip()
+                            when = match.group(2).strip()
+                            then = match.group(3).strip()
+                        else:
+                            # Fallback to simple split if regex fails
+                            parts = acc.split(", ")
+                            given = parts[0].replace("Given ", "").strip() if len(parts) > 0 else ""
+                            when = parts[1].replace("When ", "").strip() if len(parts) > 1 else ""
+                            then = parts[2].replace("Then ", "").strip() if len(parts) > 2 else ""
                         lines.append(f"{acc_idx}. **Given** {given}, **When** {when}, **Then** {then}")
 
                         # Categorize scenarios based on keywords
@@ -621,7 +689,10 @@ class SpecKitConverter:
         return "\n".join(lines)
 
     @beartype
-    @require(lambda feature, plan_bundle: isinstance(feature, Feature) and isinstance(plan_bundle, PlanBundle), "Must be Feature and PlanBundle instances")
+    @require(
+        lambda feature, plan_bundle: isinstance(feature, Feature) and isinstance(plan_bundle, PlanBundle),
+        "Must be Feature and PlanBundle instances",
+    )
     @ensure(lambda result: isinstance(result, str), "Must return string")
     def _generate_plan_markdown(self, feature: Feature, plan_bundle: PlanBundle) -> str:
         """Generate Spec-Kit plan.md content from SpecFact feature."""
@@ -691,25 +762,87 @@ class SpecKitConverter:
         lines.append("- None at this time")
         lines.append("")
 
+        # Check if contracts are defined in stories (for Article IX and contract definitions section)
+        contracts_defined = any(story.contracts for story in feature.stories if story.contracts)
+
         # Constitution Check section (CRITICAL for /speckit.analyze)
-        lines.append("## Constitution Check")
-        lines.append("")
-        lines.append("**Article VII (Simplicity)**:")
-        lines.append("- [ ] Using ≤3 projects?")
-        lines.append("- [ ] No future-proofing?")
-        lines.append("")
-        lines.append("**Article VIII (Anti-Abstraction)**:")
-        lines.append("- [ ] Using framework directly?")
-        lines.append("- [ ] Single model representation?")
-        lines.append("")
-        lines.append("**Article IX (Integration-First)**:")
-        lines.append("- [ ] Contracts defined?")
-        lines.append("- [ ] Contract tests written?")
-        lines.append("")
-        # Status should be PENDING until gates are actually checked
-        # Users should review and check gates based on their project's actual state
-        lines.append("**Status**: PENDING")
-        lines.append("")
+        # Extract evidence-based constitution status (Step 2.2)
+        try:
+            constitution_evidence = self.constitution_extractor.extract_all_evidence(self.repo_path)
+            constitution_section = self.constitution_extractor.generate_constitution_check_section(
+                constitution_evidence
+            )
+            lines.append(constitution_section)
+        except Exception:
+            # Fallback to basic constitution check if extraction fails
+            lines.append("## Constitution Check")
+            lines.append("")
+            lines.append("**Article VII (Simplicity)**:")
+            lines.append("- [ ] Evidence extraction pending")
+            lines.append("")
+            lines.append("**Article VIII (Anti-Abstraction)**:")
+            lines.append("- [ ] Evidence extraction pending")
+            lines.append("")
+            lines.append("**Article IX (Integration-First)**:")
+            if contracts_defined:
+                lines.append("- [x] Contracts defined?")
+                lines.append("- [ ] Contract tests written?")
+            else:
+                lines.append("- [ ] Contracts defined?")
+                lines.append("- [ ] Contract tests written?")
+            lines.append("")
+            lines.append("**Status**: PENDING")
+            lines.append("")
+
+        # Add contract definitions section if contracts exist (Step 2.1)
+        if contracts_defined:
+            lines.append("### Contract Definitions")
+            lines.append("")
+            for story in feature.stories:
+                if story.contracts:
+                    lines.append(f"#### {story.title}")
+                    lines.append("")
+                    contracts = story.contracts
+
+                    # Parameters
+                    if contracts.get("parameters"):
+                        lines.append("**Parameters:**")
+                        for param in contracts["parameters"]:
+                            param_type = param.get("type", "Any")
+                            required = "required" if param.get("required", True) else "optional"
+                            default = f" (default: {param.get('default')})" if param.get("default") is not None else ""
+                            lines.append(f"- `{param['name']}`: {param_type} ({required}){default}")
+                        lines.append("")
+
+                    # Return type
+                    if contracts.get("return_type"):
+                        return_type = contracts["return_type"].get("type", "Any")
+                        lines.append(f"**Return Type**: `{return_type}`")
+                        lines.append("")
+
+                    # Preconditions
+                    if contracts.get("preconditions"):
+                        lines.append("**Preconditions:**")
+                        for precondition in contracts["preconditions"]:
+                            lines.append(f"- {precondition}")
+                        lines.append("")
+
+                    # Postconditions
+                    if contracts.get("postconditions"):
+                        lines.append("**Postconditions:**")
+                        for postcondition in contracts["postconditions"]:
+                            lines.append(f"- {postcondition}")
+                        lines.append("")
+
+                    # Error contracts
+                    if contracts.get("error_contracts"):
+                        lines.append("**Error Contracts:**")
+                        for error_contract in contracts["error_contracts"]:
+                            exc_type = error_contract.get("exception_type", "Exception")
+                            condition = error_contract.get("condition", "Error condition")
+                            lines.append(f"- `{exc_type}`: {condition}")
+                        lines.append("")
+            lines.append("")
 
         # Phases section
         lines.append("## Phase 0: Research")

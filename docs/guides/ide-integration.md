@@ -3,11 +3,15 @@
 **Status**: ✅ **AVAILABLE** (v0.4.2+)  
 **Last Updated**: 2025-11-09
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ---
 
 ## Overview
 
 SpecFact CLI supports IDE integration through **prompt templates** that work with various AI-assisted IDEs. These templates are copied to IDE-specific locations and automatically registered by the IDE as slash commands.
+
+**See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
 
 **Supported IDEs:**
 
@@ -279,6 +283,7 @@ The `specfact init` command handles all conversions automatically.
 
 ## Next Steps
 
+- ⭐ **[Integration Showcases](../examples/integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
 - ✅ Initialize IDE integration with `specfact init`
 - ✅ Use slash commands in your IDE
 - 📖 Read [CoPilot Mode Guide](copilot-mode.md) for CLI usage

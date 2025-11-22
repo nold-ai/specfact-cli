@@ -2,6 +2,8 @@
 
 > **Calculate your time and cost savings when modernizing legacy Python code**
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow (VS Code, Cursor, GitHub Actions, pre-commit hooks). No platform to learn, no vendor lock-in.
+
 ---
 
 ## ROI Calculator
@@ -152,6 +154,7 @@ SpecFact's code2spec provides similar automation:
 2. Added contracts to 23 critical data transformation functions
 3. CrossHair discovered 6 edge cases in legacy validation logic
 4. Enforced contracts during migration, blocked 11 regressions
+5. Integrated with GitHub Actions CI/CD to prevent bad code from merging
 
 **Results:**
 
@@ -161,6 +164,19 @@ SpecFact's code2spec provides similar automation:
 - ✅ New team members productive in days vs. weeks
 
 **ROI:** $42,000 saved, 5-week acceleration
+
+### Case Study 2: Integration Success Stories
+
+**See real examples of bugs fixed via integrations:**
+
+- **[Integration Showcases](../../examples/integration-showcases/)** - 5 complete examples:
+  - VS Code + Pre-commit: Async bug caught before commit
+  - Cursor Integration: Regression prevented during refactoring
+  - GitHub Actions: Type mismatch blocked from merging
+  - Pre-commit Hook: Breaking change detected locally
+  - Agentic Workflows: Edge cases discovered with symbolic execution
+
+**Key Finding**: 3 of 5 examples fully validated, showing real bugs fixed through CLI integrations.
 
 ---
 
@@ -198,9 +214,10 @@ Calculate your ROI:
 
 ## Next Steps
 
-1. **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete modernization workflow
-2. **[Brownfield Journey](brownfield-journey.md)** - Step-by-step modernization guide
-3. **[Examples](../examples/)** - Real-world brownfield examples
+1. **[Integration Showcases](../examples/integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+2. **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete modernization workflow
+3. **[Brownfield Journey](brownfield-journey.md)** - Step-by-step modernization guide
+4. **[Examples](../examples/)** - Real-world brownfield examples
 
 ---
 

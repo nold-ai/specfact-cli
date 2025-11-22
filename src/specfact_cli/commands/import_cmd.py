@@ -8,6 +8,7 @@ Spec-Kit projects and converting them to SpecFact contract-driven format.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 from beartype import beartype
@@ -15,7 +16,9 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from specfact_cli import runtime
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 
 
 app = typer.Typer(help="Import codebases and Spec-Kit projects to contract format")
@@ -182,7 +185,7 @@ def from_spec_kit(
 
 ## Generated Files
 - **Protocol**: `.specfact/protocols/workflow.protocol.yaml`
-- **Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+- **Plan Bundle**: `.specfact/plans/main bundle (yaml/json based on format settings)`
 - **Semgrep Rules**: `.semgrep/async-anti-patterns.yml`
 - **GitHub Action**: `.github/workflows/specfact-gate.yml`
 
@@ -198,7 +201,7 @@ def from_spec_kit(
 
         console.print("[bold green]✓[/bold green] Import complete!")
         console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")
-        console.print("[dim]Plan: .specfact/plans/main.bundle.yaml[/dim]")
+        console.print("[dim]Plan: .specfact/plans/main bundle (format based on settings)[/dim]")
         console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
         console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
 
@@ -236,7 +239,7 @@ def from_code(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output plan bundle path (default: .specfact/plans/<name>-<timestamp>.bundle.yaml)",
+        help="Output plan bundle path (default: .specfact/plans/<name>-<timestamp>.bundle.<format>)",
     ),
     shadow_only: bool = typer.Option(
         False,
@@ -269,6 +272,17 @@ def from_code(
         False,
         "--enrich-for-speckit",
         help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)",
+    ),
+    entry_point: Path | None = typer.Option(
+        None,
+        "--entry-point",
+        help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories.",
+    ),
+    output_format: Optional[StructuredFormat] = typer.Option(
+        None,
+        "--output-format",
+        help="Plan bundle output format (yaml or json). Defaults to global --output-format.",
+        case_sensitive=False,
     ),
 ) -> None:
     """
@@ -305,6 +319,8 @@ def from_code(
     # Ensure .specfact structure exists in the repository being imported
     SpecFactStructure.ensure_structure(repo)
 
+    effective_format = output_format or runtime.get_output_format()
+
     # Use default paths if not specified (relative to repo)
     # If enrichment is provided, try to derive original plan path and create enriched copy
     original_plan_path: Path | None = None
@@ -315,9 +331,11 @@ def from_code(
             out = SpecFactStructure.get_enriched_plan_path(original_plan_path, base_path=repo)
         else:
             # Enrichment provided but original plan not found, use default naming
-            out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name)
+            out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name, format=effective_format)
     elif out is None:
-        out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name)
+        out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name, format=effective_format)
+    else:
+        out = out.with_name(SpecFactStructure.ensure_plan_filename(out.name, effective_format))
 
     if report is None:
         report = SpecFactStructure.get_brownfield_analysis_path(repo)
@@ -328,11 +346,14 @@ def from_code(
     if shadow_only:
         console.print("[yellow]→ Shadow mode - observe without enforcement[/yellow]")
 
+    plan_format = StructuredFormat.from_path(out) if out else effective_format
+
     telemetry_metadata = {
         "mode": mode.value,
         "execution_mode": routing_result.execution_mode,
         "files_analyzed": python_file_count,
         "shadow_mode": shadow_only,
+        "plan_format": plan_format.value,
     }
 
     with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
@@ -340,12 +361,10 @@ def from_code(
             # If enrichment is provided and original plan exists, load it instead of analyzing
             if enrichment and original_plan_path and original_plan_path.exists():
                 console.print(f"[dim]Loading original plan for enrichment: {original_plan_path.name}[/dim]")
-                import yaml
 
                 from specfact_cli.models.plan import PlanBundle
 
-                with original_plan_path.open() as f:
-                    plan_data = yaml.safe_load(f)
+                plan_data = load_structured_file(original_plan_path)
                 plan_bundle = PlanBundle.model_validate(plan_data)
                 total_stories = sum(len(f.stories) for f in plan_bundle.features)
                 console.print(
@@ -375,9 +394,19 @@ def from_code(
                         console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
                         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                        console.print("\n[cyan]🔍 Importing Python files (AST-based fallback)...[/cyan]")
+                        console.print(
+                            "\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]"
+                        )
+                        if entry_point:
+                            console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
+                        else:
+                            console.print("[cyan]🔍 Analyzing codebase (AST-based fallback)...[/cyan]\n")
                         analyzer = CodeAnalyzer(
-                            repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                            repo,
+                            confidence_threshold=confidence,
+                            key_format=key_format,
+                            plan_name=name,
+                            entry_point=entry_point,
                         )
                         plan_bundle = analyzer.analyze()
                 else:
@@ -385,9 +414,17 @@ def from_code(
                     console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
                     from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
-                    console.print("\n[cyan]🔍 Importing Python files...[/cyan]")
+                    console.print("\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]")
+                    if entry_point:
+                        console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
+                    else:
+                        console.print("[cyan]🔍 Analyzing codebase...[/cyan]\n")
                     analyzer = CodeAnalyzer(
-                        repo, confidence_threshold=confidence, key_format=key_format, plan_name=name
+                        repo,
+                        confidence_threshold=confidence,
+                        key_format=key_format,
+                        plan_name=name,
+                        entry_point=entry_point,
                     )
                     plan_bundle = analyzer.analyze()
 
@@ -443,7 +480,7 @@ def from_code(
             # Generate plan file
             out.parent.mkdir(parents=True, exist_ok=True)
             generator = PlanGenerator()
-            generator.generate(plan_bundle, out)
+            generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
 
             console.print("[bold green]✓ Import complete![/bold green]")
             if enrichment and original_plan_path and original_plan_path.exists():
@@ -463,10 +500,7 @@ def from_code(
                 import os
 
                 # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-                is_test_env = (
-                    os.environ.get("TEST_MODE") == "true"
-                    or os.environ.get("PYTEST_CURRENT_TEST") is not None
-                )
+                is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
                 if is_test_env:
                     # Auto-generate bootstrap constitution in test mode
                     from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
@@ -477,14 +511,11 @@ def from_code(
                     constitution_path.write_text(enriched_content, encoding="utf-8")
                 else:
                     # Check if we're in an interactive environment
-                    import sys
-
-                    is_interactive = (
-                        hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
-                    ) and sys.stdin.isatty()
-                    if is_interactive:
+                    if runtime.is_interactive():
                         console.print()
-                        console.print("[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration")
+                        console.print(
+                            "[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration"
+                        )
                         suggest_constitution = typer.confirm(
                             "Generate bootstrap constitution from repository analysis?",
                             default=True,
@@ -499,11 +530,15 @@ def from_code(
                             constitution_path.write_text(enriched_content, encoding="utf-8")
                             console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
                             console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
-                            console.print("[dim]Then run 'specfact sync spec-kit' to sync with Spec-Kit artifacts[/dim]")
+                            console.print(
+                                "[dim]Then run 'specfact sync spec-kit' to sync with Spec-Kit artifacts[/dim]"
+                            )
                     else:
                         # Non-interactive mode: skip prompt
                         console.print()
-                        console.print("[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]")
+                        console.print(
+                            "[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]"
+                        )
 
             # Enrich for Spec-Kit compliance if requested
             if enrich_for_speckit:
@@ -564,12 +599,14 @@ def from_code(
                                 story_points=3,
                                 value_points=None,
                                 confidence=0.8,
+                                scenarios=None,
+                                contracts=None,
                             )
                             feature.stories.append(edge_case_story)
 
                         # Regenerate plan with new stories
                         generator = PlanGenerator()
-                        generator.generate(plan_bundle, out)
+                        generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
                         console.print(
                             f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]"
                         )
@@ -610,7 +647,7 @@ def from_code(
                     if features_updated > 0:
                         # Regenerate plan with enhanced acceptance criteria
                         generator = PlanGenerator()
-                        generator.generate(plan_bundle, out)
+                        generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
                         console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
 
                     console.print("[green]✓ Spec-Kit enrichment complete[/green]")

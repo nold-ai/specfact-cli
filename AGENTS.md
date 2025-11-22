@@ -80,7 +80,7 @@
 - **Contract-first workflow**: Before pushing, run `hatch run format`, `hatch run lint`, and `hatch run contract-test`
 - PRs should link to CLI-First Strategy docs, describe contract impacts, and include tests
 - Attach contract validation notes and screenshots/logs when behavior changes
-- **Version Updates**: When updating the version in `pyproject.toml`, ensure it's newer than the latest PyPI version. The CI/CD pipeline will automatically publish to PyPI after successful merge to `main` only if the version is newer.
+- **Version Updates**: When updating the version in `pyproject.toml`, ensure it's newer than the latest PyPI version. The CI/CD pipeline will automatically publish to PyPI after successful merge to `main` only if the version is newer. Sync versions across `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__py`
 
 ## CLI Command Development Notes
 
@@ -206,7 +206,7 @@ console.print("[bold red]✗[/bold red] Validation failed")
 - Package name: `specfact-cli`
 - CLI command: `specfact`
 - PyPI distribution: `pip install specfact-cli`
-- uvx usage: `uvx --from specfact-cli specfact <command>`
+- uvx usage: `uvx specfact-cli@latest <command>` (recommended) or `uvx --from specfact-cli specfact <command>`
 - Container: `docker run ghcr.io/nold-ai/specfact-cli:latest`
 
 ## Success Criteria

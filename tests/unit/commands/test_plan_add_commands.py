@@ -36,11 +36,14 @@ def sample_plan(tmp_path):
                         acceptance=["Story acceptance"],
                         story_points=None,
                         value_points=None,
+                        scenarios=None,
+                        contracts=None,
                     )
                 ],
             )
         ],
         metadata=None,
+        clarifications=None,
     )
     generator = PlanGenerator()
     generator.generate(bundle, plan_path)
@@ -54,7 +57,7 @@ class TestPlanAddFeature:
         """Test adding a feature to an empty plan."""
         # Create empty plan
         plan_path = tmp_path / "plan.yaml"
-        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None)
+        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None, clarifications=None)
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)
 
@@ -240,7 +243,7 @@ class TestPlanAddFeature:
         default_path = SpecFactStructure.get_default_plan_path()
         default_path.parent.mkdir(parents=True, exist_ok=True)
 
-        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None)
+        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None, clarifications=None)
         generator = PlanGenerator()
         generator.generate(bundle, default_path)
 
@@ -510,6 +513,7 @@ class TestPlanAddStory:
                 )
             ],
             metadata=None,
+            clarifications=None,
         )
         generator = PlanGenerator()
         generator.generate(bundle, default_path)

@@ -430,6 +430,9 @@ class AmbiguityScanner:
                     )
                 else:
                     # Check for vague acceptance criteria patterns
+                    # BUT: Skip if criteria are already code-specific (preserve code-specific criteria from code2spec)
+                    from specfact_cli.utils.acceptance_criteria import is_code_specific_criteria
+
                     vague_patterns = [
                         "is implemented",
                         "is functional",
@@ -438,8 +441,14 @@ class AmbiguityScanner:
                         "is complete",
                         "is ready",
                     ]
+
+                    # Only check criteria that are NOT code-specific
+                    non_code_specific_criteria = [acc for acc in story.acceptance if not is_code_specific_criteria(acc)]
+
                     vague_criteria = [
-                        acc for acc in story.acceptance if any(pattern in acc.lower() for pattern in vague_patterns)
+                        acc
+                        for acc in non_code_specific_criteria
+                        if any(pattern in acc.lower() for pattern in vague_patterns)
                     ]
 
                     if vague_criteria:

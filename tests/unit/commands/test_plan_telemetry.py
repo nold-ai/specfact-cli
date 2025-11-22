@@ -43,7 +43,7 @@ class TestPlanCommandTelemetry:
         from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.models.plan import PlanBundle, Product
 
-        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None)
+        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None, clarifications=None)
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)
 
@@ -89,6 +89,7 @@ class TestPlanCommandTelemetry:
             product=Product(themes=["Testing"]),
             features=[Feature(key="FEATURE-001", title="Test Feature", outcomes=[], acceptance=[], stories=[])],
             metadata=None,
+            clarifications=None,
         )
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)
@@ -140,6 +141,7 @@ class TestPlanCommandTelemetry:
             product=Product(themes=["Testing"]),
             features=[Feature(key="FEATURE-001", title="Manual Feature", outcomes=[], acceptance=[], stories=[])],
             metadata=None,
+            clarifications=None,
         )
         auto_plan = PlanBundle(
             idea=None,
@@ -150,6 +152,7 @@ class TestPlanCommandTelemetry:
                 Feature(key="FEATURE-002", title="Auto Feature", outcomes=[], acceptance=[], stories=[]),
             ],
             metadata=None,
+            clarifications=None,
         )
 
         generator = PlanGenerator()
@@ -199,7 +202,8 @@ class TestPlanCommandTelemetry:
             business=None,
             product=Product(themes=["Testing"]),
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            clarifications=None,
         )
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)

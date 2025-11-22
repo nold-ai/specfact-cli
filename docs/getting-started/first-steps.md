@@ -5,7 +5,13 @@ This guide walks you through your first commands with SpecFact CLI, with step-by
 ## Before You Start
 
 - [Install SpecFact CLI](installation.md) (if not already installed)
+- **Python 3.11+ required**: Check with `python3 --version`
 - Choose your scenario below
+
+**Installation Options**:
+
+- **Quick start (CLI-only)**: `uvx specfact-cli@latest --help` (no installation needed)
+- **Better results (Interactive)**: `pip install specfact-cli` + `specfact init` (recommended for legacy code)
 
 ---
 
@@ -17,8 +23,27 @@ This guide walks you through your first commands with SpecFact CLI, with step-by
 
 ### Step 1: Analyze Your Legacy Codebase
 
+**Option A: CLI-only Mode** (Quick start, works with uvx):
+
 ```bash
-specfact import from-code --repo . --name my-project
+uvx specfact-cli@latest import from-code --repo . --name my-project
+```
+
+**Option B: Interactive AI Assistant Mode** (Recommended for better results):
+
+```bash
+# Step 1: Install SpecFact CLI
+pip install specfact-cli
+
+# Step 2: Navigate to your project
+cd /path/to/your/project
+
+# Step 3: Initialize IDE integration (one-time)
+specfact init
+
+# Step 4: Use slash command in IDE chat
+/specfact-import-from-code
+# The AI assistant will prompt you for plan name
 ```
 
 **What happens**:
@@ -28,7 +53,7 @@ specfact import from-code --repo . --name my-project
 - Generates dependency graphs
 - Creates plan bundle with extracted specs
 
-**Example output**:
+**Example output** (Interactive mode - better results):
 
 ```bash
 ✅ Analyzed 47 Python files
@@ -36,6 +61,17 @@ specfact import from-code --repo . --name my-project
 ✅ Generated 112 user stories
 ⏱️  Completed in 8.2 seconds
 ```
+
+**Example output** (CLI-only mode - may show 0 features for simple cases):
+
+```bash
+✅ Analyzed 3 Python files
+✅ Extracted 0 features  # ⚠️ AST-based analysis may miss features in simple code
+✅ Generated 0 user stories
+⏱️  Completed in 2.1 seconds
+```
+
+**Note**: CLI-only mode uses AST-based analysis which may show 0 features for simple test cases. Interactive AI Assistant mode provides better semantic understanding and feature detection.
 
 ### Step 2: Review Extracted Specs
 

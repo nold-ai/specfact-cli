@@ -5,16 +5,25 @@ Daily workflows for using SpecFact CLI effectively.
 > **Primary Workflow**: Brownfield code modernization  
 > **Secondary Workflow**: Spec-Kit bidirectional sync
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ---
 
 ## Brownfield Code Modernization ⭐ PRIMARY
 
 Reverse engineer existing code and enforce contracts incrementally.
 
+**Integration**: Works with VS Code, Cursor, GitHub Actions, pre-commit hooks. See [Integration Showcases](../examples/integration-showcases/) for real examples.
+
 ### Step 1: Analyze Legacy Code
 
 ```bash
+# Full repository analysis
 specfact import from-code --repo . --name my-project
+
+# For large codebases, analyze specific modules:
+specfact import from-code --repo . --entry-point src/core --name core-module
+specfact import from-code --repo . --entry-point src/api --name api-module
 ```
 
 ### Step 2: Review Extracted Specs
@@ -31,6 +40,30 @@ specfact enforce stage --preset minimal
 ```
 
 See [Brownfield Journey Guide](brownfield-journey.md) for complete workflow.
+
+### Partial Repository Coverage
+
+For large codebases or monorepos with multiple projects, use `--entry-point` to analyze specific subdirectories:
+
+```bash
+# Analyze individual projects in a monorepo
+specfact import from-code --repo . --entry-point projects/api-service --name api-service
+specfact import from-code --repo . --entry-point projects/web-app --name web-app
+specfact import from-code --repo . --entry-point projects/mobile-app --name mobile-app
+
+# Analyze specific modules for incremental modernization
+specfact import from-code --repo . --entry-point src/core --name core-module
+specfact import from-code --repo . --entry-point src/integrations --name integrations-module
+```
+
+**Benefits:**
+
+- **Faster analysis** - Focus on specific modules for quicker feedback
+- **Incremental modernization** - Modernize one module at a time
+- **Multi-plan support** - Create separate plan bundles for different projects/modules
+- **Better organization** - Keep plans organized by project boundaries
+
+**Note:** When using `--entry-point`, each analysis creates a separate plan bundle. Use `specfact plan select` to switch between plans, or `specfact plan compare` to compare different plans.
 
 ---
 
@@ -425,6 +458,7 @@ specfact enforce stage --preset strict
 
 ## Related Documentation
 
+- **[Integration Showcases](../examples/integration-showcases/)** ⭐ - Real bugs fixed via VS Code, Cursor, GitHub Actions integrations
 - [Use Cases](use-cases.md) - Detailed use case scenarios
 - [Command Reference](../reference/commands.md) - All commands with examples
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions

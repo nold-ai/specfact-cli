@@ -63,11 +63,14 @@ class TestPlanGeneratorIntegration:
                             acceptance=["API client implemented", "Rate limiting handled", "Error handling complete"],
                             story_points=None,
                             value_points=None,
+                            scenarios=None,
+                            contracts=None,
                         )
                     ],
                 )
             ],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            clarifications=None,
         )
 
     def test_generate_and_validate_roundtrip(self, plan_generator, schema_validator, sample_plan_bundle, tmp_path):
@@ -86,7 +89,7 @@ class TestPlanGeneratorIntegration:
 
         # Load back and verify content
         loaded_data = load_yaml(output_path)
-        assert loaded_data["version"] == "1.0"
+        assert loaded_data["version"] == "1.1"
         assert loaded_data["idea"]["title"] == "AI-Powered Code Review Tool"
         assert len(loaded_data["features"]) == 1
         assert loaded_data["features"][0]["key"] == "FEATURE-001"
@@ -117,7 +120,8 @@ class TestPlanGeneratorIntegration:
                 ],
             ),
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            clarifications=None,
         )
 
         output_path = tmp_path / "multi-release-plan.yaml"
@@ -317,11 +321,12 @@ class TestCrossComponentIntegration:
                 metrics=None,
             ),
             business=None,
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
             product=Product(
                 themes=["Core"],
                 releases=[Release(name="v1.0", objectives=["Launch"], scope=[], risks=[])],
             ),
+            clarifications=None,
         )
 
         # Step 2: Generate to file

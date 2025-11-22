@@ -9,6 +9,370 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.7.1] - 2025-01-22
+
+### Changed (0.7.1)
+
+- **Documentation Alignment with CLI-First, Integration-Focused Positioning**
+  - Updated all documentation files in `docs/examples/` and `docs/guides/` to emphasize CLI-first approach
+  - Added CLI-first messaging throughout: "works offline, requires no account, and integrates with your existing workflow"
+  - Added Integration Showcases references to all relevant documentation files
+  - Emphasized integration diversity: VS Code, Cursor, GitHub Actions, pre-commit hooks, any IDE
+  - Updated brownfield showcase examples (Django, Flask, Data Pipeline) with integration sections
+  - Updated guides (Brownfield Journey, Workflows, Use Cases, IDE Integration) with CLI-first messaging
+  - Updated reference documentation (Directory Structure) with CLI-first and integration examples
+  - All documentation now consistently highlights: no platform to learn, no vendor lock-in, works with existing tools
+
+- **Integration Showcases Documentation**
+  - Updated platform-frontend CMS content to link directly to Integration Showcases README
+  - Enhanced Integration Showcases documentation with validation status (3/5 fully validated)
+  - Updated all example documentation to reference Integration Showcases for real bug-fix examples
+
+- **Brownfield Documentation Review**
+  - Reviewed and updated all brownfield showcase examples for CLI-first alignment
+  - Added integration workflow sections to all brownfield examples
+  - Updated brownfield guides (Engineer, ROI, Journey) with integration examples
+  - All brownfield documentation now emphasizes CLI-first integration capabilities
+
+### Documentation (0.7.1)
+
+- **Examples Folder Updates**
+  - `brownfield-django-modernization.md` - Added CLI-first messaging and integration examples
+  - `brownfield-data-pipeline.md` - Added CLI-first messaging and integration examples
+  - `brownfield-flask-api.md` - Added CLI-first messaging and integration examples
+  - `quick-examples.md` - Added CLI-first messaging and integration examples section
+  - `dogfooding-specfact-cli.md` - Added CLI-first messaging and Integration Showcases link
+  - `README.md` - Emphasized Integration Showcases as "START HERE"
+
+- **Guides Folder Updates**
+  - `brownfield-engineer.md` - Added CLI-first messaging and integration workflow section
+  - `brownfield-roi.md` - Added CLI-first messaging and Integration Showcases case study
+  - `brownfield-journey.md` - Added CLI-first messaging and integration references
+  - `workflows.md` - Added CLI-first messaging and Integration Showcases link
+  - `use-cases.md` - Added CLI-first messaging and Integration Showcases references
+  - `ide-integration.md` - Added CLI-first messaging and Integration Showcases references
+  - `README.md` - Added Integration Showcases as first item in Quick Start
+
+- **Reference Documentation Updates**
+  - `directory-structure.md` - Added CLI-first messaging and Integration Showcases references
+
+- **Platform Frontend Updates**
+  - Updated `payload-content-helper.js` to link "CLI Integrations" product card to Integration Showcases README
+  - Changed link from main repo README to specific Integration Showcases documentation
+
+---
+
+## [0.7.0] - 2025-11-20
+
+### Added (0.7.0)
+
+- **Batch Update Support for Plan Updates**
+  - New `--batch-updates` option for `specfact plan update-feature` command
+  - New `--batch-updates` option for `specfact plan update-story` command
+  - Supports JSON and YAML file formats for bulk updates
+  - Preferred workflow for Copilot LLM enrichment when multiple features/stories need refinement
+  - Enables efficient bulk updates after plan review or LLM enrichment
+  - File format: List of objects with required keys (`key` for features, `feature`+`key` for stories) and optional update fields
+
+- **Enhanced Plan Review with Detailed Findings Output**
+  - New `--list-findings` option for `specfact plan review` command
+  - Outputs all ambiguities and findings in structured format (JSON/YAML) or as table (interactive mode)
+  - New `--findings-format` option to specify output format (`json`, `yaml`, `table`)
+  - Preferred for bulk update workflow in Copilot mode
+  - Provides comprehensive findings list for LLM enrichment and batch update generation
+  - Findings include category, status, description, impact, uncertainty, priority, and related sections
+
+- **Comprehensive E2E Test Suite for Batch Updates**
+  - New `tests/e2e/test_plan_review_batch_updates.py` with comprehensive test coverage
+  - Tests for interactive and non-interactive plan review workflows
+  - Tests for batch feature updates via file upload
+  - Tests for batch story updates via file upload
+  - Tests for findings output in different formats (JSON, YAML, table)
+  - Tests for complete Copilot LLM enrichment workflow with batch updates
+  - All tests passing with full coverage of batch update functionality
+
+### Changed (0.7.0)
+
+- **Plan Review Command Refactoring**
+  - Refactored `review` function to reduce complexity by extracting helper functions
+  - Added `_find_plan_path()` helper for plan path resolution
+  - Added `_load_and_validate_plan()` helper for plan loading and validation
+  - Added `_handle_auto_enrichment()` helper for auto-enrichment logic
+  - Added `_output_findings()` helper for findings output in various formats
+  - Improved code maintainability and reduced cyclomatic complexity
+
+- **Documentation Updates**
+  - Updated `docs/reference/commands.md` with batch update documentation
+  - Added batch update examples and file format specifications
+  - Updated `resources/prompts/specfact-plan-review.md` to prefer batch update workflow
+  - Updated `resources/prompts/specfact-plan-update-feature.md` with batch update guidance
+  - Enhanced prompt templates to recommend batch updates when multiple items need refinement
+  - Added bulk update workflow documentation for Copilot mode
+
+- **Prompt Template Enhancements**
+  - Updated plan review prompt to prefer bulk update workflow over question-based workflow
+  - Added guidance on when to use batch updates vs single updates
+  - Enhanced examples with batch update file formats
+  - Improved workflow recommendations for Copilot LLM enrichment scenarios
+
+### Fixed (0.7.0)
+
+- **Type Checking Errors**
+  - Fixed missing `scenarios` and `contracts` parameters in `Story` constructor calls in test files
+  - Added explicit `scenarios=None, contracts=None` to resolve basedpyright type errors
+  - All type checking errors resolved
+
+- **Contract Validation**
+  - Fixed contract decorator parameter handling in helper functions
+  - Improved contract validation for `_handle_auto_enrichment()` function
+  - Enhanced type safety across refactored helper functions
+
+---
+
+## [Unreleased]
+
+### Added
+
+- **Structured JSON/YAML Controls**
+  - New global `specfact --input-format/--output-format` options propagate preferred serialization across commands
+  - `specfact plan init` and `specfact import from-code` now expose `--output-format` overrides for per-command control
+  - `PlanGenerator` and `ReportGenerator` can emit JSON or YAML, and `validate_plan_bundle` / `FSMValidator` load either automatically
+  - Added regression tests covering JSON plan generation and validation to protect CI workflows
+
+### Changed
+
+- **CLI + Docs**
+  - Default plan-path helpers/search now detect both `.bundle.yaml` and `.bundle.json`
+  - Repository/prompt docs updated to describe the new format flags and reference `.bundle.<format>` placeholders for slash-commands
+  - `SpecFactStructure` utilities now emit enriched/brownfield filenames preserving the original format so Copilot/CI stay in sync
+
+---
+
+## [0.6.9]
+
+### Added (0.6.9)
+
+- **Plan Bundle Upgrade Command**
+  - New `specfact plan upgrade` command to migrate plan bundles from older schema versions to current version
+  - Supports upgrading active plan, specific plan, or all plans with `--all` flag
+  - `--dry-run` option to preview upgrades without making changes
+  - Automatic detection of schema version mismatches and missing summary metadata
+  - Migration path: 1.0 → 1.1 (adds summary metadata)
+
+- **Summary Metadata for Performance**
+  - Plan bundles now include summary metadata (`metadata.summary`) for fast access
+  - Summary includes: `features_count`, `stories_count`, `themes_count`, `releases_count`, `content_hash`, `computed_at`
+  - 44% performance improvement for `plan select` command (3.6s vs 6.5s)
+  - For large files (>10MB), only reads first 50KB to extract metadata
+  - Content hash enables integrity verification of plan bundles
+
+- **Enhanced Plan Select Command**
+  - New `--name NAME` flag: Select plan by exact filename (non-interactive)
+  - New `--id HASH` flag: Select plan by content hash ID (non-interactive)
+  - `--current` flag now auto-selects active plan in non-interactive mode (no prompts)
+  - Improved performance with summary metadata reading
+  - Better CI/CD support with non-interactive selection options
+
+### Changed (0.6.9)
+
+- **Plan Bundle Schema Version**
+  - Current schema version updated to 1.1 (from 1.0)
+  - New plan bundles automatically created with version 1.1
+  - Summary metadata automatically computed when creating/updating plan bundles
+  - `PlanGenerator` now sets version to current schema version automatically
+
+- **Plan Select Performance**
+  - Optimized `list_plans()` to read summary metadata from top of YAML files
+  - Fast path for large files: only reads first 50KB for metadata extraction
+  - Early filtering: when `--last N` is used, only processes N+10 most recent files
+  - Performance improved from 6.5s to 3.6s (44% faster) for typical workloads
+
+---
+
+## [0.6.8] - 2025-11-20
+
+### Fixed (0.6.8)
+
+- **Ambiguity Scanner False Positives**
+  - Fixed false positive detection of vague acceptance criteria for code-specific criteria
+  - Ambiguity scanner now correctly identifies code-specific criteria (containing method signatures, class names, type hints, file paths) and skips them
+  - Prevents flagging testable, code-specific acceptance criteria as vague during plan review
+  - Improved detection accuracy for plans imported from code (code2spec workflow)
+
+- **Acceptance Criteria Detection**
+  - Created shared utility `acceptance_criteria.py` for consistent code-specific detection across modules
+  - Enhanced vague pattern detection with word boundaries (`\b`) to avoid false positives
+  - Prevents matching "works" in "workspace" or "is done" in "is_done_method"
+  - Both `PlanEnricher` and `AmbiguityScanner` now use shared detection logic
+
+### Changed (0.6.8)
+
+- **Code Reusability**
+  - Extracted acceptance criteria detection logic into shared utility module
+  - `PlanEnricher._is_code_specific_criteria()` now delegates to shared utility
+  - `AmbiguityScanner` uses shared utility for consistent detection
+  - Eliminates code duplication and ensures consistent behavior
+
+### Added (0.6.8)
+
+- **Shared Acceptance Criteria Utility**
+  - New `src/specfact_cli/utils/acceptance_criteria.py` module
+  - `is_code_specific_criteria()` function for detecting code-specific vs vague criteria
+  - Detects method signatures, class names, type hints, file paths, specific assertions
+  - Uses word boundaries for accurate vague pattern matching
+  - Full contract-first validation with `@beartype` and `@icontract` decorators
+
+---
+
+## [0.6.7] - 2025-11-19
+
+### Added (0.6.7)
+
+- **Banner Display**
+  - Added ASCII art banner display by default for all commands
+  - Banner shows with gradient effect (blue → cyan → white)
+  - Improves brand recognition and visual appeal
+  - Added `--no-banner` flag to suppress banner (useful for CI/CD)
+
+### Changed (0.6.7)
+
+- **CLI Banner Behavior**
+  - Banner now displays by default when executing any command
+  - Banner shows with help output (`--help` or `-h`)
+  - Banner shows with version output (`--version` or `-v`)
+  - Use `--no-banner` to suppress for automated scripts and CI/CD
+
+### Documentation (0.6.7)
+
+- **Command Reference Updates**
+  - Added `--no-banner` to global options documentation
+  - Added "Banner Display" section explaining banner behavior
+  - Added example for suppressing banner in CI/CD environments
+
+---
+
+## [0.6.6] - 2025-11-19
+
+### Added (0.6.6)
+
+- **CLI Help Improvements**
+  - Added automatic help display when `specfact` is executed without parameters
+  - Prevents user confusion by showing help screen instead of silent failure
+  - Added `-h` as alias for `--help` flag (standard CLI convention)
+  - Added `-v` as alias for `--version` flag (already existed, now documented)
+
+### Changed (0.6.6)
+
+- **CLI Entry Point Behavior**
+  - `specfact` without arguments now automatically shows help screen
+  - Improved user experience by providing immediate guidance when no command is specified
+
+### Fixed (0.6.6)
+
+- **Boolean Flag Documentation**
+  - Fixed misleading help text for `--draft` flag in `plan update-feature` command
+  - Updated help text to clarify: use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged
+  - Fixed prompt templates to show correct boolean flag usage (not `--draft true/false`)
+  - Updated all documentation to reflect correct Typer boolean flag syntax
+
+- **Entry Point Flag Documentation**
+  - Enhanced `--entry-point` flag documentation in `import from-code` command
+  - Added use cases: multi-project repos, large codebases, incremental modernization
+  - Updated prompt templates to include `--entry-point` usage examples
+  - Added validation checklist items for `--entry-point` flag usage
+
+### Documentation (0.6.6)
+
+- **Prompt Validation Checklist Updates**
+  - Added boolean flag validation checks (Version 1.7)
+  - Added `--entry-point` flag documentation requirements
+  - Added common issue: "Wrong Boolean Flag Usage" with fix guidance
+  - Updated Scenario 2 to verify boolean flag usage
+  - Added checks for `--entry-point` usage in partial analysis scenarios
+
+- **End-User Documentation**
+  - Added "Boolean Flags" section to command reference explaining correct usage
+  - Enhanced `--entry-point` documentation with detailed use cases
+  - Updated all command examples to show correct boolean flag syntax
+  - Added warnings about incorrect usage (`--flag true` vs `--flag`)
+
+---
+
+## [0.6.4] - 2025-11-19
+
+### Fixed (0.6.4)
+
+- **IDE Setup Template Directory Lookup**
+  - Fixed template directory detection for `specfact init` command when running via `uvx`
+  - Enhanced cross-platform package location detection (Windows, Linux, macOS)
+  - Added comprehensive search across all installation types:
+    - User site-packages (`~/.local/lib/python3.X/site-packages` on Linux/macOS, `%APPDATA%\Python\Python3X\site-packages` on Windows)
+    - System site-packages (platform-specific locations)
+    - Virtual environments (venv, conda, etc.)
+    - uvx cache locations (`~/.cache/uv/archive-v0/...` on Linux/macOS, `%LOCALAPPDATA%\uv\cache\archive-v0\...` on Windows)
+  - Improved error messages with detailed debug output showing all attempted locations
+  - Added fallback mechanisms for edge cases and minimal Python installations
+
+- **CLI Entry Point Alias**
+  - Added `specfact-cli` entry point alias for `uvx` compatibility
+  - Now supports both `uvx specfact-cli` and `uvx --from specfact-cli specfact` usage patterns
+
+### Added (0.6.4)
+
+- **Cross-Platform Package Location Utilities**
+  - New `get_package_installation_locations()` function in `ide_setup.py` for comprehensive package discovery
+  - New `find_package_resources_path()` function for locating package resources across all installation types
+  - Platform-specific path resolution with proper handling of symlinks, case sensitivity, and path separators
+  - Enhanced debug output showing all lookup attempts and found locations
+
+- **Debug Output for Template Lookup**
+  - Added detailed debug messages for each template directory lookup step
+  - Shows all attempted locations with success/failure indicators
+  - Provides platform and Python version information on failure
+  - Helps diagnose installation and path resolution issues
+
+### Changed (0.6.4)
+
+- **Template Directory Lookup Logic**
+  - Enhanced priority order: Development → importlib.resources → importlib.util → comprehensive search → `__file__` fallback
+  - All paths now use `.resolve()` for cross-platform compatibility
+  - Better handling of `Traversable` to `Path` conversion from `importlib.resources.files()`
+  - Improved exception handling with specific error messages for each failure type
+
+---
+
+## [0.6.2] - 2025-11-19
+
+### Added (0.6.2)
+
+- **Phase 2: Contract Extraction (Step 2.1)**
+  - Contract extraction for all features (100% coverage - 45/45 features have contracts)
+  - `ContractExtractor` module extracts API contracts from function signatures, type hints, and validation logic
+  - Contracts automatically included in `plan.md` files with "Contract Definitions" section
+  - Article IX compliance: Contracts defined checkbox automatically checked when contracts exist
+  - Full integration with `CodeAnalyzer` and `SpecKitConverter` for seamless contract extraction
+
+### Fixed (0.6.2)
+
+- **Acceptance Criteria Parsing**
+  - Fixed malformed acceptance criteria parsing in `SpecKitConverter._generate_spec_markdown()`
+  - Implemented regex-based extraction to properly handle type hints (e.g., `dict[str, Any]`) in Given/When/Then format
+  - Prevents truncation of acceptance criteria when commas appear inside type hints
+  - Added proper `import re` statement to `speckit_converter.py`
+
+- **Feature Numbering in Spec-Kit Artifacts**
+  - Fixed feature directory numbering to use sequential numbers (001-, 002-, 003-) instead of all "000-"
+  - Features are now properly numbered when converting SpecFact to Spec-Kit format
+
+### Changed (0.6.2)
+
+- **Spec-Kit Converter Enhancements**
+  - Enhanced `_generate_spec_markdown()` to use regex for robust Given/When/Then parsing
+  - Improved contract section generation in `plan.md` files
+  - Better handling of complex type hints in acceptance criteria
+
+---
+
 ## [0.6.1] - 2025-11-18
 
 ### Added (0.6.1)
@@ -891,7 +1255,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased]
+## [0.2.0]
 
 ### Added (2025-10-31) - Integration Test Suite
 
@@ -1238,7 +1602,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format markdown --ou
 specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out report.json
 ```
 
-### Added (2025-10-30) - Semgrep Integration & Documentation
+### Added (0.2.0)
 
 - **Semgrep Integration** (`tools/semgrep/`)
   - Added comprehensive README.md documenting all 13 async anti-pattern rules
@@ -1252,7 +1616,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - 13 rules covering ERROR, WARNING, and INFO severities
   - Includes usage examples for CLI, GitHub Actions, and pre-commit hooks
 
-### Added (2025-10-30) - Phase 1 Foundation Complete
+### Added (0.2.0) - Phase 1 Foundation Complete
 
 - **Data Models** (CLI-First Spec Compliant)
   - Enhanced `plan.py` with Business, Release models and full Story/Feature fields
@@ -1291,7 +1655,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - Alphabetically sorted `__all__` exports
   - Line length compliance (≤120 characters)
 
-### Changed
+### Changed (0.2.0)
 
 - Moved common utilities from `src/common/` to `src/specfact_cli/common/`
 - Removed heavyweight `platform_base.py` (agent-system dependency)
@@ -1299,7 +1663,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
 - Simplified `text_utils.py` to standalone utility class
 - Updated all dependencies to latest PyPI versions
 
-### Fixed
+### Fixed (0.2.0)
 
 - Dependency conflicts in pyproject.toml
 - Import paths for common utilities
@@ -1332,7 +1696,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - Added explicit None values for optional parameters
   - Added type ignore comments for intentional validation errors
 
-### Added (2025-10-30) - Phase 3 CLI Commands Started
+### Added (0.2.0) - Phase 3 CLI Commands Started
 
 - **Interactive Prompt Utilities** (`utils/prompts.py`)
   - `prompt_text()`: Text input with required/optional support
@@ -1353,7 +1717,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
   - ~160 lines of implementation
   - **73% test coverage** with comprehensive integration tests
 
-### Testing
+### Testing (0.2.0)
 
 - **Unit Tests** (`tests/unit/utils/test_prompts.py`)
   - 27 tests for prompt utilities
@@ -1375,7 +1739,7 @@ specfact plan compare --manual plan.yaml --auto auto.yaml --format json --out re
 
 - **Total**: **40 new tests**, all passing, **164 total tests** in suite
 
-### Fixed (CLI Commands)
+### Fixed (0.2.0) - CLI Commands
 
 - **PlanGenerator**: Switched from Jinja2 templates to direct YAML serialization for reliability
 - **Minimal plan generation**: Now correctly generates valid YAML with proper structure

@@ -11,7 +11,7 @@ from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
 from specfact_cli.models.deviation import Deviation, DeviationReport, ValidationReport
-from specfact_cli.utils.yaml_utils import dump_yaml
+from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file
 
 
 class ReportFormat(str, Enum):
@@ -171,7 +171,7 @@ class ReportGenerator:
 
     def _generate_yaml_report(self, report: ValidationReport | DeviationReport, output_path: Path) -> None:
         """Generate YAML report."""
-        dump_yaml(report.model_dump(mode="json"), output_path)
+        dump_structured_file(report.model_dump(mode="json"), output_path, StructuredFormat.YAML)
 
     def render_markdown_string(self, report: ValidationReport | DeviationReport) -> str:
         """

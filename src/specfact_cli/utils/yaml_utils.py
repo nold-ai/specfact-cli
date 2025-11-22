@@ -12,6 +12,7 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 
 class YAMLUtils:
@@ -33,6 +34,9 @@ class YAMLUtils:
         self.yaml.preserve_quotes = preserve_quotes
         self.yaml.indent(mapping=indent_mapping, sequence=indent_sequence)
         self.yaml.default_flow_style = False
+        # Configure to quote boolean-like strings to prevent YAML parsing issues
+        # YAML parsers interpret "Yes", "No", "True", "False", "On", "Off" as booleans
+        self.yaml.default_style = None  # Let ruamel.yaml decide, but we'll quote manually
 
     @beartype
     @require(lambda file_path: isinstance(file_path, (Path, str)), "File path must be Path or str")
@@ -86,8 +90,37 @@ class YAMLUtils:
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Quote boolean-like strings to prevent YAML parsing issues
+        data = self._quote_boolean_like_strings(data)
+
         with open(file_path, "w", encoding="utf-8") as f:
             self.yaml.dump(data, f)
+
+    @beartype
+    def _quote_boolean_like_strings(self, data: Any) -> Any:
+        """
+        Recursively quote boolean-like strings to prevent YAML parsing issues.
+
+        YAML parsers interpret "Yes", "No", "True", "False", "On", "Off" as booleans
+        unless they're quoted. This function ensures these values are quoted.
+
+        Args:
+            data: Data structure to process
+
+        Returns:
+            Data structure with boolean-like strings quoted
+        """
+        # Boolean-like strings that YAML parsers interpret as booleans
+        boolean_like_strings = {"yes", "no", "true", "false", "on", "off", "Yes", "No", "True", "False", "On", "Off"}
+
+        if isinstance(data, dict):
+            return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
+        if isinstance(data, list):
+            return [self._quote_boolean_like_strings(item) for item in data]
+        if isinstance(data, str) and data in boolean_like_strings:
+            # Use DoubleQuotedScalarString to force quoting in YAML output
+            return DoubleQuotedScalarString(data)
+        return data
 
     @beartype
     @ensure(lambda result: isinstance(result, str), "Must return string")

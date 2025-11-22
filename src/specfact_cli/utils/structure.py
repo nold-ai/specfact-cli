@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
 
 from beartype import beartype
 from icontract import ensure, require
+
+from specfact_cli import runtime
+from specfact_cli.utils.structured_io import StructuredFormat
 
 
 class SpecFactStructure:
@@ -40,9 +44,48 @@ class SpecFactStructure:
     ENFORCEMENT_CONFIG = f"{ROOT}/gates/config/enforcement.yaml"
 
     # Default plan names
-    DEFAULT_PLAN = f"{ROOT}/plans/main.bundle.yaml"
+    DEFAULT_PLAN_NAME = "main"
+    DEFAULT_PLAN = f"{ROOT}/plans/{DEFAULT_PLAN_NAME}.bundle.yaml"
     BROWNFIELD_PLAN = f"{ROOT}/plans/auto-derived.yaml"
     PLANS_CONFIG = f"{ROOT}/plans/config.yaml"
+    PLAN_SUFFIX_MAP = {
+        StructuredFormat.YAML: ".bundle.yaml",
+        StructuredFormat.JSON: ".bundle.json",
+    }
+    PLAN_SUFFIXES = tuple({".bundle.yaml", ".bundle.yml", ".bundle.json"})
+
+    @classmethod
+    def plan_suffix(cls, format: StructuredFormat | None = None) -> str:
+        """Return canonical plan suffix for format (defaults to YAML)."""
+        fmt = format or StructuredFormat.YAML
+        return cls.PLAN_SUFFIX_MAP.get(fmt, ".bundle.yaml")
+
+    @classmethod
+    def ensure_plan_filename(cls, plan_name: str, format: StructuredFormat | None = None) -> str:
+        """Ensure a plan filename includes the correct suffix."""
+        lower = plan_name.lower()
+        if any(lower.endswith(suffix) for suffix in cls.PLAN_SUFFIXES):
+            return plan_name
+        if lower.endswith((".yaml", ".json")):
+            return plan_name
+        return f"{plan_name}{cls.plan_suffix(format)}"
+
+    @classmethod
+    def strip_plan_suffix(cls, plan_name: str) -> str:
+        """Remove known plan suffix from filename."""
+        for suffix in cls.PLAN_SUFFIXES:
+            if plan_name.endswith(suffix):
+                return plan_name[: -len(suffix)]
+        if plan_name.endswith(".yaml"):
+            return plan_name[: -len(".yaml")]
+        if plan_name.endswith(".json"):
+            return plan_name[: -len(".json")]
+        return plan_name
+
+    @classmethod
+    def default_plan_filename(cls, format: StructuredFormat | None = None) -> str:
+        """Compute default plan filename for requested format."""
+        return cls.ensure_plan_filename(cls.DEFAULT_PLAN_NAME, format)
 
     @classmethod
     @beartype
@@ -59,12 +102,9 @@ class SpecFactStructure:
         if base_path is None:
             base_path = Path(".")
         else:
-            # Normalize to absolute path and ensure we're not inside .specfact
             base_path = Path(base_path).resolve()
-            # If base_path contains .specfact, find the repository root
             parts = base_path.parts
             if ".specfact" in parts:
-                # Find the index of .specfact and go up to repository root
                 specfact_idx = parts.index(".specfact")
                 base_path = Path(*parts[:specfact_idx])
 
@@ -145,18 +185,27 @@ class SpecFactStructure:
     @beartype
     @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
-    def get_default_plan_path(cls, base_path: Path | None = None) -> Path:
+    def get_default_plan_path(
+        cls, base_path: Path | None = None, preferred_format: StructuredFormat | None = None
+    ) -> Path:
         """
         Get path to active plan bundle (from config or fallback to main.bundle.yaml).
 
         Args:
             base_path: Base directory (default: current directory)
+            preferred_format: Preferred structured format (defaults to runtime output format)
 
         Returns:
             Path to active plan bundle (from config or default)
         """
         if base_path is None:
             base_path = Path(".")
+        else:
+            base_path = Path(base_path).resolve()
+            parts = base_path.parts
+            if ".specfact" in parts:
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
 
         # Try to read active plan from config
         config_path = base_path / cls.PLANS_CONFIG
@@ -176,7 +225,20 @@ class SpecFactStructure:
                 pass
 
         # Fallback to default plan
-        return base_path / cls.DEFAULT_PLAN
+        format_hint = preferred_format or runtime.get_output_format()
+        plans_dir = base_path / cls.PLANS
+        default_name = cls.default_plan_filename(format_hint)
+        default_path = plans_dir / default_name
+
+        if default_path.exists():
+            return default_path
+
+        # Fallback to YAML for backwards compatibility
+        legacy_path = plans_dir / cls.default_plan_filename(StructuredFormat.YAML)
+        if legacy_path.exists():
+            return legacy_path
+
+        return default_path
 
     @classmethod
     @beartype
@@ -226,13 +288,18 @@ class SpecFactStructure:
     @classmethod
     @beartype
     @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(lambda max_files: max_files is None or max_files > 0, "Max files must be None or positive")
     @ensure(lambda result: isinstance(result, list), "Must return list")
-    def list_plans(cls, base_path: Path | None = None) -> list[dict[str, str | int]]:
+    def list_plans(
+        cls, base_path: Path | None = None, max_files: int | None = None
+    ) -> list[dict[str, str | int | None]]:
         """
         List all available plan bundles with metadata.
 
         Args:
             base_path: Base directory (default: current directory)
+            max_files: Maximum number of files to process (for performance with many files).
+                      If None, processes all files. If specified, processes most recent files first.
 
         Returns:
             List of plan dictionaries with 'name', 'path', 'features', 'stories', 'size', 'modified' keys
@@ -241,6 +308,7 @@ class SpecFactStructure:
             >>> plans = SpecFactStructure.list_plans()
             >>> plans[0]['name']
             'specfact-cli.2025-11-04T23-35-00.bundle.yaml'
+            >>> plans = SpecFactStructure.list_plans(max_files=5)  # Only process 5 most recent
         """
         if base_path is None:
             base_path = Path(".")
@@ -267,13 +335,23 @@ class SpecFactStructure:
                 pass
 
         # Find all plan bundles, sorted by modification date (oldest first, newest last)
-        plan_files = list(plans_dir.glob("*.bundle.yaml"))
+        plan_files = [
+            p for p in plans_dir.glob("*.bundle.*") if any(str(p).endswith(suffix) for suffix in cls.PLAN_SUFFIXES)
+        ]
         plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=False)
+
+        # If max_files specified, only process the most recent N files (for performance)
+        # This is especially useful when using --last N filter
+        if max_files is not None and max_files > 0:
+            # Take most recent files (reverse sort, take last N, then reverse back)
+            plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)[:max_files]
+            plan_files_sorted = sorted(plan_files_sorted, key=lambda p: p.stat().st_mtime, reverse=False)
+
         for plan_file in plan_files_sorted:
             if plan_file.name == "config.yaml":
                 continue
 
-            plan_info: dict[str, str | int] = {
+            plan_info: dict[str, str | int | None] = {
                 "name": plan_file.name,
                 "path": str(plan_file.relative_to(base_path)),
                 "features": 0,
@@ -281,25 +359,152 @@ class SpecFactStructure:
                 "size": plan_file.stat().st_size,
                 "modified": datetime.fromtimestamp(plan_file.stat().st_mtime).isoformat(),
                 "active": plan_file.name == active_plan,
+                "content_hash": None,  # Will be populated from summary if available
             }
 
-            # Try to load plan metadata
+            plan_format = StructuredFormat.from_path(plan_file)
+
+            if plan_format == StructuredFormat.JSON:
+                try:
+                    with plan_file.open(encoding="utf-8") as f:
+                        plan_data = json.load(f) or {}
+                    metadata = plan_data.get("metadata", {}) or {}
+                    plan_info["stage"] = metadata.get("stage", "draft")
+                    summary = metadata.get("summary", {}) or {}
+                    plan_info["features"] = summary.get("features_count") or len(plan_data.get("features", []))
+                    plan_info["stories"] = summary.get("stories_count") or sum(
+                        len(feature.get("stories", [])) for feature in plan_data.get("features", [])
+                    )
+                    plan_info["content_hash"] = summary.get("content_hash")
+                except Exception:
+                    plan_info["stage"] = "unknown"
+                    plan_info["features"] = 0
+                    plan_info["stories"] = 0
+                plans.append(plan_info)
+                continue
+
+            # Try to load YAML metadata using summary (fast path)
             try:
-                with plan_file.open() as f:
-                    plan_data = yaml.safe_load(f) or {}
-                    features = plan_data.get("features", [])
-                    plan_info["features"] = len(features)
-                    plan_info["stories"] = sum(len(f.get("stories", [])) for f in features)
-                    if plan_data.get("metadata"):
-                        plan_info["stage"] = plan_data["metadata"].get("stage", "draft")
+                # Read first 50KB to get metadata section (metadata is always at top)
+                with plan_file.open(encoding="utf-8") as f:
+                    content = f.read(50000)  # Read first 50KB (metadata + summary should be here)
+
+                    # Try to parse just the metadata section using YAML
+                    # Look for metadata section boundaries
+                    metadata_start = content.find("metadata:")
+                    if metadata_start != -1:
+                        # Find the end of metadata section (next top-level key or end of content)
+                        metadata_end = len(content)
+                        for key in ["features:", "product:", "idea:", "business:", "version:"]:
+                            key_pos = content.find(f"\n{key}", metadata_start)
+                            if key_pos != -1 and key_pos < metadata_end:
+                                metadata_end = key_pos
+
+                        metadata_section = content[metadata_start:metadata_end]
+
+                        # Parse metadata section
+                        try:
+                            metadata_data = yaml.safe_load(
+                                f"metadata:\n{metadata_section.split('metadata:')[1] if 'metadata:' in metadata_section else metadata_section}"
+                            )
+                            if metadata_data and "metadata" in metadata_data:
+                                metadata = metadata_data["metadata"]
+
+                                # Get stage
+                                plan_info["stage"] = metadata.get("stage", "draft")
+
+                                # Get summary if available (fast path)
+                                if "summary" in metadata and isinstance(metadata["summary"], dict):
+                                    summary = metadata["summary"]
+                                    plan_info["features"] = summary.get("features_count", 0)
+                                    plan_info["stories"] = summary.get("stories_count", 0)
+                                    plan_info["content_hash"] = summary.get("content_hash")
+                                else:
+                                    # Fallback: no summary available, need to count manually
+                                    # For large files, skip counting (will be 0)
+                                    file_size_mb = plan_file.stat().st_size / (1024 * 1024)
+                                    if file_size_mb < 5.0:
+                                        # Only for small files, do full parse
+                                        with plan_file.open() as full_f:
+                                            plan_data = yaml.safe_load(full_f) or {}
+                                            features = plan_data.get("features", [])
+                                            plan_info["features"] = len(features)
+                                            plan_info["stories"] = sum(len(f.get("stories", [])) for f in features)
+                                    else:
+                                        plan_info["features"] = 0
+                                        plan_info["stories"] = 0
+                        except Exception:
+                            # Fallback to regex extraction
+                            stage_match = re.search(
+                                r"metadata:\s*\n\s*stage:\s*['\"]?(\w+)['\"]?", content, re.IGNORECASE
+                            )
+                            if stage_match:
+                                plan_info["stage"] = stage_match.group(1)
+                            else:
+                                plan_info["stage"] = "draft"
+                            plan_info["features"] = 0
+                            plan_info["stories"] = 0
                     else:
+                        # No metadata section found, use defaults
                         plan_info["stage"] = "draft"
+                        plan_info["features"] = 0
+                        plan_info["stories"] = 0
             except Exception:
                 plan_info["stage"] = "unknown"
+                plan_info["features"] = 0
+                plan_info["stories"] = 0
 
             plans.append(plan_info)
 
         return plans
+
+    @classmethod
+    @beartype
+    def update_plan_summary(cls, plan_path: Path, base_path: Path | None = None) -> bool:
+        """
+        Update summary metadata for an existing plan bundle.
+
+        This is a migration helper to add summary metadata to plan bundles
+        that were created before the summary feature was added.
+
+        Args:
+            plan_path: Path to plan bundle file
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            True if summary was updated, False otherwise
+        """
+        if base_path is None:
+            base_path = Path(".")
+
+        plan_file = base_path / plan_path if not plan_path.is_absolute() else plan_path
+
+        if not plan_file.exists():
+            return False
+
+        try:
+            import yaml
+
+            from specfact_cli.generators.plan_generator import PlanGenerator
+            from specfact_cli.models.plan import PlanBundle
+
+            # Load plan bundle
+            with plan_file.open() as f:
+                plan_data = yaml.safe_load(f) or {}
+
+            # Parse as PlanBundle
+            bundle = PlanBundle.model_validate(plan_data)
+
+            # Update summary (with hash for integrity)
+            bundle.update_summary(include_hash=True)
+
+            # Save updated bundle
+            generator = PlanGenerator()
+            generator.generate(bundle, plan_file, update_summary=True)
+
+            return True
+        except Exception:
+            return False
 
     @classmethod
     def get_enforcement_config_path(cls, base_path: Path | None = None) -> Path:
@@ -362,7 +567,9 @@ class SpecFactStructure:
     @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     @require(lambda name: name is None or isinstance(name, str), "Name must be None or str")
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
-    def get_timestamped_brownfield_report(cls, base_path: Path | None = None, name: str | None = None) -> Path:
+    def get_timestamped_brownfield_report(
+        cls, base_path: Path | None = None, name: str | None = None, format: StructuredFormat | None = None
+    ) -> Path:
         """
         Get timestamped path for brownfield analysis report (YAML bundle).
 
@@ -390,10 +597,12 @@ class SpecFactStructure:
                 base_path = Path(*parts[:specfact_idx])
 
         timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        format_hint = format or runtime.get_output_format()
         sanitized_name = cls.sanitize_plan_name(name)
         directory = base_path / cls.PLANS
         directory.mkdir(parents=True, exist_ok=True)
-        return directory / f"{sanitized_name}.{timestamp}.bundle.yaml"
+        suffix = cls.plan_suffix(format_hint)
+        return directory / f"{sanitized_name}.{timestamp}{suffix}"
 
     @classmethod
     @beartype
@@ -430,15 +639,11 @@ class SpecFactStructure:
                 specfact_idx = parts.index(".specfact")
                 base_path = Path(*parts[:specfact_idx])
 
-        # Extract filename from plan bundle path
-        plan_filename = plan_bundle_path.name
+        # Extract filename base from plan bundle path (without suffix)
+        base_name = cls.strip_plan_suffix(plan_bundle_path.name)
 
-        # Replace .bundle.yaml with .enrichment.md
-        if plan_filename.endswith(".bundle.yaml"):
-            enrichment_filename = plan_filename.replace(".bundle.yaml", ".enrichment.md")
-        else:
-            # Fallback: append .enrichment.md if pattern doesn't match
-            enrichment_filename = f"{plan_bundle_path.stem}.enrichment.md"
+        # Append enrichment marker
+        enrichment_filename = f"{base_name}.enrichment.md"
 
         directory = base_path / cls.REPORTS_ENRICHMENT
         directory.mkdir(parents=True, exist_ok=True)
@@ -484,15 +689,21 @@ class SpecFactStructure:
         # Extract filename from enrichment report path
         enrichment_filename = enrichment_report_path.name
 
-        # Replace .enrichment.md with .bundle.yaml
         if enrichment_filename.endswith(".enrichment.md"):
-            plan_filename = enrichment_filename.replace(".enrichment.md", ".bundle.yaml")
+            base_name = enrichment_filename[: -len(".enrichment.md")]
         else:
-            # Fallback: try to construct from stem
-            plan_filename = f"{enrichment_report_path.stem}.bundle.yaml"
+            base_name = enrichment_report_path.stem
 
-        plan_path = base_path / cls.PLANS / plan_filename
-        return plan_path if plan_path.exists() else None
+        plans_dir = base_path / cls.PLANS
+        # Try all supported suffixes to find matching plan
+        for suffix in cls.PLAN_SUFFIXES:
+            candidate = plans_dir / f"{base_name}{suffix}"
+            if candidate.exists():
+                return candidate
+
+        # Fallback to default suffix
+        fallback = plans_dir / f"{base_name}{cls.plan_suffix()}"
+        return fallback if fallback.exists() else None
 
     @classmethod
     @beartype
@@ -531,12 +742,15 @@ class SpecFactStructure:
         # Extract original plan filename
         original_filename = original_plan_path.name
 
+        # Determine current format to preserve suffix
+        plan_format = StructuredFormat.from_path(original_plan_path)
+        suffix = cls.plan_suffix(plan_format)
+
         # Extract name and original timestamp from filename
-        # Format: <name>.<timestamp>.bundle.yaml
-        if original_filename.endswith(".bundle.yaml"):
-            name_with_timestamp = original_filename.replace(".bundle.yaml", "")
-            # Split name and timestamp (timestamp is after last dot before .bundle.yaml)
-            # Pattern: <name>.<timestamp> -> we want to insert .enriched.<new-timestamp>
+        # Format: <name>.<timestamp>.bundle.<ext>
+        if original_filename.endswith(suffix):
+            name_with_timestamp = original_filename[: -len(suffix)]
+            # Split name and timestamp (timestamp is after last dot before suffix)
             parts_name = name_with_timestamp.rsplit(".", 1)
             if len(parts_name) == 2:
                 # Has timestamp: <name>.<timestamp>
@@ -556,9 +770,9 @@ class SpecFactStructure:
 
         # Build enriched filename
         if original_timestamp:
-            enriched_filename = f"{name_part}.{original_timestamp}.enriched.{enrichment_timestamp}.bundle.yaml"
+            enriched_filename = f"{name_part}.{original_timestamp}.enriched.{enrichment_timestamp}{suffix}"
         else:
-            enriched_filename = f"{name_part}.enriched.{enrichment_timestamp}.bundle.yaml"
+            enriched_filename = f"{name_part}.enriched.{enrichment_timestamp}{suffix}"
 
         directory = base_path / cls.PLANS
         directory.mkdir(parents=True, exist_ok=True)
@@ -586,7 +800,12 @@ class SpecFactStructure:
             return None
 
         # Find all auto-derived reports
-        reports = sorted(plans_dir.glob("auto-derived.*.bundle.yaml"), reverse=True)
+        reports = [
+            p
+            for p in plans_dir.glob("auto-derived.*.bundle.*")
+            if any(str(p).endswith(suffix) for suffix in cls.PLAN_SUFFIXES)
+        ]
+        reports = sorted(reports, key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
         return reports[0] if reports else None
 
     @classmethod

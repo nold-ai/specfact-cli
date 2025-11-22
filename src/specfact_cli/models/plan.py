@@ -26,6 +26,14 @@ class Story(BaseModel):
     tasks: list[str] = Field(default_factory=list, description="Implementation tasks (methods, functions)")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
     draft: bool = Field(default=False, description="Whether this is a draft story")
+    scenarios: dict[str, list[str]] | None = Field(
+        None,
+        description="Scenarios extracted from control flow: primary, alternate, exception, recovery (Given/When/Then format)",
+    )
+    contracts: dict[str, Any] | None = Field(
+        None,
+        description="API contracts extracted from function signatures: parameters, return_type, preconditions, postconditions, error_contracts",
+    )
 
 
 class Feature(BaseModel):
@@ -78,12 +86,31 @@ class Idea(BaseModel):
     metrics: dict[str, Any] | None = Field(None, description="Success metrics")
 
 
+class PlanSummary(BaseModel):
+    """Summary metadata for fast plan bundle access without full parsing."""
+
+    features_count: int = Field(default=0, description="Number of features in the plan")
+    stories_count: int = Field(default=0, description="Total number of stories across all features")
+    themes_count: int = Field(default=0, description="Number of product themes")
+    releases_count: int = Field(default=0, description="Number of releases")
+    content_hash: str | None = Field(None, description="SHA256 hash of plan content for integrity verification")
+    computed_at: str | None = Field(None, description="ISO timestamp when summary was computed")
+
+
 class Metadata(BaseModel):
     """Plan bundle metadata."""
 
     stage: str = Field(default="draft", description="Plan stage (draft, review, approved, released)")
     promoted_at: str | None = Field(None, description="ISO timestamp of last promotion")
     promoted_by: str | None = Field(None, description="User who performed last promotion")
+    analysis_scope: str | None = Field(
+        None, description="Analysis scope: 'full' for entire repository, 'partial' for subdirectory analysis"
+    )
+    entry_point: str | None = Field(None, description="Entry point path for partial analysis (relative to repo root)")
+    external_dependencies: list[str] = Field(
+        default_factory=list, description="List of external modules/packages imported from outside entry point"
+    )
+    summary: PlanSummary | None = Field(None, description="Summary metadata for fast access without full parsing")
 
 
 class Clarification(BaseModel):
@@ -122,3 +149,59 @@ class PlanBundle(BaseModel):
     features: list[Feature] = Field(default_factory=list, description="Product features")
     metadata: Metadata | None = Field(None, description="Plan bundle metadata")
     clarifications: Clarifications | None = Field(None, description="Plan clarifications (Q&A sessions)")
+
+    def compute_summary(self, include_hash: bool = False) -> PlanSummary:
+        """
+        Compute summary metadata for fast access without full parsing.
+
+        Args:
+            include_hash: Whether to compute content hash (slower but enables integrity checks)
+
+        Returns:
+            PlanSummary with counts and optional hash
+        """
+        import hashlib
+        import json
+        from datetime import datetime
+
+        features_count = len(self.features)
+        stories_count = sum(len(f.stories) for f in self.features)
+        themes_count = len(self.product.themes) if self.product.themes else 0
+        releases_count = len(self.product.releases) if self.product.releases else 0
+
+        content_hash = None
+        if include_hash:
+            # Compute hash of plan content (excluding summary itself to avoid circular dependency)
+            plan_dict = self.model_dump(exclude={"metadata": {"summary"}})
+            plan_json = json.dumps(plan_dict, sort_keys=True, default=str)
+            content_hash = hashlib.sha256(plan_json.encode("utf-8")).hexdigest()
+
+        return PlanSummary(
+            features_count=features_count,
+            stories_count=stories_count,
+            themes_count=themes_count,
+            releases_count=releases_count,
+            content_hash=content_hash,
+            computed_at=datetime.now().isoformat(),
+        )
+
+    def update_summary(self, include_hash: bool = False) -> None:
+        """
+        Update the summary metadata in this plan bundle.
+
+        Args:
+            include_hash: Whether to compute content hash (slower but enables integrity checks)
+        """
+        if self.metadata is None:
+            # Create Metadata with default values
+            # All fields have defaults, but type checker needs explicit None for optional fields
+            self.metadata = Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                external_dependencies=[],
+                summary=None,
+            )
+        self.metadata.summary = self.compute_summary(include_hash=include_hash)

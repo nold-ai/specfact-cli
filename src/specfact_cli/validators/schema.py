@@ -7,17 +7,23 @@ This module provides schema validation for plan bundles and protocols.
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from pathlib import Path
 
 import jsonschema
-import yaml
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import ValidationError
 
+# Try to use faster CLoader if available (C extension), fallback to SafeLoader
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.plan import PlanBundle
 from specfact_cli.models.protocol import Protocol
+from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+
+
+with suppress(ImportError):
+    pass  # type: ignore[attr-defined,assignment]
 
 
 class SchemaValidator:
@@ -140,21 +146,19 @@ def validate_plan_bundle(
 
     # Otherwise treat as path
     path = plan_or_path
+    fmt = StructuredFormat.from_path(path)
     try:
-        with path.open("r") as f:
-            data = yaml.safe_load(f)
-
+        data = load_structured_file(path, fmt)
         bundle = PlanBundle(**data)
         return True, None, bundle
 
     except FileNotFoundError:
         return False, f"File not found: {path}", None
-    except yaml.YAMLError as e:
-        return False, f"YAML parsing error: {e}", None
     except ValidationError as e:
         return False, f"Validation error: {e}", None
     except Exception as e:
-        return False, f"Unexpected error: {e}", None
+        prefix = "JSON parsing error" if fmt == StructuredFormat.JSON else "YAML parsing error"
+        return False, f"{prefix}: {e}", None
 
 
 @beartype
@@ -179,18 +183,16 @@ def validate_protocol(protocol_or_path: Protocol | Path) -> ValidationReport | t
 
     # Otherwise treat as path
     path = protocol_or_path
+    fmt = StructuredFormat.from_path(path)
     try:
-        with path.open("r") as f:
-            data = yaml.safe_load(f)
-
+        data = load_structured_file(path, fmt)
         protocol = Protocol(**data)
         return True, None, protocol
 
     except FileNotFoundError:
         return False, f"File not found: {path}", None
-    except yaml.YAMLError as e:
-        return False, f"YAML parsing error: {e}", None
     except ValidationError as e:
         return False, f"Validation error: {e}", None
     except Exception as e:
-        return False, f"Unexpected error: {e}", None
+        prefix = "JSON parsing error" if fmt == StructuredFormat.JSON else "YAML parsing error"
+        return False, f"{prefix}: {e}", None

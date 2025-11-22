@@ -61,7 +61,7 @@ class TestCompleteWorkflowWithNewStructure:
         # Step 4: Load and verify plan
         plan_path = specfact_dir / "plans" / "main.bundle.yaml"
         plan_data = load_yaml(plan_path)
-        assert plan_data["version"] == "1.0"
+        assert plan_data["version"] == "1.1"
         # In non-interactive mode, plan will have default/minimal data
         assert "idea" in plan_data or "product" in plan_data
 
@@ -339,9 +339,13 @@ class TestCompleteWorkflowWithNewStructure:
         alt_data = load_yaml(plans_dir / "alternative.bundle.yaml")
 
         # Both plans should have version and product (minimal plan structure)
-        assert main_data["version"] == "1.0"
+        # Plans created via CLI use current schema version
+        from specfact_cli.migrations.plan_migrator import get_current_schema_version
+
+        current_version = get_current_schema_version()
+        assert main_data["version"] == current_version
         assert "product" in main_data
-        assert alt_data["version"] == "1.0"
+        assert alt_data["version"] == current_version
         assert "product" in alt_data
 
         # Note: --no-interactive creates minimal plans without idea section

@@ -219,7 +219,8 @@ jobs:
       - name: Run type checking
         run: |
           echo "🔍 Running basedpyright type checking..."
-          hatch run type-check || echo "⚠️ Type checking incomplete"
+          # Fail on type errors (severity 8) to enforce type safety in CI/CD
+          hatch run type-check
 
   linting:
     name: Linting (ruff, pylint)
@@ -329,7 +330,7 @@ jobs:
         run: |
           PUBLISHED="${{ steps.publish.outputs.published }}"
           VERSION="${{ steps.publish.outputs.version }}"
-          
+
           {
             echo "## PyPI Publication Summary"
             echo "| Parameter | Value |"
@@ -343,4 +344,3 @@ jobs:
               echo "| Status | ⏭️ Skipped (version not newer) |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-

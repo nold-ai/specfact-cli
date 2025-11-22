@@ -18,12 +18,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan init` before any plan creation - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement plan initialization logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All plan bundles must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, etc.). All operations must be performed via CLI commands.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--no-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER write code**: Do not implement plan initialization logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All plan bundles must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, etc.). All operations must be performed via CLI commands.
 
 ### What Happens If You Don't Follow This
 
@@ -34,6 +37,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 - ❌ Works only in Copilot mode, fails in CI/CD
 - ❌ Breaks when CLI internals change
 - ❌ Requires knowledge of internal code structure
+- ❌ Timeouts in Copilot environments (if interactive prompts are used)
+- ❌ Inconsistent file formats (if files are modified directly)
+- ❌ Broken .specfact structure (if files are created/modified directly)
 
 ## ⏸️ Wait States: User Input Required
 
@@ -51,10 +57,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 #### Missing Required Argument
 
 ```text
-❌ WRONG: "Assuming --out is '.specfact/plans/main.bundle.yaml' and continuing..."
+❌ WRONG: "Assuming --out is '.specfact/plans/main.bundle.<format>' and continuing..."
 ✅ CORRECT: 
 "What output path would you like to use for the plan bundle? 
-(default: .specfact/plans/main.bundle.yaml)
+(default: .specfact/plans/main.bundle.<format>)
 [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
 ```
 
@@ -63,7 +69,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ```text
 ❌ WRONG: "Proceeding with interactive mode..."
 ✅ CORRECT:
-"Will execute: specfact plan init --interactive --out .specfact/plans/main.bundle.yaml
+"Will execute: specfact plan init --interactive --out .specfact/plans/main.bundle.<format>
 Continue? (y/n)
 [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
 ```
@@ -85,6 +91,8 @@ The user should choose their approach at the beginning of the interactive flow.
 
 **Command**: `specfact plan init`
 
+> **Format Note**: Use `specfact --output-format <yaml|json>` (or `--output-format` on this command) to control whether plan bundles are written as YAML or JSON. Defaults follow the global CLI flag.
+
 **Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment. No need to specify `--mode` flag. Mode is detected from:
 
 - Environment variables (`SPECFACT_MODE`)
@@ -101,14 +109,20 @@ When in copilot mode, follow this three-phase workflow:
 **ALWAYS execute CLI first** to get structured, validated output:
 
 ```bash
+# For interactive mode (when user explicitly requests it)
 specfact plan init --interactive --out <output_path>
+
+# For non-interactive mode (CI/CD, Copilot - ALWAYS use this to avoid timeouts)
+specfact plan init --no-interactive --out <output_path>
 ```
+
+**⚠️ CRITICAL**: In Copilot environments, **ALWAYS use `--no-interactive` flag** to avoid interactive prompts that can cause timeouts. Only use `--interactive` when the user explicitly requests interactive mode.
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
 **Capture from CLI output**:
 
-- CLI-generated plan bundle (`.specfact/plans/main.bundle.yaml` or specified path)
+- CLI-generated plan bundle (`.specfact/plans/main.bundle.<format>` or specified path)
 - Metadata (timestamps, validation results)
 - Telemetry (execution time, feature/story counts)
 
@@ -118,7 +132,7 @@ specfact plan init --interactive --out <output_path>
 
 **What to do**:
 
-- Read CLI-generated plan bundle
+- Use file reading tools to read CLI-generated plan bundle (for display/analysis only)
 - Research codebase for additional context (for brownfield approach)
 - Suggest improvements to features/stories
 - Extract business context from code comments/docs
@@ -126,8 +140,10 @@ specfact plan init --interactive --out <output_path>
 **What NOT to do**:
 
 - ❌ Create YAML/JSON artifacts directly
-- ❌ Modify CLI artifacts directly
+- ❌ Modify CLI artifacts directly (use CLI commands to update)
 - ❌ Bypass CLI validation
+- ❌ Write to `.specfact/` folder directly (always use CLI)
+- ❌ Use direct file manipulation tools for writing (use CLI commands)
 
 **Output**: Generate enrichment report (Markdown) with insights
 
@@ -153,7 +169,7 @@ specfact plan init --interactive --out <output_path>
 Extract arguments from user input:
 
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
-- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/main.bundle.yaml`)
+- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/main.bundle.<format>`)
 - `--scaffold/--no-scaffold` - Create complete `.specfact/` directory structure (default: scaffold)
 
 For single quotes in args like "I'm Groot", use escape syntax: e.g `'I'\''m Groot'` (or double-quote if possible: `"I'm Groot"`).
@@ -218,7 +234,7 @@ Choose option (1 or 2): _
    ```
 
    - This CLI command analyzes the codebase and generates an auto-derived plan bundle
-   - Plan is saved to: `.specfact/plans/<name>-<timestamp>.bundle.yaml` (where `<name>` is the sanitized plan name)
+   - Plan is saved to: `.specfact/plans/<name>-<timestamp>.bundle.<format>` (where `<name>` is the sanitized plan name)
    - **Capture CLI output**: Plan bundle path, feature/story counts, metadata
 
 2. **Load the CLI-generated auto-derived plan**:
@@ -503,7 +519,7 @@ features:
 
 - **Execute CLI first**: Run `specfact import from-code --repo . --name <name> --confidence 0.7`
 - **Wait for user input**: If `--name` is missing, ask and wait for response
-- Load CLI-generated auto-derived plan from `.specfact/plans/<name>-<timestamp>.bundle.yaml`
+- Load CLI-generated auto-derived plan from `.specfact/plans/<name>-<timestamp>.bundle.<format>`
 - **Execute CLI plan init**: Run `specfact plan init --interactive --out <path>`
 - CLI uses auto-derived features, themes, and structure as pre-filled suggestions in interactive prompts
 - User can confirm, refine, or add to auto-derived content via CLI interactive prompts

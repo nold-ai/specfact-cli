@@ -4,6 +4,8 @@ This document defines the canonical directory structure for SpecFact CLI artifac
 
 > **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. The directory structure reflects this brownfield-first approach.
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ## Overview
 
 All SpecFact artifacts are stored under `.specfact/` in the repository root. This ensures:
@@ -12,6 +14,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - **Multiple plans**: Support for multiple plan bundles in a single repository
 - **Gitignore-friendly**: Easy to exclude reports from version control
 - **Clear separation**: Plans (versioned) vs reports (ephemeral)
+- **CLI-first**: All artifacts are local, no cloud storage required
 
 ## Canonical Structure
 
@@ -20,9 +23,9 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 ├── config.yaml              # SpecFact configuration (optional)
 ├── plans/                   # Plan bundles (versioned in git)
 │   ├── config.yaml          # Active plan configuration
-│   ├── main.bundle.yaml     # Primary plan bundle (fallback)
-│   ├── feature-auth.bundle.yaml    # Feature-specific plan
-│   └── my-project-2025-10-31T14-30-00.bundle.yaml  # Brownfield-derived plan (timestamped with name)
+│   ├── main.bundle.<format>     # Primary plan bundle (fallback)
+│   ├── feature-auth.bundle.<format>    # Feature-specific plan
+│   └── my-project-2025-10-31T14-30-00.bundle.<format>  # Brownfield-derived plan (timestamped with name)
 ├── protocols/               # FSM protocol definitions (versioned)
 │   ├── workflow.protocol.yaml
 │   └── deployment.protocol.yaml
@@ -55,19 +58,78 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 **Guidelines**:
 
-- One primary `main.bundle.yaml` for the main project plan
+- One primary `main.bundle.<format>` for the main project plan
 - Additional plans for **brownfield analysis** ⭐ (primary), features, or experiments
 - **Always committed to git** - these are the source of truth
-- Use descriptive names: `legacy-<component>.bundle.yaml` (brownfield), `feature-<name>.bundle.yaml`
+- Use descriptive names: `legacy-<component>.bundle.<format>` (brownfield), `feature-<name>.bundle.<format>`
+- Plan bundles can be emitted as YAML or JSON. Use the CLI `--output-format {yaml,json}` (or the global flag) to choose.
+
+**Plan Bundle Structure:**
+
+Plan bundles are YAML (or JSON) files with the following structure:
+
+```yaml
+version: "1.1"  # Schema version (current: 1.1)
+
+metadata:
+  stage: "draft"  # draft, review, approved, released
+  summary:  # Summary metadata for fast access (added in v1.1)
+    features_count: 5
+    stories_count: 12
+    themes_count: 2
+    releases_count: 1
+    content_hash: "abc123def456..."  # SHA256 hash for integrity
+    computed_at: "2025-01-15T10:30:00"
+
+idea:
+  title: "Project Title"
+  narrative: "Project description"
+  # ... other idea fields
+
+product:
+  themes: ["Theme1", "Theme2"]
+  releases: [...]
+
+features:
+  - key: "FEATURE-001"
+    title: "Feature Title"
+    stories: [...]
+    # ... other feature fields
+```
+
+**Summary Metadata (v1.1+):**
+
+Plan bundles version 1.1 and later include summary metadata in the `metadata.summary` section. This provides:
+
+- **Fast access**: Read plan counts without parsing entire file (44% faster performance)
+- **Integrity verification**: Content hash detects plan modifications
+- **Performance optimization**: Only reads first 50KB for large files (>10MB)
+
+**Upgrading Plan Bundles:**
+
+Use `specfact plan upgrade` to migrate older plan bundles to the latest schema:
+
+```bash
+# Upgrade active plan
+specfact plan upgrade
+
+# Upgrade all plans
+specfact plan upgrade --all
+
+# Preview upgrades
+specfact plan upgrade --dry-run
+```
+
+See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 
 **Example**:
 
 ```bash
 .specfact/plans/
-├── main.bundle.yaml                    # Primary plan
-├── legacy-api.bundle.yaml              # ⭐ Reverse-engineered from existing API (brownfield)
-├── legacy-payment.bundle.yaml          # ⭐ Reverse-engineered from existing payment system (brownfield)
-└── feature-authentication.bundle.yaml  # Auth feature plan
+├── main.bundle.<format>                    # Primary plan
+├── legacy-api.bundle.<format>              # ⭐ Reverse-engineered from existing API (brownfield)
+├── legacy-payment.bundle.<format>          # ⭐ Reverse-engineered from existing payment system (brownfield)
+└── feature-authentication.bundle.<format>  # Auth feature plan
 ```
 
 ### `.specfact/protocols/` (Versioned)
@@ -104,7 +166,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 .specfact/reports/
 ├── brownfield/
 │   ├── analysis-2025-10-31T14-30-00.md
-│   └── auto-derived-2025-10-31T14-30-00.bundle.yaml
+│   └── auto-derived-2025-10-31T14-30-00.bundle.<format>
 ├── comparison/
 │   ├── report-2025-10-31T14-30-00.md
 │   └── report-2025-10-31T14-30-00.json
@@ -150,11 +212,11 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 ```bash
 # Default paths (timestamped with custom name)
---out .specfact/plans/<name>-*.bundle.yaml  # Plan bundle (versioned in git)
+--out .specfact/plans/<name>-*.bundle.<format>  # Plan bundle (versioned in git)
 --report .specfact/reports/brownfield/analysis-*.md  # Analysis report (gitignored)
 
 # Can override with custom names
---out .specfact/plans/legacy-api.bundle.yaml  # Save as versioned plan
+--out .specfact/plans/legacy-api.bundle.<format>  # Save as versioned plan
 --name my-project  # Custom plan name (sanitized for filesystem)
 ```
 
@@ -165,7 +227,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 specfact import from-code --repo . --name legacy-api --confidence 0.7
 
 # Creates:
-# - .specfact/plans/legacy-api-2025-10-31T14-30-00.bundle.yaml (versioned)
+# - .specfact/plans/legacy-api-2025-10-31T14-30-00.bundle.<format> (versioned)
 # - .specfact/reports/brownfield/analysis-2025-10-31T14-30-00.md (gitignored)
 ```
 
@@ -175,7 +237,7 @@ specfact import from-code --repo . --name legacy-api --confidence 0.7
 
 ```bash
 # Creates
-.specfact/plans/main.bundle.yaml
+.specfact/plans/main.bundle.<format>
 .specfact/config.yaml (if --interactive)
 ```
 
@@ -183,8 +245,8 @@ specfact import from-code --repo . --name legacy-api --confidence 0.7
 
 ```bash
 # Default paths (smart defaults)
---manual .specfact/plans/active-plan  # Uses active plan from config.yaml (or main.bundle.yaml fallback)
---auto .specfact/plans/*.bundle.yaml  # Latest auto-derived in plans directory
+--manual .specfact/plans/active-plan  # Uses active plan from config.yaml (or main.bundle.<format> fallback)
+--auto .specfact/plans/*.bundle.<format>  # Latest auto-derived in plans directory
 --out .specfact/reports/comparison/report-*.md  # Timestamped
 ```
 
@@ -244,6 +306,8 @@ specfact init --ide copilot
 
 **See [IDE Integration Guide](../guides/ide-integration.md)** for complete setup instructions.
 
+**See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
+
 ## Configuration File
 
 `.specfact/config.yaml` (optional):
@@ -252,7 +316,7 @@ specfact init --ide copilot
 version: "1.0"
 
 # Default plan to use
-default_plan: plans/main.bundle.yaml
+default_plan: plans/main.bundle.<format>
 
 # Analysis settings
 analysis:
@@ -328,8 +392,11 @@ When you run `specfact init`, prompt templates are copied to IDE-specific locati
 - **Templates** - Prompt templates are read-only for the IDE, not modified by users
 - **Settings** - VS Code `settings.json` is merged (not overwritten) to preserve existing settings
 - **Auto-discovery** - IDEs automatically discover and register templates as slash commands
+- **CLI-first** - Works offline, no account required, no vendor lock-in
 
 **See [IDE Integration Guide](../guides/ide-integration.md)** for detailed setup and usage.
+
+**See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
 
 ---
 
@@ -390,16 +457,16 @@ If you have existing artifacts in other locations:
 
 ```bash
 # Old structure
-contracts/plans/plan.bundle.yaml
+contracts/plans/plan.bundle.<format>
 reports/analysis.md
 
 # New structure
-.specfact/plans/main.bundle.yaml
+.specfact/plans/main.bundle.<format>
 .specfact/reports/brownfield/analysis.md
 
 # Migration
 mkdir -p .specfact/plans .specfact/reports/brownfield
-mv contracts/plans/plan.bundle.yaml .specfact/plans/main.bundle.yaml
+mv contracts/plans/plan.bundle.<format> .specfact/plans/main.bundle.<format>
 mv reports/analysis.md .specfact/reports/brownfield/
 ```
 
@@ -415,11 +482,11 @@ SpecFact supports multiple plan bundles for:
 
 ```bash
 .specfact/plans/
-├── main.bundle.yaml                      # Overall project plan
-├── legacy-api.bundle.yaml                # ⭐ Reverse-engineered from existing API (brownfield)
-├── legacy-payment.bundle.yaml            # ⭐ Reverse-engineered from existing payment system (brownfield)
-├── modernized-api.bundle.yaml            # New API plan (after modernization)
-└── feature-new-auth.bundle.yaml          # Experimental feature plan
+├── main.bundle.<format>                      # Overall project plan
+├── legacy-api.bundle.<format>                # ⭐ Reverse-engineered from existing API (brownfield)
+├── legacy-payment.bundle.<format>            # ⭐ Reverse-engineered from existing payment system (brownfield)
+├── modernized-api.bundle.<format>            # New API plan (after modernization)
+└── feature-new-auth.bundle.<format>          # Experimental feature plan
 ```
 
 **Usage (Brownfield Workflow)**:
@@ -429,18 +496,18 @@ SpecFact supports multiple plan bundles for:
 specfact import from-code \
   --repo src/legacy-api \
   --name legacy-api \
-  --out .specfact/plans/legacy-api.bundle.yaml
+  --out .specfact/plans/legacy-api.bundle.<format>
 
 # Step 2: Compare legacy vs modernized
 specfact plan compare \
-  --manual .specfact/plans/legacy-api.bundle.yaml \
-  --auto .specfact/plans/modernized-api.bundle.yaml
+  --manual .specfact/plans/legacy-api.bundle.<format> \
+  --auto .specfact/plans/modernized-api.bundle.<format>
 
 # Step 3: Analyze specific legacy component
 specfact import from-code \
   --repo src/legacy-payment \
   --name legacy-payment \
-  --out .specfact/plans/legacy-payment.bundle.yaml
+  --out .specfact/plans/legacy-payment.bundle.<format>
 ```
 
 ## Summary

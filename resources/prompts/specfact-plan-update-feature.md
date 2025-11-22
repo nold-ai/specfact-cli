@@ -19,13 +19,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan update-feature` before any analysis - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement feature update logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, etc.). All operations must be performed via CLI commands.
-8. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information unless for display purposes. Use CLI commands (`specfact plan select`) to get plan information.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use appropriate flags to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER write code**: Do not implement feature update logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All plan bundle updates must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, etc.). All operations must be performed via CLI commands.
+11. **NEVER read artifacts directly for updates**: Do NOT read plan bundle files directly to extract information for updates. Use CLI commands (`specfact plan select`) to get plan information.
 
 ### What Happens If You Don't Follow This
 
@@ -66,7 +69,7 @@ Update an existing feature's metadata in a plan bundle. This command allows upda
 
 The `specfact plan update-feature` command:
 
-1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.yaml` or active plan)
+1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.<format>` or active plan)
 2. **Validates** the plan bundle structure
 3. **Finds** the feature by key
 4. **Updates** only the specified fields (all parameters except key are optional)
@@ -79,16 +82,17 @@ The `specfact plan update-feature` command:
 
 **Parse user input** to extract:
 
-- Feature key (required, e.g., `FEATURE-001`)
+- Batch updates file path (optional, preferred when multiple features need updates)
+- Feature key (required if `--batch-updates` not provided, e.g., `FEATURE-001`)
 - Title (optional)
 - Outcomes (optional, comma-separated)
 - Acceptance criteria (optional, comma-separated)
 - Constraints (optional, comma-separated)
 - Confidence (optional, 0.0-1.0)
-- Draft status (optional, true/false)
-- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.yaml`)
+- Draft status (optional, boolean flag: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged)
+- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.<format>`)
 
-**WAIT STATE**: If feature key is missing, ask the user:
+**WAIT STATE**: If neither feature key nor batch updates file is provided, ask the user:
 
 ```text
 "Which feature would you like to update? Please provide the feature key (e.g., FEATURE-001):
@@ -132,9 +136,20 @@ specfact plan select
 
 ### 3. Execute Update Feature Command
 
-**Execute CLI command**:
+**Execute CLI command** (prefer batch updates when multiple features need refinement):
 
 ```bash
+# PREFERRED: Batch updates for multiple features (when 2+ features need updates)
+specfact plan update-feature \
+  --batch-updates feature_updates.json \
+  --plan <plan_path>
+
+# Batch updates with YAML format
+specfact plan update-feature \
+  --batch-updates feature_updates.yaml \
+  --plan <plan_path>
+
+# Single feature update (use only when single feature needs update):
 # Update title and outcomes
 specfact plan update-feature \
   --key FEATURE-001 \
@@ -155,12 +170,47 @@ specfact plan update-feature \
   --constraints "Python 3.11+, Test coverage >= 80%" \
   --plan <plan_path>
 
-# Mark as draft
+# Mark as draft (boolean flag: --draft sets True, --no-draft sets False)
 specfact plan update-feature \
   --key FEATURE-001 \
-  --draft true \
+  --draft \
+  --plan <plan_path>
+
+# Unmark draft (set to False)
+specfact plan update-feature \
+  --key FEATURE-001 \
+  --no-draft \
   --plan <plan_path>
 ```
+
+**Batch Update File Format** (`feature_updates.json`):
+
+```json
+[
+  {
+    "key": "FEATURE-001",
+    "title": "Updated Feature 1",
+    "outcomes": ["Outcome 1", "Outcome 2"],
+    "acceptance": ["Acceptance 1", "Acceptance 2"],
+    "constraints": ["Constraint 1"],
+    "confidence": 0.9,
+    "draft": false
+  },
+  {
+    "key": "FEATURE-002",
+    "title": "Updated Feature 2",
+    "acceptance": ["Acceptance 3"],
+    "confidence": 0.85
+  }
+]
+```
+
+**When to Use Batch Updates**:
+
+- **After plan review**: When multiple features need refinement based on findings
+- **After LLM enrichment**: When LLM generates comprehensive updates for multiple features
+- **Bulk acceptance criteria updates**: When enhancing multiple features with specific file paths, method names, or component references
+- **CI/CD automation**: When applying multiple updates programmatically from external tools
 
 **Capture from CLI**:
 
@@ -188,7 +238,7 @@ specfact plan update-feature \
 
 **Feature**: FEATURE-001
 **Updated Fields**: title, outcomes, acceptance, confidence
-**Plan Bundle**: `.specfact/plans/main.bundle.yaml`
+**Plan Bundle**: `.specfact/plans/main.bundle.<format>`
 
 **Updated Metadata**:
 - Title: Updated Title
@@ -209,7 +259,9 @@ specfact plan update-feature \
 - **Partial updates**: Only specified fields are updated, others remain unchanged
 - **Comma-separated lists**: Outcomes, acceptance, and constraints use comma-separated strings
 - **Confidence range**: Must be between 0.0 and 1.0
-- **Draft status**: Use `true` or `false` (boolean)
+- **Draft status**: Boolean flag - use `--draft` to set True, `--no-draft` to set False, omit to leave unchanged
+  - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
+  - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False) or omit (leaves unchanged)
 
 ### Field Guidelines
 

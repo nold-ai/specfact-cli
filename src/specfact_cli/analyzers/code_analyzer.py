@@ -6,13 +6,24 @@ import ast
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import networkx as nx
 from beartype import beartype
 from icontract import ensure, require
+from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+from specfact_cli.analyzers.contract_extractor import ContractExtractor
+from specfact_cli.analyzers.control_flow_analyzer import ControlFlowAnalyzer
+from specfact_cli.analyzers.requirement_extractor import RequirementExtractor
+from specfact_cli.analyzers.test_pattern_extractor import TestPatternExtractor
+from specfact_cli.migrations.plan_migrator import get_current_schema_version
 from specfact_cli.models.plan import Feature, Idea, Metadata, PlanBundle, Product, Story
 from specfact_cli.utils.feature_keys import to_classname_key, to_sequential_key
+
+
+console = Console()
 
 
 class CodeAnalyzer:
@@ -30,12 +41,17 @@ class CodeAnalyzer:
     @require(lambda repo_path: repo_path is not None and isinstance(repo_path, Path), "Repo path must be Path")
     @require(lambda confidence_threshold: 0.0 <= confidence_threshold <= 1.0, "Confidence threshold must be 0.0-1.0")
     @require(lambda plan_name: plan_name is None or isinstance(plan_name, str), "Plan name must be None or str")
+    @require(
+        lambda entry_point: entry_point is None or isinstance(entry_point, Path),
+        "Entry point must be None or Path",
+    )
     def __init__(
         self,
         repo_path: Path,
         confidence_threshold: float = 0.5,
         key_format: str = "classname",
         plan_name: str | None = None,
+        entry_point: Path | None = None,
     ) -> None:
         """
         Initialize code analyzer.
@@ -45,17 +61,37 @@ class CodeAnalyzer:
             confidence_threshold: Minimum confidence score (0.0-1.0)
             key_format: Feature key format ('classname' or 'sequential', default: 'classname')
             plan_name: Custom plan name (will be used for idea.title, optional)
+            entry_point: Optional entry point path for partial analysis (relative to repo_path)
         """
-        self.repo_path = Path(repo_path)
+        self.repo_path = Path(repo_path).resolve()
         self.confidence_threshold = confidence_threshold
         self.key_format = key_format
         self.plan_name = plan_name
+        self.entry_point: Path | None = None
+        if entry_point is not None:
+            # Resolve entry point relative to repo_path
+            if entry_point.is_absolute():
+                self.entry_point = entry_point
+            else:
+                self.entry_point = (self.repo_path / entry_point).resolve()
+            # Validate entry point exists and is within repo
+            if not self.entry_point.exists():
+                raise ValueError(f"Entry point does not exist: {self.entry_point}")
+            if not str(self.entry_point).startswith(str(self.repo_path)):
+                raise ValueError(f"Entry point must be within repository: {self.entry_point}")
         self.features: list[Feature] = []
         self.themes: set[str] = set()
         self.dependency_graph: nx.DiGraph[str] = nx.DiGraph()  # Module dependency graph
         self.type_hints: dict[str, dict[str, str]] = {}  # Module -> {function: type_hint}
         self.async_patterns: dict[str, list[str]] = {}  # Module -> [async_methods]
         self.commit_bounds: dict[str, tuple[str, str]] = {}  # Feature -> (first_commit, last_commit)
+        self.external_dependencies: set[str] = set()  # External modules imported from outside entry point
+        # Use entry_point for test extractor if provided, otherwise repo_path
+        test_extractor_path = self.entry_point if self.entry_point else self.repo_path
+        self.test_extractor = TestPatternExtractor(test_extractor_path)
+        self.control_flow_analyzer = ControlFlowAnalyzer()
+        self.requirement_extractor = RequirementExtractor()
+        self.contract_extractor = ContractExtractor()
 
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
@@ -63,7 +99,7 @@ class CodeAnalyzer:
         lambda result: isinstance(result, PlanBundle)
         and hasattr(result, "version")
         and hasattr(result, "features")
-        and result.version == "1.0"  # type: ignore[reportUnknownMemberType]
+        and result.version == get_current_schema_version()  # type: ignore[reportUnknownMemberType]
         and len(result.features) >= 0,  # type: ignore[reportUnknownMemberType]
         "Plan bundle must be valid",
     )
@@ -74,27 +110,69 @@ class CodeAnalyzer:
         Returns:
             Generated PlanBundle from code analysis
         """
-        # Find all Python files
-        python_files = list(self.repo_path.rglob("*.py"))
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            # Phase 1: Discover Python files
+            task1 = progress.add_task("[cyan]Phase 1: Discovering Python files...", total=None)
+            if self.entry_point:
+                # Scope analysis to entry point directory
+                python_files = list(self.entry_point.rglob("*.py"))
+                entry_point_rel = self.entry_point.relative_to(self.repo_path)
+                progress.update(
+                    task1,
+                    description=f"[green]✓ Found {len(python_files)} Python files in {entry_point_rel}",
+                )
+            else:
+                # Full repository analysis
+                python_files = list(self.repo_path.rglob("*.py"))
+                progress.update(task1, description=f"[green]✓ Found {len(python_files)} Python files")
+            progress.remove_task(task1)
 
-        # Build module dependency graph first
-        self._build_dependency_graph(python_files)
+            # Phase 2: Build dependency graph
+            task2 = progress.add_task("[cyan]Phase 2: Building dependency graph...", total=None)
+            self._build_dependency_graph(python_files)
+            progress.update(task2, description="[green]✓ Dependency graph built")
+            progress.remove_task(task2)
 
-        # Analyze each file
-        for file_path in python_files:
-            if self._should_skip_file(file_path):
-                continue
+            # Phase 3: Analyze files and extract features
+            task3 = progress.add_task(
+                "[cyan]Phase 3: Analyzing files and extracting features...", total=len(python_files)
+            )
+            for file_path in python_files:
+                if self._should_skip_file(file_path):
+                    progress.advance(task3)
+                    continue
 
-            self._analyze_file(file_path)
+                self._analyze_file(file_path)
+                progress.advance(task3)
+            progress.update(
+                task3,
+                description=f"[green]✓ Analyzed {len(python_files)} files, extracted {len(self.features)} features",
+            )
+            progress.remove_task(task3)
 
-        # Analyze commit history for feature boundaries
-        self._analyze_commit_history()
+            # Phase 4: Analyze commit history
+            task4 = progress.add_task("[cyan]Phase 4: Analyzing commit history...", total=None)
+            self._analyze_commit_history()
+            progress.update(task4, description="[green]✓ Commit history analyzed")
+            progress.remove_task(task4)
 
-        # Enhance features with dependency information
-        self._enhance_features_with_dependencies()
+            # Phase 5: Enhance features with dependencies
+            task5 = progress.add_task("[cyan]Phase 5: Enhancing features with dependency information...", total=None)
+            self._enhance_features_with_dependencies()
+            progress.update(task5, description="[green]✓ Features enhanced")
+            progress.remove_task(task5)
 
-        # Extract technology stack from dependency files
-        technology_constraints = self._extract_technology_stack_from_dependencies()
+            # Phase 6: Extract technology stack
+            task6 = progress.add_task("[cyan]Phase 6: Extracting technology stack...", total=None)
+            technology_constraints = self._extract_technology_stack_from_dependencies()
+            progress.update(task6, description="[green]✓ Technology stack extracted")
+            progress.remove_task(task6)
 
         # If sequential format, update all keys now that we know the total count
         if self.key_format == "sequential":
@@ -102,17 +180,26 @@ class CodeAnalyzer:
                 feature.key = to_sequential_key(feature.key, idx)
 
         # Generate plan bundle
-        # Use plan_name if provided, otherwise use repo name, otherwise fallback
+        # Use plan_name if provided, otherwise use entry point name or repo name
         if self.plan_name:
             # Use the plan name (already sanitized, but humanize for title)
             title = self.plan_name.replace("_", " ").replace("-", " ").title()
+        elif self.entry_point:
+            # Use entry point name for partial analysis
+            entry_point_name = self.entry_point.name or self.entry_point.relative_to(self.repo_path).as_posix()
+            title = f"{self._humanize_name(entry_point_name)} Module"
         else:
             repo_name = self.repo_path.name or "Unknown Project"
             title = self._humanize_name(repo_name)
 
+        narrative = f"Auto-derived plan from brownfield analysis of {title}"
+        if self.entry_point:
+            entry_point_rel = self.entry_point.relative_to(self.repo_path)
+            narrative += f" (scoped to {entry_point_rel})"
+
         idea = Idea(
             title=title,
-            narrative=f"Auto-derived plan from brownfield analysis of {title}",
+            narrative=narrative,
             constraints=technology_constraints,
             metrics=None,
         )
@@ -122,13 +209,24 @@ class CodeAnalyzer:
             releases=[],
         )
 
+        # Build metadata with scope information
+        metadata = Metadata(
+            stage="draft",
+            promoted_at=None,
+            promoted_by=None,
+            analysis_scope="partial" if self.entry_point else "full",
+            entry_point=str(self.entry_point.relative_to(self.repo_path)) if self.entry_point else None,
+            external_dependencies=sorted(self.external_dependencies),
+            summary=None,
+        )
+
         return PlanBundle(
-            version="1.0",
+            version=get_current_schema_version(),
             idea=idea,
             business=None,
             product=product,
             features=self.features,
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=metadata,
             clarifications=None,
         )
 
@@ -247,11 +345,23 @@ class CodeAnalyzer:
         if not stories:
             return None
 
+        # Extract complete requirements (Step 1.3)
+        complete_requirement = self.requirement_extractor.extract_complete_requirement(node)
+        acceptance_criteria = (
+            [complete_requirement] if complete_requirement else [f"{node.name} class provides documented functionality"]
+        )
+
+        # Extract NFRs from code patterns (Step 1.3)
+        nfrs = self.requirement_extractor.extract_nfrs(node)
+        # Add NFRs as constraints
+        constraints = nfrs if nfrs else []
+
         return Feature(
             key=feature_key,
             title=self._humanize_name(node.name),
             outcomes=outcomes,
-            acceptance=[f"{node.name} class provides documented functionality"],
+            acceptance=acceptance_criteria,
+            constraints=constraints,
             stories=stories,
             confidence=round(confidence, 2),
         )
@@ -349,25 +459,70 @@ class CodeAnalyzer:
         # Create user-centric title based on group
         title = self._generate_story_title(group_name, class_name)
 
-        # Extract acceptance criteria from docstrings
+        # Extract testable acceptance criteria using test patterns
         acceptance: list[str] = []
         tasks: list[str] = []
 
+        # Try to extract test patterns from existing tests
+        test_patterns = self.test_extractor.extract_test_patterns_for_class(class_name)
+
+        # If test patterns found, use them
+        if test_patterns:
+            acceptance.extend(test_patterns)
+
+        # Also extract from code patterns (for methods without tests)
         for method in methods:
             # Add method as task
             tasks.append(f"{method.name}()")
 
-            # Extract acceptance from docstring
+            # Extract test patterns from code if no test file patterns found
+            if not test_patterns:
+                code_patterns = self.test_extractor.infer_from_code_patterns(method, class_name)
+                acceptance.extend(code_patterns)
+
+            # Also check docstrings for additional context
             docstring = ast.get_docstring(method)
             if docstring:
-                # Take first line as acceptance criterion
-                first_line = docstring.split("\n")[0].strip()
-                if first_line and first_line not in acceptance:
-                    acceptance.append(first_line)
+                # Check if docstring contains Given/When/Then format
+                if "Given" in docstring and "When" in docstring and "Then" in docstring:
+                    # Extract Given/When/Then from docstring
+                    gwt_match = re.search(
+                        r"Given\s+(.+?),\s*When\s+(.+?),\s*Then\s+(.+?)(?:\.|$)", docstring, re.IGNORECASE
+                    )
+                    if gwt_match:
+                        acceptance.append(
+                            f"Given {gwt_match.group(1)}, When {gwt_match.group(2)}, Then {gwt_match.group(3)}"
+                        )
+                else:
+                    # Use first line as fallback (will be converted to Given/When/Then later)
+                    first_line = docstring.split("\n")[0].strip()
+                    if first_line and first_line not in acceptance:
+                        # Convert to Given/When/Then format
+                        acceptance.append(self._convert_to_gwt_format(first_line, method.name, class_name))
 
-        # Add default acceptance if none found
+        # Add default testable acceptance if none found
         if not acceptance:
-            acceptance.append(f"{group_name} functionality works as expected")
+            acceptance.append(
+                f"Given {class_name} instance, When {group_name.lower()} is performed, Then operation completes successfully"
+            )
+
+        # Extract scenarios from control flow (Step 1.2)
+        scenarios: dict[str, list[str]] | None = None
+        if methods:
+            # Extract scenarios from the first method (representative of the group)
+            # In the future, we could merge scenarios from all methods in the group
+            primary_method = methods[0]
+            scenarios = self.control_flow_analyzer.extract_scenarios_from_method(
+                primary_method, class_name, primary_method.name
+            )
+
+        # Extract contracts from function signatures (Step 2.1)
+        contracts: dict[str, Any] | None = None
+        if methods:
+            # Extract contracts from the first method (representative of the group)
+            # In the future, we could merge contracts from all methods in the group
+            primary_method = methods[0]
+            contracts = self.contract_extractor.extract_function_contracts(primary_method)
 
         # Calculate story points (complexity) based on number of methods and their size
         story_points = self._calculate_story_points(methods)
@@ -383,6 +538,8 @@ class CodeAnalyzer:
             value_points=value_points,
             tasks=tasks,
             confidence=0.8 if len(methods) > 1 else 0.6,
+            scenarios=scenarios,
+            contracts=contracts,
         )
 
     def _generate_story_title(self, group_name: str, class_name: str) -> str:
@@ -538,6 +695,14 @@ class CodeAnalyzer:
                                 break
                         if matching_module:
                             self.dependency_graph.add_edge(module_name, matching_module)
+                        elif self.entry_point and not any(
+                            imported_module.startswith(prefix) for prefix in ["src.", "lib.", "app.", "main.", "core."]
+                        ):
+                            # Track external dependencies when using entry point
+                            # Check if it's a standard library or third-party import
+                            # (heuristic: if it doesn't start with known repo patterns)
+                            # Likely external dependency
+                            self.external_dependencies.add(imported_module)
             except (SyntaxError, UnicodeDecodeError):
                 # Skip files that can't be parsed
                 continue
@@ -1025,6 +1190,37 @@ class CodeAnalyzer:
             unique_constraints = ["Python 3.11+", "Typer for CLI", "Pydantic for data validation"]
 
         return unique_constraints
+
+    @beartype
+    def _convert_to_gwt_format(self, text: str, method_name: str, class_name: str) -> str:
+        """
+        Convert a text description to Given/When/Then format.
+
+        Args:
+            text: Original text description
+            method_name: Name of the method
+            class_name: Name of the class
+
+        Returns:
+            Acceptance criterion in Given/When/Then format
+        """
+        # If already in Given/When/Then format, return as-is
+        if "Given" in text and "When" in text and "Then" in text:
+            return text
+
+        # Try to extract action and outcome from text
+        text_lower = text.lower()
+
+        # Common patterns
+        if "must" in text_lower or "should" in text_lower:
+            # Extract action after modal verb
+            action_match = re.search(r"(?:must|should)\s+(.+?)(?:\.|$)", text_lower)
+            if action_match:
+                action = action_match.group(1).strip()
+                return f"Given {class_name} instance, When {method_name} is called, Then {action}"
+
+        # Default conversion
+        return f"Given {class_name} instance, When {method_name} is called, Then {text}"
 
     def _get_module_dependencies(self, module_name: str) -> list[str]:
         """Get list of modules that the given module depends on."""

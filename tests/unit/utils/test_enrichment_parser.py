@@ -176,6 +176,7 @@ class TestApplyEnrichment:
             ],
             business=None,
             metadata=None,
+            clarifications=None,
         )
 
         enrichment = EnrichmentReport()
@@ -194,6 +195,7 @@ class TestApplyEnrichment:
             features=[],
             business=None,
             metadata=None,
+            clarifications=None,
         )
 
         enrichment = EnrichmentReport()
@@ -221,6 +223,7 @@ class TestApplyEnrichment:
             features=[],
             business=None,
             metadata=None,
+            clarifications=None,
         )
 
         enrichment = EnrichmentReport()
@@ -251,6 +254,7 @@ class TestApplyEnrichment:
             ],
             business=None,
             metadata=None,
+            clarifications=None,
         )
 
         enrichment = EnrichmentReport()
@@ -291,6 +295,7 @@ class TestApplyEnrichment:
             ],
             business=None,
             metadata=None,
+            clarifications=None,
         )
 
         original_confidence = plan_bundle.features[0].confidence

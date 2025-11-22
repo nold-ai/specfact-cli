@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Story
-from specfact_cli.utils.yaml_utils import dump_yaml, load_yaml
+from specfact_cli.utils.yaml_utils import load_yaml
 from specfact_cli.validators.schema import SchemaValidator, validate_plan_bundle
 
 
@@ -68,10 +69,11 @@ class TestPlanBundleWorkflow:
             product=product,
             features=features,
             metadata=metadata,
+            clarifications=None,
         )
 
-        # Verify model
-        assert plan_bundle.version == "1.0"
+        # Verify model (uses version from file)
+        assert plan_bundle.version == data["version"]
         assert plan_bundle.idea is not None
         assert plan_bundle.idea.title == "Developer Productivity CLI"
         assert len(plan_bundle.features) == 2
@@ -96,6 +98,7 @@ class TestPlanBundleWorkflow:
             product=product,
             features=features,
             metadata=metadata,
+            clarifications=None,
         )
 
         # Use the validate_plan_bundle function
@@ -104,6 +107,19 @@ class TestPlanBundleWorkflow:
         # Should pass validation
         assert report.passed is True
         assert len(report.deviations) == 0
+
+    def test_validate_plan_bundle_from_json_path(self, sample_plan_path: Path, tmp_path: Path):
+        """Ensure validate_plan_bundle accepts JSON plan bundles."""
+        plan_data = load_yaml(sample_plan_path)
+        json_path = tmp_path / "plan.bundle.json"
+        json_path.write_text(json.dumps(plan_data), encoding="utf-8")
+
+        is_valid, error, parsed = validate_plan_bundle(json_path)
+
+        assert is_valid is True
+        assert error is None
+        assert parsed is not None
+        assert parsed.idea is not None
 
     def test_validate_with_json_schema(self, sample_plan_path: Path, tmp_path: Path):
         """Test validating a plan bundle with JSON Schema."""
@@ -140,20 +156,23 @@ class TestPlanBundleWorkflow:
             product=product,
             features=features,
             metadata=metadata,
+            clarifications=None,
         )
 
-        # Convert to dict
-        plan_dict = plan_bundle.model_dump()
+        # Save using PlanGenerator (which updates version to current schema)
+        from specfact_cli.generators.plan_generator import PlanGenerator
 
-        # Save to new file
         output_path = tmp_path / "output-plan.yaml"
-        dump_yaml(plan_dict, output_path)
+        generator = PlanGenerator()
+        generator.generate(plan_bundle, output_path)
 
         # Reload
         reloaded_data = load_yaml(output_path)
 
-        # Verify roundtrip
-        assert reloaded_data["version"] == "1.0"
+        # Verify roundtrip (version updated to current schema version)
+        from specfact_cli.migrations.plan_migrator import get_current_schema_version
+
+        assert reloaded_data["version"] == get_current_schema_version()
         assert reloaded_data["idea"]["title"] == "Developer Productivity CLI"
         assert len(reloaded_data["features"]) == 2
 
@@ -237,7 +256,15 @@ class TestPlanBundleEdgeCases:
             business=None,
             product=product,
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                summary=None,
+            ),
+            clarifications=None,
         )
 
         # Should be valid
@@ -255,7 +282,15 @@ class TestPlanBundleEdgeCases:
             product=product,
             features=[],
             business=None,
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(
+                stage="draft",
+                promoted_at=None,
+                promoted_by=None,
+                analysis_scope=None,
+                entry_point=None,
+                summary=None,
+            ),
+            clarifications=None,
         )
 
         # Should be valid
@@ -272,6 +307,8 @@ class TestPlanBundleEdgeCases:
             confidence=0.8,
             story_points=None,
             value_points=None,
+            scenarios=None,
+            contracts=None,
         )
 
         assert len(story.tags) == 2

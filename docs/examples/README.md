@@ -4,6 +4,10 @@ Real-world examples of using SpecFact CLI.
 
 ## Available Examples
 
+- **[Integration Showcases](integration-showcases/)** ⭐ **START HERE** - Real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+  - **CLI-First**: Works offline, no account required, integrates with any IDE
+  - Start with the [Integration Showcases README](integration-showcases/README.md) for an overview
+  - Read the [main showcase document](integration-showcases/integration-showcases.md) for real examples
 - **[Dogfooding SpecFact CLI](dogfooding-specfact-cli.md)** - We ran SpecFact CLI on itself (< 10 seconds!)
 
 ## Quick Start

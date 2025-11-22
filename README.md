@@ -51,6 +51,23 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 - ✅ **Runtime contract enforcement** → Prevent regressions during modernization
 - ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
 - ✅ **Works offline** → No cloud required, fully local
+- ✅ **CLI integrations** → Works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow
+
+---
+
+## 🔌 CLI Integrations
+
+SpecFact CLI works with your existing tools—no new platform to learn. See real bugs that were caught and fixed through different integrations:
+
+- ✅ **VS Code** - Catch async bugs before you commit
+- ✅ **Cursor** - Prevent regressions during AI-assisted refactoring
+- ✅ **GitHub Actions** - Block bad code from merging
+- ✅ **Pre-commit Hooks** - Validate code locally before pushing
+- ✅ **AI Assistants** - Find edge cases AI might miss
+
+👉 **[Integration Showcases](docs/examples/integration-showcases/)** - Real examples of bugs fixed via CLI integrations
+
+**Core USP**: Pure CLI-first approach—works offline, no account required, zero vendor lock-in. Regularly showcases successful integrations that fix bugs not detected by other tools.
 
 ---
 
@@ -60,7 +77,7 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 
 ```bash
 # Zero-install (just run it)
-uvx --from specfact-cli specfact --help
+uvx specfact-cli@latest --help
 
 # Or install with pip
 pip install specfact-cli
@@ -81,17 +98,19 @@ specfact import from-spec-kit --repo ./my-project --dry-run
 
 That's it! 🎉
 
+> Need machine-readable artifacts? Use `specfact --output-format json …` (or the per-command `--output-format` flag) to emit plan bundles and reports as JSON instead of YAML.
+
 ---
 
 ## See It In Action
 
-We ran SpecFact CLI **on itself** to prove it works:
+We ran SpecFact CLI **on itself** to prove it works with legacy code:
 
-- ⚡ Analyzed 32 Python files → Discovered **32 features** and **81 stories** in **3 seconds**
+- ⚡ Analyzed 32 legacy Python files → Discovered **32 features** and **81 stories** in **3 seconds**
 - 🚫 Set enforcement to "balanced" → **Blocked 2 HIGH violations** (as configured)
 - 📊 Compared manual vs auto-derived plans → Found **24 deviations** in **5 seconds**
 
-**Total time**: < 10 seconds | **Total value**: Found real naming inconsistencies and undocumented features
+**Total time**: < 10 seconds | **Total value**: Found real naming inconsistencies and undocumented features in legacy codebase
 
 👉 **[Read the complete example](docs/examples/dogfooding-specfact-cli.md)** with actual commands and outputs
 
@@ -100,6 +119,8 @@ We ran SpecFact CLI **on itself** to prove it works:
 ## Documentation
 
 **New to SpecFact?** Start with the [Getting Started Guide](docs/getting-started/README.md)
+
+**Want to see integrations?** Check out [Integration Showcases](docs/examples/integration-showcases/) - Real bugs fixed via VS Code, Cursor, GitHub Actions
 
 **Tried Spec-Kit?** See [How SpecFact Compares to Spec-Kit](docs/guides/speckit-comparison.md) and [The Journey: From Spec-Kit to SpecFact](docs/guides/speckit-journey.md)
 

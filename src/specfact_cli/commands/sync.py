@@ -18,7 +18,8 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from specfact_cli.models.plan import PlanBundle
+from specfact_cli import runtime
+from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.sync.speckit_sync import SpecKitSync
 from specfact_cli.telemetry import telemetry
 
@@ -95,10 +96,7 @@ def _perform_sync_operation(
         if is_constitution_minimal(constitution_path):
             # Auto-generate in test mode, prompt in interactive mode
             # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-            is_test_env = (
-                os.environ.get("TEST_MODE") == "true"
-                or os.environ.get("PYTEST_CURRENT_TEST") is not None
-            )
+            is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
             if is_test_env:
                 # Auto-generate bootstrap constitution in test mode
                 from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
@@ -108,12 +106,7 @@ def _perform_sync_operation(
                 constitution_path.write_text(enriched_content, encoding="utf-8")
             else:
                 # Check if we're in an interactive environment
-                import sys
-
-                is_interactive = (
-                    hasattr(sys.stdin, "isatty") and sys.stdin.isatty()
-                ) and sys.stdin.isatty()
-                if is_interactive:
+                if runtime.is_interactive():
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
                     suggest_bootstrap = typer.confirm(
                         "Generate bootstrap constitution from repository analysis?",
@@ -129,7 +122,9 @@ def _perform_sync_operation(
                         console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
                         console.print("[dim]Review and adjust as needed before syncing[/dim]")
                     else:
-                        console.print("[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]")
+                        console.print(
+                            "[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]"
+                        )
                 else:
                     # Non-interactive mode: skip prompt
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
@@ -159,8 +154,11 @@ def _perform_sync_operation(
         console=console,
     ) as progress:
         # Step 3: Scan Spec-Kit artifacts
-        task = progress.add_task("[cyan]📦[/cyan] Scanning Spec-Kit artifacts...", total=None)
+        task = progress.add_task("[cyan]Scanning Spec-Kit artifacts...[/cyan]", total=None)
+        # Keep description showing current activity (spinner will show automatically)
+        progress.update(task, description="[cyan]Scanning Spec-Kit artifacts...[/cyan]")
         features = scanner.discover_features()
+        # Update with final status after completion
         progress.update(task, description=f"[green]✓[/green] Found {len(features)} features in specs/")
 
         # Step 3.5: Validate Spec-Kit artifacts for unidirectional sync
@@ -186,10 +184,55 @@ def _perform_sync_operation(
         if bidirectional:
             # Bidirectional sync: Spec-Kit → SpecFact and SpecFact → Spec-Kit
             # Step 5.1: Spec-Kit → SpecFact (unidirectional sync)
-            task = progress.add_task("[cyan]📝[/cyan] Converting Spec-Kit → SpecFact...", total=None)
-            merged_bundle, features_updated, features_added = _sync_speckit_to_specfact(
-                repo, converter, scanner, progress
-            )
+            # Skip expensive conversion if no Spec-Kit features found (optimization)
+            if len(features) == 0:
+                task = progress.add_task("[cyan]📝[/cyan] Converting Spec-Kit → SpecFact...", total=None)
+                progress.update(
+                    task,
+                    description="[green]✓[/green] Skipped (no Spec-Kit features found)",
+                )
+                console.print("[dim]  - Skipped Spec-Kit → SpecFact (no features in specs/)[/dim]")
+                # Use existing plan bundle if available, otherwise create minimal empty one
+                from specfact_cli.utils.structure import SpecFactStructure
+                from specfact_cli.validators.schema import validate_plan_bundle
+
+                # Use get_default_plan_path() to find the active plan (checks config or falls back to main.bundle.yaml)
+                plan_path = SpecFactStructure.get_default_plan_path(repo)
+                if plan_path.exists():
+                    # Show progress while loading plan bundle
+                    progress.update(task, description="[cyan]Parsing plan bundle YAML...[/cyan]")
+                    validation_result = validate_plan_bundle(plan_path)
+                    if isinstance(validation_result, tuple):
+                        is_valid, _error, bundle = validation_result
+                        if is_valid and bundle:
+                            # Show progress during validation (Pydantic validation can be slow for large bundles)
+                            progress.update(
+                                task, description=f"[cyan]Validating {len(bundle.features)} features...[/cyan]"
+                            )
+                            merged_bundle = bundle
+                            progress.update(
+                                task,
+                                description=f"[green]✓[/green] Loaded plan bundle ({len(bundle.features)} features)",
+                            )
+                        else:
+                            # Fallback: create minimal bundle via converter (but skip expensive parsing)
+                            progress.update(task, description="[cyan]Creating plan bundle from Spec-Kit...[/cyan]")
+                            merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
+                    else:
+                        progress.update(task, description="[cyan]Creating plan bundle from Spec-Kit...[/cyan]")
+                        merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
+                else:
+                    progress.update(task, description="[cyan]Creating plan bundle from Spec-Kit...[/cyan]")
+                    merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
+                features_updated = 0
+                features_added = 0
+            else:
+                task = progress.add_task("[cyan]Converting Spec-Kit → SpecFact...[/cyan]", total=None)
+                # Show current activity (spinner will show automatically)
+                progress.update(task, description="[cyan]Converting Spec-Kit → SpecFact...[/cyan]")
+                merged_bundle, features_updated, features_added = _sync_speckit_to_specfact(
+                    repo, converter, scanner, progress
+                )
 
             if features_updated > 0 or features_added > 0:
                 progress.update(
@@ -205,59 +248,79 @@ def _perform_sync_operation(
                 )
 
             # Step 5.2: SpecFact → Spec-Kit (reverse conversion)
-            task = progress.add_task("[cyan]🔄[/cyan] Converting SpecFact → Spec-Kit...", total=None)
+            task = progress.add_task("[cyan]Converting SpecFact → Spec-Kit...[/cyan]", total=None)
+            # Show current activity (spinner will show automatically)
+            progress.update(task, description="[cyan]Detecting SpecFact changes...[/cyan]")
 
-            # Detect SpecFact changes
+            # Detect SpecFact changes (for tracking/incremental sync, but don't block conversion)
             specfact_changes = sync.detect_specfact_changes(repo)
 
-            if specfact_changes:
-                # Load plan bundle and convert to Spec-Kit
-                # Use provided plan path, or default to main plan
+            # Use the merged_bundle we already loaded, or load it if not available
+            # We convert even if no "changes" detected, as long as plan bundle exists and has features
+            plan_bundle_to_convert: PlanBundle | None = None
+
+            # Prefer using merged_bundle if it has features (already loaded above)
+            if merged_bundle and len(merged_bundle.features) > 0:
+                plan_bundle_to_convert = merged_bundle
+            else:
+                # Fallback: load plan bundle from file if merged_bundle is empty or None
                 if plan:
                     plan_path = plan if plan.is_absolute() else repo / plan
                 else:
-                    plan_path = repo / SpecFactStructure.DEFAULT_PLAN
+                    # Use get_default_plan_path() to find the active plan (checks config or falls back to main.bundle.yaml)
+                    plan_path = SpecFactStructure.get_default_plan_path(repo)
 
                 if plan_path.exists():
+                    progress.update(task, description="[cyan]Loading plan bundle...[/cyan]")
                     validation_result = validate_plan_bundle(plan_path)
                     if isinstance(validation_result, tuple):
                         is_valid, _error, plan_bundle = validation_result
-                        if is_valid and plan_bundle:
-                            # Handle overwrite mode
-                            if overwrite:
-                                # Delete existing Spec-Kit artifacts before conversion
-                                specs_dir = repo / "specs"
-                                if specs_dir.exists():
-                                    console.print(
-                                        "[yellow]⚠[/yellow] Overwrite mode: Removing existing Spec-Kit artifacts..."
-                                    )
-                                    shutil.rmtree(specs_dir)
-                                    specs_dir.mkdir(parents=True, exist_ok=True)
-                                    console.print("[green]✓[/green] Existing artifacts removed")
+                        if is_valid and plan_bundle and len(plan_bundle.features) > 0:
+                            plan_bundle_to_convert = plan_bundle
 
-                            # Convert SpecFact plan bundle to Spec-Kit markdown
-                            features_converted_speckit = converter.convert_to_speckit(plan_bundle)
-                            progress.update(
-                                task,
-                                description=f"[green]✓[/green] Converted {features_converted_speckit} features to Spec-Kit",
-                            )
-                            mode_text = "overwritten" if overwrite else "generated"
-                            console.print(
-                                f"[dim]  - {mode_text.capitalize()} spec.md, plan.md, tasks.md for {features_converted_speckit} features[/dim]"
-                            )
-                            # Warning about Constitution Check gates
-                            console.print(
-                                "[yellow]⚠[/yellow] [dim]Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state[/dim]"
-                            )
-                        else:
-                            progress.update(task, description="[yellow]⚠[/yellow] Plan bundle validation failed")
-                            console.print("[yellow]⚠[/yellow] Could not load plan bundle for conversion")
-                    else:
-                        progress.update(task, description="[yellow]⚠[/yellow] Plan bundle not found")
-                else:
-                    progress.update(task, description="[green]✓[/green] No SpecFact plan to sync")
+            # Convert if we have a plan bundle with features
+            if plan_bundle_to_convert and len(plan_bundle_to_convert.features) > 0:
+                # Handle overwrite mode
+                if overwrite:
+                    progress.update(task, description="[cyan]Removing existing artifacts...[/cyan]")
+                    # Delete existing Spec-Kit artifacts before conversion
+                    specs_dir = repo / "specs"
+                    if specs_dir.exists():
+                        console.print("[yellow]⚠[/yellow] Overwrite mode: Removing existing Spec-Kit artifacts...")
+                        shutil.rmtree(specs_dir)
+                        specs_dir.mkdir(parents=True, exist_ok=True)
+                        console.print("[green]✓[/green] Existing artifacts removed")
+
+                # Convert SpecFact plan bundle to Spec-Kit markdown
+                total_features = len(plan_bundle_to_convert.features)
+                progress.update(
+                    task,
+                    description=f"[cyan]Converting plan bundle to Spec-Kit format (0 of {total_features})...[/cyan]",
+                )
+
+                # Progress callback to update during conversion
+                def update_progress(current: int, total: int) -> None:
+                    progress.update(
+                        task,
+                        description=f"[cyan]Converting plan bundle to Spec-Kit format ({current} of {total})...[/cyan]",
+                    )
+
+                features_converted_speckit = converter.convert_to_speckit(plan_bundle_to_convert, update_progress)
+                progress.update(
+                    task,
+                    description=f"[green]✓[/green] Converted {features_converted_speckit} features to Spec-Kit",
+                )
+                mode_text = "overwritten" if overwrite else "generated"
+                console.print(
+                    f"[dim]  - {mode_text.capitalize()} spec.md, plan.md, tasks.md for {features_converted_speckit} features[/dim]"
+                )
+                # Warning about Constitution Check gates
+                console.print(
+                    "[yellow]⚠[/yellow] [dim]Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state[/dim]"
+                )
             else:
-                progress.update(task, description="[green]✓[/green] No SpecFact changes to sync")
+                progress.update(task, description="[green]✓[/green] No features to convert to Spec-Kit")
+                features_converted_speckit = 0
 
             # Detect conflicts between both directions
             speckit_changes = sync.detect_speckit_changes(repo)
@@ -270,7 +333,9 @@ def _perform_sync_operation(
                 console.print("[bold green]✓[/bold green] No conflicts detected")
         else:
             # Unidirectional sync: Spec-Kit → SpecFact
-            task = progress.add_task("[cyan]📝[/cyan] Converting to SpecFact format...", total=None)
+            task = progress.add_task("[cyan]Converting to SpecFact format...[/cyan]", total=None)
+            # Show current activity (spinner will show automatically)
+            progress.update(task, description="[cyan]Converting to SpecFact format...[/cyan]")
 
             merged_bundle, features_updated, features_added = _sync_speckit_to_specfact(
                 repo, converter, scanner, progress
@@ -304,12 +369,13 @@ def _perform_sync_operation(
         if bidirectional:
             console.print("[bold cyan]Sync Summary (Bidirectional):[/bold cyan]")
             console.print(f"  - Spec-Kit → SpecFact: Updated {features_updated}, Added {features_added} features")
-            if specfact_changes:
+            # Always show conversion result (we convert if plan bundle exists, not just when changes detected)
+            if features_converted_speckit > 0:
                 console.print(
                     f"  - SpecFact → Spec-Kit: {features_converted_speckit} features converted to Spec-Kit markdown"
                 )
             else:
-                console.print("  - SpecFact → Spec-Kit: No changes detected")
+                console.print("  - SpecFact → Spec-Kit: No features to convert")
             if conflicts:
                 console.print(f"  - Conflicts: {len(conflicts)} detected and resolved")
             else:
@@ -340,9 +406,18 @@ def _perform_sync_operation(
     console.print("[bold green]✓[/bold green] Sync complete!")
 
 
-def _sync_speckit_to_specfact(repo: Path, converter: Any, scanner: Any, progress: Any) -> tuple[PlanBundle, int, int]:
+def _sync_speckit_to_specfact(
+    repo: Path, converter: Any, scanner: Any, progress: Any, task: int | None = None
+) -> tuple[PlanBundle, int, int]:
     """
     Sync Spec-Kit artifacts to SpecFact format.
+
+    Args:
+        repo: Repository path
+        converter: SpecKitConverter instance
+        scanner: SpecKitScanner instance
+        progress: Rich Progress instance
+        task: Optional progress task ID to update
 
     Returns:
         Tuple of (merged_bundle, features_updated, features_added)
@@ -351,17 +426,50 @@ def _sync_speckit_to_specfact(repo: Path, converter: Any, scanner: Any, progress
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.validators.schema import validate_plan_bundle
 
-    plan_path = repo / SpecFactStructure.DEFAULT_PLAN
+    plan_path = SpecFactStructure.get_default_plan_path(repo)
     existing_bundle: PlanBundle | None = None
 
     if plan_path.exists():
+        if task is not None:
+            progress.update(task, description="[cyan]Validating existing plan bundle...[/cyan]")
         validation_result = validate_plan_bundle(plan_path)
         if isinstance(validation_result, tuple):
             is_valid, _error, bundle = validation_result
             if is_valid and bundle:
                 existing_bundle = bundle
+                # Deduplicate existing features by normalized key (clean up duplicates from previous syncs)
+                from specfact_cli.utils.feature_keys import normalize_feature_key
+
+                seen_normalized_keys: set[str] = set()
+                deduplicated_features: list[Feature] = []
+                for existing_feature in existing_bundle.features:
+                    normalized_key = normalize_feature_key(existing_feature.key)
+                    if normalized_key not in seen_normalized_keys:
+                        seen_normalized_keys.add(normalized_key)
+                        deduplicated_features.append(existing_feature)
+
+                duplicates_removed = len(existing_bundle.features) - len(deduplicated_features)
+                if duplicates_removed > 0:
+                    existing_bundle.features = deduplicated_features
+                    # Write back deduplicated bundle immediately to clean up the plan file
+                    from specfact_cli.generators.plan_generator import PlanGenerator
+
+                    if task is not None:
+                        progress.update(
+                            task,
+                            description=f"[cyan]Deduplicating {duplicates_removed} duplicate features and writing cleaned plan...[/cyan]",
+                        )
+                    generator = PlanGenerator()
+                    generator.generate(existing_bundle, plan_path)
+                    if task is not None:
+                        progress.update(
+                            task,
+                            description=f"[green]✓[/green] Removed {duplicates_removed} duplicates, cleaned plan saved",
+                        )
 
     # Convert Spec-Kit to SpecFact
+    if task is not None:
+        progress.update(task, description="[cyan]Converting Spec-Kit artifacts to SpecFact format...[/cyan]")
     converted_bundle = converter.convert_plan(None if not existing_bundle else plan_path)
 
     # Merge with existing plan if it exists
@@ -369,14 +477,78 @@ def _sync_speckit_to_specfact(repo: Path, converter: Any, scanner: Any, progress
     features_added = 0
 
     if existing_bundle:
-        feature_keys_existing = {f.key for f in existing_bundle.features}
+        if task is not None:
+            progress.update(task, description="[cyan]Merging with existing plan bundle...[/cyan]")
+        # Use normalized keys for matching to handle different key formats (e.g., FEATURE-001 vs 001_FEATURE_NAME)
+        from specfact_cli.utils.feature_keys import normalize_feature_key
+
+        # Build a map of normalized_key -> (index, original_key) for existing features
+        normalized_key_map: dict[str, tuple[int, str]] = {}
+        for idx, existing_feature in enumerate(existing_bundle.features):
+            normalized_key = normalize_feature_key(existing_feature.key)
+            # If multiple features have the same normalized key, keep the first one
+            if normalized_key not in normalized_key_map:
+                normalized_key_map[normalized_key] = (idx, existing_feature.key)
 
         for feature in converted_bundle.features:
-            if feature.key in feature_keys_existing:
-                existing_idx = next(i for i, f in enumerate(existing_bundle.features) if f.key == feature.key)
+            normalized_key = normalize_feature_key(feature.key)
+            matched = False
+
+            # Try exact match first
+            if normalized_key in normalized_key_map:
+                existing_idx, original_key = normalized_key_map[normalized_key]
+                # Preserve the original key format from existing bundle
+                feature.key = original_key
                 existing_bundle.features[existing_idx] = feature
                 features_updated += 1
+                matched = True
             else:
+                # Try prefix match for abbreviated vs full names
+                # (e.g., IDEINTEGRATION vs IDEINTEGRATIONSYSTEM)
+                # Only match if shorter is a PREFIX of longer with significant length difference
+                # AND at least one key has a numbered prefix (041_, 042-, etc.) indicating Spec-Kit origin
+                # This avoids false positives like SMARTCOVERAGE vs SMARTCOVERAGEMANAGER (both from code analysis)
+                for existing_norm_key, (existing_idx, original_key) in normalized_key_map.items():
+                    shorter = min(normalized_key, existing_norm_key, key=len)
+                    longer = max(normalized_key, existing_norm_key, key=len)
+
+                    # Check if at least one key has a numbered prefix (Spec-Kit format)
+                    import re
+
+                    has_speckit_key = bool(
+                        re.match(r"^\d{3}[_-]", feature.key) or re.match(r"^\d{3}[_-]", original_key)
+                    )
+
+                    # More conservative matching:
+                    # 1. At least one key must have numbered prefix (Spec-Kit origin)
+                    # 2. Shorter must be at least 10 chars
+                    # 3. Longer must start with shorter (prefix match)
+                    # 4. Length difference must be at least 6 chars
+                    # 5. Shorter must be < 75% of longer (to ensure significant difference)
+                    length_diff = len(longer) - len(shorter)
+                    length_ratio = len(shorter) / len(longer) if len(longer) > 0 else 1.0
+
+                    if (
+                        has_speckit_key
+                        and len(shorter) >= 10
+                        and longer.startswith(shorter)
+                        and length_diff >= 6
+                        and length_ratio < 0.75
+                    ):
+                        # Match found - use the existing key format (prefer full name if available)
+                        if len(existing_norm_key) >= len(normalized_key):
+                            # Existing key is longer (full name) - keep it
+                            feature.key = original_key
+                        else:
+                            # New key is longer (full name) - use it but update existing
+                            existing_bundle.features[existing_idx].key = feature.key
+                        existing_bundle.features[existing_idx] = feature
+                        features_updated += 1
+                        matched = True
+                        break
+
+            if not matched:
+                # New feature - add it
                 existing_bundle.features.append(feature)
                 features_added += 1
 
@@ -386,6 +558,8 @@ def _sync_speckit_to_specfact(repo: Path, converter: Any, scanner: Any, progress
         existing_bundle.product.themes = list(themes_existing | themes_new)
 
         # Write merged bundle
+        if task is not None:
+            progress.update(task, description="[cyan]Writing plan bundle to disk...[/cyan]")
         generator = PlanGenerator()
         generator.generate(existing_bundle, plan_path)
         return existing_bundle, features_updated, features_added
@@ -413,7 +587,7 @@ def sync_spec_kit(
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: .specfact/plans/main.bundle.yaml)",
+        help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan in .specfact/plans)",
     ),
     overwrite: bool = typer.Option(
         False,
@@ -463,7 +637,7 @@ def sync_spec_kit(
             from specfact_cli.validators.schema import validate_plan_bundle
 
             # Use provided plan path or default
-            plan_path = plan if plan else (repo / SpecFactStructure.DEFAULT_PLAN)
+            plan_path = plan if plan else SpecFactStructure.get_default_plan_path(repo)
             if not plan_path.is_absolute():
                 plan_path = repo / plan_path
 

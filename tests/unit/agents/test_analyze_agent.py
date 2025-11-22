@@ -123,7 +123,7 @@ class TestAnalyzeAgent:
             plan_bundle = agent.analyze_codebase(repo_path, confidence=0.5)
 
             assert isinstance(plan_bundle, PlanBundle)
-            assert plan_bundle.version == "1.0"
+            assert plan_bundle.version == "1.1"
             assert plan_bundle.idea is not None
             assert plan_bundle.product is not None
 

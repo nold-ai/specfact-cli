@@ -6,6 +6,8 @@ Detailed use cases and examples for SpecFact CLI.
 > **Secondary Use Case**: Adding enforcement to Spec-Kit projects (Use Case 2)  
 > **Alternative**: Greenfield spec-first development (Use Case 3)
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ---
 
 ## Use Case 1: Brownfield Code Modernization ⭐ PRIMARY
@@ -19,12 +21,20 @@ Detailed use cases and examples for SpecFact CLI.
 #### 1. Analyze Code
 
 ```bash
-# CI/CD mode (fast, deterministic)
+# CI/CD mode (fast, deterministic) - Full repository
 specfact import from-code \
   --repo . \
   --shadow-only \
   --confidence 0.7 \
   --report analysis.md
+
+# Partial analysis (large codebases or monorepos)
+specfact import from-code \
+  --repo . \
+  --entry-point src/core \
+  --confidence 0.7 \
+  --name core-module \
+  --report analysis-core.md
 
 # CoPilot mode (enhanced prompts, interactive)
 specfact --mode copilot import from-code \
@@ -43,7 +53,7 @@ specfact init --ide cursor
 /specfact-import-from-code --repo . --confidence 0.7
 ```
 
-See [IDE Integration Guide](ide-integration.md) for setup instructions.
+See [IDE Integration Guide](ide-integration.md) for setup instructions. See [Integration Showcases](../examples/integration-showcases/) for real examples of bugs fixed via IDE integrations.
 
 **What it analyzes (AI-First / CoPilot Mode):**
 
@@ -621,3 +631,8 @@ specfact plan compare --manual contracts/shared/plan.bundle.yaml --auto .
 ---
 
 See [Commands](../reference/commands.md) for detailed command reference and [Getting Started](../getting-started/README.md) for quick setup.
+
+## Integration Examples
+
+- **[Integration Showcases](../examples/integration-showcases/)** ⭐ - Real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+- **[IDE Integration](ide-integration.md)** - Set up slash commands in your IDE

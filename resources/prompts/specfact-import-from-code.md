@@ -20,9 +20,11 @@ You **MUST** consider the user input before proceeding (if not empty).
   - Prompt: "What name would you like to use for this plan? (e.g., 'API Client v2', 'User Authentication', 'Payment Processing')"
   - Wait for user response
   - The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence
-  - Example: User provides "API Client v2" → saved as `api-client-v2.2025-11-04T23-19-31.bundle.yaml`
+  - Example: User provides "API Client v2" → saved as `api-client-v2.2025-11-04T23-19-31.bundle.<format>`
 
 **Step 2**: Proceed with import using the plan name (either provided or obtained from user).
+
+> **Format Note**: Use `specfact --output-format <yaml|json>` (or the command-level `--output-format` flag) to control whether plan bundles from this command are emitted in YAML or JSON. Defaults follow the global CLI setting for CI/CD.
 
 ## ⚠️ CRITICAL: CLI Usage Enforcement
 
@@ -31,13 +33,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact import from-code` before any analysis - execute the CLI command before any other operations
-2. **NEVER write code**: Do not implement import logic - the CLI handles this
-3. **NEVER create YAML/JSON directly**: All artifacts must be CLI-generated
-4. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
-6. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
-7. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, EnrichmentParser, etc.). All operations must be performed via CLI commands.
-8. **NEVER read artifacts directly**: Do NOT read plan bundle files directly to extract information unless for enrichment analysis (Phase 2). Use CLI commands to get plan information. After enrichment, always apply via CLI using `--enrichment` flag.
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use appropriate flags to avoid interactive prompts that can cause timeouts in Copilot environments
+3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display/analysis purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
+4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
+5. **NEVER write code**: Do not implement import logic - the CLI handles this
+6. **NEVER create YAML/JSON directly**: All artifacts must be CLI-generated
+7. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata - use it, don't bypass its validation
+8. **Use CLI output as grounding**: Parse CLI output, don't regenerate or recreate it - use the CLI output as the source of truth
+9. **NEVER manipulate internal code**: Do NOT use Python code to directly modify PlanBundle objects, Feature objects, or any internal data structures. The CLI is THE interface - use it exclusively.
+10. **No internal knowledge required**: You should NOT need to know about internal implementation details (PlanBundle model, Feature class, EnrichmentParser, etc.). All operations must be performed via CLI commands.
+11. **NEVER read artifacts directly for updates**: Do NOT read plan bundle files directly to extract information for updates. Use CLI commands to get plan information. After enrichment, always apply via CLI using `--enrichment` flag.
 
 ### What Happens If You Don't Follow This
 
@@ -134,14 +139,18 @@ When in copilot mode, follow this three-phase workflow:
 **ALWAYS execute CLI first** to get structured, validated output:
 
 ```bash
+# Full repository analysis
 specfact import from-code --repo <path> --name <name> --confidence <score>
+
+# Partial repository analysis (analyze only specific subdirectory)
+specfact import from-code --repo <path> --name <name> --entry-point <subdirectory> --confidence <score>
 ```
 
 **Note**: Mode is auto-detected by the CLI (CI/CD in non-interactive environments, CoPilot when in IDE/Copilot session). No need to specify `--mode` flag.
 
 **Capture from CLI output**:
 
-- CLI-generated plan bundle (`.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+- CLI-generated plan bundle (`.specfact/plans/<name>-<timestamp>.bundle.<format>`)
 - Analysis report (`.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - Metadata (timestamps, confidence scores, file paths)
 - Telemetry (execution time, file counts, validation results)
@@ -154,7 +163,7 @@ specfact import from-code --repo <path> --name <name> --confidence <score>
 
 **What to do**:
 
-- Read CLI-generated plan bundle and analysis report
+- Use file reading tools to read CLI-generated plan bundle and analysis report (for display/analysis only)
 - Research codebase for additional context (code comments, docs, dependencies)
 - Identify missing features/stories that AST analysis may have missed
 - Suggest confidence score adjustments based on code quality
@@ -163,18 +172,20 @@ specfact import from-code --repo <path> --name <name> --confidence <score>
 **What NOT to do**:
 
 - ❌ Create YAML/JSON artifacts directly
-- ❌ Modify CLI artifacts directly
+- ❌ Modify CLI artifacts directly (use CLI commands to update)
 - ❌ Bypass CLI validation
 - ❌ Skip enrichment in Copilot mode (this defeats the purpose of dual-stack workflow)
+- ❌ Write to `.specfact/` folder directly (always use CLI)
+- ❌ Use direct file manipulation tools for writing (use CLI commands)
 
 **Output**: Generate enrichment report (Markdown) with insights
 
 **Enrichment Report Location**:
 
-- Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.yaml`)
+- Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-import-test.2025-11-17T12-21-48.bundle.<format>`)
 - Derive enrichment report path by:
-  - Taking the plan bundle filename (e.g., `specfact-import-test.2025-11-17T12-21-48.bundle.yaml`)
-  - Replacing `.bundle.yaml` with `.enrichment.md` (e.g., `specfact-import-test.2025-11-17T12-21-48.enrichment.md`)
+  - Taking the plan bundle filename (e.g., `specfact-import-test.2025-11-17T12-21-48.bundle.<format>`)
+  - Replacing `.bundle.<format>` with `.enrichment.md` (e.g., `specfact-import-test.2025-11-17T12-21-48.enrichment.md`)
   - Placing it in `.specfact/reports/enrichment/` directory
 - Full path example: `.specfact/reports/enrichment/specfact-import-test.2025-11-17T12-21-48.enrichment.md`
 - **Ensure the directory exists**: Create `.specfact/reports/enrichment/` if it doesn't exist
@@ -241,10 +252,15 @@ Extract arguments from user input:
 - `--repo PATH` - Repository path (default: current directory)
 - `--name NAME` - Custom plan name (will be sanitized for filesystem, optional, default: "auto-derived")
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
-- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/<name>-<timestamp>.bundle.<format>`)
 - `--report PATH` - Analysis report path (optional, default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - `--shadow-only` - Observe mode without enforcing (optional)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
+- `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
+  - Multi-project repositories (monorepos): Analyze one project at a time
+  - Large codebases: Focus on specific modules or subsystems
+  - Incremental modernization: Modernize one part of the codebase at a time
+  - Example: `--entry-point projects/api-service` analyzes only `projects/api-service/` and its subdirectories
 
 **Important**: If `--name` is not provided, **ask the user interactively** for a meaningful plan name and **WAIT for their response**. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence.
 
@@ -261,17 +277,36 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g `'I'\''m Groo
 **ALWAYS execute the specfact CLI first** to get structured, validated output:
 
 ```bash
+# Full repository analysis
 specfact import from-code --repo <repo_path> --name <plan_name> --confidence <confidence>
+
+# Partial repository analysis (analyze only specific subdirectory)
+specfact import from-code --repo <repo_path> --name <plan_name> --entry-point <subdirectory> --confidence <confidence>
 ```
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
 **Capture CLI output**:
 
-- Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
+- Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.<format>`
 - Analysis report path: `.specfact/reports/brownfield/analysis-<timestamp>.md`
 - Metadata: feature counts, story counts, average confidence, execution time
+- **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found during import)
 - Any error messages or warnings
+
+**Understanding Deduplication**:
+
+The CLI automatically deduplicates features during import using normalized key matching. However, when importing from code, you should also review for **semantic/logical duplicates**:
+
+1. **Review feature titles and descriptions**: Look for features that represent the same functionality with different names
+   - Example: "Git Operations Manager" vs "Git Operations Handler" (both handle git operations)
+   - Example: "Telemetry Settings" vs "Telemetry Configuration" (both configure telemetry)
+2. **Check code coverage**: If multiple features reference the same code files/modules, they might be the same feature
+3. **Analyze class relationships**: Features derived from related classes (e.g., parent/child classes) might be duplicates
+4. **Suggest consolidation**: When semantic duplicates are found:
+   - Use `specfact plan update-feature` to merge information into one feature
+   - Use `specfact plan add-feature` to create a consolidated feature if needed
+   - Document which features were consolidated and why
 
 **If CLI execution fails**:
 
@@ -305,10 +340,10 @@ specfact import from-code --repo <repo_path> --name <plan_name> --confidence <co
    - Semantic insights and recommendations
 
 4. **Save enrichment report** to the proper location:
-   - Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
+   - Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
    - Derive enrichment report path by:
-     - Taking the plan bundle filename (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
-     - Replacing `.bundle.yaml` with `.enrichment.md` (e.g., `specfact-cli.2025-11-17T09-26-47.enrichment.md`)
+     - Taking the plan bundle filename (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
+     - Replacing `.bundle.<format>` with `.enrichment.md` (e.g., `specfact-cli.2025-11-17T09-26-47.enrichment.md`)
      - Placing it in `.specfact/reports/enrichment/` directory
    - Full path example: `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`
    - **Ensure the directory exists**: Create `.specfact/reports/enrichment/` if it doesn't exist
@@ -327,8 +362,8 @@ specfact import from-code --repo <repo_path> --name <plan_name> --confidence <co
 
 1. **Save enrichment report** to the enrichment reports directory with a name that matches the plan bundle:
    - Location: `.specfact/reports/enrichment/`
-   - Naming: Use the same name and timestamp as the plan bundle, replacing `.bundle.yaml` with `.enrichment.md`
-   - Example: If plan bundle is `specfact-cli.2025-11-17T09-26-47.bundle.yaml`, save enrichment as `specfact-cli.2025-11-17T09-26-47.enrichment.md`
+   - Naming: Use the same name and timestamp as the plan bundle, replacing `.bundle.<format>` with `.enrichment.md`
+   - Example: If plan bundle is `specfact-cli.2025-11-17T09-26-47.bundle.<format>`, save enrichment as `specfact-cli.2025-11-17T09-26-47.enrichment.md`
    - Full path: `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`
 
 2. **Execute CLI with `--enrichment` flag**:
@@ -344,8 +379,8 @@ specfact import from-code --repo <repo_path> --name <plan_name> --confidence <co
    - Adjust confidence scores
    - Add business context
    - Validate and write the enriched plan bundle as a **new file** with clear naming:
-     - Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml`
-     - Example: `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml`
+     - Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.<format>`
+     - Example: `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>`
      - The original plan bundle remains unchanged
      - The enriched plan is stored as a separate file for comparison and versioning
 
@@ -358,8 +393,8 @@ specfact import from-code --repo <repo_path> --name <plan_name> --confidence <co
 **Enriched Plan Naming Convention**:
 
 - When enrichment is applied, the CLI creates a new enriched plan bundle with a clear label
-- Original plan: `<name>.<timestamp>.bundle.yaml` (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.yaml`)
-- Enriched plan: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml` (e.g., `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml`)
+- Original plan: `<name>.<timestamp>.bundle.<format>` (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
+- Enriched plan: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.<format>` (e.g., `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>`)
 - Both plans are stored in `.specfact/plans/` for comparison and versioning
 - The original plan remains unchanged, allowing you to compare before/after enrichment
 
@@ -390,8 +425,8 @@ If `--report` is provided, generate a Markdown import report:
 ```markdown
 ✓ Import complete!
 
-Original plan: specfact-cli.2025-11-17T09-26-47.bundle.yaml
-Enriched plan: specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml
+Original plan: specfact-cli.2025-11-17T09-26-47.bundle.<format>
+Enriched plan: specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>
 
 CLI Analysis Results:
 - Features identified: 19
@@ -484,6 +519,7 @@ metadata:
 - Research codebase for additional context
 - Identify missing features/stories
 - Suggest confidence adjustments
+- **Review for semantic duplicates**: After automated deduplication, identify features that represent the same functionality with different names or cover the same code modules
 - Extract business context
 - **Always generate and save enrichment report** when in Copilot mode
 

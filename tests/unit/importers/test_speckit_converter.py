@@ -81,7 +81,7 @@ As a user, I want to test features so that I can validate functionality.
 
         # Contract ensures PlanBundle (covered by return type annotation)
         assert isinstance(plan_bundle, PlanBundle)
-        assert plan_bundle.version == "1.0"
+        assert plan_bundle.version == "1.1"
         assert len(plan_bundle.features) == 1
         assert plan_bundle.features[0].title == "Test Feature"
 
@@ -120,3 +120,87 @@ As a user, I want to test features so that I can validate functionality.
         content = output_path.read_text()
         assert "SpecFact CLI Validation" in content
         assert "specfact repro" in content
+
+    def test_convert_to_speckit_sequential_numbering(self, tmp_path: Path) -> None:
+        """Test convert_to_speckit uses sequential numbering when feature keys lack numbers."""
+        from specfact_cli.models.plan import Feature, PlanBundle, Product
+
+        # Create features without numbers in keys (tests the "000-" bug fix)
+        features = [
+            Feature(
+                key="FEATURE-USER-AUTH",  # No number in key
+                title="User Authentication",
+                outcomes=["Users can authenticate"],
+                acceptance=["Authentication works"],
+                constraints=[],
+                stories=[],
+                confidence=1.0,
+                draft=False,
+            ),
+            Feature(
+                key="FEATURE-PAYMENT",  # No number in key
+                title="Payment Processing",
+                outcomes=["Users can process payments"],
+                acceptance=["Payments work"],
+                constraints=[],
+                stories=[],
+                confidence=1.0,
+                draft=False,
+            ),
+            Feature(
+                key="FEATURE-003",  # Has number in key
+                title="Third Feature",
+                outcomes=["Third feature works"],
+                acceptance=["Feature works"],
+                constraints=[],
+                stories=[],
+                confidence=1.0,
+                draft=False,
+            ),
+        ]
+
+        plan_bundle = PlanBundle(
+            version="1.0",
+            product=Product(themes=["Core"], releases=[]),
+            features=features,
+            metadata=None,
+            idea=None,
+            business=None,
+            clarifications=None,
+        )
+
+        converter = SpecKitConverter(tmp_path)
+        features_converted = converter.convert_to_speckit(plan_bundle)
+
+        assert features_converted == 3
+
+        # Verify feature directories use correct sequential numbering (not "000-")
+        specs_dir = tmp_path / "specs"
+        feature_dirs = sorted(specs_dir.iterdir()) if specs_dir.exists() else []
+
+        assert len(feature_dirs) == 3
+
+        # First feature (no number) should be 001-
+        assert feature_dirs[0].name.startswith("001-")
+        assert "user-authentication" in feature_dirs[0].name
+
+        # Second feature (no number) should be 002-
+        assert feature_dirs[1].name.startswith("002-")
+        assert "payment-processing" in feature_dirs[1].name
+
+        # Third feature (has number 003) should be 003-
+        assert feature_dirs[2].name.startswith("003-")
+        assert "third-feature" in feature_dirs[2].name
+
+        # Verify spec.md frontmatter also uses correct numbering (not "000-")
+        spec_content_1 = (feature_dirs[0] / "spec.md").read_text()
+        assert "**Feature Branch**: `001-" in spec_content_1
+        assert "000-" not in spec_content_1
+
+        spec_content_2 = (feature_dirs[1] / "spec.md").read_text()
+        assert "**Feature Branch**: `002-" in spec_content_2
+        assert "000-" not in spec_content_2
+
+        spec_content_3 = (feature_dirs[2] / "spec.md").read_text()
+        assert "**Feature Branch**: `003-" in spec_content_3
+        assert "000-" not in spec_content_3

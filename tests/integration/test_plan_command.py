@@ -32,7 +32,7 @@ class TestPlanInitNonInteractive:
 
         # Verify content
         plan_data = load_yaml(plan_path)
-        assert plan_data["version"] == "1.0"
+        assert plan_data["version"] == "1.1"
         assert "product" in plan_data
         assert "features" in plan_data
         assert plan_data["features"] == []
@@ -259,7 +259,7 @@ class TestPlanInitValidation:
         plan_data = load_yaml(output_path)
         bundle = PlanBundle(**plan_data)
 
-        assert bundle.version == "1.0"
+        assert bundle.version == "1.1"
         assert isinstance(bundle.product.themes, list)
         assert isinstance(bundle.features, list)
 
@@ -648,12 +648,19 @@ class TestPlanAddStory:
                     acceptance=[],
                     stories=[
                         Story(
-                            key="STORY-000", title="Existing Story", acceptance=[], story_points=None, value_points=None
+                            key="STORY-000",
+                            title="Existing Story",
+                            acceptance=[],
+                            story_points=None,
+                            value_points=None,
+                            scenarios=None,
+                            contracts=None,
                         )
                     ],
                 )
             ],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            clarifications=None,
         )
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)
