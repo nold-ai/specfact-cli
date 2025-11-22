@@ -11,7 +11,7 @@ import json
 from contextlib import suppress
 from datetime import UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import typer
 from beartype import beartype
@@ -68,7 +68,7 @@ def init(
         "--scaffold/--no-scaffold",
         help="Create complete .specfact directory structure",
     ),
-    output_format: StructuredFormat | None = typer.Option(
+    output_format: Optional[StructuredFormat] = typer.Option(
         None,
         "--output-format",
         help="Plan bundle format for output (yaml or json). Defaults to global --output-format.",

@@ -4,12 +4,10 @@ Structured data I/O utilities for SpecFact CLI.
 Provides helpers to load and dump JSON/YAML consistently with format detection.
 """
 
-from __future__ import annotations
-
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from beartype import beartype
 from icontract import ensure, require
@@ -28,7 +26,7 @@ class StructuredFormat(str, Enum):
 
     @classmethod
     @beartype
-    def from_string(cls, value: str | None, default: StructuredFormat | None = None) -> StructuredFormat:
+    def from_string(cls, value: str | None, default: Optional["StructuredFormat"] = None) -> "StructuredFormat":
         """
         Convert string to StructuredFormat (defaults to YAML).
 
@@ -45,7 +43,7 @@ class StructuredFormat(str, Enum):
 
     @classmethod
     @beartype
-    def from_path(cls, path: Path | str | None, default: StructuredFormat | None = None) -> StructuredFormat:
+    def from_path(cls, path: Path | str | None, default: Optional["StructuredFormat"] = None) -> "StructuredFormat":
         """
         Infer format from file path suffix.
 
