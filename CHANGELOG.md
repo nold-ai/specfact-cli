@@ -9,6 +9,59 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.7.1] - 2025-01-22
+
+### Changed (0.7.1)
+
+- **Documentation Alignment with CLI-First, Integration-Focused Positioning**
+  - Updated all documentation files in `docs/examples/` and `docs/guides/` to emphasize CLI-first approach
+  - Added CLI-first messaging throughout: "works offline, requires no account, and integrates with your existing workflow"
+  - Added Integration Showcases references to all relevant documentation files
+  - Emphasized integration diversity: VS Code, Cursor, GitHub Actions, pre-commit hooks, any IDE
+  - Updated brownfield showcase examples (Django, Flask, Data Pipeline) with integration sections
+  - Updated guides (Brownfield Journey, Workflows, Use Cases, IDE Integration) with CLI-first messaging
+  - Updated reference documentation (Directory Structure) with CLI-first and integration examples
+  - All documentation now consistently highlights: no platform to learn, no vendor lock-in, works with existing tools
+
+- **Integration Showcases Documentation**
+  - Updated platform-frontend CMS content to link directly to Integration Showcases README
+  - Enhanced Integration Showcases documentation with validation status (3/5 fully validated)
+  - Updated all example documentation to reference Integration Showcases for real bug-fix examples
+
+- **Brownfield Documentation Review**
+  - Reviewed and updated all brownfield showcase examples for CLI-first alignment
+  - Added integration workflow sections to all brownfield examples
+  - Updated brownfield guides (Engineer, ROI, Journey) with integration examples
+  - All brownfield documentation now emphasizes CLI-first integration capabilities
+
+### Documentation (0.7.1)
+
+- **Examples Folder Updates**
+  - `brownfield-django-modernization.md` - Added CLI-first messaging and integration examples
+  - `brownfield-data-pipeline.md` - Added CLI-first messaging and integration examples
+  - `brownfield-flask-api.md` - Added CLI-first messaging and integration examples
+  - `quick-examples.md` - Added CLI-first messaging and integration examples section
+  - `dogfooding-specfact-cli.md` - Added CLI-first messaging and Integration Showcases link
+  - `README.md` - Emphasized Integration Showcases as "START HERE"
+
+- **Guides Folder Updates**
+  - `brownfield-engineer.md` - Added CLI-first messaging and integration workflow section
+  - `brownfield-roi.md` - Added CLI-first messaging and Integration Showcases case study
+  - `brownfield-journey.md` - Added CLI-first messaging and integration references
+  - `workflows.md` - Added CLI-first messaging and Integration Showcases link
+  - `use-cases.md` - Added CLI-first messaging and Integration Showcases references
+  - `ide-integration.md` - Added CLI-first messaging and Integration Showcases references
+  - `README.md` - Added Integration Showcases as first item in Quick Start
+
+- **Reference Documentation Updates**
+  - `directory-structure.md` - Added CLI-first messaging and Integration Showcases references
+
+- **Platform Frontend Updates**
+  - Updated `payload-content-helper.js` to link "CLI Integrations" product card to Integration Showcases README
+  - Changed link from main repo README to specific Integration Showcases documentation
+
+---
+
 ## [0.7.0] - 2025-11-20
 
 ### Added (0.7.0)

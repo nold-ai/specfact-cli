@@ -2,6 +2,8 @@
 
 > **Complete step-by-step workflow for modernizing legacy Python code with SpecFact CLI**
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ---
 
 ## Overview
@@ -22,6 +24,8 @@ This guide walks you through the complete brownfield modernization journey:
 ## Phase 1: Understand Your Legacy Code
 
 ### Step 1.1: Extract Specs Automatically
+
+**CLI-First Integration**: Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. See [Integration Showcases](../examples/integration-showcases/) for real examples.
 
 ```bash
 # Analyze your legacy codebase
@@ -423,10 +427,11 @@ Legacy Django app:
 
 ## Next Steps
 
-1. **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete persona guide
-2. **[ROI Calculator](brownfield-roi.md)** - Calculate your savings
-3. **[Examples](../examples/)** - Real-world brownfield examples
-4. **[FAQ](../brownfield-faq.md)** - More brownfield questions
+1. **[Integration Showcases](../examples/integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+2. **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete persona guide
+3. **[ROI Calculator](brownfield-roi.md)** - Calculate your savings
+4. **[Examples](../examples/)** - Real-world brownfield examples
+5. **[FAQ](../brownfield-faq.md)** - More brownfield questions
 
 ---
 

@@ -206,7 +206,7 @@ console.print("[bold red]✗[/bold red] Validation failed")
 - Package name: `specfact-cli`
 - CLI command: `specfact`
 - PyPI distribution: `pip install specfact-cli`
-- uvx usage: `uvx --from specfact-cli specfact <command>`
+- uvx usage: `uvx specfact-cli@latest <command>` (recommended) or `uvx --from specfact-cli specfact <command>`
 - Container: `docker run ghcr.io/nold-ai/specfact-cli:latest`
 
 ## Success Criteria

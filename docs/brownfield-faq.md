@@ -198,6 +198,36 @@ Contracts are your **safety net** - they prevent breaking changes from being dep
 
 Use all three together for comprehensive coverage.
 
+### What's the learning curve for contract-first development?
+
+**Minimal.** SpecFact is designed for incremental adoption:
+
+**Week 1 (2-4 hours):**
+
+- Run `import from-code` to extract specs (10 seconds)
+- Review extracted plan bundle
+- Add contracts to 3-5 critical functions
+
+**Week 2 (4-6 hours):**
+
+- Expand contracts to 10-15 functions
+- Run CrossHair on critical paths
+- Set up pre-commit hook
+
+**Week 3+ (ongoing):**
+
+- Add contracts incrementally as you refactor
+- Use shadow mode to observe violations
+- Enable enforcement when confident
+
+**No upfront training required.** Start with shadow mode (observe only), then enable enforcement incrementally as you understand the code better.
+
+**Resources:**
+
+- [Brownfield Engineer Guide](guides/brownfield-engineer.md) - Complete walkthrough
+- [Integration Showcases](../examples/integration-showcases.md) - Real examples
+- [Getting Started](../getting-started/README.md) - Quick start guide
+
 ---
 
 ## Integration
@@ -227,6 +257,44 @@ See [Spec-Kit Comparison Guide](guides/speckit-comparison.md) for details.
 - **Local CI:** Run `specfact enforce` in your pipeline
 
 Contracts can block merges if violations are detected (configurable).
+
+### Does SpecFact work with VS Code, Cursor, or other IDEs?
+
+**Yes.** SpecFact's CLI-first design means it works with **any IDE or editor**:
+
+- **VS Code:** Pre-commit hooks, tasks, or extensions
+- **Cursor:** AI assistant integration with contract validation
+- **Any editor:** Pure CLI, no IDE lock-in required
+- **Agentic workflows:** Works with any AI coding assistant
+
+**Example VS Code integration:**
+
+```bash
+# .git/hooks/pre-commit
+#!/bin/sh
+uvx specfact-cli@latest enforce stage --preset balanced
+```
+
+**Example Cursor integration:**
+
+```bash
+# Validate AI suggestions before accepting
+cursor-agent --validate-with "uvx specfact-cli@latest enforce stage"
+```
+
+See [Integration Showcases](../examples/integration-showcases.md) for real examples of bugs caught via different integrations.
+
+### Do I need to learn a new platform?
+
+**No.** SpecFact is **CLI-first**—it integrates into your existing workflow:
+
+- ✅ Works with your current IDE (VS Code, Cursor, etc.)
+- ✅ Works with your current CI/CD (GitHub Actions, GitLab, etc.)
+- ✅ Works with your current tools (no new platform to learn)
+- ✅ Works offline (no cloud account required)
+- ✅ Zero vendor lock-in (OSS forever)
+
+**No platform migration needed.** Just add SpecFact CLI to your existing workflow.
 
 ---
 

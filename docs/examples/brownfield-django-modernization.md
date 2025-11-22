@@ -21,6 +21,8 @@ You inherited a 3-year-old Django app with:
 
 ## Step 1: Reverse Engineer with SpecFact
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE.
+
 ### Extract Specs from Legacy Code
 
 ```bash
@@ -276,6 +278,18 @@ process_payment(request, order_id=-1, amount=-50, currency="XYZ")
 
 ---
 
+## Integration with Your Workflow
+
+SpecFact CLI integrates seamlessly with your existing tools:
+
+- **VS Code**: Use pre-commit hooks to catch breaking changes before commit
+- **Cursor**: AI assistant workflows catch regressions during refactoring
+- **GitHub Actions**: CI/CD integration blocks bad code from merging
+- **Pre-commit hooks**: Local validation prevents breaking changes
+- **Any IDE**: Pure CLI-first approach—works with any editor
+
+**See real examples**: [Integration Showcases](../integration-showcases/) - 5 complete examples showing bugs fixed via integrations
+
 ## Key Takeaways
 
 ### What Worked Well
@@ -284,6 +298,7 @@ process_payment(request, order_id=-1, amount=-50, currency="XYZ")
 2. ✅ **Runtime contracts** prevented 4 production bugs during refactoring
 3. ✅ **CrossHair** discovered 6 edge cases manual testing missed
 4. ✅ **Incremental approach** (shadow → warn → block) reduced risk
+5. ✅ **CLI-first integration** - Works offline, no account required, no vendor lock-in
 
 ### Lessons Learned
 
@@ -296,10 +311,11 @@ process_payment(request, order_id=-1, amount=-50, currency="XYZ")
 
 ## Next Steps
 
-1. **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** - Complete modernization workflow
-2. **[ROI Calculator](../guides/brownfield-roi.md)** - Calculate your savings
-3. **[Flask API Example](brownfield-flask-api.md)** - Another brownfield scenario
-4. **[Data Pipeline Example](brownfield-data-pipeline.md)** - ETL modernization
+1. **[Integration Showcases](../integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+2. **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** - Complete modernization workflow
+3. **[ROI Calculator](../guides/brownfield-roi.md)** - Calculate your savings
+4. **[Flask API Example](brownfield-flask-api.md)** - Another brownfield scenario
+5. **[Data Pipeline Example](brownfield-data-pipeline.md)** - ETL modernization
 
 ---
 

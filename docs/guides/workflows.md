@@ -5,11 +5,15 @@ Daily workflows for using SpecFact CLI effectively.
 > **Primary Workflow**: Brownfield code modernization  
 > **Secondary Workflow**: Spec-Kit bidirectional sync
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ---
 
 ## Brownfield Code Modernization ⭐ PRIMARY
 
 Reverse engineer existing code and enforce contracts incrementally.
+
+**Integration**: Works with VS Code, Cursor, GitHub Actions, pre-commit hooks. See [Integration Showcases](../examples/integration-showcases/) for real examples.
 
 ### Step 1: Analyze Legacy Code
 
@@ -454,6 +458,7 @@ specfact enforce stage --preset strict
 
 ## Related Documentation
 
+- **[Integration Showcases](../examples/integration-showcases/)** ⭐ - Real bugs fixed via VS Code, Cursor, GitHub Actions integrations
 - [Use Cases](use-cases.md) - Detailed use case scenarios
 - [Command Reference](../reference/commands.md) - All commands with examples
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions

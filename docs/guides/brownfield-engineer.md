@@ -25,10 +25,13 @@ SpecFact CLI is designed specifically for your situation. It provides:
 2. **Runtime contract enforcement** - Prevent regressions during modernization
 3. **Symbolic execution** - Discover hidden edge cases with CrossHair
 4. **Formal guarantees** - Mathematical verification, not probabilistic LLM suggestions
+5. **CLI-first integration** - Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. Works offline, no account required, no vendor lock-in.
 
 ---
 
 ## Step 1: Understand What You Have
+
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
 
 ### Extract Specs from Legacy Code
 
@@ -261,6 +264,18 @@ specfact import from-code --repo ./legacy-django-app --name customer-portal
 
 ---
 
+## Integration with Your Workflow
+
+SpecFact CLI integrates seamlessly with your existing tools:
+
+- **VS Code**: Use pre-commit hooks to catch breaking changes before commit
+- **Cursor**: AI assistant workflows catch regressions during refactoring
+- **GitHub Actions**: CI/CD integration blocks bad code from merging
+- **Pre-commit hooks**: Local validation prevents breaking changes
+- **Any IDE**: Pure CLI-first approach—works with any editor
+
+**See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via integrations
+
 ## Best Practices
 
 ### 1. Start with Shadow Mode
@@ -333,10 +348,11 @@ For heavily obfuscated code, consider deobfuscation first.
 
 ## Next Steps
 
-1. **[ROI Calculator](brownfield-roi.md)** - Calculate your time and cost savings
-2. **[Brownfield Journey](brownfield-journey.md)** - Complete modernization workflow
-3. **[Examples](../examples/)** - Real-world brownfield examples
-4. **[FAQ](../brownfield-faq.md)** - More brownfield-specific questions
+1. **[Integration Showcases](../examples/integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+2. **[ROI Calculator](brownfield-roi.md)** - Calculate your time and cost savings
+3. **[Brownfield Journey](brownfield-journey.md)** - Complete modernization workflow
+4. **[Examples](../examples/)** - Real-world brownfield examples
+5. **[FAQ](../brownfield-faq.md)** - More brownfield-specific questions
 
 ---
 

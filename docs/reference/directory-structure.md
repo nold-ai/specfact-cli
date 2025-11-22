@@ -4,6 +4,8 @@ This document defines the canonical directory structure for SpecFact CLI artifac
 
 > **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. The directory structure reflects this brownfield-first approach.
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
+
 ## Overview
 
 All SpecFact artifacts are stored under `.specfact/` in the repository root. This ensures:
@@ -12,6 +14,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - **Multiple plans**: Support for multiple plan bundles in a single repository
 - **Gitignore-friendly**: Easy to exclude reports from version control
 - **Clear separation**: Plans (versioned) vs reports (ephemeral)
+- **CLI-first**: All artifacts are local, no cloud storage required
 
 ## Canonical Structure
 
@@ -303,6 +306,8 @@ specfact init --ide copilot
 
 **See [IDE Integration Guide](../guides/ide-integration.md)** for complete setup instructions.
 
+**See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
+
 ## Configuration File
 
 `.specfact/config.yaml` (optional):
@@ -387,8 +392,11 @@ When you run `specfact init`, prompt templates are copied to IDE-specific locati
 - **Templates** - Prompt templates are read-only for the IDE, not modified by users
 - **Settings** - VS Code `settings.json` is merged (not overwritten) to preserve existing settings
 - **Auto-discovery** - IDEs automatically discover and register templates as slash commands
+- **CLI-first** - Works offline, no account required, no vendor lock-in
 
 **See [IDE Integration Guide](../guides/ide-integration.md)** for detailed setup and usage.
+
+**See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
 
 ---
 

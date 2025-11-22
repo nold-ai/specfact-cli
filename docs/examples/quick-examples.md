@@ -2,13 +2,15 @@
 
 Quick code snippets for common SpecFact CLI tasks.
 
+**CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow (VS Code, Cursor, GitHub Actions, pre-commit hooks). No platform to learn, no vendor lock-in.
+
 ## Installation
 
 ```bash
-# Zero-install (no setup required)
-uvx --from specfact-cli specfact --help
+# Zero-install (no setup required) - CLI-only mode
+uvx specfact-cli@latest --help
 
-# Install with pip
+# Install with pip - Interactive AI Assistant mode
 pip install specfact-cli
 
 # Install in virtual environment
@@ -278,11 +280,16 @@ specfact import from-code --repo . --confidence 0.3
 specfact import from-code --repo . --confidence 0.8
 ```
 
+## Integration Examples
+
+- **[Integration Showcases](integration-showcases/)** ⭐ - Real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+- **[IDE Integration](../guides/ide-integration.md)** - Set up slash commands in your IDE
+
 ## Related Documentation
 
 - [Getting Started](../getting-started/README.md) - Installation and first steps
 - [First Steps](../getting-started/first-steps.md) - Step-by-step first commands
-- [Use Cases](use-cases.md) - Detailed use case scenarios
+- [Use Cases](../guides/use-cases.md) - Detailed use case scenarios
 - [Workflows](../guides/workflows.md) - Common daily workflows
 - [Command Reference](../reference/commands.md) - Complete command reference
 

@@ -43,7 +43,7 @@ specfact plan select --last 5
 1. **Use uvx** (no installation needed):
 
    ```bash
-   uvx --from specfact-cli specfact --help
+   uvx specfact-cli@latest --help
    ```
 
 ### Permission Denied
