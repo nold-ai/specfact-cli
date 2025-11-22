@@ -62,7 +62,7 @@ class ConstitutionEvidenceExtractor:
         self.repo_path = Path(repo_path)
 
     @beartype
-    @require(lambda repo_path: repo_path is None or repo_path.exists(), "Repository path must exist if provided")
+    @require(lambda repo_path: repo_path is None or (isinstance(repo_path, Path) and repo_path.exists()), "Repository path must exist if provided")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_article_vii_evidence(self, repo_path: Path | None = None) -> dict[str, Any]:
         """
@@ -167,7 +167,7 @@ class ConstitutionEvidenceExtractor:
         }
 
     @beartype
-    @require(lambda repo_path: repo_path is None or repo_path.exists(), "Repository path must exist if provided")
+    @require(lambda repo_path: repo_path is None or (isinstance(repo_path, Path) and repo_path.exists()), "Repository path must exist if provided")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_article_viii_evidence(self, repo_path: Path | None = None) -> dict[str, Any]:
         """
@@ -271,7 +271,7 @@ class ConstitutionEvidenceExtractor:
         }
 
     @beartype
-    @require(lambda repo_path: repo_path is None or repo_path.exists(), "Repository path must exist if provided")
+    @require(lambda repo_path: repo_path is None or (isinstance(repo_path, Path) and repo_path.exists()), "Repository path must exist if provided")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_article_ix_evidence(self, repo_path: Path | None = None) -> dict[str, Any]:
         """

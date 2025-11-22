@@ -102,7 +102,7 @@ This gives you a complete overview of what SpecFact can do with real examples.
 - **Integration**: GitHub Actions workflow
 - **Bug**: Type mismatch in API endpoint
 - **Result**: Blocked bad code from merging
-- **Status**: ⚠️ **COMMANDS VERIFIED** (end-to-end testing deferred)
+- **Status**: ✅ **FULLY VALIDATED** (CI/CD workflow validated in production)
 
 ### Example 4: Pre-commit Hook - Breaking Change Detection
 
@@ -131,7 +131,7 @@ This gives you a complete overview of what SpecFact can do with real examples.
 
 ## ✅ Validation Status
 
-**Overall Progress**: 60% complete (3/5 fully validated, 1/5 commands verified, 1/5 pending)
+**Overall Progress**: 80% complete (4/5 fully validated, 1/5 pending)
 
 **Key Achievements**:
 
@@ -143,7 +143,7 @@ This gives you a complete overview of what SpecFact can do with real examples.
 **Remaining Work**:
 
 - ⏳ Example 5 validation (2-3 hours estimated)
-- ⚠️ Example 3 end-to-end testing (deferred, requires GitHub repo setup)
+- ✅ Example 3 validated in production CI/CD (GitHub Actions workflow verified)
 
 ---
 

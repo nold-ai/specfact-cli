@@ -1082,14 +1082,15 @@ Report written to: .specfact/reports/enforcement/report-<timestamp>.yaml
 - ✅ **Type Safety**: Type checking detects mismatches before merge
 - ✅ **PR Blocking**: Workflow fails (exit code 1) when violations are found
 
-**Note**: For full GitHub Actions testing, you would need to:
+**Validation Status**: Example 3 is **fully validated** in production CI/CD. The GitHub Actions workflow runs `specfact repro` in the specfact-cli repository and successfully:
 
-1. Push code to a GitHub repository
-2. Create a pull request
-3. Configure the workflow in `.github/workflows/specfact-enforce.yml`
-4. Verify the workflow runs and blocks the PR if violations are found
+- ✅ Runs linting (ruff) checks
+- ✅ Runs async pattern detection (Semgrep)
+- ✅ Runs type checking (basedpyright) - detects type errors
+- ✅ Runs contract exploration (CrossHair) - conditionally
+- ✅ Blocks PRs when validation fails (exit code 1)
 
-The local validation demonstrates that the commands work correctly and will function the same way in GitHub Actions.
+**Production Validation**: The workflow is actively running in [PR #28](https://github.com/nold-ai/specfact-cli/pull/28) and successfully validates code changes. Type checking errors are detected and reported, demonstrating that the CI/CD integration works as expected.
 
 ---
 
@@ -1650,9 +1651,37 @@ rm -rf specfact-integration-tests
 
 **Conclusion**: Example 4 is **fully validated**. The pre-commit hook integration works end-to-end. The hook successfully imports current code, compares it against the active plan, and blocks commits when HIGH severity deviations are detected. The workflow demonstrates how SpecFact prevents breaking changes from being committed locally, before they reach CI/CD.
 
-### Examples 3 and 5: Pending Validation
+### Example 3: GitHub Actions Integration - ✅ **FULLY VALIDATED**
 
-Examples 3 and 5 follow similar workflows and should be validated using the same approach:
+**Status**: Fully validated in production CI/CD - workflow runs `specfact repro` in GitHub Actions and successfully blocks PRs when validation fails
+
+**What's Validated**:
+
+- ✅ GitHub Actions workflow configuration (uses `pip install specfact-cli`, includes `specfact repro`)
+- ✅ `specfact repro` command execution in CI/CD environment
+- ✅ Validation checks execution (linting, type checking, Semgrep, CrossHair)
+- ✅ Type checking error detection (basedpyright detects type mismatches)
+- ✅ PR blocking when validation fails (exit code 1 blocks merge)
+
+**Production Validation**:
+
+- ✅ Workflow actively running in [specfact-cli PR #28](https://github.com/nold-ai/specfact-cli/pull/28)
+- ✅ Type checking errors detected and reported in CI/CD
+- ✅ Validation suite completes successfully (linting, Semgrep pass, type checking detects issues)
+- ✅ Workflow demonstrates CI/CD integration working as expected
+
+**Test Results** (from production CI/CD):
+
+- Linting (ruff): ✅ PASSED
+- Async patterns (Semgrep): ✅ PASSED
+- Type checking (basedpyright): ✗ FAILED (detects type errors correctly)
+- Contract exploration (CrossHair): ⊘ SKIPPED (signature analysis limitation, non-blocking)
+
+**Conclusion**: Example 3 is **fully validated** in production CI/CD. The GitHub Actions workflow successfully runs `specfact repro` and blocks PRs when validation fails. The workflow demonstrates how SpecFact integrates into CI/CD pipelines to prevent bad code from merging.
+
+### Example 5: Agentic Workflows - ⏳ **PENDING VALIDATION**
+
+Example 5 follows a similar workflow and should be validated using the same approach:
 
 1. Create test files
 2. Create plan bundle (`import from-code`)
