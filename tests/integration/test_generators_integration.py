@@ -64,11 +64,13 @@ class TestPlanGeneratorIntegration:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         )
                     ],
                 )
             ],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            clarifications=None,
         )
 
     def test_generate_and_validate_roundtrip(self, plan_generator, schema_validator, sample_plan_bundle, tmp_path):
@@ -118,7 +120,8 @@ class TestPlanGeneratorIntegration:
                 ],
             ),
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            clarifications=None,
         )
 
         output_path = tmp_path / "multi-release-plan.yaml"
@@ -318,11 +321,12 @@ class TestCrossComponentIntegration:
                 metrics=None,
             ),
             business=None,
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None),
+            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
             product=Product(
                 themes=["Core"],
                 releases=[Release(name="v1.0", objectives=["Launch"], scope=[], risks=[])],
             ),
+            clarifications=None,
         )
 
         # Step 2: Generate to file

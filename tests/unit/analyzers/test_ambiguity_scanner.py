@@ -125,6 +125,7 @@ def test_scan_completion_signals_missing_acceptance() -> None:
                         title="Test Story",
                         acceptance=[],  # No acceptance criteria
                         tags=[],
+                        contracts=None,
                         story_points=None,
                         value_points=None,
                         tasks=[],
@@ -246,6 +247,7 @@ def test_scan_coverage_status() -> None:
                         title="Complete Story",
                         acceptance=["Story acceptance 1", "Story acceptance 2"],
                         tags=[],
+                        contracts=None,
                         story_points=5,
                         value_points=8,
                         tasks=["Task 1"],

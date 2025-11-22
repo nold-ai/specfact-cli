@@ -244,6 +244,7 @@ class TestPlanCompareCommand:
             story_points=None,
             value_points=None,
             scenarios=None,
+            contracts=None,
         )
         story2 = Story(
             key="STORY-002",
@@ -252,6 +253,7 @@ class TestPlanCompareCommand:
             story_points=None,
             value_points=None,
             scenarios=None,
+            contracts=None,
         )
 
         feature_manual = Feature(

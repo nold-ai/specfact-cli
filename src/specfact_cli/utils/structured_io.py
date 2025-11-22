@@ -28,7 +28,7 @@ class StructuredFormat(str, Enum):
 
     @classmethod
     @beartype
-    def from_string(cls, value: str | None, default: StructuredFormat = None) -> StructuredFormat:
+    def from_string(cls, value: str | None, default: StructuredFormat | None = None) -> StructuredFormat:
         """
         Convert string to StructuredFormat (defaults to YAML).
 
@@ -45,7 +45,7 @@ class StructuredFormat(str, Enum):
 
     @classmethod
     @beartype
-    def from_path(cls, path: Path | str | None, default: StructuredFormat = None) -> StructuredFormat:
+    def from_path(cls, path: Path | str | None, default: StructuredFormat | None = None) -> StructuredFormat:
         """
         Infer format from file path suffix.
 

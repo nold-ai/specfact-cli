@@ -23,9 +23,9 @@ class TestPlanComparator:
             stories=[],
         )
 
-        plan1 = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature], metadata=None)
+        plan1 = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature], metadata=None, clarifications=None)
 
-        plan2 = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature], metadata=None)
+        plan2 = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[feature], metadata=None, clarifications=None)
 
         comparator = PlanComparator()
         report = comparator.compare(plan1, plan2)
@@ -55,11 +55,11 @@ class TestPlanComparator:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None, clarifications=None
         )
 
         auto_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None, clarifications=None
         )
 
         comparator = PlanComparator()
@@ -93,11 +93,11 @@ class TestPlanComparator:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None, clarifications=None
         )
 
         auto_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature1, feature2], metadata=None, clarifications=None
         )
 
         comparator = PlanComparator()
@@ -131,11 +131,11 @@ class TestPlanComparator:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None, clarifications=None
         )
 
         auto_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None, clarifications=None
         )
 
         comparator = PlanComparator()
@@ -158,6 +158,7 @@ class TestPlanComparator:
             story_points=None,
             value_points=None,
             scenarios=None,
+            contracts=None,
         )
         story2 = Story(
             key="STORY-002",
@@ -166,6 +167,7 @@ class TestPlanComparator:
             story_points=None,
             value_points=None,
             scenarios=None,
+            contracts=None,
         )
 
         feature_manual = Feature(
@@ -185,11 +187,11 @@ class TestPlanComparator:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature_manual], metadata=None, clarifications=None
         )
 
         auto_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature_auto], metadata=None, clarifications=None
         )
 
         comparator = PlanComparator()
@@ -209,9 +211,9 @@ class TestPlanComparator:
 
         product = Product(themes=[], releases=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea1, business=None, product=product, features=[], metadata=None)
+        manual_plan = PlanBundle(version="1.0", idea=idea1, business=None, product=product, features=[], metadata=None, clarifications=None)
 
-        auto_plan = PlanBundle(version="1.0", idea=idea2, business=None, product=product, features=[], metadata=None)
+        auto_plan = PlanBundle(version="1.0", idea=idea2, business=None, product=product, features=[], metadata=None, clarifications=None)
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -227,9 +229,9 @@ class TestPlanComparator:
         product1 = Product(themes=["AI", "Security"], releases=[])
         product2 = Product(themes=["AI", "Performance"], releases=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product1, features=[], metadata=None)
+        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product1, features=[], metadata=None, clarifications=None)
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product2, features=[], metadata=None)
+        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product2, features=[], metadata=None, clarifications=None)
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -250,10 +252,10 @@ class TestPlanComparator:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=business, product=product, features=[], metadata=None
+            version="1.0", idea=idea, business=business, product=product, features=[], metadata=None, clarifications=None
         )
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None)
+        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None, clarifications=None)
 
         comparator = PlanComparator()
         report = comparator.compare(manual_plan, auto_plan)
@@ -266,9 +268,9 @@ class TestPlanComparator:
         idea = Idea(title="Test Project", narrative="A test project", metrics=None)
         product = Product(themes=[], releases=[])
 
-        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None)
+        manual_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None, clarifications=None)
 
-        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None)
+        auto_plan = PlanBundle(version="1.0", idea=idea, business=None, product=product, features=[], metadata=None, clarifications=None)
 
         comparator = PlanComparator()
         report = comparator.compare(
@@ -306,11 +308,11 @@ class TestPlanComparator:
         )
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea1, business=None, product=product1, features=[feature1], metadata=None
+            version="1.0", idea=idea1, business=None, product=product1, features=[feature1], metadata=None, clarifications=None
         )
 
         auto_plan = PlanBundle(
-            version="1.0", idea=idea2, business=None, product=product2, features=[feature1, feature2], metadata=None
+            version="1.0", idea=idea2, business=None, product=product2, features=[feature1, feature2], metadata=None, clarifications=None
         )
 
         comparator = PlanComparator()
@@ -332,7 +334,7 @@ class TestPlanComparator:
         feature3 = Feature(key="FEATURE-003", title="Reports", outcomes=[], acceptance=[], stories=[])
 
         manual_plan = PlanBundle(
-            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None
+            version="1.0", idea=idea, business=None, product=product, features=[feature1], metadata=None, clarifications=None
         )
 
         auto_plan = PlanBundle(
@@ -342,6 +344,7 @@ class TestPlanComparator:
             product=product,
             features=[feature1, feature2, feature3],
             metadata=None,
+            clarifications=None,
         )
 
         comparator = PlanComparator()

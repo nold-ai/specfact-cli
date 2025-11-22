@@ -51,11 +51,13 @@ class TestPlanGenerator:
                             story_points=None,
                             value_points=None,
                             scenarios=None,
+                            contracts=None,
                         )
                     ],
                 )
             ],
             metadata=None,
+            clarifications=None,
         )
 
     @pytest.fixture
@@ -116,6 +118,7 @@ class TestPlanGenerator:
                 releases=[],
             ),
             metadata=None,
+            clarifications=None,
         )
 
         output_path = output_dir / "plan.bundle.yaml"

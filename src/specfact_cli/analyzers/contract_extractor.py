@@ -303,7 +303,7 @@ class ContractExtractor:
     @ensure(lambda result: isinstance(result, str), "Must return string")
     def _op_to_string(self, op: ast.cmpop) -> str:
         """Convert AST comparison operator to string."""
-        op_map = {
+        op_map: dict[type[Any], str] = {
             ast.Eq: "==",
             ast.NotEq: "!=",
             ast.Lt: "<",

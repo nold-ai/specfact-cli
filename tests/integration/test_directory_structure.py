@@ -285,6 +285,7 @@ class TestPlanCompareWithNewStructure:
             idea=Idea(title="Test", narrative="Test", metrics=None),
             business=None,
             product=Product(themes=[], releases=[]),
+            clarifications=None,
             features=[],
             metadata=None,
         )
@@ -297,6 +298,7 @@ class TestPlanCompareWithNewStructure:
         auto_plan = PlanBundle(
             version="1.0",
             idea=Idea(title="Test", narrative="Test", metrics=None),
+            clarifications=None,
             business=None,
             product=Product(themes=[], releases=[]),
             features=[],
@@ -336,6 +338,7 @@ class TestPlanCompareWithNewStructure:
             version="1.0",
             idea=Idea(title="Test", narrative="Test", metrics=None),
             business=None,
+            clarifications=None,
             product=Product(themes=[], releases=[]),
             features=[],
             metadata=None,
