@@ -145,7 +145,7 @@ class ConstitutionEvidenceExtractor:
             )
         else:
             status = "FAIL"
-            issues = []
+            issues: list[str] = []
             if not depth_pass:
                 issues.append(
                     f"deep directory structure (max depth: {max_depth}, threshold: {self.MAX_DIRECTORY_DEPTH})"
@@ -252,7 +252,7 @@ class ConstitutionEvidenceExtractor:
             rationale = "No framework abstractions detected (direct library usage)"
         else:
             status = "FAIL"
-            issues = []
+            issues: list[str] = []
             if frameworks_detected:
                 issues.append(f"framework abstractions detected ({', '.join(frameworks_detected)})")
             if abstraction_layers > self.MAX_ABSTRACTION_LAYERS:
