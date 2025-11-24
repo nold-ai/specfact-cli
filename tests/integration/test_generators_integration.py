@@ -69,7 +69,9 @@ class TestPlanGeneratorIntegration:
                     ],
                 )
             ],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            metadata=Metadata(
+                stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None
+            ),
             clarifications=None,
         )
 
@@ -120,7 +122,9 @@ class TestPlanGeneratorIntegration:
                 ],
             ),
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            metadata=Metadata(
+                stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None
+            ),
             clarifications=None,
         )
 
@@ -321,7 +325,9 @@ class TestCrossComponentIntegration:
                 metrics=None,
             ),
             business=None,
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            metadata=Metadata(
+                stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None
+            ),
             product=Product(
                 themes=["Core"],
                 releases=[Release(name="v1.0", objectives=["Launch"], scope=[], risks=[])],

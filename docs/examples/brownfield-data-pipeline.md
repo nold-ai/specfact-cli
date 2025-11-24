@@ -21,6 +21,8 @@ You inherited a 5-year-old Python data pipeline with:
 
 ## Step 1: Reverse Engineer Data Pipeline
 
+> **Note**: This example demonstrates the complete hard-SDD workflow, including SDD manifest creation, validation, and plan promotion gates. The SDD manifest serves as your "hard spec" - a canonical reference that prevents drift during modernization.
+
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE.
 
 ### Extract Specs from Legacy Pipeline
@@ -74,7 +76,70 @@ features:
 
 ---
 
-## Step 2: Add Contracts to Data Transformations
+## Step 2: Create Hard SDD Manifest
+
+After extracting the plan, create a hard SDD manifest:
+
+```bash
+# Create SDD manifest from the extracted plan
+specfact plan harden
+```
+
+### Output
+
+```text
+✅ SDD manifest created: .specfact/sdd.yaml
+
+📋 SDD Summary:
+   WHY: Modernize legacy ETL pipeline with zero data corruption
+   WHAT: 18 ETL jobs, 67 stories extracted from legacy code
+   HOW: Runtime contracts, data validation, incremental enforcement
+
+🔗 Linked to plan: customer-etl (hash: ghi789jkl012...)
+📊 Coverage thresholds:
+   - Contracts per story: 1.0 (minimum)
+   - Invariants per feature: 2.0 (minimum)
+   - Architecture facets: 3 (minimum)
+```
+
+---
+
+## Step 3: Validate SDD Before Modernization
+
+Validate that your SDD manifest matches your plan:
+
+```bash
+# Validate SDD manifest against plan
+specfact enforce sdd
+```
+
+### Output
+
+```text
+✅ Hash match verified
+✅ Contracts/story: 1.1 (threshold: 1.0) ✓
+✅ Invariants/feature: 2.3 (threshold: 2.0) ✓
+✅ Architecture facets: 4 (threshold: 3) ✓
+
+✅ SDD validation passed
+```
+
+---
+
+## Step 4: Promote Plan with SDD Validation
+
+Promote your plan to "review" stage (requires valid SDD):
+
+```bash
+# Promote plan to review stage
+specfact plan promote --stage review
+```
+
+**Why this matters**: Plan promotion enforces SDD presence, ensuring you have a hard spec before starting modernization work.
+
+---
+
+## Step 5: Add Contracts to Data Transformations
 
 ### Before: Undocumented Legacy Transformation
 
@@ -142,9 +207,17 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
     }
 ```
 
+### Re-validate SDD After Adding Contracts
+
+After adding contracts, re-validate your SDD:
+
+```bash
+specfact enforce sdd
+```
+
 ---
 
-## Step 3: Discover Data Edge Cases
+## Step 6: Discover Data Edge Cases
 
 ### Run CrossHair on Data Transformations
 
@@ -198,7 +271,7 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
 
 ---
 
-## Step 4: Modernize Pipeline Safely
+## Step 7: Modernize Pipeline Safely
 
 ### Refactor with Contract Safety Net
 
@@ -299,10 +372,13 @@ SpecFact CLI integrates seamlessly with your existing tools:
 ### What Worked Well
 
 1. ✅ **code2spec** extracted pipeline structure automatically
-2. ✅ **Contracts** enforced data validation at runtime
-3. ✅ **CrossHair** discovered edge cases in data transformations
-4. ✅ **Incremental modernization** reduced risk
-5. ✅ **CLI-first integration** - Works offline, no account required, no vendor lock-in
+2. ✅ **SDD manifest** created hard spec reference, preventing drift
+3. ✅ **SDD validation** ensured coverage thresholds before modernization
+4. ✅ **Plan promotion gates** required SDD presence, enforcing discipline
+5. ✅ **Contracts** enforced data validation at runtime
+6. ✅ **CrossHair** discovered edge cases in data transformations
+7. ✅ **Incremental modernization** reduced risk
+8. ✅ **CLI-first integration** - Works offline, no account required, no vendor lock-in
 
 ### Lessons Learned
 

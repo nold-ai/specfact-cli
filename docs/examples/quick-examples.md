@@ -86,6 +86,15 @@ specfact plan add-story \
   --title "As a user, I can login with email and password" \
   --acceptance "Login form validates input"
 
+# Create hard SDD manifest (required for promotion)
+specfact plan harden
+
+# Review plan (checks SDD automatically)
+specfact plan review --max-questions 5
+
+# Promote plan (requires SDD for review+ stages)
+specfact plan promote --stage review
+
 ```
 
 ## Plan Comparison
@@ -121,6 +130,28 @@ specfact sync repository --repo . --watch --interval 5
 
 ```
 
+## SDD (Spec-Driven Development) Workflow
+
+```bash
+# Create hard SDD manifest from plan
+specfact plan harden
+
+# Validate SDD manifest against plan
+specfact enforce sdd
+
+# Validate SDD with custom output format
+specfact enforce sdd --format json --out validation-report.json
+
+# Review plan (automatically checks SDD)
+specfact plan review --max-questions 5
+
+# Promote plan (requires SDD for review+ stages)
+specfact plan promote --stage review
+
+# Force promotion despite SDD validation failures
+specfact plan promote --stage review --force
+```
+
 ## Enforcement
 
 ```bash
@@ -132,6 +163,9 @@ specfact enforce stage --preset balanced
 
 # Strict mode (block everything)
 specfact enforce stage --preset strict
+
+# Enforce SDD validation
+specfact enforce sdd
 
 ```
 
@@ -199,6 +233,33 @@ specfact sync repository --repo . --watch --interval 5
 specfact repro
 specfact plan compare --repo .
 
+```
+
+### Brownfield Modernization (Hard-SDD Workflow)
+
+```bash
+# Step 1: Extract specs from legacy code
+specfact import from-code --repo . --name my-project
+
+# Step 2: Create hard SDD manifest
+specfact plan harden
+
+# Step 3: Validate SDD before starting work
+specfact enforce sdd
+
+# Step 4: Review plan (checks SDD automatically)
+specfact plan review --max-questions 5
+
+# Step 5: Promote plan (requires SDD for review+ stages)
+specfact plan promote --stage review
+
+# Step 6: Add contracts to critical paths
+# ... (add @icontract decorators to code)
+
+# Step 7: Re-validate SDD after adding contracts
+specfact enforce sdd
+
+# Step 8: Continue modernization with SDD safety net
 ```
 
 ### Migration from Spec-Kit

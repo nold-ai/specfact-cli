@@ -21,6 +21,8 @@ You inherited a 3-year-old Django app with:
 
 ## Step 1: Reverse Engineer with SpecFact
 
+> **Note**: This example demonstrates the complete hard-SDD workflow, including SDD manifest creation, validation, and plan promotion gates. The SDD manifest serves as your "hard spec" - a canonical reference that prevents drift during modernization.
+
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE.
 
 ### Extract Specs from Legacy Code
@@ -78,7 +80,166 @@ features:
 
 ---
 
-## Step 2: Add Contracts to Critical Paths
+## Step 2: Create Hard SDD Manifest
+
+After extracting the plan, create a hard SDD (Spec-Driven Development) manifest that captures WHY, WHAT, and HOW:
+
+```bash
+# Create SDD manifest from the extracted plan
+specfact plan harden
+```
+
+### Output
+
+```text
+✅ SDD manifest created: .specfact/sdd.yaml
+
+📋 SDD Summary:
+   WHY: Modernize legacy Django customer portal with zero downtime
+   WHAT: 23 features, 112 stories extracted from legacy code
+   HOW: Runtime contracts, symbolic execution, incremental enforcement
+
+🔗 Linked to plan: customer-portal (hash: abc123def456...)
+📊 Coverage thresholds:
+   - Contracts per story: 1.0 (minimum)
+   - Invariants per feature: 2.0 (minimum)
+   - Architecture facets: 3 (minimum)
+
+✅ SDD manifest saved to .specfact/sdd.yaml
+```
+
+### What You Get
+
+**SDD manifest** (`.specfact/sdd.yaml`) captures:
+
+- **WHY**: Intent, constraints, target users, value hypothesis
+- **WHAT**: Capabilities, acceptance criteria, out-of-scope items
+- **HOW**: Architecture, invariants, contracts, module boundaries
+- **Coverage thresholds**: Minimum contracts/story, invariants/feature, architecture facets
+- **Plan linkage**: Hash-linked to plan bundle for drift detection
+
+**Why this matters**: The SDD manifest serves as your "hard spec" - a canonical reference that prevents drift between your plan and implementation during modernization.
+
+---
+
+## Step 3: Validate SDD Before Modernization
+
+Before starting modernization, validate that your SDD manifest matches your plan:
+
+```bash
+# Validate SDD manifest against plan
+specfact enforce sdd
+```
+
+### Output
+
+```text
+✅ Loading SDD manifest: .specfact/sdd.yaml
+✅ Loading plan bundle: .specfact/plans/customer-portal.bundle.yaml
+
+🔍 Validating hash match...
+✅ Hash match verified
+
+🔍 Validating coverage thresholds...
+✅ Contracts/story: 1.2 (threshold: 1.0) ✓
+✅ Invariants/feature: 2.5 (threshold: 2.0) ✓
+✅ Architecture facets: 4 (threshold: 3) ✓
+
+✅ SDD validation passed
+📄 Report saved to: .specfact/reports/sdd/validation-2025-01-23T10-30-45.yaml
+```
+
+**If validation fails**, you'll see specific deviations:
+
+```text
+❌ SDD validation failed
+
+🔍 Validating coverage thresholds...
+⚠️  Contracts/story: 0.8 (threshold: 1.0) - Below threshold
+⚠️  Invariants/feature: 1.5 (threshold: 2.0) - Below threshold
+
+📊 Validation report:
+   - 2 medium severity deviations
+   - Fix: Add contracts to stories or adjust thresholds
+
+💡 Run 'specfact plan harden' to update SDD manifest
+```
+
+---
+
+## Step 4: Review Plan with SDD Validation
+
+Review your plan to identify ambiguities and ensure SDD compliance:
+
+```bash
+# Review plan (automatically checks SDD)
+specfact plan review --max-questions 5
+```
+
+### Output
+
+```text
+📋 SpecFact CLI - Plan Review
+
+✅ Loading plan: .specfact/plans/customer-portal.bundle.yaml
+✅ Current stage: draft
+
+🔍 Checking SDD manifest...
+✅ SDD manifest validated successfully
+ℹ️  Found 2 coverage threshold warning(s)
+
+❓ Questions to resolve ambiguities:
+   1. Q001: What is the expected response time for payment processing?
+   2. Q002: Should password reset emails expire after 24 or 48 hours?
+   ...
+
+✅ Review complete: 5 questions identified
+💡 Run 'specfact plan review --answers answers.json' to resolve in bulk
+```
+
+**SDD integration**: The review command automatically checks for SDD presence and validates coverage thresholds, warning you if thresholds aren't met.
+
+---
+
+## Step 5: Promote Plan with SDD Validation
+
+Before starting modernization, promote your plan to "review" stage. This requires a valid SDD manifest:
+
+```bash
+# Promote plan to review stage (requires SDD)
+specfact plan promote --stage review
+```
+
+### Output (Success)
+
+```text
+📋 SpecFact CLI - Plan Promotion
+
+✅ Loading plan: .specfact/plans/customer-portal.bundle.yaml
+✅ Current stage: draft
+✅ Target stage: review
+
+🔍 Checking promotion rules...
+🔍 Checking SDD manifest...
+✅ SDD manifest validated successfully
+ℹ️  Found 2 coverage threshold warning(s)
+
+✅ Promoted plan to stage: review
+💡 Plan is now ready for modernization work
+```
+
+### Output (SDD Missing)
+
+```text
+❌ SDD manifest is required for promotion to 'review' or higher stages
+💡 Run 'specfact plan harden' to create SDD manifest
+```
+
+**Why this matters**: Plan promotion now enforces SDD presence, ensuring you have a hard spec before starting modernization work. This prevents drift and ensures coverage thresholds are met.
+
+---
+
+## Step 6: Add Contracts to Critical Paths
 
 ### Identify Critical Functions
 
@@ -86,7 +247,7 @@ Review the extracted plan to identify high-risk functions:
 
 ```bash
 # Review extracted plan
-cat contracts/plans/plan.bundle.yaml | grep -A 10 "FEATURE-002"
+cat .specfact/plans/customer-portal.bundle.yaml | grep -A 10 "FEATURE-002"
 
 ```
 
@@ -152,9 +313,20 @@ def process_payment(
 - ✅ Documents expected behavior (executable documentation)
 - ✅ CrossHair discovers edge cases automatically
 
+### Re-validate SDD After Adding Contracts
+
+After adding contracts, re-validate your SDD to ensure coverage thresholds are met:
+
+```bash
+# Re-validate SDD after adding contracts
+specfact enforce sdd
+```
+
+This ensures your SDD manifest reflects the current state of your codebase and that coverage thresholds are maintained.
+
 ---
 
-## Step 3: Discover Hidden Edge Cases
+## Step 7: Discover Hidden Edge Cases
 
 ### Run CrossHair Symbolic Execution
 
@@ -201,7 +373,7 @@ def process_payment(...):
 
 ---
 
-## Step 4: Prevent Regressions During Modernization
+## Step 8: Prevent Regressions During Modernization
 
 ### Refactor Safely
 
@@ -295,10 +467,13 @@ SpecFact CLI integrates seamlessly with your existing tools:
 ### What Worked Well
 
 1. ✅ **code2spec extraction** provided immediate value (< 10 seconds)
-2. ✅ **Runtime contracts** prevented 4 production bugs during refactoring
-3. ✅ **CrossHair** discovered 6 edge cases manual testing missed
-4. ✅ **Incremental approach** (shadow → warn → block) reduced risk
-5. ✅ **CLI-first integration** - Works offline, no account required, no vendor lock-in
+2. ✅ **SDD manifest** created hard spec reference, preventing drift during modernization
+3. ✅ **SDD validation** ensured coverage thresholds before starting work
+4. ✅ **Plan promotion gates** required SDD presence, enforcing discipline
+5. ✅ **Runtime contracts** prevented 4 production bugs during refactoring
+6. ✅ **CrossHair** discovered 6 edge cases manual testing missed
+7. ✅ **Incremental approach** (shadow → warn → block) reduced risk
+8. ✅ **CLI-first integration** - Works offline, no account required, no vendor lock-in
 
 ### Lessons Learned
 

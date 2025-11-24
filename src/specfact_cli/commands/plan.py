@@ -11,7 +11,7 @@ import json
 from contextlib import suppress
 from datetime import UTC
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from beartype import beartype
@@ -24,9 +24,10 @@ from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
-from specfact_cli.models.deviation import Deviation, ValidationReport
+from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Release, Story
+from specfact_cli.models.sdd import SDDHow, SDDManifest, SDDWhat, SDDWhy
 from specfact_cli.modes import detect_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import (
@@ -68,7 +69,7 @@ def init(
         "--scaffold/--no-scaffold",
         help="Create complete .specfact directory structure",
     ),
-    output_format: Optional[StructuredFormat] = typer.Option(
+    output_format: StructuredFormat | None = typer.Option(
         None,
         "--output-format",
         help="Plan bundle format for output (yaml or json). Defaults to global --output-format.",
@@ -2350,6 +2351,16 @@ def sync(
             raise typer.Exit(1) from e
 
 
+def _validate_stage(value: str) -> str:
+    """Validate stage parameter and provide user-friendly error message."""
+    valid_stages = ("draft", "review", "approved", "released")
+    if value not in valid_stages:
+        console.print(f"[bold red]✗[/bold red] Invalid stage: {value}")
+        console.print(f"Valid stages: {', '.join(valid_stages)}")
+        raise typer.Exit(1)
+    return value
+
+
 @app.command("promote")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
@@ -2358,7 +2369,9 @@ def sync(
     "Stage must be draft, review, approved, or released",
 )
 def promote(
-    stage: str = typer.Option(..., "--stage", help="Target stage (draft, review, approved, released)"),
+    stage: str = typer.Option(
+        ..., "--stage", callback=_validate_stage, help="Target stage (draft, review, approved, released)"
+    ),
     plan: Path | None = typer.Option(
         None,
         "--plan",
@@ -2383,7 +2396,6 @@ def promote(
     Example:
         specfact plan promote --stage review
         specfact plan promote --stage approved --validate
-        specfact plan promote --stage released --force
     """
     import os
     from datetime import datetime
@@ -2446,6 +2458,44 @@ def promote(
 
             # Validate promotion rules
             print_info("Checking promotion rules...")
+
+            # Require SDD manifest for promotion to "review" or higher stages
+            if stage in ("review", "approved", "released"):
+                print_info("Checking SDD manifest...")
+                sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_plan(bundle, plan, require_sdd=True)
+
+                if sdd_manifest is None:
+                    print_error("SDD manifest is required for promotion to 'review' or higher stages")
+                    console.print("[dim]Run 'specfact plan harden' to create SDD manifest[/dim]")
+                    if not force:
+                        raise typer.Exit(1)
+                    print_warning("Promoting with --force despite missing SDD manifest")
+                elif not sdd_valid:
+                    print_error("SDD manifest validation failed:")
+                    for deviation in sdd_report.deviations:
+                        if deviation.severity == DeviationSeverity.HIGH:
+                            console.print(f"  [bold red]✗[/bold red] {deviation.description}")
+                            console.print(f"     [dim]Fix: {deviation.fix_hint}[/dim]")
+                    if sdd_report.high_count > 0:
+                        console.print(
+                            f"\n[bold red]Cannot promote: {sdd_report.high_count} high severity deviation(s)[/bold red]"
+                        )
+                        if not force:
+                            raise typer.Exit(1)
+                        print_warning("Promoting with --force despite SDD validation failures")
+                    elif sdd_report.medium_count > 0 or sdd_report.low_count > 0:
+                        print_warning(
+                            f"SDD has {sdd_report.medium_count} medium and {sdd_report.low_count} low severity deviation(s)"
+                        )
+                        console.print("[dim]Run 'specfact enforce sdd' for detailed report[/dim]")
+                        if not force and not prompt_confirm(
+                            "Continue with promotion despite coverage threshold warnings?", default=False
+                        ):
+                            raise typer.Exit(1)
+                else:
+                    print_success("SDD manifest validated successfully")
+                    if sdd_report.total_deviations > 0:
+                        console.print(f"[dim]Found {sdd_report.total_deviations} coverage threshold warning(s)[/dim]")
 
             # Draft → Review: All features must have at least one story
             if current_stage == "draft" and stage == "review":
@@ -2535,6 +2585,9 @@ def promote(
 
             # Review → Approved: All features must pass validation
             if current_stage == "review" and stage == "approved" and validate:
+                # SDD validation is already checked above for "review" or higher stages
+                # But we can add additional checks here if needed
+
                 print_info("Validating all features...")
                 incomplete_features: list[Feature] = []
                 for f in bundle.features:
@@ -2996,6 +3049,109 @@ def _deduplicate_features(bundle: PlanBundle) -> int:
     return duplicates_removed
 
 
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda plan_path: plan_path is not None and isinstance(plan_path, Path), "Plan path must be non-None Path")
+@ensure(
+    lambda result: isinstance(result, tuple) and len(result) == 3,
+    "Must return (bool, SDDManifest | None, ValidationReport) tuple",
+)
+def _validate_sdd_for_plan(
+    bundle: PlanBundle, plan_path: Path, require_sdd: bool = False
+) -> tuple[bool, SDDManifest | None, ValidationReport]:
+    """
+    Validate SDD manifest for plan bundle.
+
+    Args:
+        bundle: Plan bundle to validate
+        plan_path: Path to plan bundle
+        require_sdd: If True, return False if SDD is missing (for promotion gates)
+
+    Returns:
+        Tuple of (is_valid, sdd_manifest, validation_report)
+    """
+    from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
+    from specfact_cli.models.sdd import SDDManifest
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    report = ValidationReport()
+    # Construct SDD path (try YAML first, then JSON)
+    base_path = Path.cwd()
+    sdd_path = base_path / SpecFactStructure.ROOT / "sdd.yaml"
+    if not sdd_path.exists():
+        sdd_path = base_path / SpecFactStructure.ROOT / "sdd.json"
+
+    # Check if SDD manifest exists
+    if not sdd_path.exists():
+        if require_sdd:
+            deviation = Deviation(
+                type=DeviationType.COVERAGE_THRESHOLD,
+                severity=DeviationSeverity.HIGH,
+                description="SDD manifest is required for plan promotion but not found",
+                location=".specfact/sdd.yaml",
+                fix_hint="Run 'specfact plan harden' to create SDD manifest",
+            )
+            report.add_deviation(deviation)
+            return (False, None, report)
+        # SDD not required, just return None
+        return (True, None, report)
+
+    # Load SDD manifest
+    try:
+        sdd_data = load_structured_file(sdd_path)
+        sdd_manifest = SDDManifest.model_validate(sdd_data)
+    except Exception as e:
+        deviation = Deviation(
+            type=DeviationType.COVERAGE_THRESHOLD,
+            severity=DeviationSeverity.HIGH,
+            description=f"Failed to load SDD manifest: {e}",
+            location=str(sdd_path),
+            fix_hint="Run 'specfact plan harden' to regenerate SDD manifest",
+        )
+        report.add_deviation(deviation)
+        return (False, None, report)
+
+    # Validate hash match
+    bundle.update_summary(include_hash=True)
+    plan_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+
+    if not plan_hash:
+        deviation = Deviation(
+            type=DeviationType.COVERAGE_THRESHOLD,
+            severity=DeviationSeverity.HIGH,
+            description="Failed to compute plan bundle hash",
+            location=str(plan_path),
+            fix_hint="Plan bundle may be corrupted",
+        )
+        report.add_deviation(deviation)
+        return (False, sdd_manifest, report)
+
+    if sdd_manifest.plan_bundle_hash != plan_hash:
+        deviation = Deviation(
+            type=DeviationType.HASH_MISMATCH,
+            severity=DeviationSeverity.HIGH,
+            description=f"SDD plan bundle hash mismatch: expected {plan_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
+            location=".specfact/sdd.yaml",
+            fix_hint="Run 'specfact plan harden' to update SDD manifest with current plan hash",
+        )
+        report.add_deviation(deviation)
+        return (False, sdd_manifest, report)
+
+    # Validate coverage thresholds using contract validator
+    from specfact_cli.validators.contract_validator import calculate_contract_density, validate_contract_density
+
+    metrics = calculate_contract_density(sdd_manifest, bundle)
+    density_deviations = validate_contract_density(sdd_manifest, bundle, metrics)
+
+    for deviation in density_deviations:
+        report.add_deviation(deviation)
+
+    # Valid if no HIGH severity deviations
+    is_valid = report.high_count == 0
+    return (is_valid, sdd_manifest, report)
+
+
 @app.command("review")
 @beartype
 @require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
@@ -3126,6 +3282,47 @@ def review(
                     raise typer.Exit(0)
                 if is_non_interactive:
                     print_info("Continuing in non-interactive mode")
+
+            # Validate SDD manifest (warn if missing, validate thresholds if present)
+            print_info("Checking SDD manifest...")
+            sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_plan(bundle, plan_path, require_sdd=False)
+
+            if sdd_manifest is None:
+                print_warning("SDD manifest not found. Consider running 'specfact plan harden' to create one.")
+                console.print("[dim]SDD manifest is recommended for plan review and promotion[/dim]")
+            elif not sdd_valid:
+                print_warning("SDD manifest validation failed:")
+                for deviation in sdd_report.deviations:
+                    if deviation.severity == DeviationSeverity.HIGH:
+                        console.print(f"  [bold red]✗[/bold red] {deviation.description}")
+                    elif deviation.severity == DeviationSeverity.MEDIUM:
+                        console.print(f"  [bold yellow]⚠[/bold yellow] {deviation.description}")
+                    else:
+                        console.print(f"  [dim]ℹ[/dim] {deviation.description}")
+                console.print("\n[dim]Run 'specfact enforce sdd' for detailed validation report[/dim]")
+            else:
+                print_success("SDD manifest validated successfully")
+
+                # Display contract density metrics
+                from specfact_cli.validators.contract_validator import calculate_contract_density
+
+                metrics = calculate_contract_density(sdd_manifest, bundle)
+                thresholds = sdd_manifest.coverage_thresholds
+
+                console.print("\n[bold]Contract Density Metrics:[/bold]")
+                console.print(
+                    f"  Contracts/story: {metrics.contracts_per_story:.2f} (threshold: {thresholds.contracts_per_story})"
+                )
+                console.print(
+                    f"  Invariants/feature: {metrics.invariants_per_feature:.2f} (threshold: {thresholds.invariants_per_feature})"
+                )
+                console.print(
+                    f"  Architecture facets: {metrics.architecture_facets} (threshold: {thresholds.architecture_facets})"
+                )
+
+                if sdd_report.total_deviations > 0:
+                    console.print(f"\n[dim]Found {sdd_report.total_deviations} coverage threshold warning(s)[/dim]")
+                    console.print("[dim]Run 'specfact enforce sdd' for detailed report[/dim]")
 
             # Initialize clarifications if needed
             if bundle.clarifications is None:
@@ -3338,12 +3535,7 @@ def review(
 
                 today_session.questions.append(clarification)
 
-                # Save plan bundle after each answer (atomic)
-                print_info("Saving plan bundle...")
-                if plan is not None:
-                    generator = PlanGenerator()
-                    generator.generate(bundle, plan)
-
+                # Answer integrated into bundle (will save at end for performance)
                 print_success("Answer recorded and integrated into plan bundle")
 
                 # Ask if user wants to continue (only in interactive mode)
@@ -3353,6 +3545,12 @@ def review(
                     and not prompt_confirm("Continue to next question?", default=True)
                 ):
                     break
+
+            # Save plan bundle once at the end (more efficient than saving after each question)
+            print_info("Saving plan bundle...")
+            generator = PlanGenerator()
+            generator.generate(bundle, plan_path)
+            print_success("Plan bundle saved")
 
             # Final validation
             print_info("Validating updated plan bundle...")
@@ -3413,6 +3611,363 @@ def review(
         except Exception as e:
             print_error(f"Failed to review plan: {e}")
             raise typer.Exit(1) from e
+
+
+@app.command("harden")
+@beartype
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda sdd_path: sdd_path is None or isinstance(sdd_path, Path), "SDD path must be None or Path")
+def harden(
+    plan: Path | None = typer.Option(
+        None,
+        "--plan",
+        help="Path to plan bundle (default: active plan)",
+    ),
+    sdd_path: Path | None = typer.Option(
+        None,
+        "--sdd",
+        help="Output SDD manifest path (default: .specfact/sdd.<format>)",
+    ),
+    output_format: StructuredFormat | None = typer.Option(
+        None,
+        "--output-format",
+        help="SDD manifest format (yaml or json). Defaults to global --output-format.",
+        case_sensitive=False,
+    ),
+    interactive: bool = typer.Option(
+        True,
+        "--interactive/--no-interactive",
+        help="Interactive mode with prompts",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Non-interactive mode (for CI/CD automation)",
+    ),
+) -> None:
+    """
+    Create or update SDD manifest (hard spec) from plan bundle.
+
+    Generates a canonical SDD bundle that captures WHY (intent, constraints),
+    WHAT (capabilities, acceptance), and HOW (high-level architecture, invariants,
+    contracts) with promotion status.
+
+    **Important**: SDD manifests are linked to specific plan bundles via hash.
+    By default, only one SDD manifest (`.specfact/sdd.yaml`) exists per repository.
+    If you have multiple plans, each plan should have its own SDD manifest.
+    Use `--sdd` to specify a different path for each plan (e.g., `--sdd .specfact/sdd.plan1.yaml`).
+
+    Example:
+        specfact plan harden                              # Interactive with active plan
+        specfact plan harden --plan .specfact/plans/main.bundle.yaml
+        specfact plan harden --sdd .specfact/sdd.plan1.yaml  # Custom SDD path for this plan
+        specfact plan harden --non-interactive            # CI/CD mode
+    """
+    from specfact_cli.models.sdd import (
+        SDDCoverageThresholds,
+        SDDEnforcementBudget,
+        SDDManifest,
+    )
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import dump_structured_file
+
+    effective_format = output_format or runtime.get_output_format()
+    is_non_interactive = non_interactive or not interactive
+
+    telemetry_metadata = {
+        "interactive": interactive and not non_interactive,
+        "output_format": effective_format.value,
+    }
+
+    with telemetry.track_command("plan.harden", telemetry_metadata) as record:
+        print_section("SpecFact CLI - SDD Manifest Creation")
+
+        # Find plan path
+        plan_path = _find_plan_path(plan)
+        if plan_path is None:
+            raise typer.Exit(1)
+
+        if not plan_path.exists():
+            print_error(f"Plan bundle not found: {plan_path}")
+            raise typer.Exit(1)
+
+        try:
+            # Load and validate plan
+            is_valid, bundle = _load_and_validate_plan(plan_path)
+            if not is_valid or bundle is None:
+                raise typer.Exit(1)
+
+            # Compute plan bundle hash
+            bundle.update_summary(include_hash=True)
+            plan_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+            if not plan_hash:
+                print_error("Failed to compute plan bundle hash")
+                raise typer.Exit(1)
+
+            # Save plan bundle with updated summary (so hash persists)
+            print_info(f"Saving plan bundle with updated hash: {plan_path}")
+            generator = PlanGenerator()
+            generator.generate(bundle, plan_path)
+
+            plan_bundle_id = plan_hash[:16]  # Use first 16 chars as ID
+
+            # Extract WHY/WHAT/HOW from plan bundle
+            why = _extract_sdd_why(bundle, is_non_interactive)
+            what = _extract_sdd_what(bundle, is_non_interactive)
+            how = _extract_sdd_how(bundle, is_non_interactive)
+
+            # Create SDD manifest
+            sdd_manifest = SDDManifest(
+                version="1.0.0",
+                plan_bundle_id=plan_bundle_id,
+                plan_bundle_hash=plan_hash,
+                why=why,
+                what=what,
+                how=how,
+                coverage_thresholds=SDDCoverageThresholds(
+                    contracts_per_story=1.0,
+                    invariants_per_feature=1.0,
+                    architecture_facets=3,
+                ),
+                enforcement_budget=SDDEnforcementBudget(
+                    shadow_budget_seconds=300,
+                    warn_budget_seconds=180,
+                    block_budget_seconds=90,
+                ),
+                promotion_status=bundle.metadata.stage if bundle.metadata else "draft",
+                provenance={
+                    "source": "plan_harden",
+                    "plan_path": str(plan_path),
+                    "created_by": "specfact_cli",
+                },
+            )
+
+            # Determine SDD output path
+            if sdd_path is None:
+                base_path = Path(".")
+                sdd_path = base_path / SpecFactStructure.ROOT / f"sdd.{effective_format.value}"
+            else:
+                # Ensure correct extension
+                if effective_format == StructuredFormat.YAML:
+                    sdd_path = sdd_path.with_suffix(".yaml")
+                else:
+                    sdd_path = sdd_path.with_suffix(".json")
+
+            # Check if SDD already exists and is linked to a different plan
+            if sdd_path.exists():
+                try:
+                    from specfact_cli.utils.structured_io import load_structured_file
+
+                    existing_sdd_data = load_structured_file(sdd_path)
+                    existing_sdd = SDDManifest.model_validate(existing_sdd_data)
+                    if existing_sdd.plan_bundle_hash != plan_hash:
+                        print_warning(
+                            f"SDD manifest already exists and is linked to a different plan bundle.\n"
+                            f"  Existing plan hash: {existing_sdd.plan_bundle_hash[:16]}...\n"
+                            f"  New plan hash: {plan_hash[:16]}...\n"
+                            f"  This will overwrite the existing SDD manifest.\n"
+                            f"  Note: SDD manifests are linked to specific plan bundles. "
+                            f"Consider using --sdd to specify a different path for this plan."
+                        )
+                        if not is_non_interactive:
+                            # In interactive mode, ask for confirmation
+                            from rich.prompt import Confirm
+
+                            if not Confirm.ask("Overwrite existing SDD manifest?", default=False):
+                                print_info("SDD manifest creation cancelled.")
+                                raise typer.Exit(0)
+                except Exception:
+                    # If we can't read/validate existing SDD, just proceed (might be corrupted)
+                    pass
+
+            # Save SDD manifest
+            sdd_path.parent.mkdir(parents=True, exist_ok=True)
+            sdd_data = sdd_manifest.model_dump(exclude_none=True)
+            dump_structured_file(sdd_data, sdd_path, effective_format)
+
+            print_success(f"SDD manifest created: {sdd_path}")
+
+            # Display summary
+            console.print("\n[bold]SDD Manifest Summary:[/bold]")
+            console.print(f"[bold]Plan Bundle:[/bold] {plan_path}")
+            console.print(f"[bold]Plan Hash:[/bold] {plan_hash[:16]}...")
+            console.print(f"[bold]SDD Path:[/bold] {sdd_path}")
+            console.print("\n[bold]WHY (Intent):[/bold]")
+            console.print(f"  {why.intent}")
+            if why.constraints:
+                console.print(f"[bold]Constraints:[/bold] {len(why.constraints)}")
+            console.print(f"\n[bold]WHAT (Capabilities):[/bold] {len(what.capabilities)}")
+            console.print("\n[bold]HOW (Architecture):[/bold]")
+            if how.architecture:
+                console.print(f"  {how.architecture[:100]}...")
+            console.print(f"[bold]Invariants:[/bold] {len(how.invariants)}")
+            console.print(f"[bold]Contracts:[/bold] {len(how.contracts)}")
+
+            record(
+                {
+                    "plan_path": str(plan_path),
+                    "sdd_path": str(sdd_path),
+                    "capabilities_count": len(what.capabilities),
+                    "invariants_count": len(how.invariants),
+                }
+            )
+
+        except KeyboardInterrupt:
+            print_warning("SDD creation interrupted by user")
+            raise typer.Exit(0) from None
+        except Exception as e:
+            print_error(f"Failed to create SDD manifest: {e}")
+            raise typer.Exit(1) from e
+
+
+@beartype
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+def _extract_sdd_why(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhy:
+    """
+    Extract WHY section from plan bundle.
+
+    Args:
+        bundle: Plan bundle to extract from
+        is_non_interactive: Whether in non-interactive mode
+
+    Returns:
+        SDDWhy instance
+    """
+    from specfact_cli.models.sdd import SDDWhy
+
+    intent = ""
+    constraints: list[str] = []
+    target_users: str | None = None
+    value_hypothesis: str | None = None
+
+    if bundle.idea:
+        intent = bundle.idea.narrative or bundle.idea.title or ""
+        constraints = bundle.idea.constraints or []
+        if bundle.idea.target_users:
+            target_users = ", ".join(bundle.idea.target_users)
+        value_hypothesis = bundle.idea.value_hypothesis or None
+
+    # If intent is empty, prompt or use default
+    if not intent and not is_non_interactive:
+        intent = prompt_text("Primary intent/goal (WHY):", required=True)
+    elif not intent:
+        intent = "Extracted from plan bundle"
+
+    return SDDWhy(
+        intent=intent,
+        constraints=constraints,
+        target_users=target_users,
+        value_hypothesis=value_hypothesis,
+    )
+
+
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhat:
+    """
+    Extract WHAT section from plan bundle.
+
+    Args:
+        bundle: Plan bundle to extract from
+        is_non_interactive: Whether in non-interactive mode
+
+    Returns:
+        SDDWhat instance
+    """
+    from specfact_cli.models.sdd import SDDWhat
+
+    capabilities: list[str] = []
+    acceptance_criteria: list[str] = []
+    out_of_scope: list[str] = []
+
+    # Extract capabilities from features
+    for feature in bundle.features:
+        if feature.title:
+            capabilities.append(feature.title)
+        # Collect acceptance criteria
+        acceptance_criteria.extend(feature.acceptance or [])
+        # Collect constraints that might indicate out-of-scope
+        for constraint in feature.constraints or []:
+            if "out of scope" in constraint.lower() or "not included" in constraint.lower():
+                out_of_scope.append(constraint)
+
+    # If no capabilities, use default
+    if not capabilities:
+        if not is_non_interactive:
+            capabilities_input = prompt_text("Core capabilities (comma-separated):", required=True)
+            capabilities = [c.strip() for c in capabilities_input.split(",")]
+        else:
+            capabilities = ["Extracted from plan bundle"]
+
+    return SDDWhat(
+        capabilities=capabilities,
+        acceptance_criteria=acceptance_criteria,
+        out_of_scope=out_of_scope,
+    )
+
+
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool) -> SDDHow:
+    """
+    Extract HOW section from plan bundle.
+
+    Args:
+        bundle: Plan bundle to extract from
+        is_non_interactive: Whether in non-interactive mode
+
+    Returns:
+        SDDHow instance
+    """
+    from specfact_cli.models.sdd import SDDHow
+
+    architecture: str | None = None
+    invariants: list[str] = []
+    contracts: list[str] = []
+    module_boundaries: list[str] = []
+
+    # Extract architecture from constraints
+    architecture_parts: list[str] = []
+    for feature in bundle.features:
+        for constraint in feature.constraints or []:
+            if any(keyword in constraint.lower() for keyword in ["architecture", "design", "structure", "component"]):
+                architecture_parts.append(constraint)
+
+    if architecture_parts:
+        architecture = " ".join(architecture_parts[:3])  # Limit to first 3
+
+    # Extract invariants from stories (acceptance criteria that are invariants)
+    for feature in bundle.features:
+        for story in feature.stories:
+            for acceptance in story.acceptance or []:
+                if any(keyword in acceptance.lower() for keyword in ["always", "never", "must", "invariant"]):
+                    invariants.append(acceptance)
+
+    # Extract contracts from story contracts
+    for feature in bundle.features:
+        for story in feature.stories:
+            if story.contracts:
+                contracts.append(f"{story.key}: {str(story.contracts)[:100]}")
+
+    # Extract module boundaries from feature keys (as a simple heuristic)
+    module_boundaries = [f.key for f in bundle.features[:10]]  # Limit to first 10
+
+    # If no architecture, prompt or use default
+    if not architecture and not is_non_interactive:
+        architecture = prompt_text("High-level architecture description (optional):", required=False) or None
+    elif not architecture:
+        architecture = "Extracted from plan bundle constraints"
+
+    return SDDHow(
+        architecture=architecture,
+        invariants=invariants[:10],  # Limit to first 10
+        contracts=contracts[:10],  # Limit to first 10
+        module_boundaries=module_boundaries,
+    )
 
 
 @beartype

@@ -9,6 +9,14 @@ from specfact_cli.models.deviation import Deviation, DeviationReport, DeviationS
 from specfact_cli.models.enforcement import EnforcementAction, EnforcementConfig, EnforcementPreset
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, PlanSummary, Product, Release, Story
 from specfact_cli.models.protocol import Protocol, Transition
+from specfact_cli.models.sdd import (
+    SDDCoverageThresholds,
+    SDDEnforcementBudget,
+    SDDHow,
+    SDDManifest,
+    SDDWhat,
+    SDDWhy,
+)
 
 
 __all__ = [
@@ -28,6 +36,12 @@ __all__ = [
     "Product",
     "Protocol",
     "Release",
+    "SDDCoverageThresholds",
+    "SDDEnforcementBudget",
+    "SDDHow",
+    "SDDManifest",
+    "SDDWhat",
+    "SDDWhy",
     "Story",
     "Transition",
     "ValidationReport",
