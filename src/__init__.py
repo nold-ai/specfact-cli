@@ -3,4 +3,4 @@ SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development.
 """
 
 # Define the package version (kept in sync with pyproject.toml and setup.py)
-__version__ = "0.7.1"
+__version__ = "0.8.0"

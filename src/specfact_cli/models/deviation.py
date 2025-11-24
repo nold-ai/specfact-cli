@@ -35,6 +35,8 @@ class DeviationType(str, Enum):
     ACCEPTANCE_DRIFT = "acceptance_drift"
     FSM_MISMATCH = "fsm_mismatch"
     RISK_OMISSION = "risk_omission"
+    HASH_MISMATCH = "hash_mismatch"
+    COVERAGE_THRESHOLD = "coverage_threshold"
 
 
 class Deviation(BaseModel):
@@ -84,6 +86,11 @@ class ValidationReport(BaseModel):
     medium_count: int = Field(default=0, description="Number of medium severity deviations")
     low_count: int = Field(default=0, description="Number of low severity deviations")
     passed: bool = Field(default=True, description="Whether validation passed")
+
+    @property
+    def total_deviations(self) -> int:
+        """Total number of deviations."""
+        return len(self.deviations)
 
     @beartype
     @require(lambda deviation: isinstance(deviation, Deviation), "Must be Deviation instance")

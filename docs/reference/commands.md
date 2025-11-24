@@ -725,12 +725,102 @@ Answers are integrated into plan bundle sections based on category:
 - Non-functional → `features[].constraints[]` or `idea.constraints[]`
 - Edge cases → `features[].acceptance[]` or `stories[].acceptance[]`
 
+**SDD Integration:**
+
+When an SDD manifest (`.specfact/sdd.yaml`) is present, `plan review` automatically:
+
+- **Validates SDD manifest** against the plan bundle (hash match, coverage thresholds)
+- **Displays contract density metrics**:
+  - Contracts per story (compared to threshold)
+  - Invariants per feature (compared to threshold)
+  - Architecture facets (compared to threshold)
+- **Reports coverage threshold warnings** if metrics are below thresholds
+- **Suggests running** `specfact enforce sdd` for detailed validation report
+
+**Example Output with SDD:**
+
+```bash
+✓ SDD manifest validated successfully
+
+Contract Density Metrics:
+  Contracts/story: 1.50 (threshold: 1.0)
+  Invariants/feature: 2.00 (threshold: 1.0)
+  Architecture facets: 3 (threshold: 3)
+
+Found 0 coverage threshold warning(s)
+```
+
 **Output:**
 
 - Questions asked count
 - Sections touched (integration points)
 - Coverage summary (per category status)
+- Contract density metrics (if SDD present)
 - Next steps (promotion readiness)
+
+#### `plan harden`
+
+Create or update SDD manifest (hard spec) from plan bundle:
+
+```bash
+specfact plan harden [OPTIONS]
+```
+
+**Options:**
+
+- `--plan PATH` - Plan bundle path (default: active plan)
+- `--sdd PATH` - Output SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--output-format {yaml,json}` - SDD manifest format (defaults to global `--output-format`)
+- `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
+- `--non-interactive` - Non-interactive mode (for CI/CD automation)
+
+**What it does:**
+
+1. **Loads plan bundle** and computes content hash
+2. **Extracts SDD sections** from plan bundle:
+   - **WHY**: Intent, constraints, target users, value hypothesis (from `idea` section)
+   - **WHAT**: Capabilities, acceptance criteria, out-of-scope (from `features` section)
+   - **HOW**: Architecture, invariants, contracts, module boundaries (from `features` and `stories`)
+3. **Creates SDD manifest** with:
+   - Plan bundle linkage (hash and ID)
+   - Coverage thresholds (contracts per story, invariants per feature, architecture facets)
+   - Enforcement budgets (shadow, warn, block time limits)
+   - Promotion status (from plan bundle stage)
+4. **Saves plan bundle** with updated hash (ensures hash persists for subsequent commands)
+5. **Saves SDD manifest** to `.specfact/sdd.<format>`
+
+**Important Notes:**
+
+- **SDD-Plan Linkage**: SDD manifests are linked to specific plan bundles via hash
+- **Multiple Plans**: If you have multiple plans, use `--sdd` to specify different paths (e.g., `--sdd .specfact/sdd.plan1.yaml`)
+- **Hash Persistence**: Plan bundle is automatically saved with updated hash to ensure consistency
+
+**Example:**
+
+```bash
+# Interactive with active plan
+specfact plan harden
+
+# Non-interactive with specific plan
+specfact plan harden --plan .specfact/plans/main.bundle.yaml --non-interactive
+
+# Custom SDD path for multiple plans
+specfact plan harden --plan .specfact/plans/feature-auth.bundle.yaml --sdd .specfact/sdd.auth.yaml
+```
+
+**SDD Manifest Structure:**
+
+The generated SDD manifest includes:
+
+- `version`: Schema version (1.0.0)
+- `plan_bundle_id`: First 16 characters of plan hash
+- `plan_bundle_hash`: Full plan bundle content hash
+- `why`: Intent, constraints, target users, value hypothesis
+- `what`: Capabilities, acceptance criteria, out-of-scope
+- `how`: Architecture description, invariants, contracts, module boundaries
+- `coverage_thresholds`: Minimum contracts/story, invariants/feature, architecture facets
+- `enforcement_budget`: Time budgets for shadow/warn/block enforcement levels
+- `promotion_status`: Current plan bundle stage
 
 #### `plan promote`
 
@@ -1065,6 +1155,73 @@ specfact plan compare \
 
 Set contract enforcement policies.
 
+#### `enforce sdd`
+
+Validate SDD manifest against plan bundle and contracts:
+
+```bash
+specfact enforce sdd [OPTIONS]
+```
+
+**Options:**
+
+- `--plan PATH` - Plan bundle path (default: active plan)
+- `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--format {markdown,json,yaml}` - Output format (default: markdown)
+- `--out PATH` - Output report path (optional)
+
+**What it validates:**
+
+1. **Hash Match**: Verifies SDD manifest is linked to the correct plan bundle
+2. **Coverage Thresholds**: Validates contract density metrics:
+   - Contracts per story (must meet threshold)
+   - Invariants per feature (must meet threshold)
+   - Architecture facets (must meet threshold)
+3. **SDD Structure**: Validates SDD manifest schema and completeness
+
+**Contract Density Metrics:**
+
+The command calculates and validates:
+
+- **Contracts per story**: Total contracts divided by total stories
+- **Invariants per feature**: Total invariants divided by total features
+- **Architecture facets**: Number of architecture-related constraints
+
+**Example:**
+
+```bash
+# Validate SDD against active plan
+specfact enforce sdd
+
+# Validate with specific plan and SDD
+specfact enforce sdd --plan .specfact/plans/main.bundle.yaml --sdd .specfact/sdd.yaml
+
+# Generate JSON report
+specfact enforce sdd --format json --out validation-report.json
+```
+
+**Output:**
+
+- Validation status (pass/fail)
+- Contract density metrics with threshold comparisons
+- Deviations report with severity levels (HIGH/MEDIUM/LOW)
+- Fix hints for each deviation
+
+**Deviations:**
+
+The command reports deviations when:
+
+- Hash mismatch (SDD linked to different plan)
+- Contracts per story below threshold
+- Invariants per feature below threshold
+- Architecture facets below threshold
+
+**Integration:**
+
+- Automatically called by `plan review` when SDD is present
+- Required for `plan promote` to "review" or higher stages
+- Part of standard SDD enforcement workflow
+
 #### `enforce stage`
 
 Configure enforcement stage:
@@ -1220,6 +1377,85 @@ metadata:
   fix_enabled: false
   fail_fast: false
 ```
+
+---
+
+### `generate` - Generate Artifacts
+
+Generate contract stubs and other artifacts from SDD manifests.
+
+#### `generate contracts`
+
+Generate contract stubs from SDD manifest:
+
+```bash
+specfact generate contracts [OPTIONS]
+```
+
+**Options:**
+
+- `--plan PATH` - Plan bundle path (default: active plan)
+- `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--out PATH` - Output directory (default: `.specfact/contracts/`)
+- `--format {yaml,json}` - SDD manifest format (default: auto-detect)
+
+**What it generates:**
+
+1. **Contract stubs** with `icontract` decorators:
+   - Preconditions (`@require`)
+   - Postconditions (`@ensure`)
+   - Invariants (`@invariant`)
+2. **Type checking** with `beartype` decorators
+3. **CrossHair harnesses** for property-based testing
+4. **One file per feature/story** in `.specfact/contracts/`
+
+**Validation:**
+
+- **Hash match**: Verifies SDD manifest is linked to the correct plan bundle
+- **Plan bundle hash**: Must match SDD manifest's `plan_bundle_hash`
+- **Error handling**: Reports hash mismatch with clear error message
+
+**Example:**
+
+```bash
+# Generate contracts from active plan and SDD
+specfact generate contracts
+
+# Generate with specific plan and SDD
+specfact generate contracts --plan .specfact/plans/main.bundle.yaml --sdd .specfact/sdd.yaml
+
+# Custom output directory
+specfact generate contracts --out src/contracts/
+```
+
+**Workflow:**
+
+1. **Create SDD**: `specfact plan harden` (creates SDD manifest and saves plan with hash)
+2. **Generate contracts**: `specfact generate contracts` (validates hash match, generates stubs)
+3. **Implement contracts**: Add contract logic to generated stubs
+4. **Enforce**: `specfact enforce sdd` (validates contract density)
+
+**Important Notes:**
+
+- **Hash validation**: Command validates that SDD manifest's `plan_bundle_hash` matches the plan bundle's current hash
+- **Plan bundle must be saved**: Ensure `plan harden` has saved the plan bundle with updated hash before running `generate contracts`
+- **Contract density**: After generation, run `specfact enforce sdd` to validate contract density metrics
+
+**Output Structure:**
+
+```shell
+.specfact/contracts/
+├── feature_001_contracts.py
+├── feature_002_contracts.py
+└── ...
+```
+
+Each file includes:
+
+- Contract decorators (`@icontract`, `@beartype`)
+- CrossHair harnesses for property testing
+- Backlink metadata to SDD IDs
+- Plan bundle story/feature references
 
 ---
 

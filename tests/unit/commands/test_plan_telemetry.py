@@ -43,7 +43,14 @@ class TestPlanCommandTelemetry:
         from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.models.plan import PlanBundle, Product
 
-        bundle = PlanBundle(idea=None, business=None, product=Product(themes=["Testing"]), features=[], metadata=None, clarifications=None)
+        bundle = PlanBundle(
+            idea=None,
+            business=None,
+            product=Product(themes=["Testing"]),
+            features=[],
+            metadata=None,
+            clarifications=None,
+        )
         generator = PlanGenerator()
         generator.generate(bundle, plan_path)
 
@@ -202,7 +209,9 @@ class TestPlanCommandTelemetry:
             business=None,
             product=Product(themes=["Testing"]),
             features=[],
-            metadata=Metadata(stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None),
+            metadata=Metadata(
+                stage="draft", promoted_at=None, promoted_by=None, analysis_scope=None, entry_point=None, summary=None
+            ),
             clarifications=None,
         )
         generator = PlanGenerator()

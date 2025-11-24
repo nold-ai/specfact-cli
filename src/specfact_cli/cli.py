@@ -53,7 +53,7 @@ from rich.panel import Panel
 from specfact_cli import __version__, runtime
 
 # Import command modules
-from specfact_cli.commands import constitution, enforce, import_cmd, init, plan, repro, sync
+from specfact_cli.commands import constitution, enforce, generate, import_cmd, init, plan, repro, sync
 from specfact_cli.modes import OperationalMode, detect_mode
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -293,6 +293,7 @@ app.add_typer(
 )
 app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
 app.add_typer(plan.app, name="plan", help="Manage development plans")
+app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
 app.add_typer(repro.app, name="repro", help="Run validation suite")
 app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")

@@ -9,6 +9,66 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.8.0] - 2025-11-24
+
+### Added (0.8.0)
+
+- **Phase 4: Contract Generation from SDD - Complete**
+  - **Contract Density Scoring** (`src/specfact_cli/validators/contract_validator.py`)
+    - New `ContractDensityMetrics` class for tracking contract density metrics
+    - `calculate_contract_density()` function calculates contracts per story, invariants per feature, and architecture facets
+    - `validate_contract_density()` function validates metrics against SDD coverage thresholds
+    - Integrated into `specfact enforce sdd` command for automatic validation
+    - Integrated into `specfact plan review` command with metrics display
+    - Comprehensive unit test suite (10 tests) covering all validation scenarios
+
+- **Contract Density Metrics Display**
+  - `specfact plan review` now displays contract density metrics when SDD manifest is present
+  - Shows contracts/story, invariants/feature, and architecture facets with threshold comparisons
+  - Provides actionable feedback when thresholds are not met
+  - Integrated with SDD validation workflow
+
+### Changed (0.8.0)
+
+- **SDD Enforcement Integration**
+  - `specfact enforce sdd` now uses centralized contract density validator
+  - Refactored duplicate contract density calculation logic into reusable validator module
+  - Improved consistency across `enforce sdd` and `plan review` commands
+  - Contract density validation now part of standard SDD enforcement workflow
+
+- **Plan Harden Command Enhancement**
+  - `specfact plan harden` now saves plan bundle with updated hash after calculation
+  - Ensures plan bundle hash persists to disk for subsequent commands
+  - Prevents hash mismatch errors when running `specfact generate contracts` after `plan harden`
+  - Improved reliability of SDD-plan bundle linkage
+
+### Fixed (0.8.0)
+
+- **Plan Bundle Hash Persistence**
+  - Fixed bug where `plan harden` calculated hash but didn't save plan bundle to disk
+  - Plan bundle now correctly saved with updated summary metadata containing hash
+  - Subsequent commands (e.g., `generate contracts`) can now load plan and get matching hash
+  - Added integration test `test_plan_harden_persists_hash_to_disk` to prevent regression
+
+- **Contract-First Testing Coverage**
+  - Added test to verify plan bundle hash persistence after `plan harden`
+  - Test would have caught the hash persistence bug if run earlier
+  - Demonstrates value of contract-first testing approach
+
+### Testing (0.8.0)
+
+- **Contract Validator Test Suite**
+  - 10 comprehensive unit tests for contract density calculation and validation
+  - Tests cover empty plans, threshold violations, multiple violations, and edge cases
+  - All tests passing with full coverage of validation scenarios
+
+- **Integration Test Coverage**
+  - Enhanced `test_plan_harden` suite with hash persistence verification
+  - New test `test_plan_harden_persists_hash_to_disk` ensures plan bundle is saved correctly
+  - All integration tests passing (8 tests)
+
+---
+
 ## [0.7.1] - 2025-01-22
 
 ### Changed (0.7.1)

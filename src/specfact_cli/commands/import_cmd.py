@@ -8,7 +8,6 @@ Spec-Kit projects and converting them to SpecFact contract-driven format.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from beartype import beartype
@@ -278,7 +277,7 @@ def from_code(
         "--entry-point",
         help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories.",
     ),
-    output_format: Optional[StructuredFormat] = typer.Option(
+    output_format: StructuredFormat | None = typer.Option(
         None,
         "--output-format",
         help="Plan bundle output format (yaml or json). Defaults to global --output-format.",

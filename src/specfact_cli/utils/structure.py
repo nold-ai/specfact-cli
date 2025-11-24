@@ -28,6 +28,7 @@ class SpecFactStructure:
     # Versioned directories (committed to git)
     PLANS = f"{ROOT}/plans"
     PROTOCOLS = f"{ROOT}/protocols"
+    CONTRACTS = f"{ROOT}/contracts"
 
     # Ephemeral directories (gitignored)
     REPORTS = f"{ROOT}/reports"
@@ -111,6 +112,7 @@ class SpecFactStructure:
         # Create versioned directories
         (base_path / cls.PLANS).mkdir(parents=True, exist_ok=True)
         (base_path / cls.PROTOCOLS).mkdir(parents=True, exist_ok=True)
+        (base_path / cls.CONTRACTS).mkdir(parents=True, exist_ok=True)
         (base_path / f"{cls.ROOT}/gates/config").mkdir(parents=True, exist_ok=True)
 
         # Create ephemeral directories
@@ -512,6 +514,53 @@ class SpecFactStructure:
         if base_path is None:
             base_path = Path(".")
         return base_path / cls.ENFORCEMENT_CONFIG
+
+    @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_sdd_path(cls, base_path: Path | None = None, format: StructuredFormat | None = None) -> Path:
+        """
+        Get path to SDD manifest file.
+
+        Args:
+            base_path: Base directory (default: current directory)
+            format: Preferred structured format (defaults to runtime output format)
+
+        Returns:
+            Path to SDD manifest (checks for .yaml first, then .json)
+        """
+        if base_path is None:
+            base_path = Path(".")
+        else:
+            base_path = Path(base_path).resolve()
+            parts = base_path.parts
+            if ".specfact" in parts:
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
+
+        format_hint = format or runtime.get_output_format()
+
+        # Try preferred format first
+        if format_hint == StructuredFormat.YAML:
+            sdd_path = base_path / cls.ROOT / "sdd.yaml"
+            if sdd_path.exists():
+                return sdd_path
+            # Fallback to JSON
+            sdd_path = base_path / cls.ROOT / "sdd.json"
+            if sdd_path.exists():
+                return sdd_path
+            # Return YAML path as default
+            return base_path / cls.ROOT / "sdd.yaml"
+        sdd_path = base_path / cls.ROOT / "sdd.json"
+        if sdd_path.exists():
+            return sdd_path
+        # Fallback to YAML
+        sdd_path = base_path / cls.ROOT / "sdd.yaml"
+        if sdd_path.exists():
+            return sdd_path
+        # Return JSON path as default
+        return base_path / cls.ROOT / "sdd.json"
 
     @classmethod
     @beartype

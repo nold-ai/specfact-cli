@@ -197,7 +197,7 @@ class AmbiguityScanner:
                         description=f"Feature {feature.key} has no outcomes specified",
                         impact=0.6,
                         uncertainty=0.5,
-                        question=f"What are the expected outcomes for feature {feature.key}?",
+                        question=f"What are the expected outcomes for feature {feature.key} ({feature.title})?",
                         related_sections=[f"features.{feature.key}.outcomes"],
                     )
                 )
@@ -228,7 +228,7 @@ class AmbiguityScanner:
                         description=f"Feature {feature.key} mentions data but has no constraints",
                         impact=0.5,
                         uncertainty=0.6,
-                        question=f"What are the data model constraints for feature {feature.key}?",
+                        question=f"What are the data model constraints for feature {feature.key} ({feature.title})?",
                         related_sections=[f"features.{feature.key}.constraints"],
                     )
                 )
@@ -262,7 +262,7 @@ class AmbiguityScanner:
                                 description=f"Story {story.key} mentions UX but lacks error handling",
                                 impact=0.5,
                                 uncertainty=0.4,
-                                question=f"What error/empty states should be handled for story {story.key}?",
+                                question=f"What error/empty states should be handled for story {story.key} ({story.title})?",
                                 related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
                             )
                         )
@@ -321,7 +321,7 @@ class AmbiguityScanner:
                         description=f"Feature {feature.key} mentions integration but has no constraints",
                         impact=0.6,
                         uncertainty=0.5,
-                        question=f"What are the external dependency constraints and failure modes for feature {feature.key}?",
+                        question=f"What are the external dependency constraints and failure modes for feature {feature.key} ({feature.title})?",
                         related_sections=[f"features.{feature.key}.constraints"],
                     )
                 )
@@ -354,7 +354,7 @@ class AmbiguityScanner:
                             description=f"Story {story.key} has limited acceptance criteria, may be missing edge cases",
                             impact=0.4,
                             uncertainty=0.5,
-                            question=f"What edge cases or negative scenarios should be handled for story {story.key}?",
+                            question=f"What edge cases or negative scenarios should be handled for story {story.key} ({story.title})?",
                             related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
                         )
                     )
@@ -424,7 +424,7 @@ class AmbiguityScanner:
                             description=f"Story {story.key} has no acceptance criteria",
                             impact=0.8,
                             uncertainty=0.7,
-                            question=f"What are the testable acceptance criteria for story {story.key}?",
+                            question=f"What are the testable acceptance criteria for story {story.key} ({story.title})?",
                             related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
                         )
                     )
@@ -459,7 +459,7 @@ class AmbiguityScanner:
                                 description=f"Story {story.key} has vague acceptance criteria: {', '.join(vague_criteria[:2])}",
                                 impact=0.7,
                                 uncertainty=0.6,
-                                question=f"Story {story.key} has vague acceptance criteria. Should these be converted to testable Given/When/Then format?",
+                                question=f"Story {story.key} ({story.title}) has vague acceptance criteria. Should these be converted to testable Given/When/Then format?",
                                 related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
                             )
                         )
@@ -486,7 +486,7 @@ class AmbiguityScanner:
                                 description=f"Story {story.key} acceptance criteria may not be testable",
                                 impact=0.5,
                                 uncertainty=0.4,
-                                question=f"Are the acceptance criteria for story {story.key} measurable and testable?",
+                                question=f"Are the acceptance criteria for story {story.key} ({story.title}) measurable and testable?",
                                 related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
                             )
                         )
@@ -508,7 +508,7 @@ class AmbiguityScanner:
                         description=f"Feature {feature.key} has no stories",
                         impact=0.9,
                         uncertainty=0.8,
-                        question=f"What user stories are needed for feature {feature.key}?",
+                        question=f"What user stories are needed for feature {feature.key} ({feature.title})?",
                         related_sections=[f"features.{feature.key}.stories"],
                     )
                 )
@@ -522,7 +522,7 @@ class AmbiguityScanner:
                         description=f"Feature {feature.key} has no acceptance criteria",
                         impact=0.7,
                         uncertainty=0.6,
-                        question=f"What are the acceptance criteria for feature {feature.key}?",
+                        question=f"What are the acceptance criteria for feature {feature.key} ({feature.title})?",
                         related_sections=[f"features.{feature.key}.acceptance"],
                     )
                 )
@@ -558,7 +558,7 @@ class AmbiguityScanner:
                                     description=f"Feature {feature.key} has incomplete requirement: '{outcome}' (missing verb/action)",
                                     impact=0.6,
                                     uncertainty=0.5,
-                                    question=f"Feature {feature.key} requirement '{outcome}' appears incomplete. What should the system do?",
+                                    question=f"Feature {feature.key} ({feature.title}) requirement '{outcome}' appears incomplete. What should the system do?",
                                     related_sections=[f"features.{feature.key}.outcomes"],
                                 )
                             )
@@ -593,7 +593,7 @@ class AmbiguityScanner:
                                 description=f"Story {story.key} has generic tasks without implementation details: {', '.join(generic_tasks[:2])}",
                                 impact=0.4,
                                 uncertainty=0.3,
-                                question=f"Story {story.key} has generic tasks. Should these include file paths, method names, or component references?",
+                                question=f"Story {story.key} ({story.title}) has generic tasks. Should these include file paths, method names, or component references?",
                                 related_sections=[f"features.{feature.key}.stories.{story.key}.tasks"],
                             )
                         )
