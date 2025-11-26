@@ -1,5 +1,6 @@
 """Integration tests for generate command."""
 
+import yaml
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -27,7 +28,7 @@ class TestGenerateContractsCommand:
         
         # For modular bundles, we need to load the ProjectBundle and add features
         from specfact_cli.utils.bundle_loader import load_project_bundle
-        from specfact_cli.models.plan import Feature as PlanFeature
+        from specfact_cli.models.plan import Feature as PlanFeature, Story
         
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         
@@ -37,12 +38,15 @@ class TestGenerateContractsCommand:
             title="Test Feature",
             outcomes=["Test outcome"],
             stories=[
-                {
-                    "key": "STORY-001",
-                    "title": "Test Story",
-                    "acceptance": ["Amount must be positive"],
-                    "contracts": {"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
-                }
+                Story(
+                    key="STORY-001",
+                    title="Test Story",
+                    acceptance=["Amount must be positive"],
+                    contracts={"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
+                    story_points=None,
+                    value_points=None,
+                    scenarios=None,
+                )
             ],
         )
         project_bundle.features["FEATURE-001"] = feature
@@ -119,6 +123,7 @@ class TestGenerateContractsCommand:
         runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
         # Generate contracts with explicit SDD path
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
         result = runner.invoke(
             app,
@@ -253,17 +258,21 @@ class TestGenerateContractsCommand:
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
         # Add a feature with a story that has contracts
+        from specfact_cli.models.plan import Story
         feature = PlanFeature(
             key="FEATURE-001",
             title="Test Feature",
             outcomes=["Test outcome"],
             stories=[
-                {
-                    "key": "STORY-001",
-                    "title": "Test Story",
-                    "acceptance": ["Amount must be positive"],
-                    "contracts": {"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
-                }
+                Story(
+                    key="STORY-001",
+                    title="Test Story",
+                    acceptance=["Amount must be positive"],
+                    contracts={"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
+                    story_points=None,
+                    value_points=None,
+                    scenarios=None,
+                )
             ],
         )
         project_bundle.features["FEATURE-001"] = feature
@@ -306,7 +315,8 @@ class TestGenerateContractsCommand:
         runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
         # Generate contracts
-        runner.invoke(app, ["generate", "contracts", "--bundle", bundle_name, "--non-interactive"])
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
 
         # Check that files include metadata
         contracts_dir = tmp_path / ".specfact" / "contracts"
