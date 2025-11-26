@@ -67,13 +67,13 @@ Add a new feature to an existing plan bundle. The feature will be added with the
 
 The `specfact plan add-feature` command:
 
-1. **Loads** the existing plan bundle (default: `.specfact/plans/main.bundle.<format>` or active plan)
-2. **Validates** the plan bundle structure
+1. **Loads** the existing project bundle from `.specfact/projects/<bundle-name>/`
+2. **Validates** the project bundle structure
 3. **Checks** if the feature key already exists (prevents duplicates)
 4. **Creates** a new feature with specified metadata
-5. **Adds** the feature to the plan bundle
-6. **Validates** the updated plan bundle
-7. **Saves** the updated plan bundle
+5. **Adds** the feature to the project bundle (saves to `features/FEATURE-XXX.yaml`)
+6. **Validates** the updated project bundle
+7. **Saves** the updated project bundle
 
 ## Execution Steps
 
@@ -81,11 +81,11 @@ The `specfact plan add-feature` command:
 
 **Parse user input** to extract:
 
+- `--bundle <bundle-name>` - Project bundle name (required, e.g., `legacy-api`)
 - Feature key (required, e.g., `FEATURE-001`)
 - Feature title (required)
 - Outcomes (optional, comma-separated)
 - Acceptance criteria (optional, comma-separated)
-- Plan bundle path (optional, defaults to active plan or `.specfact/plans/main.bundle.<format>`)
 
 **WAIT STATE**: If required arguments are missing, ask the user:
 
@@ -100,17 +100,17 @@ Please provide these values:
 
 ### 2. Check Plan Bundle Existence
 
-**Execute CLI** to check if plan exists:
+**WAIT STATE**: If `--bundle` is missing, ask user for bundle name and **WAIT**:
 
-```bash
-# Check if default plan exists
-specfact plan select
+```text
+"Which project bundle should I use? (e.g., 'legacy-api', 'auth-module')
+[WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
 ```
 
-**If plan doesn't exist**:
+**If bundle doesn't exist**:
 
-- Report error: "Default plan not found. Create one with: `specfact plan init --interactive`"
-- **WAIT STATE**: Ask user if they want to create a new plan or specify a different path
+- Report error: "Project bundle not found. Create one with: `specfact plan init <bundle-name>`"
+- **WAIT STATE**: Ask user if they want to create a new bundle or specify a different bundle name
 
 ### 3. Execute Add Feature Command
 
@@ -118,15 +118,15 @@ specfact plan select
 
 ```bash
 # Basic usage
-specfact plan add-feature --key FEATURE-001 --title "Feature Title" --plan <plan_path>
+specfact plan add-feature --bundle <bundle-name> --key FEATURE-001 --title "Feature Title"
 
 # With outcomes and acceptance
 specfact plan add-feature \
+  --bundle <bundle-name> \
   --key FEATURE-001 \
   --title "Feature Title" \
   --outcomes "Outcome 1, Outcome 2" \
-  --acceptance "Criterion 1, Criterion 2" \
-  --plan <plan_path>
+  --acceptance "Criterion 1, Criterion 2"
 ```
 
 **Capture from CLI**:
@@ -141,7 +141,7 @@ specfact plan add-feature \
 **Common errors**:
 
 - **Feature key already exists**: Report error and suggest using `specfact plan update-feature` instead
-- **Plan bundle not found**: Report error and suggest creating plan with `specfact plan init`
+- **Project bundle not found**: Report error and suggest creating bundle with `specfact plan init <bundle-name>`
 - **Invalid plan structure**: Report validation error
 
 ### 5. Report Completion
@@ -155,7 +155,7 @@ specfact plan add-feature \
 **Title**: Feature Title
 **Outcomes**: Outcome 1, Outcome 2
 **Acceptance**: Criterion 1, Criterion 2
-**Plan Bundle**: `.specfact/plans/main.bundle.<format>`
+**Project Bundle**: `.specfact/projects/<bundle-name>/`
 
 **Next Steps**:
 - Add stories to this feature: `/specfact-cli/specfact-plan-add-story`

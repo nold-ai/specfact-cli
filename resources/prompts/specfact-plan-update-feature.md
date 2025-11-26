@@ -142,12 +142,12 @@ specfact plan select
 # PREFERRED: Batch updates for multiple features (when 2+ features need updates)
 specfact plan update-feature \
   --batch-updates feature_updates.json \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Batch updates with YAML format
 specfact plan update-feature \
   --batch-updates feature_updates.yaml \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Single feature update (use only when single feature needs update):
 # Update title and outcomes
@@ -155,32 +155,32 @@ specfact plan update-feature \
   --key FEATURE-001 \
   --title "Updated Title" \
   --outcomes "Outcome 1, Outcome 2" \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Update acceptance criteria and confidence
 specfact plan update-feature \
   --key FEATURE-001 \
   --acceptance "Criterion 1, Criterion 2" \
   --confidence 0.9 \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Update constraints
 specfact plan update-feature \
   --key FEATURE-001 \
   --constraints "Python 3.11+, Test coverage >= 80%" \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Mark as draft (boolean flag: --draft sets True, --no-draft sets False)
 specfact plan update-feature \
   --key FEATURE-001 \
   --draft \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Unmark draft (set to False)
 specfact plan update-feature \
   --key FEATURE-001 \
   --no-draft \
-  --plan <plan_path>
+  --bundle <bundle-name>
 ```
 
 **Batch Update File Format** (`feature_updates.json`):

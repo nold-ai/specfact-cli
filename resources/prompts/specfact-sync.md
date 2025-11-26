@@ -51,9 +51,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Synchronize Spec-Kit artifacts with SpecFact plan bundles bidirectionally. This command enables seamless integration between Spec-Kit workflows and SpecFact contract-driven development, allowing teams to use either tooling while maintaining consistency.
+Synchronize external tool artifacts (Spec-Kit, Linear, Jira, etc.) with SpecFact project bundles bidirectionally using bridge architecture. This command enables seamless integration between external tools and SpecFact contract-driven development, allowing teams to use either tooling while maintaining consistency.
 
-**Note**: This is a **read-write operation** - it modifies both Spec-Kit and SpecFact artifacts to keep them in sync.
+**Note**: This is a **read-write operation** - it modifies both external tool artifacts and SpecFact project bundles to keep them in sync. Uses configurable bridge mappings (`.specfact/config/bridge.yaml`) to translate between tool-specific formats and SpecFact structure.
 
 ## Action Required
 
@@ -86,8 +86,10 @@ Synchronize Spec-Kit artifacts with SpecFact plan bundles bidirectionally. This 
 ## Command
 
 ```bash
-specfact sync spec-kit [--repo PATH] [--bidirectional] [--plan PATH] [--overwrite] [--watch] [--interval SECONDS]
+specfact sync bridge --adapter <adapter> --bundle <bundle-name> [--repo PATH] [--bidirectional] [--overwrite] [--watch] [--interval SECONDS]
 ```
+
+**Adapters**: `speckit` (Spec-Kit), `generic-markdown` (generic markdown specs). Auto-detected if not specified.
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
@@ -97,44 +99,42 @@ specfact sync spec-kit [--repo PATH] [--bidirectional] [--plan PATH] [--overwrit
 
 **Arguments:**
 
+- `--adapter <adapter>` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
+- `--bundle <bundle-name>` - Project bundle name (required for SpecFact → tool sync)
 - `--repo PATH` - Repository path (default: current directory)
-- `--bidirectional` - Enable bidirectional sync (Spec-Kit ↔ SpecFact) - **ASK USER if not provided**
-- `--plan PATH` - Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: main plan)
-- `--overwrite` - Overwrite existing Spec-Kit artifacts (delete all existing before sync) - **ASK USER if intent is clear**
-- `--watch` - Watch mode (not implemented - will exit with message)
+- `--bidirectional` - Enable bidirectional sync (tool ↔ SpecFact) - **ASK USER if not provided**
+- `--overwrite` - Overwrite existing tool artifacts (delete all existing before sync) - **ASK USER if intent is clear**
+- `--watch` - Watch mode for continuous sync
 - `--interval SECONDS` - Watch interval (default: 5, only with `--watch`)
 
 **What it does:**
 
-1. Detects Spec-Kit repository (exits with error if not found)
-2. **Validates prerequisites**:
-   - Constitution (`.specify/memory/constitution.md`) must exist and be populated (not just template placeholders)
-   - For unidirectional sync: At least one `spec.md` file must exist in `specs/` directories
-3. Auto-creates SpecFact structure if missing
-4. Syncs Spec-Kit → SpecFact (unidirectional) or both directions (bidirectional)
-5. Reports sync summary with features updated/added
+1. Auto-detects adapter type and tool repository structure (or uses `--adapter`)
+2. Loads or generates bridge configuration (`.specfact/config/bridge.yaml`)
+3. **Validates prerequisites**:
+   - Bridge configuration must exist (auto-generated if missing)
+   - For Spec-Kit adapter: Constitution (`.specify/memory/constitution.md`) must exist and be populated
+   - For unidirectional sync: At least one tool artifact must exist (per bridge mapping)
+4. Auto-creates SpecFact project bundle structure if missing
+5. Syncs tool → SpecFact (unidirectional) or both directions (bidirectional) using bridge mappings
+6. Reports sync summary with features updated/added
 
 **Prerequisites:**
 
 Before running sync, ensure you have:
 
-1. **Constitution** (REQUIRED for all sync operations):
-   - **Option 1 (Recommended for brownfield)**: Run `specfact constitution bootstrap --repo .` to auto-generate from repository analysis
-     - This analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution
-     - Perfect for brownfield projects where you want to extract principles from existing codebase
-   - **Option 2 (Manual)**: Run `/speckit.constitution` command in your AI assistant and fill in the template
-     - Use this for greenfield projects or when you want full manual control
-   - **Enrichment**: If you have a minimal constitution, run `specfact constitution enrich --repo .` to fill placeholders
-   - **Validation**: Run `specfact constitution validate` to check completeness before sync
-   - The constitution must be populated (not just template placeholders like `[PROJECT_NAME]`)
+1. **Bridge Configuration** (REQUIRED):
+   - Auto-generated via `specfact bridge probe` (recommended)
+   - Or manually create `.specfact/config/bridge.yaml` with adapter mappings
+   - Bridge config maps SpecFact concepts to tool-specific paths
 
-2. **Spec-Kit Features** (REQUIRED for unidirectional sync):
-   - Run `/speckit.specify` command to create at least one feature specification
-   - Creates `specs/[###-feature-name]/spec.md` files
-   - Optional: Run `/speckit.plan` and `/speckit.tasks` for complete artifacts
+2. **Tool-Specific Prerequisites** (varies by adapter):
+   - **Spec-Kit adapter**: Constitution (`.specify/memory/constitution.md`) must exist and be populated
+     - Generate via `specfact constitution bootstrap --repo .` (brownfield) or `/speckit.constitution` (greenfield)
+   - **Generic markdown**: Tool artifacts must exist per bridge mapping
 
-3. **SpecFact Plan** (REQUIRED for bidirectional sync when syncing SpecFact → Spec-Kit):
-   - Must have a valid plan bundle at `.specfact/plans/main.bundle.<format>` (or specify with `--plan`)
+3. **SpecFact Project Bundle** (REQUIRED for bidirectional sync when syncing SpecFact → tool):
+   - Must have a valid project bundle at `.specfact/projects/<bundle-name>/` (specify with `--bundle`)
 
 **Validation Errors:**
 
@@ -224,17 +224,17 @@ If you want to customize Spec-Kit-specific fields, you can:
   - **If overwrite**: Add `--overwrite` flag
 - **If intent is not clear**: Skip this step
 
-**Step 4**: Check if `--plan` should be specified.
+**Step 4**: Check if `--bundle` should be specified.
 
-- **If user input mentions "auto-derived", "from code", "brownfield", or "code2spec"**: Suggest using auto-derived plan and **WAIT**:
+- **If bundle name is missing**: Ask user and **WAIT**:
 
   ```text
-  "Use auto-derived plan (from codebase) instead of main plan? (y/n)
+  "Which project bundle should be used? (e.g., 'legacy-api', 'auth-module')
   [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
   ```
 
-  - **If yes**: Find latest auto-derived plan in `.specfact/plans/` and add `--plan PATH`
-  - **If no**: Use default main plan
+  - **If user provides bundle name**: Use `--bundle <name>`
+  - **If user mentions "auto-derived" or "from code"**: Suggest using the bundle created from `specfact import from-code`
 
 **Step 5**: Check if user wants to customize Spec-Kit-specific fields (OPTIONAL).
 
@@ -273,15 +273,15 @@ If you want to customize Spec-Kit-specific fields, you can:
 **Step 7**: Execute CLI command with confirmed arguments.
 
 ```bash
-specfact sync spec-kit --repo <repo_path> [--bidirectional] [--plan <plan_path>] [--overwrite]
+specfact sync bridge --adapter <adapter> --bundle <bundle-name> --repo <repo_path> [--bidirectional] [--overwrite]
 ```
 
 **Capture CLI output**:
 
 - Sync summary (features updated/added)
 - **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found)
-- Spec-Kit artifacts created/updated (with all required fields auto-generated)
-- SpecFact artifacts created/updated
+- Tool artifacts created/updated (with all required fields auto-generated per bridge mapping)
+- SpecFact project bundle created/updated at `.specfact/projects/<bundle-name>/`
 - Any error messages or warnings
 
 **Understanding Deduplication**:
@@ -332,9 +332,8 @@ both cover git operations. Should I consolidate these into a single feature?"
   This will check for ambiguities, duplications, and constitution alignment."
   ```
 
-- **If bidirectional sync completed**: Remind user that all Spec-Kit fields are auto-generated and ready for `/speckit.analyze`
-  - **Note**: `/speckit.analyze` requires `spec.md`, `plan.md`, and `tasks.md` to exist. The sync command generates all three files, so artifacts are ready for analysis.
-  - **Constitution requirement**: `/speckit.analyze` also requires the constitution (`.specify/memory/constitution.md`) which is validated before sync, so this prerequisite is already met.
+- **If bidirectional sync completed**: Remind user that all tool-specific fields are auto-generated per bridge mapping
+  - **For Spec-Kit adapter**: Artifacts are ready for `/speckit.analyze` (requires `spec.md`, `plan.md`, `tasks.md`, and constitution)
   - **Constitution Check status**: Generated `plan.md` files have Constitution Check gates set to "PENDING" - users should review and check gates based on their project's actual state
 
 - **If customization was requested**: Guide user to edit generated files:
@@ -348,12 +347,13 @@ both cover git operations. Should I consolidate these into a single feature?"
 **Unidirectional sync:**
 
 ```bash
-Syncing Spec-Kit artifacts from: /path/to/repo
-✓ Detected Spec-Kit repository
+Syncing speckit artifacts from: /path/to/repo
+✓ Detected adapter: speckit
+✓ Bridge configuration loaded
 ✓ Constitution found and validated
-📦 Scanning Spec-Kit artifacts...
+📦 Scanning tool artifacts...
 ✓ Found 5 features in specs/
-✓ Detected SpecFact structure (or created automatically)
+✓ Detected SpecFact project bundle (or created automatically)
 📝 Converting to SpecFact format...
   - Updated 2 features
   - Added 0 new features
@@ -362,7 +362,8 @@ Syncing Spec-Kit artifacts from: /path/to/repo
 Sync Summary (Unidirectional):
   - Updated: 2 features
   - Added: 0 new features
-  - Direction: Spec-Kit → SpecFact
+  - Direction: tool → SpecFact
+  - Project bundle: .specfact/projects/legacy-api/
 
 Next Steps:
   Run '/speckit.analyze' to validate artifact consistency and quality
@@ -371,21 +372,17 @@ Next Steps:
 ✓ Sync complete!
 ```
 
-**Error example (missing constitution):**
+**Error example (missing bridge config):**
 
 ```bash
-Syncing Spec-Kit artifacts from: /path/to/repo
-✓ Detected Spec-Kit repository
-✗ Constitution required
-Constitution file not found: .specify/memory/constitution.md
-The constitution is required before syncing Spec-Kit artifacts.
+Syncing artifacts from: /path/to/repo
+✗ Bridge configuration not found
+Bridge config file not found: .specfact/config/bridge.yaml
 
 Next Steps:
-1. Run 'specfact constitution bootstrap --repo .' to auto-generate from repository analysis (recommended for brownfield)
-   OR run '/speckit.constitution' command in your AI assistant to create manually (for greenfield)
-2. Review and adjust the generated constitution as needed
-3. Run 'specfact constitution validate' to check completeness
-4. Then run 'specfact sync spec-kit' again
+1. Run 'specfact bridge probe' to auto-detect and generate bridge configuration
+   OR manually create .specfact/config/bridge.yaml with adapter mappings
+2. Then run 'specfact sync bridge --adapter <adapter> --bundle <bundle-name>' again
 ```
 
 **Error example (minimal constitution detected):**
@@ -409,46 +406,49 @@ Next Steps:
 **Error example (no features for unidirectional sync):**
 
 ```bash
-Syncing Spec-Kit artifacts from: /path/to/repo
-✓ Detected Spec-Kit repository
+Syncing artifacts from: /path/to/repo
+✓ Detected adapter: speckit
+✓ Bridge configuration loaded
 ✓ Constitution found and validated
-📦 Scanning Spec-Kit artifacts...
+📦 Scanning tool artifacts...
 ✓ Found 0 features in specs/
-✗ No Spec-Kit features found
-Unidirectional sync (Spec-Kit → SpecFact) requires at least one feature specification.
+✗ No tool artifacts found
+Unidirectional sync (tool → SpecFact) requires at least one tool artifact per bridge mapping.
 
 Next Steps:
-1. Run '/speckit.specify' command in your AI assistant to create feature specifications
-2. Optionally run '/speckit.plan' and '/speckit.tasks' to create complete artifacts
-3. Then run 'specfact sync spec-kit' again
+1. For Spec-Kit: Run '/speckit.specify' command to create feature specifications
+2. For other adapters: Create artifacts per bridge configuration mapping
+3. Then run 'specfact sync bridge --adapter <adapter> --bundle <bundle-name>' again
 
-Note: For bidirectional sync, Spec-Kit artifacts are optional if syncing from SpecFact → Spec-Kit
+Note: For bidirectional sync, tool artifacts are optional if syncing from SpecFact → tool
 ```
 
 **Bidirectional sync** adds:
 
 ```bash
-Syncing Spec-Kit artifacts from: /path/to/repo
-✓ Detected Spec-Kit repository
+Syncing artifacts from: /path/to/repo
+✓ Detected adapter: speckit
+✓ Bridge configuration loaded
 ✓ Constitution found and validated
-📦 Scanning Spec-Kit artifacts...
+📦 Scanning tool artifacts...
 ✓ Found 2 features in specs/
-✓ Detected SpecFact structure
-📝 Converting Spec-Kit → SpecFact...
+✓ Detected SpecFact project bundle: .specfact/projects/legacy-api/
+📝 Converting tool → SpecFact...
   - Updated 2 features
   - Added 0 new features
-🔄 Converting SpecFact → Spec-Kit...
-✓ Converted 2 features to Spec-Kit
-✓ Generated Spec-Kit compatible artifacts:
+🔄 Converting SpecFact → tool...
+✓ Converted 2 features to tool format
+✓ Generated tool-compatible artifacts (per bridge mapping):
   - spec.md with frontmatter, INVSEST criteria, scenarios
   - plan.md with Constitution Check, Phases, Technology Stack
   - tasks.md with phase organization and parallel markers
 ✓ No conflicts detected
 
 Sync Summary (Bidirectional):
-  - Spec-Kit → SpecFact: Updated 2, Added 0 features
-  - SpecFact → Spec-Kit: 2 features converted to Spec-Kit markdown
-  - Format Compatibility: ✅ Full (works with /speckit.analyze, /speckit.implement, /speckit.checklist)
+  - tool → SpecFact: Updated 2, Added 0 features
+  - SpecFact → tool: 2 features converted to tool format
+  - Project bundle: .specfact/projects/legacy-api/
+  - Format Compatibility: ✅ Full (works with tool-specific commands)
   - Conflicts: None detected
 
 ⚠ Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state

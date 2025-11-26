@@ -52,9 +52,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Compare a manual plan bundle with an auto-derived plan bundle to detect deviations, mismatches, and missing features. This command helps identify gaps between planned features and actual implementation, ensuring alignment between specification and code.
+Compare two project bundles (or legacy plan bundles) to detect deviations, mismatches, and missing features. This command helps identify gaps between planned features and actual implementation, ensuring alignment between specification and code.
 
-**Note**: This is a **read-only comparison** operation - it generates comparison reports but does not modify plan bundles.
+**Note**: This is a **read-only comparison** operation - it generates comparison reports but does not modify bundles. Works with both modular project bundles (`.specfact/projects/<bundle-name>/`) and legacy monolithic bundles (`.specfact/plans/*.bundle.<format>`).
 
 ## Action Required
 
@@ -76,7 +76,8 @@ Compare a manual plan bundle with an auto-derived plan bundle to detect deviatio
    - Extract the full plan file names from the table
 
    - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
-   ```
+
+   ```bash
    specfact plan select --non-interactive --current
    specfact plan select --non-interactive --last 1
    ```
@@ -87,11 +88,12 @@ Compare a manual plan bundle with an auto-derived plan bundle to detect deviatio
    specfact plan select <plan_number>
    ```
 
-   - This will output the full plan name/path
-   - Use this to construct the full path: `.specfact/plans/<plan_name>`
+   - This will output the full bundle name/path
+   - Use this to construct the full path: `.specfact/projects/<bundle-name>/` (for project bundles) or `.specfact/plans/<plan_name>` (for legacy bundles)
 
    - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
-   ```
+
+   ```bash
    specfact plan select --non-interactive --current
    specfact plan select --non-interactive --last 1
    ```
@@ -105,10 +107,10 @@ Compare a manual plan bundle with an auto-derived plan bundle to detect deviatio
 
 **If arguments missing**: Ask user interactively for each missing argument and **WAIT for their response**:
 
-1. **Manual plan path**: "Which manual plan to compare? (Enter plan number, plan name, or path. Default: .specfact/plans/main.bundle.<format>)"
+1. **Manual bundle path**: "Which manual bundle to compare? (Enter bundle name, plan number, or path. Default: active bundle or .specfact/projects/main/)"
    - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
 
-2. **Auto plan path**: "Which auto-derived plan to compare? (Enter plan number, plan name, or path. Default: latest in .specfact/plans/)"
+2. **Auto bundle path**: "Which auto-derived bundle to compare? (Enter bundle name, plan number, or path. Default: latest in .specfact/projects/)"
    - **[WAIT FOR USER RESPONSE - DO NOT CONTINUE]**
 
 3. **Output format**: "Output format? (1) Markdown, (2) JSON, (3) YAML (default: markdown)"
@@ -144,10 +146,15 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 
 **Arguments:**
 
-- `--manual PATH` - Manual plan bundle path (default: `.specfact/plans/main.bundle.<format>`) - **ASK USER if default not found**
-- `--auto PATH` - Auto-derived plan bundle path (default: latest in `.specfact/reports/brownfield/`) - **ASK USER if default not found**
+- `--manual PATH` - Manual bundle path (project bundle directory or legacy plan file). Default: active bundle or `.specfact/projects/main/` - **ASK USER if default not found**
+- `--auto PATH` - Auto-derived bundle path (project bundle directory or legacy plan file). Default: latest in `.specfact/projects/` - **ASK USER if default not found**
 - `--format {markdown|json|yaml}` - Output format (default: `markdown`) - **ASK USER if not specified**
 - `--out PATH` - Output file path (optional, default: auto-generated in `.specfact/reports/comparison/`)
+
+**Note**: Paths can be:
+
+- Project bundle directories: `.specfact/projects/<bundle-name>/` (modular format)
+- Legacy plan files: `.specfact/plans/*.bundle.<format>` (monolithic format, for backward compatibility)
 
 **What it does:**
 
@@ -181,11 +188,12 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
      specfact plan select <plan_number>
      ```
 
-     - Parse the CLI output to get the full plan name
-     - Construct full path: `.specfact/plans/<plan_name>`
+     - Parse the CLI output to get the full bundle name
+     - Construct full path: `.specfact/projects/<bundle-name>/` (for project bundles) or `.specfact/plans/<plan_name>` (for legacy bundles)
 
      - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
-     ```
+
+     ```bash
      specfact plan select --non-interactive --current
      specfact plan select --non-interactive --last 1
      ```
@@ -198,14 +206,14 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 
 **Step 2**: Resolve manual plan path.
 
-- **If plan number/name provided**: Use CLI to resolve (see Step 1)
-- **If missing**: Check if default path (`.specfact/plans/main.bundle.<format>`) exists using CLI
-  - **Verify using CLI**: Attempt to use the path with `specfact plan compare` - if it fails, the file doesn't exist
+- **If bundle name/plan number provided**: Use CLI to resolve (see Step 1)
+- **If missing**: Check if default path (`.specfact/projects/main/` or `.specfact/plans/main.bundle.<format>`) exists using CLI
+  - **Verify using CLI**: Attempt to use the path with `specfact plan compare` - if it fails, the bundle doesn't exist
   - **If not exists**: Ask user and **WAIT**:
 
     ```text
-    "Manual plan not found at default location. Enter plan number, plan name, or path to manual plan bundle, 
-    or create one with `specfact plan init --interactive`?
+    "Manual bundle not found at default location. Enter bundle name, plan number, or path to manual bundle, 
+    or create one with `specfact plan init <bundle-name>`?
     [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
     ```
 
@@ -231,8 +239,8 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
   - **If not found**: Ask user and **WAIT**:
 
     ```text
-    "No auto-derived plans found. Enter plan number, plan name, or path to auto-derived plan bundle, 
-    or generate one with `specfact import from-code --repo . --name my-project`?
+    "No auto-derived bundles found. Enter bundle name, plan number, or path to auto-derived bundle, 
+    or generate one with `specfact import from-code <bundle-name> --repo .`?
     [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
     ```
 
@@ -281,12 +289,13 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 specfact plan compare --manual <MANUAL_PATH> --auto <AUTO_PATH> --format <FORMAT> --out <OUT_PATH>
 ```
 
-**Example**: If user said "19 vs 20", and CLI resolved them to:
+**Example**: If user said "legacy-api vs modernized-api", execute:
 
-- Plan 19: `specfact-import-test-v2.2025-11-17T13-53-31.bundle.<format>`
-- Plan 20: `specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.<format>`
+```bash
+specfact plan compare --manual .specfact/projects/legacy-api/ --auto .specfact/projects/modernized-api/
+```
 
-Then execute:
+**Example**: If user said "19 vs 20" (legacy plan numbers), and CLI resolved them to legacy plan files:
 
 ```bash
 specfact plan compare --manual .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.bundle.<format> --auto .specfact/plans/specfact-import-test-v2.2025-11-17T13-53-31.enriched.2025-11-17T13-55-40.bundle.<format>
@@ -306,14 +315,14 @@ specfact plan compare --manual .specfact/plans/specfact-import-test-v2.2025-11-1
 ```bash
 SpecFact CLI - Plan Comparator
 
-Manual Plan: .specfact/plans/main.bundle.<format>
-Auto Plan: .specfact/reports/brownfield/auto-derived-2025-11-02T12-00-00.bundle.<format>
+Manual Bundle: .specfact/projects/main/
+Auto Bundle: .specfact/projects/legacy-api/
 Total Deviations: 15
 
 Comparison Results
 
-Manual Plan: .specfact/plans/main.bundle.<format>
-Auto Plan: .specfact/reports/brownfield/auto-derived-2025-11-02T12-00-00.bundle.<format>
+Manual Bundle: .specfact/projects/main/
+Auto Bundle: .specfact/projects/legacy-api/
 Total Deviations: 15
 
 Deviation Summary:

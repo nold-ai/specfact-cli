@@ -53,13 +53,20 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Configure quality gates and enforcement modes for contract validation. This command sets the enforcement preset that determines how contract violations are handled (minimal, balanced, strict).
+Configure quality gates and enforcement modes for contract validation. This command has two subcommands:
+
+1. **`enforce stage`** - Sets the enforcement preset that determines how contract violations are handled (minimal, balanced, strict)
+2. **`enforce sdd`** - Validates SDD manifest against project bundle and contracts (requires bundle name)
+
+This prompt focuses on **`enforce stage`**. For SDD validation, see the `enforce sdd` command which requires a project bundle name.
 
 ## Operating Constraints
 
 **STRICTLY READ-WRITE**: This command modifies enforcement configuration. All updates must be performed by the specfact CLI.
 
 **Command**: `specfact enforce stage`
+
+**Note**: This prompt covers `enforce stage` only. The `enforce sdd` subcommand requires a project bundle name (e.g., `specfact enforce sdd legacy-api`) and validates SDD manifests against project bundles.
 
 **Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment. No need to specify `--mode` flag.
 
@@ -141,7 +148,8 @@ specfact enforce stage --preset strict
 | LOW      | Log    |
 
 **Next Steps**:
-- Run validation: `/specfact-cli/specfact-repro`
+- Run validation: `specfact repro`
+- Validate SDD: `specfact enforce sdd <bundle-name>` (requires project bundle)
 - Review configuration: Check `.specfact/config/enforcement.yaml`
 ```
 

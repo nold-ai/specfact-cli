@@ -133,7 +133,7 @@ specfact plan add-story \
   --feature FEATURE-001 \
   --key STORY-001 \
   --title "Story Title" \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # With acceptance criteria and points
 specfact plan add-story \
@@ -143,7 +143,7 @@ specfact plan add-story \
   --acceptance "Criterion 1, Criterion 2" \
   --story-points 5 \
   --value-points 3 \
-  --plan <plan_path>
+  --bundle <bundle-name>
 ```
 
 **Capture from CLI**:

@@ -86,11 +86,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-**Execute the existing `specfact plan select` CLI command** to display a numbered list of available plan bundles and allow the user to select one as the active plan. The CLI command handles all the logic - you just need to execute it and format its output.
+**Execute the existing `specfact plan select` CLI command** to display a numbered list of available project bundles (and legacy plan bundles) and allow the user to select one as the active bundle. The CLI command handles all the logic - you just need to execute it and format its output.
 
 ## Operating Constraints
 
-**STRICTLY READ-WRITE**: This command modifies `.specfact/plans/config.yaml` to set the active plan pointer. All updates must be performed by the specfact CLI.
+**STRICTLY READ-WRITE**: This command modifies `.specfact/plans/config.yaml` to set the active bundle pointer. Works with both modular project bundles (`.specfact/projects/<bundle-name>/`) and legacy monolithic bundles (`.specfact/plans/*.bundle.<format>`). All updates must be performed by the specfact CLI.
 
 **Command**: `specfact plan select`
 
@@ -175,10 +175,11 @@ specfact plan select --non-interactive --last 5                     # Show last 
 
 **The CLI command (which already exists) performs**:
 
-- Scans `.specfact/plans/` for all `*.bundle.<format>` files
-- Extracts metadata for each plan
-- Displays numbered list (if no plan argument provided)
-- Updates `.specfact/plans/config.yaml` with selected plan
+- Scans `.specfact/projects/` for all project bundle directories (modular format)
+- Scans `.specfact/plans/` for all `*.bundle.<format>` files (legacy format, backward compatibility)
+- Extracts metadata for each bundle
+- Displays numbered list (if no bundle argument provided)
+- Updates `.specfact/plans/config.yaml` with selected bundle
 
 **You don't need to implement any of this - just execute the CLI command.**
 
@@ -190,9 +191,9 @@ specfact plan select --non-interactive --last 5                     # Show last 
 Use:
 
 - `specfact plan select --non-interactive 20` (select by number - ALWAYS with --non-interactive)
-- `specfact plan select --non-interactive main.bundle.<format>` (select by name - ALWAYS with --non-interactive)
-- `specfact plan select --non-interactive --current` (get active plan)
-- `specfact plan select --non-interactive --last 1` (get most recent plan)
+- `specfact plan select --non-interactive legacy-api` (select by bundle name - ALWAYS with --non-interactive)
+- `specfact plan select --non-interactive --current` (get active bundle)
+- `specfact plan select --non-interactive --last 1` (get most recent bundle)
 - NOT `specfact plan select --plan 20` (this will fail)
 - NOT `specfact plan select 20` (missing --non-interactive, may cause timeout)
 
@@ -220,17 +221,17 @@ Use:
 | # | Status | Plan Name | Features | Stories | Stage | Modified |
 |---|--------|-----------|----------|---------|-------|----------|
 | 1 | | specfact-cli.2025-11-04T23-35-00.bundle.<format> | 32 | 80 | draft | 2025-11-04T23:35:00 |
-| 2 | [ACTIVE] | main.bundle.<format> | 62 | 73 | approved | 2025-11-04T22:17:22 |
+| 2 | [ACTIVE] | main | 62 | 73 | approved | 2025-11-04T22:17:22 |
 | 3 | | api-client-v2.2025-11-04T22-17-22.bundle.<format> | 19 | 45 | draft | 2025-11-04T22:17:22 |
 
 **Selection Options:**
-- Enter a **number** (1-3) to select that plan
-- Enter **`<number> details`** (e.g., "1 details") to view detailed information about a plan before selecting
+- Enter a **number** (1-3) to select that bundle
+- Enter **`<number> details`** (e.g., "1 details") to view detailed information about a bundle before selecting
 - Enter **`q`** or **`quit`** to cancel
 
 **Example:**
-- `1` - Select plan #1
-- `1 details` - Show details for plan #1, then ask for selection
+- `1` - Select bundle #1
+- `1 details` - Show details for bundle #1, then ask for selection
 - `q` - Cancel selection
 
 [WAIT FOR USER RESPONSE - DO NOT CONTINUE]
@@ -248,7 +249,7 @@ Use:
 2. **Present detailed information**:
 
 ```markdown
-## Plan Details: specfact-cli.2025-11-04T23-35-00.bundle.<format>
+## Bundle Details: legacy-api
 
 **Overview:**
 - Features: 32
@@ -297,11 +298,11 @@ Use:
 specfact plan select --non-interactive 20
 ```
 
-**If user provided a plan name** (e.g., "main.bundle.<format>"):
+**If user provided a bundle name** (e.g., "legacy-api" or "main"):
 
 ```bash
-# Use the plan name directly as positional argument - ALWAYS with --non-interactive
-specfact plan select --non-interactive main.bundle.<format>
+# Use the bundle name directly as positional argument - ALWAYS with --non-interactive
+specfact plan select --non-interactive legacy-api
 ```
 
 **If you need to resolve a number to a plan name first** (for logging/display purposes):
@@ -328,15 +329,16 @@ specfact plan select --non-interactive main.bundle.<format>
 
 ### 1. List Available Plans (The CLI Command Handles This)
 
-**The CLI command loads all plan bundles** from `.specfact/plans/` directory:
+**The CLI command loads all bundles** from `.specfact/projects/` (project bundles) and `.specfact/plans/` (legacy bundles):
 
-- Scan for all `*.bundle.<format>` files
-- Extract metadata for each plan:
-  - Plan name (filename)
+- Scan for all project bundle directories (`.specfact/projects/<bundle-name>/`)
+- Scan for all legacy `*.bundle.<format>` files (`.specfact/plans/`)
+- Extract metadata for each bundle:
+  - Bundle name (directory name or filename)
   - Number of features
   - Number of stories
   - Stage (draft, review, approved, released)
-  - File size
+  - File size or directory size
   - Last modified date
   - Active status (if currently selected)
 
@@ -352,7 +354,7 @@ specfact plan select --non-interactive main.bundle.<format>
 | # | Status | Plan Name | Features | Stories | Stage | Modified |
 |---|--------|-----------|----------|---------|-------|----------|
 | 1 | | specfact-cli.2025-11-04T23-35-00.bundle.<format> | 32 | 80 | draft | 2025-11-04T23:35:00 |
-| 2 | [ACTIVE] | main.bundle.<format> | 62 | 73 | approved | 2025-11-04T22:17:22 |
+| 2 | [ACTIVE] | main | 62 | 73 | approved | 2025-11-04T22:17:22 |
 | 3 | | api-client-v2.2025-11-04T22-17-22.bundle.<format> | 19 | 45 | draft | 2025-11-04T22:17:22 |
 
 **Selection Options:**
@@ -391,7 +393,7 @@ specfact plan select --non-interactive main.bundle.<format>
 - If yes: Execute `specfact plan select --non-interactive <number>` (use number as positional argument with --non-interactive, NOT `--plan` option)
 - If no: Return to plan list and ask for selection again
 
-**If user provides a plan name directly** (e.g., "main.bundle.<format>"):
+**If user provides a bundle name directly** (e.g., "legacy-api" or "main"):
 
 - Validate the plan exists in the plans list
 - Execute: `specfact plan select --non-interactive <plan_name>` (use plan name as positional argument with --non-interactive, NOT `--plan` option)
@@ -430,7 +432,7 @@ This plan will now be used as the default for:
 **If no plans found**:
 
 ```markdown
-⚠ No plan bundles found in .specfact/plans/
+⚠ No bundles found in .specfact/projects/ or .specfact/plans/
 
 Create a plan with:
   - specfact plan init
@@ -468,7 +470,7 @@ Create a plan with:
 
 - Number selection (e.g., "1", "2", "3") - Select plan directly
 - Number with "details" (e.g., "1 details", "show 1") - Show plan details first
-- Plan name (e.g., "main.bundle.<format>") - Select by name
+- Bundle name (e.g., "legacy-api" or "main") - Select by name
 - Quit command (e.g., "q", "quit") - Cancel
 
 **Step 6**: Handle user input:

@@ -334,8 +334,6 @@ class SpecFactStructure:
 
         import yaml
 
-        from specfact_cli.utils.bundle_loader import load_project_bundle
-
         plans = []
         active_plan = None
 
@@ -373,29 +371,28 @@ class SpecFactStructure:
             plan_info: dict[str, str | int | None]
 
             try:
-                # Load project bundle to get metadata
-                project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+                # Read only the manifest file (much faster than loading full bundle)
+                from specfact_cli.models.project import BundleManifest
+                from specfact_cli.utils.structured_io import load_structured_file
 
-                # Get modification time from manifest
+                manifest_data = load_structured_file(manifest_path)
+                manifest = BundleManifest.model_validate(manifest_data)
+
+                # Get modification time from manifest file
                 manifest_mtime = manifest_path.stat().st_mtime
 
                 # Calculate total size of bundle directory
                 total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
 
-                # Get features and stories count (features is a dict, not a list)
-                features_dict = project_bundle.features if project_bundle.features else {}
-                features_count = len(features_dict)
-                stories_count = sum(len(f.stories) if f.stories else 0 for f in features_dict.values())
+                # Get features and stories count from manifest.features index
+                features_count = len(manifest.features) if manifest.features else 0
+                stories_count = sum(f.stories_count for f in manifest.features) if manifest.features else 0
 
                 # Get stage from manifest.bundle dict (if available) or default to "draft"
-                stage = "draft"  # Default stage
-                if project_bundle.manifest and project_bundle.manifest.bundle:
-                    stage = project_bundle.manifest.bundle.get("stage", "draft")
+                stage = manifest.bundle.get("stage", "draft") if manifest.bundle else "draft"
 
                 # Get content hash from manifest versions (use project version as hash identifier)
-                content_hash = None
-                if project_bundle.manifest and project_bundle.manifest.versions:
-                    content_hash = project_bundle.manifest.versions.project
+                content_hash = manifest.versions.project if manifest.versions else None
 
                 plan_info = {
                     "name": bundle_name,
@@ -409,7 +406,7 @@ class SpecFactStructure:
                     "stage": stage,
                 }
             except Exception:
-                # Fallback: minimal info if bundle can't be loaded
+                # Fallback: minimal info if manifest can't be loaded
                 manifest_mtime = manifest_path.stat().st_mtime if manifest_path.exists() else 0
                 total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
 
