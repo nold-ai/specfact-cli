@@ -420,10 +420,11 @@ def add_feature(
     title: str = typer.Option(..., "--title", help="Feature title"),
     outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
+    # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -449,13 +450,16 @@ def add_feature(
                 if bundles:
                     bundle = bundles[0]
                     print_info(f"Using default bundle: {bundle}")
+                    print_info(f"Tip: Use --bundle {bundle} to explicitly specify the bundle name")
                 else:
                     print_error(f"No project bundles found in {projects_dir}")
                     print_error("Create one with: specfact plan init <bundle-name>")
+                    print_error("Or specify --bundle <bundle-name> if the bundle exists")
                     raise typer.Exit(1)
             else:
                 print_error(f"Projects directory not found: {projects_dir}")
                 print_error("Create one with: specfact plan init <bundle-name>")
+                print_error("Or specify --bundle <bundle-name> if the bundle exists")
                 raise typer.Exit(1)
 
         bundle_dir = _find_bundle_dir(bundle)
@@ -542,10 +546,11 @@ def add_story(
     story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity)"),
     value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value)"),
     draft: bool = typer.Option(False, "--draft", help="Mark story as draft"),
+    # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -572,13 +577,16 @@ def add_story(
                 if bundles:
                     bundle = bundles[0]
                     print_info(f"Using default bundle: {bundle}")
+                    print_info(f"Tip: Use --bundle {bundle} to explicitly specify the bundle name")
                 else:
                     print_error(f"No project bundles found in {projects_dir}")
                     print_error("Create one with: specfact plan init <bundle-name>")
+                    print_error("Or specify --bundle <bundle-name> if the bundle exists")
                     raise typer.Exit(1)
             else:
                 print_error(f"Projects directory not found: {projects_dir}")
                 print_error("Create one with: specfact plan init <bundle-name>")
+                print_error("Or specify --bundle <bundle-name> if the bundle exists")
                 raise typer.Exit(1)
 
         bundle_dir = _find_bundle_dir(bundle)
@@ -669,10 +677,11 @@ def update_idea(
     target_users: str | None = typer.Option(None, "--target-users", help="Target user personas (comma-separated)"),
     value_hypothesis: str | None = typer.Option(None, "--value-hypothesis", help="Value hypothesis statement"),
     constraints: str | None = typer.Option(None, "--constraints", help="Idea-level constraints (comma-separated)"),
+    # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -703,13 +712,16 @@ def update_idea(
                 if bundles:
                     bundle = bundles[0]
                     print_info(f"Using default bundle: {bundle}")
+                    print_info(f"Tip: Use --bundle {bundle} to explicitly specify the bundle name")
                 else:
                     print_error(f"No project bundles found in {projects_dir}")
                     print_error("Create one with: specfact plan init <bundle-name>")
+                    print_error("Or specify --bundle <bundle-name> if the bundle exists")
                     raise typer.Exit(1)
             else:
                 print_error(f"Projects directory not found: {projects_dir}")
                 print_error("Create one with: specfact plan init <bundle-name>")
+                print_error("Or specify --bundle <bundle-name> if the bundle exists")
                 raise typer.Exit(1)
 
         bundle_dir = _find_bundle_dir(bundle)
@@ -834,10 +846,11 @@ def update_feature(
         "--batch-updates",
         help="Path to JSON/YAML file with multiple feature updates. File format: list of objects with 'key' and update fields (title, outcomes, acceptance, constraints, confidence, draft).",
     ),
+    # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -1156,10 +1169,11 @@ def update_story(
         "--batch-updates",
         help="Path to JSON/YAML file with multiple story updates. File format: list of objects with 'feature', 'key' and update fields (title, acceptance, story_points, value_points, confidence, draft).",
     ),
+    # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -1485,30 +1499,38 @@ def update_story(
 @beartype
 @require(lambda manual: manual is None or isinstance(manual, Path), "Manual must be None or Path")
 @require(lambda auto: auto is None or isinstance(auto, Path), "Auto must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 @require(
-    lambda format: isinstance(format, str) and format.lower() in ("markdown", "json", "yaml"),
-    "Format must be markdown, json, or yaml",
+    lambda output_format: isinstance(output_format, str) and output_format.lower() in ("markdown", "json", "yaml"),
+    "Output format must be markdown, json, or yaml",
 )
 @require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def compare(
+    # Target/Input
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If specified, compares bundles instead of legacy plan files.",
+    ),
     manual: Path | None = typer.Option(
         None,
         "--manual",
-        help="Manual plan bundle path (default: active plan in .specfact/plans using current format)",
+        help="Manual plan bundle path (default: active plan in .specfact/plans using current format). Ignored if --bundle is specified.",
     ),
     auto: Path | None = typer.Option(
         None,
         "--auto",
-        help="Auto-derived plan bundle path (default: latest in .specfact/plans/)",
+        help="Auto-derived plan bundle path (default: latest in .specfact/plans/). Ignored if --bundle is specified.",
     ),
     code_vs_plan: bool = typer.Option(
         False,
         "--code-vs-plan",
         help="Alias for comparing code-derived plan vs manual plan (auto-detects latest auto plan)",
     ),
-    format: str = typer.Option(
+    # Output/Results
+    output_format: str = typer.Option(
         "markdown",
-        "--format",
+        "--output-format",
         help="Output format (markdown, json, yaml)",
     ),
     out: Path | None = typer.Option(
@@ -1535,7 +1557,7 @@ def compare(
 
     telemetry_metadata = {
         "code_vs_plan": code_vs_plan,
-        "format": format.lower(),
+        "output_format": output_format.lower(),
     }
 
     with telemetry.track_command("plan.compare", telemetry_metadata) as record:
@@ -1594,7 +1616,7 @@ def compare(
 
         if out is None:
             # Use smart default: timestamped comparison report
-            extension = {"markdown": "md", "json": "json", "yaml": "yaml"}[format.lower()]
+            extension = {"markdown": "md", "json": "json", "yaml": "yaml"}[output_format.lower()]
             out = SpecFactStructure.get_comparison_report_path(format=extension)
             print_info(f"Writing comparison report to: {out}")
 
@@ -1609,9 +1631,9 @@ def compare(
             print_error(f"Auto plan not found: {auto}")
             raise typer.Exit(1)
 
-        # Validate format
-        if format.lower() not in ("markdown", "json", "yaml"):
-            print_error(f"Invalid format: {format}. Must be markdown, json, or yaml")
+        # Validate output format
+        if output_format.lower() not in ("markdown", "json", "yaml"):
+            print_error(f"Invalid output format: {output_format}. Must be markdown, json, or yaml")
             raise typer.Exit(1)
 
         try:
@@ -1695,7 +1717,7 @@ def compare(
 
             # Generate report file if requested
             if out:
-                print_info(f"Generating {format} report...")
+                print_info(f"Generating {output_format} report...")
                 generator = ReportGenerator()
 
                 # Map format string to enum
@@ -1705,7 +1727,7 @@ def compare(
                     "yaml": ReportFormat.YAML,
                 }
 
-                report_format = format_map.get(format.lower(), ReportFormat.MARKDOWN)
+                report_format = format_map.get(output_format.lower(), ReportFormat.MARKDOWN)
                 generator.generate_deviation_report(report, out, report_format)
 
                 print_success(f"Report written to: {out}")
@@ -1790,9 +1812,10 @@ def select(
         None,
         help="Plan name or number to select (e.g., 'main.bundle.<format>' or '1')",
     ),
-    non_interactive: bool = typer.Option(
+    # Behavior/Options
+    no_interactive: bool = typer.Option(
         False,
-        "--non-interactive",
+        "--no-interactive",
         help="Non-interactive mode (for CI/CD automation). Disables interactive prompts.",
     ),
     current: bool = typer.Option(
@@ -1842,14 +1865,14 @@ def select(
         specfact plan select --current                   # Show only active bundle (auto-selects)
         specfact plan select --stages draft,review       # Filter by stages
         specfact plan select --last 5                    # Show last 5 bundles
-        specfact plan select --non-interactive --last 1  # CI/CD: get most recent bundle
+        specfact plan select --no-interactive --last 1  # CI/CD: get most recent bundle
         specfact plan select --name main                 # CI/CD: select by exact bundle name
         specfact plan select --id abc123def456          # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
     telemetry_metadata = {
-        "non_interactive": non_interactive,
+        "no_interactive": no_interactive,
         "current": current,
         "stages": stages,
         "last": last,
@@ -1887,7 +1910,7 @@ def select(
                 print_warning("No active plan found")
                 raise typer.Exit(1)
             # Auto-select in non-interactive mode when --current is provided
-            if non_interactive and len(filtered_plans) == 1:
+            if no_interactive and len(filtered_plans) == 1:
                 selected_plan = filtered_plans[0]
                 plan_name = str(selected_plan["name"])
                 SpecFactStructure.set_active_plan(plan_name)
@@ -1930,7 +1953,7 @@ def select(
 
         # Handle --name flag (non-interactive selection by exact filename)
         if name is not None:
-            non_interactive = True  # Force non-interactive when --name is used
+            no_interactive = True  # Force non-interactive when --name is used
             plan_name = SpecFactStructure.ensure_plan_filename(str(name))
 
             selected_plan = None
@@ -1963,7 +1986,7 @@ def select(
 
         # Handle --id flag (non-interactive selection by content hash)
         if plan_id is not None:
-            non_interactive = True  # Force non-interactive when --id is used
+            no_interactive = True  # Force non-interactive when --id is used
             # Need to load plan bundles to get content_hash from summary
             from pathlib import Path
 
@@ -2086,7 +2109,7 @@ def select(
             console.print()
 
             # Handle selection (interactive or non-interactive)
-            if non_interactive:
+            if no_interactive:
                 # Non-interactive mode: select first plan (or error if multiple)
                 if len(filtered_plans) == 1:
                     selected_plan = filtered_plans[0]
@@ -3290,9 +3313,10 @@ def review(
         "--answers",
         help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file.",
     ),
-    non_interactive: bool = typer.Option(
+    # Behavior/Options
+    no_interactive: bool = typer.Option(
         False,
-        "--non-interactive",
+        "--no-interactive",
         help="Non-interactive mode (for CI/CD automation)",
     ),
     auto_enrich: bool = typer.Option(
@@ -3326,7 +3350,7 @@ def review(
 
     # Detect operational mode
     mode = detect_mode()
-    is_non_interactive = non_interactive or (answers is not None) or list_questions
+    is_non_interactive = no_interactive or (answers is not None) or list_questions
 
     telemetry_metadata = {
         "max_questions": max_questions,
@@ -3768,7 +3792,7 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
 
 def _find_bundle_dir(bundle: str | None) -> Path | None:
     """
-    Find project bundle directory.
+    Find project bundle directory with improved validation and error messages.
 
     Args:
         bundle: Bundle name or None
@@ -3783,15 +3807,39 @@ def _find_bundle_dir(bundle: str | None) -> Path | None:
         print_info("Available bundles:")
         projects_dir = Path(".") / SpecFactStructure.PROJECTS
         if projects_dir.exists():
-            for bundle_dir in projects_dir.iterdir():
-                if bundle_dir.is_dir() and (bundle_dir / "bundle.manifest.yaml").exists():
-                    print_info(f"  - {bundle_dir.name}")
+            bundles = [
+                bundle_dir.name
+                for bundle_dir in projects_dir.iterdir()
+                if bundle_dir.is_dir() and (bundle_dir / "bundle.manifest.yaml").exists()
+            ]
+            if bundles:
+                for bundle_name in bundles:
+                    print_info(f"  - {bundle_name}")
+            else:
+                print_info("  (no bundles found)")
+                print_info("Create one with: specfact plan init <bundle-name>")
+        else:
+            print_info("  (projects directory not found)")
+            print_info("Create one with: specfact plan init <bundle-name>")
         return None
 
     bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
     if not bundle_dir.exists():
-        print_error(f"Project bundle not found: {bundle_dir}")
+        print_error(f"Project bundle '{bundle}' not found: {bundle_dir}")
         print_info(f"Create one with: specfact plan init {bundle}")
+
+        # Suggest similar bundle names if available
+        projects_dir = Path(".") / SpecFactStructure.PROJECTS
+        if projects_dir.exists():
+            available_bundles = [
+                bundle_dir.name
+                for bundle_dir in projects_dir.iterdir()
+                if bundle_dir.is_dir() and (bundle_dir / "bundle.manifest.yaml").exists()
+            ]
+            if available_bundles:
+                print_info("Available bundles:")
+                for available_bundle in available_bundles:
+                    print_info(f"  - {available_bundle}")
         return None
 
     return bundle_dir
@@ -3814,15 +3862,11 @@ def harden(
         help="SDD manifest format (yaml or json). Defaults to global --output-format.",
         case_sensitive=False,
     ),
+    # Behavior/Options
     interactive: bool = typer.Option(
         True,
         "--interactive/--no-interactive",
-        help="Interactive mode with prompts",
-    ),
-    non_interactive: bool = typer.Option(
-        False,
-        "--non-interactive",
-        help="Non-interactive mode (for CI/CD automation)",
+        help="Interactive mode with prompts (default: auto-detect)",
     ),
 ) -> None:
     """
@@ -3837,7 +3881,7 @@ def harden(
 
     Example:
         specfact plan harden legacy-api                    # Interactive
-        specfact plan harden auth-module --non-interactive  # CI/CD mode
+        specfact plan harden auth-module --no-interactive  # CI/CD mode
     """
     from specfact_cli.models.sdd import (
         SDDCoverageThresholds,
@@ -3848,10 +3892,10 @@ def harden(
     from specfact_cli.utils.structured_io import dump_structured_file
 
     effective_format = output_format or runtime.get_output_format()
-    is_non_interactive = non_interactive or not interactive
+    is_non_interactive = not interactive
 
     telemetry_metadata = {
-        "interactive": interactive and not non_interactive,
+        "interactive": interactive,
         "output_format": effective_format.value,
     }
 

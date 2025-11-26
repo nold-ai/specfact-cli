@@ -116,7 +116,7 @@ specfact sync repository --repo . --watch --interval 5
 specfact plan compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/auto-derived \
-  --format markdown \
+  --output-format markdown \
   --out .specfact/reports/comparison/deviation-report.md
 ```
 
@@ -611,7 +611,7 @@ cp ../shared-contracts/plan.bundle.yaml contracts/shared/
 specfact plan compare \
   --manual contracts/shared/plan.bundle.yaml \
   --auto contracts/service/plan.bundle.yaml \
-  --format markdown
+  --output-format markdown
 ```
 
 #### 4. Enforce Consistency

@@ -298,7 +298,7 @@ class TestPlanReviewNonInteractive:
             assert "Review complete" in result.stdout or "question(s) answered" in result.stdout
 
     def test_non_interactive_flag(self, workspace: Path, incomplete_plan: Path, monkeypatch):
-        """Test --non-interactive flag behavior."""
+        """Test --no-interactive flag behavior."""
         monkeypatch.chdir(workspace)
 
         # Get bundle name from directory path
@@ -315,7 +315,7 @@ class TestPlanReviewNonInteractive:
                 "plan",
                 "review",
                 bundle_name,
-                "--non-interactive",
+                "--no-interactive",
                 "--max-questions",
                 "5",
             ],

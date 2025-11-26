@@ -9,6 +9,57 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.9.2] - 2025-11-26
+
+### Changed (0.9.2)
+
+- **CLI Parameter Standardization** (Phase 1 Complete)
+  - **Parameter Renaming**: Standardized all CLI parameters for consistency across commands
+    - `--base-path` → `--repo` (repository path parameter)
+    - `--output` → `--out` (output file path parameter)
+    - `--format` → `--output-format` (output format parameter)
+    - `--non-interactive` → `--no-interactive` (interactive mode control)
+  - **Global Flag Update**: Changed global interaction flag from `--non-interactive/--interactive` to `--interactive/--no-interactive`
+  - **Commands Updated**:
+    - `generate contracts`: `--base-path` → `--repo`
+    - `constitution bootstrap`: `--output` → `--out`
+    - `plan compare`: `--format` → `--output-format`
+    - `enforce sdd`: `--format` → `--output-format`
+    - All commands: `--non-interactive` → `--no-interactive`
+  - **Parameter Standard Document**: Created `docs/reference/parameter-standard.md` with comprehensive naming conventions and grouping guidelines
+
+- **`--bundle` Parameter Verification** (Phase 1.3 Complete)
+  - Enhanced `_find_bundle_dir()` function with improved error messages
+  - Lists available bundles when bundle not found
+  - Suggests similar bundle names
+  - Provides clear creation instructions
+  - All commands with optional `--bundle` have fallback logic to find default bundle
+  - Help text updated to indicate when `--bundle` is required vs optional
+  - Added `--bundle` parameter to `plan compare` and `generate contracts` commands
+
+### Fixed (0.9.2)
+
+- **Test Suite Updates**
+  - Fixed 37 test failures by updating all test files to use new parameter names
+  - Updated test files: `test_constitution_commands.py`, `test_plan_command.py`, `test_generate_command.py`, `test_enforce_command.py`, `test_plan_review_batch_updates.py`, `test_plan_review_non_interactive.py`, `test_plan_compare_command.py`, `test_plan_telemetry.py`
+  - All 993 tests now passing (1 skipped)
+  - Test coverage maintained at 70%
+
+- **Documentation Synchronization**
+  - Updated all documentation files to use new parameter names
+  - Fixed parameter references in: `docs/reference/commands.md`, `docs/reference/feature-keys.md`, `docs/guides/use-cases.md`, `docs/examples/quick-examples.md`, `docs/prompts/PROMPT_VALIDATION_CHECKLIST.md`, `docs/examples/integration-showcases/integration-showcases-testing-guide.md`
+  - All user-facing documentation now synchronized with code changes
+
+### Documentation (0.9.2)
+
+- **Parameter Standard Document**
+  - Created `docs/reference/parameter-standard.md` with comprehensive parameter naming conventions
+  - Documented parameter grouping guidelines (Target/Input, Output/Results, Behavior/Options, Advanced)
+  - Established deprecation policy (3-month transition period)
+  - Included examples and validation checklist
+
+---
+
 ## [0.9.1] - 2025-11-26
 
 ### Fixed (0.9.1)

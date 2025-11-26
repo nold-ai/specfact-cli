@@ -58,7 +58,7 @@ Help the user promote their plan bundle through development stages (draft → re
 
 ### ⚠️ IMPORTANT: Non-Interactive Mode
 
-The `promote` command does **NOT** have a `--mode` or `--non-interactive` parameter. To avoid interactive confirmation prompts in CI/CD or non-interactive environments, use the `--force` flag:
+The `promote` command does **NOT** have a `--mode` or `--no-interactive` parameter. To avoid interactive confirmation prompts in CI/CD or non-interactive environments, use the `--force` flag:
 
 ```bash
 # Non-interactive/CI/CD usage (bypasses confirmation prompts)
@@ -99,8 +99,8 @@ The `specfact plan promote` command helps move a plan bundle through its lifecyc
 specfact plan select
 
 # Non-interactive mode (for CI/CD - no prompts)
-specfact plan select --non-interactive --current
-specfact plan select --non-interactive --last 1
+specfact plan select --no-interactive --current
+specfact plan select --no-interactive --last 1
 
 # Filter options
 specfact plan select --current                    # Show only active plan
@@ -110,7 +110,7 @@ specfact plan select --last 5                     # Show last 5 plans
 
 **⚠️ Note on Interactive Prompt**:
 
-- **For CI/CD/non-interactive use**: Use `--non-interactive` flag with `--current` or `--last 1` to avoid prompts
+- **For CI/CD/non-interactive use**: Use `--no-interactive` flag with `--current` or `--last 1` to avoid prompts
 - **For interactive use**: This command will display a table and then wait for user input. The copilot should:
   1. **Capture the table output** that appears before the prompt
   2. **Parse the table** to extract plan information including **current stage** (already included in the table)
@@ -248,10 +248,10 @@ If the current stage is not clear from the table output, use the CLI to get it:
 specfact plan select <plan_number>
 
 # Get current plan stage (non-interactive)
-specfact plan select --non-interactive --current
+specfact plan select --no-interactive --current
 
 # Get most recent plan stage (non-interactive)
-specfact plan select --non-interactive --last 1
+specfact plan select --no-interactive --last 1
 ```
 
 The CLI output will show:
@@ -277,7 +277,7 @@ specfact plan promote --stage <target_stage> --bundle <bundle-name> [--validate]
 
 **⚠️ Critical Notes**:
 
-- **No `--mode` or `--non-interactive` flag**: The `promote` command does NOT have these parameters
+- **No `--mode` or `--no-interactive` flag**: The `promote` command does NOT have these parameters
 - **Use `--force` for non-interactive**: The `--force` flag bypasses interactive confirmation prompts when there are partial/missing important categories
 - **Mode auto-detection**: Only affects telemetry/routing, NOT interactive prompts
 - **When `--force` is used**: The command will skip the `prompt_confirm()` call and proceed automatically

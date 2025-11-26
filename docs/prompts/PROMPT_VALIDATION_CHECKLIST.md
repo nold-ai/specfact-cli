@@ -41,7 +41,7 @@ The validator checks:
 - [ ] **CLI command matches**: The command in the prompt matches the actual CLI command
 - [ ] **CLI enforcement rules present**:
   - [ ] "ALWAYS execute CLI first"
-  - [ ] "ALWAYS use non-interactive mode for CI/CD" (explicitly requires `--non-interactive` or `--no-interactive` flags to avoid timeouts in Copilot environments)
+  - [ ] "ALWAYS use non-interactive mode for CI/CD" (explicitly requires `--no-interactive` flag to avoid timeouts in Copilot environments)
   - [ ] "ALWAYS use tools for read/write" (explicitly requires using file reading tools like `read_file` for display purposes only, CLI commands for all write operations)
   - [ ] "NEVER modify .specfact folder directly" (explicitly forbids creating, modifying, or deleting files in `.specfact/` folder directly)
   - [ ] "NEVER create YAML/JSON directly"
@@ -55,7 +55,7 @@ The validator checks:
 - [ ] **CORRECT examples present**: Prompt shows examples of what TO do (using CLI commands)
 - [ ] **Command examples**: Examples show actual CLI usage with correct flags
 - [ ] **Flag documentation**: All flags are documented with defaults and descriptions
-- [ ] **Filter options documented** (for `plan select`): `--current`, `--stages`, `--last`, `--non-interactive` flags are documented with use cases and examples
+- [ ] **Filter options documented** (for `plan select`): `--current`, `--stages`, `--last`, `--no-interactive` flags are documented with use cases and examples
 - [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags (e.g., `specfact plan select 20` not `specfact plan select --plan 20`)
 - [ ] **Boolean flags documented correctly**: Boolean flags use `--flag/--no-flag` syntax, not `--flag true/false`
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
@@ -228,10 +228,10 @@ For each prompt, test the following scenarios:
    - ✅ Uses `--stages` flag to filter by stages: `specfact plan select --stages draft,review`
    - ✅ Uses `--last N` flag to show recent plans: `specfact plan select --last 5`
 6. Test non-interactive mode (CI/CD):
-   - ✅ Uses `--non-interactive` flag with `--current`: `specfact plan select --non-interactive --current`
-   - ✅ Uses `--non-interactive` flag with `--last 1`: `specfact plan select --non-interactive --last 1`
+   - ✅ Uses `--no-interactive` flag with `--current`: `specfact plan select --no-interactive --current`
+   - ✅ Uses `--no-interactive` flag with `--last 1`: `specfact plan select --no-interactive --last 1`
    - ✅ Handles error when multiple plans match filters in non-interactive mode
-   - ✅ Does NOT prompt for input when `--non-interactive` is used
+   - ✅ Does NOT prompt for input when `--no-interactive` is used
 
 #### Scenario 6: Plan Promotion with Coverage Validation (for plan-promote)
 
@@ -272,7 +272,7 @@ After testing, review:
   - [ ] Analyzes enrichment results with reasoning
   - [ ] Proposes and executes specific refinements using CLI commands
   - [ ] Iterates until plan quality meets standards
-- [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (positional arguments), filter options (`--current`, `--stages`, `--last`), non-interactive mode (`--non-interactive`)
+- [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (positional arguments), filter options (`--current`, `--stages`, `--last`), non-interactive mode (`--no-interactive`)
 - [ ] **Promotion workflow** (if applicable): Coverage validation respected, suggestions to run `plan review` when categories are Missing
 - [ ] **Error handling**: Errors handled gracefully without assumptions
 
@@ -290,7 +290,7 @@ After testing, review:
 
 **Fix**:
 
-- Add explicit requirement to use `--non-interactive` or `--no-interactive` flags
+- Add explicit requirement to use `--no-interactive` flag
 - Document that interactive mode should only be used when user explicitly requests it
 - Add examples showing non-interactive CLI command usage
 
@@ -450,7 +450,7 @@ The following prompts are available for SpecFact CLI commands:
 ### Version 1.9 (2025-11-20)
 
 - Added filter options validation for `plan select` command (`--current`, `--stages`, `--last`)
-- Added non-interactive mode validation for `plan select` command (`--non-interactive`)
+- Added non-interactive mode validation for `plan select` command (`--no-interactive`)
 - Updated Scenario 5 to include filter options and non-interactive mode testing
 - Added filter options documentation requirements to CLI alignment checklist
 - Updated selection workflow checklist to include filter options and non-interactive mode

@@ -202,7 +202,7 @@ class TestPlanCommandTelemetry:
         call_args = mock_telemetry.track_command.call_args
         assert call_args[0][0] == "plan.compare"
         assert "code_vs_plan" in call_args[0][1]
-        assert "format" in call_args[0][1]
+        assert "output_format" in call_args[0][1]
         # Verify record was called with comparison results
         mock_record.assert_called()
         # Check that record was called with deviation counts

@@ -18,7 +18,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan compare` before any comparison - execute the CLI command before any other operations
-2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--non-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--no-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
 3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
 4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
 5. **NEVER write code**: Do not implement comparison logic - the CLI handles this
@@ -75,11 +75,11 @@ Compare two project bundles (or legacy plan bundles) to detect deviations, misma
    - Parse the CLI table output to get plan names for the specified numbers
    - Extract the full plan file names from the table
 
-   - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
+   - **For CI/CD/non-interactive use**: Use `--no-interactive` with filters:
 
    ```bash
-   specfact plan select --non-interactive --current
-   specfact plan select --non-interactive --last 1
+   specfact plan select --no-interactive --current
+   specfact plan select --no-interactive --last 1
    ```
 
 2. **Get full plan paths using CLI**:
@@ -91,11 +91,11 @@ Compare two project bundles (or legacy plan bundles) to detect deviations, misma
    - This will output the full bundle name/path
    - Use this to construct the full path: `.specfact/projects/<bundle-name>/` (for project bundles) or `.specfact/plans/<plan_name>` (for legacy bundles)
 
-   - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
+   - **For CI/CD/non-interactive use**: Use `--no-interactive` with filters:
 
    ```bash
-   specfact plan select --non-interactive --current
-   specfact plan select --non-interactive --last 1
+   specfact plan select --no-interactive --current
+   specfact plan select --no-interactive --last 1
    ```
 
 **If user input contains plan names** (e.g., "main.bundle.<format> vs auto-derived.bundle.<format>"):
@@ -135,7 +135,7 @@ Compare two project bundles (or legacy plan bundles) to detect deviations, misma
 ## Command
 
 ```bash
-specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yaml}] [--out PATH]
+specfact plan compare [--manual PATH] [--auto PATH] [--output-format {markdown|json|yaml}] [--out PATH]
 ```
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
@@ -148,7 +148,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 
 - `--manual PATH` - Manual bundle path (project bundle directory or legacy plan file). Default: active bundle or `.specfact/projects/main/` - **ASK USER if default not found**
 - `--auto PATH` - Auto-derived bundle path (project bundle directory or legacy plan file). Default: latest in `.specfact/projects/` - **ASK USER if default not found**
-- `--format {markdown|json|yaml}` - Output format (default: `markdown`) - **ASK USER if not specified**
+- `--output-format {markdown|json|yaml}` - Output format (default: `markdown`) - **ASK USER if not specified**
 - `--out PATH` - Output file path (optional, default: auto-generated in `.specfact/reports/comparison/`)
 
 **Note**: Paths can be:
@@ -191,11 +191,11 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
      - Parse the CLI output to get the full bundle name
      - Construct full path: `.specfact/projects/<bundle-name>/` (for project bundles) or `.specfact/plans/<plan_name>` (for legacy bundles)
 
-     - **For CI/CD/non-interactive use**: Use `--non-interactive` with filters:
+     - **For CI/CD/non-interactive use**: Use `--no-interactive` with filters:
 
      ```bash
-     specfact plan select --non-interactive --current
-     specfact plan select --non-interactive --last 1
+     specfact plan select --no-interactive --current
+     specfact plan select --no-interactive --last 1
      ```
 
 - **If user input contains plan names** (e.g., "main.bundle.<format> vs auto-derived.bundle.<format>"):
@@ -228,7 +228,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
     ```
 
   - **Parse CLI output** to find latest auto-derived plan (by modification date)
-  - **For CI/CD/non-interactive**: Use `specfact plan select --non-interactive --last 1` to get most recent plan
+  - **For CI/CD/non-interactive**: Use `specfact plan select --no-interactive --last 1` to get most recent plan
   - **If found**: Ask user and **WAIT**:
 
     ```text
@@ -244,7 +244,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
     [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
     ```
 
-**Step 3**: Check if `--format` is specified.
+**Step 3**: Check if `--output-format` is specified.
 
 - **If missing**: Ask user and **WAIT**:
 
@@ -286,7 +286,7 @@ specfact plan compare [--manual PATH] [--auto PATH] [--format {markdown|json|yam
 **⚠️ CRITICAL**: Use the resolved file paths (not plan numbers) in the CLI command:
 
 ```bash
-specfact plan compare --manual <MANUAL_PATH> --auto <AUTO_PATH> --format <FORMAT> --out <OUT_PATH>
+specfact plan compare --manual <MANUAL_PATH> --auto <AUTO_PATH> --output-format <FORMAT> --out <OUT_PATH>
 ```
 
 **Example**: If user said "legacy-api vs modernized-api", execute:
@@ -367,7 +367,7 @@ Fix the blocking deviations or adjust enforcement config
 **ALWAYS execute the specfact CLI** to perform the comparison:
 
 ```bash
-specfact plan compare --manual <manual_path> --auto <auto_path> --format <format> --out <output_path>
+specfact plan compare --manual <manual_path> --auto <auto_path> --output-format <format> --out <output_path>
 ```
 
 **The CLI performs**:

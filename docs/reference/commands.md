@@ -30,7 +30,7 @@ specfact repro --verbose
 
 - `--input-format {yaml,json}` - Override default structured input detection for CLI commands (defaults to YAML)
 - `--output-format {yaml,json}` - Control how plan bundles and reports are written (JSON is ideal for CI/copilot automations)
-- `--non-interactive/--interactive` - Force prompt behavior (overrides auto-detection from CI/CD vs Copilot environments)
+- `--interactive/--no-interactive` - Force prompt behavior (overrides auto-detection from CI/CD vs Copilot environments)
 
 ### Commands by Workflow
 
@@ -615,7 +615,7 @@ specfact plan review [OPTIONS]
 - `--list-findings` - Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment
 - `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
 - `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
-- `--non-interactive` - Non-interactive mode (for CI/CD automation)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
 - `--auto-enrich` - Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching
 
 **Modes:**
@@ -629,7 +629,7 @@ specfact plan review [OPTIONS]
   1. Get questions: `specfact plan review --list-questions`
   2. Ask user: LLM presents questions and collects answers
   3. Feed answers: `specfact plan review --answers <file>`
-- **CI/CD Mode**: Use `--non-interactive` with `--answers` for automation
+- **CI/CD Mode**: Use `--no-interactive` with `--answers` for automation
 
 **Example:**
 
@@ -650,7 +650,7 @@ specfact plan review --list-questions --max-questions 5
 specfact plan review --answers answers.json
 
 # CI/CD automation
-specfact plan review --non-interactive --answers answers.json
+specfact plan review --no-interactive --answers answers.json
 ```
 
 **Findings Output Format:**
@@ -777,7 +777,7 @@ specfact plan harden [OPTIONS]
 - `--sdd PATH` - Output SDD manifest path (default: `.specfact/sdd.<format>`)
 - `--output-format {yaml,json}` - SDD manifest format (defaults to global `--output-format`)
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
-- `--non-interactive` - Non-interactive mode (for CI/CD automation)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
 
 **What it does:**
 
@@ -807,7 +807,7 @@ specfact plan harden [OPTIONS]
 specfact plan harden
 
 # Non-interactive with specific bundle (bundle name as positional argument)
-specfact plan harden main --non-interactive
+specfact plan harden main --no-interactive
 
 # Custom SDD path for multiple bundles
 specfact plan harden feature-auth --sdd .specfact/sdd.auth.yaml
@@ -931,7 +931,7 @@ specfact plan select [PLAN] [OPTIONS]
 
 **Options:**
 
-- `--non-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts. Requires exactly one plan to match filters.
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts. Requires exactly one plan to match filters.
 - `--current` - Show only the currently active plan (auto-selects in non-interactive mode)
 - `--stages STAGES` - Filter by stages (comma-separated: `draft,review,approved,released`)
 - `--last N` - Show last N plans by modification time (most recent first)
@@ -960,10 +960,10 @@ specfact plan select --stages draft,review
 specfact plan select --last 5
 
 # CI/CD: Get active plan without prompts (auto-selects)
-specfact plan select --non-interactive --current
+specfact plan select --no-interactive --current
 
 # CI/CD: Get most recent plan without prompts
-specfact plan select --non-interactive --last 1
+specfact plan select --no-interactive --last 1
 
 # CI/CD: Select by exact filename
 specfact plan select --name main.bundle.yaml
@@ -987,7 +987,7 @@ specfact plan select --id abc123def456
 - `--last N`: Shows the N most recently modified plans (sorted by modification time, most recent first)
 - `--name NAME`: Selects plan by exact filename (non-interactive). Useful for CI/CD when you know the exact plan name.
 - `--id HASH`: Selects plan by content hash ID from `metadata.summary.content_hash` (non-interactive). Supports full hash or first 8 characters.
-- `--non-interactive`: Disables interactive prompts. If multiple plans match filters, command will error. Use with `--current`, `--last 1`, `--name`, or `--id` for single plan selection in CI/CD.
+- `--no-interactive`: Disables interactive prompts. If multiple plans match filters, command will error. Use with `--current`, `--last 1`, `--name`, or `--id` for single plan selection in CI/CD.
 
 **Performance Notes:**
 
@@ -1123,7 +1123,7 @@ specfact plan compare [OPTIONS]
 - `--manual PATH` - Manual plan bundle directory (intended design - what you planned) (default: active bundle from `.specfact/projects/<bundle-name>/` or `main`)
 - `--auto PATH` - Auto-derived plan bundle directory (actual implementation - what's in your code from `import from-code`) (default: latest in `.specfact/projects/`)
 - `--code-vs-plan` - Convenience alias for `--manual <active-plan> --auto <latest-auto-plan>` (detects code vs plan drift)
-- `--format TEXT` - Output format (markdown, json, yaml) (default: markdown)
+- `--output-format TEXT` - Output format (markdown, json, yaml) (default: markdown)
 - `--out PATH` - Output file (default: `.specfact/reports/comparison/report-*.md`)
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
 
@@ -1143,7 +1143,7 @@ specfact plan compare --code-vs-plan
 specfact plan compare \
   --manual .specfact/projects/main \
   --auto .specfact/projects/my-project-auto \
-  --format markdown \
+  --output-format markdown \
   --out .specfact/reports/comparison/deviation.md
 ```
 
@@ -1175,7 +1175,7 @@ specfact enforce sdd [OPTIONS]
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
 - `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
-- `--format {markdown,json,yaml}` - Output format (default: markdown)
+- `--output-format {markdown,json,yaml}` - Output format (default: markdown)
 - `--out PATH` - Output report path (optional)
 
 **What it validates:**
@@ -1205,7 +1205,7 @@ specfact enforce sdd
 specfact enforce sdd main --sdd .specfact/sdd.yaml
 
 # Generate JSON report
-specfact enforce sdd --format json --out validation-report.json
+specfact enforce sdd --output-format json --out validation-report.json
 ```
 
 **Output:**
@@ -1405,7 +1405,7 @@ specfact generate contracts [OPTIONS]
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
 - `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
 - `--out PATH` - Output directory (default: `.specfact/contracts/`)
-- `--format {yaml,json}` - SDD manifest format (default: auto-detect)
+- `--output-format {yaml,json}` - SDD manifest format (default: auto-detect)
 
 **What it generates:**
 
@@ -1601,7 +1601,7 @@ specfact constitution bootstrap [OPTIONS]
 **Options:**
 
 - `--repo PATH` - Repository path (default: current directory)
-- `--output PATH` - Output path for constitution (default: `.specify/memory/constitution.md`)
+- `--out PATH` - Output path for constitution (default: `.specify/memory/constitution.md`)
 - `--overwrite` - Overwrite existing constitution if it exists
 
 **Example:**
@@ -1611,7 +1611,7 @@ specfact constitution bootstrap [OPTIONS]
 specfact constitution bootstrap --repo .
 
 # Generate with custom output path
-specfact constitution bootstrap --repo . --output custom-constitution.md
+specfact constitution bootstrap --repo . --out custom-constitution.md
 
 # Overwrite existing constitution
 specfact constitution bootstrap --repo . --overwrite

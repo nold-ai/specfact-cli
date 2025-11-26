@@ -31,6 +31,7 @@ console = Console()
 @require(lambda repo: repo.is_dir(), "Repository path must be a directory")
 @ensure(lambda result: result is None, "Must return None")
 def bootstrap(
+    # Target/Input
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -39,9 +40,10 @@ def bootstrap(
         file_okay=False,
         dir_okay=True,
     ),
-    output: Path | None = typer.Option(
+    # Output/Results
+    out: Path | None = typer.Option(
         None,
-        "--output",
+        "--out",
         help="Output path for constitution (default: .specify/memory/constitution.md)",
     ),
     overwrite: bool = typer.Option(
@@ -65,7 +67,7 @@ def bootstrap(
 
     Example:
         specfact constitution bootstrap --repo .
-        specfact constitution bootstrap --repo . --output custom-constitution.md
+        specfact constitution bootstrap --repo . --out custom-constitution.md
     """
     from specfact_cli.telemetry import telemetry
 
@@ -73,28 +75,28 @@ def bootstrap(
         console.print(f"[bold cyan]Generating bootstrap constitution for:[/bold cyan] {repo}")
 
         # Determine output path
-        if output is None:
+        if out is None:
             # Use Spec-Kit convention: .specify/memory/constitution.md
             specify_dir = repo / ".specify" / "memory"
             specify_dir.mkdir(parents=True, exist_ok=True)
-            output = specify_dir / "constitution.md"
+            out = specify_dir / "constitution.md"
         else:
-            output.parent.mkdir(parents=True, exist_ok=True)
+            out.parent.mkdir(parents=True, exist_ok=True)
 
         # Check if constitution already exists
-        if output.exists() and not overwrite:
-            console.print(f"[yellow]⚠[/yellow] Constitution already exists: {output}")
+        if out.exists() and not overwrite:
+            console.print(f"[yellow]⚠[/yellow] Constitution already exists: {out}")
             console.print("[dim]Use --overwrite to replace it[/dim]")
             raise typer.Exit(1)
 
         # Generate bootstrap constitution
         print_info("Analyzing repository...")
         enricher = ConstitutionEnricher()
-        enriched_content = enricher.bootstrap(repo, output)
+        enriched_content = enricher.bootstrap(repo, out)
 
         # Write constitution
-        output.write_text(enriched_content, encoding="utf-8")
-        print_success(f"✓ Bootstrap constitution generated: {output}")
+        out.write_text(enriched_content, encoding="utf-8")
+        print_success(f"✓ Bootstrap constitution generated: {out}")
 
         console.print("\n[bold]Next Steps:[/bold]")
         console.print("1. Review the generated constitution")

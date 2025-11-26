@@ -136,7 +136,7 @@ specfact plan harden
 specfact enforce sdd
 
 # Validate SDD with custom output format
-specfact enforce sdd --format json --out validation-report.json
+specfact enforce sdd --output-format json --out validation-report.json
 
 # Review plan (automatically checks SDD)
 specfact plan review --max-questions 5
@@ -310,7 +310,7 @@ specfact import from-code \
 
 specfact plan compare \
   --repo . \
-  --output comparison-report.md
+  --out comparison-report.md
 
 ```
 

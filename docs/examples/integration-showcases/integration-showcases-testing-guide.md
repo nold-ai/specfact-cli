@@ -301,7 +301,7 @@ cd /tmp/specfact-integration-tests/example1_vscode
 # Run plan review with auto-enrichment to identify gaps (bundle name as positional argument)
 specfact --no-banner plan review django-example \
   --auto-enrich \
-  --non-interactive \
+  --no-interactive \
   --list-findings \
   --findings-format json
 ```
@@ -347,7 +347,7 @@ After adding stories, verify the plan bundle is complete:
 ```bash
 # Re-run plan review to verify all critical items are resolved
 specfact --no-banner plan review django-example \
-  --non-interactive \
+  --no-interactive \
   --list-findings \
   --findings-format json
 ```
@@ -704,7 +704,7 @@ cd /tmp/specfact-integration-tests/example2_cursor
 # Review plan with auto-enrichment (bundle name as positional argument)
 specfact --no-banner plan review data-processing-or-legacy-data-pipeline \
   --auto-enrich \
-  --non-interactive \
+  --no-interactive \
   --list-findings \
   --findings-format json
 ```
@@ -1138,7 +1138,7 @@ BUNDLE_NAME="example4_github_actions"
 PLAN_NAME=$(basename "$PLAN_FILE")
 
 # Set it as the active plan (this makes it the default for plan compare)
-specfact --no-banner plan select "$BUNDLE_NAME" --non-interactive
+specfact --no-banner plan select "$BUNDLE_NAME" --no-interactive
 
 # Verify it's set as active
 specfact --no-banner plan select --current

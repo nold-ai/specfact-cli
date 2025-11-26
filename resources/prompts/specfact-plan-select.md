@@ -10,23 +10,23 @@ description: Select active plan from available plan bundles
 
 ### Quick Summary
 
-- ✅ **DO**: Execute `specfact plan select --non-interactive` CLI command (it already exists) - **ALWAYS use --non-interactive flag**
+- ✅ **DO**: Execute `specfact plan select --no-interactive` CLI command (it already exists) - **ALWAYS use --no-interactive flag**
 - ✅ **DO**: Parse and format CLI output for the user
 - ✅ **DO**: Read plan bundle YAML files for display purposes (when user requests details)
 - ❌ **DON'T**: Write code to implement this command
 - ❌ **DON'T**: Modify `.specfact/plans/config.yaml` directly (the CLI handles this)
 - ❌ **DON'T**: Implement plan loading, selection, or config writing logic
 - ❌ **DON'T**: Create new Python functions or classes for plan selection
-- ❌ **DON'T**: Execute commands without `--non-interactive` flag (causes timeouts in Copilot)
+- ❌ **DON'T**: Execute commands without `--no-interactive` flag (causes timeouts in Copilot)
 
 **The `specfact plan select` command already exists and handles all the logic. Your job is to execute it and present its output to the user.**
 
 ### What You Should Do
 
-1. **Execute the CLI**: Run `specfact plan select --non-interactive` (or `specfact plan select --non-interactive <plan>` if user provides a plan) - **ALWAYS use --non-interactive flag**
+1. **Execute the CLI**: Run `specfact plan select --no-interactive` (or `specfact plan select --no-interactive <plan>` if user provides a plan) - **ALWAYS use --no-interactive flag**
 2. **Format output**: Parse the CLI's Rich table output and convert it to a Markdown table for Copilot readability
 3. **Handle user input**: If user wants details, read the plan bundle YAML file (read-only) to display information
-4. **Execute selection**: When user selects a plan, execute `specfact plan select --non-interactive <number>` or `specfact plan select --non-interactive <plan_name>` - **ALWAYS use --non-interactive flag**
+4. **Execute selection**: When user selects a plan, execute `specfact plan select --no-interactive <number>` or `specfact plan select --no-interactive <plan_name>` - **ALWAYS use --no-interactive flag**
 5. **Present results**: Show the CLI's output to confirm the selection
 
 ### What You Should NOT Do
@@ -58,7 +58,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Rules
 
 1. **ALWAYS execute CLI first**: Run `specfact plan select` (the command already exists) - execute the CLI command before any other operations
-2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--non-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
+2. **ALWAYS use non-interactive mode for CI/CD**: When executing CLI commands, use `--no-interactive` flag to avoid interactive prompts that can cause timeouts in Copilot environments
 3. **ALWAYS use tools for read/write**: Use file reading tools (e.g., `read_file`) to read artifacts for display purposes only. Use CLI commands for all write operations. Never use direct file manipulation.
 4. **NEVER modify .specfact folder directly**: Do NOT create, modify, or delete any files in `.specfact/` folder directly. All operations must go through the CLI.
 5. **NEVER write code**: Do not implement plan selection logic - the CLI handles this
@@ -130,45 +130,45 @@ How many plans would you like to see?
 
 ### 2. Execute CLI Command (REQUIRED - The Command Already Exists)
 
-**⚠️ CRITICAL: Always use `--non-interactive` flag** to avoid interactive prompts that can cause timeouts or hang in Copilot environments.
+**⚠️ CRITICAL: Always use `--no-interactive` flag** to avoid interactive prompts that can cause timeouts or hang in Copilot environments.
 
 **The `specfact plan select` command already exists. Execute it to list and select plans:**
 
 ```bash
-# ALWAYS use --non-interactive to avoid prompts (shows all plans)
-specfact plan select --non-interactive
+# ALWAYS use --no-interactive to avoid prompts (shows all plans)
+specfact plan select --no-interactive
 
-# Show last N plans (based on user's preference from step 1) - ALWAYS with --non-interactive
-specfact plan select --non-interactive --last 5                    # Show last 5 plans
-specfact plan select --non-interactive --last 10                   # Show last 10 plans
+# Show last N plans (based on user's preference from step 1) - ALWAYS with --no-interactive
+specfact plan select --no-interactive --last 5                    # Show last 5 plans
+specfact plan select --no-interactive --last 10                   # Show last 10 plans
 
-# Select by number - ALWAYS with --non-interactive
-specfact plan select --non-interactive <number>
+# Select by number - ALWAYS with --no-interactive
+specfact plan select --no-interactive <number>
 
-# Select by plan name - ALWAYS with --non-interactive
-specfact plan select --non-interactive <plan_name>
+# Select by plan name - ALWAYS with --no-interactive
+specfact plan select --no-interactive <plan_name>
 
-# Filter options - ALWAYS with --non-interactive
-specfact plan select --non-interactive --current                    # Show only active plan
-specfact plan select --non-interactive --stages draft,review        # Filter by stages
-specfact plan select --non-interactive --last 5                     # Show last 5 plans by modification time
+# Filter options - ALWAYS with --no-interactive
+specfact plan select --no-interactive --current                    # Show only active plan
+specfact plan select --no-interactive --stages draft,review        # Filter by stages
+specfact plan select --no-interactive --last 5                     # Show last 5 plans by modification time
 ```
 
 **Important**:
 
-1. **ALWAYS use `--non-interactive` flag** when executing the CLI command to avoid interactive prompts
+1. **ALWAYS use `--no-interactive` flag** when executing the CLI command to avoid interactive prompts
 2. Use the `--last N` filter based on the user's response from step 1:
-   - If user said "5": Execute `specfact plan select --non-interactive --last 5`
-   - If user said "10": Execute `specfact plan select --non-interactive --last 10`
-   - If user said "all" or nothing: Execute `specfact plan select --non-interactive` (no `--last` filter)
+   - If user said "5": Execute `specfact plan select --no-interactive --last 5`
+   - If user said "10": Execute `specfact plan select --no-interactive --last 10`
+   - If user said "all" or nothing: Execute `specfact plan select --no-interactive` (no `--last` filter)
 
-**Note**: The `--non-interactive` flag prevents the CLI from waiting for user input, which is essential in Copilot environments where interactive prompts can cause timeouts.
+**Note**: The `--no-interactive` flag prevents the CLI from waiting for user input, which is essential in Copilot environments where interactive prompts can cause timeouts.
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
 **Filter Options**:
 
-- `--non-interactive`: Disable interactive prompts (for CI/CD). If multiple plans match filters, command will error. Use with `--current` or `--last 1` for single plan selection.
+- `--no-interactive`: Disable interactive prompts (for CI/CD). If multiple plans match filters, command will error. Use with `--current` or `--last 1` for single plan selection.
 - `--current`: Show only the currently active plan
 - `--stages STAGES`: Filter by stages (comma-separated: draft,review,approved,released)
 - `--last N`: Show last N plans by modification time (most recent first)
@@ -186,16 +186,16 @@ specfact plan select --non-interactive --last 5                     # Show last 
 **Important**:
 
 1. The plan is a **positional argument**, not a `--plan` option
-2. **ALWAYS use `--non-interactive` flag** to avoid interactive prompts
+2. **ALWAYS use `--no-interactive` flag** to avoid interactive prompts
 
 Use:
 
-- `specfact plan select --non-interactive 20` (select by number - ALWAYS with --non-interactive)
-- `specfact plan select --non-interactive legacy-api` (select by bundle name - ALWAYS with --non-interactive)
-- `specfact plan select --non-interactive --current` (get active bundle)
-- `specfact plan select --non-interactive --last 1` (get most recent bundle)
+- `specfact plan select --no-interactive 20` (select by number - ALWAYS with --no-interactive)
+- `specfact plan select --no-interactive legacy-api` (select by bundle name - ALWAYS with --no-interactive)
+- `specfact plan select --no-interactive --current` (get active bundle)
+- `specfact plan select --no-interactive --last 1` (get most recent bundle)
 - NOT `specfact plan select --plan 20` (this will fail)
-- NOT `specfact plan select 20` (missing --non-interactive, may cause timeout)
+- NOT `specfact plan select 20` (missing --no-interactive, may cause timeout)
 
 **Capture CLI output**:
 
@@ -282,7 +282,7 @@ Use:
 ```
 
 1. **After showing details**, ask if user wants to select the plan:
-   - If **yes**: Execute `specfact plan select --non-interactive <number>` or `specfact plan select --non-interactive <plan_name>` (use positional argument with --non-interactive, NOT `--plan` option)
+   - If **yes**: Execute `specfact plan select --no-interactive <number>` or `specfact plan select --no-interactive <plan_name>` (use positional argument with --no-interactive, NOT `--plan` option)
    - If **no**: Return to the plan list and ask for selection again
 
 ### 5. Handle User Selection
@@ -294,15 +294,15 @@ Use:
 **If user provided a number** (e.g., "20"):
 
 ```bash
-# Use the number directly as positional argument - ALWAYS with --non-interactive
-specfact plan select --non-interactive 20
+# Use the number directly as positional argument - ALWAYS with --no-interactive
+specfact plan select --no-interactive 20
 ```
 
 **If user provided a bundle name** (e.g., "legacy-api" or "main"):
 
 ```bash
-# Use the bundle name directly as positional argument - ALWAYS with --non-interactive
-specfact plan select --non-interactive legacy-api
+# Use the bundle name directly as positional argument - ALWAYS with --no-interactive
+specfact plan select --no-interactive legacy-api
 ```
 
 **If you need to resolve a number to a plan name first** (for logging/display purposes):
@@ -381,7 +381,7 @@ specfact plan select --non-interactive legacy-api
 **If user provides a number** (e.g., "1"):
 
 - Validate the number is within range
-- Execute: `specfact plan select --non-interactive <number>` (use number as positional argument, ALWAYS with --non-interactive)
+- Execute: `specfact plan select --no-interactive <number>` (use number as positional argument, ALWAYS with --no-interactive)
 - Confirm the selection
 
 **If user provides a number with "details"** (e.g., "1 details", "show 1"):
@@ -390,13 +390,13 @@ specfact plan select --non-interactive legacy-api
 - Load the plan bundle YAML file
 - Extract and display detailed information (see "Handle Plan Details Request" section)
 - Ask if user wants to select this plan
-- If yes: Execute `specfact plan select --non-interactive <number>` (use number as positional argument with --non-interactive, NOT `--plan` option)
+- If yes: Execute `specfact plan select --no-interactive <number>` (use number as positional argument with --no-interactive, NOT `--plan` option)
 - If no: Return to plan list and ask for selection again
 
 **If user provides a bundle name directly** (e.g., "legacy-api" or "main"):
 
 - Validate the plan exists in the plans list
-- Execute: `specfact plan select --non-interactive <plan_name>` (use plan name as positional argument with --non-interactive, NOT `--plan` option)
+- Execute: `specfact plan select --no-interactive <plan_name>` (use plan name as positional argument with --no-interactive, NOT `--plan` option)
 - Confirm the selection
 
 **If user provides 'q' or 'quit'**:
@@ -443,7 +443,7 @@ Create a plan with:
 
 **Step 1**: Check if a plan argument is provided in user input.
 
-- **If provided**: Execute `specfact plan select --non-interactive <plan>` directly (ALWAYS with --non-interactive, the CLI handles setting it as active)
+- **If provided**: Execute `specfact plan select --no-interactive <plan>` directly (ALWAYS with --no-interactive, the CLI handles setting it as active)
 - **If missing**: Proceed to Step 2
 
 **Step 2**: Ask user how many plans to show.
@@ -455,10 +455,10 @@ Create a plan with:
 
 **Step 3**: Execute CLI command with appropriate filter.
 
-- **ALWAYS use `--non-interactive` flag** to avoid interactive prompts
-- If user provided a number N: Execute `specfact plan select --non-interactive --last N`
-- If user said "all" or nothing: Execute `specfact plan select --non-interactive` (no filter)
-- If user explicitly requested other filters (e.g., `--current`, `--stages`): Use those filters with `--non-interactive` (e.g., `specfact plan select --non-interactive --current`)
+- **ALWAYS use `--no-interactive` flag** to avoid interactive prompts
+- If user provided a number N: Execute `specfact plan select --no-interactive --last N`
+- If user said "all" or nothing: Execute `specfact plan select --no-interactive` (no filter)
+- If user explicitly requested other filters (e.g., `--current`, `--stages`): Use those filters with `--no-interactive` (e.g., `specfact plan select --no-interactive --current`)
 
 **Step 4**: Format the CLI output as a **Markdown table** (copilot-friendly):
 
@@ -476,7 +476,7 @@ Create a plan with:
 **Step 6**: Handle user input:
 
 - **If details requested**: Read plan bundle YAML file (for display only), show detailed information, ask for confirmation
-- **If selection provided**: Execute `specfact plan select --non-interactive <number>` or `specfact plan select --non-interactive <plan_name>` (positional argument with --non-interactive, NOT `--plan` option) - the CLI handles the selection
+- **If selection provided**: Execute `specfact plan select --no-interactive <number>` or `specfact plan select --no-interactive <plan_name>` (positional argument with --no-interactive, NOT `--plan` option) - the CLI handles the selection
 - **If quit**: Exit without executing any CLI commands
 
 **Step 7**: Present results and confirm selection.

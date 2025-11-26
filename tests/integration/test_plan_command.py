@@ -1016,7 +1016,7 @@ class TestPlanHarden:
         assert add_feature_result.exit_code == 0
 
         # Now harden the plan
-        harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
         assert harden_result.exit_code == 0
         assert "SDD manifest" in harden_result.stdout.lower() or "created" in harden_result.stdout.lower()
 
@@ -1054,7 +1054,7 @@ class TestPlanHarden:
                 "plan",
                 "harden",
                 bundle_name,
-                "--non-interactive",
+                "--no-interactive",
                 "--sdd",
                 str(custom_sdd),
             ],
@@ -1079,7 +1079,7 @@ class TestPlanHarden:
                 "plan",
                 "harden",
                 bundle_name,
-                "--non-interactive",
+                "--no-interactive",
                 "--output-format",
                 "json",
             ],
@@ -1118,7 +1118,7 @@ class TestPlanHarden:
         assert project_hash_before is not None, "Project hash should be computed"
 
         # Harden the plan
-        harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
         assert harden_result.exit_code == 0
 
         # Verify SDD manifest hash matches project hash
@@ -1141,7 +1141,7 @@ class TestPlanHarden:
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
 
         # Harden the plan
-        harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
         assert harden_result.exit_code == 0
 
         # Load SDD manifest to get the hash
@@ -1187,7 +1187,7 @@ class TestPlanHarden:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Verify WHY section was extracted
         sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
@@ -1242,7 +1242,7 @@ class TestPlanHarden:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Verify WHAT section was extracted
         sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
@@ -1262,7 +1262,7 @@ class TestPlanHarden:
         monkeypatch.chdir(tmp_path)
 
         # Try to harden without creating a plan
-        harden_result = runner.invoke(app, ["plan", "harden", "nonexistent-bundle", "--non-interactive"])
+        harden_result = runner.invoke(app, ["plan", "harden", "nonexistent-bundle", "--no-interactive"])
         assert harden_result.exit_code == 1
         assert "not found" in harden_result.stdout.lower() or "No plan bundles found" in harden_result.stdout
 
@@ -1294,7 +1294,7 @@ class TestPlanReviewSddValidation:
         )
 
         # Run review
-        result = runner.invoke(app, ["plan", "review", bundle_name, "--non-interactive", "--max-questions", "1"])
+        result = runner.invoke(app, ["plan", "review", bundle_name, "--no-interactive", "--max-questions", "1"])
 
         # Review may exit with 0 or 1 depending on findings, but should check SDD
         assert (
@@ -1325,10 +1325,10 @@ class TestPlanReviewSddValidation:
                 bundle_name,
             ],
         )
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Run review
-        result = runner.invoke(app, ["plan", "review", bundle_name, "--non-interactive", "--max-questions", "1"])
+        result = runner.invoke(app, ["plan", "review", bundle_name, "--no-interactive", "--max-questions", "1"])
 
         # Review may exit with 0 or 1 depending on findings, but should check SDD
         assert "Checking SDD manifest" in result.stdout or "SDD manifest" in result.stdout
@@ -1355,7 +1355,7 @@ class TestPlanReviewSddValidation:
                 bundle_name,
             ],
         )
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the SDD manifest to create a hash mismatch (safer than modifying plan YAML)
         sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
@@ -1366,7 +1366,7 @@ class TestPlanReviewSddValidation:
         sdd_path.write_text(yaml.dump(sdd_data))
 
         # Run review
-        result = runner.invoke(app, ["plan", "review", bundle_name, "--non-interactive", "--max-questions", "1"])
+        result = runner.invoke(app, ["plan", "review", bundle_name, "--no-interactive", "--max-questions", "1"])
 
         # Review may exit with 0 or 1 depending on findings, but should check SDD
         assert "Checking SDD manifest" in result.stdout or "SDD manifest" in result.stdout
@@ -1501,7 +1501,7 @@ class TestPlanPromoteSddValidation:
                 bundle_name,
             ],
         )
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Promote to review stage
         result = runner.invoke(app, ["plan", "promote", bundle_name, "--stage", "review"])
@@ -1554,7 +1554,7 @@ class TestPlanPromoteSddValidation:
                 bundle_name,
             ],
         )
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the SDD manifest to create a hash mismatch (safer than modifying plan YAML)
         sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
@@ -1663,7 +1663,7 @@ class TestPlanPromoteSddValidation:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Promote to review stage
         result = runner.invoke(app, ["plan", "promote", bundle_name, "--stage", "review"])

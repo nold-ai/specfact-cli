@@ -125,7 +125,7 @@ A `plan normalize` command may be added in the future to convert existing plans:
 
 ```bash
 # (Future) Convert plan to sequential format
-specfact plan normalize --from main.bundle.yaml --to main-sequential.yaml --format sequential
+specfact plan normalize --from main.bundle.yaml --to main-sequential.yaml --output-format sequential
 ```
 
 ## Best Practices

@@ -92,7 +92,7 @@ version = "1.0.0"
                     "bootstrap",
                     "--repo",
                     str(tmp_path),
-                    "--output",
+                    "--out",
                     str(custom_output),
                 ],
             )

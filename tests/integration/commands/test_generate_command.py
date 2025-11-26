@@ -56,12 +56,12 @@ class TestGenerateContractsCommand:
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Harden the plan
-        result_harden = runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        result_harden = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
         assert result_harden.exit_code == 0, f"plan harden failed: {result_harden.stdout}\n{result_harden.stderr}"
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         if result.exit_code != 0:
             print(f"STDOUT: {result.stdout}")
@@ -106,7 +106,7 @@ class TestGenerateContractsCommand:
 
         # Try to generate contracts (should fail - no SDD)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         assert result.exit_code == 1
         assert "SDD manifest not found" in result.stdout or "No active plan found" in result.stdout
@@ -119,7 +119,7 @@ class TestGenerateContractsCommand:
         # Create a plan and harden it
         bundle_name = "test-bundle"
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts with explicit SDD path
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -133,7 +133,7 @@ class TestGenerateContractsCommand:
                 str(bundle_dir),
                 "--sdd",
                 str(sdd_path),
-                "--non-interactive",
+                "--no-interactive",
             ],
         )
 
@@ -146,7 +146,7 @@ class TestGenerateContractsCommand:
         # Create a plan and harden it
         bundle_name = "test-bundle"
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Find the bundle path (modular structure)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -159,7 +159,7 @@ class TestGenerateContractsCommand:
                 "contracts",
                 "--plan",
                 str(bundle_dir),
-                "--non-interactive",
+                "--no-interactive",
             ],
         )
 
@@ -172,7 +172,7 @@ class TestGenerateContractsCommand:
         # Create a plan and harden it
         bundle_name = "test-bundle"
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the project bundle hash in the SDD manifest to simulate a mismatch
         sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
@@ -187,7 +187,7 @@ class TestGenerateContractsCommand:
 
         # Try to generate contracts (should fail on hash mismatch)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         assert result.exit_code == 1
         assert "hash does not match" in result.stdout or "hash mismatch" in result.stdout.lower()
@@ -231,11 +231,11 @@ class TestGenerateContractsCommand:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         assert result.exit_code == 0
         # Should report coverage statistics
@@ -278,11 +278,11 @@ class TestGenerateContractsCommand:
         project_bundle.features["FEATURE-001"] = feature
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
         assert result.exit_code == 0
 
         # Check that Python files were created (if contracts exist in SDD)
@@ -312,11 +312,11 @@ class TestGenerateContractsCommand:
         # Create a plan and harden it
         bundle_name = "test-bundle"
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
+        runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         # Check that files include metadata
         contracts_dir = tmp_path / ".specfact" / "contracts"

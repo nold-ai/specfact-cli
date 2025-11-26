@@ -234,7 +234,7 @@ def main(
     interaction: Annotated[
         bool | None,
         typer.Option(
-            "--non-interactive/--interactive",
+            "--interactive/--no-interactive",
             help="Force interaction mode (default auto based on CI/CD detection)",
         ),
     ] = None,
@@ -255,7 +255,11 @@ def main(
     _show_banner = not no_banner
 
     runtime.configure_io_formats(input_format=input_format, output_format=output_format)
-    runtime.set_non_interactive_override(interaction)
+    # Invert logic: --interactive means not non-interactive, --no-interactive means non-interactive
+    if interaction is not None:
+        runtime.set_non_interactive_override(not interaction)
+    else:
+        runtime.set_non_interactive_override(None)
 
     # Show help if no command provided (avoids user confusion)
     if ctx.invoked_subcommand is None:

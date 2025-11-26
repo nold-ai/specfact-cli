@@ -107,20 +107,22 @@ def stage(
 @require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda sdd: sdd is None or isinstance(sdd, Path), "SDD must be None or Path")
 @require(
-    lambda format: isinstance(format, str) and format.lower() in ("yaml", "json", "markdown"),
-    "Format must be yaml, json, or markdown",
+    lambda output_format: isinstance(output_format, str) and output_format.lower() in ("yaml", "json", "markdown"),
+    "Output format must be yaml, json, or markdown",
 )
 @require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def enforce_sdd(
+    # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
         help="Path to SDD manifest (default: .specfact/sdd/<bundle-name>.<format>)",
     ),
-    format: str = typer.Option(
+    # Output/Results
+    output_format: str = typer.Option(
         "yaml",
-        "--format",
+        "--output-format",
         help="Output format (yaml, json, markdown)",
     ),
     out: Path | None = typer.Option(
@@ -128,9 +130,10 @@ def enforce_sdd(
         "--out",
         help="Output file path (default: .specfact/reports/sdd/validation-<timestamp>.<format>)",
     ),
-    non_interactive: bool = typer.Option(
+    # Behavior/Options
+    no_interactive: bool = typer.Option(
         False,
-        "--non-interactive",
+        "--no-interactive",
         help="Non-interactive mode (for CI/CD automation)",
     ),
 ) -> None:
@@ -145,7 +148,7 @@ def enforce_sdd(
 
     Example:
         specfact enforce sdd legacy-api
-        specfact enforce sdd auth-module --format json --out validation-report.json
+        specfact enforce sdd auth-module --output-format json --out validation-report.json
     """
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.utils.bundle_loader import load_project_bundle
@@ -157,8 +160,8 @@ def enforce_sdd(
     )
 
     telemetry_metadata = {
-        "format": format.lower(),
-        "non_interactive": non_interactive,
+        "output_format": output_format.lower(),
+        "no_interactive": no_interactive,
     }
 
     with telemetry.track_command("enforce.sdd", telemetry_metadata) as record:
@@ -301,19 +304,19 @@ def enforce_sdd(
                 # TODO: Implement hash-based frozen section validation in Phase 6
 
             # Generate output report
-            output_format = format.lower()
+            output_format_str = output_format.lower()
             if out is None:
                 SpecFactStructure.ensure_structure()
                 reports_dir = Path(".") / SpecFactStructure.ROOT / "reports" / "sdd"
                 reports_dir.mkdir(parents=True, exist_ok=True)
                 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-                extension = "md" if output_format == "markdown" else output_format
+                extension = "md" if output_format_str == "markdown" else output_format_str
                 out = reports_dir / f"validation-{timestamp}.{extension}"
 
             # Save report
-            if output_format == "markdown":
+            if output_format_str == "markdown":
                 _save_markdown_report(out, report, sdd_manifest, bundle, project_hash)
-            elif output_format == "json":
+            elif output_format_str == "json":
                 dump_structured_file(report.model_dump(mode="json"), out, StructuredFormat.JSON)
             else:  # yaml
                 dump_structured_file(report.model_dump(mode="json"), out, StructuredFormat.YAML)

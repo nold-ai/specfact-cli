@@ -248,7 +248,7 @@ class TestListFindingsOutput:
                 "plan",
                 "review",
                 "--list-findings",
-                "--non-interactive",
+                "--no-interactive",
                 incomplete_plan.name
                 if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
                 else str(incomplete_plan),
@@ -798,7 +798,7 @@ class TestCompleteBatchWorkflow:
                 "--list-findings",
                 "--findings-format",
                 "json",
-                "--non-interactive",
+                "--no-interactive",
                 incomplete_plan.name
                 if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
                 else str(incomplete_plan),

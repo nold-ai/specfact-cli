@@ -330,14 +330,14 @@ specfact plan review --list-questions --bundle <bundle-name> --max-questions 5
 specfact plan review --auto-enrich --list-questions --bundle <bundle-name> --max-questions 5
 ```
 
-**In CI/CD Mode**: Use `--non-interactive` flag:
+**In CI/CD Mode**: Use `--no-interactive` flag:
 
 ```bash
 # Non-interactive mode (for automation)
-specfact plan review --non-interactive --bundle <bundle-name> --answers '{"Q001": "answer1", "Q002": "answer2"}'
+specfact plan review --no-interactive --bundle <bundle-name> --answers '{"Q001": "answer1", "Q002": "answer2"}'
 
 # With auto-enrichment
-specfact plan review --auto-enrich --non-interactive --bundle <bundle-name> --answers '{"Q001": "answer1"}'
+specfact plan review --auto-enrich --no-interactive --bundle <bundle-name> --answers '{"Q001": "answer1"}'
 ```
 
 **Capture from CLI**:
