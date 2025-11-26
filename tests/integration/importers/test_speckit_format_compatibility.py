@@ -493,10 +493,10 @@ Design tasks.
             plans_dir = repo_path / ".specfact" / "plans"
             plans_dir.mkdir(parents=True)
 
-            # Run bidirectional sync
+            # Run bidirectional sync (using bridge adapter)
             result = runner.invoke(
                 app,
-                ["sync", "spec-kit", "--repo", str(repo_path), "--bidirectional"],
+                ["sync", "bridge", "--adapter", "speckit", "--repo", str(repo_path), "--bidirectional"],
             )
 
             assert result.exit_code == 0

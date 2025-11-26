@@ -17,47 +17,49 @@ class TestGenerateContractsCommand:
 
         # Create a plan with features and stories that have contracts
         # First create minimal plan
-        result_init = runner.invoke(app, ["plan", "init", "--no-interactive"])
+        bundle_name = "test-bundle"
+        result_init = runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
         assert result_init.exit_code == 0, f"plan init failed: {result_init.stdout}\n{result_init.stderr}"
 
-        # Read the plan and add a feature with contracts
-        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-        assert plan_path.exists()
-
-        import yaml
-
-        with open(plan_path) as f:
-            plan_data = yaml.safe_load(f)
-
-        # Add a feature with a story that has contracts
-        if "features" not in plan_data:
-            plan_data["features"] = []
-
-        plan_data["features"].append(
-            {
-                "key": "FEATURE-001",
-                "title": "Test Feature",
-                "outcomes": ["Test outcome"],
-                "stories": [
-                    {
-                        "key": "STORY-001",
-                        "title": "Test Story",
-                        "acceptance": ["Amount must be positive"],
-                        "contracts": {"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
-                    }
-                ],
-            }
+        # Read the plan and add a feature with contracts (modular bundle structure)
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        assert bundle_dir.exists()
+        
+        # For modular bundles, we need to load the ProjectBundle and add features
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.models.plan import Feature as PlanFeature
+        
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        
+        # Add a feature with contracts
+        feature = PlanFeature(
+            key="FEATURE-001",
+            title="Test Feature",
+            outcomes=["Test outcome"],
+            stories=[
+                {
+                    "key": "STORY-001",
+                    "title": "Test Story",
+                    "acceptance": ["Amount must be positive"],
+                    "contracts": {"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
+                }
+            ],
         )
-
-        with open(plan_path, "w") as f:
-            yaml.dump(plan_data, f)
+        project_bundle.features["FEATURE-001"] = feature
+        
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+        
+        # Keep plan_path for compatibility with rest of test
+        plan_path = bundle_dir / "bundle.manifest.yaml"
 
         # Harden the plan
-        result_harden = runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        result_harden = runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
         assert result_harden.exit_code == 0, f"plan harden failed: {result_harden.stdout}\n{result_harden.stderr}"
 
         # Generate contracts
-        result = runner.invoke(app, ["generate", "contracts", "--non-interactive"])
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
 
         if result.exit_code != 0:
             print(f"STDOUT: {result.stdout}")
@@ -80,7 +82,7 @@ class TestGenerateContractsCommand:
         # But with our test plan that has contracts, files should be generated
         if len(contract_files) == 0:
             # Check if SDD actually has contracts
-            sdd_path = tmp_path / ".specfact" / "sdd.yaml"
+            sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
             if sdd_path.exists():
                 with open(sdd_path) as f:
                     sdd_data = yaml.safe_load(f)
@@ -97,9 +99,10 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan but don't harden it
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
 
-        # Try to generate contracts (should fail)
+        # Try to generate contracts (should fail - no SDD)
         result = runner.invoke(app, ["generate", "contracts", "--non-interactive"])
 
         assert result.exit_code == 1
@@ -111,16 +114,19 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
         # Generate contracts with explicit SDD path
-        sdd_path = tmp_path / ".specfact" / "sdd.yaml"
+        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
         result = runner.invoke(
             app,
             [
                 "generate",
                 "contracts",
+                "--plan",
+                str(bundle_dir),
                 "--sdd",
                 str(sdd_path),
                 "--non-interactive",
@@ -134,20 +140,21 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
-        # Find the plan path
-        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
+        # Find the bundle path (modular structure)
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
 
-        # Generate contracts with explicit plan path
+        # Generate contracts with explicit bundle directory (using --plan)
         result = runner.invoke(
             app,
             [
                 "generate",
                 "contracts",
                 "--plan",
-                str(plan_path),
+                str(bundle_dir),
                 "--non-interactive",
             ],
         )
@@ -159,20 +166,24 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
-        # Modify the plan bundle hash in the SDD manifest to simulate a mismatch
-        sdd_path = tmp_path / ".specfact" / "sdd.yaml"
+        # Modify the project bundle hash in the SDD manifest to simulate a mismatch
+        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
         from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
 
         sdd_data = load_structured_file(sdd_path)
-        original_hash = sdd_data["plan_bundle_hash"]
-        sdd_data["plan_bundle_hash"] = "different_hash_" + "x" * (len(original_hash) - len("different_hash_"))
+        original_hash = sdd_data.get("project_hash") or sdd_data.get("plan_bundle_hash", "")
+        sdd_data["project_hash"] = "different_hash_" + "x" * (len(original_hash) - len("different_hash_"))
+        if "plan_bundle_hash" in sdd_data:
+            sdd_data["plan_bundle_hash"] = sdd_data["project_hash"]
         dump_structured_file(sdd_data, sdd_path, StructuredFormat.YAML)
 
         # Try to generate contracts (should fail on hash mismatch)
-        result = runner.invoke(app, ["generate", "contracts", "--non-interactive"])
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
 
         assert result.exit_code == 1
         assert "hash does not match" in result.stdout or "hash mismatch" in result.stdout.lower()
@@ -182,12 +193,15 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan with features and stories
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
         runner.invoke(
             app,
             [
                 "plan",
                 "add-feature",
+                "--bundle",
+                bundle_name,
                 "--key",
                 "FEATURE-001",
                 "--title",
@@ -201,6 +215,8 @@ class TestGenerateContractsCommand:
             [
                 "plan",
                 "add-story",
+                "--bundle",
+                bundle_name,
                 "--feature",
                 "FEATURE-001",
                 "--key",
@@ -211,10 +227,11 @@ class TestGenerateContractsCommand:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
         # Generate contracts
-        result = runner.invoke(app, ["generate", "contracts", "--non-interactive"])
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
 
         assert result.exit_code == 0
         # Should report coverage statistics
@@ -225,43 +242,38 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan with features and stories that have contracts
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
 
-        # Read the plan and add a feature with contracts
-        plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-        if plan_path.exists():
-            import yaml
+        # Add a feature with contracts (modular bundle structure)
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+        from specfact_cli.models.plan import Feature as PlanFeature
 
-            with open(plan_path) as f:
-                plan_data = yaml.safe_load(f)
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            # Add a feature with a story that has contracts
-            if "features" not in plan_data:
-                plan_data["features"] = []
-
-            plan_data["features"].append(
+        # Add a feature with a story that has contracts
+        feature = PlanFeature(
+            key="FEATURE-001",
+            title="Test Feature",
+            outcomes=["Test outcome"],
+            stories=[
                 {
-                    "key": "FEATURE-001",
-                    "title": "Test Feature",
-                    "outcomes": ["Test outcome"],
-                    "stories": [
-                        {
-                            "key": "STORY-001",
-                            "title": "Test Story",
-                            "acceptance": ["Amount must be positive"],
-                            "contracts": {"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
-                        }
-                    ],
+                    "key": "STORY-001",
+                    "title": "Test Story",
+                    "acceptance": ["Amount must be positive"],
+                    "contracts": {"preconditions": ["amount > 0"], "postconditions": ["result > 0"]},
                 }
-            )
+            ],
+        )
+        project_bundle.features["FEATURE-001"] = feature
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-            with open(plan_path, "w") as f:
-                yaml.dump(plan_data, f)
-
-        runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
         # Generate contracts
-        result = runner.invoke(app, ["generate", "contracts", "--non-interactive"])
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
         assert result.exit_code == 0
 
         # Check that Python files were created (if contracts exist in SDD)
@@ -289,11 +301,12 @@ class TestGenerateContractsCommand:
         monkeypatch.chdir(tmp_path)
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", "--non-interactive"])
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
 
         # Generate contracts
-        runner.invoke(app, ["generate", "contracts", "--non-interactive"])
+        runner.invoke(app, ["generate", "contracts", "--bundle", bundle_name, "--non-interactive"])
 
         # Check that files include metadata
         contracts_dir = tmp_path / ".specfact" / "contracts"
