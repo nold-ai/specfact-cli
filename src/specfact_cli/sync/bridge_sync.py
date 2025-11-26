@@ -157,6 +157,12 @@ class BridgeSync:
                 errors.append(f"Artifact not found: {artifact_path}")
                 return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
 
+            # Conflict detection: warn that bundle will be updated
+            warnings.append(
+                f"Importing {artifact_key} from {artifact_path}. "
+                "This will update the project bundle. Existing bundle content may be modified."
+            )
+
             # Load project bundle
             from specfact_cli.utils.structure import SpecFactStructure
 
@@ -301,6 +307,13 @@ class BridgeSync:
 
             # Resolve artifact path
             artifact_path = self.resolve_artifact_path(artifact_key, feature_id, bundle_name)
+
+            # Conflict detection: warn if file exists (will be overwritten)
+            if artifact_path.exists():
+                warnings.append(
+                    f"Target file already exists: {artifact_path}. "
+                    "Will overwrite with bundle content. Use --overwrite flag to suppress this warning."
+                )
 
             # Ensure parent directory exists
             artifact_path.parent.mkdir(parents=True, exist_ok=True)

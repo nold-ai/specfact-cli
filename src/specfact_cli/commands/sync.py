@@ -213,7 +213,7 @@ def _perform_sync_operation(
             merged_bundle: PlanBundle | None = None
             features_updated = 0
             features_added = 0
-            
+
             if len(features) == 0:
                 task = progress.add_task(f"[cyan]📝[/cyan] Converting {adapter_type.value} → SpecFact...", total=None)
                 progress.update(

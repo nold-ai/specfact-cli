@@ -201,3 +201,141 @@ class BridgeConfig(BaseModel):
 
         return self.templates.resolve_template_path(schema_key, base_path)
 
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_speckit_classic(cls) -> BridgeConfig:
+        """
+        Create Spec-Kit classic layout bridge preset.
+
+        Returns:
+            BridgeConfig for Spec-Kit classic layout (specs/ at root)
+        """
+        artifacts = {
+            "specification": ArtifactMapping(
+                path_pattern="specs/{feature_id}/spec.md",
+                format="markdown",
+            ),
+            "plan": ArtifactMapping(
+                path_pattern="specs/{feature_id}/plan.md",
+                format="markdown",
+            ),
+            "tasks": ArtifactMapping(
+                path_pattern="specs/{feature_id}/tasks.md",
+                format="markdown",
+                sync_target="github_issues",
+            ),
+            "contracts": ArtifactMapping(
+                path_pattern="specs/{feature_id}/contracts/{contract_name}.yaml",
+                format="yaml",
+            ),
+        }
+
+        commands = {
+            "analyze": CommandMapping(
+                trigger="/speckit.specify",
+                input_ref="specification",
+            ),
+            "plan": CommandMapping(
+                trigger="/speckit.plan",
+                input_ref="specification",
+                output_ref="plan",
+            ),
+        }
+
+        templates = TemplateMapping(
+            root_dir=".specify/prompts",
+            mapping={
+                "specification": "specify.md",
+                "plan": "plan.md",
+                "tasks": "tasks.md",
+            },
+        )
+
+        return cls(
+            adapter=AdapterType.SPECKIT,
+            artifacts=artifacts,
+            commands=commands,
+            templates=templates,
+        )
+
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_speckit_modern(cls) -> BridgeConfig:
+        """
+        Create Spec-Kit modern layout bridge preset.
+
+        Returns:
+            BridgeConfig for Spec-Kit modern layout (docs/specs/)
+        """
+        artifacts = {
+            "specification": ArtifactMapping(
+                path_pattern="docs/specs/{feature_id}/spec.md",
+                format="markdown",
+            ),
+            "plan": ArtifactMapping(
+                path_pattern="docs/specs/{feature_id}/plan.md",
+                format="markdown",
+            ),
+            "tasks": ArtifactMapping(
+                path_pattern="docs/specs/{feature_id}/tasks.md",
+                format="markdown",
+                sync_target="github_issues",
+            ),
+            "contracts": ArtifactMapping(
+                path_pattern="docs/specs/{feature_id}/contracts/{contract_name}.yaml",
+                format="yaml",
+            ),
+        }
+
+        commands = {
+            "analyze": CommandMapping(
+                trigger="/speckit.specify",
+                input_ref="specification",
+            ),
+            "plan": CommandMapping(
+                trigger="/speckit.plan",
+                input_ref="specification",
+                output_ref="plan",
+            ),
+        }
+
+        templates = TemplateMapping(
+            root_dir=".specify/prompts",
+            mapping={
+                "specification": "specify.md",
+                "plan": "plan.md",
+                "tasks": "tasks.md",
+            },
+        )
+
+        return cls(
+            adapter=AdapterType.SPECKIT,
+            artifacts=artifacts,
+            commands=commands,
+            templates=templates,
+        )
+
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_generic_markdown(cls) -> BridgeConfig:
+        """
+        Create generic markdown bridge preset.
+
+        Returns:
+            BridgeConfig for generic markdown (minimal configuration)
+        """
+        artifacts = {
+            "specification": ArtifactMapping(
+                path_pattern="specs/{feature_id}/spec.md",
+                format="markdown",
+            ),
+        }
+
+        return cls(
+            adapter=AdapterType.GENERIC_MARKDOWN,
+            artifacts=artifacts,
+        )
+

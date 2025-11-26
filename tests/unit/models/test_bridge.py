@@ -316,3 +316,55 @@ class TestAdapterType:
         assert AdapterType.JIRA == "jira"
         assert AdapterType.NOTION == "notion"
 
+
+class TestBridgeConfigPresets:
+    """Test BridgeConfig preset methods."""
+
+    def test_preset_speckit_classic(self):
+        """Test Spec-Kit classic preset."""
+        config = BridgeConfig.preset_speckit_classic()
+        assert config.adapter == AdapterType.SPECKIT
+        assert "specification" in config.artifacts
+        assert config.artifacts["specification"].path_pattern == "specs/{feature_id}/spec.md"
+        assert "plan" in config.artifacts
+        assert "tasks" in config.artifacts
+        assert "contracts" in config.artifacts
+        assert len(config.commands) == 2
+        assert config.templates is not None
+        assert config.templates.root_dir == ".specify/prompts"
+
+    def test_preset_speckit_modern(self):
+        """Test Spec-Kit modern preset."""
+        config = BridgeConfig.preset_speckit_modern()
+        assert config.adapter == AdapterType.SPECKIT
+        assert "specification" in config.artifacts
+        assert config.artifacts["specification"].path_pattern == "docs/specs/{feature_id}/spec.md"
+        assert "plan" in config.artifacts
+        assert "tasks" in config.artifacts
+        assert "contracts" in config.artifacts
+        assert len(config.commands) == 2
+        assert config.templates is not None
+
+    def test_preset_generic_markdown(self):
+        """Test generic markdown preset."""
+        config = BridgeConfig.preset_generic_markdown()
+        assert config.adapter == AdapterType.GENERIC_MARKDOWN
+        assert "specification" in config.artifacts
+        assert config.artifacts["specification"].path_pattern == "specs/{feature_id}/spec.md"
+        assert len(config.commands) == 0
+        assert config.templates is None
+
+    def test_preset_speckit_classic_resolve_path(self, tmp_path):
+        """Test that preset paths can be resolved."""
+        config = BridgeConfig.preset_speckit_classic()
+        context = {"feature_id": "001-auth"}
+        resolved = config.resolve_path("specification", context, base_path=tmp_path)
+        assert resolved == tmp_path / "specs" / "001-auth" / "spec.md"
+
+    def test_preset_speckit_modern_resolve_path(self, tmp_path):
+        """Test that modern preset paths can be resolved."""
+        config = BridgeConfig.preset_speckit_modern()
+        context = {"feature_id": "001-auth"}
+        resolved = config.resolve_path("specification", context, base_path=tmp_path)
+        assert resolved == tmp_path / "docs" / "specs" / "001-auth" / "spec.md"
+

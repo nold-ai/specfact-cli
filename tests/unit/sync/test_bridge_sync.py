@@ -147,6 +147,55 @@ class TestBridgeSync:
         artifact_path = tmp_path / "specs" / "001-auth" / "spec.md"
         assert artifact_path.exists()
 
+    def test_export_artifact_conflict_detection(self, tmp_path):
+        """Test conflict detection warning when target file exists."""
+        bridge_config = BridgeConfig(
+            adapter=AdapterType.SPECKIT,
+            artifacts={
+                "specification": ArtifactMapping(
+                    path_pattern="specs/{feature_id}/spec.md",
+                    format="markdown",
+                ),
+            },
+        )
+
+        # Create project bundle
+        from specfact_cli.models.project import BundleManifest, BundleVersions, Product
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = tmp_path / SpecFactStructure.PROJECTS / "test-bundle"
+        bundle_dir.mkdir(parents=True)
+
+        manifest = BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
+        product = Product(themes=[], releases=[])
+        project_bundle = ProjectBundle(
+            manifest=manifest,
+            bundle_name="test-bundle",
+            product=product,
+            features={},
+        )
+
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+        # Create existing target file (simulates conflict)
+        artifact_path = tmp_path / "specs" / "001-auth" / "spec.md"
+        artifact_path.parent.mkdir(parents=True)
+        artifact_path.write_text("# Existing spec\n", encoding="utf-8")
+
+        sync = BridgeSync(tmp_path, bridge_config=bridge_config)
+        result = sync.export_artifact("specification", "001-auth", "test-bundle")
+
+        # Should succeed but with warning
+        assert result.success is True
+        assert len(result.warnings) > 0
+        assert any("already exists" in warning.lower() for warning in result.warnings)
+
     def test_export_artifact_with_feature(self, tmp_path):
         """Test exporting artifact with feature in bundle."""
         bridge_config = BridgeConfig(
