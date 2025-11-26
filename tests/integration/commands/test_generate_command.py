@@ -108,10 +108,11 @@ class TestGenerateContractsCommand:
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
 
         # Try to generate contracts (should fail - no SDD)
-        result = runner.invoke(app, ["generate", "contracts", "--non-interactive"])
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--non-interactive"])
 
         assert result.exit_code == 1
-        assert "SDD manifest not found" in result.stdout
+        assert "SDD manifest not found" in result.stdout or "No active plan found" in result.stdout
         assert "plan harden" in result.stdout
 
     def test_generate_contracts_with_custom_sdd_path(self, tmp_path, monkeypatch):

@@ -1948,6 +1948,13 @@ class TestBrownfieldAnalysisWorkflow:
 
             print("🚀 Running: specfact import from-code (scoped to analyzers)")
             bundle_name = "specfact-auto"
+            
+            # Remove existing bundle if it exists (from previous test runs)
+            bundle_dir = Path(".") / ".specfact" / "projects" / bundle_name
+            if bundle_dir.exists():
+                import shutil
+                shutil.rmtree(bundle_dir)
+            
             result = runner.invoke(
                 app,
                 [

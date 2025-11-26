@@ -305,6 +305,9 @@ class TestBatchFeatureUpdates:
         ]
         updates_file.write_text(json.dumps(updates, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
@@ -312,7 +315,8 @@ class TestBatchFeatureUpdates:
                 "update-feature",
                 "--batch-updates",
                 str(updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -375,6 +379,9 @@ class TestBatchFeatureUpdates:
         original_feature_1 = next((f for f in original_bundle.features if f.key == "FEATURE-001"), None)
         original_feature_2 = next((f for f in original_bundle.features if f.key == "FEATURE-002"), None)
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
@@ -382,7 +389,8 @@ class TestBatchFeatureUpdates:
                 "update-feature",
                 "--batch-updates",
                 str(updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -433,6 +441,9 @@ class TestBatchStoryUpdates:
         ]
         updates_file.write_text(json.dumps(updates, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
@@ -440,7 +451,8 @@ class TestBatchStoryUpdates:
                 "update-story",
                 "--batch-updates",
                 str(updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -524,6 +536,9 @@ class TestBatchStoryUpdates:
         ]
         updates_file.write_text(json.dumps(updates, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
@@ -531,7 +546,8 @@ class TestBatchStoryUpdates:
                 "update-story",
                 "--batch-updates",
                 str(updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -587,6 +603,9 @@ class TestInteractiveSelectiveUpdates:
                 False,  # Update confidence?
             ]
 
+            # Get bundle name from directory path
+            bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+            
             result = runner.invoke(
                 app,
                 [
@@ -594,8 +613,8 @@ class TestInteractiveSelectiveUpdates:
                     "update-feature",
                     "--key",
                     "FEATURE-001",
-                    "--plan",
-                    str(incomplete_plan),
+                    "--bundle",
+                    bundle_name,
                 ],
             )
 
@@ -623,6 +642,9 @@ class TestInteractiveSelectiveUpdates:
                 False,  # Update confidence?
             ]
 
+            # Get bundle name from directory path
+            bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+            
             result = runner.invoke(
                 app,
                 [
@@ -632,8 +654,8 @@ class TestInteractiveSelectiveUpdates:
                     "FEATURE-001",
                     "--key",
                     "STORY-001",
-                    "--plan",
-                    str(incomplete_plan),
+                    "--bundle",
+                    bundle_name,
                 ],
             )
 
@@ -692,6 +714,9 @@ class TestCompleteBatchWorkflow:
         ]
         updates_file.write_text(json.dumps(updates, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         # Step 3: Apply batch updates
         update_result = runner.invoke(
             app,
@@ -700,7 +725,8 @@ class TestCompleteBatchWorkflow:
                 "update-feature",
                 "--batch-updates",
                 str(updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -766,6 +792,9 @@ class TestCompleteBatchWorkflow:
         ]
         llm_updates_file.write_text(json.dumps(llm_updates, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         # Step 3: Apply feature updates
         feature_update_result = runner.invoke(
             app,
@@ -774,7 +803,8 @@ class TestCompleteBatchWorkflow:
                 "update-feature",
                 "--batch-updates",
                 str(llm_updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -792,7 +822,8 @@ class TestCompleteBatchWorkflow:
                 "update-story",
                 "--batch-updates",
                 str(story_updates_file),
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                "--bundle",
+                bundle_name,
             ],
         )
 

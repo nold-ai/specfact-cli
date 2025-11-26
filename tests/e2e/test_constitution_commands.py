@@ -480,8 +480,6 @@ class TestConstitutionIntegrationE2E:
                     bundle_name,
                     "--repo",
                     str(tmp_path),
-                    "--name",
-                    "test-project",
                 ],
                 input="n\n",  # Decline bootstrap
             )

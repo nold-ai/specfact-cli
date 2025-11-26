@@ -303,7 +303,7 @@ def _perform_sync_operation(
                     from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
                     from specfact_cli.utils.bundle_loader import load_project_bundle
 
-                    bundle_dir = SpecFactStructure.project_dir(repo) / bundle
+                    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
                     if bundle_dir.exists():
                         project_bundle = load_project_bundle(bundle_dir)
                         plan_bundle_to_convert = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -730,7 +730,7 @@ def sync_bridge(
             if bundle:
                 from specfact_cli.utils.bundle_loader import load_project_bundle
 
-                bundle_dir = SpecFactStructure.project_dir(repo) / bundle
+                bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
                 if bundle_dir.exists():
                     project_bundle = load_project_bundle(bundle_dir)
                     # Convert to PlanBundle for validation (legacy compatibility)

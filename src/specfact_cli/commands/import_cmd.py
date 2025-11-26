@@ -294,9 +294,18 @@ def from_bridge(
             report.write_text(report_content, encoding="utf-8")
             console.print(f"[dim]Report written to: {report}[/dim]")
 
+        # Save plan bundle as ProjectBundle (modular structure)
+        if plan_bundle:
+            bundle_name = "main"  # Default bundle name for bridge imports
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
+            SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            console.print(f"[dim]Project bundle: .specfact/projects/{bundle_name}/[/dim]")
+
         console.print("[bold green]✓[/bold green] Import complete!")
         console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")
-        console.print("[dim]Plan: .specfact/plans/main bundle (format based on settings)[/dim]")
+        console.print("[dim]Plan: .specfact/projects/<bundle-name>/ (modular bundle)[/dim]")
         console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
         console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
 
@@ -399,9 +408,11 @@ def from_code(
 
     # Get project bundle directory
     bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
-    if bundle_dir.exists():
+    # Allow existing bundle if enrichment is provided (enrichment workflow updates existing bundle)
+    if bundle_dir.exists() and not enrichment:
         console.print(f"[bold red]✗[/bold red] Project bundle already exists: {bundle_dir}")
         console.print("[dim]Use a different bundle name or remove the existing bundle[/dim]")
+        console.print("[dim]Or use --enrichment to update existing bundle with enrichment report[/dim]")
         raise typer.Exit(1)
 
     # Ensure project structure exists

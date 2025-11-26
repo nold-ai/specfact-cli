@@ -96,18 +96,29 @@ class TestPlanReviewNonInteractive:
         """Test --list-questions outputs valid JSON."""
         monkeypatch.chdir(workspace)
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
                 "plan",
                 "review",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                bundle_name,
                 "--list-questions",
                 "--max-questions",
                 "5",
             ],
         )
 
+        if result.exit_code != 0:
+            print(f"Command failed with exit code {result.exit_code}")
+            print(f"stdout: {result.stdout}")
+            # Check if bundle was found
+            if "not found" in result.stdout or "Bundle" in result.stdout:
+                print(f"Bundle name used: {bundle_name}")
+                print(f"Bundle directory exists: {incomplete_plan.exists()}")
+        
         assert result.exit_code == 0
 
         # Parse JSON output
@@ -218,14 +229,15 @@ class TestPlanReviewNonInteractive:
         }
         answers_file.write_text(json.dumps(answers, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
                 "plan",
                 "review",
-                "--plan",
-                "--bundle",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                bundle_name,
                 "--answers",
                 str(answers_file),
                 "--max-questions",
@@ -254,14 +266,15 @@ class TestPlanReviewNonInteractive:
         # Try with JSON string (may fail due to Rich markup parsing)
         answers_json = json.dumps({"Q001": "Test answer from JSON string"})
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         result = runner.invoke(
             app,
             [
                 "plan",
                 "review",
-                "--plan",
-                "--bundle",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                bundle_name,
                 "--answers",
                 answers_json,
                 "--max-questions",
@@ -277,15 +290,16 @@ class TestPlanReviewNonInteractive:
         """Test --non-interactive flag behavior."""
         monkeypatch.chdir(workspace)
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         # Without --answers, should skip questions
         result = runner.invoke(
             app,
             [
                 "plan",
                 "review",
-                "--plan",
-                "--bundle",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                bundle_name,
                 "--non-interactive",
                 "--max-questions",
                 "5",
@@ -340,15 +354,16 @@ class TestPlanReviewNonInteractive:
         answers_file = workspace / "integration_answers.json"
         answers_file.write_text(json.dumps(answers, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         # Apply answers
         apply_result = runner.invoke(
             app,
             [
                 "plan",
                 "review",
-                "--plan",
-                "--bundle",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                bundle_name,
                 "--answers",
                 str(answers_file),
                 "--max-questions",
@@ -430,14 +445,15 @@ class TestPlanReviewNonInteractive:
         answers_file = workspace / "copilot_answers.json"
         answers_file.write_text(json.dumps(answers, indent=2))
 
+        # Get bundle name from directory path
+        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
+        
         feed_result = runner.invoke(
             app,
             [
                 "plan",
                 "review",
-                "--plan",
-                "--bundle",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                bundle_name,
                 "--answers",
                 str(answers_file),
                 "--max-questions",
