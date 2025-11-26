@@ -9,6 +9,7 @@ support dual versioning (schema + project).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
@@ -149,12 +150,15 @@ class ProjectBundle(BaseModel):
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
     @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
     @ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
-    def load_from_directory(cls, bundle_dir: Path) -> ProjectBundle:
+    def load_from_directory(
+        cls, bundle_dir: Path, progress_callback: Callable[[int, int, str], None] | None = None
+    ) -> ProjectBundle:
         """
         Load project bundle from directory structure.
 
         Args:
             bundle_dir: Path to project bundle directory (e.g., .specfact/projects/legacy-api/)
+            progress_callback: Optional callback function(current: int, total: int, artifact: str) for progress updates
 
         Returns:
             ProjectBundle instance loaded from directory
@@ -169,43 +173,73 @@ class ProjectBundle(BaseModel):
         if not manifest_path.exists():
             raise FileNotFoundError(f"Bundle manifest not found: {manifest_path}")
 
+        # Count total artifacts to load for progress tracking
+        features_dir = bundle_dir / "features"
+        num_features = len(list(features_dir.glob("*.yaml")) if features_dir.exists() else [])
+        # Base artifacts: manifest, product (required), idea, business, clarifications (optional)
+        total_artifacts = (
+            2
+            + (1 if (bundle_dir / "idea.yaml").exists() else 0)
+            + (1 if (bundle_dir / "business.yaml").exists() else 0)
+            + (1 if (bundle_dir / "clarifications.yaml").exists() else 0)
+            + num_features
+        )
+
+        current = 0
+
         # Load manifest
+        if progress_callback:
+            progress_callback(current + 1, total_artifacts, "bundle.manifest.yaml")
         manifest_data = load_structured_file(manifest_path)
         manifest = BundleManifest.model_validate(manifest_data)
+        current += 1
 
         # Load aspects
         idea = None
         idea_path = bundle_dir / "idea.yaml"
         if idea_path.exists():
+            if progress_callback:
+                progress_callback(current + 1, total_artifacts, "idea.yaml")
             idea_data = load_structured_file(idea_path)
             idea = Idea.model_validate(idea_data)
+            current += 1
 
         business = None
         business_path = bundle_dir / "business.yaml"
         if business_path.exists():
+            if progress_callback:
+                progress_callback(current + 1, total_artifacts, "business.yaml")
             business_data = load_structured_file(business_path)
             business = Business.model_validate(business_data)
+            current += 1
 
         product_path = bundle_dir / "product.yaml"
         if not product_path.exists():
             raise FileNotFoundError(f"Product file not found: {product_path}")
+        if progress_callback:
+            progress_callback(current + 1, total_artifacts, "product.yaml")
         product_data = load_structured_file(product_path)
         product = Product.model_validate(product_data)
+        current += 1
 
         clarifications = None
         clarifications_path = bundle_dir / "clarifications.yaml"
         if clarifications_path.exists():
+            if progress_callback:
+                progress_callback(current + 1, total_artifacts, "clarifications.yaml")
             clarifications_data = load_structured_file(clarifications_path)
             clarifications = Clarifications.model_validate(clarifications_data)
+            current += 1
 
         # Load features (lazy loading - only load from index initially)
         features: dict[str, Feature] = {}
-        features_dir = bundle_dir / "features"
         if features_dir.exists():
             # Load features from index in manifest
-            for feature_index in manifest.features:
+            for idx, feature_index in enumerate(manifest.features, start=1):
                 feature_path = features_dir / feature_index.file
                 if feature_path.exists():
+                    if progress_callback:
+                        progress_callback(current + idx, total_artifacts, f"features/{feature_index.file}")
                     feature_data = load_structured_file(feature_path)
                     feature = Feature.model_validate(feature_data)
                     features[feature_index.key] = feature
@@ -225,12 +259,15 @@ class ProjectBundle(BaseModel):
     @beartype
     @require(lambda self, bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
     @ensure(lambda result: result is None, "Must return None")
-    def save_to_directory(self, bundle_dir: Path) -> None:
+    def save_to_directory(
+        self, bundle_dir: Path, progress_callback: Callable[[int, int, str], None] | None = None
+    ) -> None:
         """
         Save project bundle to directory structure.
 
         Args:
             bundle_dir: Path to project bundle directory (e.g., .specfact/projects/legacy-api/)
+            progress_callback: Optional callback function(current: int, total: int, artifact: str) for progress updates
 
         Raises:
             ValueError: If bundle structure is invalid
@@ -241,6 +278,18 @@ class ProjectBundle(BaseModel):
         # Ensure directory exists
         bundle_dir.mkdir(parents=True, exist_ok=True)
 
+        # Count total artifacts to save for progress tracking
+        num_features = len(self.features)
+        total_artifacts = (
+            1  # manifest (always saved last)
+            + (1 if self.idea else 0)
+            + (1 if self.business else 0)
+            + 1  # product (always saved)
+            + (1 if self.clarifications else 0)
+            + num_features
+        )
+        current = 0
+
         # Update manifest bundle metadata
         now = datetime.now(UTC).isoformat()
         if "created_at" not in self.manifest.bundle:
@@ -250,24 +299,36 @@ class ProjectBundle(BaseModel):
 
         # Save aspects
         if self.idea:
+            if progress_callback:
+                progress_callback(current + 1, total_artifacts, "idea.yaml")
             idea_path = bundle_dir / "idea.yaml"
             dump_structured_file(self.idea.model_dump(), idea_path)
             # Update checksum
             self.manifest.checksums.files["idea.yaml"] = self._compute_file_checksum(idea_path)
+            current += 1
 
         if self.business:
+            if progress_callback:
+                progress_callback(current + 1, total_artifacts, "business.yaml")
             business_path = bundle_dir / "business.yaml"
             dump_structured_file(self.business.model_dump(), business_path)
             self.manifest.checksums.files["business.yaml"] = self._compute_file_checksum(business_path)
+            current += 1
 
+        if progress_callback:
+            progress_callback(current + 1, total_artifacts, "product.yaml")
         product_path = bundle_dir / "product.yaml"
         dump_structured_file(self.product.model_dump(), product_path)
         self.manifest.checksums.files["product.yaml"] = self._compute_file_checksum(product_path)
+        current += 1
 
         if self.clarifications:
+            if progress_callback:
+                progress_callback(current + 1, total_artifacts, "clarifications.yaml")
             clarifications_path = bundle_dir / "clarifications.yaml"
             dump_structured_file(self.clarifications.model_dump(), clarifications_path)
             self.manifest.checksums.files["clarifications.yaml"] = self._compute_file_checksum(clarifications_path)
+            current += 1
 
         # Save features
         features_dir = bundle_dir / "features"
@@ -275,9 +336,12 @@ class ProjectBundle(BaseModel):
 
         # Update feature index in manifest
         feature_indices: list[FeatureIndex] = []
-        for key, feature in self.features.items():
+        for idx, (key, feature) in enumerate(self.features.items(), start=1):
             feature_file = f"{key}.yaml"
             feature_path = features_dir / feature_file
+
+            if progress_callback:
+                progress_callback(current + idx, total_artifacts, f"features/{feature_file}")
 
             dump_structured_file(feature.model_dump(), feature_path)
             checksum = self._compute_file_checksum(feature_path)
@@ -302,6 +366,8 @@ class ProjectBundle(BaseModel):
         self.manifest.features = feature_indices
 
         # Save manifest (last, after all checksums are computed)
+        if progress_callback:
+            progress_callback(total_artifacts, total_artifacts, "bundle.manifest.yaml")
         manifest_path = bundle_dir / "bundle.manifest.yaml"
         dump_structured_file(self.manifest.model_dump(), manifest_path)
 

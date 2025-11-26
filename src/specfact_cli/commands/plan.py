@@ -17,6 +17,7 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from specfact_cli import runtime
@@ -49,6 +50,56 @@ from specfact_cli.validators.schema import validate_plan_bundle
 
 app = typer.Typer(help="Manage development plans, features, and stories")
 console = Console()
+
+
+def _load_bundle_with_progress(bundle_dir: Path, validate_hashes: bool = False) -> ProjectBundle:
+    """
+    Load project bundle with progress indicator.
+
+    Args:
+        bundle_dir: Path to bundle directory
+        validate_hashes: Whether to validate file checksums
+
+    Returns:
+        Loaded ProjectBundle instance
+    """
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Loading project bundle...", total=None)
+
+        def progress_callback(current: int, total: int, artifact: str) -> None:
+            progress.update(task, description=f"Loading artifact {current}/{total}: {artifact}")
+
+        bundle = load_project_bundle(bundle_dir, validate_hashes=validate_hashes, progress_callback=progress_callback)
+        progress.update(task, description="✓ Bundle loaded")
+
+    return bundle
+
+
+def _save_bundle_with_progress(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = True) -> None:
+    """
+    Save project bundle with progress indicator.
+
+    Args:
+        bundle: ProjectBundle instance to save
+        bundle_dir: Path to bundle directory
+        atomic: Whether to use atomic writes
+    """
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Saving project bundle...", total=None)
+
+        def progress_callback(current: int, total: int, artifact: str) -> None:
+            progress.update(task, description=f"Saving artifact {current}/{total}: {artifact}")
+
+        save_project_bundle(bundle, bundle_dir, atomic=atomic, progress_callback=progress_callback)
+        progress.update(task, description="✓ Bundle saved")
 
 
 @app.command("init")
@@ -118,7 +169,7 @@ def init(
             project_bundle = _build_bundle_interactively(bundle)
 
             # Save bundle
-            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
 
             # Record bundle statistics
             record(
@@ -158,7 +209,7 @@ def _create_minimal_bundle(bundle_name: str, bundle_dir: Path) -> None:
         clarifications=None,
     )
 
-    save_project_bundle(bundle, bundle_dir, atomic=True)
+    _save_bundle_with_progress(bundle, bundle_dir, atomic=True)
     print_success(f"Minimal project bundle created: {bundle_dir}")
 
 
@@ -381,7 +432,6 @@ def add_feature(
     Example:
         specfact plan add-feature --key FEATURE-001 --title "User Auth" --outcomes "Secure login" --acceptance "Login works" --bundle legacy-api
     """
-    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
     telemetry_metadata = {
         "feature_key": key,
@@ -416,8 +466,7 @@ def add_feature(
 
         try:
             # Load existing project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -449,7 +498,7 @@ def add_feature(
 
             # Convert back to ProjectBundle and save
             updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
-            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+            _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
@@ -505,7 +554,6 @@ def add_story(
     Example:
         specfact plan add-story --feature FEATURE-001 --key STORY-001 --title "Login API" --acceptance "API works" --story-points 5 --bundle legacy-api
     """
-    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
     telemetry_metadata = {
         "feature_key": feature,
@@ -541,8 +589,7 @@ def add_story(
 
         try:
             # Load existing project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -588,7 +635,7 @@ def add_story(
 
             # Convert back to ProjectBundle and save
             updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
-            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+            _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
@@ -641,7 +688,6 @@ def update_idea(
         specfact plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt" --bundle legacy-api
         specfact plan update-idea --constraints "Python 3.11+, Maintain backward compatibility" --bundle legacy-api
     """
-    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
     telemetry_metadata = {}
 
@@ -674,8 +720,7 @@ def update_idea(
 
         try:
             # Load existing project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -730,7 +775,7 @@ def update_idea(
 
             # Convert back to ProjectBundle and save
             updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
-            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+            _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
@@ -811,7 +856,6 @@ def update_feature(
         # Batch updates from file
         specfact plan update-feature --batch-updates updates.json --bundle legacy-api
     """
-    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import load_structured_file
 
@@ -856,8 +900,7 @@ def update_feature(
 
         try:
             # Load existing project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility
             existing_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -968,9 +1011,8 @@ def update_feature(
 
                 # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-                print_info(f"Saving bundle: {bundle_dir}")
                 updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
-                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+                _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1054,9 +1096,8 @@ def update_feature(
 
                 # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-                print_info(f"Saving bundle: {bundle_dir}")
                 updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
-                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+                _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1138,7 +1179,6 @@ def update_story(
         # Batch updates from file
         specfact plan update-story --batch-updates updates.json --bundle legacy-api
     """
-    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import load_structured_file
 
@@ -1183,8 +1223,7 @@ def update_story(
 
         try:
             # Load existing project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility
             existing_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -1319,9 +1358,8 @@ def update_story(
 
                 # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-                print_info(f"Saving bundle: {bundle_dir}")
                 updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
-                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+                _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1414,9 +1452,8 @@ def update_story(
 
                 # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-                print_info(f"Saving bundle: {bundle_dir}")
                 updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
-                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
+                _save_bundle_with_progress(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -2159,13 +2196,22 @@ def upgrade(
     plans_to_upgrade: list[Path] = []
 
     if all_plans:
-        # Get all plan bundles
-        plans = SpecFactStructure.list_plans()
+        # Get all monolithic plan bundles from .specfact/plans/
         plans_dir = Path(".specfact/plans")
-        for plan_info in plans:
-            plan_path = plans_dir / str(plan_info["name"])
-            if plan_path.exists():
-                plans_to_upgrade.append(plan_path)
+        if plans_dir.exists():
+            for plan_file in plans_dir.glob("*.bundle.*"):
+                if any(str(plan_file).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES):
+                    plans_to_upgrade.append(plan_file)
+
+        # Also get modular project bundles (though they're already in new format, they might need schema updates)
+        projects = SpecFactStructure.list_plans()
+        projects_dir = Path(".specfact/projects")
+        for project_info in projects:
+            bundle_dir = projects_dir / str(project_info["name"])
+            manifest_path = bundle_dir / "bundle.manifest.yaml"
+            if manifest_path.exists():
+                # For modular bundles, we upgrade the manifest file
+                plans_to_upgrade.append(manifest_path)
     elif plan:
         # Use specified plan
         if not plan.exists():
@@ -2411,8 +2457,7 @@ def promote(
 
         try:
             # Load project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility with validation functions
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -2652,10 +2697,9 @@ def promote(
             )
 
             # Save updated project bundle
-            print_info("Saving project bundle with updated promotion status...")
             # TODO: Update ProjectBundle manifest with promotion status
             # For now, just save the bundle (promotion status will be added in a future update)
-            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
@@ -2792,10 +2836,10 @@ def _handle_auto_enrichment(bundle: PlanBundle, bundle_dir: Path, auto_enrich: b
         # Convert back to ProjectBundle and save
 
         # Reload to get current state
-        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
         # Update features from enriched bundle
         project_bundle.features = {f.key: f for f in bundle.features}
-        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+        _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
         print_success(
             f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
             f"{enrichment_summary['stories_updated']} stories updated"
@@ -3302,8 +3346,7 @@ def review(
 
         try:
             # Load project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Convert to PlanBundle for compatibility with review functions
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -3314,7 +3357,7 @@ def review(
                 # Convert back to ProjectBundle and save
                 # Update project bundle with deduplicated features
                 project_bundle.features = {f.key: f for f in plan_bundle.features}
-                save_project_bundle(project_bundle, bundle_dir, atomic=True)
+                _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
                 print_success(f"✓ Removed {duplicates_removed} duplicate features from project bundle")
 
             # Check current stage (ProjectBundle doesn't have metadata.stage, use default)
@@ -3594,16 +3637,15 @@ def review(
                     break
 
             # Save project bundle once at the end (more efficient than saving after each question)
-            print_info("Saving project bundle...")
             # Reload to get current state, then update with changes
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
             # Update from enriched bundle
             project_bundle.idea = plan_bundle.idea
             project_bundle.business = plan_bundle.business
             project_bundle.product = plan_bundle.product
             project_bundle.features = {f.key: f for f in plan_bundle.features}
             project_bundle.clarifications = plan_bundle.clarifications
-            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
             print_success("Project bundle saved")
 
             # Final validation
@@ -3822,9 +3864,8 @@ def harden(
             raise typer.Exit(1)
 
         try:
-            # Load project bundle
-            print_info(f"Loading project bundle: {bundle_dir}")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            # Load project bundle with progress indicator
+            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
             # Compute project bundle hash
             summary = project_bundle.compute_summary(include_hash=True)
@@ -3833,13 +3874,72 @@ def harden(
                 print_error("Failed to compute project bundle hash")
                 raise typer.Exit(1)
 
+            # Determine SDD output path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
+            if sdd_path is None:
+                base_path = Path(".")
+                sdd_dir = base_path / SpecFactStructure.SDD
+                sdd_dir.mkdir(parents=True, exist_ok=True)
+                sdd_path = sdd_dir / f"{bundle}.{effective_format.value}"
+            else:
+                # Ensure correct extension
+                if effective_format == StructuredFormat.YAML:
+                    sdd_path = sdd_path.with_suffix(".yaml")
+                else:
+                    sdd_path = sdd_path.with_suffix(".json")
+
+            # Check if SDD already exists and reuse it if hash matches
+            existing_sdd: SDDManifest | None = None
             # Convert to PlanBundle for extraction functions (temporary compatibility)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
-            # Extract WHY/WHAT/HOW from bundle
-            why = _extract_sdd_why(plan_bundle, is_non_interactive)
-            what = _extract_sdd_what(plan_bundle, is_non_interactive)
-            how = _extract_sdd_how(plan_bundle, is_non_interactive)
+            if sdd_path.exists():
+                try:
+                    from specfact_cli.utils.structured_io import load_structured_file
+
+                    existing_sdd_data = load_structured_file(sdd_path)
+                    existing_sdd = SDDManifest.model_validate(existing_sdd_data)
+                    if existing_sdd.plan_bundle_hash == project_hash:
+                        # Hash matches - reuse existing SDD sections
+                        print_info("SDD manifest exists with matching hash - reusing existing sections")
+                        why = existing_sdd.why
+                        what = existing_sdd.what
+                        how = existing_sdd.how
+                    else:
+                        # Hash mismatch - warn and extract new, but reuse existing SDD as fallback
+                        print_warning(
+                            f"SDD manifest exists but is linked to a different bundle version.\n"
+                            f"  Existing bundle hash: {existing_sdd.plan_bundle_hash[:16]}...\n"
+                            f"  New bundle hash: {project_hash[:16]}...\n"
+                            f"  This will overwrite the existing SDD manifest.\n"
+                            f"  Note: SDD manifests are linked to specific bundle versions."
+                        )
+                        if not is_non_interactive:
+                            # In interactive mode, ask for confirmation
+                            from rich.prompt import Confirm
+
+                            if not Confirm.ask("Overwrite existing SDD manifest?", default=False):
+                                print_info("SDD manifest creation cancelled.")
+                                raise typer.Exit(0)
+                        # Extract from bundle, using existing SDD as fallback
+                        why = _extract_sdd_why(plan_bundle, is_non_interactive, existing_sdd.why)
+                        what = _extract_sdd_what(plan_bundle, is_non_interactive, existing_sdd.what)
+                        how = _extract_sdd_how(plan_bundle, is_non_interactive, existing_sdd.how)
+                except Exception:
+                    # If we can't read/validate existing SDD, just proceed (might be corrupted)
+                    existing_sdd = None
+                    # Extract from bundle without fallback
+                    why = _extract_sdd_why(plan_bundle, is_non_interactive, None)
+                    what = _extract_sdd_what(plan_bundle, is_non_interactive, None)
+                    how = _extract_sdd_how(plan_bundle, is_non_interactive, None)
+            else:
+                # No existing SDD found, extract from bundle
+                why = _extract_sdd_why(plan_bundle, is_non_interactive, None)
+                what = _extract_sdd_what(plan_bundle, is_non_interactive, None)
+                how = _extract_sdd_how(plan_bundle, is_non_interactive, None)
+
+            # Type assertion: these variables are always set in valid code paths
+            # (typer.Exit exits the function, so those paths don't need these variables)
+            assert why is not None and what is not None and how is not None  # type: ignore[unreachable]
 
             # Create SDD manifest
             plan_bundle_id = project_hash[:16]  # Use first 16 chars as ID
@@ -3868,45 +3968,6 @@ def harden(
                     "created_by": "specfact_cli",
                 },
             )
-
-            # Determine SDD output path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
-            if sdd_path is None:
-                base_path = Path(".")
-                sdd_dir = base_path / SpecFactStructure.SDD
-                sdd_dir.mkdir(parents=True, exist_ok=True)
-                sdd_path = sdd_dir / f"{bundle}.{effective_format.value}"
-            else:
-                # Ensure correct extension
-                if effective_format == StructuredFormat.YAML:
-                    sdd_path = sdd_path.with_suffix(".yaml")
-                else:
-                    sdd_path = sdd_path.with_suffix(".json")
-
-            # Check if SDD already exists and is linked to a different plan
-            if sdd_path.exists():
-                try:
-                    from specfact_cli.utils.structured_io import load_structured_file
-
-                    existing_sdd_data = load_structured_file(sdd_path)
-                    existing_sdd = SDDManifest.model_validate(existing_sdd_data)
-                    if existing_sdd.plan_bundle_hash != project_hash:
-                        print_warning(
-                            f"SDD manifest already exists and is linked to a different bundle version.\n"
-                            f"  Existing bundle hash: {existing_sdd.plan_bundle_hash[:16]}...\n"
-                            f"  New bundle hash: {project_hash[:16]}...\n"
-                            f"  This will overwrite the existing SDD manifest.\n"
-                            f"  Note: SDD manifests are linked to specific bundle versions."
-                        )
-                        if not is_non_interactive:
-                            # In interactive mode, ask for confirmation
-                            from rich.prompt import Confirm
-
-                            if not Confirm.ask("Overwrite existing SDD manifest?", default=False):
-                                print_info("SDD manifest creation cancelled.")
-                                raise typer.Exit(0)
-                except Exception:
-                    # If we can't read/validate existing SDD, just proceed (might be corrupted)
-                    pass
 
             # Save SDD manifest
             sdd_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3953,7 +4014,7 @@ def harden(
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
 @require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
-def _extract_sdd_why(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhy:
+def _extract_sdd_why(bundle: PlanBundle, is_non_interactive: bool, fallback: SDDWhy | None = None) -> SDDWhy:
     """
     Extract WHY section from plan bundle.
 
@@ -3978,6 +4039,17 @@ def _extract_sdd_why(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhy:
             target_users = ", ".join(bundle.idea.target_users)
         value_hypothesis = bundle.idea.value_hypothesis or None
 
+    # Use fallback from existing SDD if available
+    if fallback:
+        if not intent:
+            intent = fallback.intent or ""
+        if not constraints:
+            constraints = fallback.constraints or []
+        if not target_users:
+            target_users = fallback.target_users
+        if not value_hypothesis:
+            value_hypothesis = fallback.value_hypothesis
+
     # If intent is empty, prompt or use default
     if not intent and not is_non_interactive:
         intent = prompt_text("Primary intent/goal (WHY):", required=True)
@@ -3995,7 +4067,7 @@ def _extract_sdd_why(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhy:
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
 @require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
-def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhat:
+def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool, fallback: SDDWhat | None = None) -> SDDWhat:
     """
     Extract WHAT section from plan bundle.
 
@@ -4023,6 +4095,15 @@ def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhat:
             if "out of scope" in constraint.lower() or "not included" in constraint.lower():
                 out_of_scope.append(constraint)
 
+    # Use fallback from existing SDD if available
+    if fallback:
+        if not capabilities:
+            capabilities = fallback.capabilities or []
+        if not acceptance_criteria:
+            acceptance_criteria = fallback.acceptance_criteria or []
+        if not out_of_scope:
+            out_of_scope = fallback.out_of_scope or []
+
     # If no capabilities, use default
     if not capabilities:
         if not is_non_interactive:
@@ -4041,7 +4122,7 @@ def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool) -> SDDWhat:
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
 @require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
-def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool) -> SDDHow:
+def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDDHow | None = None) -> SDDHow:
     """
     Extract HOW section from plan bundle.
 
@@ -4085,9 +4166,31 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool) -> SDDHow:
     # Extract module boundaries from feature keys (as a simple heuristic)
     module_boundaries = [f.key for f in bundle.features[:10]]  # Limit to first 10
 
+    # Use fallback from existing SDD if available
+    if fallback:
+        if not architecture:
+            architecture = fallback.architecture
+        if not invariants:
+            invariants = fallback.invariants or []
+        if not contracts:
+            contracts = fallback.contracts or []
+        if not module_boundaries:
+            module_boundaries = fallback.module_boundaries or []
+
     # If no architecture, prompt or use default
     if not architecture and not is_non_interactive:
-        architecture = prompt_text("High-level architecture description (optional):", required=False) or None
+        # If we have a fallback, use it as default value in prompt
+        default_arch = fallback.architecture if fallback else None
+        if default_arch:
+            architecture = (
+                prompt_text(
+                    f"High-level architecture description (optional, current: {default_arch[:50]}...):",
+                    required=False,
+                )
+                or default_arch
+            )
+        else:
+            architecture = prompt_text("High-level architecture description (optional):", required=False) or None
     elif not architecture:
         architecture = "Extracted from plan bundle constraints"
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from beartype import beartype
@@ -179,7 +180,11 @@ class BundleSaveError(Exception):
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
 @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
 @ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
-def load_project_bundle(bundle_dir: Path, validate_hashes: bool = False) -> ProjectBundle:
+def load_project_bundle(
+    bundle_dir: Path,
+    validate_hashes: bool = False,
+    progress_callback: Callable[[int, int, str], None] | None = None,
+) -> ProjectBundle:
     """
     Load modular project bundle from directory structure.
 
@@ -209,8 +214,8 @@ def load_project_bundle(bundle_dir: Path, validate_hashes: bool = False) -> Proj
         raise BundleFormatError(f"Expected modular bundle format, got: {format_type}")
 
     try:
-        # Load bundle using ProjectBundle method
-        bundle = ProjectBundle.load_from_directory(bundle_dir)
+        # Load bundle using ProjectBundle method with progress callback
+        bundle = ProjectBundle.load_from_directory(bundle_dir, progress_callback=progress_callback)
 
         # Validate hashes if requested
         if validate_hashes:
@@ -229,7 +234,12 @@ def load_project_bundle(bundle_dir: Path, validate_hashes: bool = False) -> Proj
 @require(lambda bundle: isinstance(bundle, ProjectBundle), "Bundle must be ProjectBundle")
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
 @ensure(lambda result: result is None, "Must return None")
-def save_project_bundle(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = True) -> None:
+def save_project_bundle(
+    bundle: ProjectBundle,
+    bundle_dir: Path,
+    atomic: bool = True,
+    progress_callback: Callable[[int, int, str], None] | None = None,
+) -> None:
     """
     Save modular project bundle to directory structure.
 
@@ -254,7 +264,7 @@ def save_project_bundle(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = 
             # Atomic write: write to temp directory, then rename
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir) / bundle_dir.name
-                bundle.save_to_directory(temp_path)
+                bundle.save_to_directory(temp_path, progress_callback=progress_callback)
 
                 # Ensure target directory parent exists
                 bundle_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -269,7 +279,7 @@ def save_project_bundle(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = 
                 temp_path.rename(bundle_dir)
         else:
             # Direct write
-            bundle.save_to_directory(bundle_dir)
+            bundle.save_to_directory(bundle_dir, progress_callback=progress_callback)
     except Exception as e:
         raise BundleSaveError(f"Failed to save bundle: {e}") from e
 

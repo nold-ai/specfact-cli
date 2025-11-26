@@ -198,9 +198,24 @@ def enforce_sdd(
             sdd_data = load_structured_file(sdd)
             sdd_manifest = SDDManifest.model_validate(sdd_data)
 
-            # Load project bundle
-            console.print(f"[dim]Loading project bundle: {bundle_dir}[/dim]")
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            # Load project bundle with progress indicator
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Loading project bundle...", total=None)
+
+                def progress_callback(current: int, total: int, artifact: str) -> None:
+                    progress.update(task, description=f"Loading artifact {current}/{total}: {artifact}")
+
+                project_bundle = load_project_bundle(
+                    bundle_dir, validate_hashes=False, progress_callback=progress_callback
+                )
+                progress.update(task, description="✓ Bundle loaded, computing hash...")
+
             summary = project_bundle.compute_summary(include_hash=True)
             project_hash = summary.content_hash
 
@@ -312,9 +327,51 @@ def enforce_sdd(
             console.print(f"  Low: {report.low_count}")
             console.print(f"\nReport saved to: {out}")
 
-            # Exit with appropriate code
+            # Exit with appropriate code and clear error messages
             if not report.passed:
                 console.print("\n[bold red]✗[/bold red] SDD validation failed")
+                console.print("\n[bold yellow]Issues Found:[/bold yellow]")
+
+                # Group deviations by type for clearer messaging
+                hash_mismatches = [d for d in report.deviations if d.type == DeviationType.HASH_MISMATCH]
+                coverage_issues = [d for d in report.deviations if d.type == DeviationType.COVERAGE_THRESHOLD]
+
+                if hash_mismatches:
+                    console.print("\n[bold red]1. Hash Mismatch (HIGH)[/bold red]")
+                    console.print("   The project bundle has been modified since the SDD manifest was created.")
+                    console.print(f"   [dim]SDD hash: {sdd_manifest.plan_bundle_hash[:16]}...[/dim]")
+                    console.print(f"   [dim]Bundle hash: {project_hash[:16]}...[/dim]")
+                    console.print("\n   [bold]Why this happens:[/bold]")
+                    console.print("   The hash changes when you modify:")
+                    console.print("   - Features (add/remove/update)")
+                    console.print("   - Stories (add/remove/update)")
+                    console.print("   - Product, idea, business, or clarifications")
+                    console.print(
+                        f"\n   [bold]Fix:[/bold] Run [cyan]specfact plan harden {bundle}[/cyan] to update the SDD manifest"
+                    )
+                    console.print(
+                        "   [dim]This updates the SDD with the current bundle hash and regenerates HOW sections[/dim]"
+                    )
+
+                if coverage_issues:
+                    console.print("\n[bold yellow]2. Coverage Thresholds Not Met (MEDIUM)[/bold yellow]")
+                    console.print("   Contract density metrics are below required thresholds:")
+                    console.print(
+                        f"   - Contracts/story: {metrics.contracts_per_story:.2f} (required: {thresholds.contracts_per_story})"
+                    )
+                    console.print(
+                        f"   - Invariants/feature: {metrics.invariants_per_feature:.2f} (required: {thresholds.invariants_per_feature})"
+                    )
+                    console.print("\n   [bold]Fix:[/bold] Add more contracts to stories and invariants to features")
+                    console.print("   [dim]Tip: Use 'specfact plan review' to identify areas needing contracts[/dim]")
+
+                console.print("\n[bold cyan]Next Steps:[/bold cyan]")
+                if hash_mismatches:
+                    console.print(f"   1. Update SDD: [cyan]specfact plan harden {bundle}[/cyan]")
+                if coverage_issues:
+                    console.print("   2. Add contracts: Review features and add @icontract decorators")
+                    console.print("   3. Re-validate: Run this command again after fixes")
+
                 record({"passed": False, "deviations": report.total_deviations})
                 raise typer.Exit(1)
 
