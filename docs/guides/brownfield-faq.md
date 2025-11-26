@@ -224,7 +224,7 @@ Use all three together for comprehensive coverage.
 
 **Resources:**
 
-- [Brownfield Engineer Guide](guides/brownfield-engineer.md) - Complete walkthrough
+- [Brownfield Engineer Guide](brownfield-engineer.md) - Complete walkthrough
 - [Integration Showcases](../examples/integration-showcases.md) - Real examples
 - [Getting Started](../getting-started/README.md) - Quick start guide
 
@@ -245,7 +245,7 @@ Use all three together for comprehensive coverage.
 2. Use SpecFact to add runtime contracts to critical paths (safety net)
 3. Spec-Kit generates docs, SpecFact prevents regressions
 
-See [Spec-Kit Comparison Guide](guides/speckit-comparison.md) for details.
+See [Spec-Kit Comparison Guide](speckit-comparison.md) for details.
 
 ### Can I use SpecFact in CI/CD?
 
@@ -359,8 +359,8 @@ Perfect for air-gapped environments or sensitive codebases.
 
 ## Next Steps
 
-1. **[Brownfield Engineer Guide](guides/brownfield-engineer.md)** - Complete modernization workflow
-2. **[ROI Calculator](guides/brownfield-roi.md)** - Calculate your savings
+1. **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete modernization workflow
+2. **[ROI Calculator](brownfield-roi.md)** - Calculate your savings
 3. **[Examples](../examples/)** - Real-world brownfield examples
 
 ---

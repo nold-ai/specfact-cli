@@ -73,13 +73,14 @@ When modernizing legacy code, you can use **both tools together** for maximum va
 
 ```bash
 # Step 1: Use SpecFact to extract specs from legacy code
-specfact import from-code --repo ./legacy-app --name customer-portal
+specfact import from-code customer-portal --repo ./legacy-app
 
-# Output: Auto-generated plan bundle from existing code
+# Output: Auto-generated project bundle from existing code
 # ✅ Analyzed 47 Python files
 # ✅ Extracted 23 features
 # ✅ Generated 112 user stories
 # ⏱️  Completed in 8.2 seconds
+# 📁 Project bundle: .specfact/projects/customer-portal/
 
 # Step 2: (Optional) Use Spec-Kit to refine specs interactively
 # /speckit.specify --feature "Payment Processing"
@@ -92,7 +93,7 @@ specfact import from-code --repo ./legacy-app --name customer-portal
 # Refactor knowing contracts will catch regressions
 
 # Step 5: Keep both in sync
-specfact sync spec-kit --repo . --bidirectional --watch
+specfact sync bridge --adapter speckit --bundle customer-portal --repo . --bidirectional --watch
 ```
 
 ### **Why This Works**
@@ -148,17 +149,22 @@ Import your Spec-Kit project to see what SpecFact adds:
 
 ```bash
 # 1. Preview what will be imported
-specfact import from-spec-kit --repo ./my-speckit-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
-# 2. Execute import (one command)
-specfact import from-spec-kit --repo ./my-speckit-project --write
+# 2. Execute import (one command) - bundle name will be auto-detected or you can specify with --bundle
+specfact import from-bridge --adapter speckit --repo ./my-speckit-project --write
 
-# 3. Review generated artifacts
-ls -la .specfact/
-# - plans/main.bundle.yaml (from spec.md, plan.md, tasks.md)
-# - protocols/workflow.protocol.yaml (from FSM if detected)
-# - enforcement/config.yaml (quality gates configuration)
+# 3. Review generated bundle using CLI commands
+specfact plan review <bundle-name>
 ```
+
+**What was created**:
+
+- Modular project bundle at `.specfact/projects/<bundle-name>/` (multiple aspect files)
+- `.specfact/protocols/workflow.protocol.yaml` (from FSM if detected)
+- `.specfact/gates/config.yaml` (quality gates configuration)
+
+**Note**: Use CLI commands to interact with bundles. Do not edit `.specfact` files directly.
 
 **What happens**:
 
@@ -178,10 +184,8 @@ ls -la .specfact/
 Keep using Spec-Kit interactively, sync automatically with SpecFact:
 
 ```bash
-# Enable shared plans sync (bidirectional sync for team collaboration)
-specfact plan sync --shared --watch
-# Or use direct command:
-specfact sync spec-kit --repo . --bidirectional --watch
+# Enable bidirectional sync (bridge-based, adapter-agnostic)
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Workflow**:
@@ -195,7 +199,7 @@ specfact sync spec-kit --repo . --bidirectional --watch
 # 2. SpecFact automatically syncs new artifacts (watch mode)
 # → Detects changes in specs/[###-feature-name]/
 # → Imports new spec.md, plan.md, tasks.md
-# → Updates .specfact/plans/*.yaml
+# → Updates .specfact/projects/<bundle-name>/ aspect files
 # → Enables shared plans for team collaboration
 
 # 3. Detect code vs plan drift automatically
@@ -234,10 +238,10 @@ specfact enforce stage --preset balanced
 
 ```bash
 # Import existing Spec-Kit project
-specfact import from-spec-kit --repo . --write
+specfact import from-bridge --adapter speckit --repo . --write
 
-# Enable shared plans sync (bidirectional sync for team collaboration)
-specfact plan sync --shared --watch
+# Enable bidirectional sync (bridge-based, adapter-agnostic)
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Result**: Both tools working together seamlessly.
@@ -294,13 +298,13 @@ specfact repro --budget 120 --verbose
 
 ```bash
 # See what will be imported (safe - no changes)
-specfact import from-spec-kit --repo ./my-speckit-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 ```
 
 **Expected Output**:
 
 ```bash
-🔍 Analyzing Spec-Kit project...
+🔍 Analyzing Spec-Kit project via bridge adapter...
 ✅ Found .specify/ directory (modern format)
 ✅ Found specs/001-user-authentication/spec.md
 ✅ Found specs/001-user-authentication/plan.md
@@ -310,9 +314,9 @@ specfact import from-spec-kit --repo ./my-speckit-project --dry-run
 **💡 Tip**: If constitution is missing or minimal, run `specfact constitution bootstrap --repo .` to auto-generate from repository analysis.
 
 📊 Migration Preview:
-  - Will create: .specfact/plans/main.bundle.yaml
+  - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
   - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
-  - Will create: .specfact/enforcement/config.yaml
+  - Will create: .specfact/gates/config.yaml
   - Will convert: Spec-Kit features → SpecFact Feature models
   - Will convert: Spec-Kit user stories → SpecFact Story models
   
@@ -323,25 +327,25 @@ specfact import from-spec-kit --repo ./my-speckit-project --dry-run
 
 ```bash
 # Execute migration (creates SpecFact artifacts)
-specfact import from-spec-kit \
+specfact import from-bridge \
+  --adapter speckit \
   --repo ./my-speckit-project \
   --write \
-  --out-branch feat/specfact-migration \
   --report migration-report.md
 ```
 
 **What it does**:
 
-1. **Parses Spec-Kit artifacts**:
+1. **Parses Spec-Kit artifacts** (via bridge adapter):
    - `specs/[###-feature-name]/spec.md` → Features, user stories, requirements
    - `specs/[###-feature-name]/plan.md` → Technical context, architecture
    - `specs/[###-feature-name]/tasks.md` → Tasks, story mappings
    - `.specify/memory/constitution.md` → Principles, constraints
 
 2. **Generates SpecFact artifacts**:
-   - `.specfact/plans/main.bundle.yaml` - Plan bundle with features/stories
+   - `.specfact/projects/<bundle-name>/` - Modular project bundle (multiple aspect files)
    - `.specfact/protocols/workflow.protocol.yaml` - FSM protocol (if detected)
-   - `.specfact/enforcement/config.yaml` - Quality gates configuration
+   - `.specfact/gates/config.yaml` - Quality gates configuration
 
 3. **Preserves Spec-Kit artifacts**:
    - Original files remain untouched
@@ -350,15 +354,17 @@ specfact import from-spec-kit \
 ### **Step 3: Review Generated Artifacts**
 
 ```bash
-# Review plan bundle
-cat .specfact/plans/main.bundle.yaml
+# Review plan bundle using CLI commands
+specfact plan review <bundle-name>
 
-# Review enforcement config
-cat .specfact/enforcement/config.yaml
+# Review enforcement config using CLI commands
+specfact enforce show-config
 
 # Review migration report
 cat migration-report.md
 ```
+
+**Note**: Use CLI commands to interact with bundles. Do not edit `.specfact` files directly.
 
 **What to check**:
 
@@ -373,20 +379,16 @@ cat migration-report.md
 
 ```bash
 # One-time sync
-specfact plan sync --shared
-# Or use direct command:
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode (recommended for team collaboration)
-specfact plan sync --shared --watch
-# Or use direct command:
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it syncs**:
 
-- **Spec-Kit → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/plans/*.yaml`
-- **SpecFact → Spec-Kit**: Changes to `.specfact/plans/*.yaml` → Updated Spec-Kit markdown with all required fields auto-generated:
+- **Spec-Kit → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/projects/<bundle-name>/` aspect files
+- **SpecFact → Spec-Kit**: Changes to `.specfact/projects/<bundle-name>/` → Updated Spec-Kit markdown with all required fields auto-generated:
   - **spec.md**: Frontmatter, INVSEST criteria, Scenarios (Primary, Alternate, Exception, Recovery)
   - **plan.md**: Constitution Check, Phases, Technology Stack (from constraints)
   - **tasks.md**: Phase organization, Story mappings ([US1], [US2]), Parallel markers
@@ -435,10 +437,8 @@ specfact repro
 ### **2. Use Shared Plans (Bidirectional Sync)**
 
 ```bash
-# Enable shared plans for team collaboration
-specfact plan sync --shared --watch
-# Or use direct command:
-specfact sync spec-kit --repo . --bidirectional --watch
+# Enable bidirectional sync for team collaboration
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Why**: **Shared structured plans** enable team collaboration with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members. Continue using Spec-Kit interactively, get SpecFact automation automatically.
@@ -498,16 +498,16 @@ specfact enforce stage --preset strict
 
 - **[Getting Started](../getting-started/README.md)** - Quick setup guide
 - **[Use Cases](use-cases.md)** - Detailed Spec-Kit migration use case
-- **[Commands](../reference/commands.md)** - `import from-spec-kit` and `sync spec-kit` reference
+- **[Commands](../reference/commands.md)** - `import from-bridge` and `sync bridge` reference
 - **[Architecture](../reference/architecture.md)** - How SpecFact integrates with Spec-Kit
 
 ---
 
 **Next Steps**:
 
-1. **Try it**: `specfact import from-spec-kit --repo . --dry-run`
-2. **Import**: `specfact import from-spec-kit --repo . --write`
-3. **Sync**: `specfact sync spec-kit --repo . --bidirectional --watch`
+1. **Try it**: `specfact import from-bridge --adapter speckit --repo . --dry-run`
+2. **Import**: `specfact import from-bridge --adapter speckit --repo . --write`
+3. **Sync**: `specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch`
 4. **Enforce**: `specfact enforce stage --preset minimal` (start shadow mode)
 
 ---

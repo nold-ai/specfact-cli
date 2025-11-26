@@ -87,13 +87,13 @@ pip install specfact-cli
 
 ```bash
 # Modernizing legacy code? (Recommended)
-specfact import from-code --repo . --name my-project
+specfact import from-code my-project --repo .
 
 # Starting a new project?
-specfact plan init --interactive
+specfact plan init my-project --interactive
 
-# Using GitHub Spec-Kit?
-specfact import from-spec-kit --repo ./my-project --dry-run
+# Using GitHub Spec-Kit or other tools?
+specfact import from-bridge --repo ./my-project --adapter speckit --write
 ```
 
 That's it! 🎉

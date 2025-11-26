@@ -77,15 +77,8 @@ def generate_contracts(
             base_path = Path(".").resolve() if base_path is None else Path(base_path).resolve()
 
             # Import here to avoid circular imports
+            from specfact_cli.utils.bundle_loader import BundleFormat, detect_bundle_format
             from specfact_cli.utils.structure import SpecFactStructure
-
-            # Determine SDD path
-            sdd_path = SpecFactStructure.get_sdd_path(base_path) if sdd is None else Path(sdd).resolve()
-
-            if not sdd_path.exists():
-                print_error(f"SDD manifest not found: {sdd_path}")
-                print_info("Run 'specfact plan harden' to create SDD manifest")
-                raise typer.Exit(1)
 
             # Determine plan path
             if plan is None:
@@ -102,28 +95,69 @@ def generate_contracts(
                 print_error(f"Plan bundle not found: {plan_path}")
                 raise typer.Exit(1)
 
+            # Determine SDD path based on bundle format
+            if sdd is None:
+                # Detect bundle format to determine SDD path
+                format_type, _ = detect_bundle_format(plan_path)
+                if format_type == BundleFormat.MODULAR:
+                    # Modular bundle: SDD is at .specfact/sdd/<bundle-name>.yaml
+                    if plan_path.is_dir():
+                        bundle_name = plan_path.name
+                    else:
+                        # If plan_path is a file, try to find parent bundle directory
+                        bundle_name = plan_path.parent.name if plan_path.parent.name != "projects" else plan_path.stem
+                    sdd_path = base_path / SpecFactStructure.SDD / f"{bundle_name}.yaml"
+                else:
+                    # Legacy monolithic: SDD is at .specfact/sdd.yaml
+                    sdd_path = SpecFactStructure.get_sdd_path(base_path)
+            else:
+                sdd_path = Path(sdd).resolve()
+
+            if not sdd_path.exists():
+                print_error(f"SDD manifest not found: {sdd_path}")
+                print_info("Run 'specfact plan harden' to create SDD manifest")
+                raise typer.Exit(1)
+
             # Load SDD manifest
             print_info(f"Loading SDD manifest: {sdd_path}")
             sdd_data = load_structured_file(sdd_path)
             sdd_manifest = SDDManifest(**sdd_data)
 
-            # Load plan bundle
+            # Load plan bundle (handle both modular and monolithic formats)
             print_info(f"Loading plan bundle: {plan_path}")
-            plan_bundle = load_plan_bundle(plan_path)
+            format_type, _ = detect_bundle_format(plan_path)
 
-            # Compute plan bundle hash (same way as enforce.py)
-            plan_bundle.update_summary(include_hash=True)
-            plan_hash = (
-                plan_bundle.metadata.summary.content_hash
-                if plan_bundle.metadata and plan_bundle.metadata.summary
-                else None
-            )
+            plan_hash = None
+            if format_type == BundleFormat.MODULAR:
+                # Load modular ProjectBundle and convert to PlanBundle for compatibility
+                from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
+                project_bundle = load_project_bundle(plan_path, validate_hashes=False)
+
+                # Compute hash from ProjectBundle (same way as plan harden does)
+                summary = project_bundle.compute_summary(include_hash=True)
+                plan_hash = summary.content_hash
+
+                # Convert to PlanBundle for ContractGenerator compatibility
+                plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            else:
+                # Load monolithic PlanBundle
+                plan_bundle = load_plan_bundle(plan_path)
+
+                # Compute hash from PlanBundle
+                plan_bundle.update_summary(include_hash=True)
+                plan_hash = (
+                    plan_bundle.metadata.summary.content_hash
+                    if plan_bundle.metadata and plan_bundle.metadata.summary
+                    else None
+                )
 
             if not plan_hash:
                 print_error("Failed to compute plan bundle hash")
                 raise typer.Exit(1)
 
-            # Verify hash match
+            # Verify hash match (SDD uses plan_bundle_hash field)
             if sdd_manifest.plan_bundle_hash != plan_hash:
                 print_error("SDD manifest hash does not match plan bundle hash")
                 print_info("Run 'specfact plan harden' to update SDD manifest")

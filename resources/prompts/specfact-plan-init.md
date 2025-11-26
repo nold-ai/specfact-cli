@@ -110,10 +110,10 @@ When in copilot mode, follow this three-phase workflow:
 
 ```bash
 # For interactive mode (when user explicitly requests it)
-specfact plan init --interactive --out <output_path>
+specfact plan init <bundle-name> --interactive
 
 # For non-interactive mode (CI/CD, Copilot - ALWAYS use this to avoid timeouts)
-specfact plan init --no-interactive --out <output_path>
+specfact plan init <bundle-name> --no-interactive
 ```
 
 **⚠️ CRITICAL**: In Copilot environments, **ALWAYS use `--no-interactive` flag** to avoid interactive prompts that can cause timeouts. Only use `--interactive` when the user explicitly requests interactive mode.
@@ -122,7 +122,7 @@ specfact plan init --no-interactive --out <output_path>
 
 **Capture from CLI output**:
 
-- CLI-generated plan bundle (`.specfact/plans/main.bundle.<format>` or specified path)
+- CLI-generated project bundle (`.specfact/projects/<bundle-name>/`)
 - Metadata (timestamps, validation results)
 - Telemetry (execution time, feature/story counts)
 
@@ -168,9 +168,11 @@ specfact plan init --no-interactive --out <output_path>
 
 Extract arguments from user input:
 
+- `BUNDLE_NAME` - Project bundle name (required positional argument, e.g., `legacy-api`, `auth-module`)
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
-- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/main.bundle.<format>`)
 - `--scaffold/--no-scaffold` - Create complete `.specfact/` directory structure (default: scaffold)
+
+**WAIT STATE**: If bundle name is missing, ask: "What bundle name would you like to use? (e.g., 'legacy-api', 'auth-module')" and **WAIT** for response.
 
 For single quotes in args like "I'm Groot", use escape syntax: e.g `'I'\''m Groot'` (or double-quote if possible: `"I'm Groot"`).
 
@@ -222,32 +224,32 @@ Choose option (1 or 2): _
 1. **Execute CLI brownfield analysis first** (REQUIRED):
 
    ```bash
-   specfact import from-code --repo . --name <plan_name> --confidence 0.7
+   specfact import from-code <bundle-name> --repo . --confidence 0.7
    ```
 
-   **WAIT STATE**: If `--name` is not provided, ask user for plan name and **WAIT**:
+   **WAIT STATE**: If bundle name is not provided, ask user for bundle name and **WAIT**:
 
    ```text
-   "What name would you like to use for the brownfield analysis? 
-   (e.g., 'my-project', 'API Client v2')
+   "What bundle name would you like to use for the brownfield analysis? 
+   (e.g., 'legacy-api', 'auth-module')
    [WAIT FOR USER RESPONSE - DO NOT CONTINUE]"
    ```
 
-   - This CLI command analyzes the codebase and generates an auto-derived plan bundle
-   - Plan is saved to: `.specfact/plans/<name>-<timestamp>.bundle.<format>` (where `<name>` is the sanitized plan name)
-   - **Capture CLI output**: Plan bundle path, feature/story counts, metadata
+   - This CLI command analyzes the codebase and generates an auto-derived project bundle
+   - Bundle is saved to: `.specfact/projects/<bundle-name>/`
+   - **Capture CLI output**: Project bundle path, feature/story counts, metadata
 
-2. **Load the CLI-generated auto-derived plan**:
-   - Read the CLI-generated plan bundle from brownfield analysis
-   - Extract features, themes, and structure from the auto-derived plan
+2. **Load the CLI-generated auto-derived bundle**:
+   - Read the CLI-generated project bundle from brownfield analysis
+   - Extract features, themes, and structure from the auto-derived bundle
 
 3. **Execute CLI plan init with brownfield data**:
 
    ```bash
-   specfact plan init --interactive --out <output_path>
+   specfact plan init <bundle-name> --interactive
    ```
 
-   - CLI will use the auto-derived plan as starting point
+   - CLI will use the auto-derived bundle as starting point
    - Guide user through interactive prompts to refine/add:
      - Idea section (title, narrative, target users, metrics)
      - Business context (if needed)
@@ -256,14 +258,14 @@ Choose option (1 or 2): _
 
 4. **CLI merges and finalizes**:
    - CLI merges refined idea/business sections with auto-derived features
-   - CLI writes final plan bundle to output path
+   - CLI saves final project bundle to `.specfact/projects/<bundle-name>/`
 
 **If user chooses option 1 (Greenfield)**:
 
 - Execute CLI plan init directly:
 
   ```bash
-  specfact plan init --interactive --out <output_path>
+  specfact plan init <bundle-name> --interactive
   ```
 
 - CLI will guide user through interactive prompts starting with Section 1 (Idea)
@@ -281,7 +283,7 @@ Choose option (1 or 2): _
 
 #### Section 1: Idea
 
-**For Brownfield approach**: Pre-fill with values from auto-derived plan if available (extract from plan bundle's `idea` section or from README/pyproject.toml analysis).
+**For Brownfield approach**: Pre-fill with values from auto-derived project bundle if available (extract from project bundle's `idea.yaml` or from README/pyproject.toml analysis).
 
 Prompt for:
 
@@ -304,7 +306,7 @@ Ask if user wants to add business context:
 
 ### 7. Section 3: Product - Themes and Releases
 
-**For Brownfield approach**: Pre-fill themes from auto-derived plan (extract from plan bundle's `product.themes`).
+**For Brownfield approach**: Pre-fill themes from auto-derived project bundle (extract from project bundle's `product.yaml`).
 
 Prompt for:
 
@@ -412,11 +414,11 @@ Interactive loop to add features:
 
 ### 6. CLI Writes Plan Bundle (REQUIRED)
 
-**The CLI writes the plan bundle** to output path:
+**The CLI writes the project bundle** to `.specfact/projects/<bundle-name>/`:
 
-- Creates parent directories if needed
-- Writes YAML with proper formatting
-- Reports success with file path
+- Creates directory structure if needed
+- Writes modular YAML files (idea.yaml, product.yaml, features/*.yaml, bundle.manifest.yaml)
+- Reports success with bundle path
 
 **Final Disclosure Reminder**: Before committing or publishing, verify that the plan bundle does not contain sensitive internal strategy (business risks, specific competitive positioning, internal targets).
 
@@ -430,12 +432,12 @@ Show plan summary:
 - Releases count
 - Business context included (yes/no) - warn if sensitive info detected
 
-**Note**: Plans created with this command can later be exported to Spec-Kit format using `specfact sync spec-kit --bidirectional`. The export will generate fully compatible Spec-Kit artifacts (spec.md, plan.md, tasks.md) with all required fields including INVSEST criteria, Scenarios, Constitution Check, and Phase organization.
+**Note**: Project bundles created with this command can later be synced with external tools using `specfact sync bridge --adapter <adapter> --bundle <bundle-name> --bidirectional`. The sync uses bridge configuration (`.specfact/config/bridge.yaml`) to map SpecFact concepts to tool-specific artifacts.
 
-**Prerequisites for Spec-Kit Sync**: Before running `specfact sync spec-kit --bidirectional`, ensure you have:
+**Prerequisites for Bridge Sync**: Before running `specfact sync bridge`, ensure you have:
 
-- Constitution (`.specify/memory/constitution.md`) created via `/speckit.constitution` command
-- The constitution must be populated (not just template placeholders)
+- Bridge configuration (`.specfact/config/bridge.yaml`) - auto-generated via `specfact bridge probe` or manually configured
+- For Spec-Kit adapter: Constitution (`.specify/memory/constitution.md`) created via `/speckit.constitution` command
 
 ## Output Format
 

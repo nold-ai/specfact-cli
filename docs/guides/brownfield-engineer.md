@@ -37,11 +37,11 @@ SpecFact CLI is designed specifically for your situation. It provides:
 
 ```bash
 # Analyze your legacy codebase
-specfact import from-code --repo ./legacy-app --name customer-system
+specfact import from-code customer-system --repo ./legacy-app
 
 # For large codebases or multi-project repos, analyze specific modules:
-specfact import from-code --repo ./legacy-app --entry-point src/core --name core-module
-specfact import from-code --repo ./legacy-app --entry-point src/api --name api-module
+specfact import from-code core-module --repo ./legacy-app --entry-point src/core
+specfact import from-code api-module --repo ./legacy-app --entry-point src/api
 ```
 
 **What you get:**
@@ -75,10 +75,10 @@ For large codebases or monorepos with multiple projects, you can analyze specifi
 
 ```bash
 # Analyze only the core module
-specfact import from-code --repo . --entry-point src/core --name core-plan
+specfact import from-code core-plan --repo . --entry-point src/core
 
 # Analyze only the API service
-specfact import from-code --repo . --entry-point projects/api-service --name api-plan
+specfact import from-code api-plan --repo . --entry-point projects/api-service
 ```
 
 This enables:
@@ -221,7 +221,7 @@ You inherited a 3-year-old Django app with:
 
 ```bash
 # Step 1: Extract specs
-specfact import from-code --repo ./legacy-django-app --name customer-portal
+specfact import from-code customer-portal --repo ./legacy-django-app
 
 # Output:
 ✅ Analyzed 47 Python files
@@ -352,7 +352,7 @@ For heavily obfuscated code, consider deobfuscation first.
 2. **[ROI Calculator](brownfield-roi.md)** - Calculate your time and cost savings
 3. **[Brownfield Journey](brownfield-journey.md)** - Complete modernization workflow
 4. **[Examples](../examples/)** - Real-world brownfield examples
-5. **[FAQ](../brownfield-faq.md)** - More brownfield-specific questions
+5. **[FAQ](brownfield-faq.md)** - More brownfield-specific questions
 
 ---
 

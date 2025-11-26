@@ -100,7 +100,7 @@ def normalize_shell_in_argv() -> None:
 
 app = typer.Typer(
     name="specfact",
-    help="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
+    help="SpecFact CLI - Spec → Contract → Sentinel for Contract-Driven Development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},  # Add -h as alias for --help
@@ -128,7 +128,7 @@ def print_banner() -> None:
         "  ███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
         "  ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
         "",
-        "        Spec→Contract→Sentinel for Contract-Driven Development",
+        "     Spec → Contract → Sentinel for Contract-Driven Development",
     ]
 
     # Smooth gradient from bright cyan (top) to blue (bottom) - 6 lines for ASCII art
@@ -291,7 +291,9 @@ app.add_typer(
     name="constitution",
     help="Manage project constitutions (Spec-Kit compatibility layer)",
 )
-app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
+app.add_typer(
+    import_cmd.app, name="import", help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira)"
+)
 app.add_typer(plan.app, name="plan", help="Manage development plans")
 app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")

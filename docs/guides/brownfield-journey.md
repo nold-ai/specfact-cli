@@ -29,7 +29,7 @@ This guide walks you through the complete brownfield modernization journey:
 
 ```bash
 # Analyze your legacy codebase
-specfact import from-code --repo ./legacy-app --name your-project
+specfact import from-code your-project --repo ./legacy-app
 ```
 
 **What happens:**
@@ -63,8 +63,8 @@ This is especially useful if you plan to sync with Spec-Kit later.
 ### Step 1.2: Review Extracted Specs
 
 ```bash
-# Review the extracted plan
-cat contracts/plans/plan.bundle.yaml
+# Review the extracted plan using CLI commands
+specfact plan review your-project
 ```
 
 **What to look for:**
@@ -77,10 +77,10 @@ cat contracts/plans/plan.bundle.yaml
 ### Step 1.3: Validate Extraction Quality
 
 ```bash
-# Compare extracted plan to your understanding
+# Compare extracted plan to your understanding (bundle directory paths)
 specfact plan compare \
-  --manual your-manual-plan.yaml \
-  --auto contracts/plans/plan.bundle.yaml
+  --manual .specfact/projects/manual-plan \
+  --auto .specfact/projects/your-project
 ```
 
 **What you get:**
@@ -105,8 +105,8 @@ specfact plan compare \
 **Review extracted plan:**
 
 ```bash
-# Find high-confidence, high-value features
-cat contracts/plans/plan.bundle.yaml | grep -A 5 "confidence: 9"
+# Review plan using CLI commands
+specfact plan review your-project
 ```
 
 ### Step 2.2: Add Contracts Incrementally
@@ -322,7 +322,7 @@ Legacy Django app:
 
 #### Week 1: Understand
 
-- Ran `specfact import from-code` → 23 features extracted in 8 seconds
+- Ran `specfact import from-code your-project` → 23 features extracted in 8 seconds
 - Reviewed extracted plan → Identified 5 critical features
 - Time: 2 hours (vs. 60 hours manual)
 
@@ -431,7 +431,7 @@ Legacy Django app:
 2. **[Brownfield Engineer Guide](brownfield-engineer.md)** - Complete persona guide
 3. **[ROI Calculator](brownfield-roi.md)** - Calculate your savings
 4. **[Examples](../examples/)** - Real-world brownfield examples
-5. **[FAQ](../brownfield-faq.md)** - More brownfield questions
+5. **[FAQ](brownfield-faq.md)** - More brownfield questions
 
 ---
 

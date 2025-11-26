@@ -58,18 +58,18 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating features** (after enrichment):
 
-- `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft <true/false> --plan <path>`
+- `specfact plan update-feature --bundle <bundle-name> --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft`
   - Updates existing feature metadata (title, outcomes, acceptance criteria, constraints, confidence, draft status)
   - Works in CI/CD, Copilot, and interactive modes
-  - Example: `specfact plan update-feature --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`
+  - Example: `specfact plan update-feature --bundle legacy-api --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`
 
 **For adding features**:
 
-- `specfact plan add-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --plan <path>`
+- `specfact plan add-feature --bundle <bundle-name> --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance>`
 
 **For adding stories**:
 
-- `specfact plan add-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --plan <path>`
+- `specfact plan add-story --bundle <bundle-name> --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points>`
 
 **❌ FORBIDDEN**: Direct Python code manipulation like:
 
@@ -85,7 +85,7 @@ generator.generate(plan_bundle, plan_path)  # Bypassing CLI
 
 ```bash
 # ✅ ALWAYS DO THIS:
-specfact plan update-feature --key FEATURE-001 --title "New Title" --plan <path>
+specfact plan update-feature --bundle legacy-api --key FEATURE-001 --title "New Title"
 ```
 
 ## ⏸️ Wait States: User Input Required
@@ -197,8 +197,8 @@ specfact import from-code --repo <path> --name <name> --entry-point <subdirector
 **Apply enrichments via CLI using the `--enrichment` flag**:
 
 ```bash
-# Apply enrichment report to refine the auto-detected plan bundle
-specfact import from-code --repo <path> --name <name> --enrichment <enrichment-report-path>
+# Apply enrichment report to refine the auto-detected project bundle
+specfact import from-code <bundle-name> --repo <path> --enrichment <enrichment-report-path>
 ```
 
 **The `--enrichment` flag**:
@@ -250,9 +250,8 @@ specfact import from-code --repo <path> --name <name> --enrichment <enrichment-r
 Extract arguments from user input:
 
 - `--repo PATH` - Repository path (default: current directory)
-- `--name NAME` - Custom plan name (will be sanitized for filesystem, optional, default: "auto-derived")
+- `BUNDLE_NAME` - Project bundle name (required positional argument, e.g., `legacy-api`, `auth-module`)
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
-- `--out PATH` - Output plan bundle path (optional, default: `.specfact/plans/<name>-<timestamp>.bundle.<format>`)
 - `--report PATH` - Analysis report path (optional, default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
 - `--shadow-only` - Observe mode without enforcing (optional)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
@@ -262,13 +261,13 @@ Extract arguments from user input:
   - Incremental modernization: Modernize one part of the codebase at a time
   - Example: `--entry-point projects/api-service` analyzes only `projects/api-service/` and its subdirectories
 
-**Important**: If `--name` is not provided, **ask the user interactively** for a meaningful plan name and **WAIT for their response**. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence.
+**Important**: Bundle name is **required**. If not provided, **ask the user interactively** for a bundle name and **WAIT for their response**. Use kebab-case (e.g., `legacy-api`, `auth-module`).
 
-**WAIT STATE**: If `--name` is missing, you MUST:
+**WAIT STATE**: If bundle name is missing, you MUST:
 
-1. Ask: "What name would you like to use for this plan? (e.g., 'API Client v2', 'User Authentication', 'Payment Processing')"
+1. Ask: "What bundle name would you like to use? (e.g., 'legacy-api', 'auth-module', 'payment-service')"
 2. **STOP and WAIT** for user response
-3. **DO NOT continue** until user provides a name
+3. **DO NOT continue** until user provides a bundle name
 
 For single quotes in args like "I'm Groot", use escape syntax: e.g `'I'\''m Groot'` (or double-quote if possible: `"I'm Groot"`).
 
@@ -278,17 +277,17 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g `'I'\''m Groo
 
 ```bash
 # Full repository analysis
-specfact import from-code --repo <repo_path> --name <plan_name> --confidence <confidence>
+specfact import from-code <bundle-name> --repo <repo_path> --confidence <confidence>
 
 # Partial repository analysis (analyze only specific subdirectory)
-specfact import from-code --repo <repo_path> --name <plan_name> --entry-point <subdirectory> --confidence <confidence>
+specfact import from-code <bundle-name> --repo <repo_path> --entry-point <subdirectory> --confidence <confidence>
 ```
 
 **Note**: Mode is auto-detected by the CLI. No need to specify `--mode` flag.
 
 **Capture CLI output**:
 
-- Plan bundle path: `.specfact/plans/<name>-<timestamp>.bundle.<format>`
+- Project bundle directory: `.specfact/projects/<bundle-name>/`
 - Analysis report path: `.specfact/reports/brownfield/analysis-<timestamp>.md`
 - Metadata: feature counts, story counts, average confidence, execution time
 - **Deduplication summary**: "✓ Removed N duplicate features from plan bundle" (if duplicates were found during import)
@@ -340,12 +339,8 @@ The CLI automatically deduplicates features during import using normalized key m
    - Semantic insights and recommendations
 
 4. **Save enrichment report** to the proper location:
-   - Extract the plan bundle path from CLI output (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
-   - Derive enrichment report path by:
-     - Taking the plan bundle filename (e.g., `specfact-cli.2025-11-17T09-26-47.bundle.<format>`)
-     - Replacing `.bundle.<format>` with `.enrichment.md` (e.g., `specfact-cli.2025-11-17T09-26-47.enrichment.md`)
-     - Placing it in `.specfact/reports/enrichment/` directory
-   - Full path example: `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`
+   - Use bundle name from CLI output (e.g., `legacy-api`)
+   - Derive enrichment report path: `.specfact/reports/enrichment/<bundle-name>-<timestamp>.enrichment.md`
    - **Ensure the directory exists**: Create `.specfact/reports/enrichment/` if it doesn't exist
 
 **What NOT to do**:
@@ -360,29 +355,24 @@ The CLI automatically deduplicates features during import using normalized key m
 
 **If enrichment was generated**:
 
-1. **Save enrichment report** to the enrichment reports directory with a name that matches the plan bundle:
+1. **Save enrichment report** to the enrichment reports directory:
    - Location: `.specfact/reports/enrichment/`
-   - Naming: Use the same name and timestamp as the plan bundle, replacing `.bundle.<format>` with `.enrichment.md`
-   - Example: If plan bundle is `specfact-cli.2025-11-17T09-26-47.bundle.<format>`, save enrichment as `specfact-cli.2025-11-17T09-26-47.enrichment.md`
-   - Full path: `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`
+   - Naming: `<bundle-name>-<timestamp>.enrichment.md`
+   - Example: `.specfact/reports/enrichment/legacy-api-2025-11-17T09-26-47.enrichment.md`
 
 2. **Execute CLI with `--enrichment` flag**:
 
    ```bash
-   specfact import from-code --repo <repo_path> --name <plan_name> --enrichment <enrichment-report-path>
+   specfact import from-code <bundle-name> --repo <repo_path> --enrichment <enrichment-report-path>
    ```
 
 3. **The CLI will**:
-   - Load the original plan bundle (if it exists, derived from enrichment report path)
+   - Load the original project bundle from `.specfact/projects/<bundle-name>/`
    - Parse the enrichment report
-   - Apply missing features to the plan bundle
+   - Apply missing features to the project bundle
    - Adjust confidence scores
    - Add business context
-   - Validate and write the enriched plan bundle as a **new file** with clear naming:
-     - Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.<format>`
-     - Example: `specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>`
-     - The original plan bundle remains unchanged
-     - The enriched plan is stored as a separate file for comparison and versioning
+   - Validate and save the enriched project bundle (updates existing bundle)
 
 **If no enrichment**:
 
@@ -410,11 +400,9 @@ If `--report` is provided, generate a Markdown import report:
 
 ### 6. Present Results
 
-**Present the CLI-generated plan bundle** to the user:
+**Present the CLI-generated project bundle** to the user:
 
-- **Plan bundle location**: Show where the CLI wrote the YAML file
-- **Original plan** (if enrichment was applied): Show the original plan bundle path
-- **Enriched plan** (if enrichment was applied): Show the enriched plan bundle path with clear naming
+- **Project bundle location**: `.specfact/projects/<bundle-name>/`
 - **Feature summary**: List features from CLI output with confidence scores
 - **Story summary**: List stories from CLI output per feature
 - **CLI metadata**: Execution time, file counts, validation results
@@ -425,8 +413,7 @@ If `--report` is provided, generate a Markdown import report:
 ```markdown
 ✓ Import complete!
 
-Original plan: specfact-cli.2025-11-17T09-26-47.bundle.<format>
-Enriched plan: specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.<format>
+Project bundle: .specfact/projects/legacy-api/
 
 CLI Analysis Results:
 - Features identified: 19
@@ -604,7 +591,7 @@ When comparing imported plans with main plans:
 
 To compare plans, normalize feature keys by removing prefixes and underscores, then match by normalized key.
 
-**Important**: This is a **one-way import** - it imports from code into SpecFact format. It does NOT perform consistency checking on Spec-Kit artifacts. For Spec-Kit artifact consistency checking, use Spec-Kit's `/speckit.analyze` command instead.
+**Important**: This is a **one-way import** - it imports from code into SpecFact modular project bundle format. For external tool integration (Spec-Kit, Linear, Jira), use `specfact import from-bridge --adapter <adapter>` instead.
 
 ## Constitution Bootstrap (Optional)
 

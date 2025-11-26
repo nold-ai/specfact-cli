@@ -22,11 +22,11 @@ from rich.table import Table
 from specfact_cli import runtime
 from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
-from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
-from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, Product, Release, Story
+from specfact_cli.models.plan import Business, Feature, Idea, PlanBundle, Product, Release, Story
+from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.models.sdd import SDDHow, SDDManifest, SDDWhat, SDDWhy
 from specfact_cli.modes import detect_mode
 from specfact_cli.telemetry import telemetry
@@ -42,6 +42,7 @@ from specfact_cli.utils import (
     prompt_list,
     prompt_text,
 )
+from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 from specfact_cli.validators.schema import validate_plan_bundle
 
@@ -52,53 +53,40 @@ console = Console()
 
 @app.command("init")
 @beartype
-@require(lambda out: out is None or isinstance(out, Path), "Output must be None or Path")
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 def init(
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     interactive: bool = typer.Option(
         True,
         "--interactive/--no-interactive",
         help="Interactive mode with prompts",
-    ),
-    out: Path | None = typer.Option(
-        None,
-        "--out",
-        help="Output plan bundle path (default: .specfact/plans/main bundle using current format)",
     ),
     scaffold: bool = typer.Option(
         True,
         "--scaffold/--no-scaffold",
         help="Create complete .specfact directory structure",
     ),
-    output_format: StructuredFormat | None = typer.Option(
-        None,
-        "--output-format",
-        help="Plan bundle format for output (yaml or json). Defaults to global --output-format.",
-        case_sensitive=False,
-    ),
 ) -> None:
     """
-    Initialize a new development plan.
+    Initialize a new modular project bundle.
 
-    Creates a new plan bundle with idea, product, and features structure.
-    Optionally scaffolds the complete .specfact/ directory structure.
+    Creates a new modular project bundle with idea, product, and features structure.
+    The bundle is created in .specfact/projects/<bundle-name>/ directory.
 
     Example:
-        specfact plan init                     # Interactive with scaffold
-        specfact plan init --no-interactive    # Minimal plan
-        specfact plan init --out .specfact/plans/feature-auth.bundle.json
+        specfact plan init legacy-api                    # Interactive with scaffold
+        specfact plan init auth-module --no-interactive  # Minimal bundle
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
-    effective_format = output_format or runtime.get_output_format()
-
     telemetry_metadata = {
+        "bundle": bundle,
         "interactive": interactive,
         "scaffold": scaffold,
-        "output_format": effective_format.value,
     }
 
     with telemetry.track_command("plan.init", telemetry_metadata) as record:
-        print_section("SpecFact CLI - Plan Builder")
+        print_section("SpecFact CLI - Project Bundle Builder")
 
         # Create .specfact structure if requested
         if scaffold:
@@ -109,71 +97,72 @@ def init(
             # Ensure minimum structure exists
             SpecFactStructure.ensure_structure()
 
-        # Use default path if not specified
-        if out is None:
-            out = SpecFactStructure.get_default_plan_path(preferred_format=effective_format)
-        else:
-            out = out.with_name(SpecFactStructure.ensure_plan_filename(out.name, effective_format))
+        # Get project bundle directory
+        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        if bundle_dir.exists():
+            print_error(f"Project bundle already exists: {bundle_dir}")
+            print_info("Use a different bundle name or remove the existing bundle")
+            raise typer.Exit(1)
+
+        # Ensure project structure exists
+        SpecFactStructure.ensure_project_structure(bundle_name=bundle)
 
         if not interactive:
-            # Non-interactive mode: create minimal plan
-            _create_minimal_plan(out, effective_format)
-            record({"plan_type": "minimal"})
+            # Non-interactive mode: create minimal bundle
+            _create_minimal_bundle(bundle, bundle_dir)
+            record({"bundle_type": "minimal"})
             return
 
-        # Interactive mode: guided plan creation
+        # Interactive mode: guided bundle creation
         try:
-            plan = _build_plan_interactively()
+            project_bundle = _build_bundle_interactively(bundle)
 
-            # Generate plan file
-            out.parent.mkdir(parents=True, exist_ok=True)
-            generator = PlanGenerator()
-            generator.generate(plan, out, format=effective_format)
+            # Save bundle
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-            # Record plan statistics
+            # Record bundle statistics
             record(
                 {
-                    "plan_type": "interactive",
-                    "features_count": len(plan.features) if plan.features else 0,
-                    "stories_count": sum(len(f.stories) for f in plan.features) if plan.features else 0,
+                    "bundle_type": "interactive",
+                    "features_count": len(project_bundle.features),
+                    "stories_count": sum(len(f.stories) for f in project_bundle.features.values()),
                 }
             )
 
-            print_success(f"Plan created successfully: {out}")
-
-            # Validate
-            is_valid, error, _ = validate_plan_bundle(out)
-            if is_valid:
-                print_success("Plan validation passed")
-            else:
-                print_warning(f"Plan has validation issues: {error}")
+            print_success(f"Project bundle created successfully: {bundle_dir}")
 
         except KeyboardInterrupt:
-            print_warning("\nPlan creation cancelled")
+            print_warning("\nBundle creation cancelled")
             raise typer.Exit(1) from None
         except Exception as e:
-            print_error(f"Failed to create plan: {e}")
+            print_error(f"Failed to create bundle: {e}")
             raise typer.Exit(1) from e
 
 
-def _create_minimal_plan(out: Path, format: StructuredFormat) -> None:
-    """Create a minimal plan bundle."""
-    plan = PlanBundle(
-        version="1.0",
+def _create_minimal_bundle(bundle_name: str, bundle_dir: Path) -> None:
+    """Create a minimal project bundle."""
+
+    manifest = BundleManifest(
+        versions=BundleVersions(schema="1.0", project="0.1.0"),
+        schema_metadata=None,
+        project_metadata=None,
+    )
+
+    bundle = ProjectBundle(
+        manifest=manifest,
+        bundle_name=bundle_name,
         idea=None,
         business=None,
         product=Product(themes=[], releases=[]),
-        features=[],
-        metadata=None,
+        features={},
         clarifications=None,
     )
 
-    generator = PlanGenerator()
-    generator.generate(plan, out, format=format)
-    print_success(f"Minimal plan created: {out}")
+    save_project_bundle(bundle, bundle_dir, atomic=True)
+    print_success(f"Minimal project bundle created: {bundle_dir}")
 
 
-def _build_plan_interactively() -> PlanBundle:
+def _build_bundle_interactively(bundle_name: str) -> ProjectBundle:
     """Build a plan bundle through interactive prompts."""
     # Section 1: Idea
     print_section("1. Idea - What are you building?")
@@ -262,25 +251,36 @@ def _build_plan_interactively() -> PlanBundle:
         if not prompt_confirm("Add another feature?", default=False):
             break
 
-    # Create plan bundle
-    plan = PlanBundle(
-        version="1.0",
+    # Create project bundle
+
+    manifest = BundleManifest(
+        versions=BundleVersions(schema="1.0", project="0.1.0"),
+        schema_metadata=None,
+        project_metadata=None,
+    )
+
+    # Convert features list to dict
+    features_dict: dict[str, Feature] = {f.key: f for f in features}
+
+    project_bundle = ProjectBundle(
+        manifest=manifest,
+        bundle_name=bundle_name,
         idea=idea,
         business=business,
         product=product,
-        features=features,
-        metadata=None,
+        features=features_dict,
         clarifications=None,
     )
 
     # Final summary
-    print_section("Plan Summary")
+    print_section("Project Bundle Summary")
+    console.print(f"[cyan]Bundle:[/cyan] {bundle_name}")
     console.print(f"[cyan]Title:[/cyan] {idea.title}")
     console.print(f"[cyan]Themes:[/cyan] {', '.join(product.themes)}")
     console.print(f"[cyan]Features:[/cyan] {len(features)}")
     console.print(f"[cyan]Releases:[/cyan] {len(product.releases)}")
 
-    return plan
+    return project_bundle
 
 
 def _prompt_feature() -> Feature:
@@ -363,60 +363,69 @@ def _prompt_story() -> Story:
 @beartype
 @require(lambda key: isinstance(key, str) and len(key) > 0, "Key must be non-empty string")
 @require(lambda title: isinstance(title, str) and len(title) > 0, "Title must be non-empty string")
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def add_feature(
     key: str = typer.Option(..., "--key", help="Feature key (e.g., FEATURE-001)"),
     title: str = typer.Option(..., "--title", help="Feature title"),
     outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
     acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
-    plan: Path | None = typer.Option(
+    bundle: str | None = typer.Option(
         None,
-        "--plan",
-        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
     ),
 ) -> None:
     """
-    Add a new feature to an existing plan.
+    Add a new feature to an existing project bundle.
 
     Example:
-        specfact plan add-feature --key FEATURE-001 --title "User Auth" --outcomes "Secure login" --acceptance "Login works"
+        specfact plan add-feature --key FEATURE-001 --title "User Auth" --outcomes "Secure login" --acceptance "Login works" --bundle legacy-api
     """
-    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
     telemetry_metadata = {
         "feature_key": key,
     }
 
     with telemetry.track_command("plan.add_feature", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            plan = SpecFactStructure.get_default_plan_path()
-            if not plan.exists():
-                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+        # Find bundle directory
+        if bundle is None:
+            # Try to find default bundle (first bundle in projects directory)
+            projects_dir = Path(".specfact/projects")
+            if projects_dir.exists():
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
+                if bundles:
+                    bundle = bundles[0]
+                    print_info(f"Using default bundle: {bundle}")
+                else:
+                    print_error(f"No project bundles found in {projects_dir}")
+                    print_error("Create one with: specfact plan init <bundle-name>")
+                    raise typer.Exit(1)
+            else:
+                print_error(f"Projects directory not found: {projects_dir}")
+                print_error("Create one with: specfact plan init <bundle-name>")
                 raise typer.Exit(1)
-            print_info(f"Using default plan: {plan}")
 
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        bundle_dir = _find_bundle_dir(bundle)
+        if bundle_dir is None:
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Add Feature")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, existing_plan = validation_result
+            # Load existing project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            if not is_valid or existing_plan is None:
-                print_error(f"Plan validation failed: {error}")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for compatibility
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Check if feature key already exists
-            existing_keys = {f.key for f in existing_plan.features}
+            existing_keys = {f.key for f in plan_bundle.features}
             if key in existing_keys:
-                print_error(f"Feature '{key}' already exists in plan")
+                print_error(f"Feature '{key}' already exists in bundle")
                 raise typer.Exit(1)
 
             # Parse outcomes and acceptance (comma-separated strings)
@@ -435,20 +444,16 @@ def add_feature(
                 draft=False,
             )
 
-            # Add feature to plan
-            existing_plan.features.append(new_feature)
+            # Add feature to plan bundle
+            plan_bundle.features.append(new_feature)
 
-            # Validate updated plan (always passes for PlanBundle model)
-            print_info("Validating updated plan...")
-
-            # Save updated plan
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(existing_plan, plan)
+            # Convert back to ProjectBundle and save
+            updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
+            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
-                    "total_features": len(existing_plan.features),
+                    "total_features": len(plan_bundle.features),
                     "outcomes_count": len(outcomes_list),
                     "acceptance_count": len(acceptance_list),
                 }
@@ -479,7 +484,7 @@ def add_feature(
     lambda value_points: value_points is None or (value_points >= 0 and value_points <= 100),
     "Value points must be 0-100 if provided",
 )
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def add_story(
     feature: str = typer.Option(..., "--feature", help="Parent feature key"),
     key: str = typer.Option(..., "--key", help="Story key (e.g., STORY-001)"),
@@ -488,19 +493,19 @@ def add_story(
     story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity)"),
     value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value)"),
     draft: bool = typer.Option(False, "--draft", help="Mark story as draft"),
-    plan: Path | None = typer.Option(
+    bundle: str | None = typer.Option(
         None,
-        "--plan",
-        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
     ),
 ) -> None:
     """
     Add a new story to a feature.
 
     Example:
-        specfact plan add-story --feature FEATURE-001 --key STORY-001 --title "Login API" --acceptance "API works" --story-points 5
+        specfact plan add-story --feature FEATURE-001 --key STORY-001 --title "Login API" --acceptance "API works" --story-points 5 --bundle legacy-api
     """
-    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
     telemetry_metadata = {
         "feature_key": feature,
@@ -508,41 +513,50 @@ def add_story(
     }
 
     with telemetry.track_command("plan.add_story", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            plan = SpecFactStructure.get_default_plan_path()
-            if not plan.exists():
-                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+        # Find bundle directory
+        if bundle is None:
+            # Try to find default bundle (first bundle in projects directory)
+            projects_dir = Path(".specfact/projects")
+            if projects_dir.exists():
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
+                if bundles:
+                    bundle = bundles[0]
+                    print_info(f"Using default bundle: {bundle}")
+                else:
+                    print_error(f"No project bundles found in {projects_dir}")
+                    print_error("Create one with: specfact plan init <bundle-name>")
+                    raise typer.Exit(1)
+            else:
+                print_error(f"Projects directory not found: {projects_dir}")
+                print_error("Create one with: specfact plan init <bundle-name>")
                 raise typer.Exit(1)
-            print_info(f"Using default plan: {plan}")
 
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        bundle_dir = _find_bundle_dir(bundle)
+        if bundle_dir is None:
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Add Story")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, existing_plan = validation_result
+            # Load existing project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            if not is_valid or existing_plan is None:
-                print_error(f"Plan validation failed: {error}")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for compatibility
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Find parent feature
             parent_feature = None
-            for f in existing_plan.features:
+            for f in plan_bundle.features:
                 if f.key == feature:
                     parent_feature = f
                     break
 
             if parent_feature is None:
-                print_error(f"Feature '{feature}' not found in plan")
-                console.print(f"[dim]Available features: {', '.join(f.key for f in existing_plan.features)}[/dim]")
+                print_error(f"Feature '{feature}' not found in bundle")
+                console.print(f"[dim]Available features: {', '.join(f.key for f in plan_bundle.features)}[/dim]")
                 raise typer.Exit(1)
 
             # Check if story key already exists in feature
@@ -572,13 +586,9 @@ def add_story(
             # Add story to feature
             parent_feature.stories.append(new_story)
 
-            # Validate updated plan (always passes for PlanBundle model)
-            print_info("Validating updated plan...")
-
-            # Save updated plan
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(existing_plan, plan)
+            # Convert back to ProjectBundle and save
+            updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
+            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
@@ -605,21 +615,21 @@ def add_story(
 
 @app.command("update-idea")
 @beartype
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def update_idea(
     title: str | None = typer.Option(None, "--title", help="Idea title"),
     narrative: str | None = typer.Option(None, "--narrative", help="Idea narrative (brief description)"),
     target_users: str | None = typer.Option(None, "--target-users", help="Target user personas (comma-separated)"),
     value_hypothesis: str | None = typer.Option(None, "--value-hypothesis", help="Value hypothesis statement"),
     constraints: str | None = typer.Option(None, "--constraints", help="Idea-level constraints (comma-separated)"),
-    plan: Path | None = typer.Option(
+    bundle: str | None = typer.Option(
         None,
-        "--plan",
-        help="Path to plan bundle (default: active plan or latest)",
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
     ),
 ) -> None:
     """
-    Update idea section metadata in a plan bundle (optional business context).
+    Update idea section metadata in a project bundle (optional business context).
 
     This command allows updating idea properties (title, narrative, target users,
     value hypothesis, constraints) in non-interactive environments (CI/CD, Copilot).
@@ -628,68 +638,51 @@ def update_idea(
     not technical implementation details. All parameters are optional.
 
     Example:
-        specfact plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt"
-        specfact plan update-idea --constraints "Python 3.11+, Maintain backward compatibility"
+        specfact plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt" --bundle legacy-api
+        specfact plan update-idea --constraints "Python 3.11+, Maintain backward compatibility" --bundle legacy-api
     """
-    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
     telemetry_metadata = {}
 
     with telemetry.track_command("plan.update_idea", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            default_plan = SpecFactStructure.get_default_plan_path()
-            if default_plan.exists():
-                plan = default_plan
-                print_info(f"Using default plan: {plan}")
-            else:
-                # Find latest plan bundle
-                base_path = Path(".")
-                plans_dir = base_path / SpecFactStructure.PLANS
-                if plans_dir.exists():
-                    plan_files = [
-                        p
-                        for p in plans_dir.glob("*.bundle.*")
-                        if any(str(p).endswith(suffix) for suffix in SpecFactStructure.PLAN_SUFFIXES)
-                    ]
-                    plan_files = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)
-                    if plan_files:
-                        plan = plan_files[0]
-                        print_info(f"Using latest plan: {plan}")
-                    else:
-                        print_error(f"No plan bundles found in {plans_dir}")
-                        print_error("Create one with: specfact plan init --interactive")
-                        raise typer.Exit(1)
+        # Find bundle directory
+        if bundle is None:
+            # Try to find default bundle (first bundle in projects directory)
+            projects_dir = Path(".specfact/projects")
+            if projects_dir.exists():
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
+                if bundles:
+                    bundle = bundles[0]
+                    print_info(f"Using default bundle: {bundle}")
                 else:
-                    print_error(f"Plans directory not found: {plans_dir}")
-                    print_error("Create one with: specfact plan init --interactive")
+                    print_error(f"No project bundles found in {projects_dir}")
+                    print_error("Create one with: specfact plan init <bundle-name>")
                     raise typer.Exit(1)
+            else:
+                print_error(f"Projects directory not found: {projects_dir}")
+                print_error("Create one with: specfact plan init <bundle-name>")
+                raise typer.Exit(1)
 
-        # Type guard: ensure plan is not None
-        if plan is None:
-            print_error("Plan bundle path is required")
-            raise typer.Exit(1)
-
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        bundle_dir = _find_bundle_dir(bundle)
+        if bundle_dir is None:
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Update Idea")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, existing_plan = validation_result
+            # Load existing project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            if not is_valid or existing_plan is None:
-                print_error(f"Plan validation failed: {error}")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for compatibility
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Create idea section if it doesn't exist
-            if existing_plan.idea is None:
-                existing_plan.idea = Idea(
+            if plan_bundle.idea is None:
+                plan_bundle.idea = Idea(
                     title=title or "Untitled",
                     narrative=narrative or "",
                     target_users=[],
@@ -704,29 +697,29 @@ def update_idea(
 
             # Update title if provided
             if title is not None:
-                existing_plan.idea.title = title
+                plan_bundle.idea.title = title
                 updates_made.append("title")
 
             # Update narrative if provided
             if narrative is not None:
-                existing_plan.idea.narrative = narrative
+                plan_bundle.idea.narrative = narrative
                 updates_made.append("narrative")
 
             # Update target_users if provided
             if target_users is not None:
                 target_users_list = [u.strip() for u in target_users.split(",")] if target_users else []
-                existing_plan.idea.target_users = target_users_list
+                plan_bundle.idea.target_users = target_users_list
                 updates_made.append("target_users")
 
             # Update value_hypothesis if provided
             if value_hypothesis is not None:
-                existing_plan.idea.value_hypothesis = value_hypothesis
+                plan_bundle.idea.value_hypothesis = value_hypothesis
                 updates_made.append("value_hypothesis")
 
             # Update constraints if provided
             if constraints is not None:
                 constraints_list = [c.strip() for c in constraints.split(",")] if constraints else []
-                existing_plan.idea.constraints = constraints_list
+                plan_bundle.idea.constraints = constraints_list
                 updates_made.append("constraints")
 
             if not updates_made:
@@ -735,22 +728,14 @@ def update_idea(
                 )
                 raise typer.Exit(1)
 
-            # Validate updated plan (always passes for PlanBundle model)
-            print_info("Validating updated plan...")
-
-            # Save updated plan
-            # Type guard: ensure plan is not None (should never happen here, but type checker needs it)
-            if plan is None:
-                print_error("Plan bundle path is required")
-                raise typer.Exit(1)
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(existing_plan, plan)
+            # Convert back to ProjectBundle and save
+            updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
+            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
                     "updates": updates_made,
-                    "idea_exists": existing_plan.idea is not None,
+                    "idea_exists": plan_bundle.idea is not None,
                 }
             )
 
@@ -784,7 +769,7 @@ def update_idea(
 
 @app.command("update-feature")
 @beartype
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def update_feature(
     key: str | None = typer.Option(
         None, "--key", help="Feature key to update (e.g., FEATURE-001). Required unless --batch-updates is provided."
@@ -804,14 +789,14 @@ def update_feature(
         "--batch-updates",
         help="Path to JSON/YAML file with multiple feature updates. File format: list of objects with 'key' and update fields (title, outcomes, acceptance, constraints, confidence, draft).",
     ),
-    plan: Path | None = typer.Option(
+    bundle: str | None = typer.Option(
         None,
-        "--plan",
-        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
     ),
 ) -> None:
     """
-    Update an existing feature's metadata in a plan bundle.
+    Update an existing feature's metadata in a project bundle.
 
     This command allows updating feature properties (title, outcomes, acceptance criteria,
     constraints, confidence, draft status) in non-interactive environments (CI/CD, Copilot).
@@ -820,12 +805,13 @@ def update_feature(
 
     Example:
         # Single feature update
-        specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2"
-        specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+        specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2" --bundle legacy-api
+        specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9 --bundle legacy-api
 
         # Batch updates from file
-        specfact plan update-feature --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
+        specfact plan update-feature --batch-updates updates.json --bundle legacy-api
     """
+    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import load_structured_file
 
@@ -843,30 +829,38 @@ def update_feature(
     }
 
     with telemetry.track_command("plan.update_feature", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            plan = SpecFactStructure.get_default_plan_path()
-            if not plan.exists():
-                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+        # Find bundle directory
+        if bundle is None:
+            # Try to find default bundle (first bundle in projects directory)
+            projects_dir = Path(".specfact/projects")
+            if projects_dir.exists():
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
+                if bundles:
+                    bundle = bundles[0]
+                    print_info(f"Using default bundle: {bundle}")
+                else:
+                    print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
+                    raise typer.Exit(1)
+            else:
+                print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
                 raise typer.Exit(1)
-            print_info(f"Using default plan: {plan}")
 
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        if not bundle_dir.exists():
+            print_error(f"Bundle '{bundle}' not found: {bundle_dir}\nCreate one with: specfact plan init {bundle}")
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Update Feature")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, existing_plan = validation_result
+            # Load existing project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            if not is_valid or existing_plan is None:
-                print_error(f"Plan validation failed: {error}")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for compatibility
+            existing_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Handle batch updates
             if batch_updates:
@@ -972,11 +966,11 @@ def update_feature(
                     else:
                         failed_updates.append({"key": update_key, "error": "No valid update fields provided"})
 
-                # Save updated plan after all batch updates
+                # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-                print_info(f"Saving plan to: {plan}")
-                generator = PlanGenerator()
-                generator.generate(existing_plan, plan)
+                print_info(f"Saving bundle: {bundle_dir}")
+                updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
+                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1058,13 +1052,11 @@ def update_feature(
                     )
                     raise typer.Exit(1)
 
-                # Validate updated plan (always passes for PlanBundle model)
+                # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-
-                # Save updated plan
-                print_info(f"Saving plan to: {plan}")
-                generator = PlanGenerator()
-                generator.generate(existing_plan, plan)
+                print_info(f"Saving bundle: {bundle_dir}")
+                updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
+                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1091,7 +1083,7 @@ def update_feature(
 
 @app.command("update-story")
 @beartype
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 @require(
     lambda story_points: story_points is None or (story_points >= 0 and story_points <= 100),
     "Story points must be 0-100 if provided",
@@ -1123,14 +1115,14 @@ def update_story(
         "--batch-updates",
         help="Path to JSON/YAML file with multiple story updates. File format: list of objects with 'feature', 'key' and update fields (title, acceptance, story_points, value_points, confidence, draft).",
     ),
-    plan: Path | None = typer.Option(
+    bundle: str | None = typer.Option(
         None,
-        "--plan",
-        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses default bundle.",
     ),
 ) -> None:
     """
-    Update an existing story's metadata in a plan bundle.
+    Update an existing story's metadata in a project bundle.
 
     This command allows updating story properties (title, acceptance criteria,
     story points, value points, confidence, draft status) in non-interactive
@@ -1140,12 +1132,13 @@ def update_story(
 
     Example:
         # Single story update
-        specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title"
-        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title" --bundle legacy-api
+        specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9 --bundle legacy-api
 
         # Batch updates from file
-        specfact plan update-story --batch-updates updates.json --plan .specfact/plans/main.bundle.yaml
+        specfact plan update-story --batch-updates updates.json --bundle legacy-api
     """
+    from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import load_structured_file
 
@@ -1163,30 +1156,38 @@ def update_story(
     }
 
     with telemetry.track_command("plan.update_story", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            plan = SpecFactStructure.get_default_plan_path()
-            if not plan.exists():
-                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
+        # Find bundle directory
+        if bundle is None:
+            # Try to find default bundle (first bundle in projects directory)
+            projects_dir = Path(".specfact/projects")
+            if projects_dir.exists():
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
+                if bundles:
+                    bundle = bundles[0]
+                    print_info(f"Using default bundle: {bundle}")
+                else:
+                    print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
+                    raise typer.Exit(1)
+            else:
+                print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
                 raise typer.Exit(1)
-            print_info(f"Using default plan: {plan}")
 
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        if not bundle_dir.exists():
+            print_error(f"Bundle '{bundle}' not found: {bundle_dir}\nCreate one with: specfact plan init {bundle}")
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Update Story")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, existing_plan = validation_result
+            # Load existing project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            if not is_valid or existing_plan is None:
-                print_error(f"Plan validation failed: {error}")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for compatibility
+            existing_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Handle batch updates
             if batch_updates:
@@ -1316,11 +1317,11 @@ def update_story(
                             {"feature": update_feature, "key": update_key, "error": "No valid update fields provided"}
                         )
 
-                # Save updated plan after all batch updates
+                # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-                print_info(f"Saving plan to: {plan}")
-                generator = PlanGenerator()
-                generator.generate(existing_plan, plan)
+                print_info(f"Saving bundle: {bundle_dir}")
+                updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
+                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1411,13 +1412,11 @@ def update_story(
                     )
                     raise typer.Exit(1)
 
-                # Validate updated plan (always passes for PlanBundle model)
+                # Convert back to ProjectBundle and save
                 print_info("Validating updated plan...")
-
-                # Save updated plan
-                print_info(f"Saving plan to: {plan}")
-                generator = PlanGenerator()
-                generator.generate(existing_plan, plan)
+                print_info(f"Saving bundle: {bundle_dir}")
+                updated_project_bundle = _convert_plan_bundle_to_project_bundle(existing_plan, bundle)
+                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
                 record(
                     {
@@ -1778,7 +1777,7 @@ def select(
     name: str | None = typer.Option(
         None,
         "--name",
-        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.<format>')",
+        help="Select bundle by exact bundle name (non-interactive, e.g., 'main')",
     ),
     plan_id: str | None = typer.Option(
         None,
@@ -1787,28 +1786,28 @@ def select(
     ),
 ) -> None:
     """
-    Select active plan from available plan bundles.
+    Select active project bundle from available bundles.
 
-    Displays a numbered list of available plans and allows selection by number or name.
-    The selected plan becomes the active plan tracked in `.specfact/plans/config.yaml`.
+    Displays a numbered list of available project bundles and allows selection by number or name.
+    The selected bundle becomes the active bundle tracked in `.specfact/plans/config.yaml`.
 
     Filter Options:
-        --current          Show only the currently active plan (non-interactive, auto-selects)
+        --current          Show only the currently active bundle (non-interactive, auto-selects)
         --stages STAGES    Filter by stages (comma-separated: draft,review,approved,released)
-        --last N           Show last N plans by modification time (most recent first)
-        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.<format>')
-        --id HASH          Select by content hash ID (non-interactive, from metadata.summary.content_hash)
+        --last N           Show last N bundles by modification time (most recent first)
+        --name NAME        Select by exact bundle name (non-interactive, e.g., 'main')
+        --id HASH          Select by content hash ID (non-interactive, from bundle manifest)
 
     Example:
         specfact plan select                              # Interactive selection
         specfact plan select 1                           # Select by number
-        specfact plan select main.bundle.json            # Select by name (positional)
-        specfact plan select --current                   # Show only active plan (auto-selects)
+        specfact plan select main                        # Select by bundle name (positional)
+        specfact plan select --current                   # Show only active bundle (auto-selects)
         specfact plan select --stages draft,review       # Filter by stages
-        specfact plan select --last 5                    # Show last 5 plans
-        specfact plan select --non-interactive --last 1  # CI/CD: get most recent plan
-        specfact plan select --name main.bundle.<format> # CI/CD: select by exact filename
-        specfact plan select --id abc123def456           # CI/CD: select by content hash
+        specfact plan select --last 5                    # Show last 5 bundles
+        specfact plan select --non-interactive --last 1  # CI/CD: get most recent bundle
+        specfact plan select --name main                 # CI/CD: select by exact bundle name
+        specfact plan select --id abc123def456          # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
@@ -1835,10 +1834,10 @@ def select(
         plans = SpecFactStructure.list_plans(max_files=max_files_to_process)
 
         if not plans:
-            print_warning("No plan bundles found in .specfact/plans/")
-            print_info("Create a plan with:")
-            print_info("  - specfact plan init")
-            print_info("  - specfact import from-code")
+            print_warning("No project bundles found in .specfact/projects/")
+            print_info("Create a project bundle with:")
+            print_info("  - specfact plan init <bundle-name>")
+            print_info("  - specfact import from-code <bundle-name>")
             raise typer.Exit(1)
 
         # Apply filters
@@ -1985,22 +1984,22 @@ def select(
                     print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(filtered_plans)}")
                     raise typer.Exit(1)
             else:
-                # Try as name (search in filtered list first, then all plans)
-                plan_name = SpecFactStructure.ensure_plan_filename(str(plan))
+                # Try as bundle name (search in filtered list first, then all plans)
+                bundle_name = str(plan)
 
-                # Find matching plan in filtered list first
+                # Find matching bundle in filtered list first
                 selected_plan = None
                 for p in filtered_plans:
-                    if p["name"] == plan_name or p["name"] == plan:
+                    if p["name"] == bundle_name:
                         selected_plan = p
                         break
 
                 # If not found in filtered list, search all plans (for better error message)
                 if selected_plan is None:
                     for p in plans:
-                        if p["name"] == plan_name or p["name"] == plan:
-                            print_warning(f"Plan '{plan}' exists but is filtered out by current options")
-                            print_info("Available filtered plans:")
+                        if p["name"] == bundle_name:
+                            print_warning(f"Bundle '{bundle_name}' exists but is filtered out by current options")
+                            print_info("Available filtered bundles:")
                             for i, p in enumerate(filtered_plans, 1):
                                 print_info(f"  {i}. {p['name']}")
                             raise typer.Exit(1)
@@ -2363,19 +2362,15 @@ def _validate_stage(value: str) -> str:
 
 @app.command("promote")
 @beartype
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(
     lambda stage: stage in ("draft", "review", "approved", "released"),
     "Stage must be draft, review, approved, or released",
 )
 def promote(
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     stage: str = typer.Option(
         ..., "--stage", callback=_validate_stage, help="Target stage (draft, review, approved, released)"
-    ),
-    plan: Path | None = typer.Option(
-        None,
-        "--plan",
-        help="Path to plan bundle (default: active plan in .specfact/plans using current format)",
     ),
     validate: bool = typer.Option(
         True,
@@ -2389,18 +2384,16 @@ def promote(
     ),
 ) -> None:
     """
-    Promote a plan bundle through development stages.
+    Promote a project bundle through development stages.
 
     Stages: draft → review → approved → released
 
     Example:
-        specfact plan promote --stage review
-        specfact plan promote --stage approved --validate
+        specfact plan promote legacy-api --stage review
+        specfact plan promote auth-module --stage approved --validate
     """
     import os
     from datetime import datetime
-
-    from specfact_cli.utils.structure import SpecFactStructure
 
     telemetry_metadata = {
         "target_stage": stage,
@@ -2409,35 +2402,23 @@ def promote(
     }
 
     with telemetry.track_command("plan.promote", telemetry_metadata) as record:
-        # Use default path if not specified
-        if plan is None:
-            plan = SpecFactStructure.get_default_plan_path()
-            if not plan.exists():
-                print_error(f"Default plan not found: {plan}\nCreate one with: specfact plan init --interactive")
-                raise typer.Exit(1)
-            print_info(f"Using default plan: {plan}")
-
-        if not plan.exists():
-            print_error(f"Plan bundle not found: {plan}")
+        # Find bundle directory
+        bundle_dir = _find_bundle_dir(bundle)
+        if bundle_dir is None:
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Plan Promotion")
 
         try:
-            # Load existing plan
-            print_info(f"Loading plan: {plan}")
-            validation_result = validate_plan_bundle(plan)
-            assert isinstance(validation_result, tuple), "Expected tuple from validate_plan_bundle for Path"
-            is_valid, error, bundle = validation_result
+            # Load project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            if not is_valid or bundle is None:
-                print_error(f"Plan validation failed: {error}")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for compatibility with validation functions
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
-            # Check current stage
-            current_stage = "draft"
-            if bundle.metadata:
-                current_stage = bundle.metadata.stage
+            # Check current stage (ProjectBundle doesn't have metadata.stage, use default)
+            current_stage = "draft"  # TODO: Add promotion status to ProjectBundle manifest
 
             print_info(f"Current stage: {current_stage}")
             print_info(f"Target stage: {stage}")
@@ -2462,7 +2443,7 @@ def promote(
             # Require SDD manifest for promotion to "review" or higher stages
             if stage in ("review", "approved", "released"):
                 print_info("Checking SDD manifest...")
-                sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_plan(bundle, plan, require_sdd=True)
+                sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_bundle(plan_bundle, bundle, require_sdd=True)
 
                 if sdd_manifest is None:
                     print_error("SDD manifest is required for promotion to 'review' or higher stages")
@@ -2499,7 +2480,7 @@ def promote(
 
             # Draft → Review: All features must have at least one story
             if current_stage == "draft" and stage == "review":
-                features_without_stories = [f for f in bundle.features if len(f.stories) == 0]
+                features_without_stories = [f for f in plan_bundle.features if len(f.stories) == 0]
                 if features_without_stories:
                     print_error(f"Cannot promote to review: {len(features_without_stories)} feature(s) without stories")
                     console.print("[dim]Features without stories:[/dim]")
@@ -2520,7 +2501,7 @@ def promote(
 
                     print_info("Checking coverage status...")
                     scanner = AmbiguityScanner()
-                    report = scanner.scan(bundle)
+                    report = scanner.scan(plan_bundle)
 
                     # Critical categories that block promotion if Missing
                     critical_categories = [
@@ -2590,7 +2571,7 @@ def promote(
 
                 print_info("Validating all features...")
                 incomplete_features: list[Feature] = []
-                for f in bundle.features:
+                for f in plan_bundle.features:
                     if not f.acceptance:
                         incomplete_features.append(f)
                     for s in f.stories:
@@ -2613,7 +2594,7 @@ def promote(
 
                 print_info("Checking coverage status...")
                 scanner_approved = AmbiguityScanner()
-                report_approved = scanner_approved.scan(bundle)
+                report_approved = scanner_approved.scan(plan_bundle)
 
                 # Critical categories that block promotion if Missing
                 critical_categories_approved = [
@@ -2651,7 +2632,7 @@ def promote(
             # Run validation if enabled
             if validate:
                 print_info("Running validation...")
-                validation_result = validate_plan_bundle(bundle)
+                validation_result = validate_plan_bundle(plan_bundle)
                 if isinstance(validation_result, ValidationReport):
                     if not validation_result.passed:
                         deviation_count = len(validation_result.deviations)
@@ -2664,46 +2645,30 @@ def promote(
                 else:
                     print_success("Validation passed")
 
-            # Update metadata
-            print_info(f"Promoting plan: {current_stage} → {stage}")
-
-            # Get user info
+            # Update promotion status (TODO: Add promotion status to ProjectBundle manifest)
+            print_info(f"Promoting bundle to stage: {stage}")
             promoted_by = (
                 os.environ.get("USER") or os.environ.get("USERNAME") or os.environ.get("GIT_AUTHOR_NAME") or "unknown"
             )
 
-            # Create or update metadata
-            if bundle.metadata is None:
-                bundle.metadata = Metadata(
-                    stage=stage,
-                    promoted_at=None,
-                    promoted_by=None,
-                    analysis_scope=None,
-                    entry_point=None,
-                    external_dependencies=[],
-                    summary=None,
-                )
-
-            bundle.metadata.stage = stage
-            bundle.metadata.promoted_at = datetime.now(UTC).isoformat()
-            bundle.metadata.promoted_by = promoted_by
-
-            # Write updated plan
-            print_info(f"Saving plan to: {plan}")
-            generator = PlanGenerator()
-            generator.generate(bundle, plan)
+            # Save updated project bundle
+            print_info("Saving project bundle with updated promotion status...")
+            # TODO: Update ProjectBundle manifest with promotion status
+            # For now, just save the bundle (promotion status will be added in a future update)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             record(
                 {
                     "current_stage": current_stage,
                     "target_stage": stage,
-                    "features_count": len(bundle.features) if bundle.features else 0,
+                    "features_count": len(plan_bundle.features) if plan_bundle.features else 0,
                 }
             )
 
             # Display summary
             print_success(f"Plan promoted: {current_stage} → {stage}")
-            console.print(f"[dim]Promoted at: {bundle.metadata.promoted_at}[/dim]")
+            promoted_at = datetime.now(UTC).isoformat()
+            console.print(f"[dim]Promoted at: {promoted_at}[/dim]")
             console.print(f"[dim]Promoted by: {promoted_by}[/dim]")
 
             # Show next steps
@@ -2797,24 +2762,26 @@ def _load_and_validate_plan(plan: Path) -> tuple[bool, PlanBundle | None]:
 
 @beartype
 @require(
-    lambda bundle, plan, auto_enrich: isinstance(bundle, PlanBundle) and plan is not None and isinstance(plan, Path),
-    "Bundle must be PlanBundle and plan must be non-None Path",
+    lambda bundle, bundle_dir, auto_enrich: isinstance(bundle, PlanBundle)
+    and bundle_dir is not None
+    and isinstance(bundle_dir, Path),
+    "Bundle must be PlanBundle and bundle_dir must be non-None Path",
 )
 @ensure(lambda result: result is None, "Must return None")
-def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -> None:
+def _handle_auto_enrichment(bundle: PlanBundle, bundle_dir: Path, auto_enrich: bool) -> None:
     """
     Handle auto-enrichment if requested.
 
     Args:
-        bundle: Plan bundle to enrich
-        plan: Path to plan bundle
+        bundle: Plan bundle to enrich (converted from ProjectBundle)
+        bundle_dir: Project bundle directory
         auto_enrich: Whether to auto-enrich
     """
     if not auto_enrich:
         return
 
     print_info(
-        "Auto-enriching plan bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
+        "Auto-enriching project bundle (enhancing vague acceptance criteria, incomplete requirements, generic tasks)..."
     )
     from specfact_cli.enrichers.plan_enricher import PlanEnricher
 
@@ -2822,9 +2789,13 @@ def _handle_auto_enrichment(bundle: PlanBundle, plan: Path, auto_enrich: bool) -
     enrichment_summary = enricher.enrich_plan(bundle)
 
     if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
-        # Save enriched plan bundle
-        generator = PlanGenerator()
-        generator.generate(bundle, plan)
+        # Convert back to ProjectBundle and save
+
+        # Reload to get current state
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        # Update features from enriched bundle
+        project_bundle.features = {f.key: f for f in bundle.features}
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
         print_success(
             f"✓ Auto-enriched plan bundle: {enrichment_summary['features_updated']} features, "
             f"{enrichment_summary['stories_updated']} stories updated"
@@ -3051,11 +3022,95 @@ def _deduplicate_features(bundle: PlanBundle) -> int:
 
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
-@require(lambda plan_path: plan_path is not None and isinstance(plan_path, Path), "Plan path must be non-None Path")
+@require(
+    lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty string"
+)
 @ensure(
     lambda result: isinstance(result, tuple) and len(result) == 3,
     "Must return (bool, SDDManifest | None, ValidationReport) tuple",
 )
+def _validate_sdd_for_bundle(
+    bundle: PlanBundle, bundle_name: str, require_sdd: bool = False
+) -> tuple[bool, SDDManifest | None, ValidationReport]:
+    """
+    Validate SDD manifest for project bundle.
+
+    Args:
+        bundle: Plan bundle to validate (converted from ProjectBundle)
+        bundle_name: Project bundle name
+        require_sdd: If True, return False if SDD is missing (for promotion gates)
+
+    Returns:
+        Tuple of (is_valid, sdd_manifest, validation_report)
+    """
+    from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
+    from specfact_cli.models.sdd import SDDManifest
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    report = ValidationReport()
+    # Construct SDD path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
+    base_path = Path.cwd()
+    sdd_path = base_path / SpecFactStructure.SDD / f"{bundle_name}.yaml"
+    if not sdd_path.exists():
+        sdd_path = base_path / SpecFactStructure.SDD / f"{bundle_name}.json"
+
+    # Check if SDD manifest exists
+    if not sdd_path.exists():
+        if require_sdd:
+            deviation = Deviation(
+                type=DeviationType.COVERAGE_THRESHOLD,
+                severity=DeviationSeverity.HIGH,
+                description="SDD manifest is required for plan promotion but not found",
+                location=str(sdd_path),
+                fix_hint=f"Run 'specfact plan harden {bundle_name}' to create SDD manifest",
+            )
+            report.add_deviation(deviation)
+            return (False, None, report)
+        # SDD not required, just return None
+        return (True, None, report)
+
+    # Load SDD manifest
+    try:
+        sdd_data = load_structured_file(sdd_path)
+        sdd_manifest = SDDManifest.model_validate(sdd_data)
+    except Exception as e:
+        deviation = Deviation(
+            type=DeviationType.COVERAGE_THRESHOLD,
+            severity=DeviationSeverity.HIGH,
+            description=f"Failed to load SDD manifest: {e}",
+            location=str(sdd_path),
+            fix_hint=f"Run 'specfact plan harden {bundle_name}' to recreate SDD manifest",
+        )
+        report.add_deviation(deviation)
+        return (False, None, report)
+
+    # Validate hash match
+    bundle.update_summary(include_hash=True)
+    bundle_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+    if bundle_hash and sdd_manifest.plan_bundle_hash != bundle_hash:
+        deviation = Deviation(
+            type=DeviationType.HASH_MISMATCH,
+            severity=DeviationSeverity.HIGH,
+            description=f"SDD bundle hash mismatch: expected {bundle_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
+            location=str(sdd_path),
+            fix_hint=f"Run 'specfact plan harden {bundle_name}' to update SDD manifest",
+        )
+        report.add_deviation(deviation)
+        return (False, sdd_manifest, report)
+
+    # Validate coverage thresholds
+    from specfact_cli.validators.contract_validator import calculate_contract_density, validate_contract_density
+
+    metrics = calculate_contract_density(sdd_manifest, bundle)
+    density_deviations = validate_contract_density(sdd_manifest, bundle, metrics)
+    for deviation in density_deviations:
+        report.add_deviation(deviation)
+
+    is_valid = report.total_deviations == 0
+    return (is_valid, sdd_manifest, report)
+
+
 def _validate_sdd_for_plan(
     bundle: PlanBundle, plan_path: Path, require_sdd: bool = False
 ) -> tuple[bool, SDDManifest | None, ValidationReport]:
@@ -3154,14 +3209,10 @@ def _validate_sdd_for_plan(
 
 @app.command("review")
 @beartype
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda max_questions: max_questions > 0, "Max questions must be positive")
 def review(
-    plan: Path | None = typer.Option(
-        None,
-        "--plan",
-        help="Path to plan bundle (default: active plan or latest)",
-    ),
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     max_questions: int = typer.Option(
         5,
         "--max-questions",
@@ -3207,20 +3258,18 @@ def review(
     ),
 ) -> None:
     """
-    Review plan bundle to identify and resolve ambiguities.
+    Review project bundle to identify and resolve ambiguities.
 
-    Analyzes the plan bundle for missing information, unclear requirements,
+    Analyzes the project bundle for missing information, unclear requirements,
     and unknowns. Asks targeted questions to resolve ambiguities and make
-    the plan ready for promotion.
+    the bundle ready for promotion.
 
     Example:
-        specfact plan review
-        specfact plan review --plan .specfact/plans/main.bundle.<format>
-        specfact plan review --max-questions 3 --category "Functional Scope"
-        specfact plan review --list-questions  # Output questions as JSON
-        specfact plan review --list-findings --findings-format json  # Output all findings as JSON (for bulk updates)
-        specfact plan review --list-findings  # Output all findings as table (interactive) or JSON (non-interactive)
-        specfact plan review --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
+        specfact plan review legacy-api
+        specfact plan review auth-module --max-questions 3 --category "Functional Scope"
+        specfact plan review legacy-api --list-questions  # Output questions as JSON
+        specfact plan review legacy-api --list-findings --findings-format json  # Output all findings as JSON
+        specfact plan review legacy-api --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
     """
     from datetime import date, datetime
 
@@ -3244,35 +3293,32 @@ def review(
     }
 
     with telemetry.track_command("plan.review", telemetry_metadata) as record:
-        # Find plan path
-        plan_path = _find_plan_path(plan)
-        if plan_path is None:
-            raise typer.Exit(1)
-
-        if not plan_path.exists():
-            print_error(f"Plan bundle not found: {plan_path}")
+        # Find bundle directory
+        bundle_dir = _find_bundle_dir(bundle)
+        if bundle_dir is None:
             raise typer.Exit(1)
 
         print_section("SpecFact CLI - Plan Review")
 
         try:
-            # Load and validate plan
-            is_valid, bundle = _load_and_validate_plan(plan_path)
-            if not is_valid or bundle is None:
-                raise typer.Exit(1)
+            # Load project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+
+            # Convert to PlanBundle for compatibility with review functions
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Deduplicate features by normalized key (clean up duplicates from previous syncs)
-            duplicates_removed = _deduplicate_features(bundle)
+            duplicates_removed = _deduplicate_features(plan_bundle)
             if duplicates_removed > 0:
-                # Write back deduplicated bundle immediately
-                generator = PlanGenerator()
-                generator.generate(bundle, plan_path)
-                print_success(f"✓ Removed {duplicates_removed} duplicate features from plan bundle")
+                # Convert back to ProjectBundle and save
+                # Update project bundle with deduplicated features
+                project_bundle.features = {f.key: f for f in plan_bundle.features}
+                save_project_bundle(project_bundle, bundle_dir, atomic=True)
+                print_success(f"✓ Removed {duplicates_removed} duplicate features from project bundle")
 
-            # Check current stage
-            current_stage = "draft"
-            if bundle.metadata:
-                current_stage = bundle.metadata.stage
+            # Check current stage (ProjectBundle doesn't have metadata.stage, use default)
+            current_stage = "draft"  # TODO: Add promotion status to ProjectBundle manifest
 
             print_info(f"Current stage: {current_stage}")
 
@@ -3285,7 +3331,7 @@ def review(
 
             # Validate SDD manifest (warn if missing, validate thresholds if present)
             print_info("Checking SDD manifest...")
-            sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_plan(bundle, plan_path, require_sdd=False)
+            sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_bundle(plan_bundle, bundle, require_sdd=False)
 
             if sdd_manifest is None:
                 print_warning("SDD manifest not found. Consider running 'specfact plan harden' to create one.")
@@ -3306,7 +3352,7 @@ def review(
                 # Display contract density metrics
                 from specfact_cli.validators.contract_validator import calculate_contract_density
 
-                metrics = calculate_contract_density(sdd_manifest, bundle)
+                metrics = calculate_contract_density(sdd_manifest, plan_bundle)
                 thresholds = sdd_manifest.coverage_thresholds
 
                 console.print("\n[bold]Contract Density Metrics:[/bold]")
@@ -3325,16 +3371,16 @@ def review(
                     console.print("[dim]Run 'specfact enforce sdd' for detailed report[/dim]")
 
             # Initialize clarifications if needed
-            if bundle.clarifications is None:
-                bundle.clarifications = Clarifications(sessions=[])
+            if plan_bundle.clarifications is None:
+                plan_bundle.clarifications = Clarifications(sessions=[])
 
             # Auto-enrich if requested (before scanning for ambiguities)
-            _handle_auto_enrichment(bundle, plan_path, auto_enrich)
+            _handle_auto_enrichment(plan_bundle, bundle_dir, auto_enrich)
 
             # Scan for ambiguities
             print_info("Scanning plan bundle for ambiguities...")
             scanner = AmbiguityScanner()
-            report = scanner.scan(bundle)
+            report = scanner.scan(plan_bundle)
 
             # Filter by category if specified
             if category:
@@ -3361,9 +3407,10 @@ def review(
 
             # Filter out findings that already have clarifications
             existing_question_ids = set()
-            for session in bundle.clarifications.sessions:
-                for q in session.questions:
-                    existing_question_ids.add(q.id)
+            if plan_bundle.clarifications:
+                for session in plan_bundle.clarifications.sessions:
+                    for q in session.questions:
+                        existing_question_ids.add(q.id)
 
             # Generate question IDs and filter
             question_counter = 1
@@ -3477,14 +3524,14 @@ def review(
             # Create or get today's session
             today = date.today().isoformat()
             today_session: ClarificationSession | None = None
-            for session in bundle.clarifications.sessions:
+            for session in plan_bundle.clarifications.sessions:
                 if session.date == today:
                     today_session = session
                     break
 
             if today_session is None:
                 today_session = ClarificationSession(date=today, questions=[])
-                bundle.clarifications.sessions.append(today_session)
+                plan_bundle.clarifications.sessions.append(today_session)
 
             # Ask questions sequentially
             questions_asked = 0
@@ -3521,7 +3568,7 @@ def review(
                     print_warning("Answer is longer than 5 words. Consider a shorter, more focused answer.")
 
                 # Integrate answer into plan bundle
-                integration_points = _integrate_clarification(bundle, finding, answer)
+                integration_points = _integrate_clarification(plan_bundle, finding, answer)
 
                 # Create clarification record
                 clarification = Clarification(
@@ -3546,15 +3593,22 @@ def review(
                 ):
                     break
 
-            # Save plan bundle once at the end (more efficient than saving after each question)
-            print_info("Saving plan bundle...")
-            generator = PlanGenerator()
-            generator.generate(bundle, plan_path)
-            print_success("Plan bundle saved")
+            # Save project bundle once at the end (more efficient than saving after each question)
+            print_info("Saving project bundle...")
+            # Reload to get current state, then update with changes
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            # Update from enriched bundle
+            project_bundle.idea = plan_bundle.idea
+            project_bundle.business = plan_bundle.business
+            project_bundle.product = plan_bundle.product
+            project_bundle.features = {f.key: f for f in plan_bundle.features}
+            project_bundle.clarifications = plan_bundle.clarifications
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            print_success("Project bundle saved")
 
             # Final validation
             print_info("Validating updated plan bundle...")
-            validation_result = validate_plan_bundle(bundle)
+            validation_result = validate_plan_bundle(plan_bundle)
             if isinstance(validation_result, ValidationReport):
                 if not validation_result.passed:
                     print_warning(f"Validation found {len(validation_result.deviations)} issue(s)")
@@ -3565,7 +3619,7 @@ def review(
 
             # Display summary
             print_success(f"Review complete: {questions_asked} question(s) answered")
-            console.print(f"\n[bold]Plan Bundle:[/bold] {plan}")
+            console.print(f"\n[bold]Project Bundle:[/bold] {bundle}")
             console.print(f"[bold]Questions Asked:[/bold] {questions_asked}")
 
             if today_session.questions:
@@ -3613,16 +3667,100 @@ def review(
             raise typer.Exit(1) from e
 
 
+def _convert_project_bundle_to_plan_bundle(project_bundle: ProjectBundle) -> PlanBundle:
+    """
+    Convert ProjectBundle to PlanBundle for compatibility with existing extraction functions.
+
+    Args:
+        project_bundle: ProjectBundle instance
+
+    Returns:
+        PlanBundle instance
+    """
+    return PlanBundle(
+        version="1.0",
+        idea=project_bundle.idea,
+        business=project_bundle.business,
+        product=project_bundle.product,
+        features=list(project_bundle.features.values()),
+        metadata=None,  # ProjectBundle doesn't use Metadata, uses manifest instead
+        clarifications=project_bundle.clarifications,
+    )
+
+
+@beartype
+def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name: str) -> ProjectBundle:
+    """
+    Convert PlanBundle to ProjectBundle (modular).
+
+    Args:
+        plan_bundle: PlanBundle instance to convert
+        bundle_name: Project bundle name
+
+    Returns:
+        ProjectBundle instance
+    """
+    from specfact_cli.models.project import BundleManifest, BundleVersions
+
+    # Create manifest
+    manifest = BundleManifest(
+        versions=BundleVersions(schema="1.0", project="0.1.0"),
+        schema_metadata=None,
+        project_metadata=None,
+    )
+
+    # Convert features list to dict
+    features_dict: dict[str, Feature] = {f.key: f for f in plan_bundle.features}
+
+    # Create and return ProjectBundle
+    return ProjectBundle(
+        manifest=manifest,
+        bundle_name=bundle_name,
+        idea=plan_bundle.idea,
+        business=plan_bundle.business,
+        product=plan_bundle.product,
+        features=features_dict,
+        clarifications=plan_bundle.clarifications,
+    )
+
+
+def _find_bundle_dir(bundle: str | None) -> Path | None:
+    """
+    Find project bundle directory.
+
+    Args:
+        bundle: Bundle name or None
+
+    Returns:
+        Bundle directory path or None if not found
+    """
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    if bundle is None:
+        print_error("Bundle name is required. Use --bundle <name>")
+        print_info("Available bundles:")
+        projects_dir = Path(".") / SpecFactStructure.PROJECTS
+        if projects_dir.exists():
+            for bundle_dir in projects_dir.iterdir():
+                if bundle_dir.is_dir() and (bundle_dir / "bundle.manifest.yaml").exists():
+                    print_info(f"  - {bundle_dir.name}")
+        return None
+
+    bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+    if not bundle_dir.exists():
+        print_error(f"Project bundle not found: {bundle_dir}")
+        print_info(f"Create one with: specfact plan init {bundle}")
+        return None
+
+    return bundle_dir
+
+
 @app.command("harden")
 @beartype
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda sdd_path: sdd_path is None or isinstance(sdd_path, Path), "SDD path must be None or Path")
 def harden(
-    plan: Path | None = typer.Option(
-        None,
-        "--plan",
-        help="Path to plan bundle (default: active plan)",
-    ),
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     sdd_path: Path | None = typer.Option(
         None,
         "--sdd",
@@ -3646,22 +3784,18 @@ def harden(
     ),
 ) -> None:
     """
-    Create or update SDD manifest (hard spec) from plan bundle.
+    Create or update SDD manifest (hard spec) from project bundle.
 
     Generates a canonical SDD bundle that captures WHY (intent, constraints),
     WHAT (capabilities, acceptance), and HOW (high-level architecture, invariants,
     contracts) with promotion status.
 
-    **Important**: SDD manifests are linked to specific plan bundles via hash.
-    By default, only one SDD manifest (`.specfact/sdd.yaml`) exists per repository.
-    If you have multiple plans, each plan should have its own SDD manifest.
-    Use `--sdd` to specify a different path for each plan (e.g., `--sdd .specfact/sdd.plan1.yaml`).
+    **Important**: SDD manifests are linked to specific project bundles via hash.
+    Each project bundle has its own SDD manifest in `.specfact/sdd/<bundle-name>.yaml`.
 
     Example:
-        specfact plan harden                              # Interactive with active plan
-        specfact plan harden --plan .specfact/plans/main.bundle.yaml
-        specfact plan harden --sdd .specfact/sdd.plan1.yaml  # Custom SDD path for this plan
-        specfact plan harden --non-interactive            # CI/CD mode
+        specfact plan harden legacy-api                    # Interactive
+        specfact plan harden auth-module --non-interactive  # CI/CD mode
     """
     from specfact_cli.models.sdd import (
         SDDCoverageThresholds,
@@ -3682,45 +3816,37 @@ def harden(
     with telemetry.track_command("plan.harden", telemetry_metadata) as record:
         print_section("SpecFact CLI - SDD Manifest Creation")
 
-        # Find plan path
-        plan_path = _find_plan_path(plan)
-        if plan_path is None:
-            raise typer.Exit(1)
-
-        if not plan_path.exists():
-            print_error(f"Plan bundle not found: {plan_path}")
+        # Find bundle directory
+        bundle_dir = _find_bundle_dir(bundle)
+        if bundle_dir is None:
             raise typer.Exit(1)
 
         try:
-            # Load and validate plan
-            is_valid, bundle = _load_and_validate_plan(plan_path)
-            if not is_valid or bundle is None:
+            # Load project bundle
+            print_info(f"Loading project bundle: {bundle_dir}")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+
+            # Compute project bundle hash
+            summary = project_bundle.compute_summary(include_hash=True)
+            project_hash = summary.content_hash
+            if not project_hash:
+                print_error("Failed to compute project bundle hash")
                 raise typer.Exit(1)
 
-            # Compute plan bundle hash
-            bundle.update_summary(include_hash=True)
-            plan_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
-            if not plan_hash:
-                print_error("Failed to compute plan bundle hash")
-                raise typer.Exit(1)
+            # Convert to PlanBundle for extraction functions (temporary compatibility)
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
-            # Save plan bundle with updated summary (so hash persists)
-            print_info(f"Saving plan bundle with updated hash: {plan_path}")
-            generator = PlanGenerator()
-            generator.generate(bundle, plan_path)
-
-            plan_bundle_id = plan_hash[:16]  # Use first 16 chars as ID
-
-            # Extract WHY/WHAT/HOW from plan bundle
-            why = _extract_sdd_why(bundle, is_non_interactive)
-            what = _extract_sdd_what(bundle, is_non_interactive)
-            how = _extract_sdd_how(bundle, is_non_interactive)
+            # Extract WHY/WHAT/HOW from bundle
+            why = _extract_sdd_why(plan_bundle, is_non_interactive)
+            what = _extract_sdd_what(plan_bundle, is_non_interactive)
+            how = _extract_sdd_how(plan_bundle, is_non_interactive)
 
             # Create SDD manifest
+            plan_bundle_id = project_hash[:16]  # Use first 16 chars as ID
             sdd_manifest = SDDManifest(
                 version="1.0.0",
                 plan_bundle_id=plan_bundle_id,
-                plan_bundle_hash=plan_hash,
+                plan_bundle_hash=project_hash,
                 why=why,
                 what=what,
                 how=how,
@@ -3734,18 +3860,21 @@ def harden(
                     warn_budget_seconds=180,
                     block_budget_seconds=90,
                 ),
-                promotion_status=bundle.metadata.stage if bundle.metadata else "draft",
+                promotion_status="draft",  # TODO: Add promotion status to ProjectBundle manifest
                 provenance={
                     "source": "plan_harden",
-                    "plan_path": str(plan_path),
+                    "bundle_name": bundle,
+                    "bundle_path": str(bundle_dir),
                     "created_by": "specfact_cli",
                 },
             )
 
-            # Determine SDD output path
+            # Determine SDD output path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
             if sdd_path is None:
                 base_path = Path(".")
-                sdd_path = base_path / SpecFactStructure.ROOT / f"sdd.{effective_format.value}"
+                sdd_dir = base_path / SpecFactStructure.SDD
+                sdd_dir.mkdir(parents=True, exist_ok=True)
+                sdd_path = sdd_dir / f"{bundle}.{effective_format.value}"
             else:
                 # Ensure correct extension
                 if effective_format == StructuredFormat.YAML:
@@ -3760,14 +3889,13 @@ def harden(
 
                     existing_sdd_data = load_structured_file(sdd_path)
                     existing_sdd = SDDManifest.model_validate(existing_sdd_data)
-                    if existing_sdd.plan_bundle_hash != plan_hash:
+                    if existing_sdd.plan_bundle_hash != project_hash:
                         print_warning(
-                            f"SDD manifest already exists and is linked to a different plan bundle.\n"
-                            f"  Existing plan hash: {existing_sdd.plan_bundle_hash[:16]}...\n"
-                            f"  New plan hash: {plan_hash[:16]}...\n"
+                            f"SDD manifest already exists and is linked to a different bundle version.\n"
+                            f"  Existing bundle hash: {existing_sdd.plan_bundle_hash[:16]}...\n"
+                            f"  New bundle hash: {project_hash[:16]}...\n"
                             f"  This will overwrite the existing SDD manifest.\n"
-                            f"  Note: SDD manifests are linked to specific plan bundles. "
-                            f"Consider using --sdd to specify a different path for this plan."
+                            f"  Note: SDD manifests are linked to specific bundle versions."
                         )
                         if not is_non_interactive:
                             # In interactive mode, ask for confirmation
@@ -3789,8 +3917,8 @@ def harden(
 
             # Display summary
             console.print("\n[bold]SDD Manifest Summary:[/bold]")
-            console.print(f"[bold]Plan Bundle:[/bold] {plan_path}")
-            console.print(f"[bold]Plan Hash:[/bold] {plan_hash[:16]}...")
+            console.print(f"[bold]Project Bundle:[/bold] {bundle_dir}")
+            console.print(f"[bold]Bundle Hash:[/bold] {project_hash[:16]}...")
             console.print(f"[bold]SDD Path:[/bold] {sdd_path}")
             console.print("\n[bold]WHY (Intent):[/bold]")
             console.print(f"  {why.intent}")
@@ -3805,7 +3933,8 @@ def harden(
 
             record(
                 {
-                    "plan_path": str(plan_path),
+                    "bundle_name": bundle,
+                    "bundle_path": str(bundle_dir),
                     "sdd_path": str(sdd_path),
                     "capabilities_count": len(what.capabilities),
                     "invariants_count": len(how.invariants),

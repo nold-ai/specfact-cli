@@ -159,13 +159,13 @@ def process_payment(request):
       - **Suggested plan name for Example 1**: `Payment Processing` or `Legacy Payment View`
    3. **CLI Execution**: The AI will:
       - Sanitize the name (lowercase, remove spaces/special chars)
-      - Run `specfact import from-code --repo <workspace> --name <sanitized-name> --confidence 0.5`
-      - Capture CLI output and create a plan bundle
+      - Run `specfact import from-code <sanitized-name> --repo <workspace> --confidence 0.5`
+      - Capture CLI output and create a project bundle
    4. **CLI Output Summary**: The AI will present a summary showing:
-      - Plan name used
+      - Bundle name used
       - Mode detected (CI/CD or Copilot)
       - Features/stories found (may be 0 for minimal test cases)
-      - Plan bundle location: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
+      - Project bundle location: `.specfact/projects/<name>/` (modular structure)
       - Analysis report location: `.specfact/reports/brownfield/report-<timestamp>.md`
    5. **Next Steps**: The AI will offer options:
       - **LLM Enrichment** (optional in CI/CD mode, required in Copilot mode): Add semantic understanding to detect features/stories that AST analysis missed
@@ -179,7 +179,7 @@ def process_payment(request):
    **Enrichment Workflow** (when you choose "Please enrich"):
 
    1. **AI Reads Artifacts**: The AI will read:
-      - The CLI-generated plan bundle (`.specfact/plans/<name>-<timestamp>.bundle.yaml`)
+      - The CLI-generated project bundle (`.specfact/projects/<name>/` - modular structure)
       - The analysis report (`.specfact/reports/brownfield/report-<timestamp>.md`)
       - Your source code files (e.g., `views.py`)
    2. **Enrichment Report Creation**: The AI will:
@@ -189,12 +189,11 @@ def process_payment(request):
    3. **Apply Enrichment**: The AI will run:
 
       ```bash
-      specfact import from-code --repo <workspace> --name <name> --enrichment .specfact/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
+      specfact import from-code <name> --repo <workspace> --enrichment .specfact/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
       ```
 
-   4. **Enriched Plan Bundle**: The CLI will create:
-      - **Original plan bundle**: `<name>-<timestamp>.bundle.yaml` (unchanged)
-      - **Enriched plan bundle**: `<name>-<timestamp>.enriched.<enrichment-timestamp>.bundle.yaml` (new file)
+   4. **Enriched Project Bundle**: The CLI will update:
+      - **Project bundle**: `.specfact/projects/<name>/` (updated with enrichment)
       - **New analysis report**: `report-<enrichment-timestamp>.md`
    5. **Enrichment Results**: The AI will present:
       - Number of features added
@@ -276,11 +275,11 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
   - May show "0 features" and "0 stories" for minimal test cases (expected)
   - AI presents CLI output summary with mode, features/stories found, and artifact locations
   - AI offers next steps: LLM enrichment or rerun with different confidence
-  - **Original plan bundle**: `.specfact/plans/<name>-<timestamp>.bundle.yaml`
+  - **Project bundle**: `.specfact/projects/<name>/` (modular structure)
   - **Analysis report**: `.specfact/reports/brownfield/report-<timestamp>.md`
   - **After enrichment** (if requested):
     - Enrichment report: `.specfact/reports/enrichment/<name>-<timestamp>.enrichment.md`
-    - Enriched plan bundle: `.specfact/plans/<name>-<timestamp>.enriched.<enrichment-timestamp>.bundle.yaml`
+    - Project bundle updated: `.specfact/projects/<name>/` (enriched)
     - New analysis report: `.specfact/reports/brownfield/report-<enrichment-timestamp>.md`
     - Features and stories added (e.g., 1 feature with 4 stories)
     - Business context and confidence adjustments included
@@ -299,9 +298,8 @@ Run plan review to identify missing stories, contracts, and other gaps:
 ```bash
 cd /tmp/specfact-integration-tests/example1_vscode
 
-# Run plan review with auto-enrichment to identify gaps
-specfact --no-banner plan review \
-  --plan .specfact/plans/django-example.*.enriched.*.bundle.yaml \
+# Run plan review with auto-enrichment to identify gaps (bundle name as positional argument)
+specfact --no-banner plan review django-example \
   --auto-enrich \
   --non-interactive \
   --list-findings \
@@ -319,25 +317,25 @@ specfact --no-banner plan review \
 If stories are missing, add them using `plan add-story`:
 
 ```bash
-# Add the async payment processing story
+# Add the async payment processing story (bundle name via --bundle option)
 specfact --no-banner plan add-story \
+  --bundle django-example \
   --feature FEATURE-PAYMENTVIEW \
   --key STORY-PAYMENT-ASYNC \
   --title "Async Payment Processing" \
   --acceptance "process_payment does not call blocking notification functions directly; notifications dispatched via async-safe mechanism (task queue or async I/O); end-to-end payment succeeds and returns status: success" \
   --story-points 8 \
-  --value-points 10 \
-  --plan .specfact/plans/django-example.*.enriched.*.bundle.yaml
+  --value-points 10
 
 # Add other stories as needed (Payment Status API, Cancel Payment, Create Payment)
 specfact --no-banner plan add-story \
+  --bundle django-example \
   --feature FEATURE-PAYMENTVIEW \
   --key STORY-PAYMENT-STATUS \
   --title "Payment Status API" \
   --acceptance "get_payment_status returns correct status for existing payment; returns 404-equivalent for missing payment IDs; status values are one of: pending, success, cancelled" \
   --story-points 3 \
-  --value-points 5 \
-  --plan .specfact/plans/django-example.*.enriched.*.bundle.yaml
+  --value-points 5
 ```
 
 **Note**: In interactive AI assistant mode (slash commands), the AI will automatically add missing stories based on the review findings. You can also use the interactive mode to guide the process.
@@ -348,8 +346,7 @@ After adding stories, verify the plan bundle is complete:
 
 ```bash
 # Re-run plan review to verify all critical items are resolved
-specfact --no-banner plan review \
-  --plan .specfact/plans/django-example.*.enriched.*.bundle.yaml \
+specfact --no-banner plan review django-example \
   --non-interactive \
   --list-findings \
   --findings-format json
@@ -466,11 +463,11 @@ This compares the current code state against the plan bundle contracts and repor
 Now let's test that enforcement actually works by comparing plans and detecting violations:
 
 ```bash
-# Test plan comparison with enforcement
+# Test plan comparison with enforcement (bundle directory paths)
 cd /tmp/specfact-integration-tests/example1_vscode
 specfact --no-banner plan compare \
-  --manual .specfact/plans/django-example.*.enriched.*.bundle.yaml \
-  --auto .specfact/plans/django-example.*.bundle.yaml
+  --manual .specfact/projects/django-example \
+  --auto .specfact/projects/django-example-auto
 ```
 
 **Expected Output**:
@@ -664,7 +661,7 @@ Use the slash command in your IDE:
 ## Review complete
 
 ### Summary
-Plan Bundle: .specfact/plans/data-processing-or-legacy-data-pipeline.*.enriched.*.bundle.yaml
+Project Bundle: .specfact/projects/data-processing-or-legacy-data-pipeline/
 
 Updates Applied:
 - Idea section: Added target users and value hypothesis
@@ -704,9 +701,8 @@ Updates Applied:
 ```bash
 cd /tmp/specfact-integration-tests/example2_cursor
 
-# Review plan with auto-enrichment
-specfact --no-banner plan review \
-  --plan .specfact/plans/data-processing-or-legacy-data-pipeline.*.enriched.*.bundle.yaml \
+# Review plan with auto-enrichment (bundle name as positional argument)
+specfact --no-banner plan review data-processing-or-legacy-data-pipeline \
   --auto-enrich \
   --non-interactive \
   --list-findings \
@@ -765,8 +761,8 @@ Test that plan comparison works correctly by comparing the enriched plan against
 ```bash
 cd /tmp/specfact-integration-tests/example2_cursor
 specfact --no-banner plan compare \
-  --manual .specfact/plans/data-processing-or-legacy-data-pipeline.*.enriched.*.bundle.yaml \
-  --auto .specfact/plans/data-processing-or-legacy-data-pipeline.*.bundle.yaml
+  --manual .specfact/projects/data-processing-or-legacy-data-pipeline \
+  --auto .specfact/projects/data-processing-or-legacy-data-pipeline-auto
 ```
 
 **Expected Output**:
@@ -871,12 +867,12 @@ mv src/pipeline.py src/pipeline_original.py
 mv src/pipeline_broken.py src/pipeline.py
 
 # 3. Import broken code to create new plan
-specfact --no-banner import from-code --repo . --name pipeline-broken --output-format yaml
+specfact --no-banner import from-code pipeline-broken --repo . --output-format yaml
 
 # 4. Compare new plan (from broken code) against enriched plan
 specfact --no-banner plan compare \
-  --manual .specfact/plans/data-processing-or-legacy-data-pipeline.*.enriched.*.bundle.yaml \
-  --auto .specfact/plans/pipeline-broken.*.bundle.yaml
+  --manual .specfact/projects/data-processing-or-legacy-data-pipeline \
+  --auto .specfact/projects/pipeline-broken
 
 # 5. Restore original code
 mv src/pipeline.py src/pipeline_broken.py
@@ -974,18 +970,7 @@ specfact --no-banner import from-code --repo . --output-format yaml
 
 ### Example 3 - Step 3: Add Type Contract
 
-Edit `.specfact/plans/main.bundle.yaml` to enforce return type:
-
-```yaml
-features:
-  - key: "FEATURE-001"
-    stories:
-      - key: "STORY-001"
-        contracts:
-          - type: "postcondition"
-            description: "Result must be dict type"
-            validation: "isinstance(result, dict)"
-```
+**Note**: Use CLI commands to interact with bundles. Do not edit `.specfact` files directly. Use `plan update-feature` or `plan update-story` commands to add contracts.
 
 ### Example 3 - Step 4: Configure Enforcement
 
@@ -1148,17 +1133,18 @@ specfact --no-banner import from-code --repo . --output-format yaml
 
 ```bash
 # Find the created plan bundle
-PLAN_FILE=$(ls -t .specfact/plans/*.bundle.yaml | head -1)
+# Use bundle name directly (no need to find file)
+BUNDLE_NAME="example4_github_actions"
 PLAN_NAME=$(basename "$PLAN_FILE")
 
 # Set it as the active plan (this makes it the default for plan compare)
-specfact --no-banner plan select "$PLAN_NAME" --non-interactive
+specfact --no-banner plan select "$BUNDLE_NAME" --non-interactive
 
 # Verify it's set as active
 specfact --no-banner plan select --current
 ```
 
-**Note**: `plan compare --code-vs-plan` uses the active plan (set via `plan select`) or falls back to `main.bundle.yaml` if no active plan is set. Using `plan select` is the recommended approach as it's cleaner and doesn't require file copying.
+**Note**: `plan compare --code-vs-plan` uses the active plan (set via `plan select`) or falls back to the default bundle if no active plan is set. Using `plan select` is the recommended approach as it's cleaner and doesn't require file copying.
 
 Then commit:
 
@@ -1240,7 +1226,7 @@ specfact --no-banner plan compare --code-vs-plan
 **Note**: The `--code-vs-plan` flag automatically uses:
 
 - **Manual plan**: The active plan (set via `plan select`) or `main.bundle.yaml` as fallback
-- **Auto plan**: The latest plan matching `auto-derived.*.bundle.*` pattern (from `import from-code` without `--name` or with `--name "auto-derived"`)
+- **Auto plan**: The latest `auto-derived` project bundle (from `import from-code auto-derived` or default bundle name)
 
 Make it executable:
 
@@ -1271,8 +1257,8 @@ Code vs Plan Drift Detection
 
 Comparing intended design (manual plan) vs actual implementation (code-derived plan)
 
-ℹ️  Using default manual plan: .specfact/plans/django-example.*.enriched.*.bundle.yaml
-ℹ️  Using latest code-derived plan: .specfact/plans/auto-derived.*.bundle.yaml
+ℹ️  Using default manual plan: .specfact/projects/django-example/
+ℹ️  Using latest code-derived plan: .specfact/projects/auto-derived/
 
 ============================================================
 Comparison Results
@@ -1633,18 +1619,18 @@ rm -rf specfact-integration-tests
 
 **Test Results**:
 
-- Plan creation: ✅ `import from-code` creates `auto-derived.*.bundle.yaml` plan (default name)
+- Plan creation: ✅ `import from-code <bundle-name>` creates project bundle at `.specfact/projects/<bundle-name>/` (modular structure)
 - Plan selection: ✅ `plan select` sets active plan correctly
 - Plan comparison: ✅ `plan compare --code-vs-plan` finds:
   - Manual plan: Active plan (set via `plan select`)
-  - Auto plan: Latest `auto-derived.*.bundle.yaml` plan
+  - Auto plan: Latest `auto-derived` project bundle (`.specfact/projects/auto-derived/`)
 - Deviation detection: ✅ Detects deviations (1 HIGH, 2 LOW in test case)
 - Enforcement: ✅ Blocks commit when HIGH severity deviations found
 - Pre-commit hook: ✅ Exits with code 1, blocking the commit
 
 **Key Findings**:
 
-- ✅ `import from-code` must use default name "auto-derived" (or omit `--name`) so `plan compare --code-vs-plan` can find it
+- ✅ `import from-code` should use bundle name "auto-derived" so `plan compare --code-vs-plan` can find it
 - ✅ `plan select` is the recommended way to set the baseline plan (cleaner than copying to `main.bundle.yaml`)
 - ✅ Pre-commit hook workflow: `import from-code` → `plan compare --code-vs-plan` works correctly
 - ✅ Enforcement configuration is respected (HIGH → BLOCK based on preset)

@@ -29,9 +29,8 @@ You inherited a 3-year-old Django app with:
 
 ```bash
 # Analyze the legacy Django app
-specfact import from-code \
+specfact import from-code customer-portal \
   --repo ./legacy-django-app \
-  --name customer-portal \
   --language python
 
 ```
@@ -56,7 +55,7 @@ specfact import from-code \
 
 ### What You Get
 
-**Auto-generated plan bundle** (`contracts/plans/plan.bundle.yaml`):
+**Auto-generated project bundle** (`.specfact/projects/customer-portal/` - modular structure):
 
 ```yaml
 features:
@@ -86,7 +85,7 @@ After extracting the plan, create a hard SDD (Spec-Driven Development) manifest 
 
 ```bash
 # Create SDD manifest from the extracted plan
-specfact plan harden
+specfact plan harden customer-portal
 ```
 
 ### Output
@@ -128,14 +127,14 @@ Before starting modernization, validate that your SDD manifest matches your plan
 
 ```bash
 # Validate SDD manifest against plan
-specfact enforce sdd
+specfact enforce sdd customer-portal
 ```
 
 ### Output
 
 ```text
-✅ Loading SDD manifest: .specfact/sdd.yaml
-✅ Loading plan bundle: .specfact/plans/customer-portal.bundle.yaml
+✅ Loading SDD manifest: .specfact/sdd/customer-portal.yaml
+✅ Loading project bundle: .specfact/projects/customer-portal/
 
 🔍 Validating hash match...
 ✅ Hash match verified
@@ -172,8 +171,8 @@ specfact enforce sdd
 Review your plan to identify ambiguities and ensure SDD compliance:
 
 ```bash
-# Review plan (automatically checks SDD)
-specfact plan review --max-questions 5
+# Review plan (automatically checks SDD, bundle name as positional argument)
+specfact plan review customer-portal --max-questions 5
 ```
 
 ### Output
@@ -181,7 +180,7 @@ specfact plan review --max-questions 5
 ```text
 📋 SpecFact CLI - Plan Review
 
-✅ Loading plan: .specfact/plans/customer-portal.bundle.yaml
+✅ Loading project bundle: .specfact/projects/customer-portal/
 ✅ Current stage: draft
 
 🔍 Checking SDD manifest...
@@ -206,8 +205,8 @@ specfact plan review --max-questions 5
 Before starting modernization, promote your plan to "review" stage. This requires a valid SDD manifest:
 
 ```bash
-# Promote plan to review stage (requires SDD)
-specfact plan promote --stage review
+# Promote plan to review stage (requires SDD, bundle name as positional argument)
+specfact plan promote customer-portal --stage review
 ```
 
 ### Output (Success)
@@ -215,7 +214,7 @@ specfact plan promote --stage review
 ```text
 📋 SpecFact CLI - Plan Promotion
 
-✅ Loading plan: .specfact/plans/customer-portal.bundle.yaml
+✅ Loading project bundle: .specfact/projects/customer-portal/
 ✅ Current stage: draft
 ✅ Target stage: review
 
@@ -246,8 +245,8 @@ specfact plan promote --stage review
 Review the extracted plan to identify high-risk functions:
 
 ```bash
-# Review extracted plan
-cat .specfact/plans/customer-portal.bundle.yaml | grep -A 10 "FEATURE-002"
+# Review extracted plan using CLI commands
+specfact plan review customer-portal
 
 ```
 
@@ -319,7 +318,7 @@ After adding contracts, re-validate your SDD to ensure coverage thresholds are m
 
 ```bash
 # Re-validate SDD after adding contracts
-specfact enforce sdd
+specfact enforce sdd customer-portal
 ```
 
 This ensures your SDD manifest reflects the current state of your codebase and that coverage thresholds are maintained.

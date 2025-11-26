@@ -44,7 +44,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating idea section (OPTIONAL - business metadata)**:
 
-- `specfact plan update-idea --title <title> --narrative <narrative> --target-users <users> --value-hypothesis <hypothesis> --constraints <constraints> --plan <path>`
+- `specfact plan update-idea --bundle <bundle-name> --title <title> --narrative <narrative> --target-users <users> --value-hypothesis <hypothesis> --constraints <constraints>`
   - Updates idea section metadata (optional business context, not technical implementation)
   - **Note**: Idea section is OPTIONAL - provides business context and metadata
   - All parameters are optional - use only what you need
@@ -53,7 +53,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **For updating features**:
 
-- **Single feature update**: `specfact plan update-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft --plan <path>`
+- **Single feature update**: `specfact plan update-feature --bundle <bundle-name> --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --constraints <constraints> --confidence <confidence> --draft/--no-draft`
   - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
   - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
@@ -61,7 +61,7 @@ You **MUST** consider the user input before proceeding (if not empty).
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-feature --key FEATURE-001 --title "New Title" --outcomes "Outcome 1, Outcome 2"`
 
-- **Batch feature updates (PREFERRED for multiple features)**: `specfact plan update-feature --batch-updates <file> --plan <path>`
+- **Batch feature updates (PREFERRED for multiple features)**: `specfact plan update-feature --bundle <bundle-name> --batch-updates <file>`
   - **File format**: JSON/YAML list of objects with `key` and update fields
   - **When to use**: When multiple features need refinement (after plan review, after LLM enrichment, bulk updates)
   - **Example file** (`feature_updates.json`):
@@ -83,19 +83,19 @@ You **MUST** consider the user input before proceeding (if not empty).
     ]
     ```
 
-  - **Example command**: `specfact plan update-feature --batch-updates feature_updates.json --plan <path>`
+  - **Example command**: `specfact plan update-feature --batch-updates feature_updates.json --bundle <bundle-name>`
 
 **For adding features**:
 
-- `specfact plan add-feature --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance> --plan <path>`
+- `specfact plan add-feature --bundle <bundle-name> --key <key> --title <title> --outcomes <outcomes> --acceptance <acceptance>`
 
 **For adding stories**:
 
-- `specfact plan add-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --plan <path>`
+- `specfact plan add-story --bundle <bundle-name> --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points>`
 
 **For updating stories**:
 
-- **Single story update**: `specfact plan update-story --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --confidence <confidence> --draft/--no-draft --plan <path>`
+- **Single story update**: `specfact plan update-story --bundle <bundle-name> --feature <feature-key> --key <story-key> --title <title> --acceptance <acceptance> --story-points <points> --value-points <points> --confidence <confidence> --draft/--no-draft`
   - **Boolean flags**: `--draft` sets True, `--no-draft` sets False, omit to leave unchanged
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
   - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False)
@@ -103,7 +103,7 @@ You **MUST** consider the user input before proceeding (if not empty).
   - Works in CI/CD, Copilot, and interactive modes
   - Example: `specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Given X, When Y, Then Z" --story-points 5`
 
-- **Batch story updates (PREFERRED for multiple stories)**: `specfact plan update-story --batch-updates <file> --plan <path>`
+- **Batch story updates (PREFERRED for multiple stories)**: `specfact plan update-story --bundle <bundle-name> --batch-updates <file>`
   - **File format**: JSON/YAML list of objects with `feature`, `key` and update fields
   - **When to use**: When multiple stories need refinement (after plan review, after LLM enrichment, bulk updates)
   - **Example file** (`story_updates.json`):
@@ -128,7 +128,7 @@ You **MUST** consider the user input before proceeding (if not empty).
     ]
     ```
 
-  - **Example command**: `specfact plan update-story --batch-updates story_updates.json --plan <path>`
+  - **Example command**: `specfact plan update-story --batch-updates story_updates.json --bundle <bundle-name>`
 
 **❌ FORBIDDEN**: Direct Python code manipulation like:
 
@@ -143,7 +143,7 @@ generator.generate(plan_bundle, plan_path)  # Bypassing CLI
 
 ```bash
 # ✅ ALWAYS DO THIS:
-specfact plan update-feature --key FEATURE-001 --title "New Title" --plan <path>
+specfact plan update-feature --bundle legacy-api --key FEATURE-001 --title "New Title"
 ```
 
 ## ⏸️ Wait States: User Input Required
@@ -188,7 +188,7 @@ The CLI now supports automatic enrichment via `--auto-enrich` flag. Use this whe
 
 ```bash
 # Step 1: Auto-enrich to fix common issues
-specfact plan review --auto-enrich --plan <plan_path>
+specfact plan review --auto-enrich --bundle <bundle-name>
 
 # Step 2: LLM analyzes results and suggests refinements
 # "Auto-enrichment enhanced 8 acceptance criteria. The Given/When/Then format is good,
@@ -196,7 +196,7 @@ specfact plan review --auto-enrich --plan <plan_path>
 #  with the system' could be 'When they call the configure() method with valid parameters'."
 
 # Step 3: Manual refinement using CLI commands
-specfact plan update-feature --key FEATURE-001 --acceptance "Given a developer wants to configure Git operations, When they call the configure() method with valid parameters, Then the configuration is validated and stored" --plan <plan_path>
+specfact plan update-feature --key FEATURE-001 --acceptance "Given a developer wants to configure Git operations, When they call the configure() method with valid parameters, Then the configuration is validated and stored" --bundle <bundle-name>
 ```
 
 ## Operating Constraints
@@ -311,33 +311,33 @@ ELSE:
 
 ```bash
 # Get all findings as JSON (preferred for bulk updates)
-specfact plan review --list-findings --findings-format json --plan <plan_path>
+specfact plan review --list-findings --findings-format json --bundle <bundle-name>
 
 # With auto-enrichment (if needed)
-specfact plan review --auto-enrich --list-findings --findings-format json --plan <plan_path>
+specfact plan review --auto-enrich --list-findings --findings-format json --bundle <bundle-name>
 
 # Get findings as table (interactive mode)
-specfact plan review --list-findings --findings-format table --plan <plan_path>
+specfact plan review --list-findings --findings-format table --bundle <bundle-name>
 ```
 
 **In Copilot Mode (Alternative: Question-Based Workflow)**: Use `--list-questions` to get questions in structured format:
 
 ```bash
 # Get questions as JSON (for question-based workflow)
-specfact plan review --list-questions --plan <plan_path> --max-questions 5
+specfact plan review --list-questions --bundle <bundle-name> --max-questions 5
 
 # With auto-enrichment (if needed)
-specfact plan review --auto-enrich --list-questions --plan <plan_path> --max-questions 5
+specfact plan review --auto-enrich --list-questions --bundle <bundle-name> --max-questions 5
 ```
 
 **In CI/CD Mode**: Use `--non-interactive` flag:
 
 ```bash
 # Non-interactive mode (for automation)
-specfact plan review --non-interactive --plan <plan_path> --answers '{"Q001": "answer1", "Q002": "answer2"}'
+specfact plan review --non-interactive --bundle <bundle-name> --answers '{"Q001": "answer1", "Q002": "answer2"}'
 
 # With auto-enrichment
-specfact plan review --auto-enrich --non-interactive --plan <plan_path> --answers '{"Q001": "answer1"}'
+specfact plan review --auto-enrich --non-interactive --bundle <bundle-name> --answers '{"Q001": "answer1"}'
 ```
 
 **Capture from CLI**:
@@ -385,16 +385,16 @@ Look for patterns in the "Changes made" list:
 
 ```bash
 # PREFERRED: Batch updates for multiple stories (when 2+ stories need refinement)
-specfact plan update-story --batch-updates story_updates.json --plan <path>
+specfact plan update-story --batch-updates story_updates.json --bundle <bundle-name>
 
 # PREFERRED: Batch updates for multiple features (when 2+ features need refinement)
-specfact plan update-feature --batch-updates feature_updates.json --plan <path>
+specfact plan update-feature --batch-updates feature_updates.json --bundle <bundle-name>
 
 # Single story update (use only when single story needs refinement):
-specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined-code-specific-criteria>" --plan <path>
+specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined-code-specific-criteria>" --bundle <bundle-name>
 
 # Single feature update (use only when single feature needs refinement):
-specfact plan update-feature --key <feature-key> --acceptance "<refined-code-specific-criteria>" --plan <path>
+specfact plan update-feature --key <feature-key> --acceptance "<refined-code-specific-criteria>" --bundle <bundle-name>
 ```
 
 **Step 5: Verify** (before proceeding):
@@ -516,10 +516,10 @@ When the CLI reports "No critical ambiguities detected. Plan is ready for promot
 5. Apply via CLI:
    ```bash
    # For story-level acceptance criteria:
-   specfact plan update-story --feature FEATURE-CONTRACTFIRSTTESTMANAGER --key STORY-001 --acceptance "Given a developer wants to configure Contract First Test Manager, When they call PlanEnricher.enrich_plan(plan_bundle: PlanBundle) with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts" --plan <path>
+   specfact plan update-story --feature FEATURE-CONTRACTFIRSTTESTMANAGER --key STORY-001 --acceptance "Given a developer wants to configure Contract First Test Manager, When they call PlanEnricher.enrich_plan(plan_bundle: PlanBundle) with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts" --bundle <bundle-name>
    
    # For feature-level acceptance criteria:
-   specfact plan update-feature --key FEATURE-CONTRACTFIRSTTESTMANAGER --acceptance "Given a developer wants to configure Contract First Test Manager, When they call PlanEnricher.enrich_plan(plan_bundle: PlanBundle) with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts" --plan <path>
+   specfact plan update-feature --key FEATURE-CONTRACTFIRSTTESTMANAGER --acceptance "Given a developer wants to configure Contract First Test Manager, When they call PlanEnricher.enrich_plan(plan_bundle: PlanBundle) with a valid plan bundle, Then the method returns an enrichment summary dict with 'features_updated' and 'stories_updated' counts" --bundle <bundle-name>
    ```
 
 **When to Apply Automatic Refinement**:
@@ -563,7 +563,7 @@ When the CLI reports "No critical ambiguities detected. Plan is ready for promot
 
 ```bash
 # Execute CLI to get questions in JSON format
-specfact plan review --list-questions --plan <plan_path> --max-questions 5
+specfact plan review --list-questions --bundle <bundle-name> --max-questions 5
 ```
 
 **Parse JSON output**:
@@ -739,8 +739,8 @@ After auto-enrichment, use LLM reasoning to refine generic improvements:
 - **Completion Signals (Partial)**: Review auto-enriched Given/When/Then scenarios and refine with specific actions:
   - Generic: "When they interact with the system"
   - Refined: "When they call the `configure()` method with valid parameters"
-  - Use: `specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined criteria>" --plan <path>` for story-level criteria
-  - Use: `specfact plan update-feature --key <key> --acceptance "<refined criteria>" --plan <path>` for feature-level criteria
+  - Use: `specfact plan update-story --feature <feature-key> --key <story-key> --acceptance "<refined criteria>" --bundle <bundle-name>` for story-level criteria
+  - Use: `specfact plan update-feature --key <key> --acceptance "<refined criteria>" --bundle <bundle-name>` for feature-level criteria
 
 - **Edge Cases (Partial)**: Add domain-specific edge cases:
   - Use `specfact plan update-feature` to add edge case acceptance criteria
@@ -877,14 +877,14 @@ EOF
 
 ```bash
 # Feed all answers back to CLI (Copilot mode) - using file path (RECOMMENDED)
-specfact plan review --plan <plan_path> --answers answers.json
+specfact plan review --bundle <bundle-name> --answers answers.json
 ```
 
 **⚠️ AVOID inline JSON strings** - They can cause parsing issues with special characters, quotes, and Rich markup:
 
 ```bash
 # ❌ NOT RECOMMENDED: Inline JSON string (may have parsing issues)
-specfact plan review --plan <plan_path> --answers '{"Q001": "answer1", "Q002": "answer2"}'
+specfact plan review --bundle <bundle-name> --answers '{"Q001": "answer1", "Q002": "answer2"}'
 ```
 
 **Format**: The `--answers` parameter accepts either:
@@ -955,10 +955,10 @@ When providing answers that are boolean-like strings (e.g., "Yes", "No", "True",
 
 ```bash
 # ✅ RECOMMENDED: Using file path
-specfact plan review --plan <plan_path> --answers answers.json
+specfact plan review --bundle <bundle-name> --answers answers.json
 
 # ⚠️ NOT RECOMMENDED: Using JSON string (only for simple cases)
-specfact plan review --plan <plan_path> --answers '{"Q001": "answer1"}'
+specfact plan review --bundle <bundle-name> --answers '{"Q001": "answer1"}'
 ```
 
 **Validation After Feeding Answers**:
@@ -967,7 +967,7 @@ After feeding answers, always verify the plan bundle is valid:
 
 ```bash
 # Verify plan bundle is valid (should not show validation errors)
-specfact plan review --plan <plan_path> --list-questions --max-questions 1
+specfact plan review --bundle <bundle-name> --list-questions --max-questions 1
 ```
 
 If you see validation errors like "Input should be a valid string", check:
@@ -1083,7 +1083,7 @@ If you see validation errors like "Input should be a valid string", check:
 - **Automatic Enrichment** (recommended first step): Use `--auto-enrich` flag to automatically fix vague acceptance criteria, incomplete requirements, and generic tasks
 
   ```bash
-  specfact plan review --auto-enrich --plan <plan_path>
+  specfact plan review --auto-enrich --bundle <bundle-name>
   ```
 
 - **LLM-Enhanced Refinement** (after auto-enrichment): Use LLM reasoning to:
@@ -1338,7 +1338,7 @@ After feeding answers:
 5. Execute Refinement:
 
    ```bash
-   specfact plan update-feature --key FEATURE-001 --acceptance "Given a developer wants to configure Git operations, When they call configure(repo_path, config) with valid parameters, Then the method returns True and configuration is persisted" --plan <path>
+   specfact plan update-feature --key FEATURE-001 --acceptance "Given a developer wants to configure Git operations, When they call configure(repo_path, config) with valid parameters, Then the method returns True and configuration is persisted" --bundle <bundle-name>
    ```
 
 **Continuous Improvement Loop**:

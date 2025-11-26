@@ -56,7 +56,7 @@ In CoPilot mode, commands are routed through specialized agents:
 | `import from-code` | `AnalyzeAgent` | AI-first brownfield analysis with semantic understanding (multi-language support) |
 | `plan init` | `PlanAgent` | Plan management with business logic understanding |
 | `plan compare` | `PlanAgent` | Plan comparison with deviation analysis |
-| `sync spec-kit` | `SyncAgent` | Bidirectional sync with conflict resolution |
+| `sync bridge --adapter speckit` | `SyncAgent` | Bidirectional sync with conflict resolution |
 
 ### Context Injection
 
@@ -126,10 +126,10 @@ specfact --mode copilot plan init --interactive
 ### Example 3: Plan Comparison
 
 ```bash
-# CoPilot mode with enhanced deviation analysis
+# CoPilot mode with enhanced deviation analysis (bundle directory paths)
 specfact --mode copilot plan compare \
-  --manual .specfact/plans/main.bundle.yaml \
-  --auto .specfact/plans/my-project-*.bundle.yaml
+  --manual .specfact/projects/main \
+  --auto .specfact/projects/my-project-auto
 
 # Output:
 # Mode: CoPilot (agent routing)

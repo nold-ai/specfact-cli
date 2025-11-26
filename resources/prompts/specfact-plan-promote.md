@@ -62,10 +62,10 @@ The `promote` command does **NOT** have a `--mode` or `--non-interactive` parame
 
 ```bash
 # Non-interactive/CI/CD usage (bypasses confirmation prompts)
-specfact plan promote --stage review --plan <plan_path> --force
+specfact plan promote --stage review --bundle <bundle-name> --force
 
 # Interactive usage (may prompt for confirmation)
-specfact plan promote --stage review --plan <plan_path>
+specfact plan promote --stage review --bundle <bundle-name>
 ```
 
 **Mode Auto-Detection**: The CLI automatically detects operational mode (CI/CD or CoPilot) based on environment for telemetry/routing purposes only. This does **NOT** disable interactive prompts. Mode is detected from:
@@ -269,10 +269,10 @@ The CLI output will show:
 
 ```bash
 # For non-interactive/CI/CD use (bypasses confirmation prompts)
-specfact plan promote --stage <target_stage> --plan <plan_path> [--validate] --force
+specfact plan promote --stage <target_stage> --bundle <bundle-name> [--validate] --force
 
 # For interactive use (may prompt for confirmation)
-specfact plan promote --stage <target_stage> --plan <plan_path> [--validate]
+specfact plan promote --stage <target_stage> --bundle <bundle-name> [--validate]
 ```
 
 **⚠️ Critical Notes**:

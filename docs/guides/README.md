@@ -9,7 +9,7 @@ Practical guides for using SpecFact CLI effectively.
 - **[Brownfield Engineer Guide](brownfield-engineer.md)** ⭐ **PRIMARY** - Complete guide for modernizing legacy code
 - **[The Brownfield Journey](brownfield-journey.md)** ⭐ **PRIMARY** - Step-by-step modernization workflow
 - **[Brownfield ROI](brownfield-roi.md)** ⭐ - Calculate time and cost savings
-- **[Brownfield FAQ](../brownfield-faq.md)** ⭐ - Common questions about brownfield modernization
+- **[Brownfield FAQ](brownfield-faq.md)** ⭐ - Common questions about brownfield modernization
 
 ### Secondary Use Case: Spec-Kit Integration
 

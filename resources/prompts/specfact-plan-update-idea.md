@@ -128,12 +128,12 @@ specfact plan select
 specfact plan update-idea \
   --target-users "Developers, DevOps" \
   --value-hypothesis "Reduce technical debt" \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Update constraints
 specfact plan update-idea \
   --constraints "Python 3.11+, Maintain backward compatibility" \
-  --plan <plan_path>
+  --bundle <bundle-name>
 
 # Update multiple fields
 specfact plan update-idea \
@@ -142,7 +142,7 @@ specfact plan update-idea \
   --target-users "Developers, QA Engineers" \
   --value-hypothesis "Improve code quality" \
   --constraints "Python 3.11+, Test coverage >= 80%" \
-  --plan <plan_path>
+  --bundle <bundle-name>
 ```
 
 **Capture from CLI**:

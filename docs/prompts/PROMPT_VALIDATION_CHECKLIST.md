@@ -194,12 +194,12 @@ For each prompt, test the following scenarios:
 2. Verify the LLM:
    - ✅ **Detects need for enrichment**: Recognizes vague patterns ("is implemented", "System MUST Helper class", generic tasks)
    - ✅ **Suggests or uses `--auto-enrich`**: Either suggests using `--auto-enrich` flag or automatically uses it based on plan quality indicators
-   - ✅ **Executes enrichment**: Runs `specfact plan review --auto-enrich --plan <path>`
+   - ✅ **Executes enrichment**: Runs `specfact plan review <bundle-name> --auto-enrich`
    - ✅ **Parses enrichment results**: Captures enrichment summary (features updated, stories updated, acceptance criteria enhanced, etc.)
    - ✅ **Analyzes enrichment quality**: Uses LLM reasoning to review what was enhanced
    - ✅ **Identifies generic patterns**: Finds placeholder text like "interact with the system" that needs refinement
    - ✅ **Proposes specific refinements**: Suggests domain-specific improvements using CLI commands
-   - ✅ **Executes refinements**: Uses `specfact plan update-feature` to refine generic improvements
+   - ✅ **Executes refinements**: Uses `specfact plan update-feature --bundle <bundle-name>` to refine generic improvements
    - ✅ **Re-runs review**: Executes `specfact plan review` again to verify improvements
 3. Test with explicit enrichment request (e.g., "enrich the plan"):
    - ✅ Uses `--auto-enrich` flag immediately

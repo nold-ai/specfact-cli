@@ -199,7 +199,7 @@ Calculate your ROI:
 1. **Run code2spec** on your legacy codebase:
 
    ```bash
-   specfact import from-code --repo ./your-legacy-app --name your-project
+   specfact import from-code your-project --repo ./your-legacy-app
    ```
 
 2. **Time the extraction** (typically < 10 seconds)

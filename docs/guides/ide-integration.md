@@ -61,10 +61,10 @@ Once initialized, you can use slash commands directly in your IDE's AI chat:
 **In Cursor / VS Code / Copilot:**
 
 ```bash
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-init --idea idea.yaml
-/specfact-plan-compare --manual main.bundle.yaml --auto auto.bundle.yaml
-/specfact-sync --repo . --bidirectional
+/specfact-import-from-code my-project --repo . --confidence 0.7
+/specfact-plan-init my-project --idea idea.yaml
+/specfact-plan-compare --manual .specfact/projects/manual-plan --auto .specfact/projects/auto-derived
+/specfact-sync --adapter speckit --bundle my-project --repo . --bidirectional
 ```
 
 The IDE automatically recognizes these commands and provides enhanced prompts.
@@ -125,11 +125,11 @@ Detailed instructions for the AI assistant...
 
 | Command | Description | CLI Equivalent |
 |---------|-------------|----------------|
-| `/specfact-import-from-code` | Reverse-engineer plan from brownfield code | `specfact import from-code` |
-| `/specfact-plan-init` | Initialize new development plan | `specfact plan init` |
-| `/specfact-plan-promote` | Promote plan through stages | `specfact plan promote` |
+| `/specfact-import-from-code` | Reverse-engineer plan from brownfield code | `specfact import from-code <bundle-name>` |
+| `/specfact-plan-init` | Initialize new development plan | `specfact plan init <bundle-name>` |
+| `/specfact-plan-promote` | Promote plan through stages | `specfact plan promote <bundle-name>` |
 | `/specfact-plan-compare` | Compare manual vs auto plans | `specfact plan compare` |
-| `/specfact-sync` | Sync with Spec-Kit or repository | `specfact sync spec-kit` |
+| `/specfact-sync` | Sync with external tools or repository | `specfact sync bridge --adapter <adapter>` |
 
 ---
 
@@ -147,13 +147,13 @@ specfact init --ide cursor
 # Copied 5 template(s) to .cursor/commands/
 #
 # You can now use SpecFact slash commands in Cursor!
-# Example: /specfact-import-from-code --repo . --confidence 0.7
+# Example: /specfact-import-from-code my-project --repo . --confidence 0.7
 ```
 
 **Now in Cursor:**
 
 1. Open Cursor AI chat
-2. Type `/specfact-import-from-code --repo . --confidence 0.7`
+2. Type `/specfact-import-from-code my-project --repo . --confidence 0.7`
 3. Cursor recognizes the command and provides enhanced prompts
 
 ### Example 2: Initialize for VS Code / Copilot

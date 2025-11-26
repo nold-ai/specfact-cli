@@ -1,8 +1,9 @@
 """
-Import command - Import codebases and Spec-Kit projects to contract-driven format.
+Import command - Import codebases and external tool projects to contract-driven format.
 
 This module provides commands for importing existing codebases (brownfield) and
-Spec-Kit projects and converting them to SpecFact contract-driven format.
+external tool projects (e.g., Spec-Kit, Linear, Jira) and converting them to
+SpecFact contract-driven format using the bridge architecture.
 """
 
 from __future__ import annotations
@@ -11,16 +12,19 @@ from pathlib import Path
 
 import typer
 from beartype import beartype
-from icontract import ensure, require
+from icontract import require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli import runtime
+from specfact_cli.models.bridge import AdapterType
+from specfact_cli.models.plan import Feature, PlanBundle
+from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.telemetry import telemetry
-from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+from specfact_cli.utils.bundle_loader import save_project_bundle
 
 
-app = typer.Typer(help="Import codebases and Spec-Kit projects to contract format")
+app = typer.Typer(help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format")
 console = Console()
 
 
@@ -39,15 +43,54 @@ def _count_python_files(repo: Path) -> int:
     return sum(1 for _ in repo.rglob("*.py"))
 
 
-@app.command("from-spec-kit")
-def from_spec_kit(
+def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name: str) -> ProjectBundle:
+    """
+    Convert PlanBundle (monolithic) to ProjectBundle (modular).
+
+    Args:
+        plan_bundle: PlanBundle instance to convert
+        bundle_name: Project bundle name
+
+    Returns:
+        ProjectBundle instance
+    """
+
+    # Create manifest
+    manifest = BundleManifest(
+        versions=BundleVersions(schema="1.0", project="0.1.0"),
+        schema_metadata=None,
+        project_metadata=None,
+    )
+
+    # Convert features list to dict
+    features_dict: dict[str, Feature] = {f.key: f for f in plan_bundle.features}
+
+    # Create and return ProjectBundle
+    return ProjectBundle(
+        manifest=manifest,
+        bundle_name=bundle_name,
+        idea=plan_bundle.idea,
+        business=plan_bundle.business,
+        product=plan_bundle.product,
+        features=features_dict,
+        clarifications=plan_bundle.clarifications,
+    )
+
+
+@app.command("from-bridge")
+def from_bridge(
     repo: Path = typer.Option(
         Path("."),
         "--repo",
-        help="Path to Spec-Kit repository",
+        help="Path to repository with external tool artifacts",
         exists=True,
         file_okay=False,
         dir_okay=True,
+    ),
+    adapter: str = typer.Option(
+        "speckit",
+        "--adapter",
+        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
     ),
     dry_run: bool = typer.Option(
         False,
@@ -76,48 +119,93 @@ def from_spec_kit(
     ),
 ) -> None:
     """
-    Convert Spec-Kit project to SpecFact contract format.
+    Convert external tool project to SpecFact contract format using bridge architecture.
 
-    This command scans a Spec-Kit repository, parses its structure,
-    and generates equivalent SpecFact contracts, protocols, and plans.
+    This command uses bridge configuration to scan an external tool repository
+    (e.g., Spec-Kit, Linear, Jira), parse its structure, and generate equivalent
+    SpecFact contracts, protocols, and plans.
+
+    Supported adapters:
+    - speckit: Spec-Kit projects (specs/, .specify/)
+    - generic-markdown: Generic markdown-based specifications
 
     Example:
-        specfact import from-spec-kit --repo ./my-project --write
+        specfact import from-bridge --repo ./my-project --adapter speckit --write
+        specfact import from-bridge --repo ./my-project --write  # Auto-detect adapter
     """
-    from specfact_cli.importers.speckit_converter import SpecKitConverter
-    from specfact_cli.importers.speckit_scanner import SpecKitScanner
+    from specfact_cli.sync.bridge_probe import BridgeProbe
     from specfact_cli.utils.structure import SpecFactStructure
 
+    # Auto-detect adapter if not specified
+    if adapter == "speckit" or adapter == "auto":
+        probe = BridgeProbe(repo)
+        detected_capabilities = probe.detect()
+        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
+
+    # Validate adapter
+    try:
+        adapter_type = AdapterType(adapter.lower())
+    except ValueError as err:
+        console.print(f"[bold red]✗[/bold red] Unsupported adapter: {adapter}")
+        console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
+        raise typer.Exit(1) from err
+
+    # For now, Spec-Kit adapter uses legacy converters (will be migrated to bridge)
+    spec_kit_scanner = None
+    spec_kit_converter = None
+    if adapter_type == AdapterType.SPECKIT:
+        from specfact_cli.importers.speckit_converter import SpecKitConverter
+        from specfact_cli.importers.speckit_scanner import SpecKitScanner
+
+        spec_kit_scanner = SpecKitScanner
+        spec_kit_converter = SpecKitConverter
+
     telemetry_metadata = {
+        "adapter": adapter,
         "dry_run": dry_run,
         "write": write,
         "force": force,
     }
 
-    with telemetry.track_command("import.from_spec_kit", telemetry_metadata) as record:
-        console.print(f"[bold cyan]Importing Spec-Kit project from:[/bold cyan] {repo}")
+    with telemetry.track_command("import.from_bridge", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Importing {adapter_type.value} project from:[/bold cyan] {repo}")
 
-        # Scan Spec-Kit structure
-        scanner = SpecKitScanner(repo)
+        # Use bridge-based import for supported adapters
+        if adapter_type == AdapterType.SPECKIT:
+            # Legacy Spec-Kit import (will be migrated to bridge)
+            if spec_kit_scanner is None:
+                msg = "SpecKitScanner not available"
+                raise RuntimeError(msg)
+            scanner = spec_kit_scanner(repo)
 
-        if not scanner.is_speckit_repo():
-            console.print("[bold red]✗[/bold red] Not a Spec-Kit repository")
-            console.print("[dim]Expected: .specify/ directory[/dim]")
+            if not scanner.is_speckit_repo():
+                console.print(f"[bold red]✗[/bold red] Not a {adapter_type.value} repository")
+                console.print("[dim]Expected: .specify/ directory[/dim]")
+                console.print("[dim]Tip: Use 'specfact bridge probe' to auto-detect tool configuration[/dim]")
+                raise typer.Exit(1)
+        else:
+            # Generic bridge-based import
+            # bridge_sync = BridgeSync(repo)  # TODO: Use when implementing generic markdown import
+            console.print(f"[bold green]✓[/bold green] Using bridge adapter: {adapter_type.value}")
+            console.print("[yellow]⚠ Generic markdown adapter import is not yet fully implemented[/yellow]")
+            console.print("[dim]Falling back to Spec-Kit adapter for now[/dim]")
+            # TODO: Implement generic markdown import via bridge
             raise typer.Exit(1)
 
-        structure = scanner.scan_structure()
+        if adapter_type == AdapterType.SPECKIT:
+            structure = scanner.scan_structure()
 
-        if dry_run:
-            console.print("[yellow]→ Dry run mode - no files will be written[/yellow]")
-            console.print("\n[bold]Detected Structure:[/bold]")
-            console.print(f"  - Specs Directory: {structure.get('specs_dir', 'Not found')}")
-            console.print(f"  - Memory Directory: {structure.get('specify_memory_dir', 'Not found')}")
-            if structure.get("feature_dirs"):
-                console.print(f"  - Features Found: {len(structure['feature_dirs'])}")
-            if structure.get("memory_files"):
-                console.print(f"  - Memory Files: {len(structure['memory_files'])}")
-            record({"dry_run": True, "features_found": len(structure.get("feature_dirs", []))})
-            return
+            if dry_run:
+                console.print("[yellow]→ Dry run mode - no files will be written[/yellow]")
+                console.print("\n[bold]Detected Structure:[/bold]")
+                console.print(f"  - Specs Directory: {structure.get('specs_dir', 'Not found')}")
+                console.print(f"  - Memory Directory: {structure.get('specify_memory_dir', 'Not found')}")
+                if structure.get("feature_dirs"):
+                    console.print(f"  - Features Found: {len(structure['feature_dirs'])}")
+                if structure.get("memory_files"):
+                    console.print(f"  - Memory Files: {len(structure['memory_files'])}")
+                record({"dry_run": True, "features_found": len(structure.get("feature_dirs", []))})
+                return
 
         if not write:
             console.print("[yellow]→ Use --write to actually convert files[/yellow]")
@@ -133,17 +221,21 @@ def from_spec_kit(
             console=console,
         ) as progress:
             # Step 1: Discover features from markdown artifacts
-            task = progress.add_task("Discovering Spec-Kit features...", total=None)
+            task = progress.add_task(f"Discovering {adapter_type.value} features...", total=None)
             features = scanner.discover_features()
             if not features:
-                console.print("[bold red]✗[/bold red] No features found in Spec-Kit repository")
-                console.print("[dim]Expected: specs/*/spec.md files[/dim]")
+                console.print(f"[bold red]✗[/bold red] No features found in {adapter_type.value} repository")
+                console.print("[dim]Expected: specs/*/spec.md files (or bridge-configured paths)[/dim]")
+                console.print("[dim]Tip: Use 'specfact bridge probe' to validate bridge configuration[/dim]")
                 raise typer.Exit(1)
             progress.update(task, description=f"✓ Discovered {len(features)} features")
 
             # Step 2: Convert protocol
             task = progress.add_task("Converting protocol...", total=None)
-            converter = SpecKitConverter(repo)
+            if spec_kit_converter is None:
+                msg = "SpecKitConverter not available"
+                raise RuntimeError(msg)
+            converter = spec_kit_converter(repo)
             protocol = None
             plan_bundle = None
             try:
@@ -172,9 +264,10 @@ def from_spec_kit(
 
         # Generate report
         if report and protocol and plan_bundle:
-            report_content = f"""# Spec-Kit Import Report
+            report_content = f"""# {adapter_type.value.upper()} Import Report
 
 ## Repository: {repo}
+## Adapter: {adapter_type.value}
 
 ## Summary
 - **States Found**: {len(protocol.states)}
@@ -184,7 +277,7 @@ def from_spec_kit(
 
 ## Generated Files
 - **Protocol**: `.specfact/protocols/workflow.protocol.yaml`
-- **Plan Bundle**: `.specfact/plans/main bundle (yaml/json based on format settings)`
+- **Plan Bundle**: `.specfact/projects/<bundle-name>/`
 - **Semgrep Rules**: `.semgrep/async-anti-patterns.yml`
 - **GitHub Action**: `.github/workflows/specfact-gate.yml`
 
@@ -198,9 +291,18 @@ def from_spec_kit(
             report.write_text(report_content, encoding="utf-8")
             console.print(f"[dim]Report written to: {report}[/dim]")
 
+        # Save plan bundle as ProjectBundle (modular structure)
+        if plan_bundle:
+            bundle_name = "main"  # Default bundle name for bridge imports
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
+            SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            console.print(f"[dim]Project bundle: .specfact/projects/{bundle_name}/[/dim]")
+
         console.print("[bold green]✓[/bold green] Import complete!")
         console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")
-        console.print("[dim]Plan: .specfact/plans/main bundle (format based on settings)[/dim]")
+        console.print("[dim]Plan: .specfact/projects/<bundle-name>/ (modular bundle)[/dim]")
         console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
         console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
 
@@ -218,10 +320,11 @@ def from_spec_kit(
 
 @app.command("from-code")
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda confidence: 0.0 <= confidence <= 1.0, "Confidence must be 0.0-1.0")
-@ensure(lambda out: _is_valid_output_path(out), "Output path must exist if provided")
 @beartype
 def from_code(
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -229,16 +332,6 @@ def from_code(
         exists=True,
         file_okay=False,
         dir_okay=True,
-    ),
-    name: str | None = typer.Option(
-        None,
-        "--name",
-        help="Custom plan name (will be sanitized for filesystem, default: 'auto-derived')",
-    ),
-    out: Path | None = typer.Option(
-        None,
-        "--out",
-        help="Output plan bundle path (default: .specfact/plans/<name>-<timestamp>.bundle.<format>)",
     ),
     shadow_only: bool = typer.Option(
         False,
@@ -277,12 +370,6 @@ def from_code(
         "--entry-point",
         help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories.",
     ),
-    output_format: StructuredFormat | None = typer.Option(
-        None,
-        "--output-format",
-        help="Plan bundle output format (yaml or json). Defaults to global --output-format.",
-        case_sensitive=False,
-    ),
 ) -> None:
     """
     Import plan bundle from existing codebase (one-way import).
@@ -295,8 +382,8 @@ def from_code(
     add business context).
 
     Example:
-        specfact import from-code --repo . --out brownfield-plan.yaml
-        specfact import from-code --repo . --enrichment enrichment-report.md
+        specfact import from-code legacy-api --repo .
+        specfact import from-code auth-module --repo . --enrichment enrichment-report.md
     """
     from specfact_cli.agents.analyze_agent import AnalyzeAgent
     from specfact_cli.agents.registry import get_agent
@@ -311,64 +398,72 @@ def from_code(
 
     python_file_count = _count_python_files(repo)
 
-    from specfact_cli.generators.plan_generator import PlanGenerator
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.validators.schema import validate_plan_bundle
 
     # Ensure .specfact structure exists in the repository being imported
     SpecFactStructure.ensure_structure(repo)
 
-    effective_format = output_format or runtime.get_output_format()
+    # Get project bundle directory
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
+    # Allow existing bundle if enrichment is provided (enrichment workflow updates existing bundle)
+    if bundle_dir.exists() and not enrichment:
+        console.print(f"[bold red]✗[/bold red] Project bundle already exists: {bundle_dir}")
+        console.print("[dim]Use a different bundle name or remove the existing bundle[/dim]")
+        console.print("[dim]Or use --enrichment to update existing bundle with enrichment report[/dim]")
+        raise typer.Exit(1)
 
-    # Use default paths if not specified (relative to repo)
-    # If enrichment is provided, try to derive original plan path and create enriched copy
-    original_plan_path: Path | None = None
-    if enrichment and enrichment.exists():
-        original_plan_path = SpecFactStructure.get_plan_bundle_from_enrichment(enrichment, base_path=repo)
-        if original_plan_path:
-            # Create enriched plan path with clear label
-            out = SpecFactStructure.get_enriched_plan_path(original_plan_path, base_path=repo)
-        else:
-            # Enrichment provided but original plan not found, use default naming
-            out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name, format=effective_format)
-    elif out is None:
-        out = SpecFactStructure.get_timestamped_brownfield_report(repo, name=name, format=effective_format)
-    else:
-        out = out.with_name(SpecFactStructure.ensure_plan_filename(out.name, effective_format))
+    # Ensure project structure exists
+    SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle)
 
     if report is None:
         report = SpecFactStructure.get_brownfield_analysis_path(repo)
 
     console.print(f"[bold cyan]Importing repository:[/bold cyan] {repo}")
+    console.print(f"[bold cyan]Project bundle:[/bold cyan] {bundle}")
     console.print(f"[dim]Confidence threshold: {confidence}[/dim]")
 
     if shadow_only:
         console.print("[yellow]→ Shadow mode - observe without enforcement[/yellow]")
 
-    plan_format = StructuredFormat.from_path(out) if out else effective_format
-
     telemetry_metadata = {
+        "bundle": bundle,
         "mode": mode.value,
         "execution_mode": routing_result.execution_mode,
         "files_analyzed": python_file_count,
         "shadow_mode": shadow_only,
-        "plan_format": plan_format.value,
     }
 
     with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
         try:
-            # If enrichment is provided and original plan exists, load it instead of analyzing
-            if enrichment and original_plan_path and original_plan_path.exists():
-                console.print(f"[dim]Loading original plan for enrichment: {original_plan_path.name}[/dim]")
+            # If enrichment is provided, try to load existing bundle
+            # Note: For now, enrichment workflow needs to be updated for modular bundles
+            # TODO: Phase 4 - Update enrichment to work with modular bundles
+            plan_bundle: PlanBundle | None = None
+            if enrichment:
+                # Try to load existing bundle from bundle_dir
+                from specfact_cli.utils.bundle_loader import load_project_bundle
 
-                from specfact_cli.models.plan import PlanBundle
+                try:
+                    existing_bundle = load_project_bundle(bundle_dir)
+                    # Convert ProjectBundle to PlanBundle for enrichment (temporary)
+                    from specfact_cli.models.plan import PlanBundle as PlanBundleModel
 
-                plan_data = load_structured_file(original_plan_path)
-                plan_bundle = PlanBundle.model_validate(plan_data)
-                total_stories = sum(len(f.stories) for f in plan_bundle.features)
-                console.print(
-                    f"[green]✓[/green] Loaded original plan: {len(plan_bundle.features)} features, {total_stories} stories"
-                )
+                    plan_bundle = PlanBundleModel(
+                        version="1.0",
+                        idea=existing_bundle.idea,
+                        business=existing_bundle.business,
+                        product=existing_bundle.product,
+                        features=list(existing_bundle.features.values()),
+                        metadata=None,
+                        clarifications=existing_bundle.clarifications,
+                    )
+                    total_stories = sum(len(f.stories) for f in plan_bundle.features)
+                    console.print(
+                        f"[green]✓[/green] Loaded existing bundle: {len(plan_bundle.features)} features, {total_stories} stories"
+                    )
+                except Exception:
+                    # Bundle doesn't exist yet, will be created from analysis
+                    plan_bundle = None
             else:
                 # Use AI-first approach in CoPilot mode, fallback to AST in CI/CD mode
                 if routing_result.execution_mode == "agent":
@@ -386,7 +481,7 @@ def from_code(
                         _enhanced_context = agent.inject_context(context)
                         # Use AI-first import
                         console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
-                        plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=name)
+                        plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=bundle)
                         console.print("[green]✓[/green] AI import complete")
                     else:
                         # Fallback to AST if agent not available
@@ -394,7 +489,7 @@ def from_code(
                         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
                         console.print(
-                            "\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]"
+                            "\n[yellow]⏱️  Note: This analysis may take several minutes for larger codebases[/yellow]"
                         )
                         if entry_point:
                             console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
@@ -404,7 +499,7 @@ def from_code(
                             repo,
                             confidence_threshold=confidence,
                             key_format=key_format,
-                            plan_name=name,
+                            plan_name=bundle,
                             entry_point=entry_point,
                         )
                         plan_bundle = analyzer.analyze()
@@ -422,10 +517,15 @@ def from_code(
                         repo,
                         confidence_threshold=confidence,
                         key_format=key_format,
-                        plan_name=name,
+                        plan_name=bundle,
                         entry_point=entry_point,
                     )
                     plan_bundle = analyzer.analyze()
+
+                # Ensure plan_bundle is not None
+                if plan_bundle is None:
+                    console.print("[bold red]✗ Failed to analyze codebase[/bold red]")
+                    raise typer.Exit(1)
 
                 console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
                 console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
@@ -435,6 +535,11 @@ def from_code(
                 console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
 
                 record_event({"features_detected": len(plan_bundle.features), "stories_detected": total_stories})
+
+            # Ensure plan_bundle is not None before proceeding
+            if plan_bundle is None:
+                console.print("[bold red]✗ No plan bundle available[/bold red]")
+                raise typer.Exit(1)
 
             # Apply enrichment if provided
             if enrichment:
@@ -476,17 +581,12 @@ def from_code(
                     console.print(f"[bold red]✗ Failed to apply enrichment: {e}[/bold red]")
                     raise typer.Exit(1) from e
 
-            # Generate plan file
-            out.parent.mkdir(parents=True, exist_ok=True)
-            generator = PlanGenerator()
-            generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
+            # Convert PlanBundle to ProjectBundle and save
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             console.print("[bold green]✓ Import complete![/bold green]")
-            if enrichment and original_plan_path and original_plan_path.exists():
-                console.print(f"[dim]Original plan: {original_plan_path.name}[/dim]")
-                console.print(f"[dim]Enriched plan: {out.name}[/dim]")
-            else:
-                console.print(f"[dim]Plan bundle written to: {out}[/dim]")
+            console.print(f"[dim]Project bundle written to: {bundle_dir}[/dim]")
 
             # Suggest constitution bootstrap for brownfield imports
             specify_dir = repo / ".specify" / "memory"
@@ -513,7 +613,7 @@ def from_code(
                     if runtime.is_interactive():
                         console.print()
                         console.print(
-                            "[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for Spec-Kit integration"
+                            "[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for tool integration"
                         )
                         suggest_constitution = typer.confirm(
                             "Generate bootstrap constitution from repository analysis?",
@@ -530,7 +630,7 @@ def from_code(
                             console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
                             console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
                             console.print(
-                                "[dim]Then run 'specfact sync spec-kit' to sync with Spec-Kit artifacts[/dim]"
+                                "[dim]Then run 'specfact sync bridge --adapter <tool>' to sync with external tool artifacts[/dim]"
                             )
                     else:
                         # Non-interactive mode: skip prompt
@@ -539,15 +639,19 @@ def from_code(
                             "[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]"
                         )
 
-            # Enrich for Spec-Kit compliance if requested
+            # Enrich for tool compliance if requested
             if enrich_for_speckit:
-                console.print("\n[cyan]🔧 Enriching plan for Spec-Kit compliance...[/cyan]")
+                console.print("\n[cyan]🔧 Enriching plan for tool compliance...[/cyan]")
                 try:
                     from specfact_cli.analyzers.ambiguity_scanner import AmbiguityScanner
 
                     # Run plan review to identify gaps
                     console.print("[dim]Running plan review to identify gaps...[/dim]")
                     scanner = AmbiguityScanner()
+                    # Ensure plan_bundle is not None
+                    if plan_bundle is None:
+                        console.print("[yellow]⚠ Cannot enrich: plan bundle is None[/yellow]")
+                        return
                     _ambiguity_report = scanner.scan(plan_bundle)  # Scanned but not used in auto-enrichment
 
                     # Add missing stories for features with only 1 story
@@ -556,7 +660,7 @@ def from_code(
                         console.print(
                             f"[yellow]⚠ Found {len(features_with_one_story)} features with only 1 story[/yellow]"
                         )
-                        console.print("[dim]Adding edge case stories for better Spec-Kit compliance...[/dim]")
+                        console.print("[dim]Adding edge case stories for better tool compliance...[/dim]")
 
                         for feature in features_with_one_story:
                             # Generate edge case story based on feature title
@@ -603,9 +707,8 @@ def from_code(
                             )
                             feature.stories.append(edge_case_story)
 
-                        # Regenerate plan with new stories
-                        generator = PlanGenerator()
-                        generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
+                        # Note: Plan will be saved as ProjectBundle at the end
+                        # No need to regenerate monolithic bundle during enrichment
                         console.print(
                             f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]"
                         )
@@ -644,25 +747,27 @@ def from_code(
                                 features_updated += 1
 
                     if features_updated > 0:
-                        # Regenerate plan with enhanced acceptance criteria
-                        generator = PlanGenerator()
-                        generator.generate(plan_bundle, out, format=StructuredFormat.from_path(out))
+                        # Note: Plan will be saved as ProjectBundle at the end
+                        # No need to regenerate monolithic bundle during enrichment
                         console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
 
-                    console.print("[green]✓ Spec-Kit enrichment complete[/green]")
+                    console.print("[green]✓ Tool enrichment complete[/green]")
 
                 except Exception as e:
-                    console.print(f"[yellow]⚠ Spec-Kit enrichment failed: {e}[/yellow]")
+                    console.print(f"[yellow]⚠ Tool enrichment failed: {e}[/yellow]")
                     console.print("[dim]Plan is still valid, but may need manual enrichment[/dim]")
 
-            # Validate generated plan
-            is_valid, error, _ = validate_plan_bundle(out)
-            if is_valid:
-                console.print("[green]✓ Plan validation passed[/green]")
-            else:
-                console.print(f"[yellow]⚠ Plan validation warning: {error}[/yellow]")
+            # Note: Validation will be done after conversion to ProjectBundle
+            # TODO: Add ProjectBundle validation
 
             # Generate report
+            # Ensure plan_bundle is not None and total_stories is set
+            if plan_bundle is None:
+                console.print("[bold red]✗ Cannot generate report: plan bundle is None[/bold red]")
+                raise typer.Exit(1)
+
+            total_stories = sum(len(f.stories) for f in plan_bundle.features)
+
             report_content = f"""# Brownfield Import Report
 
 ## Repository: {repo}
@@ -673,16 +778,14 @@ def from_code(
 - **Detected Themes**: {", ".join(plan_bundle.product.themes)}
 - **Confidence Threshold**: {confidence}
 """
-            if enrichment and original_plan_path and original_plan_path.exists():
+            if enrichment:
                 report_content += f"""
 ## Enrichment Applied
-- **Original Plan**: `{original_plan_path}`
-- **Enriched Plan**: `{out}`
 - **Enrichment Report**: `{enrichment}`
 """
             report_content += f"""
 ## Output Files
-- **Plan Bundle**: `{out}`
+- **Project Bundle**: `{bundle_dir}`
 - **Import Report**: `{report}`
 
 ## Features

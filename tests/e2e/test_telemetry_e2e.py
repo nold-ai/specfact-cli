@@ -31,11 +31,13 @@ class TestTelemetryE2E:
         (src_dir / "module.py").write_text("class Module:\n    pass\n")
 
         # Run import command
+        bundle_name = "test-project"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                bundle_name,
                 "--repo",
                 str(tmp_path),
                 "--confidence",
@@ -69,11 +71,13 @@ class TestTelemetryE2E:
         (src_dir / "module.py").write_text("class Module:\n    pass\n")
 
         # Run import command
+        bundle_name = "test-project"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                bundle_name,
                 "--repo",
                 str(tmp_path),
                 "--confidence",
@@ -116,11 +120,13 @@ class TestTelemetryE2E:
         (src_dir / "secret_module.py").write_text("class SecretClass:\n    pass\n")
 
         # Run import command
+        bundle_name = "test-project"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                bundle_name,
                 "--repo",
                 str(tmp_path),
                 "--confidence",
