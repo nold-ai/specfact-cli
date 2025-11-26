@@ -9,6 +9,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.9.1] - 2025-11-26
+
+### Fixed (0.9.1)
+
+- **Updated all unit, integration and e2e tests.** Verified all tests are running without errors, failures and warnings.
+- **Fixed type errors** Refactored code to clean up type errors from ruff and basedbyright findings.
+
+---
+
 ## [0.9.0] - 2025-11-26
 
 ### Added (0.9.0)
