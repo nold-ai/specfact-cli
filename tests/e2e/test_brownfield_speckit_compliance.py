@@ -68,11 +68,13 @@ class TestBrownfieldSpeckitComplianceE2E:
         os.environ["TEST_MODE"] = "true"
         try:
             # Step 1: Import brownfield code with enrichment
+            bundle_name = "brownfield-project"
             result = runner.invoke(
                 app,
                 [
                     "import",
                     "from-code",
+                    bundle_name,
                     "--repo",
                     str(brownfield_repo),
                     "--name",
@@ -82,17 +84,22 @@ class TestBrownfieldSpeckitComplianceE2E:
             )
 
             # Command may exit with 0 or 1 depending on validation, but import should complete
+            bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
             assert (
                 "Import complete" in result.stdout
-                or len(list(brownfield_repo.glob(".specfact/plans/*.bundle.yaml"))) > 0
+                or bundle_dir.exists()
             )
 
-            # Find generated plan bundle
-            plans_dir = brownfield_repo / ".specfact" / "plans"
-            plan_files = list(plans_dir.glob("*.bundle.yaml"))
-            assert len(plan_files) > 0
+            # Find generated plan bundle (modular bundle)
+            assert bundle_dir.exists()
+            assert (bundle_dir / "bundle.manifest.yaml").exists()
 
-            plan_data = load_yaml(plan_files[0])
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            plan_data = plan_bundle.model_dump(exclude_none=True)
 
             # Verify technology stack was extracted
             idea = plan_data.get("idea", {})
@@ -117,12 +124,14 @@ class TestBrownfieldSpeckitComplianceE2E:
                 app,
                 [
                     "sync",
-                    "spec-kit",
+                    "bridge",
                     "--repo",
                     str(brownfield_repo),
+                    "--bundle",
+                    bundle_name,
+                    "--adapter",
+                    "speckit",
                     "--bidirectional",
-                    "--plan",
-                    str(plan_files[0]),
                     "--ensure-speckit-compliance",
                 ],
             )
@@ -184,11 +193,13 @@ class TestBrownfieldSpeckitComplianceE2E:
         """Test that brownfield import extracts technology stack from requirements.txt."""
         os.environ["TEST_MODE"] = "true"
         try:
+            bundle_name = "test-project"
             result = runner.invoke(
                 app,
                 [
                     "import",
                     "from-code",
+                    bundle_name,
                     "--repo",
                     str(brownfield_repo),
                     "--name",
@@ -198,12 +209,17 @@ class TestBrownfieldSpeckitComplianceE2E:
 
             assert result.exit_code == 0
 
-            # Find generated plan bundle
-            plans_dir = brownfield_repo / ".specfact" / "plans"
-            plan_files = list(plans_dir.glob("*.bundle.yaml"))
-            assert len(plan_files) > 0
-
-            plan_data = load_yaml(plan_files[0])
+            # Find generated plan bundle (modular bundle)
+            bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
+            assert bundle_dir.exists()
+            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            plan_data = plan_bundle.model_dump(exclude_none=True)
+            
             idea = plan_data.get("idea", {})
             constraints = idea.get("constraints", [])
 
@@ -230,11 +246,13 @@ class TestBrownfieldSpeckitComplianceE2E:
         os.environ["TEST_MODE"] = "true"
         try:
             # Import with enrichment
+            bundle_name = "enriched-project"
             result = runner.invoke(
                 app,
                 [
                     "import",
                     "from-code",
+                    bundle_name,
                     "--repo",
                     str(brownfield_repo),
                     "--name",
@@ -250,12 +268,16 @@ class TestBrownfieldSpeckitComplianceE2E:
                 or "Import complete" in result.stdout
             )
 
-            # Find generated plan bundle
-            plans_dir = brownfield_repo / ".specfact" / "plans"
-            plan_files = list(plans_dir.glob("*.bundle.yaml"))
-            assert len(plan_files) > 0
-
-            plan_data = load_yaml(plan_files[0])
+            # Find generated plan bundle (modular bundle)
+            bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
+            assert bundle_dir.exists()
+            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            plan_data = plan_bundle.model_dump(exclude_none=True)
             features = plan_data.get("features", [])
 
             # Verify all features have at least 2 stories (if enrichment worked)

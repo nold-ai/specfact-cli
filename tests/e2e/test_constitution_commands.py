@@ -471,11 +471,13 @@ class TestConstitutionIntegrationE2E:
         try:
             os.chdir(tmp_path)
             # Mock user input: say "no" to bootstrap suggestion
+            bundle_name = "test-project"
             result = runner.invoke(
                 app,
                 [
                     "import",
                     "from-code",
+                    bundle_name,
                     "--repo",
                     str(tmp_path),
                     "--name",
@@ -518,13 +520,29 @@ Test requirement.
         try:
             os.chdir(tmp_path)
             # Mock user input: say "yes" to bootstrap
+            # First create a bundle to sync
+            bundle_name = "test-bundle"
+            init_result = runner.invoke(
+                app,
+                [
+                    "plan",
+                    "init",
+                    bundle_name,
+                    "--no-interactive",
+                ],
+            )
+            
             result = runner.invoke(
                 app,
                 [
                     "sync",
-                    "spec-kit",
+                    "bridge",
                     "--repo",
                     str(tmp_path),
+                    "--bundle",
+                    bundle_name,
+                    "--adapter",
+                    "speckit",
                 ],
                 input="y\n",  # Accept bootstrap
             )

@@ -26,6 +26,7 @@ class TestCompleteWorkflowWithNewStructure:
         import os
 
         # Step 1: Initialize project with scaffold (must run from target directory)
+        bundle_name = "main"
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
@@ -34,6 +35,7 @@ class TestCompleteWorkflowWithNewStructure:
                 [
                     "plan",
                     "init",
+                    bundle_name,
                     "--no-interactive",
                     "--scaffold",
                 ],
@@ -44,9 +46,9 @@ class TestCompleteWorkflowWithNewStructure:
         assert result.exit_code == 0
         assert "Directory structure created" in result.stdout or "Scaffolded" in result.stdout
 
-        # Step 2: Verify structure
+        # Step 2: Verify structure (modular bundle)
         specfact_dir = tmp_path / ".specfact"
-        assert (specfact_dir / "plans" / "main.bundle.yaml").exists()
+        assert (specfact_dir / "projects" / bundle_name / "bundle.manifest.yaml").exists()
         assert (specfact_dir / "protocols").exists()
         assert (specfact_dir / "reports" / "brownfield").exists()
         assert (specfact_dir / "reports" / "comparison").exists()
@@ -58,12 +60,13 @@ class TestCompleteWorkflowWithNewStructure:
         assert "gates/results/" in gitignore
         assert "cache/" in gitignore
 
-        # Step 4: Load and verify plan
-        plan_path = specfact_dir / "plans" / "main.bundle.yaml"
-        plan_data = load_yaml(plan_path)
-        assert plan_data["version"] == "1.1"
+        # Step 4: Load and verify plan (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        bundle_dir = specfact_dir / "projects" / bundle_name
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert project_bundle.manifest.versions.schema == "1.0"
         # In non-interactive mode, plan will have default/minimal data
-        assert "idea" in plan_data or "product" in plan_data
+        assert project_bundle.idea is not None or project_bundle.product is not None
 
     def test_brownfield_analysis_workflow(self, tmp_path):
         """
@@ -105,11 +108,13 @@ class TestCompleteWorkflowWithNewStructure:
         (src_dir / "users.py").write_text(sample_code)
 
         # Step 2: Run brownfield analysis
+        bundle_name = "auto-derived"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                bundle_name,
                 "--repo",
                 str(tmp_path),
                 "--confidence",
@@ -120,19 +125,21 @@ class TestCompleteWorkflowWithNewStructure:
         assert result.exit_code == 0
         assert "Import complete" in result.stdout
 
-        # Step 3: Verify auto-derived plan in .specfact/plans/
-        plans_dir = tmp_path / ".specfact" / "plans"
-        assert plans_dir.exists()
+        # Step 3: Verify auto-derived plan in .specfact/projects/ (modular bundle)
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        assert bundle_dir.exists()
+        assert (bundle_dir / "bundle.manifest.yaml").exists()
 
-        auto_reports = list(plans_dir.glob("auto-derived.*.bundle.yaml"))
-        assert len(auto_reports) > 0
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        auto_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
+        
+        assert len(auto_plan.features) > 0
 
-        auto_plan_path = auto_reports[0]
-        auto_plan_data = load_yaml(auto_plan_path)
-        assert "features" in auto_plan_data
-        assert len(auto_plan_data["features"]) > 0
-
-        # Step 4: Create manual plan
+        # Step 4: Create manual plan (modular bundle)
+        bundle_name_manual = "main"
         manual_plan = PlanBundle(
             version="1.0",
             idea=Idea(
@@ -142,13 +149,18 @@ class TestCompleteWorkflowWithNewStructure:
             ),
             business=None,
             product=Product(themes=["User Management"], releases=[]),
-            features=auto_plan_data["features"],  # Use discovered features
+            features=auto_plan.features,  # Use discovered features
             metadata=None,
             clarifications=None,
         )
 
-        manual_plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-        dump_yaml(manual_plan.model_dump(exclude_none=True), manual_plan_path)
+        # Save as modular bundle
+        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+        
+        manual_project_bundle = _convert_plan_bundle_to_project_bundle(manual_plan, bundle_name_manual)
+        manual_bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name_manual
+        save_project_bundle(manual_project_bundle, manual_bundle_dir, atomic=True)
 
         # Step 5: Run plan comparison
         old_cwd = os.getcwd()
@@ -184,6 +196,7 @@ class TestCompleteWorkflowWithNewStructure:
         """
         # Step 1: Initialize project
         import os
+        bundle_name = "main"
 
         old_cwd = os.getcwd()
         try:
@@ -193,6 +206,7 @@ class TestCompleteWorkflowWithNewStructure:
                 [
                     "plan",
                     "init",
+                    bundle_name,
                     "--no-interactive",
                     "--scaffold",
                 ],
@@ -202,27 +216,29 @@ class TestCompleteWorkflowWithNewStructure:
 
         assert result.exit_code == 0
 
-        # Step 2: Add features to manual plan
-        manual_plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-        plan_data = load_yaml(manual_plan_path)
-
-        plan_data["features"] = [
-            {
-                "key": "FEATURE-001",
-                "title": "Task CRUD",
-                "outcomes": ["Users can manage tasks"],
-                "acceptance": ["Create works", "Read works", "Update works", "Delete works"],
-                "stories": [],
-            },
-            {
-                "key": "FEATURE-002",
-                "title": "Task Search",
-                "outcomes": ["Users can search tasks"],
-                "acceptance": ["Search works"],
-                "stories": [],
-            },
-        ]
-        dump_yaml(plan_data, manual_plan_path)
+        # Step 2: Add features to manual plan (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+        from specfact_cli.models.plan import Feature, Story
+        
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        
+        # Add features
+        project_bundle.features["FEATURE-001"] = Feature(
+            key="FEATURE-001",
+            title="Task CRUD",
+            outcomes=["Users can manage tasks"],
+            acceptance=["Create works", "Read works", "Update works", "Delete works"],
+            stories=[],
+        )
+        project_bundle.features["FEATURE-002"] = Feature(
+            key="FEATURE-002",
+            title="Task Search",
+            outcomes=["Users can search tasks"],
+            acceptance=["Search works"],
+            stories=[],
+        )
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Step 3: Create partial implementation
         src_dir = tmp_path / "src"
@@ -254,11 +270,13 @@ class TestCompleteWorkflowWithNewStructure:
         (src_dir / "tasks.py").write_text(task_code)
 
         # Step 4: Analyze implementation
+        auto_bundle_name = "auto-derived"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                auto_bundle_name,
                 "--repo",
                 str(tmp_path),
             ],
@@ -298,6 +316,8 @@ class TestCompleteWorkflowWithNewStructure:
         """
         # Step 1: Initialize main plan
         import os
+        bundle_name_main = "main"
+        bundle_name_alt = "alternative"
 
         old_cwd = os.getcwd()
         try:
@@ -307,9 +327,8 @@ class TestCompleteWorkflowWithNewStructure:
                 [
                     "plan",
                     "init",
+                    bundle_name_main,
                     "--no-interactive",
-                    "--out",
-                    str(tmp_path / ".specfact" / "plans" / "main.bundle.yaml"),
                 ],
             )
             assert result.exit_code == 0
@@ -320,33 +339,30 @@ class TestCompleteWorkflowWithNewStructure:
                 [
                     "plan",
                     "init",
+                    bundle_name_alt,
                     "--no-interactive",
-                    "--out",
-                    str(tmp_path / ".specfact" / "plans" / "alternative.bundle.yaml"),
                 ],
             )
             assert result.exit_code == 0
         finally:
             os.chdir(old_cwd)
 
-        # Step 3: Verify both plans exist
-        plans_dir = tmp_path / ".specfact" / "plans"
-        assert (plans_dir / "main.bundle.yaml").exists()
-        assert (plans_dir / "alternative.bundle.yaml").exists()
+        # Step 3: Verify both plans exist (modular bundles)
+        projects_dir = tmp_path / ".specfact" / "projects"
+        assert (projects_dir / bundle_name_main / "bundle.manifest.yaml").exists()
+        assert (projects_dir / bundle_name_alt / "bundle.manifest.yaml").exists()
 
         # Step 4: Verify plans exist and are valid
-        main_data = load_yaml(plans_dir / "main.bundle.yaml")
-        alt_data = load_yaml(plans_dir / "alternative.bundle.yaml")
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        
+        main_bundle = load_project_bundle(projects_dir / bundle_name_main, validate_hashes=False)
+        alt_bundle = load_project_bundle(projects_dir / bundle_name_alt, validate_hashes=False)
 
         # Both plans should have version and product (minimal plan structure)
-        # Plans created via CLI use current schema version
-        from specfact_cli.migrations.plan_migrator import get_current_schema_version
-
-        current_version = get_current_schema_version()
-        assert main_data["version"] == current_version
-        assert "product" in main_data
-        assert alt_data["version"] == current_version
-        assert "product" in alt_data
+        assert main_bundle.manifest.versions.schema == "1.0"
+        assert main_bundle.product is not None
+        assert alt_bundle.manifest.versions.schema == "1.0"
+        assert alt_bundle.product is not None
 
         # Note: --no-interactive creates minimal plans without idea section
 
@@ -356,6 +372,7 @@ class TestCompleteWorkflowWithNewStructure:
         """
         # Step 1: Scaffold project
         import os
+        bundle_name = "main"
 
         old_cwd = os.getcwd()
         try:
@@ -365,6 +382,7 @@ class TestCompleteWorkflowWithNewStructure:
                 [
                     "plan",
                     "init",
+                    bundle_name,
                     "--no-interactive",
                     "--scaffold",
                 ],
@@ -395,8 +413,8 @@ class TestCompleteWorkflowWithNewStructure:
         assert "cache/" in gitignore
         assert "gates/results/" in gitignore
 
-        # Plans and protocols should be kept (negated in gitignore with !)
-        assert "!plans/" in gitignore  # Negation means it IS versioned
+        # Projects and protocols should be kept (negated in gitignore with !)
+        assert "!projects/" in gitignore  # Negation means it IS versioned
         assert "!protocols/" in gitignore  # Negation means it IS versioned
         assert "!config.yaml" in gitignore
 
@@ -435,6 +453,7 @@ class TestMigrationScenarios:
 
         # Step 2: Initialize new structure
         import os
+        bundle_name = "main"
 
         old_cwd = os.getcwd()
         try:
@@ -444,6 +463,7 @@ class TestMigrationScenarios:
                 [
                     "plan",
                     "init",
+                    bundle_name,
                     "--no-interactive",
                     "--scaffold",
                 ],
@@ -453,15 +473,24 @@ class TestMigrationScenarios:
 
         assert result.exit_code == 0
 
-        # Step 3: Copy old plan to new location
-        import shutil
-
-        new_plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-        shutil.copy(old_plan_path, new_plan_path)
+        # Step 3: Migrate old plan to new structure (modular bundle)
+        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+        
+        # Load old plan
+        old_plan_data = load_yaml(old_plan_path)
+        old_plan = PlanBundle.model_validate(old_plan_data)
+        
+        # Convert to modular bundle
+        project_bundle = _convert_plan_bundle_to_project_bundle(old_plan, bundle_name)
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Step 4: Verify plan works in new structure
-        plan_data = load_yaml(new_plan_path)
-        assert plan_data["idea"]["title"] == "Legacy Plan"
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        loaded_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert loaded_bundle.idea is not None
+        assert loaded_bundle.idea.title == "Legacy Plan"
 
         # Step 5: Verify new commands work with migrated plan
         # Create test code
@@ -478,11 +507,13 @@ class Test:
         )
 
         # Analyze
+        auto_bundle_name = "auto-derived"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                auto_bundle_name,
                 "--repo",
                 str(tmp_path),
             ],
@@ -520,6 +551,7 @@ class TestRealWorldScenarios:
         """
         # Step 1: Setup repository with .specfact/
         import os
+        bundle_name = "main"
 
         old_cwd = os.getcwd()
         try:
@@ -529,6 +561,7 @@ class TestRealWorldScenarios:
                 [
                     "plan",
                     "init",
+                    bundle_name,
                     "--no-interactive",
                     "--scaffold",
                 ],
@@ -538,19 +571,21 @@ class TestRealWorldScenarios:
 
         assert result.exit_code == 0
 
-        # Step 2: Add required features to manual plan
-        manual_plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-        plan_data = load_yaml(manual_plan_path)
-        plan_data["features"] = [
-            {
-                "key": "FEATURE-001",
-                "title": "Authentication",
-                "outcomes": ["Secure login"],
-                "acceptance": ["Login works", "Logout works"],
-                "stories": [],
-            }
-        ]
-        dump_yaml(plan_data, manual_plan_path)
+        # Step 2: Add required features to manual plan (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+        from specfact_cli.models.plan import Feature
+        
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        
+        project_bundle.features["FEATURE-001"] = Feature(
+            key="FEATURE-001",
+            title="Authentication",
+            outcomes=["Secure login"],
+            acceptance=["Login works", "Logout works"],
+            stories=[],
+        )
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Step 3: Create code (missing logout)
         src_dir = tmp_path / "src"
@@ -567,11 +602,13 @@ class AuthService:
         )
 
         # Step 4: CI/CD: Analyze code
+        auto_bundle_name = "auto-derived"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                auto_bundle_name,
                 "--repo",
                 str(tmp_path),
             ],
@@ -608,6 +645,7 @@ class AuthService:
         """
         # Step 1: Developer A creates plan
         import os
+        bundle_name = "main"
 
         old_cwd = os.getcwd()
         try:
@@ -617,6 +655,7 @@ class AuthService:
                 [
                     "plan",
                     "init",
+                    bundle_name,
                     "--no-interactive",
                     "--scaffold",
                 ],
@@ -626,9 +665,9 @@ class AuthService:
 
         assert result.exit_code == 0
 
-        # Verify versioned files exist
-        plans_dir = tmp_path / ".specfact" / "plans"
-        assert (plans_dir / "main.bundle.yaml").exists()
+        # Verify versioned files exist (modular bundle)
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        assert (bundle_dir / "bundle.manifest.yaml").exists()
 
         # Step 2: Developer B implements features
         src_dir = tmp_path / "src"
@@ -644,22 +683,23 @@ class FeatureService:
         )
 
         # Step 3: Developer B analyzes code
+        auto_bundle_name = "auto-derived"
         result = runner.invoke(
             app,
             [
                 "import",
                 "from-code",
+                auto_bundle_name,
                 "--repo",
                 str(tmp_path),
             ],
         )
         assert result.exit_code == 0
 
-        # Verify auto-derived plans are in .specfact/plans/ (not reports/brownfield/)
-        plans_dir = tmp_path / ".specfact" / "plans"
-        assert plans_dir.exists()
-        auto_reports = list(plans_dir.glob("auto-derived.*.bundle.yaml"))
-        assert len(auto_reports) > 0
+        # Verify auto-derived plans are in .specfact/projects/ (modular bundle)
+        auto_bundle_dir = tmp_path / ".specfact" / "projects" / auto_bundle_name
+        assert auto_bundle_dir.exists()
+        assert (auto_bundle_dir / "bundle.manifest.yaml").exists()
 
         # Step 4: Developer B compares
         old_cwd = os.getcwd()

@@ -32,14 +32,16 @@ def workspace(tmp_path: Path) -> Path:
     workspace = tmp_path / "batch_updates_workspace"
     workspace.mkdir()
     (workspace / ".specfact").mkdir()
-    (workspace / ".specfact" / "plans").mkdir()
+    (workspace / ".specfact" / "projects").mkdir()
     return workspace
 
 
 @pytest.fixture
 def incomplete_plan(workspace: Path) -> Path:
-    """Create an incomplete plan bundle for testing."""
-    plan_path = workspace / ".specfact" / "plans" / "test-plan.bundle.yaml"
+    """Create an incomplete plan bundle for testing (modular bundle)."""
+    bundle_name = "test-plan"
+    bundle_dir = workspace / ".specfact" / "projects" / bundle_name
+    bundle_dir.mkdir(parents=True)
 
     bundle = PlanBundle(
         version="1.0",
@@ -99,10 +101,14 @@ def incomplete_plan(workspace: Path) -> Path:
         clarifications=None,
     )
 
-    with plan_path.open("w") as f:
-        yaml.dump(bundle.model_dump(), f, default_flow_style=False)
+    # Convert to modular bundle
+    from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+    from specfact_cli.utils.bundle_loader import save_project_bundle
+    
+    project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
+    save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-    return plan_path
+    return bundle_dir
 
 
 class TestListFindingsOutput:
@@ -120,8 +126,7 @@ class TestListFindingsOutput:
                 "--list-findings",
                 "--findings-format",
                 "json",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -174,8 +179,7 @@ class TestListFindingsOutput:
                 "--list-findings",
                 "--findings-format",
                 "yaml",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -212,8 +216,7 @@ class TestListFindingsOutput:
                 "--list-findings",
                 "--findings-format",
                 "table",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -240,8 +243,7 @@ class TestListFindingsOutput:
                 "review",
                 "--list-findings",
                 "--non-interactive",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -267,8 +269,7 @@ class TestListFindingsOutput:
                 "plan",
                 "review",
                 "--list-findings",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -311,17 +312,19 @@ class TestBatchFeatureUpdates:
                 "update-feature",
                 "--batch-updates",
                 str(updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify updates were applied
-        with incomplete_plan.open() as f:
-            updated_bundle_data = yaml.safe_load(f)
-            updated_bundle = PlanBundle(**updated_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        updated_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
         # Find updated features
         feature_1 = next((f for f in updated_bundle.features if f.key == "FEATURE-001"), None)
@@ -358,9 +361,16 @@ class TestBatchFeatureUpdates:
         updates_file.write_text(json.dumps(updates, indent=2))
 
         # Read original plan
-        with incomplete_plan.open() as f:
-            original_bundle_data = yaml.safe_load(f)
-            original_bundle = PlanBundle(**original_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        # Load original bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        original_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        original_bundle = _convert_project_bundle_to_plan_bundle(original_project_bundle)
 
         original_feature_1 = next((f for f in original_bundle.features if f.key == "FEATURE-001"), None)
         original_feature_2 = next((f for f in original_bundle.features if f.key == "FEATURE-002"), None)
@@ -372,17 +382,20 @@ class TestBatchFeatureUpdates:
                 "update-feature",
                 "--batch-updates",
                 str(updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify partial updates
-        with incomplete_plan.open() as f:
-            updated_bundle_data = yaml.safe_load(f)
-            updated_bundle = PlanBundle(**updated_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+        updated_bundle = bundle
 
         updated_feature_1 = next((f for f in updated_bundle.features if f.key == "FEATURE-001"), None)
         updated_feature_2 = next((f for f in updated_bundle.features if f.key == "FEATURE-002"), None)
@@ -427,17 +440,20 @@ class TestBatchStoryUpdates:
                 "update-story",
                 "--batch-updates",
                 str(updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify updates were applied
-        with incomplete_plan.open() as f:
-            updated_bundle_data = yaml.safe_load(f)
-            updated_bundle = PlanBundle(**updated_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+        updated_bundle = bundle
 
         # Find updated story
         feature_1 = next((f for f in updated_bundle.features if f.key == "FEATURE-001"), None)
@@ -456,9 +472,16 @@ class TestBatchStoryUpdates:
         monkeypatch.chdir(workspace)
 
         # Add a story to FEATURE-002 first
-        with incomplete_plan.open() as f:
-            bundle_data = yaml.safe_load(f)
-            bundle = PlanBundle(**bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
         feature_2 = next((f for f in bundle.features if f.key == "FEATURE-002"), None)
         if feature_2:
@@ -476,8 +499,12 @@ class TestBatchStoryUpdates:
                 )
             )
 
-            with incomplete_plan.open("w") as f:
-                yaml.dump(bundle.model_dump(), f, default_flow_style=False)
+            # Save bundle (modular bundle)
+            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+            
+            project_bundle = _convert_plan_bundle_to_project_bundle(bundle, incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else "test-plan")
+            save_project_bundle(project_bundle, incomplete_plan, atomic=True)
 
         # Create batch update file for multiple stories
         updates_file = workspace / "multi_story_updates.json"
@@ -504,17 +531,20 @@ class TestBatchStoryUpdates:
                 "update-story",
                 "--batch-updates",
                 str(updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify both stories were updated
-        with incomplete_plan.open() as f:
-            updated_bundle_data = yaml.safe_load(f)
-            updated_bundle = PlanBundle(**updated_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+        updated_bundle = bundle
 
         feature_1 = next((f for f in updated_bundle.features if f.key == "FEATURE-001"), None)
         feature_2 = next((f for f in updated_bundle.features if f.key == "FEATURE-002"), None)
@@ -627,8 +657,7 @@ class TestCompleteBatchWorkflow:
                 "--list-findings",
                 "--findings-format",
                 "json",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -671,17 +700,20 @@ class TestCompleteBatchWorkflow:
                 "update-feature",
                 "--batch-updates",
                 str(updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
         assert update_result.exit_code == 0
 
         # Step 4: Verify updates were applied
-        with incomplete_plan.open() as f:
-            updated_bundle_data = yaml.safe_load(f)
-            updated_bundle = PlanBundle(**updated_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+        updated_bundle = bundle
 
         feature_1 = next((f for f in updated_bundle.features if f.key == "FEATURE-001"), None)
         assert feature_1 is not None
@@ -702,8 +734,7 @@ class TestCompleteBatchWorkflow:
                 "--findings-format",
                 "json",
                 "--non-interactive",
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -743,8 +774,7 @@ class TestCompleteBatchWorkflow:
                 "update-feature",
                 "--batch-updates",
                 str(llm_updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
@@ -762,17 +792,20 @@ class TestCompleteBatchWorkflow:
                 "update-story",
                 "--batch-updates",
                 str(story_updates_file),
-                "--plan",
-                str(incomplete_plan),
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
             ],
         )
 
         assert story_update_result.exit_code == 0
 
         # Step 5: Verify all updates were applied
-        with incomplete_plan.open() as f:
-            updated_bundle_data = yaml.safe_load(f)
-            updated_bundle = PlanBundle(**updated_bundle_data)
+        # Load bundle (modular bundle)
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        
+        project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
+        bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+        updated_bundle = bundle
 
         feature_1 = next((f for f in updated_bundle.features if f.key == "FEATURE-001"), None)
         assert feature_1 is not None
