@@ -77,8 +77,8 @@ def generate_contracts(
             base_path = Path(".").resolve() if base_path is None else Path(base_path).resolve()
 
             # Import here to avoid circular imports
+            from specfact_cli.utils.bundle_loader import BundleFormat, detect_bundle_format
             from specfact_cli.utils.structure import SpecFactStructure
-            from specfact_cli.utils.bundle_loader import detect_bundle_format, BundleFormat
 
             # Determine plan path
             if plan is None:
@@ -126,25 +126,25 @@ def generate_contracts(
             # Load plan bundle (handle both modular and monolithic formats)
             print_info(f"Loading plan bundle: {plan_path}")
             format_type, _ = detect_bundle_format(plan_path)
-            
+
             plan_hash = None
             if format_type == BundleFormat.MODULAR:
                 # Load modular ProjectBundle and convert to PlanBundle for compatibility
-                from specfact_cli.utils.bundle_loader import load_project_bundle
                 from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-                
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 project_bundle = load_project_bundle(plan_path, validate_hashes=False)
-                
+
                 # Compute hash from ProjectBundle (same way as plan harden does)
                 summary = project_bundle.compute_summary(include_hash=True)
                 plan_hash = summary.content_hash
-                
+
                 # Convert to PlanBundle for ContractGenerator compatibility
                 plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
             else:
                 # Load monolithic PlanBundle
                 plan_bundle = load_plan_bundle(plan_path)
-                
+
                 # Compute hash from PlanBundle
                 plan_bundle.update_summary(include_hash=True)
                 plan_hash = (

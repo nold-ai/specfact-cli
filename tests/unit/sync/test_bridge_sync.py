@@ -1,7 +1,5 @@
 """Unit tests for bridge-based sync functionality."""
 
-
-
 from specfact_cli.models.bridge import AdapterType, ArtifactMapping, BridgeConfig
 from specfact_cli.models.project import ProjectBundle
 from specfact_cli.sync.bridge_sync import BridgeSync, SyncOperation, SyncResult
@@ -434,4 +432,3 @@ class TestSyncResult:
         assert len(result.operations) == 0
         assert len(result.errors) == 0
         assert len(result.warnings) == 0
-

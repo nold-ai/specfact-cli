@@ -285,21 +285,21 @@ Order management service for creating and fulfilling orders.
             # Note: Import now creates modular project bundles, not monolithic plans
             projects_dir = repo_path / ".specfact" / "projects"
             assert projects_dir.exists()
-            
+
             # Find the created bundle (usually auto-named or first bundle)
             bundle_dirs = list(projects_dir.iterdir())
             assert len(bundle_dirs) > 0, "No project bundle created"
             bundle_dir = bundle_dirs[0]
-            
+
             manifest_path = bundle_dir / "bundle.manifest.yaml"
             assert manifest_path.exists()
-            
+
             # Protocol may be in bundle or separate location
             protocol_path = bundle_dir / "protocols" / "workflow.protocol.yaml"
             if not protocol_path.exists():
                 # Check legacy location
                 protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
-            
+
             # Plan path is now the bundle directory
             plan_path = manifest_path
 

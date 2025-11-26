@@ -446,4 +446,3 @@ class BridgeWatch:
                 self.sync_callback(changes)
             except Exception as e:
                 print(f"Sync callback failed: {e}")
-

@@ -236,7 +236,8 @@ def _perform_sync_operation(
                         if is_valid and loaded_plan_bundle:
                             # Show progress during validation (Pydantic validation can be slow for large bundles)
                             progress.update(
-                                task, description=f"[cyan]Validating {len(loaded_plan_bundle.features)} features...[/cyan]"
+                                task,
+                                description=f"[cyan]Validating {len(loaded_plan_bundle.features)} features...[/cyan]",
                             )
                             merged_bundle = loaded_plan_bundle
                             progress.update(
@@ -245,10 +246,14 @@ def _perform_sync_operation(
                             )
                         else:
                             # Fallback: create minimal bundle via converter (but skip expensive parsing)
-                            progress.update(task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]")
+                            progress.update(
+                                task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
+                            )
                             merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
                     else:
-                        progress.update(task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]")
+                        progress.update(
+                            task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
+                        )
                         merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
                 else:
                     # No plan path found, create minimal bundle
@@ -365,7 +370,9 @@ def _perform_sync_operation(
 
             if conflicts:
                 console.print(f"[yellow]⚠[/yellow] Found {len(conflicts)} conflicts")
-                console.print(f"[dim]Conflicts resolved using priority rules (SpecFact > {adapter_type.value} for artifacts)[/dim]")
+                console.print(
+                    f"[dim]Conflicts resolved using priority rules (SpecFact > {adapter_type.value} for artifacts)[/dim]"
+                )
             else:
                 console.print("[bold green]✓[/bold green] No conflicts detected")
         else:
@@ -405,7 +412,9 @@ def _perform_sync_operation(
         console.print()
         if bidirectional:
             console.print("[bold cyan]Sync Summary (Bidirectional):[/bold cyan]")
-            console.print(f"  - {adapter_type.value} → SpecFact: Updated {features_updated}, Added {features_added} features")
+            console.print(
+                f"  - {adapter_type.value} → SpecFact: Updated {features_updated}, Added {features_added} features"
+            )
             # Always show conversion result (we convert if plan bundle exists, not just when changes detected)
             if features_converted_speckit > 0:
                 console.print(
@@ -765,8 +774,7 @@ def sync_bridge(
                             1
                             for acc in story.acceptance
                             if any(
-                                keyword in acc.lower()
-                                for keyword in ["must", "should", "verify", "validate", "ensure"]
+                                keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]
                             )
                         )
                         if testable_count < len(story.acceptance) and len(story.acceptance) > 0:

@@ -328,9 +328,7 @@ class TestAnalyzeCommand:
             bundle = load_project_bundle(bundle_dir)
             assert bundle is not None
             # Check that features have stories with CRUD operations
-            all_story_titles = " ".join(
-                [s.title.lower() for f in bundle.features.values() for s in f.stories]
-            )
+            all_story_titles = " ".join([s.title.lower() for f in bundle.features.values() for s in f.stories])
             # Should have separate stories for Create, Read, Update, Delete
             assert "create" in all_story_titles or len(bundle.features) > 0
 
@@ -373,9 +371,7 @@ class TestAnalyzeCommand:
             bundle = load_project_bundle(bundle_dir)
             assert bundle is not None
             # Check story titles for user-centric format
-            all_story_titles = " ".join(
-                [s.title for f in bundle.features.values() for s in f.stories]
-            )
+            all_story_titles = " ".join([s.title for f in bundle.features.values() for s in f.stories])
             assert "As a user" in all_story_titles or "As a developer" in all_story_titles or len(bundle.features) > 0
 
     def test_code2spec_validation_passes(self):

@@ -1,7 +1,5 @@
 """Unit tests for bridge-based watch mode."""
 
-
-
 from specfact_cli.models.bridge import AdapterType, ArtifactMapping, BridgeConfig
 from specfact_cli.sync.bridge_watch import BridgeWatch, BridgeWatchEventHandler
 from specfact_cli.sync.watcher import FileChange
@@ -305,4 +303,3 @@ class TestBridgeWatch:
         watch.stop()  # Should not error
 
         assert watch.running is False
-

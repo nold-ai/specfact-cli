@@ -394,7 +394,9 @@ def add_feature(
             # Try to find default bundle (first bundle in projects directory)
             projects_dir = Path(".specfact/projects")
             if projects_dir.exists():
-                bundles = [d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
                 if bundles:
                     bundle = bundles[0]
                     print_info(f"Using default bundle: {bundle}")
@@ -517,7 +519,9 @@ def add_story(
             # Try to find default bundle (first bundle in projects directory)
             projects_dir = Path(".specfact/projects")
             if projects_dir.exists():
-                bundles = [d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
                 if bundles:
                     bundle = bundles[0]
                     print_info(f"Using default bundle: {bundle}")
@@ -648,7 +652,9 @@ def update_idea(
             # Try to find default bundle (first bundle in projects directory)
             projects_dir = Path(".specfact/projects")
             if projects_dir.exists():
-                bundles = [d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
                 if bundles:
                     bundle = bundles[0]
                     print_info(f"Using default bundle: {bundle}")
@@ -2376,7 +2382,6 @@ def promote(
     import os
     from datetime import datetime
 
-
     telemetry_metadata = {
         "target_stage": stage,
         "validate": validate,
@@ -3002,7 +3007,9 @@ def _deduplicate_features(bundle: PlanBundle) -> int:
 
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
-@require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty string"
+)
 @ensure(
     lambda result: isinstance(result, tuple) and len(result) == 3,
     "Must return (bool, SDDManifest | None, ValidationReport) tuple",

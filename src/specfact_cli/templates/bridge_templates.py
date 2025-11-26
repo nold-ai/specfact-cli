@@ -241,4 +241,3 @@ class BridgeTemplateLoader:
         context.update(kwargs)
 
         return context
-

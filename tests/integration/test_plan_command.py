@@ -671,6 +671,7 @@ class TestPlanAddStory:
         plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
         from specfact_cli.models.plan import Story
+
         feature = Feature(
             key="FEATURE-001",
             title="Test Feature",

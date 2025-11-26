@@ -338,4 +338,3 @@ class BridgeConfig(BaseModel):
             adapter=AdapterType.GENERIC_MARKDOWN,
             artifacts=artifacts,
         )
-

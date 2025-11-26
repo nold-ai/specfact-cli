@@ -1,7 +1,5 @@
 """Unit tests for bridge-based template loader."""
 
-
-
 from specfact_cli.models.bridge import AdapterType, ArtifactMapping, BridgeConfig, TemplateMapping
 from specfact_cli.templates.bridge_templates import BridgeTemplateLoader
 
@@ -286,4 +284,3 @@ class TestBridgeTemplateLoader:
         loader = BridgeTemplateLoader(tmp_path, bridge_config=bridge_config)
         # Should not error, but templates won't be available via bridge config
         assert loader.bridge_config is not None
-

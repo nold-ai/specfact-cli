@@ -362,4 +362,3 @@ class BridgeProbe:
             raise FileExistsError(msg)
 
         bridge_config.save_to_file(bridge_path)
-

@@ -367,4 +367,3 @@ class TestBridgeConfigPresets:
         context = {"feature_id": "001-auth"}
         resolved = config.resolve_path("specification", context, base_path=tmp_path)
         assert resolved == tmp_path / "docs" / "specs" / "001-auth" / "spec.md"
-

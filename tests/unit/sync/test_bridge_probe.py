@@ -1,6 +1,5 @@
 """Unit tests for bridge probe functionality."""
 
-
 import pytest
 
 from specfact_cli.models.bridge import AdapterType
@@ -298,4 +297,3 @@ class TestBridgeProbe:
         # Try to save again without overwrite
         with pytest.raises(FileExistsError):
             probe.save_bridge_config(bridge_config, overwrite=False)
-

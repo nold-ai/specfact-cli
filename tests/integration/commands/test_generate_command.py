@@ -25,13 +25,13 @@ class TestGenerateContractsCommand:
         # Read the plan and add a feature with contracts (modular bundle structure)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         assert bundle_dir.exists()
-        
+
         # For modular bundles, we need to load the ProjectBundle and add features
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.models.plan import Feature as PlanFeature, Story
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
-        
+
         # Add a feature with contracts
         feature = PlanFeature(
             key="FEATURE-001",
@@ -50,10 +50,11 @@ class TestGenerateContractsCommand:
             ],
         )
         project_bundle.features["FEATURE-001"] = feature
-        
+
         from specfact_cli.utils.bundle_loader import save_project_bundle
+
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
-        
+
         # Keep plan_path for compatibility with rest of test
         plan_path = bundle_dir / "bundle.manifest.yaml"
 
@@ -252,13 +253,14 @@ class TestGenerateContractsCommand:
 
         # Add a feature with contracts (modular bundle structure)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
         from specfact_cli.models.plan import Feature as PlanFeature
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
         # Add a feature with a story that has contracts
         from specfact_cli.models.plan import Story
+
         feature = PlanFeature(
             key="FEATURE-001",
             title="Test Feature",

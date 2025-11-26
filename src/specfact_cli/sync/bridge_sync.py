@@ -518,4 +518,3 @@ class BridgeSync:
                                 feature_ids.append(item.name)
 
         return feature_ids
-

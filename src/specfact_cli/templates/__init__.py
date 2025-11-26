@@ -11,4 +11,3 @@ from specfact_cli.templates.bridge_templates import BridgeTemplateLoader
 __all__ = [
     "BridgeTemplateLoader",
 ]
-
