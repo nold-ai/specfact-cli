@@ -163,12 +163,13 @@ class PaymentProcessor:
 '''
         (src_dir / "payment.py").write_text(code)
         
-        # Run command
+        # Run command (bundle name as positional argument)
         result = runner.invoke(
             app,
             [
-                "analyze",
-                "code2spec",
+                "import",
+                "from-code",
+                "test-project",
                 "--repo",
                 tmpdir,
             ],
@@ -176,13 +177,12 @@ class PaymentProcessor:
         
         # Verify
         assert result.exit_code == 0
-        assert "Analysis complete" in result.stdout
+        assert "Analysis complete" in result.stdout or "Project bundle written" in result.stdout
         
-        # Verify output in .specfact/
-        brownfield_dir = Path(tmpdir) / ".specfact" / "reports" / "brownfield"
-        assert brownfield_dir.exists()
-        reports = list(brownfield_dir.glob("auto-derived.*.yaml"))
-        assert len(reports) > 0
+        # Verify output in .specfact/ (modular bundle structure)
+        bundle_dir = Path(tmpdir) / ".specfact" / "projects" / "test-project"
+        assert bundle_dir.exists()
+        assert (bundle_dir / "bundle.manifest.yaml").exists()
 ```
 
 ### Example: Testing `plan compare`
@@ -199,15 +199,20 @@ def test_plan_compare_with_smart_defaults(tmp_path):
         features=[],
     )
     
-    manual_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-    manual_path.parent.mkdir(parents=True)
-    dump_yaml(manual_plan.model_dump(exclude_none=True), manual_path)
+    # Create modular project bundle (new structure)
+    bundle_dir = tmp_path / ".specfact" / "projects" / "main"
+    bundle_dir.mkdir(parents=True)
+    # Save as modular bundle structure
+    from specfact_cli.utils.bundle_loader import save_project_bundle
+    from specfact_cli.utils.bundle_loader import _convert_plan_bundle_to_project_bundle
+    project_bundle = _convert_plan_bundle_to_project_bundle(manual_plan, "main")
+    save_project_bundle(project_bundle, bundle_dir, atomic=True)
     
-    # Create auto-derived plan
-    brownfield_dir = tmp_path / ".specfact" / "reports" / "brownfield"
-    brownfield_dir.mkdir(parents=True)
-    auto_path = brownfield_dir / "auto-derived.2025-01-01T10-00-00.bundle.yaml"
-    dump_yaml(manual_plan.model_dump(exclude_none=True), auto_path)
+    # Create auto-derived plan (also as modular bundle)
+    auto_bundle_dir = tmp_path / ".specfact" / "projects" / "auto-derived"
+    auto_bundle_dir.mkdir(parents=True)
+    auto_project_bundle = _convert_plan_bundle_to_project_bundle(manual_plan, "auto-derived")
+    save_project_bundle(auto_project_bundle, auto_bundle_dir, atomic=True)
     
     # Run compare with --repo only
     runner = CliRunner()
@@ -242,35 +247,36 @@ def test_greenfield_workflow_with_scaffold(tmp_path):
     """
     runner = CliRunner()
     
-    # Step 1: Initialize project with scaffold
+    # Step 1: Initialize project with scaffold (bundle name as positional argument)
     result = runner.invoke(
         app,
         [
             "plan",
             "init",
+            "e2e-test-project",
             "--repo",
             str(tmp_path),
-            "--title",
-            "E2E Test Project",
             "--scaffold",
+            "--no-interactive",
         ],
     )
     
     assert result.exit_code == 0
     assert "Scaffolded .specfact directory structure" in result.stdout
     
-    # Step 2: Verify structure
+    # Step 2: Verify structure (modular bundle structure)
     specfact_dir = tmp_path / ".specfact"
-    assert (specfact_dir / "plans" / "main.bundle.yaml").exists()
+    bundle_dir = specfact_dir / "projects" / "e2e-test-project"
+    assert (bundle_dir / "bundle.manifest.yaml").exists()
     assert (specfact_dir / "protocols").exists()
     assert (specfact_dir / "reports" / "brownfield").exists()
     assert (specfact_dir / ".gitignore").exists()
     
-    # Step 3: Load and verify plan
-    plan_path = specfact_dir / "plans" / "main.bundle.yaml"
-    plan_data = load_yaml(plan_path)
-    assert plan_data["version"] == "1.0"
-    assert plan_data["idea"]["title"] == "E2E Test Project"
+    # Step 3: Load and verify plan (modular bundle)
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+    project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+    assert project_bundle.manifest.versions.schema == "1.0"
+    assert project_bundle.idea.title == "E2E Test Project"
 ```
 
 ### Example: Complete Brownfield Workflow
@@ -280,8 +286,8 @@ def test_brownfield_analysis_workflow(tmp_path):
     """
     Test complete brownfield workflow:
     1. Analyze existing codebase
-    2. Verify plan generated in .specfact/plans/
-    3. Create manual plan in .specfact/plans/
+    2. Verify project bundle generated in .specfact/projects/<bundle-name>/
+    3. Create manual plan in .specfact/projects/<bundle-name>/
     4. Compare plans
     5. Verify comparison report in .specfact/reports/comparison/
     """
@@ -302,15 +308,15 @@ class UserService:
         pass
 ''')
     
-    # Step 2: Run brownfield analysis
+    # Step 2: Run brownfield analysis (bundle name as positional argument)
     result = runner.invoke(
         app,
-        ["analyze", "code2spec", "--repo", str(tmp_path)],
+        ["import", "from-code", "brownfield-test", "--repo", str(tmp_path)],
     )
     assert result.exit_code == 0
     
-    # Step 3: Verify auto-derived plan
-    brownfield_dir = tmp_path / ".specfact" / "reports" / "brownfield"
+    # Step 3: Verify project bundle (modular structure)
+    bundle_dir = tmp_path / ".specfact" / "projects" / "brownfield-test"
     auto_reports = list(brownfield_dir.glob("auto-derived.*.yaml"))
     assert len(auto_reports) > 0
     
@@ -421,10 +427,10 @@ def test_mode_auto_detection(tmp_path):
     """Test that mode is auto-detected correctly."""
     runner = CliRunner()
     
-    # Without explicit mode, should auto-detect
+    # Without explicit mode, should auto-detect (bundle name as positional argument)
     result = runner.invoke(
         app,
-        ["analyze", "code2spec", "--repo", str(tmp_path)],
+        ["import", "from-code", "test-project", "--repo", str(tmp_path)],
     )
     
     assert result.exit_code == 0
@@ -458,16 +464,21 @@ transitions:
         app,
         [
             "sync",
-            "spec-kit",
+            "bridge",
+            "--adapter",
+            "speckit",
             "--repo",
             str(tmp_path),
+            "--bundle",
+            "main",
         ],
     )
     
     assert result.exit_code == 0
-    # Verify SpecFact artifacts created
-    plan_path = tmp_path / ".specfact" / "plans" / "main.bundle.yaml"
-    assert plan_path.exists()
+    # Verify SpecFact artifacts created (modular bundle structure)
+    bundle_dir = tmp_path / ".specfact" / "projects" / "main"
+    assert bundle_dir.exists()
+    assert (bundle_dir / "bundle.manifest.yaml").exists()
 ```
 
 ### Testing Bidirectional Sync
@@ -488,24 +499,36 @@ transitions:
     to_state: PLAN
 ''')
     
-    # Create SpecFact plan
-    plans_dir = tmp_path / ".specfact" / "plans"
-    plans_dir.mkdir(parents=True)
-    (plans_dir / "main.bundle.yaml").write_text('''
-version: "1.0"
-features:
-  - key: FEATURE-001
-    title: "Test Feature"
-''')
+    # Create SpecFact project bundle (modular structure)
+    from specfact_cli.models.project import ProjectBundle
+    from specfact_cli.models.bundle import BundleManifest, BundleVersions
+    from specfact_cli.models.plan import PlanBundle, Idea, Product, Feature
+    from specfact_cli.utils.bundle_loader import save_project_bundle
+    
+    plan_bundle = PlanBundle(
+        version="1.0",
+        idea=Idea(title="Test", narrative="Test"),
+        product=Product(themes=[], releases=[]),
+        features=[Feature(key="FEATURE-001", title="Test Feature")],
+    )
+    bundle_dir = tmp_path / ".specfact" / "projects" / "main"
+    bundle_dir.mkdir(parents=True)
+    from specfact_cli.utils.bundle_loader import _convert_plan_bundle_to_project_bundle
+    project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, "main")
+    save_project_bundle(project_bundle, bundle_dir, atomic=True)
     
     runner = CliRunner()
     result = runner.invoke(
         app,
         [
             "sync",
-            "spec-kit",
+            "bridge",
+            "--adapter",
+            "speckit",
             "--repo",
             str(tmp_path),
+            "--bundle",
+            "main",
             "--bidirectional",
         ],
     )
@@ -605,10 +628,10 @@ def test_ensure_structure_creates_directories(tmp_path):
     # Ensure structure
     SpecFactStructure.ensure_structure(repo_path)
     
-    # Verify all directories exist
+    # Verify all directories exist (modular bundle structure)
     specfact_dir = repo_path / ".specfact"
     assert specfact_dir.exists()
-    assert (specfact_dir / "plans").exists()
+    assert (specfact_dir / "projects").exists()  # Modular bundles directory
     assert (specfact_dir / "protocols").exists()
     assert (specfact_dir / "reports" / "brownfield").exists()
     assert (specfact_dir / "reports" / "comparison").exists()
@@ -627,9 +650,9 @@ def test_scaffold_project_creates_full_structure(tmp_path):
     # Scaffold project
     SpecFactStructure.scaffold_project(repo_path)
     
-    # Verify directories
+    # Verify directories (modular bundle structure)
     specfact_dir = repo_path / ".specfact"
-    assert (specfact_dir / "plans").exists()
+    assert (specfact_dir / "projects").exists()  # Modular bundles directory
     assert (specfact_dir / "protocols").exists()
     assert (specfact_dir / "reports" / "brownfield").exists()
     assert (specfact_dir / "gates" / "config").exists()
@@ -642,6 +665,7 @@ def test_scaffold_project_creates_full_structure(tmp_path):
     assert "reports/" in gitignore_content
     assert "gates/results/" in gitignore_content
     assert "cache/" in gitignore_content
+    assert "!projects/" in gitignore_content  # Projects directory should be versioned
 ```
 
 ### Testing Smart Defaults
@@ -663,7 +687,7 @@ class TestService:
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["analyze", "code2spec", "--repo", str(tmp_path)],
+        ["import", "from-code", "test-project", "--repo", str(tmp_path)],
     )
     
     assert result.exit_code == 0
@@ -722,11 +746,15 @@ class SampleService:
 ```python
 def test_with_fixtures(tmp_repo, sample_plan):
     """Test using fixtures."""
-    # Use pre-configured repository
-    manual_path = tmp_repo / ".specfact" / "plans" / "main.bundle.yaml"
-    dump_yaml(sample_plan.model_dump(exclude_none=True), manual_path)
+    # Use pre-configured repository (modular bundle structure)
+    from specfact_cli.utils.bundle_loader import save_project_bundle, _convert_plan_bundle_to_project_bundle
+    bundle_dir = tmp_repo / ".specfact" / "projects" / "main"
+    bundle_dir.mkdir(parents=True)
+    project_bundle = _convert_plan_bundle_to_project_bundle(sample_plan, "main")
+    save_project_bundle(project_bundle, bundle_dir, atomic=True)
     
-    assert manual_path.exists()
+    assert bundle_dir.exists()
+    assert (bundle_dir / "bundle.manifest.yaml").exists()
 ```
 
 ## Best Practices

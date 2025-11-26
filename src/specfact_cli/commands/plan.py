@@ -1777,7 +1777,7 @@ def select(
     name: str | None = typer.Option(
         None,
         "--name",
-        help="Select plan by exact filename (non-interactive, e.g., 'main.bundle.<format>')",
+        help="Select bundle by exact bundle name (non-interactive, e.g., 'main')",
     ),
     plan_id: str | None = typer.Option(
         None,
@@ -1786,28 +1786,28 @@ def select(
     ),
 ) -> None:
     """
-    Select active plan from available plan bundles.
+    Select active project bundle from available bundles.
 
-    Displays a numbered list of available plans and allows selection by number or name.
-    The selected plan becomes the active plan tracked in `.specfact/plans/config.yaml`.
+    Displays a numbered list of available project bundles and allows selection by number or name.
+    The selected bundle becomes the active bundle tracked in `.specfact/plans/config.yaml`.
 
     Filter Options:
-        --current          Show only the currently active plan (non-interactive, auto-selects)
+        --current          Show only the currently active bundle (non-interactive, auto-selects)
         --stages STAGES    Filter by stages (comma-separated: draft,review,approved,released)
-        --last N           Show last N plans by modification time (most recent first)
-        --name NAME        Select by exact filename (non-interactive, e.g., 'main.bundle.<format>')
-        --id HASH          Select by content hash ID (non-interactive, from metadata.summary.content_hash)
+        --last N           Show last N bundles by modification time (most recent first)
+        --name NAME        Select by exact bundle name (non-interactive, e.g., 'main')
+        --id HASH          Select by content hash ID (non-interactive, from bundle manifest)
 
     Example:
         specfact plan select                              # Interactive selection
         specfact plan select 1                           # Select by number
-        specfact plan select main.bundle.json            # Select by name (positional)
-        specfact plan select --current                   # Show only active plan (auto-selects)
+        specfact plan select main                        # Select by bundle name (positional)
+        specfact plan select --current                   # Show only active bundle (auto-selects)
         specfact plan select --stages draft,review       # Filter by stages
-        specfact plan select --last 5                    # Show last 5 plans
-        specfact plan select --non-interactive --last 1  # CI/CD: get most recent plan
-        specfact plan select --name main.bundle.<format> # CI/CD: select by exact filename
-        specfact plan select --id abc123def456           # CI/CD: select by content hash
+        specfact plan select --last 5                    # Show last 5 bundles
+        specfact plan select --non-interactive --last 1  # CI/CD: get most recent bundle
+        specfact plan select --name main                 # CI/CD: select by exact bundle name
+        specfact plan select --id abc123def456          # CI/CD: select by content hash
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
@@ -1834,10 +1834,10 @@ def select(
         plans = SpecFactStructure.list_plans(max_files=max_files_to_process)
 
         if not plans:
-            print_warning("No plan bundles found in .specfact/plans/")
-            print_info("Create a plan with:")
-            print_info("  - specfact plan init")
-            print_info("  - specfact import from-code")
+            print_warning("No project bundles found in .specfact/projects/")
+            print_info("Create a project bundle with:")
+            print_info("  - specfact plan init <bundle-name>")
+            print_info("  - specfact import from-code <bundle-name>")
             raise typer.Exit(1)
 
         # Apply filters
@@ -1984,22 +1984,22 @@ def select(
                     print_error(f"Invalid plan number: {plan_num}. Must be between 1 and {len(filtered_plans)}")
                     raise typer.Exit(1)
             else:
-                # Try as name (search in filtered list first, then all plans)
-                plan_name = SpecFactStructure.ensure_plan_filename(str(plan))
+                # Try as bundle name (search in filtered list first, then all plans)
+                bundle_name = str(plan)
 
-                # Find matching plan in filtered list first
+                # Find matching bundle in filtered list first
                 selected_plan = None
                 for p in filtered_plans:
-                    if p["name"] == plan_name or p["name"] == plan:
+                    if p["name"] == bundle_name:
                         selected_plan = p
                         break
 
                 # If not found in filtered list, search all plans (for better error message)
                 if selected_plan is None:
                     for p in plans:
-                        if p["name"] == plan_name or p["name"] == plan:
-                            print_warning(f"Plan '{plan}' exists but is filtered out by current options")
-                            print_info("Available filtered plans:")
+                        if p["name"] == bundle_name:
+                            print_warning(f"Bundle '{bundle_name}' exists but is filtered out by current options")
+                            print_info("Available filtered bundles:")
                             for i, p in enumerate(filtered_plans, 1):
                                 print_info(f"  {i}. {p['name']}")
                             raise typer.Exit(1)

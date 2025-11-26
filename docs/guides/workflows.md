@@ -19,18 +19,24 @@ Reverse engineer existing code and enforce contracts incrementally.
 
 ```bash
 # Full repository analysis
-specfact import from-code --repo . --name my-project
+specfact import from-code my-project --repo .
 
 # For large codebases, analyze specific modules:
-specfact import from-code --repo . --entry-point src/core --name core-module
-specfact import from-code --repo . --entry-point src/api --name api-module
+specfact import from-code core-module --repo . --entry-point src/core
+specfact import from-code api-module --repo . --entry-point src/api
 ```
 
 ### Step 2: Review Extracted Specs
 
 ```bash
-cat .specfact/plans/my-project-*.bundle.yaml
+# Review bundle to understand extracted specs
+specfact plan review my-project
+
+# Or get structured findings for analysis
+specfact plan review my-project --list-findings --findings-format json
 ```
+
+**Note**: Use CLI commands to interact with bundles. The bundle structure (`.specfact/projects/<bundle-name>/`) is managed by SpecFact CLI - use commands like `plan review`, `plan add-feature`, `plan update-feature` to modify bundles, not direct file editing.
 
 ### Step 3: Add Contracts Incrementally
 
@@ -47,23 +53,23 @@ For large codebases or monorepos with multiple projects, use `--entry-point` to 
 
 ```bash
 # Analyze individual projects in a monorepo
-specfact import from-code --repo . --entry-point projects/api-service --name api-service
-specfact import from-code --repo . --entry-point projects/web-app --name web-app
-specfact import from-code --repo . --entry-point projects/mobile-app --name mobile-app
+specfact import from-code api-service --repo . --entry-point projects/api-service
+specfact import from-code web-app --repo . --entry-point projects/web-app
+specfact import from-code mobile-app --repo . --entry-point projects/mobile-app
 
 # Analyze specific modules for incremental modernization
-specfact import from-code --repo . --entry-point src/core --name core-module
-specfact import from-code --repo . --entry-point src/integrations --name integrations-module
+specfact import from-code core-module --repo . --entry-point src/core
+specfact import from-code integrations-module --repo . --entry-point src/integrations
 ```
 
 **Benefits:**
 
 - **Faster analysis** - Focus on specific modules for quicker feedback
 - **Incremental modernization** - Modernize one module at a time
-- **Multi-plan support** - Create separate plan bundles for different projects/modules
-- **Better organization** - Keep plans organized by project boundaries
+- **Multi-bundle support** - Create separate project bundles for different projects/modules
+- **Better organization** - Keep bundles organized by project boundaries
 
-**Note:** When using `--entry-point`, each analysis creates a separate plan bundle. Use `specfact plan select` to switch between plans, or `specfact plan compare` to compare different plans.
+**Note:** When using `--entry-point`, each analysis creates a separate project bundle. Use `specfact plan compare` to compare different bundles.
 
 ---
 
@@ -74,13 +80,13 @@ Keep Spec-Kit and SpecFact synchronized automatically.
 ### One-Time Sync
 
 ```bash
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 ```
 
 **What it does**:
 
-- Syncs Spec-Kit artifacts → SpecFact plans
-- Syncs SpecFact plans → Spec-Kit artifacts
+- Syncs Spec-Kit artifacts → SpecFact project bundles
+- Syncs SpecFact project bundles → Spec-Kit artifacts
 - Resolves conflicts automatically (SpecFact takes priority)
 
 **When to use**:
@@ -92,7 +98,7 @@ specfact sync spec-kit --repo . --bidirectional
 ### Watch Mode (Continuous Sync)
 
 ```bash
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it does**:
@@ -111,7 +117,7 @@ specfact sync spec-kit --repo . --bidirectional --watch --interval 5
 
 ```bash
 # Terminal 1: Start watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle my-project --repo . --bidirectional --watch --interval 5
 
 # Terminal 2: Make changes in Spec-Kit
 echo "# New Feature" >> specs/002-new-feature/spec.md
@@ -122,10 +128,10 @@ echo "# New Feature" >> specs/002-new-feature/spec.md
 
 ### What Gets Synced
 
-- `specs/[###-feature-name]/spec.md` ↔ `.specfact/plans/*.yaml`
-- `specs/[###-feature-name]/plan.md` ↔ `.specfact/plans/*.yaml`
-- `specs/[###-feature-name]/tasks.md` ↔ `.specfact/plans/*.yaml`
-- `.specify/memory/constitution.md` ↔ SpecFact business context
+- `specs/[###-feature-name]/spec.md` ↔ `.specfact/projects/<bundle-name>/features/FEATURE-*.yaml`
+- `specs/[###-feature-name]/plan.md` ↔ `.specfact/projects/<bundle-name>/product.yaml`
+- `specs/[###-feature-name]/tasks.md` ↔ `.specfact/projects/<bundle-name>/features/FEATURE-*.yaml`
+- `.specify/memory/constitution.md` ↔ SpecFact business context (business.yaml)
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ `.specfact/protocols/*.yaml`
 
 **Note**: When syncing from SpecFact to Spec-Kit, all required Spec-Kit fields (frontmatter, INVSEST criteria, Constitution Check, Phases, Technology Stack, Story mappings) are automatically generated. No manual editing required - generated artifacts are ready for `/speckit.analyze`.
@@ -280,8 +286,8 @@ specfact plan compare --repo .
 
 **What it does**:
 
-- Finds manual plan (`.specfact/plans/main.bundle.yaml`)
-- Finds latest auto-derived plan (`.specfact/reports/brownfield/auto-derived.*.yaml`)
+- Compares two project bundles (manual vs auto-derived)
+- Finds bundles in `.specfact/projects/`
 - Compares and reports deviations
 
 **When to use**:
@@ -294,10 +300,12 @@ specfact plan compare --repo .
 
 ```bash
 specfact plan compare \
-  --manual .specfact/plans/main.bundle.yaml \
-  --auto .specfact/reports/brownfield/auto-derived.2025-11-09T21-00-00.bundle.yaml \
-  --output comparison-report.md
+  --manual .specfact/projects/manual-plan \
+  --auto .specfact/projects/auto-derived \
+  --out comparison-report.md
 ```
+
+**Note**: Commands accept bundle directory paths, not individual files.
 
 **What it does**:
 
@@ -402,31 +410,31 @@ Complete workflow for migrating from Spec-Kit.
 ### Step 1: Preview
 
 ```bash
-specfact import from-spec-kit --repo . --dry-run
+specfact import from-bridge --adapter speckit --repo . --dry-run
 ```
 
 **What it does**:
 
-- Analyzes Spec-Kit project
+- Analyzes Spec-Kit project using bridge architecture
 - Shows what will be imported
 - Does not modify anything
 
 ### Step 2: Execute
 
 ```bash
-specfact import from-spec-kit --repo . --write
+specfact import from-bridge --adapter speckit --repo . --write
 ```
 
 **What it does**:
 
-- Imports Spec-Kit artifacts
-- Creates SpecFact structure
-- Converts to SpecFact format
+- Imports Spec-Kit artifacts using bridge architecture
+- Creates modular project bundle structure
+- Converts to SpecFact format (multiple aspect files)
 
 ### Step 3: Set Up Sync
 
 ```bash
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it does**:

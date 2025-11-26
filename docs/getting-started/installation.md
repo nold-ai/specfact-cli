@@ -144,7 +144,7 @@ SpecFact CLI supports two operational modes:
 
 ```bash
 # CLI-only mode (uvx - no installation)
-uvx specfact-cli@latest import from-code --repo . --name my-project
+uvx specfact-cli@latest import from-code my-project --repo .
 
 # Interactive mode (pip + specfact init - recommended)
 # After: pip install specfact-cli && specfact init
@@ -200,16 +200,16 @@ Convert an existing GitHub Spec-Kit project:
 
 ```bash
 # Preview what will be migrated
-specfact import from-spec-kit --repo ./my-speckit-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # Execute migration (one-time import)
-specfact import from-spec-kit \
+specfact import from-bridge \
+  --adapter speckit \
   --repo ./my-speckit-project \
-  --write \
-  --out-branch feat/specfact-migration
+  --write
 
 # Ongoing bidirectional sync (after migration)
-specfact sync spec-kit --repo . --bidirectional --watch
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Bidirectional Sync:**
@@ -218,10 +218,10 @@ Keep Spec-Kit and SpecFact artifacts synchronized:
 
 ```bash
 # One-time sync
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 ### For Brownfield Projects
@@ -230,13 +230,13 @@ Analyze existing code to generate specifications:
 
 ```bash
 # Analyze repository (CI/CD mode - fast)
-specfact import from-code \
+specfact import from-code my-project \
   --repo ./my-project \
   --shadow-only \
   --report analysis.md
 
 # Analyze with CoPilot mode (enhanced prompts)
-specfact --mode copilot import from-code \
+specfact --mode copilot import from-code my-project \
   --repo ./my-project \
   --confidence 0.7 \
   --report analysis.md
@@ -302,7 +302,7 @@ specfact sync repository --repo . --watch
 - **IDE integration**: Use `specfact init` to set up slash commands in IDE (requires pip install)
 - **Slash commands**: Use hyphenated format `/specfact-import-from-code` (no spaces, no `--repo .`)
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
-- **Bidirectional sync**: Use `sync spec-kit` or `sync repository` for ongoing change management
+- **Bidirectional sync**: Use `sync bridge --adapter <adapter>` or `sync repository` for ongoing change management
 - **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact repro`
 
 ## Common Commands
@@ -315,8 +315,8 @@ specfact --version
 specfact --help
 specfact <command> --help
 
-# Initialize plan
-specfact plan init --interactive
+# Initialize plan (bundle name as positional argument)
+specfact plan init my-project --interactive
 
 # Add feature
 specfact plan add-feature --key FEATURE-001 --title "My Feature"

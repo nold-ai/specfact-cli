@@ -8,19 +8,19 @@ Complete reference for all SpecFact CLI commands.
 
 ```bash
 # PRIMARY: Import from existing code (brownfield modernization)
-specfact import from-code --repo . --name my-project
+specfact import from-code --repo . my-project
 
-# SECONDARY: Import from Spec-Kit (add enforcement to Spec-Kit projects)
-specfact import from-spec-kit --repo . --dry-run
+# SECONDARY: Import from external tools (Spec-Kit, Linear, Jira, etc.)
+specfact import from-bridge --repo . --adapter speckit --write
 
 # Initialize plan (alternative: greenfield workflow)
-specfact plan init --interactive
+specfact plan init my-project --interactive
 
 # Compare plans
 specfact plan compare --repo .
 
-# Sync Spec-Kit (bidirectional) - Secondary use case
-specfact sync spec-kit --repo . --bidirectional --watch
+# Sync with external tools (bidirectional) - Secondary use case
+specfact sync bridge --adapter speckit --bundle my-project --bidirectional --watch
 
 # Validate everything
 specfact repro --verbose
@@ -37,19 +37,18 @@ specfact repro --verbose
 **Import & Analysis:**
 
 - `import from-code` ⭐ **PRIMARY** - Analyze existing codebase (brownfield modernization)
-- `import from-spec-kit` - Import from GitHub Spec-Kit (secondary use case)
+- `import from-bridge` - Import from external tools via bridge architecture (Spec-Kit, Linear, Jira, etc.)
 
 **Plan Management:**
 
-- `plan init` - Initialize new plan
-- `plan add-feature` - Add feature to plan
-- `plan add-story` - Add story to feature
-- `plan update-feature` - Update existing feature metadata
-- `plan review` - Review plan bundle to resolve ambiguities
+- `plan init <bundle-name>` - Initialize new project bundle
+- `plan add-feature --bundle <bundle-name>` - Add feature to bundle
+- `plan add-story --bundle <bundle-name>` - Add story to feature
+- `plan update-feature --bundle <bundle-name>` - Update existing feature metadata
+- `plan review <bundle-name>` - Review plan bundle to resolve ambiguities
 - `plan select` - Select active plan from available bundles
 - `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
-- `plan sync --shared` - Enable shared plans (team collaboration)
 
 **Enforcement:**
 
@@ -58,7 +57,7 @@ specfact repro --verbose
 
 **Synchronization:**
 
-- `sync spec-kit` - Sync with Spec-Kit artifacts
+- `sync bridge` - Sync with external tools via bridge architecture (Spec-Kit, Linear, Jira, etc.)
 - `sync repository` - Sync code changes
 
 **Constitution Management (Spec-Kit Compatibility):**
@@ -67,7 +66,7 @@ specfact repro --verbose
 - `constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
 - `constitution validate` - Validate constitution completeness (for Spec-Kit format)
 
-**Note**: The `constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
+**Note**: The `constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
 
 **Setup:**
 
@@ -144,41 +143,50 @@ specfact --mode copilot import from-code --repo .
 
 Convert external project formats to SpecFact format.
 
-#### `import from-spec-kit`
+#### `import from-bridge`
 
-Convert GitHub Spec-Kit projects:
+Convert external tool projects (Spec-Kit, Linear, Jira, etc.) to SpecFact format using the bridge architecture.
 
 ```bash
-specfact import from-spec-kit [OPTIONS]
+specfact import from-bridge [OPTIONS]
 ```
 
 **Options:**
 
-- `--repo PATH` - Path to Spec-Kit repository (required)
-- `--dry-run` - Preview without writing files
+- `--repo PATH` - Path to repository with external tool artifacts (required)
+- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
+- `--dry-run` - Preview changes without writing files
 - `--write` - Write converted files to repository
 - `--out-branch NAME` - Git branch for migration (default: `feat/specfact-migration`)
 - `--report PATH` - Write migration report to file
+- `--force` - Overwrite existing files
 
 **Example:**
 
 ```bash
-specfact import from-spec-kit \
+# Import from Spec-Kit
+specfact import from-bridge \
   --repo ./my-speckit-project \
+  --adapter speckit \
   --write \
   --out-branch feat/specfact-migration \
   --report migration-report.md
+
+# Auto-detect adapter
+specfact import from-bridge \
+  --repo ./my-project \
+  --write
 ```
 
 **What it does:**
 
-- Detects Spec-Kit structure (`.specify/` directory with markdown artifacts in `specs/` folders)
-- Parses Spec-Kit artifacts (`specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md`, `.specify/memory/constitution.md`)
-- Converts Spec-Kit features/stories to Pydantic models with contracts
+- Uses bridge configuration to detect external tool structure
+- For Spec-Kit: Detects `.specify/` directory with markdown artifacts in `specs/` folders
+- Parses tool-specific artifacts (e.g., `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md`, `.specify/memory/constitution.md` for Spec-Kit)
+- Converts tool features/stories to SpecFact Pydantic models with contracts
 - Generates `.specfact/protocols/workflow.protocol.yaml` (if FSM detected)
-- Creates `.specfact/plans/main.bundle.yaml` with features and stories
+- Creates modular project bundle at `.specfact/projects/<bundle-name>/` with features and stories
 - Adds Semgrep async anti-pattern rules (if async patterns detected)
-- Generates GitHub Action workflow for PR validation (optional)
 
 ---
 
@@ -192,9 +200,8 @@ specfact import from-code [OPTIONS]
 
 **Options:**
 
+- `BUNDLE_NAME` - Project bundle name (positional argument, required)
 - `--repo PATH` - Path to repository to import (required)
-- `--name NAME` - Custom plan name (will be sanitized for filesystem, default: "auto-derived")
-- `--out PATH` - Output path for generated plan (default: `.specfact/plans/<name>-<timestamp>.bundle.<format>`)
 - `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 - `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--shadow-only` - Observe without blocking
@@ -208,7 +215,7 @@ specfact import from-code [OPTIONS]
 - `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)
 - `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
 
-**Note**: The `--name` option allows you to provide a meaningful name for the imported plan. The name will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. If not provided, the AI will ask you interactively for a name.
+**Note**: The bundle name (positional argument) will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. The bundle is created at `.specfact/projects/<bundle-name>/`.
 
 **Mode Behavior:**
 
@@ -231,24 +238,22 @@ specfact import from-code [OPTIONS]
 
 ```bash
 # Full repository analysis
-specfact import from-code \
+specfact import from-code my-project \
   --repo ./my-project \
   --confidence 0.7 \
   --shadow-only \
   --report reports/analysis.md
 
 # Partial analysis (analyze only specific subdirectory)
-specfact import from-code \
+specfact import from-code core-module \
   --repo ./my-project \
   --entry-point src/core \
-  --confidence 0.7 \
-  --name core-module
+  --confidence 0.7
 
 # Multi-project codebase (analyze one project at a time)
-specfact import from-code \
+specfact import from-code api-service-plan \
   --repo ./monorepo \
-  --entry-point projects/api-service \
-  --name api-service-plan
+  --entry-point projects/api-service
 ```
 
 **What it does:**
@@ -271,10 +276,10 @@ The `--entry-point` parameter enables partial analysis of large codebases:
 
 **Note on Multi-Project Codebases:**
 
-When working with multiple projects in a single repository, Spec-Kit integration (via `sync spec-kit`) may create artifacts at nested folder levels. This is a known limitation (see [GitHub Spec-Kit issue #299](https://github.com/github/spec-kit/issues/299)). For now, it's recommended to:
+When working with multiple projects in a single repository, external tool integration (via `sync bridge`) may create artifacts at nested folder levels. For now, it's recommended to:
 
 - Use `--entry-point` to analyze each project separately
-- Create separate plan bundles for each project
+- Create separate project bundles for each project (`.specfact/projects/<bundle-name>/`)
 - Run `specfact init` from the repository root to ensure IDE integration works correctly (templates are copied to root-level `.github/`, `.cursor/`, etc. directories)
 
 ---
@@ -297,7 +302,7 @@ specfact plan init [OPTIONS]
 
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: `--interactive`)
   - Use `--no-interactive` for CI/CD automation to avoid interactive prompts
-- `--out PATH` - Output plan bundle path (default: `.specfact/plans/main.bundle.<format>` following the current `--output-format`)
+- Bundle name is provided as a positional argument (e.g., `plan init my-project`)
 - `--scaffold/--no-scaffold` - Create complete `.specfact/` directory structure (default: `--scaffold`)
 - `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 
@@ -307,11 +312,11 @@ specfact plan init [OPTIONS]
 # Interactive mode (recommended for manual plan creation)
 specfact plan init --interactive
 
-# Non-interactive mode (CI/CD automation)
-specfact plan init --no-interactive --out .specfact/plans/main.bundle.yaml
+# Non-interactive mode (CI/CD automation, bundle name as positional argument)
+specfact plan init main --no-interactive
 
-# With custom output path
-specfact plan init --interactive --out .specfact/plans/feature-auth.bundle.json
+# Interactive mode (bundle name as positional argument)
+specfact plan init feature-auth --interactive
 ```
 
 #### `plan add-feature`
@@ -328,7 +333,7 @@ specfact plan add-feature [OPTIONS]
 - `--title TEXT` - Feature title (required)
 - `--outcomes TEXT` - Success outcomes (multiple allowed)
 - `--acceptance TEXT` - Acceptance criteria (multiple allowed)
-- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+- `--bundle TEXT` - Bundle name (default: active bundle or `main`)
 
 **Example:**
 
@@ -357,7 +362,7 @@ specfact plan add-story [OPTIONS]
 - `--story-points INT` - Story points (complexity: 0-100)
 - `--value-points INT` - Value points (business value: 0-100)
 - `--draft` - Mark story as draft
-- `--plan PATH` - Plan bundle path (default: active plan in `.specfact/plans` using current format)
+- `--bundle TEXT` - Bundle name (default: active bundle or `main`)
 
 **Example:**
 
@@ -409,7 +414,7 @@ specfact plan update-feature [OPTIONS]
     ]
     ```
 
-- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+- `--bundle TEXT` - Bundle name (default: active bundle or `main`)
 
 **Example:**
 
@@ -428,13 +433,13 @@ specfact plan update-feature \
 
 # Batch updates from file (preferred for multiple features)
 specfact plan update-feature \
-  --batch-updates updates.json \
-  --plan .specfact/plans/main.bundle.yaml
+  --bundle main \
+  --batch-updates updates.json
 
 # Batch updates with YAML format
 specfact plan update-feature \
-  --batch-updates updates.yaml \
-  --plan .specfact/plans/main.bundle.yaml
+  --bundle main \
+  --batch-updates updates.yaml
 ```
 
 **Batch Update File Format:**
@@ -524,7 +529,7 @@ specfact plan update-story [OPTIONS]
     ]
     ```
 
-- `--plan PATH` - Plan bundle path (default: active plan in `.specfact/plans` using current format)
+- `--bundle TEXT` - Bundle name (default: active bundle or `main`)
 
 **Example:**
 
@@ -545,13 +550,13 @@ specfact plan update-story \
 
 # Batch updates from file (preferred for multiple stories)
 specfact plan update-story \
-  --batch-updates story_updates.json \
-  --plan .specfact/plans/main.bundle.yaml
+  --bundle main \
+  --batch-updates story_updates.json
 
 # Batch updates with YAML format
 specfact plan update-story \
-  --batch-updates story_updates.yaml \
-  --plan .specfact/plans/main.bundle.yaml
+  --bundle main \
+  --batch-updates story_updates.yaml
 ```
 
 **Batch Update File Format:**
@@ -603,7 +608,7 @@ specfact plan review [OPTIONS]
 
 **Options:**
 
-- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or latest in `.specfact/plans/`)
+- Bundle name is provided as a positional argument (e.g., `plan review my-project`)
 - `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
 - `--category TEXT` - Focus on specific taxonomy category (optional)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
@@ -629,8 +634,8 @@ specfact plan review [OPTIONS]
 **Example:**
 
 ```bash
-# Interactive review
-specfact plan review --plan .specfact/plans/main.bundle.yaml
+# Interactive review (bundle name as positional argument)
+specfact plan review main
 
 # Get all findings for bulk updates (preferred for Copilot mode)
 specfact plan review --list-findings --findings-format json
@@ -768,7 +773,7 @@ specfact plan harden [OPTIONS]
 
 **Options:**
 
-- `--plan PATH` - Plan bundle path (default: active plan)
+- Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
 - `--sdd PATH` - Output SDD manifest path (default: `.specfact/sdd.<format>`)
 - `--output-format {yaml,json}` - SDD manifest format (defaults to global `--output-format`)
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
@@ -801,11 +806,11 @@ specfact plan harden [OPTIONS]
 # Interactive with active plan
 specfact plan harden
 
-# Non-interactive with specific plan
-specfact plan harden --plan .specfact/plans/main.bundle.yaml --non-interactive
+# Non-interactive with specific bundle (bundle name as positional argument)
+specfact plan harden main --non-interactive
 
-# Custom SDD path for multiple plans
-specfact plan harden --plan .specfact/plans/feature-auth.bundle.yaml --sdd .specfact/sdd.auth.yaml
+# Custom SDD path for multiple bundles
+specfact plan harden feature-auth --sdd .specfact/sdd.auth.yaml
 ```
 
 **SDD Manifest Structure:**
@@ -833,7 +838,7 @@ specfact plan promote [OPTIONS]
 **Options:**
 
 - `--stage TEXT` - Target stage (draft, review, approved, released) (required)
-- `--plan PATH` - Plan bundle path (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
+- `--bundle TEXT` - Bundle name (default: active bundle or `main`)
 - `--validate/--no-validate` - Run validation before promotion (default: true)
 - `--force` - Force promotion even if validation fails (default: false)
 
@@ -993,11 +998,11 @@ The `plan select` command uses optimized metadata reading for fast performance, 
 - This provides 44% faster performance compared to full file parsing
 - Summary metadata is automatically added when creating or upgrading plan bundles
 
-**Note**: The active plan is tracked in `.specfact/plans/config.yaml` and replaces the static `main.bundle.yaml` reference. All plan commands (`compare`, `promote`, `add-feature`, `add-story`, `sync spec-kit`) now use the active plan by default.
+**Note**: Project bundles are stored in `.specfact/projects/<bundle-name>/`. All plan commands (`compare`, `promote`, `add-feature`, `add-story`) use the bundle name specified via `--bundle` option or positional arguments.
 
 #### `plan sync`
 
-Enable shared plans for team collaboration (convenience wrapper for `sync spec-kit --bidirectional`):
+Enable shared plans for team collaboration (convenience wrapper for `sync bridge --adapter speckit --bidirectional`):
 
 ```bash
 specfact plan sync --shared [OPTIONS]
@@ -1009,12 +1014,12 @@ specfact plan sync --shared [OPTIONS]
 - `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
 - `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
 - `--repo PATH` - Path to repository (default: `.`)
-- `--plan PATH` - Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
-- `--overwrite` - Overwrite existing Spec-Kit artifacts (delete all existing before sync)
+- `--bundle BUNDLE_NAME` - Project bundle name for SpecFact → tool conversion (default: auto-detect)
+- `--overwrite` - Overwrite existing tool artifacts (delete all existing before sync)
 
 **Shared Plans for Team Collaboration:**
 
-The `plan sync --shared` command is a convenience wrapper around `sync spec-kit --bidirectional` that emphasizes team collaboration. **Shared structured plans** enable multiple developers to work on the same plan with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members.
+The `plan sync --shared` command is a convenience wrapper around `sync bridge --adapter speckit --bidirectional` that emphasizes team collaboration. **Shared structured plans** enable multiple developers to work on the same plan with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members.
 
 **Example:**
 
@@ -1025,17 +1030,20 @@ specfact plan sync --shared
 # Continuous watch mode (recommended for team collaboration)
 specfact plan sync --shared --watch --interval 5
 
+# Sync specific repository and bundle
+specfact plan sync --shared --repo ./project --bundle my-project
+
 # Equivalent direct command:
-specfact sync spec-kit --repo . --bidirectional --watch
+specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectional --watch
 ```
 
 **What it syncs:**
 
-- **Spec-Kit → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/plans/*.yaml`
-- **SpecFact → Spec-Kit**: Changes to `.specfact/plans/*.yaml` → Updated Spec-Kit markdown (preserves structure)
+- **Tool → SpecFact**: New `spec.md`, `plan.md`, `tasks.md` → Updated `.specfact/projects/<bundle-name>/bundle.yaml`
+- **SpecFact → Tool**: Changes to `.specfact/projects/<bundle-name>/bundle.yaml` → Updated tool markdown (preserves structure)
 - **Team collaboration**: Multiple developers can work on the same plan with automated synchronization
 
-**Note**: This is a convenience wrapper. The underlying command is `sync spec-kit --bidirectional`. See [`sync spec-kit`](#sync-spec-kit) for full details.
+**Note**: This is a convenience wrapper. The underlying command is `sync bridge --adapter speckit --bidirectional`. See [`sync bridge`](#sync-bridge) for full details.
 
 #### `plan upgrade`
 
@@ -1047,7 +1055,7 @@ specfact plan upgrade [OPTIONS]
 
 **Options:**
 
-- `--plan PATH` - Path to specific plan bundle to upgrade (default: active plan)
+- Bundle name is provided as a positional argument (e.g., `plan upgrade my-project`)
 - `--all` - Upgrade all plan bundles in `.specfact/plans/`
 - `--dry-run` - Show what would be upgraded without making changes
 
@@ -1060,8 +1068,8 @@ specfact plan upgrade --dry-run
 # Upgrade active plan
 specfact plan upgrade
 
-# Upgrade specific plan
-specfact plan upgrade --plan path/to/plan.bundle.yaml
+# Upgrade specific plan (bundle name as positional argument)
+specfact plan upgrade my-project
 
 # Upgrade all plans
 specfact plan upgrade --all
@@ -1112,8 +1120,8 @@ specfact plan compare [OPTIONS]
 
 **Options:**
 
-- `--manual PATH` - Manual plan bundle (intended design - what you planned) (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
-- `--auto PATH` - Auto-derived plan bundle (actual implementation - what's in your code from `import from-code`) (default: latest in `.specfact/plans/`)
+- `--manual PATH` - Manual plan bundle directory (intended design - what you planned) (default: active bundle from `.specfact/projects/<bundle-name>/` or `main`)
+- `--auto PATH` - Auto-derived plan bundle directory (actual implementation - what's in your code from `import from-code`) (default: latest in `.specfact/projects/`)
 - `--code-vs-plan` - Convenience alias for `--manual <active-plan> --auto <latest-auto-plan>` (detects code vs plan drift)
 - `--format TEXT` - Output format (markdown, json, yaml) (default: markdown)
 - `--out PATH` - Output file (default: `.specfact/reports/comparison/report-*.md`)
@@ -1131,10 +1139,10 @@ specfact plan compare --code-vs-plan
 # → Compares intended design (manual plan) vs actual implementation (code-derived plan)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 
-# Explicit comparison
+# Explicit comparison (bundle directory paths)
 specfact plan compare \
-  --manual .specfact/plans/main.bundle.yaml \
-  --auto .specfact/plans/my-project-*.bundle.yaml \
+  --manual .specfact/projects/main \
+  --auto .specfact/projects/my-project-auto \
   --format markdown \
   --out .specfact/reports/comparison/deviation.md
 ```
@@ -1165,7 +1173,7 @@ specfact enforce sdd [OPTIONS]
 
 **Options:**
 
-- `--plan PATH` - Plan bundle path (default: active plan)
+- Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
 - `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
 - `--format {markdown,json,yaml}` - Output format (default: markdown)
 - `--out PATH` - Output report path (optional)
@@ -1193,8 +1201,8 @@ The command calculates and validates:
 # Validate SDD against active plan
 specfact enforce sdd
 
-# Validate with specific plan and SDD
-specfact enforce sdd --plan .specfact/plans/main.bundle.yaml --sdd .specfact/sdd.yaml
+# Validate with specific bundle and SDD (bundle name as positional argument)
+specfact enforce sdd main --sdd .specfact/sdd.yaml
 
 # Generate JSON report
 specfact enforce sdd --format json --out validation-report.json
@@ -1371,7 +1379,7 @@ metadata:
   timestamp: '2025-11-06T00:43:42.062620'
   repo_path: /home/user/my-project
   budget: 120
-  active_plan_path: .specfact/plans/main.bundle.yaml
+  active_plan_path: .specfact/projects/main/
   enforcement_config_path: .specfact/gates/config/enforcement.yaml
   enforcement_preset: balanced
   fix_enabled: false
@@ -1394,7 +1402,7 @@ specfact generate contracts [OPTIONS]
 
 **Options:**
 
-- `--plan PATH` - Plan bundle path (default: active plan)
+- Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
 - `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
 - `--out PATH` - Output directory (default: `.specfact/contracts/`)
 - `--format {yaml,json}` - SDD manifest format (default: auto-detect)
@@ -1421,8 +1429,8 @@ specfact generate contracts [OPTIONS]
 # Generate contracts from active plan and SDD
 specfact generate contracts
 
-# Generate with specific plan and SDD
-specfact generate contracts --plan .specfact/plans/main.bundle.yaml --sdd .specfact/sdd.yaml
+# Generate with specific bundle and SDD (bundle name as positional argument)
+specfact generate contracts main --sdd .specfact/sdd.yaml
 
 # Custom output directory
 specfact generate contracts --out src/contracts/
@@ -1463,50 +1471,52 @@ Each file includes:
 
 Bidirectional synchronization for consistent change management.
 
-#### `sync spec-kit`
+#### `sync bridge`
 
-Sync changes between Spec-Kit artifacts and SpecFact:
+Sync changes between external tool artifacts (Spec-Kit, Linear, Jira, etc.) and SpecFact using the bridge architecture:
 
 ```bash
-specfact sync spec-kit [OPTIONS]
+specfact sync bridge [OPTIONS]
 ```
 
 **Options:**
 
 - `--repo PATH` - Path to repository (default: `.`)
+- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
+- `--bundle BUNDLE_NAME` - Project bundle name for SpecFact → tool conversion (default: auto-detect)
 - `--bidirectional` - Enable bidirectional sync (default: one-way import)
-- `--plan PATH` - Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan from `.specfact/plans/config.yaml` or `main.bundle.yaml`)
-- `--overwrite` - Overwrite existing Spec-Kit artifacts (delete all existing before sync)
+- `--overwrite` - Overwrite existing tool artifacts (delete all existing before sync)
 - `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
 - `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
+- `--ensure-compliance` - Validate and auto-enrich plan bundle for tool compliance before sync
 
 **Watch Mode Features:**
 
-- **Real-time monitoring**: Automatically detects file changes in Spec-Kit artifacts, SpecFact plans, and repository code
+- **Real-time monitoring**: Automatically detects file changes in tool artifacts, SpecFact bundles, and repository code
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
-- **Change type detection**: Automatically detects whether changes are in Spec-Kit artifacts, SpecFact plans, or code
+- **Change type detection**: Automatically detects whether changes are in tool artifacts, SpecFact bundles, or code
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 - **Resource efficient**: Minimal CPU/memory usage
 
 **Example:**
 
 ```bash
-# One-time bidirectional sync
-specfact sync spec-kit --repo . --bidirectional
+# One-time bidirectional sync with Spec-Kit
+specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectional
 
-# Sync with auto-derived plan (from codebase)
-specfact sync spec-kit --repo . --bidirectional --plan .specfact/plans/my-project-<timestamp>.bundle.yaml
+# Auto-detect adapter and bundle
+specfact sync bridge --repo . --bidirectional
 
-# Overwrite Spec-Kit with auto-derived plan (32 features from codebase)
-specfact sync spec-kit --repo . --bidirectional --plan .specfact/plans/my-project-<timestamp>.bundle.yaml --overwrite
+# Overwrite tool artifacts with SpecFact bundle
+specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectional --overwrite
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectional --watch --interval 5
 ```
 
-**What it syncs:**
+**What it syncs (Spec-Kit adapter):**
 
-- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/plans/*.yaml`
+- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/projects/<bundle-name>/bundle.yaml`
 - `.specify/memory/constitution.md` ↔ SpecFact business context
 - `specs/[###-feature-name]/research.md`, `data-model.md`, `quickstart.md` ↔ SpecFact supporting artifacts
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
@@ -1572,9 +1582,9 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 
 Manage project constitutions for Spec-Kit format compatibility. Auto-generate bootstrap templates from repository analysis.
 
-**Note**: These commands are for **Spec-Kit format compatibility** only. SpecFact itself uses plan bundles (`.specfact/plans/*.bundle.yaml`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when:
+**Note**: These commands are for **Spec-Kit format compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when:
 
-- Syncing with Spec-Kit artifacts (`specfact sync spec-kit`)
+- Syncing with Spec-Kit artifacts (`specfact sync bridge --adapter speckit`)
 - Working in Spec-Kit format (using `/speckit.*` commands)
 - Migrating from Spec-Kit to SpecFact format
 
@@ -1622,7 +1632,7 @@ specfact constitution bootstrap --repo . --overwrite
 
 **When to use:**
 
-- **Spec-Kit sync operations**: Required before `specfact sync spec-kit` (bidirectional sync)
+- **Spec-Kit sync operations**: Required before `specfact sync bridge --adapter speckit` (bidirectional sync)
 - **Spec-Kit format projects**: When working with Spec-Kit artifacts (using `/speckit.*` commands)
 - **After brownfield import (if syncing to Spec-Kit)**: Run `specfact import from-code` → Suggested automatically if Spec-Kit sync is planned
 - **Manual setup**: Generate constitution for new Spec-Kit projects
@@ -1632,7 +1642,7 @@ specfact constitution bootstrap --repo . --overwrite
 **Integration:**
 
 - **Auto-suggested** during `specfact import from-code` (brownfield imports)
-- **Auto-detected** during `specfact sync spec-kit` (if constitution is minimal)
+- **Auto-detected** during `specfact sync bridge --adapter speckit` (if constitution is minimal)
 
 ---
 
@@ -1712,7 +1722,7 @@ specfact constitution validate --constitution custom-constitution.md
 
 **When to use:**
 
-- Before syncing with Spec-Kit (`specfact sync spec-kit` requires valid constitution)
+- Before syncing with Spec-Kit (`specfact sync bridge --adapter speckit` requires valid constitution)
 - After manual edits to verify completeness
 - In CI/CD pipelines to ensure constitution quality
 

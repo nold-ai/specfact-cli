@@ -15,7 +15,7 @@ Uses **AI IDE's native LLM** for semantic understanding via pragmatic integratio
 **Workflow**:
 
 1. **AI IDE's LLM** understands codebase semantically (via slash command prompt)
-2. **AI calls SpecFact CLI** (`specfact import from-code`) for structured analysis
+2. **AI calls SpecFact CLI** (`specfact import from-code <bundle-name>`) for structured analysis
 3. **AI enhances results** with semantic understanding (priorities, constraints, unknowns)
 4. **CLI handles structured work** (file I/O, YAML generation, validation)
 
@@ -61,7 +61,7 @@ Uses **Python's AST** for structural analysis when LLM is unavailable:
 
 ```mermaid
 flowchart TD
-    A["code2spec Command<br/>specfact import from-code --repo . --confidence 0.5"] --> B{Operational Mode}
+    A["code2spec Command<br/>specfact import from-code my-project --repo . --confidence 0.5"] --> B{Operational Mode}
     
     B -->|CoPilot Mode| C["AnalyzeAgent (AI-First)<br/>• LLM semantic understanding<br/>• Multi-language support<br/>• Semantic extraction (priorities, constraints, unknowns)<br/>• High-quality Spec-Kit artifacts"]
     

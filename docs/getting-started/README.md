@@ -16,7 +16,7 @@ Choose your preferred installation method:
 
 ```bash
 # CLI-only mode (works with uvx, no installation needed)
-uvx specfact-cli@latest import from-code --repo . --name my-project
+uvx specfact-cli@latest import from-code my-project --repo .
 
 # Interactive AI Assistant mode (requires pip install + specfact init)
 # See First Steps guide for IDE integration setup
@@ -25,8 +25,8 @@ uvx specfact-cli@latest import from-code --repo . --name my-project
 **For New Projects**:
 
 ```bash
-# CLI-only mode
-uvx specfact-cli@latest plan init --interactive
+# CLI-only mode (bundle name as positional argument)
+uvx specfact-cli@latest plan init my-project --interactive
 
 # Interactive AI Assistant mode (recommended for better results)
 # Requires: pip install specfact-cli && specfact init

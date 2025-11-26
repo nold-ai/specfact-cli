@@ -49,10 +49,10 @@ SpecFact CLI supports two operational modes for different use cases:
 
 ```bash
 # Auto-detected (default)
-specfact import from-code --repo .
+specfact import from-code my-project --repo .
 
 # Explicit CI/CD mode
-specfact --mode cicd import from-code --repo .
+specfact --mode cicd import from-code my-project --repo .
 ```
 
 ### Mode 2: CoPilot-Enabled
@@ -75,17 +75,17 @@ specfact --mode cicd import from-code --repo .
 
 ```bash
 # Auto-detected (if CoPilot available)
-specfact import from-code --repo .
+specfact import from-code my-project --repo .
 
 # Explicit CoPilot mode
-specfact --mode copilot import from-code --repo .
+specfact --mode copilot import from-code my-project --repo .
 
 # IDE integration (slash commands)
 # First, initialize: specfact init --ide cursor
 # Then use in IDE chat:
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-init --idea idea.yaml
-/specfact-sync --repo . --bidirectional
+/specfact-import-from-code my-project --repo . --confidence 0.7
+/specfact-plan-init my-project --idea idea.yaml
+/specfact-sync --adapter speckit --bundle my-project --repo . --bidirectional
 ```
 
 ### Mode Detection
@@ -115,20 +115,20 @@ Each command uses specialized agent mode routing:
 
 ```python
 # Analyze agent mode
-/specfact-import-from-code --repo . --confidence 0.7
+/specfact-import-from-code my-project --repo . --confidence 0.7
 # → Enhanced prompts for code understanding
 # → Context injection (current file, selection, workspace)
 # → Interactive assistance for complex codebases
 
 # Plan agent mode
-/specfact-plan-init --idea idea.yaml
+/specfact-plan-init my-project --idea idea.yaml
 # → Guided wizard mode
 # → Natural language prompts
 # → Context-aware feature extraction
 
 # Sync agent mode
-/specfact-sync --source spec-kit --target .specfact
-# → Automatic source detection
+/specfact-sync --adapter speckit --bundle my-project --repo . --bidirectional
+# → Automatic source detection via bridge adapter
 # → Conflict resolution assistance
 # → Change explanation and preview
 ```
@@ -139,25 +139,27 @@ Each command uses specialized agent mode routing:
 
 SpecFact CLI supports bidirectional synchronization for consistent change management:
 
-### Spec-Kit Sync
+### Bridge-Based Sync (Adapter-Agnostic)
 
-Bidirectional synchronization between Spec-Kit artifacts and SpecFact:
+Bidirectional synchronization between external tools (e.g., Spec-Kit) and SpecFact via configurable bridge:
 
 ```bash
 # One-time bidirectional sync
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it syncs:**
 
-- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/plans/*.yaml`
+- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/projects/<bundle-name>/` aspect files
 - `.specify/memory/constitution.md` ↔ SpecFact business context
 - `specs/[###-feature-name]/research.md`, `data-model.md`, `quickstart.md` ↔ SpecFact supporting artifacts
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
 - Automatic conflict resolution with priority rules
+
+**Bridge Architecture**: The sync layer uses a configurable bridge (`.specfact/config/bridge.yaml`) that maps SpecFact logical concepts to physical tool artifacts, making it adapter-agnostic and extensible for future tool integrations (Linear, Jira, Notion, etc.).
 
 ### Repository Sync
 
@@ -193,7 +195,7 @@ graph TD
 
 ### 1. Specification Layer
 
-**Plan Bundle** (`.specfact/plans/main.bundle.yaml`):
+**Project Bundle** (`.specfact/projects/<bundle-name>/` - modular structure with multiple aspect files):
 
 ```yaml
 version: "1.0"
@@ -459,11 +461,15 @@ src/specfact_cli/
 │   ├── plan_agent.py    # Plan agent mode
 │   └── sync_agent.py    # Sync agent mode
 ├── sync/                  # Sync operation modules
-│   ├── speckit_sync.py  # Spec-Kit bidirectional sync
+│   ├── bridge_sync.py    # Bridge-based bidirectional sync (adapter-agnostic)
+│   ├── bridge_probe.py   # Bridge detection and auto-generation
+│   ├── bridge_watch.py   # Bridge-based watch mode
 │   ├── repository_sync.py # Repository sync
 │   └── watcher.py        # Watch mode for continuous sync
 ├── models/               # Pydantic data models
-│   ├── plan.py          # Plan bundle models
+│   ├── plan.py          # Plan bundle models (legacy compatibility)
+│   ├── project.py       # Project bundle models (modular structure)
+│   ├── bridge.py        # Bridge configuration models
 │   ├── protocol.py      # Protocol FSM models
 │   └── deviation.py     # Deviation models
 ├── validators/          # Schema validators

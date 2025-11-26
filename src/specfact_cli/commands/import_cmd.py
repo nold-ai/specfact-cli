@@ -489,7 +489,7 @@ def from_code(
                         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
                         console.print(
-                            "\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]"
+                            "\n[yellow]⏱️  Note: This analysis may take several minutes for larger codebases[/yellow]"
                         )
                         if entry_point:
                             console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")

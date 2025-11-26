@@ -206,14 +206,14 @@
 # Step 1: Use Spec-Kit for initial spec generation
 # (Interactive slash commands in GitHub)
 
-# Step 2: Import Spec-Kit artifacts into SpecFact
-specfact import from-spec-kit --repo ./my-project
+# Step 2: Import Spec-Kit artifacts into SpecFact (via bridge adapter)
+specfact import from-bridge --adapter speckit --repo ./my-project
 
 # Step 3: Add runtime contracts to critical Python paths
 # (SpecFact contract decorators)
 
 # Step 4: Keep both in sync
-specfact sync --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 ```
 
 ---
@@ -282,7 +282,7 @@ Use both together for best results.
 **Yes.** SpecFact can import Spec-Kit artifacts:
 
 ```bash
-specfact import from-spec-kit --repo ./my-project
+specfact import from-bridge --adapter speckit --repo ./my-project
 ```
 
 You can also keep using both tools with bidirectional sync.

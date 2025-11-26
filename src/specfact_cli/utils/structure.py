@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -256,16 +255,16 @@ class SpecFactStructure:
     @ensure(lambda result: result is None, "Must return None")
     def set_active_plan(cls, plan_name: str, base_path: Path | None = None) -> None:
         """
-        Set the active plan in the plans config.
+        Set the active project bundle in the plans config.
 
         Args:
-            plan_name: Name of the plan file (e.g., "main.bundle.yaml", "specfact-cli.2025-11-04T23-35-00.bundle.yaml")
+            plan_name: Name of the project bundle (e.g., "main", "legacy-api", "auth-module")
             base_path: Base directory (default: current directory)
 
         Examples:
-            >>> SpecFactStructure.set_active_plan("specfact-cli.2025-11-04T23-35-00.bundle.yaml")
+            >>> SpecFactStructure.set_active_plan("legacy-api")
             >>> SpecFactStructure.get_default_plan_path()
-            Path('.specfact/plans/specfact-cli.2025-11-04T23-35-00.bundle.yaml')
+            Path('.specfact/projects/legacy-api')
         """
         if base_path is None:
             base_path = Path(".")
@@ -273,10 +272,15 @@ class SpecFactStructure:
         import yaml
 
         config_path = base_path / cls.PLANS_CONFIG
-        plans_dir = base_path / cls.PLANS
+        projects_dir = base_path / cls.PROJECTS
 
-        # Ensure plans directory exists
-        plans_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure projects directory exists
+        projects_dir.mkdir(parents=True, exist_ok=True)
+
+        # Verify bundle exists
+        bundle_dir = projects_dir / plan_name
+        if not bundle_dir.exists() or not (bundle_dir / "bundle.manifest.yaml").exists():
+            raise FileNotFoundError(f"Project bundle not found: {bundle_dir}")
 
         # Read existing config or create new
         config = {}
@@ -287,7 +291,7 @@ class SpecFactStructure:
             except Exception:
                 config = {}
 
-        # Update active plan
+        # Update active plan (bundle name)
         config["active_plan"] = plan_name
 
         # Write config
@@ -303,32 +307,34 @@ class SpecFactStructure:
         cls, base_path: Path | None = None, max_files: int | None = None
     ) -> list[dict[str, str | int | None]]:
         """
-        List all available plan bundles with metadata.
+        List all available project bundles with metadata.
 
         Args:
             base_path: Base directory (default: current directory)
-            max_files: Maximum number of files to process (for performance with many files).
-                      If None, processes all files. If specified, processes most recent files first.
+            max_files: Maximum number of bundles to process (for performance with many bundles).
+                      If None, processes all bundles. If specified, processes most recent bundles first.
 
         Returns:
-            List of plan dictionaries with 'name', 'path', 'features', 'stories', 'size', 'modified' keys
+            List of bundle dictionaries with 'name', 'path', 'features', 'stories', 'size', 'modified' keys
 
         Examples:
             >>> plans = SpecFactStructure.list_plans()
             >>> plans[0]['name']
-            'specfact-cli.2025-11-04T23-35-00.bundle.yaml'
+            'legacy-api'
             >>> plans = SpecFactStructure.list_plans(max_files=5)  # Only process 5 most recent
         """
         if base_path is None:
             base_path = Path(".")
 
-        plans_dir = base_path / cls.PLANS
-        if not plans_dir.exists():
+        projects_dir = base_path / cls.PROJECTS
+        if not projects_dir.exists():
             return []
 
         from datetime import datetime
 
         import yaml
+
+        from specfact_cli.utils.bundle_loader import load_project_bundle
 
         plans = []
         active_plan = None
@@ -343,125 +349,83 @@ class SpecFactStructure:
             except Exception:
                 pass
 
-        # Find all plan bundles, sorted by modification date (oldest first, newest last)
-        plan_files = [
-            p for p in plans_dir.glob("*.bundle.*") if any(str(p).endswith(suffix) for suffix in cls.PLAN_SUFFIXES)
-        ]
-        plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=False)
+        # Find all project bundle directories
+        bundle_dirs = [d for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
+        bundle_dirs_sorted = sorted(
+            bundle_dirs, key=lambda d: (d / "bundle.manifest.yaml").stat().st_mtime, reverse=False
+        )
 
-        # If max_files specified, only process the most recent N files (for performance)
-        # This is especially useful when using --last N filter
+        # If max_files specified, only process the most recent N bundles (for performance)
         if max_files is not None and max_files > 0:
-            # Take most recent files (reverse sort, take last N, then reverse back)
-            plan_files_sorted = sorted(plan_files, key=lambda p: p.stat().st_mtime, reverse=True)[:max_files]
-            plan_files_sorted = sorted(plan_files_sorted, key=lambda p: p.stat().st_mtime, reverse=False)
+            # Take most recent bundles (reverse sort, take last N, then reverse back)
+            bundle_dirs_sorted = sorted(
+                bundle_dirs, key=lambda d: (d / "bundle.manifest.yaml").stat().st_mtime, reverse=True
+            )[:max_files]
+            bundle_dirs_sorted = sorted(
+                bundle_dirs_sorted, key=lambda d: (d / "bundle.manifest.yaml").stat().st_mtime, reverse=False
+            )
 
-        for plan_file in plan_files_sorted:
-            if plan_file.name == "config.yaml":
-                continue
+        for bundle_dir in bundle_dirs_sorted:
+            bundle_name = bundle_dir.name
+            manifest_path = bundle_dir / "bundle.manifest.yaml"
 
-            plan_info: dict[str, str | int | None] = {
-                "name": plan_file.name,
-                "path": str(plan_file.relative_to(base_path)),
-                "features": 0,
-                "stories": 0,
-                "size": plan_file.stat().st_size,
-                "modified": datetime.fromtimestamp(plan_file.stat().st_mtime).isoformat(),
-                "active": plan_file.name == active_plan,
-                "content_hash": None,  # Will be populated from summary if available
-            }
+            # Declare plan_info once before try/except
+            plan_info: dict[str, str | int | None]
 
-            plan_format = StructuredFormat.from_path(plan_file)
-
-            if plan_format == StructuredFormat.JSON:
-                try:
-                    with plan_file.open(encoding="utf-8") as f:
-                        plan_data = json.load(f) or {}
-                    metadata = plan_data.get("metadata", {}) or {}
-                    plan_info["stage"] = metadata.get("stage", "draft")
-                    summary = metadata.get("summary", {}) or {}
-                    plan_info["features"] = summary.get("features_count") or len(plan_data.get("features", []))
-                    plan_info["stories"] = summary.get("stories_count") or sum(
-                        len(feature.get("stories", [])) for feature in plan_data.get("features", [])
-                    )
-                    plan_info["content_hash"] = summary.get("content_hash")
-                except Exception:
-                    plan_info["stage"] = "unknown"
-                    plan_info["features"] = 0
-                    plan_info["stories"] = 0
-                plans.append(plan_info)
-                continue
-
-            # Try to load YAML metadata using summary (fast path)
             try:
-                # Read first 50KB to get metadata section (metadata is always at top)
-                with plan_file.open(encoding="utf-8") as f:
-                    content = f.read(50000)  # Read first 50KB (metadata + summary should be here)
+                # Load project bundle to get metadata
+                project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-                    # Try to parse just the metadata section using YAML
-                    # Look for metadata section boundaries
-                    metadata_start = content.find("metadata:")
-                    if metadata_start != -1:
-                        # Find the end of metadata section (next top-level key or end of content)
-                        metadata_end = len(content)
-                        for key in ["features:", "product:", "idea:", "business:", "version:"]:
-                            key_pos = content.find(f"\n{key}", metadata_start)
-                            if key_pos != -1 and key_pos < metadata_end:
-                                metadata_end = key_pos
+                # Get modification time from manifest
+                manifest_mtime = manifest_path.stat().st_mtime
 
-                        metadata_section = content[metadata_start:metadata_end]
+                # Calculate total size of bundle directory
+                total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
 
-                        # Parse metadata section
-                        try:
-                            metadata_data = yaml.safe_load(
-                                f"metadata:\n{metadata_section.split('metadata:')[1] if 'metadata:' in metadata_section else metadata_section}"
-                            )
-                            if metadata_data and "metadata" in metadata_data:
-                                metadata = metadata_data["metadata"]
+                # Get features and stories count (features is a dict, not a list)
+                features_dict = project_bundle.features if project_bundle.features else {}
+                features_count = len(features_dict)
+                stories_count = sum(len(f.stories) if f.stories else 0 for f in features_dict.values())
 
-                                # Get stage
-                                plan_info["stage"] = metadata.get("stage", "draft")
+                # Get stage from manifest.bundle dict (if available) or default to "draft"
+                stage = "draft"  # Default stage
+                if project_bundle.manifest and project_bundle.manifest.bundle:
+                    stage = project_bundle.manifest.bundle.get("stage", "draft")
 
-                                # Get summary if available (fast path)
-                                if "summary" in metadata and isinstance(metadata["summary"], dict):
-                                    summary = metadata["summary"]
-                                    plan_info["features"] = summary.get("features_count", 0)
-                                    plan_info["stories"] = summary.get("stories_count", 0)
-                                    plan_info["content_hash"] = summary.get("content_hash")
-                                else:
-                                    # Fallback: no summary available, need to count manually
-                                    # For large files, skip counting (will be 0)
-                                    file_size_mb = plan_file.stat().st_size / (1024 * 1024)
-                                    if file_size_mb < 5.0:
-                                        # Only for small files, do full parse
-                                        with plan_file.open() as full_f:
-                                            plan_data = yaml.safe_load(full_f) or {}
-                                            features = plan_data.get("features", [])
-                                            plan_info["features"] = len(features)
-                                            plan_info["stories"] = sum(len(f.get("stories", [])) for f in features)
-                                    else:
-                                        plan_info["features"] = 0
-                                        plan_info["stories"] = 0
-                        except Exception:
-                            # Fallback to regex extraction
-                            stage_match = re.search(
-                                r"metadata:\s*\n\s*stage:\s*['\"]?(\w+)['\"]?", content, re.IGNORECASE
-                            )
-                            if stage_match:
-                                plan_info["stage"] = stage_match.group(1)
-                            else:
-                                plan_info["stage"] = "draft"
-                            plan_info["features"] = 0
-                            plan_info["stories"] = 0
-                    else:
-                        # No metadata section found, use defaults
-                        plan_info["stage"] = "draft"
-                        plan_info["features"] = 0
-                        plan_info["stories"] = 0
+                # Get content hash from manifest versions (use project version as hash identifier)
+                content_hash = None
+                if project_bundle.manifest and project_bundle.manifest.versions:
+                    content_hash = project_bundle.manifest.versions.project
+
+                plan_info = {
+                    "name": bundle_name,
+                    "path": str(bundle_dir.relative_to(base_path)),
+                    "features": features_count,
+                    "stories": stories_count,
+                    "size": total_size,
+                    "modified": datetime.fromtimestamp(manifest_mtime).isoformat(),
+                    "active": bundle_name == active_plan,
+                    "content_hash": content_hash,
+                    "stage": stage,
+                }
             except Exception:
-                plan_info["stage"] = "unknown"
-                plan_info["features"] = 0
-                plan_info["stories"] = 0
+                # Fallback: minimal info if bundle can't be loaded
+                manifest_mtime = manifest_path.stat().st_mtime if manifest_path.exists() else 0
+                total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
+
+                plan_info = {
+                    "name": bundle_name,
+                    "path": str(bundle_dir.relative_to(base_path)),
+                    "features": 0,
+                    "stories": 0,
+                    "size": total_size,
+                    "modified": datetime.fromtimestamp(manifest_mtime).isoformat()
+                    if manifest_mtime > 0
+                    else datetime.now().isoformat(),
+                    "active": bundle_name == active_plan,
+                    "content_hash": None,
+                    "stage": "unknown",
+                }
 
             plans.append(plan_info)
 

@@ -100,7 +100,7 @@ def normalize_shell_in_argv() -> None:
 
 app = typer.Typer(
     name="specfact",
-    help="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
+    help="SpecFact CLI - Spec → Contract → Sentinel for Contract-Driven Development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},  # Add -h as alias for --help
@@ -128,7 +128,7 @@ def print_banner() -> None:
         "  ███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
         "  ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
         "",
-        "        Spec→Contract→Sentinel for Contract-Driven Development",
+        "     Spec → Contract → Sentinel for Contract-Driven Development",
     ]
 
     # Smooth gradient from bright cyan (top) to blue (bottom) - 6 lines for ASCII art

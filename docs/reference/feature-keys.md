@@ -93,10 +93,10 @@ specfact plan compare --manual main.bundle.yaml --auto auto-derived.yaml
 
 ### Plan Merging
 
-When merging plans (e.g., via `sync spec-kit`), normalization ensures features are matched correctly:
+When merging plans (e.g., via `sync bridge --adapter speckit`), normalization ensures features are matched correctly:
 
 ```bash
-specfact sync spec-kit --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional
 ```
 
 **Behavior**: Features are matched by normalized key, not exact key format.

@@ -24,7 +24,7 @@ We built SpecFact CLI and wanted to validate that it actually works in the real 
 First, we analyzed the existing codebase to see what features it discovered:
 
 ```bash
-specfact import from-code --repo . --confidence 0.5
+specfact import from-code specfact-cli --repo . --confidence 0.5
 ```
 
 **Output**:
@@ -36,7 +36,7 @@ specfact import from-code --repo . --confidence 0.5
 ✓ Total stories: 49
 
 ✓ Analysis complete!
-Plan bundle written to: .specfact/plans/specfact-cli.2025-10-30T16-57-51.bundle.yaml
+Project bundle written to: .specfact/projects/specfact-cli/
 ```
 
 ### What It Discovered
@@ -146,7 +146,7 @@ features:
         value_points: 21
 ```
 
-**Saved to**: `.specfact/plans/main.bundle.yaml`
+**Saved to**: `.specfact/projects/main/` (modular project bundle structure)
 
 ---
 
@@ -317,14 +317,14 @@ These are **actual questions** that need answers, not false positives!
 
 ```bash
 # 1. Analyze existing codebase (3 seconds)
-specfact import from-code --repo . --confidence 0.5
+specfact import from-code specfact-cli --repo . --confidence 0.5
 # ✅ Discovers 19 features, 49 stories
 
 # 2. Set quality gates (1 second)
 specfact enforce stage --preset balanced
 # ✅ BLOCK HIGH, WARN MEDIUM, LOG LOW
 
-# 3. Compare plans (5 seconds)
+# 3. Compare plans (5 seconds) - uses active plan or default bundle
 specfact plan compare
 # ✅ Finds 24 deviations
 # ❌ BLOCKS execution (2 HIGH violations)
@@ -376,7 +376,7 @@ git clone https://github.com/nold-ai/specfact-cli.git
 cd specfact-cli
 
 # Run the same analysis
-hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cli import app; app()" import from-code --repo . --confidence 0.5
+hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cli import app; app()" import from-code specfact-cli --repo . --confidence 0.5
 
 # Set enforcement
 hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cli import app; app()" enforce stage --preset balanced
