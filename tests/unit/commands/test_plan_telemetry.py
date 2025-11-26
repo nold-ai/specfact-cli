@@ -39,7 +39,7 @@ class TestPlanCommandTelemetry:
     def test_plan_add_feature_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan add-feature command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
-        
+
         from specfact_cli.models.plan import PlanBundle, Product
 
         bundle = PlanBundle(
@@ -60,12 +60,12 @@ class TestPlanCommandTelemetry:
         from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.utils.structure import SpecFactStructure
-        
+
         bundle_dir = SpecFactStructure.project_dir(base_path=tmp_path, bundle_name="test-bundle")
         bundle_dir.mkdir(parents=True)
         project_bundle = _convert_plan_bundle_to_project_bundle(bundle, "test-bundle")
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
-        
+
         result = runner.invoke(
             app,
             [
@@ -93,7 +93,7 @@ class TestPlanCommandTelemetry:
     def test_plan_add_story_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan add-story command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
-        
+
         from specfact_cli.models.plan import Feature, PlanBundle, Product
 
         bundle = PlanBundle(
@@ -108,7 +108,7 @@ class TestPlanCommandTelemetry:
         from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.utils.structure import SpecFactStructure
-        
+
         bundle_dir = SpecFactStructure.project_dir(base_path=tmp_path, bundle_name="test-bundle")
         bundle_dir.mkdir(parents=True)
         project_bundle = _convert_plan_bundle_to_project_bundle(bundle, "test-bundle")
@@ -213,7 +213,7 @@ class TestPlanCommandTelemetry:
     def test_plan_promote_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan promote command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
-        
+
         from specfact_cli.models.plan import Metadata, PlanBundle, Product
 
         # Create a plan
@@ -231,7 +231,7 @@ class TestPlanCommandTelemetry:
         from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.utils.structure import SpecFactStructure
-        
+
         bundle_dir = SpecFactStructure.project_dir(base_path=tmp_path, bundle_name="test-bundle")
         bundle_dir.mkdir(parents=True)
         project_bundle = _convert_plan_bundle_to_project_bundle(bundle, "test-bundle")

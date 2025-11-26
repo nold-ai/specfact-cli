@@ -77,7 +77,7 @@ def _perform_sync_operation(
     from specfact_cli.validators.schema import validate_plan_bundle
 
     probe = BridgeProbe(repo)
-    capabilities = probe.detect()
+    _ = probe.detect()  # Probe for detection, result not used in this path
 
     # For Spec-Kit adapter, use legacy scanner for now
     if adapter_type == AdapterType.SPECKIT:
@@ -683,23 +683,20 @@ def sync_bridge(
         specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
     """
     # Auto-detect adapter if not specified
-    if adapter == "speckit" or adapter == "auto":
-        from specfact_cli.sync.bridge_probe import BridgeProbe
+    from specfact_cli.sync.bridge_probe import BridgeProbe
 
+    if adapter == "speckit" or adapter == "auto":
         probe = BridgeProbe(repo)
-        capabilities = probe.detect()
-        if capabilities.tool == "speckit":
-            adapter = "speckit"
-        else:
-            adapter = "generic-markdown"
+        detected_capabilities = probe.detect()
+        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
 
     # Validate adapter
     try:
         adapter_type = AdapterType(adapter.lower())
-    except ValueError:
+    except ValueError as err:
         console.print(f"[bold red]✗[/bold red] Unsupported adapter: {adapter}")
         console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from err
 
     telemetry_metadata = {
         "adapter": adapter,

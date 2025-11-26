@@ -233,31 +233,33 @@ class ReportGenerator:
             assert result.exit_code == 0
 
             # Step 4: Compare plans without enforcement config (create temporary PlanBundle files)
-            from specfact_cli.generators.plan_generator import PlanGenerator
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.generators.plan_generator import PlanGenerator
             from specfact_cli.models.plan import PlanBundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             plans_dir = tmp_path / ".specfact" / "plans"
             plans_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Load manual plan
             manual_plan_path = plans_dir / "main.bundle.yaml"
-            manual_plan_data = dump_yaml(manual_plan, manual_plan_path) if not manual_plan_path.exists() else None
+            if not manual_plan_path.exists():
+                dump_yaml(manual_plan, manual_plan_path)
             # Load from file
             from specfact_cli.utils.yaml_utils import load_yaml
+
             manual_plan_dict = load_yaml(manual_plan_path)
             manual_plan_bundle = PlanBundle.model_validate(manual_plan_dict)
-            
+
             # Load auto-derived bundle and convert to PlanBundle
             auto_bundle_dir = tmp_path / ".specfact" / "projects" / "auto-derived"
             auto_project_bundle = load_project_bundle(auto_bundle_dir, validate_hashes=False)
             auto_plan_bundle = _convert_project_bundle_to_plan_bundle(auto_project_bundle)
-            
+
             # Generate temporary files for comparison
             manual_plan_file = plans_dir / "main.bundle.yaml"
             auto_plan_file = plans_dir / "auto-derived.bundle.yaml"
-            
+
             generator = PlanGenerator()
             generator.generate(manual_plan_bundle, manual_plan_file)
             generator.generate(auto_plan_bundle, auto_plan_file)

@@ -260,8 +260,8 @@ class BridgeSync:
             project_bundle: Project bundle to update
         """
         # Basic markdown import (placeholder for future implementation)
-        content = artifact_path.read_text(encoding="utf-8")
-        # Parse and update bundle as needed
+        # TODO: Parse markdown content and update bundle
+        _ = artifact_path.read_text(encoding="utf-8")  # Placeholder for future parsing
 
     @beartype
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
@@ -469,9 +469,9 @@ class BridgeSync:
         # Sync each feature
         for feature_id in feature_ids:
             # Import from tool → bundle
-            for artifact_key in ["specification", "plan", "tasks"]:
-                if artifact_key in self.bridge_config.artifacts:
-                    import_result = self.import_artifact(artifact_key, feature_id, bundle_name)
+            for _artifact_key in ["specification", "plan", "tasks"]:
+                if _artifact_key in self.bridge_config.artifacts:
+                    import_result = self.import_artifact(_artifact_key, feature_id, bundle_name)
                     operations.extend(import_result.operations)
                     errors.extend(import_result.errors)
                     warnings.extend(import_result.warnings)

@@ -65,8 +65,8 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
     # Convert features list to dict
     features_dict: dict[str, Feature] = {f.key: f for f in plan_bundle.features}
 
-    # Create ProjectBundle
-    project_bundle = ProjectBundle(
+    # Create and return ProjectBundle
+    return ProjectBundle(
         manifest=manifest,
         bundle_name=bundle_name,
         idea=plan_bundle.idea,
@@ -75,8 +75,6 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
         features=features_dict,
         clarifications=plan_bundle.clarifications,
     )
-
-    return project_bundle
 
 
 @app.command("from-bridge")
@@ -136,32 +134,31 @@ def from_bridge(
         specfact import from-bridge --repo ./my-project --write  # Auto-detect adapter
     """
     from specfact_cli.sync.bridge_probe import BridgeProbe
-    from specfact_cli.sync.bridge_sync import BridgeSync
     from specfact_cli.utils.structure import SpecFactStructure
 
     # Auto-detect adapter if not specified
     if adapter == "speckit" or adapter == "auto":
         probe = BridgeProbe(repo)
-        capabilities = probe.detect()
-        if capabilities.tool == "speckit":
-            adapter = "speckit"
-        else:
-            adapter = "generic-markdown"
+        detected_capabilities = probe.detect()
+        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
 
     # Validate adapter
     try:
         adapter_type = AdapterType(adapter.lower())
-    except ValueError:
+    except ValueError as err:
         console.print(f"[bold red]✗[/bold red] Unsupported adapter: {adapter}")
         console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from err
 
     # For now, Spec-Kit adapter uses legacy converters (will be migrated to bridge)
-    SpecKitScanner = None
-    SpecKitConverter = None
+    spec_kit_scanner = None
+    spec_kit_converter = None
     if adapter_type == AdapterType.SPECKIT:
         from specfact_cli.importers.speckit_converter import SpecKitConverter
         from specfact_cli.importers.speckit_scanner import SpecKitScanner
+
+        spec_kit_scanner = SpecKitScanner
+        spec_kit_converter = SpecKitConverter
 
     telemetry_metadata = {
         "adapter": adapter,
@@ -176,10 +173,10 @@ def from_bridge(
         # Use bridge-based import for supported adapters
         if adapter_type == AdapterType.SPECKIT:
             # Legacy Spec-Kit import (will be migrated to bridge)
-            if SpecKitScanner is None:
+            if spec_kit_scanner is None:
                 msg = "SpecKitScanner not available"
                 raise RuntimeError(msg)
-            scanner = SpecKitScanner(repo)
+            scanner = spec_kit_scanner(repo)
 
             if not scanner.is_speckit_repo():
                 console.print(f"[bold red]✗[/bold red] Not a {adapter_type.value} repository")
@@ -188,7 +185,7 @@ def from_bridge(
                 raise typer.Exit(1)
         else:
             # Generic bridge-based import
-            bridge_sync = BridgeSync(repo)
+            # bridge_sync = BridgeSync(repo)  # TODO: Use when implementing generic markdown import
             console.print(f"[bold green]✓[/bold green] Using bridge adapter: {adapter_type.value}")
             console.print("[yellow]⚠ Generic markdown adapter import is not yet fully implemented[/yellow]")
             console.print("[dim]Falling back to Spec-Kit adapter for now[/dim]")
@@ -235,10 +232,10 @@ def from_bridge(
 
             # Step 2: Convert protocol
             task = progress.add_task("Converting protocol...", total=None)
-            if SpecKitConverter is None:
+            if spec_kit_converter is None:
                 msg = "SpecKitConverter not available"
                 raise RuntimeError(msg)
-            converter = SpecKitConverter(repo)
+            converter = spec_kit_converter(repo)
             protocol = None
             plan_bundle = None
             try:

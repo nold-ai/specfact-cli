@@ -16,6 +16,7 @@ from specfact_cli.sync.watcher import FileChange, SyncEventHandler, SyncWatcher
 __all__ = [
     "BridgeProbe",
     "BridgeSync",
+    "BridgeSyncResult",
     "BridgeWatch",
     "BridgeWatchEventHandler",
     "FileChange",

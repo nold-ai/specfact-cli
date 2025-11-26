@@ -83,7 +83,7 @@ class BridgeWatchEventHandler(SyncEventHandler):
                 # File not in repo
                 return "code"
 
-            for artifact_key, artifact in self.bridge_config.artifacts.items():
+            for _artifact_key, artifact in self.bridge_config.artifacts.items():
                 # Check if file matches artifact pattern
                 artifact_pattern = artifact.path_pattern
                 # Convert pattern to a simple path check
@@ -262,7 +262,7 @@ class BridgeWatch:
             # File not in repo, can't extract
             return None
 
-        for artifact_key, artifact in self.bridge_config.artifacts.items():
+        for _artifact_key, artifact in self.bridge_config.artifacts.items():
             pattern = artifact.path_pattern
             # Simple extraction (could be enhanced with regex)
             if "{feature_id}" in pattern:

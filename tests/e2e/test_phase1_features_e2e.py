@@ -10,7 +10,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.utils.yaml_utils import load_yaml
 
 
 runner = CliRunner()
@@ -152,9 +151,9 @@ class TestPhase1FeaturesE2E:
             assert "Import complete" in result.stdout
 
             # Load plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -201,9 +200,9 @@ class TestPhase1FeaturesE2E:
 
             assert result.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -249,9 +248,9 @@ class TestPhase1FeaturesE2E:
 
             assert result.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -310,9 +309,9 @@ class TestPhase1FeaturesE2E:
 
             assert result_full.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir_full = test_repo / ".specfact" / "projects" / bundle_name_full
             project_bundle_full = load_project_bundle(bundle_dir_full, validate_hashes=False)
             plan_bundle_full = _convert_project_bundle_to_plan_bundle(project_bundle_full)
@@ -391,9 +390,9 @@ class TestPhase1FeaturesE2E:
 
             assert result.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)

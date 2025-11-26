@@ -22,7 +22,6 @@ from rich.table import Table
 from specfact_cli import runtime
 from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
-from specfact_cli.generators.plan_generator import PlanGenerator
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
@@ -859,7 +858,7 @@ def update_feature(
             # Load existing project bundle
             print_info(f"Loading project bundle: {bundle_dir}")
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
-            
+
             # Convert to PlanBundle for compatibility
             existing_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
 
@@ -1186,7 +1185,7 @@ def update_story(
             # Load existing project bundle
             print_info(f"Loading project bundle: {bundle_dir}")
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
-            
+
             # Convert to PlanBundle for compatibility
             existing_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
 
@@ -2763,7 +2762,9 @@ def _load_and_validate_plan(plan: Path) -> tuple[bool, PlanBundle | None]:
 
 @beartype
 @require(
-    lambda bundle, bundle_dir, auto_enrich: isinstance(bundle, PlanBundle) and bundle_dir is not None and isinstance(bundle_dir, Path),
+    lambda bundle, bundle_dir, auto_enrich: isinstance(bundle, PlanBundle)
+    and bundle_dir is not None
+    and isinstance(bundle_dir, Path),
     "Bundle must be PlanBundle and bundle_dir must be non-None Path",
 )
 @ensure(lambda result: result is None, "Must return None")
@@ -3711,8 +3712,8 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
     # Convert features list to dict
     features_dict: dict[str, Feature] = {f.key: f for f in plan_bundle.features}
 
-    # Create ProjectBundle
-    project_bundle = ProjectBundle(
+    # Create and return ProjectBundle
+    return ProjectBundle(
         manifest=manifest,
         bundle_name=bundle_name,
         idea=plan_bundle.idea,
@@ -3721,8 +3722,6 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
         features=features_dict,
         clarifications=plan_bundle.clarifications,
     )
-
-    return project_bundle
 
 
 def _find_bundle_dir(bundle: str | None) -> Path | None:

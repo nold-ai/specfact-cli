@@ -969,8 +969,8 @@ class TestPlanAddCommandsE2E:
         bundle_name = "test-bundle"
 
         # Step 1: Initialize plan
-        init_result = runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        assert init_result.exit_code == 0
+        result = runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        assert result.exit_code == 0
         print("✅ Plan initialized")
 
         # Step 2: Add feature via CLI
@@ -1020,15 +1020,15 @@ class TestPlanAddCommandsE2E:
         print("✅ Story added via CLI")
 
         # Step 4: Verify plan structure (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         bundle_dir = workspace / ".specfact" / "projects" / bundle_name
         assert bundle_dir.exists()
-        
+
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
-        
+
         assert len(bundle.features) == 1
         assert bundle.features[0].key == "FEATURE-001"
         assert bundle.features[0].title == "User Authentication System"
@@ -1135,13 +1135,13 @@ class TestPlanAddCommandsE2E:
         assert result3.exit_code == 0
 
         # Verify all features exist (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         bundle_dir = workspace / ".specfact" / "projects" / bundle_name
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
-        
+
         assert len(bundle.features) == 3
         feature_keys = {f.key for f in bundle.features}
         assert "FEATURE-001" in feature_keys
@@ -1943,18 +1943,18 @@ class TestBrownfieldAnalysisWorkflow:
         runner = CliRunner()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = Path(tmpdir) / "specfact-auto.yaml"
             report_path = Path(tmpdir) / "analysis-report.md"
 
             print("🚀 Running: specfact import from-code (scoped to analyzers)")
             bundle_name = "specfact-auto"
-            
+
             # Remove existing bundle if it exists (from previous test runs)
             bundle_dir = Path(".") / ".specfact" / "projects" / bundle_name
             if bundle_dir.exists():
                 import shutil
+
                 shutil.rmtree(bundle_dir)
-            
+
             result = runner.invoke(
                 app,
                 [
@@ -1977,7 +1977,7 @@ class TestBrownfieldAnalysisWorkflow:
                 print(f"Error output:\n{result.stdout}")
 
             assert result.exit_code == 0, "CLI command should succeed"
-            
+
             # Verify modular bundle was created
             bundle_dir = Path(".") / ".specfact" / "projects" / bundle_name
             assert bundle_dir.exists(), "Should create project bundle directory"
@@ -1985,12 +1985,12 @@ class TestBrownfieldAnalysisWorkflow:
             assert report_path.exists(), "Should create analysis report"
 
             # Verify bundle content (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
-            
+
             assert plan_bundle.version == "1.0"
             assert len(plan_bundle.features) > 0
             # Verify stories have story_points and value_points

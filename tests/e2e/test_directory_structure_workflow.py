@@ -62,6 +62,7 @@ class TestCompleteWorkflowWithNewStructure:
 
         # Step 4: Load and verify plan (modular bundle)
         from specfact_cli.utils.bundle_loader import load_project_bundle
+
         bundle_dir = specfact_dir / "projects" / bundle_name
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         assert project_bundle.manifest.versions.schema_version == "1.0"
@@ -130,12 +131,12 @@ class TestCompleteWorkflowWithNewStructure:
         assert bundle_dir.exists()
         assert (bundle_dir / "bundle.manifest.yaml").exists()
 
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         auto_plan = _convert_project_bundle_to_plan_bundle(project_bundle)
-        
+
         assert len(auto_plan.features) > 0
 
         # Step 4: Create manual plan (modular bundle)
@@ -156,9 +157,9 @@ class TestCompleteWorkflowWithNewStructure:
 
         # Save as modular bundle
         from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
-        from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.generators.plan_generator import PlanGenerator
-        
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+
         manual_project_bundle = _convert_plan_bundle_to_project_bundle(manual_plan, bundle_name_manual)
         manual_bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name_manual
         save_project_bundle(manual_project_bundle, manual_bundle_dir, atomic=True)
@@ -167,10 +168,10 @@ class TestCompleteWorkflowWithNewStructure:
         # This is a workaround until plan compare is updated to support modular bundles directly
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
-        
+
         manual_plan_file = plans_dir / "main.bundle.yaml"
         auto_plan_file = plans_dir / "auto-derived.bundle.yaml"
-        
+
         generator = PlanGenerator()
         generator.generate(manual_plan, manual_plan_file)
         generator.generate(auto_plan, auto_plan_file)
@@ -213,6 +214,7 @@ class TestCompleteWorkflowWithNewStructure:
         """
         # Step 1: Initialize project
         import os
+
         bundle_name = "main"
 
         old_cwd = os.getcwd()
@@ -234,12 +236,12 @@ class TestCompleteWorkflowWithNewStructure:
         assert result.exit_code == 0
 
         # Step 2: Add features to manual plan (modular bundle)
+        from specfact_cli.models.plan import Feature
         from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
-        from specfact_cli.models.plan import Feature, Story
-        
+
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
-        
+
         # Add features
         project_bundle.features["FEATURE-001"] = Feature(
             key="FEATURE-001",
@@ -302,25 +304,25 @@ class TestCompleteWorkflowWithNewStructure:
 
         # Step 5: Create temporary PlanBundle files for comparison (plan compare expects file paths)
         # This is a workaround until plan compare is updated to support modular bundles directly
-        from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.generators.plan_generator import PlanGenerator
+
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Load bundles and convert to PlanBundle for comparison
         manual_bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         auto_bundle_dir = tmp_path / ".specfact" / "projects" / auto_bundle_name
-        
+
         manual_project_bundle = load_project_bundle(manual_bundle_dir, validate_hashes=False)
         auto_project_bundle = load_project_bundle(auto_bundle_dir, validate_hashes=False)
-        
+
         manual_plan_bundle = _convert_project_bundle_to_plan_bundle(manual_project_bundle)
         auto_plan_bundle = _convert_project_bundle_to_plan_bundle(auto_project_bundle)
-        
+
         manual_plan_file = plans_dir / "main.bundle.yaml"
         auto_plan_file = plans_dir / "auto-derived.bundle.yaml"
-        
+
         generator = PlanGenerator()
         generator.generate(manual_plan_bundle, manual_plan_file)
         generator.generate(auto_plan_bundle, auto_plan_file)
@@ -362,6 +364,7 @@ class TestCompleteWorkflowWithNewStructure:
         """
         # Step 1: Initialize main plan
         import os
+
         bundle_name_main = "main"
         bundle_name_alt = "alternative"
 
@@ -400,7 +403,7 @@ class TestCompleteWorkflowWithNewStructure:
 
         # Step 4: Verify plans exist and are valid
         from specfact_cli.utils.bundle_loader import load_project_bundle
-        
+
         main_bundle = load_project_bundle(projects_dir / bundle_name_main, validate_hashes=False)
         alt_bundle = load_project_bundle(projects_dir / bundle_name_alt, validate_hashes=False)
 
@@ -418,6 +421,7 @@ class TestCompleteWorkflowWithNewStructure:
         """
         # Step 1: Scaffold project
         import os
+
         bundle_name = "main"
 
         old_cwd = os.getcwd()
@@ -500,6 +504,7 @@ class TestMigrationScenarios:
 
         # Step 2: Initialize new structure
         import os
+
         bundle_name = "main"
 
         old_cwd = os.getcwd()
@@ -523,11 +528,11 @@ class TestMigrationScenarios:
         # Step 3: Migrate old plan to new structure (modular bundle)
         from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
-        
+
         # Load old plan
         old_plan_data = load_yaml(old_plan_path)
         old_plan = PlanBundle.model_validate(old_plan_data)
-        
+
         # Convert to modular bundle
         project_bundle = _convert_plan_bundle_to_project_bundle(old_plan, bundle_name)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -535,6 +540,7 @@ class TestMigrationScenarios:
 
         # Step 4: Verify plan works in new structure
         from specfact_cli.utils.bundle_loader import load_project_bundle
+
         loaded_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         assert loaded_bundle.idea is not None
         assert loaded_bundle.idea.title == "Legacy Plan"
@@ -568,25 +574,25 @@ class Test:
         assert result.exit_code == 0
 
         # Compare (create temporary PlanBundle files for comparison)
-        from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.generators.plan_generator import PlanGenerator
+
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Load bundles and convert to PlanBundle for comparison
         manual_bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         auto_bundle_dir = tmp_path / ".specfact" / "projects" / auto_bundle_name
-        
+
         manual_project_bundle = load_project_bundle(manual_bundle_dir, validate_hashes=False)
         auto_project_bundle = load_project_bundle(auto_bundle_dir, validate_hashes=False)
-        
+
         manual_plan_bundle = _convert_project_bundle_to_plan_bundle(manual_project_bundle)
         auto_plan_bundle = _convert_project_bundle_to_plan_bundle(auto_project_bundle)
-        
+
         manual_plan_file = plans_dir / "main.bundle.yaml"
         auto_plan_file = plans_dir / "auto-derived.bundle.yaml"
-        
+
         generator = PlanGenerator()
         generator.generate(manual_plan_bundle, manual_plan_file)
         generator.generate(auto_plan_bundle, auto_plan_file)
@@ -625,6 +631,7 @@ class TestRealWorldScenarios:
         """
         # Step 1: Setup repository with .specfact/
         import os
+
         bundle_name = "main"
 
         old_cwd = os.getcwd()
@@ -646,12 +653,12 @@ class TestRealWorldScenarios:
         assert result.exit_code == 0
 
         # Step 2: Add required features to manual plan (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
         from specfact_cli.models.plan import Feature
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
-        
+
         project_bundle.features["FEATURE-001"] = Feature(
             key="FEATURE-001",
             title="Authentication",
@@ -690,25 +697,25 @@ class AuthService:
         assert result.exit_code == 0
 
         # Step 5: CI/CD: Compare with plan (create temporary PlanBundle files for comparison)
-        from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.generators.plan_generator import PlanGenerator
+
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Load bundles and convert to PlanBundle for comparison
         manual_bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         auto_bundle_dir = tmp_path / ".specfact" / "projects" / auto_bundle_name
-        
+
         manual_project_bundle = load_project_bundle(manual_bundle_dir, validate_hashes=False)
         auto_project_bundle = load_project_bundle(auto_bundle_dir, validate_hashes=False)
-        
+
         manual_plan_bundle = _convert_project_bundle_to_plan_bundle(manual_project_bundle)
         auto_plan_bundle = _convert_project_bundle_to_plan_bundle(auto_project_bundle)
-        
+
         manual_plan_file = plans_dir / "main.bundle.yaml"
         auto_plan_file = plans_dir / "auto-derived.bundle.yaml"
-        
+
         generator = PlanGenerator()
         generator.generate(manual_plan_bundle, manual_plan_file)
         generator.generate(auto_plan_bundle, auto_plan_file)
@@ -746,6 +753,7 @@ class AuthService:
         """
         # Step 1: Developer A creates plan
         import os
+
         bundle_name = "main"
 
         old_cwd = os.getcwd()
@@ -803,26 +811,26 @@ class FeatureService:
         assert (auto_bundle_dir / "bundle.manifest.yaml").exists()
 
         # Step 4: Developer B compares (create temporary PlanBundle files for comparison)
-        from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.utils.bundle_loader import load_project_bundle
-        
+
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Load bundles and convert to PlanBundle for comparison
         manual_bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         auto_bundle_dir = tmp_path / ".specfact" / "projects" / auto_bundle_name
-        
+
         manual_project_bundle = load_project_bundle(manual_bundle_dir, validate_hashes=False)
         auto_project_bundle = load_project_bundle(auto_bundle_dir, validate_hashes=False)
-        
+
         manual_plan_bundle = _convert_project_bundle_to_plan_bundle(manual_project_bundle)
         auto_plan_bundle = _convert_project_bundle_to_plan_bundle(auto_project_bundle)
-        
+
         manual_plan_file = plans_dir / "main.bundle.yaml"
         auto_plan_file = plans_dir / "auto-derived.bundle.yaml"
-        
+
         generator = PlanGenerator()
         generator.generate(manual_plan_bundle, manual_plan_file)
         generator.generate(auto_plan_bundle, auto_plan_file)

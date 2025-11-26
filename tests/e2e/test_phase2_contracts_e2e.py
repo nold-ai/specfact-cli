@@ -62,13 +62,13 @@ class TestContractExtractionE2E:
             assert result.exit_code == 0
 
             # Check that plan bundle contains contracts (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
-            
+
             # Check that plan bundle contains contracts
             plan_data = plan_bundle.model_dump(exclude_none=True)
             # Contracts should be in features or stories
@@ -135,9 +135,9 @@ class TestContractExtractionE2E:
             assert result.exit_code == 0
 
             # Verify contracts are in plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -223,9 +223,9 @@ class TestContractExtractionE2E:
             assert result.exit_code == 0
 
             # Verify contracts exist in plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
@@ -312,9 +312,9 @@ class TestContractExtractionE2E:
             assert result.exit_code == 0
 
             # Verify contracts with complex types are in plan bundle (modular bundle)
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)

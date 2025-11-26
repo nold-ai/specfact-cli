@@ -45,14 +45,22 @@ class TestWatchModeE2E:
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir(parents=True)
-            
+
             # Create minimal bundle manifest
-            from specfact_cli.models.project import BundleManifest, BundleVersions, Product
-            from specfact_cli.utils.bundle_loader import save_project_bundle
-            from specfact_cli.models.plan import PlanBundle
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+            from specfact_cli.models.plan import PlanBundle
+            from specfact_cli.models.project import Product
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -118,9 +126,10 @@ As a user, I want to test features so that I can validate functionality.
             # After Spec-Kit change, bidirectional sync should create/update SpecFact bundles
             assert bundle_dir.exists(), "SpecFact bundle should exist after Spec-Kit change"
             assert (bundle_dir / "bundle.manifest.yaml").exists(), "Bundle manifest should exist after sync"
-            
+
             # Verify the bundle was actually updated (check if features were added)
             from specfact_cli.utils.bundle_loader import load_project_bundle
+
             updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             # Bundle should have been updated with features from Spec-Kit
             assert updated_bundle is not None, "Bundle should be loadable after sync"
@@ -144,13 +153,21 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir(parents=True)
-            
+
             # Create minimal bundle
-            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -183,13 +200,27 @@ As a user, I want to test features so that I can validate functionality.
 
             # Modify SpecFact bundle while watch mode is running
             # Load, modify, and save the bundle
-            from specfact_cli.utils.bundle_loader import load_project_bundle
+            from specfact_cli.commands.plan import (
+                _convert_plan_bundle_to_project_bundle,
+                _convert_project_bundle_to_plan_bundle,
+            )
             from specfact_cli.models.plan import Feature
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle, _convert_plan_bundle_to_project_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(updated_bundle)
-            plan_bundle.features.append(Feature(key="FEATURE-001", title="Test Feature", outcomes=["Test outcome"], acceptance=[], constraints=[], stories=[], confidence=0.8, draft=False))
+            plan_bundle.features.append(
+                Feature(
+                    key="FEATURE-001",
+                    title="Test Feature",
+                    outcomes=["Test outcome"],
+                    acceptance=[],
+                    constraints=[],
+                    stories=[],
+                    confidence=0.8,
+                    draft=False,
+                )
+            )
             updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
@@ -226,13 +257,21 @@ As a user, I want to test features so that I can validate functionality.
                 projects_dir.mkdir(parents=True)
                 bundle_dir = projects_dir / bundle_name
                 bundle_dir.mkdir(parents=True)
-                
+
                 # Create minimal bundle
-                from specfact_cli.models.plan import PlanBundle, Product
                 from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+                from specfact_cli.models.plan import PlanBundle, Product
                 from specfact_cli.utils.bundle_loader import save_project_bundle
-                
-                plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+                plan_bundle = PlanBundle(
+                    version="1.0",
+                    idea=None,
+                    business=None,
+                    product=Product(themes=[], releases=[]),
+                    features=[],
+                    clarifications=None,
+                    metadata=None,
+                )
                 project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
                 save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -288,13 +327,27 @@ As a user, I want to test features so that I can validate functionality.
                 assert (bundle_dir / "bundle.manifest.yaml").exists(), "Bundle manifest should exist after sync"
 
                 # Then modify SpecFact bundle
-                from specfact_cli.utils.bundle_loader import load_project_bundle
+                from specfact_cli.commands.plan import (
+                    _convert_plan_bundle_to_project_bundle,
+                    _convert_project_bundle_to_plan_bundle,
+                )
                 from specfact_cli.models.plan import Feature
-                from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle, _convert_plan_bundle_to_project_bundle
-                
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
                 plan_bundle = _convert_project_bundle_to_plan_bundle(updated_bundle)
-                plan_bundle.features.append(Feature(key="FEATURE-001", title="Test Feature", outcomes=[], acceptance=[], constraints=[], stories=[], confidence=0.8, draft=False))
+                plan_bundle.features.append(
+                    Feature(
+                        key="FEATURE-001",
+                        title="Test Feature",
+                        outcomes=[],
+                        acceptance=[],
+                        constraints=[],
+                        stories=[],
+                        confidence=0.8,
+                        draft=False,
+                    )
+                )
                 updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
                 save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
@@ -370,13 +423,21 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir(parents=True)
-            
+
             # Create minimal bundle
-            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -437,13 +498,21 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir(parents=True)
-            
+
             # Create minimal bundle
-            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -510,13 +579,21 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir(parents=True)
-            
+
             # Create minimal bundle
-            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 

@@ -520,7 +520,7 @@ Test requirement.
             # Mock user input: say "yes" to bootstrap
             # First create a bundle to sync
             bundle_name = "test-bundle"
-            init_result = runner.invoke(
+            runner.invoke(
                 app,
                 [
                     "plan",
@@ -529,7 +529,7 @@ Test requirement.
                     "--no-interactive",
                 ],
             )
-            
+
             result = runner.invoke(
                 app,
                 [

@@ -4,7 +4,6 @@ Focus: Business logic and edge cases only (@beartype handles type validation).
 """
 
 import pytest
-from pathlib import Path
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -20,15 +19,15 @@ runner = CliRunner()
 def sample_bundle_with_idea(tmp_path, monkeypatch):
     """Create a sample modular bundle with idea section for testing."""
     monkeypatch.chdir(tmp_path)
-    
+
     # Create .specfact structure
     projects_dir = tmp_path / ".specfact" / "projects"
     projects_dir.mkdir(parents=True)
-    
+
     bundle_name = "test-bundle"
     bundle_dir = projects_dir / bundle_name
     bundle_dir.mkdir()
-    
+
     # Create PlanBundle and convert to ProjectBundle
     plan_bundle = PlanBundle(
         version="1.0",
@@ -46,10 +45,10 @@ def sample_bundle_with_idea(tmp_path, monkeypatch):
         metadata=None,
         clarifications=None,
     )
-    
+
     project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
     save_project_bundle(project_bundle, bundle_dir, atomic=True)
-    
+
     return bundle_name
 
 
@@ -57,15 +56,15 @@ def sample_bundle_with_idea(tmp_path, monkeypatch):
 def sample_bundle_without_idea(tmp_path, monkeypatch):
     """Create a sample modular bundle without idea section for testing."""
     monkeypatch.chdir(tmp_path)
-    
+
     # Create .specfact structure
     projects_dir = tmp_path / ".specfact" / "projects"
     projects_dir.mkdir(parents=True)
-    
+
     bundle_name = "test-bundle"
     bundle_dir = projects_dir / bundle_name
     bundle_dir.mkdir()
-    
+
     # Create PlanBundle and convert to ProjectBundle
     plan_bundle = PlanBundle(
         version="1.0",
@@ -76,10 +75,10 @@ def sample_bundle_without_idea(tmp_path, monkeypatch):
         metadata=None,
         clarifications=None,
     )
-    
+
     project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
     save_project_bundle(project_bundle, bundle_dir, atomic=True)
-    
+
     return bundle_name
 
 
@@ -90,7 +89,7 @@ class TestPlanUpdateIdea:
         """Test updating target users."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle_with_idea
-        
+
         result = runner.invoke(
             app,
             [
@@ -140,7 +139,7 @@ class TestPlanUpdateIdea:
         """Test updating constraints."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle_with_idea
-        
+
         result = runner.invoke(
             app,
             [
@@ -325,7 +324,11 @@ class TestPlanUpdateIdea:
         )
 
         assert result.exit_code == 1
-        assert ("not found" in result.stdout.lower() or "validation failed" in result.stdout.lower() or "failed to load" in result.stdout.lower())
+        assert (
+            "not found" in result.stdout.lower()
+            or "validation failed" in result.stdout.lower()
+            or "failed to load" in result.stdout.lower()
+        )
 
     def test_update_idea_default_path(self, tmp_path, monkeypatch):
         """Test update-idea using default bundle."""
@@ -381,7 +384,7 @@ class TestPlanUpdateIdea:
         """Test that update-idea preserves fields not being updated."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle_with_idea
-        
+
         # Get original values
         original_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         assert original_bundle.idea is not None

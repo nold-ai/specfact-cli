@@ -300,9 +300,6 @@ Order management service for creating and fulfilling orders.
                 # Check legacy location
                 protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
 
-            # Plan path is now the bundle directory
-            plan_path = manifest_path
-
             # Verify protocol content
             protocol_data = load_yaml(protocol_path)
             assert "states" in protocol_data

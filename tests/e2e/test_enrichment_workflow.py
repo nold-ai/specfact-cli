@@ -9,8 +9,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.utils.yaml_utils import load_yaml
-from specfact_cli.validators.schema import validate_plan_bundle
 
 
 runner = CliRunner()
@@ -94,16 +92,15 @@ class AuthService:
             initial_bundle_dir = bundle_dir
 
             # Load and verify initial plan
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
             initial_features_count = len(plan_bundle.features)
 
             # Phase 2: LLM Enrichment - Create enrichment report
             # Use proper location: .specfact/reports/enrichment/ with matching name
-            from specfact_cli.utils.structure import SpecFactStructure
 
             # For modular bundles, create enrichment report based on bundle name
             enrichment_dir = sample_repo / ".specfact" / "reports" / "enrichment"
@@ -162,7 +159,7 @@ class AuthService:
 
             # Verify enriched bundle (modular bundle - same directory, updated content)
             assert bundle_dir.exists(), "Enriched bundle should exist"
-            
+
             # Load enriched bundle and verify it has more features
             enriched_project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             enriched_plan_bundle = _convert_project_bundle_to_plan_bundle(enriched_project_bundle)
@@ -184,15 +181,12 @@ class AuthService:
             assert "FEATURE-DATABASEMANAGER" in feature_keys, "Database Manager feature not added"
 
             # Verify confidence adjustments (if confidence field exists in features)
-            for feature in enriched_plan_bundle.features:
-                # Note: Confidence may be stored in metadata, not directly on feature
-                # This is a simplified check - actual confidence may be in metadata
-                pass
-
-                # Validate enriched plan bundle (validate_plan_bundle expects Path, not PlanBundle)
-                # Just verify the bundle structure is valid
-                assert enriched_plan_bundle is not None
-                assert len(enriched_plan_bundle.features) > initial_features_count
+            # Note: Confidence may be stored in metadata, not directly on feature
+            # This is a simplified check - actual confidence may be in metadata
+            # Validate enriched plan bundle (validate_plan_bundle expects Path, not PlanBundle)
+            # Just verify the bundle structure is valid
+            assert enriched_plan_bundle is not None
+            assert len(enriched_plan_bundle.features) > initial_features_count
 
         finally:
             os.chdir(old_cwd)
@@ -232,7 +226,11 @@ class AuthService:
             )
 
             assert result.exit_code != 0, "Should fail with nonexistent enrichment report"
-            assert "not found" in result.stdout.lower() or "Enrichment report not found" in result.stdout or "No plan bundle available" in result.stdout
+            assert (
+                "not found" in result.stdout.lower()
+                or "Enrichment report not found" in result.stdout
+                or "No plan bundle available" in result.stdout
+            )
 
         finally:
             os.chdir(old_cwd)
@@ -303,10 +301,10 @@ class AuthService:
             specfact_dir = sample_repo / ".specfact"
             bundle_dir = specfact_dir / "projects" / bundle_name
             assert bundle_dir.exists()
-            
-            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             initial_project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             initial_plan_bundle = _convert_project_bundle_to_plan_bundle(initial_project_bundle)
             initial_plan_data = initial_plan_bundle.model_dump(exclude_none=True)

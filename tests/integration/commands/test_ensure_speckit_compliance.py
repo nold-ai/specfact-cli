@@ -111,11 +111,11 @@ class TestEnsureSpeckitComplianceFlag:
                 (specify_dir / "constitution.md").write_text("# Constitution\n")
 
                 # Create SpecFact structure with modular bundle without technology stack (new structure)
-                from specfact_cli.models.plan import PlanBundle, Idea, Product, Feature
                 from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+                from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product
                 from specfact_cli.utils.bundle_loader import save_project_bundle
                 from specfact_cli.utils.structure import SpecFactStructure
-                
+
                 plan_bundle = PlanBundle(
                     version="1.0",
                     idea=Idea(
@@ -141,7 +141,7 @@ class TestEnsureSpeckitComplianceFlag:
                     clarifications=None,
                     metadata=None,
                 )
-                
+
                 bundle_name = "main"
                 bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle_name)
                 SpecFactStructure.ensure_project_structure(base_path=repo_path, bundle_name=bundle_name)
@@ -190,11 +190,11 @@ class TestEnsureSpeckitComplianceFlag:
                 (specify_dir / "constitution.md").write_text("# Constitution\n")
 
                 # Create SpecFact structure with modular bundle with non-testable acceptance (new structure)
-                from specfact_cli.models.plan import PlanBundle, Idea, Product, Feature, Story
                 from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+                from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Story
                 from specfact_cli.utils.bundle_loader import save_project_bundle
                 from specfact_cli.utils.structure import SpecFactStructure
-                
+
                 plan_bundle = PlanBundle(
                     version="1.0",
                     idea=Idea(
@@ -230,7 +230,7 @@ class TestEnsureSpeckitComplianceFlag:
                     clarifications=None,
                     metadata=None,
                 )
-                
+
                 bundle_name = "main"
                 bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle_name)
                 SpecFactStructure.ensure_project_structure(base_path=repo_path, bundle_name=bundle_name)

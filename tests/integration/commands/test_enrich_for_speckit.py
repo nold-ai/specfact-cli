@@ -10,7 +10,6 @@ from textwrap import dedent
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.utils.yaml_utils import load_yaml
 
 
 runner = CliRunner()
@@ -62,10 +61,10 @@ class TestEnrichForSpeckitFlag:
                 assert bundle_dir.exists(), (
                     f"Project bundle not found. Exit code: {result.exit_code}, Output: {result.stdout}"
                 )
-                
-                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-                
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
                 plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
                 plan_data = plan_bundle.model_dump(exclude_none=True)
@@ -135,10 +134,10 @@ class TestEnrichForSpeckitFlag:
                 # Find generated plan bundle (modular bundle)
                 bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
                 assert bundle_dir.exists()
-                
-                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-                
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
                 plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
                 plan_data = plan_bundle.model_dump(exclude_none=True)
@@ -212,17 +211,14 @@ class TestEnrichForSpeckitFlag:
 
                 # Command may exit with 0 or 1 depending on validation, but plan should be created
                 bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
-                assert (
-                    "Import complete" in result.stdout
-                    or bundle_dir.exists()
-                )
+                assert "Import complete" in result.stdout or bundle_dir.exists()
 
                 # Verify technology stack was extracted (modular bundle)
                 assert bundle_dir.exists()
-                
-                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-                
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
                 project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
                 plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
                 plan_data = plan_bundle.model_dump(exclude_none=True)

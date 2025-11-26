@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-import yaml
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -82,7 +81,7 @@ def incomplete_plan(workspace: Path) -> Path:
     # Convert to modular bundle
     from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
     from specfact_cli.utils.bundle_loader import save_project_bundle
-    
+
     project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
     save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -97,8 +96,12 @@ class TestPlanReviewNonInteractive:
         monkeypatch.chdir(workspace)
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -118,7 +121,7 @@ class TestPlanReviewNonInteractive:
             if "not found" in result.stdout or "Bundle" in result.stdout:
                 print(f"Bundle name used: {bundle_name}")
                 print(f"Bundle directory exists: {incomplete_plan.exists()}")
-        
+
         assert result.exit_code == 0
 
         # Parse JSON output
@@ -198,7 +201,7 @@ class TestPlanReviewNonInteractive:
         # Convert to modular bundle
         from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
-        
+
         project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -230,8 +233,12 @@ class TestPlanReviewNonInteractive:
         answers_file.write_text(json.dumps(answers, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -249,9 +256,9 @@ class TestPlanReviewNonInteractive:
         assert "Review complete" in result.stdout or "question(s) answered" in result.stdout
 
         # Verify plan was updated (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         updated_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         updated_bundle = _convert_project_bundle_to_plan_bundle(updated_project_bundle)
 
@@ -267,8 +274,12 @@ class TestPlanReviewNonInteractive:
         answers_json = json.dumps({"Q001": "Test answer from JSON string"})
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -291,8 +302,12 @@ class TestPlanReviewNonInteractive:
         monkeypatch.chdir(workspace)
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         # Without --answers, should skip questions
         result = runner.invoke(
             app,
@@ -320,7 +335,9 @@ class TestPlanReviewNonInteractive:
             [
                 "plan",
                 "review",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
                 "--list-questions",
                 "--max-questions",
                 "2",
@@ -355,8 +372,12 @@ class TestPlanReviewNonInteractive:
         answers_file.write_text(json.dumps(answers, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         # Apply answers
         apply_result = runner.invoke(
             app,
@@ -375,9 +396,9 @@ class TestPlanReviewNonInteractive:
 
         # Verify integration
         # Load updated bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         updated_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         updated_bundle = _convert_project_bundle_to_plan_bundle(updated_project_bundle)
 
@@ -410,7 +431,9 @@ class TestPlanReviewNonInteractive:
             [
                 "plan",
                 "review",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
                 "--list-questions",
                 "--max-questions",
                 "3",
@@ -446,8 +469,12 @@ class TestPlanReviewNonInteractive:
         answers_file.write_text(json.dumps(answers, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         feed_result = runner.invoke(
             app,
             [
@@ -466,9 +493,9 @@ class TestPlanReviewNonInteractive:
 
         # Verify all answers were integrated
         # Load updated bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         updated_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         updated_bundle = _convert_project_bundle_to_plan_bundle(updated_project_bundle)
 

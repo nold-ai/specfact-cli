@@ -104,7 +104,7 @@ def incomplete_plan(workspace: Path) -> Path:
     # Convert to modular bundle
     from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
     from specfact_cli.utils.bundle_loader import save_project_bundle
-    
+
     project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
     save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -126,7 +126,9 @@ class TestListFindingsOutput:
                 "--list-findings",
                 "--findings-format",
                 "json",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -179,7 +181,9 @@ class TestListFindingsOutput:
                 "--list-findings",
                 "--findings-format",
                 "yaml",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -216,7 +220,9 @@ class TestListFindingsOutput:
                 "--list-findings",
                 "--findings-format",
                 "table",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -243,7 +249,9 @@ class TestListFindingsOutput:
                 "review",
                 "--list-findings",
                 "--non-interactive",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -269,7 +277,9 @@ class TestListFindingsOutput:
                 "plan",
                 "review",
                 "--list-findings",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -306,8 +316,12 @@ class TestBatchFeatureUpdates:
         updates_file.write_text(json.dumps(updates, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -324,9 +338,9 @@ class TestBatchFeatureUpdates:
 
         # Verify updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         updated_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
@@ -366,13 +380,11 @@ class TestBatchFeatureUpdates:
 
         # Read original plan
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         # Load original bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+
         original_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         original_bundle = _convert_project_bundle_to_plan_bundle(original_project_bundle)
 
@@ -380,8 +392,12 @@ class TestBatchFeatureUpdates:
         original_feature_2 = next((f for f in original_bundle.features if f.key == "FEATURE-002"), None)
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -398,9 +414,9 @@ class TestBatchFeatureUpdates:
 
         # Verify partial updates
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
         updated_bundle = bundle
@@ -442,8 +458,12 @@ class TestBatchStoryUpdates:
         updates_file.write_text(json.dumps(updates, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -460,9 +480,9 @@ class TestBatchStoryUpdates:
 
         # Verify updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
         updated_bundle = bundle
@@ -485,13 +505,11 @@ class TestBatchStoryUpdates:
 
         # Add a story to FEATURE-002 first
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
@@ -514,8 +532,11 @@ class TestBatchStoryUpdates:
             # Save bundle (modular bundle)
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            project_bundle = _convert_plan_bundle_to_project_bundle(bundle, incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else "test-plan")
+
+            project_bundle = _convert_plan_bundle_to_project_bundle(
+                bundle,
+                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else "test-plan",
+            )
             save_project_bundle(project_bundle, incomplete_plan, atomic=True)
 
         # Create batch update file for multiple stories
@@ -537,8 +558,12 @@ class TestBatchStoryUpdates:
         updates_file.write_text(json.dumps(updates, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         result = runner.invoke(
             app,
             [
@@ -555,9 +580,9 @@ class TestBatchStoryUpdates:
 
         # Verify both stories were updated
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
         updated_bundle = bundle
@@ -604,8 +629,12 @@ class TestInteractiveSelectiveUpdates:
             ]
 
             # Get bundle name from directory path
-            bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-            
+            bundle_name = (
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan)
+            )
+
             result = runner.invoke(
                 app,
                 [
@@ -643,8 +672,12 @@ class TestInteractiveSelectiveUpdates:
             ]
 
             # Get bundle name from directory path
-            bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-            
+            bundle_name = (
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan)
+            )
+
             result = runner.invoke(
                 app,
                 [
@@ -679,7 +712,9 @@ class TestCompleteBatchWorkflow:
                 "--list-findings",
                 "--findings-format",
                 "json",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -715,8 +750,12 @@ class TestCompleteBatchWorkflow:
         updates_file.write_text(json.dumps(updates, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         # Step 3: Apply batch updates
         update_result = runner.invoke(
             app,
@@ -734,9 +773,9 @@ class TestCompleteBatchWorkflow:
 
         # Step 4: Verify updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
         updated_bundle = bundle
@@ -760,7 +799,9 @@ class TestCompleteBatchWorkflow:
                 "--findings-format",
                 "json",
                 "--non-interactive",
-                incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan),
+                incomplete_plan.name
+                if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+                else str(incomplete_plan),
             ],
         )
 
@@ -793,8 +834,12 @@ class TestCompleteBatchWorkflow:
         llm_updates_file.write_text(json.dumps(llm_updates, indent=2))
 
         # Get bundle name from directory path
-        bundle_name = incomplete_plan.name if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir() else str(incomplete_plan)
-        
+        bundle_name = (
+            incomplete_plan.name
+            if isinstance(incomplete_plan, Path) and incomplete_plan.is_dir()
+            else str(incomplete_plan)
+        )
+
         # Step 3: Apply feature updates
         feature_update_result = runner.invoke(
             app,
@@ -831,9 +876,9 @@ class TestCompleteBatchWorkflow:
 
         # Step 5: Verify all updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.utils.bundle_loader import load_project_bundle
         from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-        
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
         bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
         updated_bundle = bundle

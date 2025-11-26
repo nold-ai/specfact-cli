@@ -55,9 +55,6 @@ class TestGenerateContractsCommand:
 
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        # Keep plan_path for compatibility with rest of test
-        plan_path = bundle_dir / "bundle.manifest.yaml"
-
         # Harden the plan
         result_harden = runner.invoke(app, ["plan", "harden", bundle_name, "--non-interactive"])
         assert result_harden.exit_code == 0, f"plan harden failed: {result_harden.stdout}\n{result_harden.stderr}"

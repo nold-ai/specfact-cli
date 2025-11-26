@@ -4,14 +4,12 @@ Focus: Business logic and edge cases only (@beartype handles type validation).
 """
 
 import pytest
-from pathlib import Path
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
 from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
 from specfact_cli.models.plan import Feature, PlanBundle, Product, Story
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
-from specfact_cli.validators.schema import validate_plan_bundle
 
 
 runner = CliRunner()
@@ -21,15 +19,15 @@ runner = CliRunner()
 def sample_bundle(tmp_path, monkeypatch):
     """Create a sample modular bundle for testing."""
     monkeypatch.chdir(tmp_path)
-    
+
     # Create .specfact structure
     projects_dir = tmp_path / ".specfact" / "projects"
     projects_dir.mkdir(parents=True)
-    
+
     bundle_name = "test-bundle"
     bundle_dir = projects_dir / bundle_name
     bundle_dir.mkdir()
-    
+
     # Create PlanBundle and convert to ProjectBundle
     plan_bundle = PlanBundle(
         version="1.0",
@@ -58,10 +56,10 @@ def sample_bundle(tmp_path, monkeypatch):
         metadata=None,
         clarifications=None,
     )
-    
+
     project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
     save_project_bundle(project_bundle, bundle_dir, atomic=True)
-    
+
     return bundle_name
 
 
@@ -71,14 +69,14 @@ class TestPlanAddFeature:
     def test_add_feature_to_empty_plan(self, tmp_path, monkeypatch):
         """Test adding a feature to an empty plan."""
         monkeypatch.chdir(tmp_path)
-        
+
         # Create empty modular bundle
         projects_dir = tmp_path / ".specfact" / "projects"
         projects_dir.mkdir(parents=True)
         bundle_name = "test-bundle"
         bundle_dir = projects_dir / bundle_name
         bundle_dir.mkdir()
-        
+
         plan_bundle = PlanBundle(
             version="1.0",
             idea=None,
@@ -119,7 +117,7 @@ class TestPlanAddFeature:
         """Test adding a feature to a plan with existing features."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
-        
+
         result = runner.invoke(
             app,
             [
@@ -269,7 +267,12 @@ class TestPlanAddFeature:
         )
 
         assert result.exit_code == 1
-        assert ("not found" in result.stdout.lower() or "validation failed" in result.stdout.lower() or "error" in result.stdout.lower() or "failed to load" in result.stdout.lower())
+        assert (
+            "not found" in result.stdout.lower()
+            or "validation failed" in result.stdout.lower()
+            or "error" in result.stdout.lower()
+            or "failed to load" in result.stdout.lower()
+        )
 
     def test_add_feature_default_path(self, tmp_path, monkeypatch):
         """Test adding a feature using default bundle."""
@@ -356,7 +359,7 @@ class TestPlanAddStory:
         """Test adding a story with acceptance criteria."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
-        
+
         result = runner.invoke(
             app,
             [
@@ -390,7 +393,7 @@ class TestPlanAddStory:
         """Test adding a story with story points."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
-        
+
         result = runner.invoke(
             app,
             [
@@ -422,7 +425,7 @@ class TestPlanAddStory:
         """Test adding a story with value points."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
-        
+
         result = runner.invoke(
             app,
             [
@@ -454,7 +457,7 @@ class TestPlanAddStory:
         """Test adding a story marked as draft."""
         monkeypatch.chdir(tmp_path)
         bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
-        
+
         result = runner.invoke(
             app,
             [
@@ -484,7 +487,7 @@ class TestPlanAddStory:
     def test_add_story_duplicate_key(self, sample_bundle, tmp_path, monkeypatch):
         """Test that adding a duplicate story key fails."""
         monkeypatch.chdir(tmp_path)
-        
+
         result = runner.invoke(
             app,
             [
@@ -507,7 +510,7 @@ class TestPlanAddStory:
     def test_add_story_feature_not_found(self, sample_bundle, tmp_path, monkeypatch):
         """Test that adding a story to a non-existent feature fails."""
         monkeypatch.chdir(tmp_path)
-        
+
         result = runner.invoke(
             app,
             [

@@ -10,7 +10,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.utils.yaml_utils import load_yaml
 
 
 runner = CliRunner()
@@ -95,9 +94,9 @@ class TestBrownfieldSpeckitComplianceE2E:
             assert bundle_dir.exists()
             assert (bundle_dir / "bundle.manifest.yaml").exists()
 
-            from specfact_cli.utils.bundle_loader import load_project_bundle
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
             plan_data = plan_bundle.model_dump(exclude_none=True)
@@ -211,14 +210,14 @@ class TestBrownfieldSpeckitComplianceE2E:
             # Find generated plan bundle (modular bundle)
             bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
             assert bundle_dir.exists()
-            
-            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
             plan_data = plan_bundle.model_dump(exclude_none=True)
-            
+
             idea = plan_data.get("idea", {})
             constraints = idea.get("constraints", [])
 
@@ -268,10 +267,10 @@ class TestBrownfieldSpeckitComplianceE2E:
             # Find generated plan bundle (modular bundle)
             bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
             assert bundle_dir.exists()
-            
-            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-            
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
             plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
             plan_data = plan_bundle.model_dump(exclude_none=True)

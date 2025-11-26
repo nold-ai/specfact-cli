@@ -42,19 +42,29 @@ class TestSyncCommandIntegration:
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-            result = runner.invoke(app, ["sync", "bridge", "--repo", str(repo_path), "--adapter", "speckit", "--bundle", bundle_name])
+            result = runner.invoke(
+                app, ["sync", "bridge", "--repo", str(repo_path), "--adapter", "speckit", "--bundle", bundle_name]
+            )
 
             assert result.exit_code == 0
-            assert ("Syncing" in result.stdout or "Sync complete" in result.stdout or "Bridge" in result.stdout)
+            assert "Syncing" in result.stdout or "Sync complete" in result.stdout or "Bridge" in result.stdout
 
     def test_sync_spec_kit_with_bidirectional(self) -> None:
         """Test sync spec-kit with bidirectional flag."""
@@ -72,22 +82,40 @@ class TestSyncCommandIntegration:
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             result = runner.invoke(
                 app,
-                ["sync", "bridge", "--repo", str(repo_path), "--adapter", "speckit", "--bundle", bundle_name, "--bidirectional"],
+                [
+                    "sync",
+                    "bridge",
+                    "--repo",
+                    str(repo_path),
+                    "--adapter",
+                    "speckit",
+                    "--bundle",
+                    bundle_name,
+                    "--bidirectional",
+                ],
             )
 
             assert result.exit_code == 0
-            assert ("Syncing" in result.stdout or "Sync complete" in result.stdout or "Bridge" in result.stdout)
+            assert "Syncing" in result.stdout or "Sync complete" in result.stdout or "Bridge" in result.stdout
 
     def test_sync_spec_kit_with_changes(self) -> None:
         """Test sync spec-kit with actual changes."""
@@ -124,22 +152,40 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             result = runner.invoke(
                 app,
-                ["sync", "bridge", "--repo", str(repo_path), "--adapter", "speckit", "--bundle", bundle_name, "--bidirectional"],
+                [
+                    "sync",
+                    "bridge",
+                    "--repo",
+                    str(repo_path),
+                    "--adapter",
+                    "speckit",
+                    "--bundle",
+                    bundle_name,
+                    "--bidirectional",
+                ],
             )
 
             assert result.exit_code == 0
-            assert ("Detected" in result.stdout or "Sync complete" in result.stdout or "Bridge" in result.stdout)
+            assert "Detected" in result.stdout or "Sync complete" in result.stdout or "Bridge" in result.stdout
 
     def test_sync_spec_kit_watch_mode_not_implemented(self) -> None:
         """Test sync spec-kit watch mode (now implemented)."""
@@ -157,12 +203,20 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -177,7 +231,19 @@ As a user, I want to test features so that I can validate functionality.
             def run_command() -> None:
                 result_container["result"] = runner.invoke(
                     app,
-                    ["sync", "bridge", "--repo", str(repo_path), "--adapter", "speckit", "--bundle", bundle_name, "--watch", "--interval", "1"],
+                    [
+                        "sync",
+                        "bridge",
+                        "--repo",
+                        str(repo_path),
+                        "--adapter",
+                        "speckit",
+                        "--bundle",
+                        bundle_name,
+                        "--watch",
+                        "--interval",
+                        "1",
+                    ],
                 )
 
             thread = threading.Thread(target=run_command, daemon=True)
@@ -221,12 +287,20 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -266,22 +340,44 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             result = runner.invoke(
                 app,
-                ["sync", "bridge", "--adapter", "speckit", "--bundle", bundle_name, "--bidirectional", "--repo", str(repo_path)],
+                [
+                    "sync",
+                    "bridge",
+                    "--adapter",
+                    "speckit",
+                    "--bundle",
+                    bundle_name,
+                    "--bidirectional",
+                    "--repo",
+                    str(repo_path),
+                ],
             )
 
             assert result.exit_code == 0
-            assert ("Shared Plans Sync" in result.stdout or "team collaboration" in result.stdout.lower() or "Syncing" in result.stdout)
+            assert (
+                "Shared Plans Sync" in result.stdout
+                or "team collaboration" in result.stdout.lower()
+                or "Syncing" in result.stdout
+            )
 
     def test_plan_sync_shared_without_flag(self) -> None:
         """Test plan sync command requires --shared flag (deprecated, use sync bridge instead)."""
@@ -312,12 +408,20 @@ As a user, I want to test features so that I can validate functionality.
             projects_dir.mkdir(parents=True)
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
-            
-            from specfact_cli.models.plan import PlanBundle, Product
+
             from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
             from specfact_cli.utils.bundle_loader import save_project_bundle
-            
-            plan_bundle = PlanBundle(version="1.0", idea=None, business=None, product=Product(themes=[], releases=[]), features=[], clarifications=None, metadata=None)
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -333,7 +437,19 @@ As a user, I want to test features so that I can validate functionality.
             def run_command() -> None:
                 result_container["result"] = runner.invoke(
                     app,
-                    ["sync", "bridge", "--adapter", "speckit", "--bundle", bundle_name, "--repo", str(repo_path), "--watch", "--interval", "1"],
+                    [
+                        "sync",
+                        "bridge",
+                        "--adapter",
+                        "speckit",
+                        "--bundle",
+                        bundle_name,
+                        "--repo",
+                        str(repo_path),
+                        "--watch",
+                        "--interval",
+                        "1",
+                    ],
                     input="\n",  # Send empty input to simulate Ctrl+C
                 )
 
