@@ -11,6 +11,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli import runtime
+from specfact_cli.models.project import BundleFormat
 from specfact_cli.utils.structured_io import StructuredFormat
 
 
@@ -27,6 +28,7 @@ class SpecFactStructure:
 
     # Versioned directories (committed to git)
     PLANS = f"{ROOT}/plans"
+    PROJECTS = f"{ROOT}/projects"  # Modular project bundles
     PROTOCOLS = f"{ROOT}/protocols"
     CONTRACTS = f"{ROOT}/contracts"
 
@@ -38,9 +40,11 @@ class SpecFactStructure:
     REPORTS_ENRICHMENT = f"{ROOT}/reports/enrichment"
     GATES_RESULTS = f"{ROOT}/gates/results"
     CACHE = f"{ROOT}/cache"
+    SDD = f"{ROOT}/sdd"  # SDD manifests (one per project bundle)
+    CONFIG = f"{ROOT}/config"  # Global configuration (bridge.yaml, etc.)
 
     # Configuration files
-    CONFIG = f"{ROOT}/config.yaml"
+    CONFIG_YAML = f"{ROOT}/config.yaml"
     GATES_CONFIG = f"{ROOT}/gates/config.yaml"
     ENFORCEMENT_CONFIG = f"{ROOT}/gates/config/enforcement.yaml"
 
@@ -111,9 +115,12 @@ class SpecFactStructure:
 
         # Create versioned directories
         (base_path / cls.PLANS).mkdir(parents=True, exist_ok=True)
+        (base_path / cls.PROJECTS).mkdir(parents=True, exist_ok=True)
         (base_path / cls.PROTOCOLS).mkdir(parents=True, exist_ok=True)
         (base_path / cls.CONTRACTS).mkdir(parents=True, exist_ok=True)
         (base_path / f"{cls.ROOT}/gates/config").mkdir(parents=True, exist_ok=True)
+        (base_path / cls.SDD).mkdir(parents=True, exist_ok=True)
+        (base_path / cls.CONFIG).mkdir(parents=True, exist_ok=True)
 
         # Create ephemeral directories
         (base_path / cls.REPORTS_BROWNFIELD).mkdir(parents=True, exist_ok=True)
@@ -940,3 +947,117 @@ specfact import from-code --repo .
         cls.ensure_structure(base_path)
         cls.create_gitignore(base_path)
         cls.create_readme(base_path)
+
+    @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def project_dir(cls, base_path: Path | None = None, bundle_name: str = "") -> Path:
+        """
+        Get path to project bundle directory.
+
+        Args:
+            base_path: Base directory (default: current directory)
+            bundle_name: Project bundle name (e.g., 'legacy-api', 'auth-module')
+
+        Returns:
+            Path to project bundle directory (e.g., .specfact/projects/legacy-api/)
+
+        Examples:
+            >>> SpecFactStructure.project_dir(bundle_name="legacy-api")
+            Path('.specfact/projects/legacy-api')
+        """
+        if base_path is None:
+            base_path = Path(".")
+        else:
+            base_path = Path(base_path).resolve()
+            parts = base_path.parts
+            if ".specfact" in parts:
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
+
+        return base_path / cls.PROJECTS / bundle_name
+
+    @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @ensure(lambda result: result is None, "Must return None")
+    def ensure_project_structure(cls, base_path: Path | None = None, bundle_name: str = "") -> None:
+        """
+        Ensure project bundle directory structure exists.
+
+        Creates the project bundle directory and required subdirectories:
+        - .specfact/projects/<bundle-name>/
+        - .specfact/projects/<bundle-name>/features/
+        - .specfact/projects/<bundle-name>/protocols/
+        - .specfact/projects/<bundle-name>/contracts/
+
+        Args:
+            base_path: Base directory (default: current directory)
+            bundle_name: Project bundle name (e.g., 'legacy-api', 'auth-module')
+
+        Examples:
+            >>> SpecFactStructure.ensure_project_structure(bundle_name="legacy-api")
+        """
+        project_dir = cls.project_dir(base_path, bundle_name)
+        project_dir.mkdir(parents=True, exist_ok=True)
+        (project_dir / "features").mkdir(parents=True, exist_ok=True)
+        (project_dir / "protocols").mkdir(parents=True, exist_ok=True)
+        (project_dir / "contracts").mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    @beartype
+    @require(lambda path: isinstance(path, Path), "Path must be Path")
+    @ensure(
+        lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (BundleFormat, Optional[str]) tuple"
+    )
+    def detect_bundle_format(cls, path: Path) -> tuple[BundleFormat, str | None]:
+        """
+        Detect if bundle is monolithic or modular.
+
+        Args:
+            path: Path to bundle (file or directory)
+
+        Returns:
+            Tuple of (format, error_message)
+            - format: Detected format type
+            - error_message: None if successful, error message if detection failed
+
+        Examples:
+            >>> format, error = SpecFactStructure.detect_bundle_format(Path('.specfact/plans/main.bundle.yaml'))
+            >>> format
+            <BundleFormat.MONOLITHIC: 'monolithic'>
+        """
+        from specfact_cli.utils.structured_io import load_structured_file
+
+        if path.is_file() and path.suffix in [".yaml", ".yml", ".json"]:
+            # Check if it's a monolithic bundle
+            try:
+                data = load_structured_file(path)
+                if isinstance(data, dict):
+                    # Monolithic bundle has all aspects in one file
+                    if "idea" in data and "product" in data and "features" in data:
+                        return BundleFormat.MONOLITHIC, None
+                    # Could be a bundle manifest (modular) - check for dual versioning
+                    if "versions" in data and "schema" in data.get("versions", {}) and "bundle" in data:
+                        return BundleFormat.MODULAR, None
+            except Exception as e:
+                return BundleFormat.UNKNOWN, f"Failed to parse file: {e}"
+        elif path.is_dir():
+            # Check for modular project bundle structure
+            manifest_path = path / "bundle.manifest.yaml"
+            if manifest_path.exists():
+                return BundleFormat.MODULAR, None
+            # Check for legacy plans directory
+            if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
+                return BundleFormat.MONOLITHIC, None
+
+        return BundleFormat.UNKNOWN, "Could not determine bundle format"

@@ -104,23 +104,19 @@ def stage(
 
 @app.command("sdd")
 @beartype
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda sdd: sdd is None or isinstance(sdd, Path), "SDD must be None or Path")
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
 @require(
     lambda format: isinstance(format, str) and format.lower() in ("yaml", "json", "markdown"),
     "Format must be yaml, json, or markdown",
 )
 @require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def enforce_sdd(
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest (default: .specfact/sdd.<format>)",
-    ),
-    plan: Path | None = typer.Option(
-        None,
-        "--plan",
-        help="Path to plan bundle (default: active plan)",
+        help="Path to SDD manifest (default: .specfact/sdd/<bundle-name>.<format>)",
     ),
     format: str = typer.Option(
         "yaml",
@@ -139,21 +135,21 @@ def enforce_sdd(
     ),
 ) -> None:
     """
-    Validate SDD manifest against plan bundle and contracts.
+    Validate SDD manifest against project bundle and contracts.
 
     Checks:
-    - SDD ↔ plan hash match
+    - SDD ↔ bundle hash match
     - Coverage thresholds (contracts/story, invariants/feature, architecture facets)
     - Frozen sections (hash mismatch detection)
     - Contract density metrics
 
     Example:
-        specfact enforce sdd
-        specfact enforce sdd --plan .specfact/plans/main.bundle.yaml
-        specfact enforce sdd --format json --out validation-report.json
+        specfact enforce sdd legacy-api
+        specfact enforce sdd auth-module --format json --out validation-report.json
     """
-    from specfact_cli.migrations.plan_migrator import load_plan_bundle
     from specfact_cli.models.sdd import SDDManifest
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import (
         StructuredFormat,
         dump_structured_file,
@@ -169,12 +165,19 @@ def enforce_sdd(
         console.print("\n[bold cyan]SpecFact CLI - SDD Validation[/bold cyan]")
         console.print("=" * 60)
 
-        # Find SDD manifest path
+        # Find bundle directory
+        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        if not bundle_dir.exists():
+            console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
+            console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
+            raise typer.Exit(1)
+
+        # Find SDD manifest path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
         if sdd is None:
             base_path = Path(".")
             # Try YAML first, then JSON
-            sdd_yaml = base_path / SpecFactStructure.ROOT / "sdd.yaml"
-            sdd_json = base_path / SpecFactStructure.ROOT / "sdd.json"
+            sdd_yaml = base_path / SpecFactStructure.SDD / f"{bundle}.yaml"
+            sdd_json = base_path / SpecFactStructure.SDD / f"{bundle}.json"
             if sdd_yaml.exists():
                 sdd = sdd_yaml
             elif sdd_json.exists():
@@ -182,17 +185,11 @@ def enforce_sdd(
             else:
                 console.print("[bold red]✗[/bold red] SDD manifest not found")
                 console.print(f"[dim]Expected: {sdd_yaml} or {sdd_json}[/dim]")
-                console.print("[dim]Create one with: specfact plan harden[/dim]")
+                console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
                 raise typer.Exit(1)
 
         if not sdd.exists():
             console.print(f"[bold red]✗[/bold red] SDD manifest not found: {sdd}")
-            raise typer.Exit(1)
-
-        # Find plan path (reuse logic from plan.py)
-        plan_path = _find_plan_path(plan)
-        if plan_path is None or not plan_path.exists():
-            console.print("[bold red]✗[/bold red] Plan bundle not found")
             raise typer.Exit(1)
 
         try:
@@ -201,28 +198,33 @@ def enforce_sdd(
             sdd_data = load_structured_file(sdd)
             sdd_manifest = SDDManifest.model_validate(sdd_data)
 
-            # Load plan bundle
-            console.print(f"[dim]Loading plan bundle: {plan_path}[/dim]")
-            bundle = load_plan_bundle(plan_path)
-            bundle.update_summary(include_hash=True)
-            plan_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+            # Load project bundle
+            console.print(f"[dim]Loading project bundle: {bundle_dir}[/dim]")
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            summary = project_bundle.compute_summary(include_hash=True)
+            project_hash = summary.content_hash
 
-            if not plan_hash:
-                console.print("[bold red]✗[/bold red] Failed to compute plan bundle hash")
+            if not project_hash:
+                console.print("[bold red]✗[/bold red] Failed to compute project bundle hash")
                 raise typer.Exit(1)
+
+            # Convert to PlanBundle for compatibility with validation functions
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Create validation report
             report = ValidationReport()
 
             # 1. Validate hash match
             console.print("\n[cyan]Validating hash match...[/cyan]")
-            if sdd_manifest.plan_bundle_hash != plan_hash:
+            if sdd_manifest.plan_bundle_hash != project_hash:
                 deviation = Deviation(
                     type=DeviationType.HASH_MISMATCH,
                     severity=DeviationSeverity.HIGH,
-                    description=f"SDD plan bundle hash mismatch: expected {plan_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
-                    location=".specfact/sdd.yaml",
-                    fix_hint="Run 'specfact plan harden' to update SDD manifest with current plan hash",
+                    description=f"SDD bundle hash mismatch: expected {project_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
+                    location=str(sdd),
+                    fix_hint=f"Run 'specfact plan harden {bundle}' to update SDD manifest with current bundle hash",
                 )
                 report.add_deviation(deviation)
                 console.print("[bold red]✗[/bold red] Hash mismatch detected")
@@ -235,10 +237,10 @@ def enforce_sdd(
             from specfact_cli.validators.contract_validator import calculate_contract_density, validate_contract_density
 
             # Calculate contract density metrics
-            metrics = calculate_contract_density(sdd_manifest, bundle)
+            metrics = calculate_contract_density(sdd_manifest, plan_bundle)
 
             # Validate against thresholds
-            density_deviations = validate_contract_density(sdd_manifest, bundle, metrics)
+            density_deviations = validate_contract_density(sdd_manifest, plan_bundle, metrics)
 
             # Add deviations to report
             for deviation in density_deviations:
@@ -295,7 +297,7 @@ def enforce_sdd(
 
             # Save report
             if output_format == "markdown":
-                _save_markdown_report(out, report, sdd_manifest, bundle, plan_hash)
+                _save_markdown_report(out, report, sdd_manifest, bundle, project_hash)
             elif output_format == "json":
                 dump_structured_file(report.model_dump(mode="json"), out, StructuredFormat.JSON)
             else:  # yaml

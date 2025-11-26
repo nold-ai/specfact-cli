@@ -5,9 +5,29 @@ This package contains Pydantic models for plan bundles, protocols,
 features, stories, and validation results.
 """
 
+from specfact_cli.models.bridge import (
+    AdapterType,
+    ArtifactMapping,
+    BridgeConfig,
+    CommandMapping,
+    TemplateMapping,
+)
 from specfact_cli.models.deviation import Deviation, DeviationReport, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementAction, EnforcementConfig, EnforcementPreset
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, PlanSummary, Product, Release, Story
+from specfact_cli.models.project import (
+    BundleChecksums,
+    BundleFormat,
+    BundleManifest,
+    BundleVersions,
+    FeatureIndex,
+    PersonaMapping,
+    ProjectBundle,
+    ProjectMetadata,
+    ProtocolIndex,
+    SchemaMetadata,
+    SectionLock,
+)
 from specfact_cli.models.protocol import Protocol, Transition
 from specfact_cli.models.sdd import (
     SDDCoverageThresholds,
@@ -20,7 +40,15 @@ from specfact_cli.models.sdd import (
 
 
 __all__ = [
+    "AdapterType",
+    "ArtifactMapping",
+    "BridgeConfig",
+    "BundleChecksums",
+    "BundleFormat",
+    "BundleManifest",
+    "BundleVersions",
     "Business",
+    "CommandMapping",
     "Deviation",
     "DeviationReport",
     "DeviationSeverity",
@@ -29,12 +57,17 @@ __all__ = [
     "EnforcementConfig",
     "EnforcementPreset",
     "Feature",
+    "FeatureIndex",
     "Idea",
     "Metadata",
+    "PersonaMapping",
     "PlanBundle",
     "PlanSummary",
     "Product",
+    "ProjectBundle",
+    "ProjectMetadata",
     "Protocol",
+    "ProtocolIndex",
     "Release",
     "SDDCoverageThresholds",
     "SDDEnforcementBudget",
@@ -42,7 +75,10 @@ __all__ = [
     "SDDManifest",
     "SDDWhat",
     "SDDWhy",
+    "SchemaMetadata",
+    "SectionLock",
     "Story",
+    "TemplateMapping",
     "Transition",
     "ValidationReport",
 ]

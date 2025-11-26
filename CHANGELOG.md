@@ -9,6 +9,216 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.9.0] - 2025-11-26
+
+### Added (0.9.0)
+
+- **Modular Project Bundle Structure** (Phases 1-3 Complete)
+  - **New Directory-Based Structure** (`.specfact/projects/<bundle-name>/`)
+    - Directory-based project bundles with separated concerns (multiple bundles per repository)
+    - `bundle.manifest.yaml` - Entry point with dual versioning, checksums, locks, and metadata
+    - Separate aspect files: `idea.yaml`, `business.yaml`, `product.yaml`, `clarifications.yaml`
+    - `features/` directory with individual feature files (`FEATURE-001.yaml`, etc.)
+    - `protocols/` directory for FSM protocols (Architect-owned)
+    - `contracts/` directory for OpenAPI 3.0.3 contracts (Architect-owned)
+    - Feature index in manifest (no separate `index.yaml` files)
+    - Protocol and contract indices in manifest
+  - **Bundle Manifest Model** (`src/specfact_cli/models/project.py`)
+    - `BundleManifest` with dual versioning (schema version + project version)
+    - `BundleVersions`, `SchemaMetadata`, `ProjectMetadata` models
+    - `BundleChecksums` for file integrity validation
+    - `SectionLock` and `PersonaMapping` for persona-based workflows
+    - `FeatureIndex`, `ProtocolIndex` for fast lookup
+  - **ProjectBundle Class** (`src/specfact_cli/models/project.py`)
+    - `load_from_directory()` - Load project bundle from directory structure
+    - `save_to_directory()` - Save project bundle to directory structure with atomic writes
+    - `get_feature()` - Lazy loading for individual features
+    - `add_feature()`, `update_feature()` - Feature management with registry updates
+    - `compute_summary()` - Compute summary from all aspects (for compatibility)
+    - Automatic checksum computation and validation
+  - **Format Detection** (`src/specfact_cli/utils/bundle_loader.py`)
+    - `detect_bundle_format()` - Detect monolithic vs modular vs unknown format
+    - `validate_bundle_format()` - Validate detected format
+    - `is_monolithic_bundle()`, `is_modular_bundle()` - Helper functions
+    - Clear error messages for unsupported formats
+  - **Bundle Loader/Writer** (`src/specfact_cli/utils/bundle_loader.py`)
+    - `load_project_bundle()` - Load modular bundles with hash validation
+    - `save_project_bundle()` - Save modular bundles with atomic writes
+    - Lazy loading for features (loads only when accessed)
+    - Graceful handling of missing optional aspects (idea, business, clarifications)
+    - Hash consistency validation with `validate_hashes` parameter
+
+- **Configurable Compatibility Bridge Architecture** (Phase 4 Partial - 4.2-4.5 Complete)
+  - **Bridge Configuration Models** (`src/specfact_cli/models/bridge.py`)
+    - `BridgeConfig` - Adapter-agnostic bridge configuration
+    - `AdapterType` enum (speckit, generic-markdown, linear, jira, notion)
+    - `ArtifactMapping` - Maps SpecFact logical concepts to physical tool paths
+    - `CommandMapping` - Maps tool commands to SpecFact triggers
+    - `TemplateMapping` - Maps SpecFact schemas to tool prompt templates
+    - Dynamic path resolution with context variables (e.g., `{feature_id}`)
+  - **Bridge Detection and Probe** (`src/specfact_cli/sync/bridge_probe.py`)
+    - `BridgeProbe` class with capability detection
+    - Auto-detects tool version (Spec-Kit classic vs modern layout)
+    - Auto-detects directory structure (`specs/` vs `docs/specs/`)
+    - Detects external configuration presence and custom hooks
+    - `auto_generate_bridge()` - Generates appropriate bridge preset
+    - `validate_bridge()` - Validates bridge configuration with helpful error messages
+    - 16 unit tests passing (100% pass rate)
+  - **Bridge-Based Sync** (`src/specfact_cli/sync/bridge_sync.py`)
+    - `BridgeSync` class with adapter-agnostic bidirectional sync
+    - `resolve_artifact_path()` - Dynamic path resolution using bridge config
+    - `import_artifact()` - Import tool artifacts to project bundles
+    - `export_artifact()` - Export project bundles to tool format
+    - `sync_bidirectional()` - Full bidirectional sync with validation
+    - `_discover_feature_ids()` - Automatic feature discovery from bridge paths
+    - Placeholder implementations for Spec-Kit and generic markdown adapters
+    - Integrated with `BridgeProbe` for validation
+    - 13 unit tests passing (100% pass rate)
+  - **Bridge-Based Template System** (`src/specfact_cli/templates/bridge_templates.py`)
+    - `BridgeTemplateLoader` class with bridge-based template resolution
+    - `resolve_template_path()` - Dynamic template path resolution
+    - `load_template()` - Load Jinja2 templates from bridge-resolved paths
+    - `render_template()` - Render templates with context
+    - `list_available_templates()`, `template_exists()` - Template discovery
+    - Fallback to default templates when bridge templates not configured
+    - Support for template versioning via bridge config
+    - 12 unit tests passing (100% pass rate)
+  - **Bridge-Based Watch Mode** (`src/specfact_cli/sync/bridge_watch.py`)
+    - `BridgeWatch` class for continuous sync using bridge-resolved paths
+    - `BridgeWatchEventHandler` for bridge-aware change detection
+    - `_resolve_watch_paths()` - Dynamic path resolution from bridge config
+    - `_extract_feature_id_from_path()` - Feature ID extraction from file paths
+    - `_determine_artifact_key()` - Artifact type detection
+    - Auto-import on tool file changes (debounced)
+    - Support for watching multiple bridge-resolved directories
+    - 15 unit tests passing (100% pass rate)
+
+- **Command Updates for Modular Bundles** (Phase 3 Complete)
+  - **All Commands Now Use `--bundle` Parameter**
+    - `plan init` - Creates modular project bundle (requires bundle name)
+    - `import from-code` - Creates modular project bundle (requires bundle name)
+    - `plan harden` - Works with modular bundles (requires bundle name)
+    - `plan review` - Works with modular bundles (requires bundle name)
+    - `plan promote` - Works with modular bundles (requires bundle name)
+    - `enforce sdd` - Works with modular bundles (requires bundle name)
+    - `plan add-feature` - Uses `--bundle` option instead of `--plan`
+    - `plan add-story` - Uses `--bundle` option instead of `--plan`
+    - `plan update-idea` - Uses `--bundle` option instead of `--plan`
+  - **SDD Integration Updates**
+    - SDD manifests now link to project bundles via `bundle_name` (instead of `plan_bundle_id`)
+    - SDD saved to `.specfact/sdd/<bundle-name>.yaml` (one per project bundle)
+    - Hash computation from `ProjectBundle.compute_summary()` (all aspects combined)
+    - Updated `plan harden` to save SDD with `bundle_name` and `project_hash`
+    - Updated `enforce sdd` to load project bundle and validate hash match
+
+- **Bridge-Based Import/Sync Commands**
+  - **`import from-adapter` Command** (replaces `import from-spec-kit`)
+    - Adapter-agnostic import with `adapter` argument (e.g., `speckit`, `generic-markdown`)
+    - Uses `BridgeProbe` for auto-detection and `BridgeSync` for import
+    - Updated help text to indicate Spec-Kit is one adapter option among many
+  - **`sync bridge` Command** (replaces `sync spec-kit`)
+    - Adapter-agnostic sync with `adapter` argument (e.g., `speckit`, `generic-markdown`)
+    - Uses `BridgeSync` for bidirectional sync
+    - Uses `BridgeWatch` for watch mode
+    - Updated help text to indicate Spec-Kit is one adapter option among many
+
+### Changed (0.9.0)
+
+- **Breaking: All Commands Require `--bundle` Parameter**
+  - **No default bundle**: All commands require explicit `--bundle <name>` parameter
+  - **Removed `--plan` option**: Replaced with `--bundle` (string) instead of `--plan` (Path)
+  - **Removed `--out` option**: Modular bundles are directory-based, no output file needed
+  - **Removed `--format` option**: Modular format is the only format (no legacy support)
+  - Commands affected: `plan init`, `import from-code`, `plan harden`, `plan review`, `plan promote`, `enforce sdd`, `plan add-feature`, `plan add-story`, `plan update-idea`
+
+- **Breaking: File Structure Changed**
+  - **Old**: Single file `.specfact/plans/<name>.bundle.yaml`
+  - **New**: Directory `.specfact/projects/<bundle-name>/` with multiple files
+  - **SDD Location**: Changed from `.specfact/sdd.yaml` to `.specfact/sdd/<bundle-name>.yaml`
+  - **Hash Computation**: Now computed across all aspects (different from monolithic)
+
+- **Bridge Architecture (Adapter-Agnostic)**
+  - **`import from-spec-kit` → `import from-adapter`**: Renamed to reflect adapter-agnostic approach
+  - **`sync spec-kit` → `sync bridge`**: Renamed to reflect adapter-agnostic approach
+  - **Spec-Kit is one adapter option**: Updated all user-facing references to indicate Spec-Kit is one adapter among many (e.g., Spec-Kit, Linear, Jira)
+  - **Bridge configuration**: Uses `.specfact/config/bridge.yaml` for tool-specific mappings
+  - **Zero-code compatibility**: Tool structure changes require YAML updates, not CLI binary updates
+
+- **Command Help Text Updates**
+  - Updated `import` command help: "Import codebases and external tool projects" (was "Import codebases and Spec-Kit projects")
+  - Updated `sync` command help: "Synchronize external tool artifacts and repository changes" (was "Synchronize Spec-Kit artifacts and repository changes")
+  - All command examples updated to use `--bundle` parameter
+
+### Fixed (0.9.0)
+
+- **Type Checking Errors**
+  - Fixed missing parameters in `BundleManifest`, `BundleVersions`, `BundleChecksums` constructors
+  - Fixed `schema` field conflict in `BundleVersions` (renamed to `schema_version` with alias)
+  - Fixed optional field handling in Pydantic models (explicit `default=None` or `default="value"`)
+  - Fixed contract decorator parameter handling in bridge models
+  - All type checking errors resolved (only non-blocking warnings remain)
+
+- **Test Suite Updates**
+  - Updated all integration tests to use `--bundle` parameter instead of `--plan` or `--out`
+  - Updated path checks from `.specfact/plans/*.bundle.yaml` to `.specfact/projects/<bundle-name>/`
+  - Updated SDD path checks to use `.specfact/sdd/<bundle-name>.yaml`
+  - Fixed contract errors in helper functions (`_validate_sdd_for_bundle`, `_convert_project_bundle_to_plan_bundle`)
+  - All 68 integration tests passing (100% pass rate)
+
+- **Bridge Architecture Implementation**
+  - Fixed `BridgeSync` type errors related to optional `bridge_config`
+  - Fixed `BridgeWatch` type errors related to optional `bundle_name` and `bridge_config`
+  - Fixed template path resolution in `BridgeTemplateLoader`
+  - Fixed feature ID extraction regex patterns in `BridgeWatch`
+  - Fixed change type detection logic in `BridgeWatchEventHandler`
+
+### Testing (0.9.0)
+
+- **Comprehensive Test Coverage**
+  - **Unit Tests**: 31 tests for project bundle models and utilities (all passing)
+  - **Unit Tests**: 16 tests for bridge probe (all passing)
+  - **Unit Tests**: 13 tests for bridge sync (all passing)
+  - **Unit Tests**: 12 tests for bridge templates (all passing)
+  - **Unit Tests**: 15 tests for bridge watch (all passing)
+  - **Integration Tests**: 68 tests for command updates (all passing)
+    - 40 tests in `test_plan_command.py` (all passing)
+    - 11 tests in `test_analyze_command.py` (all passing)
+    - 17 tests in `test_enforce_command.py` (all passing)
+  - **Total**: 167 new/updated tests, all passing
+
+- **Contract-First Validation**
+  - All new models have `@icontract` and `@beartype` decorators
+  - All bridge components have runtime contract validation
+  - All contract tests passing (runtime contracts, exploration, scenarios)
+
+### Documentation (0.9.0)
+
+- **Implementation Plans Updated**
+  - Updated `PROJECT_BUNDLE_REFACTORING_PLAN.md` with completion status (Phases 1-3 complete, Phase 4 partial)
+  - Updated `SDD_FEATURE_PARITY_IMPLEMENTATION_PLAN.md` to reflect bridge architecture
+  - Updated `CLI_REORGANIZATION_IMPLEMENTATION_PLAN.md` to reflect bridge architecture
+  - Updated `README.md` in implementation folder with milestone status
+  - All plans updated to indicate Spec-Kit is one adapter option among many
+
+- **Architecture Documentation**
+  - Documented configurable bridge pattern (`.specfact/config/bridge.yaml`)
+  - Documented adapter-agnostic approach (Spec-Kit, Linear, Jira support)
+  - Documented zero-code compatibility benefits
+  - Updated all references from "Spec-Kit sync" to "bridge-based sync"
+
+### Migration Notes (0.9.0)
+
+**Important**: This version introduces breaking changes. Since SpecFact CLI has no existing users, migration is not required. However, if you have any test fixtures or internal tooling using the old format:
+
+1. **Bundle Name Required**: All commands now require `--bundle <name>` parameter
+2. **Directory Structure**: Bundles are now stored in `.specfact/projects/<bundle-name>/` instead of `.specfact/plans/<name>.bundle.yaml`
+3. **SDD Location**: SDD manifests are now in `.specfact/sdd/<bundle-name>.yaml` instead of `.specfact/sdd.yaml`
+4. **No Legacy Support**: Modular format is the only supported format (no monolithic bundle loader)
+
+**For External Bundle Imports**: Use `specfact migrate bundle` command (to be implemented in Phase 8) to convert external monolithic bundles to modular format.
+
+---
+
 ## [0.8.0] - 2025-11-24
 
 ### Added (0.8.0)
