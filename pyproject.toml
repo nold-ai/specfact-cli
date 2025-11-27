@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.9.2"
+version = "0.10.0"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -94,6 +94,12 @@ dev = [
 scanning = [
     "semgrep>=1.141.1",  # Optional: Only needed for code scanning features
 ]
+
+# Note: Specmatic integration (specfact spec commands) requires the Specmatic CLI tool
+# to be installed separately. Specmatic is a Java-based CLI tool, not a Python package.
+# Install from: https://docs.specmatic.io/
+# The specfact spec commands will check for Specmatic availability and provide
+# helpful error messages if it's not found.
 
 # Add other optional dependency groups from your original if they existed and are still needed (e.g., server, client, devtools, full from tpl)
 

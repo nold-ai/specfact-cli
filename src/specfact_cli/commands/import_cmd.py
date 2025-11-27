@@ -603,6 +603,47 @@ def from_code(
             console.print("[bold green]✓ Import complete![/bold green]")
             console.print(f"[dim]Project bundle written to: {bundle_dir}[/dim]")
 
+            # Auto-detect and validate OpenAPI/AsyncAPI specs with Specmatic
+            import asyncio
+
+            spec_files = []
+            for pattern in [
+                "**/openapi.yaml",
+                "**/openapi.yml",
+                "**/openapi.json",
+                "**/asyncapi.yaml",
+                "**/asyncapi.yml",
+                "**/asyncapi.json",
+            ]:
+                spec_files.extend(repo.glob(pattern))
+
+            if spec_files:
+                console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+                from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+                is_available, error_msg = check_specmatic_available()
+                if is_available:
+                    for spec_file in spec_files[:3]:  # Validate up to 3 specs
+                        console.print(f"[dim]Validating {spec_file.relative_to(repo)} with Specmatic...[/dim]")
+                        try:
+                            result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                            if result.is_valid:
+                                console.print(f"  [green]✓[/green] {spec_file.name} is valid")
+                            else:
+                                console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
+                                if result.errors:
+                                    for error in result.errors[:2]:  # Show first 2 errors
+                                        console.print(f"    - {error}")
+                        except Exception as e:
+                            console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+                    if len(spec_files) > 3:
+                        console.print(
+                            f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                        )
+                    console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
+                else:
+                    console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+
             # Suggest constitution bootstrap for brownfield imports
             specify_dir = repo / ".specify" / "memory"
             constitution_path = specify_dir / "constitution.md"
@@ -651,7 +692,7 @@ def from_code(
                         # Non-interactive mode: skip prompt
                         console.print()
                         console.print(
-                            "[dim]💡 Tip: Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]"
+                            "[dim]💡 Tip: Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
                         )
 
             # Enrich for tool compliance if requested

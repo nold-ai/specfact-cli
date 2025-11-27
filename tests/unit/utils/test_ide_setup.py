@@ -151,9 +151,7 @@ class TestCopyTemplatesToIDE:
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact.01-import.md").write_text(
-            "---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS"
-        )
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
 
         # Copy templates
         copied_files, settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=True)
@@ -176,9 +174,7 @@ class TestCopyTemplatesToIDE:
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact.01-import.md").write_text(
-            "---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS"
-        )
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
 
         # Copy templates
         copied_files, settings_path = copy_templates_to_ide(tmp_path, "vscode", templates_dir, force=True)
@@ -201,9 +197,7 @@ class TestCopyTemplatesToIDE:
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact.01-import.md").write_text(
-            "---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS"
-        )
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
 
         # Pre-create file
         cursor_dir = tmp_path / ".cursor" / "commands"

@@ -53,7 +53,7 @@ from rich.panel import Panel
 from specfact_cli import __version__, runtime
 
 # Import command modules
-from specfact_cli.commands import constitution, enforce, generate, import_cmd, init, plan, repro, sync
+from specfact_cli.commands import bridge, enforce, generate, import_cmd, init, plan, repro, spec, sync
 from specfact_cli.modes import OperationalMode, detect_mode
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -261,10 +261,17 @@ def main(
     else:
         runtime.set_non_interactive_override(None)
 
-    # Show help if no command provided (avoids user confusion)
+    # Show welcome message if no command provided
     if ctx.invoked_subcommand is None:
-        # Show help by calling Typer's help callback
-        ctx.get_help()
+        console.print(
+            Panel.fit(
+                "[bold green]✓[/bold green] SpecFact CLI is installed and working!\n\n"
+                f"Version: [cyan]{__version__}[/cyan]\n"
+                "Run [bold]specfact --help[/bold] for available commands.",
+                title="[bold]Welcome to SpecFact CLI[/bold]",
+                border_style="green",
+            )
+        )
         raise typer.Exit()
 
     # Store mode in context for commands to access
@@ -273,37 +280,39 @@ def main(
     ctx.obj["mode"] = get_current_mode()
 
 
-@app.command()
-def hello() -> None:
-    """
-    Test command to verify CLI installation.
-    """
-    console.print(
-        Panel.fit(
-            "[bold green]✓[/bold green] SpecFact CLI is installed and working!\n\n"
-            f"Version: [cyan]{__version__}[/cyan]\n"
-            "Run [bold]specfact --help[/bold] for available commands.",
-            title="[bold]Welcome to SpecFact CLI[/bold]",
-            border_style="green",
-        )
-    )
+# Register command groups in logical workflow order
+# 1. Setup & Initialization
+app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integration")
 
-
-# Register command groups
-app.add_typer(
-    constitution.app,
-    name="constitution",
-    help="Manage project constitutions (Spec-Kit compatibility layer)",
-)
+# 2. Import & Analysis
 app.add_typer(
     import_cmd.app, name="import", help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira)"
 )
+
+# 3. Planning
 app.add_typer(plan.app, name="plan", help="Manage development plans")
+
+# 4. Code Generation
 app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
+
+# 5. Quality Enforcement
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
+
+# 6. Validation
 app.add_typer(repro.app, name="repro", help="Run validation suite")
+
+# 7. API Contract Testing
+app.add_typer(spec.app, name="spec", help="Specmatic integration for API contract testing")
+
+# 8. Synchronization
 app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")
-app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integration")
+
+# 9. External Tool Integration
+app.add_typer(
+    bridge.bridge_app,
+    name="bridge",
+    help="Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.)",
+)
 
 
 def cli_main() -> None:
