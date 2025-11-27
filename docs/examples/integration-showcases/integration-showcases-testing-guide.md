@@ -69,7 +69,7 @@ Before starting, ensure you have:
 
    - **Open the demo repo directory as your IDE workspace** (e.g., `/tmp/specfact-integration-tests/example1_vscode`)
    - This ensures `--repo .` operates on the correct repository
-   - **Note**: Interactive mode automatically uses your IDE workspace. If you need to analyze a different repository, specify: `/specfact-import-from-code --repo /path/to/other/repo`
+   - **Note**: Interactive mode automatically uses your IDE workspace. If you need to analyze a different repository, specify: `/specfact.01-import legacy-api --repo /path/to/other/repo`
 
 5. **Test directory created**:
 
@@ -149,7 +149,7 @@ def process_payment(request):
 5. Open `views.py` in your IDE and use the slash command:
 
    ```text
-   /specfact-import-from-code
+   /specfact.01-import legacy-api --repo .
    ```
 
    **Interactive Flow**:
@@ -208,7 +208,7 @@ def process_payment(request):
    - ✅ Business context: Prioritize payment reliability, migrate blocking notifications to async
    - ✅ Confidence: 0.88 (adjusted from default)
 
-   **Note**: In interactive mode, `--repo .` is not required - it automatically uses your IDE workspace. If you need to analyze a different repository than your workspace, you can specify: `/specfact-import-from-code --repo /path/to/other/repo`
+   **Note**: In interactive mode, `--repo .` is not required - it automatically uses your IDE workspace. If you need to analyze a different repository than your workspace, you can specify: `/specfact.01-import legacy-api --repo /path/to/other/repo`
 
 ### Option B: CLI-only (For Integration Testing)
 
@@ -255,8 +255,8 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
    - **⚠️ Important**: Open the demo repo directory as your IDE workspace (e.g., `/tmp/specfact-integration-tests/example1_vscode`)
    - Interactive mode automatically uses your IDE workspace - no `--repo .` needed
    - Open the test file in your IDE
-   - Use slash command: `/specfact-import-from-code`
-   - The AI will prompt for a plan name - provide a meaningful name (e.g., "Payment Processing", "Data Pipeline")
+   - Use slash command: `/specfact.01-import legacy-api --repo .`
+   - Or let the AI prompt you for bundle name - provide a meaningful name (e.g., "legacy-api", "payment-service")
    - The command will automatically analyze your IDE workspace
    - If initial import shows "0 features", reply "Please enrich" to add semantic understanding
    - AI will create an enriched plan bundle with detected features and stories
@@ -571,12 +571,12 @@ def process_data(data: list[dict]) -> dict:
 **Recommended**: Use interactive AI assistant (slash command in IDE):
 
 ```text
-/specfact-import-from-code
+/specfact.01-import legacy-api --repo .
 ```
 
 **Interactive Flow**:
 
-- The AI assistant will prompt for a plan name
+- The AI assistant will prompt for bundle name if not provided
 - **Suggested plan name for Example 2**: `Data Processing` or `Legacy Data Pipeline`
 - Reply with the plan name (e.g., "Data Processing or Legacy Data Pipeline")
 - The AI will:
@@ -641,7 +641,7 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
 Use the slash command in your IDE:
 
 ```text
-/specfact-plan-review
+/specfact.03-review legacy-api
 ```
 
 **Interactive Flow**:
@@ -948,12 +948,12 @@ def get_user_stats(user_id: str) -> dict:
 **Recommended**: Use interactive AI assistant (slash command in IDE):
 
 ```text
-/specfact-import-from-code
+/specfact.01-import legacy-api --repo .
 ```
 
 **Interactive Flow**:
 
-- The AI assistant will prompt for a plan name
+- The AI assistant will prompt for bundle name if not provided
 - **Suggested plan name for Example 3**: `User Stats API` or `API Endpoints`
 - Reply with the plan name
 - The AI will create and enrich the plan bundle with detected features and stories
@@ -1111,12 +1111,12 @@ result = process_order(order_id="123")
 **Recommended**: Use interactive AI assistant (slash command in IDE):
 
 ```text
-/specfact-import-from-code
+/specfact.01-import legacy-api --repo .
 ```
 
 **Interactive Flow**:
 
-- The AI assistant will prompt for a plan name
+- The AI assistant will prompt for bundle name if not provided
 - **Suggested plan name for Example 4**: `Order Processing` or `Legacy Order System`
 - Reply with the plan name
 - The AI will create and enrich the plan bundle with detected features and stories

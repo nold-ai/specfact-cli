@@ -437,8 +437,12 @@ def add_feature(
     """
     Add a new feature to an existing project bundle.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --key, --title, --outcomes, --acceptance
+
+    **Examples:**
         specfact plan add-feature --key FEATURE-001 --title "User Auth" --outcomes "Secure login" --acceptance "Login works" --bundle legacy-api
+        specfact plan add-feature --key FEATURE-002 --title "Payment Processing" --bundle legacy-api
     """
 
     telemetry_metadata = {
@@ -564,8 +568,13 @@ def add_story(
     """
     Add a new story to a feature.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --feature, --key, --title, --acceptance, --story-points, --value-points
+    - **Behavior/Options**: --draft
+
+    **Examples:**
         specfact plan add-story --feature FEATURE-001 --key STORY-001 --title "Login API" --acceptance "API works" --story-points 5 --bundle legacy-api
+        specfact plan add-story --feature FEATURE-001 --key STORY-002 --title "Logout API" --bundle legacy-api --draft
     """
 
     telemetry_metadata = {
@@ -701,7 +710,10 @@ def update_idea(
     Note: The idea section is OPTIONAL - it provides business context and metadata,
     not technical implementation details. All parameters are optional.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --title, --narrative, --target-users, --value-hypothesis, --constraints
+
+    **Examples:**
         specfact plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt" --bundle legacy-api
         specfact plan update-idea --constraints "Python 3.11+, Maintain backward compatibility" --bundle legacy-api
     """
@@ -869,7 +881,11 @@ def update_feature(
 
     Supports both single feature updates and batch updates via --batch-updates file.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --key, --title, --outcomes, --acceptance, --constraints, --confidence, --batch-updates
+    - **Behavior/Options**: --draft/--no-draft
+
+    **Examples:**
         # Single feature update
         specfact plan update-feature --key FEATURE-001 --title "Updated Title" --outcomes "Outcome 1, Outcome 2" --bundle legacy-api
         specfact plan update-feature --key FEATURE-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9 --bundle legacy-api
@@ -1193,7 +1209,11 @@ def update_story(
 
     Supports both single story updates and batch updates via --batch-updates file.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --feature, --key, --title, --acceptance, --story-points, --value-points, --confidence, --batch-updates
+    - **Behavior/Options**: --draft/--no-draft
+
+    **Examples:**
         # Single story update
         specfact plan update-story --feature FEATURE-001 --key STORY-001 --title "Updated Title" --bundle legacy-api
         specfact plan update-story --feature FEATURE-001 --key STORY-001 --acceptance "Criterion 1, Criterion 2" --confidence 0.9 --bundle legacy-api
@@ -1558,9 +1578,15 @@ def compare(
     Use --code-vs-plan for convenience: automatically compares the latest
     code-derived plan against the manual plan.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --manual, --auto
+    - **Output/Results**: --output-format, --out
+    - **Behavior/Options**: --code-vs-plan
+
+    **Examples:**
         specfact plan compare --manual .specfact/plans/main.bundle.<format> --auto .specfact/plans/auto-derived-<timestamp>.bundle.<format>
         specfact plan compare --code-vs-plan  # Convenience alias
+        specfact plan compare --bundle legacy-api --output-format json
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
@@ -2475,9 +2501,14 @@ def promote(
 
     Stages: draft → review → approved → released
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --stage
+    - **Behavior/Options**: --validate/--no-validate, --force
+
+    **Examples:**
         specfact plan promote legacy-api --stage review
         specfact plan promote auth-module --stage approved --validate
+        specfact plan promote legacy-api --stage released --force
     """
     import os
     from datetime import datetime

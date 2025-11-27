@@ -723,9 +723,15 @@ def sync_bridge(
     - speckit: Spec-Kit projects (specs/, .specify/)
     - generic-markdown: Generic markdown-based specifications
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --repo, --bundle
+    - **Behavior/Options**: --bidirectional, --overwrite, --watch, --ensure-compliance
+    - **Advanced/Configuration**: --adapter, --interval
+
+    **Examples:**
         specfact sync bridge --adapter speckit --repo . --bidirectional
         specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
+        specfact sync bridge --repo . --watch --interval 10
     """
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe

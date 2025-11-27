@@ -148,7 +148,7 @@ uvx specfact-cli@latest import from-code my-project --repo .
 
 # Interactive mode (pip + specfact init - recommended)
 # After: pip install specfact-cli && specfact init
-# Then use slash commands in IDE: /specfact-import-from-code
+# Then use slash commands in IDE: /specfact.01-import legacy-api --repo .
 ```
 
 **Note**: Mode is auto-detected based on whether `specfact` command is available and IDE integration is set up.
@@ -181,16 +181,18 @@ cd /path/to/your/project
 specfact init
 # Or specify IDE: specfact init --ide cursor
 
-# Step 4: Use slash command in IDE chat (no --repo . needed)
-/specfact-plan-init
+# Step 4: Use slash command in IDE chat
+/specfact.02-plan init legacy-api
+# Or use other plan operations: /specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
 ```
 
 **Important**:
 
 - Interactive mode automatically uses your IDE workspace
-- Slash commands are hyphenated: `/specfact-plan-init` (not `/specfact plan init`)
-- No `--repo .` parameter needed in interactive mode
-- The AI assistant will prompt you for plan names and other inputs
+- Slash commands use numbered format: `/specfact.01-import`, `/specfact.02-plan`, etc.
+- Commands are numbered for natural workflow progression (01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync)
+- No `--repo .` parameter needed in interactive mode (uses workspace automatically)
+- The AI assistant will prompt you for bundle names and other inputs if not provided
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
 
@@ -258,16 +260,17 @@ cd /path/to/your/project
 specfact init
 # Or specify IDE: specfact init --ide cursor
 
-# Step 4: Use slash command in IDE chat (no --repo . needed)
-/specfact-import-from-code
-# The AI assistant will prompt you for plan name and other options
+# Step 4: Use slash command in IDE chat
+/specfact.01-import legacy-api --repo .
+# Or let the AI assistant prompt you for bundle name and other options
 ```
 
 **Important**:
 
-- Interactive mode automatically uses your IDE workspace (no `--repo .` needed)
-- Slash commands are hyphenated: `/specfact-import-from-code` (not `/specfact import from-code`)
-- The AI assistant will prompt you for plan names and confidence thresholds
+- Interactive mode automatically uses your IDE workspace (no `--repo .` needed in interactive mode)
+- Slash commands use numbered format: `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
+- Commands follow natural progression: 01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync
+- The AI assistant will prompt you for bundle names and confidence thresholds if not provided
 - Better feature detection than CLI-only mode (semantic understanding vs AST-only)
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
@@ -300,7 +303,7 @@ specfact sync repository --repo . --watch
 - **Progressive enforcement**: Start with `minimal`, move to `balanced`, then `strict`
 - **CLI-only vs Interactive**: Use `uvx` for quick testing, `pip install + specfact init` for better results
 - **IDE integration**: Use `specfact init` to set up slash commands in IDE (requires pip install)
-- **Slash commands**: Use hyphenated format `/specfact-import-from-code` (no spaces, no `--repo .`)
+- **Slash commands**: Use numbered format `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
 - **Bidirectional sync**: Use `sync bridge --adapter <adapter>` or `sync repository` for ongoing change management
 - **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact repro`

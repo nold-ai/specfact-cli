@@ -9,6 +9,52 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.10.1] - 2025-11-27
+
+### Changed (0.10.1)
+
+- **CLI Reorganization Complete** - Comprehensive CLI parameter standardization and reorganization
+  - **Parameter Standardization** (Phase 1 Complete)
+    - All commands now use consistent parameter names: `--repo`, `--out`, `--output-format`, `--no-interactive`, `--bundle`
+    - Parameter standard document created: `docs/reference/parameter-standard.md`
+    - Deprecated parameter names show warnings (3-month transition period)
+  - **Parameter Grouping** (Phase 2 Complete)
+    - All commands organized with logical parameter groups: Target/Input → Output/Results → Behavior/Options → Advanced/Configuration
+    - Help text updated with parameter group documentation in all command docstrings
+    - Improved discoverability and organization of CLI parameters
+  - **Slash Command Reorganization** (Phase 3 Complete)
+    - Reduced from 13 to 8 slash commands with numbered workflow ordering
+    - New commands: `/specfact.01-import`, `/specfact.02-plan`, `/specfact.03-review`, `/specfact.04-sdd`, `/specfact.05-enforce`, `/specfact.06-sync`, `/specfact.compare`, `/specfact.validate`
+    - Shared CLI enforcement rules in `resources/prompts/shared/cli-enforcement.md`
+    - All templates follow consistent structure (150-200 lines, down from 600+)
+  - **Bundle Parameter Integration**
+    - All commands now require `--bundle` parameter (no default)
+    - Path resolution uses bundle name: `.specfact/projects/<bundle-name>/`
+    - Clear error messages when bundle not found with suggestions
+
+### Documentation (0.10.1)
+
+- **Comprehensive Documentation Updates** (Phase 4 Complete)
+  - All command reference documentation updated with new parameter structure
+  - All user guides updated: workflows, brownfield guides, troubleshooting, etc.
+  - Migration guide expanded: `docs/guides/migration-cli-reorganization.md`
+    - Parameter name changes (old → new)
+    - Slash command changes (13 → 8 commands)
+    - Bundle parameter addition
+    - Workflow ordering explanation
+    - CI/CD and script update examples
+  - All examples use consistent `--bundle legacy-api` format
+  - All examples use standardized parameter names
+
+### Fixed (0.10.1)
+
+- **Documentation Consistency**
+  - Fixed all command examples to use `--bundle` parameter instead of positional arguments
+  - Fixed parameter name inconsistencies across all documentation
+  - Updated all slash command references to new numbered format
+
+---
+
 ## [0.10.0] - 2025-11-27
 
 ### Added (0.10.0)

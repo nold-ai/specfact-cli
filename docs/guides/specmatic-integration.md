@@ -141,7 +141,7 @@ Specmatic validation is automatically integrated into:
 When importing code, SpecFact auto-detects and validates OpenAPI/AsyncAPI specs:
 
 ```bash
-specfact import from-code my-project --repo .
+specfact import from-code --bundle legacy-api --repo .
 # Automatically validates any openapi.yaml or asyncapi.yaml files found
 ```
 
@@ -150,7 +150,7 @@ specfact import from-code my-project --repo .
 SDD enforcement includes Specmatic validation:
 
 ```bash
-specfact enforce sdd my-bundle
+specfact enforce sdd legacy-api
 # Validates API specifications as part of enforcement checks
 ```
 
@@ -205,7 +205,7 @@ SpecFact calls Specmatic via subprocess:
 
 ```bash
 # Project has openapi.yaml
-specfact import from-code api-service --repo .
+specfact import from-code --bundle api-service --repo .
 
 # Output:
 # ✓ Import complete!

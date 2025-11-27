@@ -437,11 +437,14 @@ When you run `specfact init`, prompt templates are copied to IDE-specific locati
 ```bash
 .cursor/
 └── commands/
-    ├── specfact-import-from-code.md
-    ├── specfact-plan-init.md
-    ├── specfact-plan-promote.md
-    ├── specfact-plan-compare.md
-    └── specfact-sync.md
+    ├── specfact.01-import.md
+    ├── specfact.02-plan.md
+    ├── specfact.03-review.md
+    ├── specfact.04-sdd.md
+    ├── specfact.05-enforce.md
+    ├── specfact.06-sync.md
+    ├── specfact.compare.md
+    └── specfact.validate.md
 ```
 
 ### Example Structure (VS Code / Copilot)
@@ -449,11 +452,14 @@ When you run `specfact init`, prompt templates are copied to IDE-specific locati
 ```bash
 .github/
 └── prompts/
-    ├── specfact-import-from-code.prompt.md
-    ├── specfact-plan-init.prompt.md
-    ├── specfact-plan-promote.prompt.md
-    ├── specfact-plan-compare.prompt.md
-    └── specfact-sync.prompt.md
+    ├── specfact.01-import.prompt.md
+    ├── specfact.02-plan.prompt.md
+    ├── specfact.03-review.prompt.md
+    ├── specfact.04-sdd.prompt.md
+    ├── specfact.05-enforce.prompt.md
+    ├── specfact.06-sync.prompt.md
+    ├── specfact.compare.prompt.md
+    └── specfact.validate.prompt.md
 .vscode/
 └── settings.json  # Updated with promptFilesRecommendations
 ```
@@ -480,11 +486,16 @@ The SpecFact CLI package includes prompt templates that are copied to IDE locati
 specfact-cli/
 └── resources/
     └── prompts/              # Prompt templates (in package)
-        ├── specfact-import-from-code.md
-        ├── specfact-plan-init.md
-        ├── specfact-plan-promote.md
-        ├── specfact-plan-compare.md
-        └── specfact-sync.md
+        ├── specfact.01-import.md
+        ├── specfact.02-plan.md
+        ├── specfact.03-review.md
+        ├── specfact.04-sdd.md
+        ├── specfact.05-enforce.md
+        ├── specfact.06-sync.md
+        ├── specfact.compare.md
+        ├── specfact.validate.md
+        └── shared/
+            └── cli-enforcement.md
 ```
 
 **These templates are:**

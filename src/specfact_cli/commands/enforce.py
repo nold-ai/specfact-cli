@@ -46,8 +46,13 @@ def stage(
     - balanced: Block HIGH severity, warn MEDIUM
     - strict:   Block all MEDIUM+ violations
 
-    Example:
+    **Parameter Groups:**
+    - **Advanced/Configuration**: --preset
+
+    **Examples:**
         specfact enforce stage --preset balanced
+        specfact enforce stage --preset strict
+        specfact enforce stage --preset minimal
     """
     telemetry_metadata = {
         "preset": preset.lower(),

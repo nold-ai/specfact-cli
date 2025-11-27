@@ -19,21 +19,21 @@ Reverse engineer existing code and enforce contracts incrementally.
 
 ```bash
 # Full repository analysis
-specfact import from-code my-project --repo .
+specfact import from-code --bundle legacy-api --repo .
 
 # For large codebases, analyze specific modules:
-specfact import from-code core-module --repo . --entry-point src/core
-specfact import from-code api-module --repo . --entry-point src/api
+specfact import from-code --bundle core-module --repo . --entry-point src/core
+specfact import from-code --bundle api-module --repo . --entry-point src/api
 ```
 
 ### Step 2: Review Extracted Specs
 
 ```bash
 # Review bundle to understand extracted specs
-specfact plan review my-project
+specfact plan review --bundle legacy-api
 
 # Or get structured findings for analysis
-specfact plan review my-project --list-findings --findings-format json
+specfact plan review --bundle legacy-api --list-findings --findings-format json
 ```
 
 **Note**: Use CLI commands to interact with bundles. The bundle structure (`.specfact/projects/<bundle-name>/`) is managed by SpecFact CLI - use commands like `plan review`, `plan add-feature`, `plan update-feature` to modify bundles, not direct file editing.
@@ -53,13 +53,13 @@ For large codebases or monorepos with multiple projects, use `--entry-point` to 
 
 ```bash
 # Analyze individual projects in a monorepo
-specfact import from-code api-service --repo . --entry-point projects/api-service
-specfact import from-code web-app --repo . --entry-point projects/web-app
-specfact import from-code mobile-app --repo . --entry-point projects/mobile-app
+specfact import from-code --bundle api-service --repo . --entry-point projects/api-service
+specfact import from-code --bundle web-app --repo . --entry-point projects/web-app
+specfact import from-code --bundle mobile-app --repo . --entry-point projects/mobile-app
 
 # Analyze specific modules for incremental modernization
-specfact import from-code core-module --repo . --entry-point src/core
-specfact import from-code integrations-module --repo . --entry-point src/integrations
+specfact import from-code --bundle core-module --repo . --entry-point src/core
+specfact import from-code --bundle integrations-module --repo . --entry-point src/integrations
 ```
 
 **Benefits:**
@@ -281,7 +281,7 @@ Compare manual plans vs auto-derived plans to detect deviations.
 ### Quick Comparison
 
 ```bash
-specfact plan compare --repo .
+specfact plan compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -322,7 +322,7 @@ specfact plan compare \
 ### Code vs Plan Comparison
 
 ```bash
-specfact plan compare --code-vs-plan --repo .
+specfact plan compare --bundle legacy-api --code-vs-plan
 ```
 
 **What it does**:
@@ -350,7 +350,7 @@ Typical workflow for daily development.
 specfact repro --verbose
 
 # Compare plans
-specfact plan compare --repo .
+specfact plan compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -379,7 +379,7 @@ specfact sync repository --repo . --watch --interval 5
 specfact repro
 
 # Compare plans
-specfact plan compare --repo .
+specfact plan compare --bundle legacy-api
 ```
 
 **What it does**:

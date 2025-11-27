@@ -120,7 +120,7 @@ def process_data(data: list[dict]) -> dict:
 
 1. Install SpecFact CLI: `pip install specfact-cli`
 2. Initialize SpecFact in your project: `specfact init`
-3. Use the slash command in Cursor: `/specfact-plan-review`
+3. Use the slash command in Cursor: `/specfact.03-review legacy-api`
 
 **What This Does**: When Cursor suggests code changes, SpecFact checks if they break existing contracts or introduce regressions.
 
@@ -506,7 +506,7 @@ specfact --no-banner enforce stage --preset balanced
 
 1. Install SpecFact: `pip install specfact-cli`
 2. Initialize: `specfact init` (creates slash commands for your IDE)
-3. Use slash commands like `/specfact-plan-review` in Cursor or GitHub Copilot
+3. Use slash commands like `/specfact.03-review legacy-api` in Cursor or GitHub Copilot
 
 **Benefits**:
 

@@ -133,9 +133,16 @@ def from_bridge(
     - speckit: Spec-Kit projects (specs/, .specify/)
     - generic-markdown: Generic markdown-based specifications
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --repo
+    - **Output/Results**: --report, --out-branch
+    - **Behavior/Options**: --dry-run, --write, --force
+    - **Advanced/Configuration**: --adapter
+
+    **Examples:**
         specfact import from-bridge --repo ./my-project --adapter speckit --write
         specfact import from-bridge --repo ./my-project --write  # Auto-detect adapter
+        specfact import from-bridge --repo ./my-project --dry-run  # Preview changes
     """
     from specfact_cli.sync.bridge_probe import BridgeProbe
     from specfact_cli.utils.structure import SpecFactStructure

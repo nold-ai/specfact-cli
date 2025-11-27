@@ -53,7 +53,7 @@ specfact init
 
 - **Open the demo repo in your IDE** as the workspace root (e.g., `/tmp/specfact-integration-tests/example1_vscode`)
 - Interactive mode automatically uses your IDE workspace - no `--repo .` parameter needed
-- **OR** if you need to analyze a different repository: `/specfact-import-from-code --repo /path/to/other/repo`
+- **OR** if you need to analyze a different repository: `/specfact.01-import legacy-api --repo /path/to/other/repo`
 
 ---
 
@@ -66,8 +66,8 @@ cd /tmp/specfact-integration-tests/example1_vscode
 
 # Step 1: Import code to create plan
 # Recommended: Use interactive AI assistant (slash command in IDE)
-# /specfact-import-from-code
-# (Interactive mode automatically uses IDE workspace - no --repo . needed)
+# /specfact.01-import legacy-api --repo .
+# (Interactive mode automatically uses IDE workspace - --repo . optional)
 # The AI will prompt for a plan name - suggest: "Payment Processing"
 
 # Alternative: CLI-only mode (bundle name as positional argument)

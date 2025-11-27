@@ -83,9 +83,9 @@ specfact --mode copilot import from-code my-project --repo .
 # IDE integration (slash commands)
 # First, initialize: specfact init --ide cursor
 # Then use in IDE chat:
-/specfact-import-from-code my-project --repo . --confidence 0.7
-/specfact-plan-init my-project --idea idea.yaml
-/specfact-sync --adapter speckit --bundle my-project --repo . --bidirectional
+/specfact.01-import legacy-api --repo . --confidence 0.7
+/specfact.02-plan init legacy-api
+/specfact.06-sync --adapter speckit --repo . --bidirectional
 ```
 
 ### Mode Detection
@@ -115,19 +115,19 @@ Each command uses specialized agent mode routing:
 
 ```python
 # Analyze agent mode
-/specfact-import-from-code my-project --repo . --confidence 0.7
+/specfact.01-import legacy-api --repo . --confidence 0.7
 # → Enhanced prompts for code understanding
 # → Context injection (current file, selection, workspace)
 # → Interactive assistance for complex codebases
 
 # Plan agent mode
-/specfact-plan-init my-project --idea idea.yaml
+/specfact.02-plan init legacy-api
 # → Guided wizard mode
 # → Natural language prompts
 # → Context-aware feature extraction
 
 # Sync agent mode
-/specfact-sync --adapter speckit --bundle my-project --repo . --bidirectional
+/specfact.06-sync --adapter speckit --repo . --bidirectional
 # → Automatic source detection via bridge adapter
 # → Conflict resolution assistance
 # → Change explanation and preview

@@ -42,8 +42,8 @@ cd /path/to/your/project
 specfact init
 
 # Step 4: Use slash command in IDE chat
-/specfact-import-from-code
-# The AI assistant will prompt you for bundle name
+/specfact.01-import legacy-api --repo .
+# Or let the AI assistant prompt you for bundle name
 ```
 
 **What happens**:

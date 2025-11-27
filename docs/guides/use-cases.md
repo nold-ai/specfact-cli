@@ -50,7 +50,7 @@ specfact --mode copilot import from-code \
 specfact init --ide cursor
 
 # Then use slash command in IDE chat
-/specfact-import-from-code --repo . --confidence 0.7
+/specfact.01-import legacy-api --repo . --confidence 0.7
 ```
 
 See [IDE Integration Guide](ide-integration.md) for setup instructions. See [Integration Showcases](../examples/integration-showcases/) for real examples of bugs fixed via IDE integrations.
@@ -124,7 +124,8 @@ specfact plan compare \
 
 ```bash
 # Use slash command in IDE chat (after specfact init)
-/specfact-plan-compare --manual main.bundle.yaml --auto auto.bundle.yaml
+/specfact.compare --bundle legacy-api
+# Or with explicit paths: /specfact.compare --manual main.bundle.yaml --auto auto.bundle.yaml
 ```
 
 **CoPilot Enhancement:**
@@ -338,7 +339,8 @@ specfact --mode copilot plan init --interactive
 
 ```bash
 # Use slash command in IDE chat (after specfact init)
-/specfact-plan-init --idea idea.yaml
+/specfact.02-plan init legacy-api
+# Or update idea: /specfact.02-plan update-idea --bundle legacy-api --title "My Project"
 ```
 
 **Interactive prompts:**

@@ -8,19 +8,19 @@ Complete reference for all SpecFact CLI commands.
 
 ```bash
 # PRIMARY: Import from existing code (brownfield modernization)
-specfact import from-code --repo . my-project
+specfact import from-code --bundle legacy-api --repo .
 
 # SECONDARY: Import from external tools (Spec-Kit, Linear, Jira, etc.)
 specfact import from-bridge --repo . --adapter speckit --write
 
 # Initialize plan (alternative: greenfield workflow)
-specfact plan init my-project --interactive
+specfact plan init --bundle legacy-api --interactive
 
 # Compare plans
-specfact plan compare --repo .
+specfact plan compare --bundle legacy-api
 
 # Sync with external tools (bidirectional) - Secondary use case
-specfact sync bridge --adapter speckit --bundle my-project --bidirectional --watch
+specfact sync bridge --adapter speckit --bundle legacy-api --bidirectional --watch
 
 # Validate everything
 specfact repro --verbose
@@ -41,11 +41,11 @@ specfact repro --verbose
 
 **Plan Management:**
 
-- `plan init <bundle-name>` - Initialize new project bundle
+- `plan init --bundle <bundle-name>` - Initialize new project bundle
 - `plan add-feature --bundle <bundle-name>` - Add feature to bundle
 - `plan add-story --bundle <bundle-name>` - Add story to feature
 - `plan update-feature --bundle <bundle-name>` - Update existing feature metadata
-- `plan review <bundle-name>` - Review plan bundle to resolve ambiguities
+- `plan review --bundle <bundle-name>` - Review plan bundle to resolve ambiguities
 - `plan select` - Select active plan from available bundles
 - `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
@@ -135,13 +135,13 @@ specfact --no-banner <command>
 
 ```bash
 # Auto-detect mode (default)
-specfact import from-code --repo .
+specfact import from-code --bundle legacy-api --repo .
 
 # Force CI/CD mode
-specfact --mode cicd import from-code --repo .
+specfact --mode cicd import from-code --bundle legacy-api --repo .
 
 # Force CoPilot mode
-specfact --mode copilot import from-code --repo .
+specfact --mode copilot import from-code --bundle legacy-api --repo .
 ```
 
 ## Commands
@@ -245,20 +245,20 @@ specfact import from-code [OPTIONS]
 
 ```bash
 # Full repository analysis
-specfact import from-code my-project \
+specfact import from-code --bundle legacy-api \
   --repo ./my-project \
   --confidence 0.7 \
   --shadow-only \
   --report reports/analysis.md
 
 # Partial analysis (analyze only specific subdirectory)
-specfact import from-code core-module \
+specfact import from-code --bundle core-module \
   --repo ./my-project \
   --entry-point src/core \
   --confidence 0.7
 
 # Multi-project codebase (analyze one project at a time)
-specfact import from-code api-service-plan \
+specfact import from-code --bundle api-service \
   --repo ./monorepo \
   --entry-point projects/api-service
 ```
@@ -317,13 +317,13 @@ specfact plan init [OPTIONS]
 
 ```bash
 # Interactive mode (recommended for manual plan creation)
-specfact plan init --interactive
+specfact plan init --bundle legacy-api --interactive
 
-# Non-interactive mode (CI/CD automation, bundle name as positional argument)
-specfact plan init main --no-interactive
+# Non-interactive mode (CI/CD automation)
+specfact plan init --bundle legacy-api --no-interactive
 
-# Interactive mode (bundle name as positional argument)
-specfact plan init feature-auth --interactive
+# Interactive mode with different bundle
+specfact plan init --bundle feature-auth --interactive
 ```
 
 #### `plan add-feature`
@@ -346,6 +346,7 @@ specfact plan add-feature [OPTIONS]
 
 ```bash
 specfact plan add-feature \
+  --bundle legacy-api \
   --key FEATURE-001 \
   --title "Spec-Kit Import" \
   --outcomes "Zero manual conversion" \
@@ -375,6 +376,7 @@ specfact plan add-story [OPTIONS]
 
 ```bash
 specfact plan add-story \
+  --bundle legacy-api \
   --feature FEATURE-001 \
   --key STORY-001 \
   --title "Parse Spec-Kit artifacts" \
@@ -428,19 +430,21 @@ specfact plan update-feature [OPTIONS]
 ```bash
 # Single feature update
 specfact plan update-feature \
+  --bundle legacy-api \
   --key FEATURE-001 \
   --title "Updated Feature Title" \
   --outcomes "Outcome 1, Outcome 2"
 
 # Update acceptance criteria and confidence
 specfact plan update-feature \
+  --bundle legacy-api \
   --key FEATURE-001 \
   --acceptance "Criterion 1, Criterion 2" \
   --confidence 0.9
 
 # Batch updates from file (preferred for multiple features)
 specfact plan update-feature \
-  --bundle main \
+  --bundle legacy-api \
   --batch-updates updates.json
 
 # Batch updates with YAML format
@@ -615,7 +619,7 @@ specfact plan review [OPTIONS]
 
 **Options:**
 
-- Bundle name is provided as a positional argument (e.g., `plan review my-project`)
+- `--bundle TEXT` - Project bundle name (required, e.g., `legacy-api`)
 - `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
 - `--category TEXT` - Focus on specific taxonomy category (optional)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
@@ -641,23 +645,23 @@ specfact plan review [OPTIONS]
 **Example:**
 
 ```bash
-# Interactive review (bundle name as positional argument)
-specfact plan review main
+# Interactive review
+specfact plan review --bundle legacy-api
 
 # Get all findings for bulk updates (preferred for Copilot mode)
-specfact plan review --list-findings --findings-format json
+specfact plan review --bundle legacy-api --list-findings --findings-format json
 
 # Get findings as table (interactive mode)
-specfact plan review --list-findings --findings-format table
+specfact plan review --bundle legacy-api --list-findings --findings-format table
 
 # Get questions for question-based workflow
-specfact plan review --list-questions --max-questions 5
+specfact plan review --bundle legacy-api --list-questions --max-questions 5
 
 # Feed answers back (question-based workflow)
-specfact plan review --answers answers.json
+specfact plan review --bundle legacy-api --answers answers.json
 
 # CI/CD automation
-specfact plan review --no-interactive --answers answers.json
+specfact plan review --bundle legacy-api --no-interactive --answers answers.json
 ```
 
 **Findings Output Format:**
@@ -811,13 +815,13 @@ specfact plan harden [OPTIONS]
 
 ```bash
 # Interactive with active plan
-specfact plan harden
+specfact plan harden --bundle legacy-api
 
-# Non-interactive with specific bundle (bundle name as positional argument)
-specfact plan harden main --no-interactive
+# Non-interactive with specific bundle
+specfact plan harden --bundle legacy-api --no-interactive
 
 # Custom SDD path for multiple bundles
-specfact plan harden feature-auth --sdd .specfact/sdd.auth.yaml
+specfact plan harden --bundle feature-auth --sdd .specfact/sdd.auth.yaml
 ```
 
 **SDD Manifest Structure:**
@@ -839,13 +843,16 @@ The generated SDD manifest includes:
 Promote a plan bundle through development stages with quality gate validation:
 
 ```bash
-specfact plan promote [OPTIONS]
+specfact plan promote <bundle-name> [OPTIONS]
 ```
+
+**Arguments:**
+
+- `<bundle-name>` - Project bundle name (required, positional argument, e.g., `legacy-api`)
 
 **Options:**
 
 - `--stage TEXT` - Target stage (draft, review, approved, released) (required)
-- `--bundle TEXT` - Bundle name (default: active bundle or `main`)
 - `--validate/--no-validate` - Run validation before promotion (default: true)
 - `--force` - Force promotion even if validation fails (default: false)
 
@@ -860,13 +867,13 @@ specfact plan promote [OPTIONS]
 
 ```bash
 # Promote to review stage
-specfact plan promote --stage review
+specfact plan promote legacy-api --stage review
 
 # Promote to approved with validation
-specfact plan promote --stage approved --validate
+specfact plan promote legacy-api --stage approved --validate
 
 # Force promotion (bypasses validation)
-specfact plan promote --stage released --force
+specfact plan promote legacy-api --stage released --force
 ```
 
 **What it does:**
@@ -913,7 +920,7 @@ Run 'specfact plan review' to resolve these ambiguities
 **Use `--force` to bypass** (not recommended):
 
 ```bash
-specfact plan promote --stage review --force
+specfact plan promote legacy-api --stage review --force
 ```
 
 **Next Steps:**
@@ -1667,7 +1674,7 @@ specfact spec generate-tests <spec-path> [OPTIONS]
 
 **Options:**
 
-- `--output PATH`, `--out PATH` - Output directory for generated tests (default: `.specfact/specmatic-tests/`)
+- `--out PATH` - Output directory for generated tests (default: `.specfact/specmatic-tests/`)
 
 **Example:**
 
@@ -1676,7 +1683,7 @@ specfact spec generate-tests <spec-path> [OPTIONS]
 specfact spec generate-tests api/openapi.yaml
 
 # Generate to custom location
-specfact spec generate-tests api/openapi.yaml --output tests/specmatic/
+specfact spec generate-tests api/openapi.yaml --out tests/specmatic/
 ```
 
 **Output:**
@@ -1972,11 +1979,19 @@ Slash commands provide an intuitive interface for IDE integration (VS Code, Curs
 
 ### Available Slash Commands
 
-- `/specfact-import-from-code [args]` - Import codebase into plan bundle (one-way import)
-- `/specfact-plan-init [args]` - Initialize plan bundle
-- `/specfact-plan-promote [args]` - Promote plan through stages
-- `/specfact-plan-compare [args]` - Compare manual vs auto plans
-- `/specfact-sync [args]` - Bidirectional sync
+**Core Workflow Commands** (numbered for workflow ordering):
+
+1. `/specfact.01-import [args]` - Import codebase into plan bundle (replaces `specfact-import-from-code`)
+2. `/specfact.02-plan [args]` - Plan management: init, add-feature, add-story, update-idea, update-feature, update-story (replaces `specfact-plan-init`, `specfact-plan-add-feature`, `specfact-plan-add-story`, `specfact-plan-update-idea`, `specfact-plan-update-feature`)
+3. `/specfact.03-review [args]` - Review plan and promote (replaces `specfact-plan-review`, `specfact-plan-promote`)
+4. `/specfact.04-sdd [args]` - Create SDD manifest (new, based on `plan harden`)
+5. `/specfact.05-enforce [args]` - SDD enforcement (replaces `specfact-enforce`)
+6. `/specfact.06-sync [args]` - Sync operations (replaces `specfact-sync`)
+
+**Advanced Commands** (no numbering):
+
+- `/specfact.compare [args]` - Compare plans (replaces `specfact-plan-compare`)
+- `/specfact.validate [args]` - Validation suite (replaces `specfact-repro`)
 
 ### Setup
 
@@ -1994,10 +2009,18 @@ After initialization, use slash commands directly in your IDE's AI chat:
 
 ```bash
 # In IDE chat (Cursor, VS Code, Copilot, etc.)
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-init --idea idea.yaml
-/specfact-plan-compare --manual main.bundle.yaml --auto auto.bundle.yaml
-/specfact-sync --repo . --bidirectional
+# Core workflow (numbered for natural progression)
+/specfact.01-import legacy-api --repo .
+/specfact.02-plan init legacy-api
+/specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
+/specfact.03-review legacy-api
+/specfact.04-sdd legacy-api
+/specfact.05-enforce legacy-api
+/specfact.06-sync --repo . --adapter speckit
+
+# Advanced commands
+/specfact.compare --bundle legacy-api
+/specfact.validate --repo .
 ```
 
 **How it works:**

@@ -165,7 +165,7 @@ For each prompt, test the following scenarios:
 
 #### Scenario 3: Dual-Stack Workflow (for import-from-code)
 
-1. Invoke `/specfact-import-from-code` without `--enrichment`
+1. Invoke `/specfact.01-import legacy-api --repo .` without `--enrichment`
 2. Verify the LLM:
    - ✅ Executes Phase 1: CLI Grounding
    - ✅ Reads CLI-generated artifacts
@@ -179,7 +179,7 @@ For each prompt, test the following scenarios:
 
 #### Scenario 4: Plan Review Workflow (for plan-review)
 
-1. Invoke `/specfact-plan-review` with a plan bundle
+1. Invoke `/specfact.03-review legacy-api` with a plan bundle
 2. Verify the LLM:
    - ✅ Executes `specfact plan review` CLI command
    - ✅ Parses CLI output for ambiguity findings
@@ -190,7 +190,7 @@ For each prompt, test the following scenarios:
 
 #### Scenario 4a: Plan Review with Auto-Enrichment (for plan-review)
 
-1. Invoke `/specfact-plan-review` with a plan bundle that has vague acceptance criteria or incomplete requirements
+1. Invoke `/specfact.03-review legacy-api` with a plan bundle that has vague acceptance criteria or incomplete requirements
 2. Verify the LLM:
    - ✅ **Detects need for enrichment**: Recognizes vague patterns ("is implemented", "System MUST Helper class", generic tasks)
    - ✅ **Suggests or uses `--auto-enrich`**: Either suggests using `--auto-enrich` flag or automatically uses it based on plan quality indicators
@@ -208,7 +208,7 @@ For each prompt, test the following scenarios:
 
 #### Scenario 5: Plan Selection Workflow (for plan-select)
 
-1. Invoke `/specfact-plan-select` without arguments
+1. Invoke `/specfact.02-plan select` (or use CLI: `specfact plan select`)
 2. Verify the LLM:
    - ✅ Executes `specfact plan select` CLI command
    - ✅ Formats plan list as copilot-friendly Markdown table (not Rich table)
@@ -388,7 +388,7 @@ hatch run validate-prompts
 hatch test tests/unit/prompts/test_prompt_validation.py -v
 
 # Check specific prompt
-python tools/validate_prompts.py --prompt specfact-import-from-code
+python tools/validate_prompts.py --prompt specfact.01-import
 ```
 
 ## Continuous Improvement
@@ -405,32 +405,24 @@ After each prompt update:
 
 The following prompts are available for SpecFact CLI commands:
 
-### Plan Management
+### Core Workflow Commands (Numbered)
 
-- `specfact-plan-init.md` - Initialize a new development plan bundle
-- `specfact-plan-add-feature.md` - Add a new feature to an existing plan
-- `specfact-plan-add-story.md` - Add a new story to a feature
-- `specfact-plan-update-idea.md` - Update idea section metadata
-- `specfact-plan-update-feature.md` - Update an existing feature's metadata
-- `specfact-plan-compare.md` - Compare manual and auto-derived plans
-- `specfact-plan-promote.md` - Promote a plan bundle through stages
-- `specfact-plan-review.md` - Review plan bundle to identify ambiguities
-- `specfact-plan-select.md` - Select active plan from available bundles
+- `specfact.01-import.md` - Import codebase into plan bundle (replaces `specfact-import-from-code.md`)
+- `specfact.02-plan.md` - Plan management: init, add-feature, add-story, update-idea, update-feature, update-story (replaces multiple plan commands)
+- `specfact.03-review.md` - Review plan and promote (replaces `specfact-plan-review.md`, `specfact-plan-promote.md`)
+- `specfact.04-sdd.md` - Create SDD manifest (new, based on `plan harden`)
+- `specfact.05-enforce.md` - SDD enforcement (replaces `specfact-enforce.md`)
+- `specfact.06-sync.md` - Sync operations (replaces `specfact-sync.md`)
 
-### Import & Sync
+### Advanced Commands (No Numbering)
 
-- `specfact-import-from-code.md` - Import codebase structure (brownfield)
-- `specfact-sync.md` - Synchronize Spec-Kit artifacts and repository changes
+- `specfact.compare.md` - Compare plans (replaces `specfact-plan-compare.md`)
+- `specfact.validate.md` - Validation suite (replaces `specfact-repro.md`)
 
 ### Constitution Management
 
-- Constitution commands are integrated into `specfact-sync.md` and `specfact-import-from-code.md` workflows
+- Constitution commands are integrated into `specfact.06-sync.md` and `specfact.01-import.md` workflows
 - Constitution bootstrap/enrich/validate commands are suggested automatically when constitution is missing or minimal
-
-### Validation & Enforcement
-
-- `specfact-enforce.md` - Configure quality gates and enforcement modes
-- `specfact-repro.md` - Run validation suite for reproducibility
 
 ---
 

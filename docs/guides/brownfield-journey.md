@@ -29,7 +29,7 @@ This guide walks you through the complete brownfield modernization journey:
 
 ```bash
 # Analyze your legacy codebase
-specfact import from-code your-project --repo ./legacy-app
+specfact import from-code --bundle legacy-api --repo ./legacy-app
 ```
 
 **What happens:**
@@ -64,7 +64,7 @@ This is especially useful if you plan to sync with Spec-Kit later.
 
 ```bash
 # Review the extracted plan using CLI commands
-specfact plan review your-project
+specfact plan review --bundle legacy-api
 ```
 
 **What to look for:**
@@ -106,7 +106,7 @@ specfact plan compare \
 
 ```bash
 # Review plan using CLI commands
-specfact plan review your-project
+specfact plan review --bundle legacy-api
 ```
 
 ### Step 2.2: Add Contracts Incrementally
@@ -322,7 +322,7 @@ Legacy Django app:
 
 #### Week 1: Understand
 
-- Ran `specfact import from-code your-project` → 23 features extracted in 8 seconds
+- Ran `specfact import from-code --bundle legacy-api --repo .` → 23 features extracted in 8 seconds
 - Reviewed extracted plan → Identified 5 critical features
 - Time: 2 hours (vs. 60 hours manual)
 

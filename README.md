@@ -78,7 +78,7 @@ SpecFact CLI works with your existing tools—no new platform to learn. See real
 
 ```bash
 # Zero-install (just run it)
-uvx specfact-cli@latest --help
+uvx specfact-cli@latest
 
 # Or install with pip
 pip install specfact-cli
@@ -88,13 +88,13 @@ pip install specfact-cli
 
 ```bash
 # Modernizing legacy code? (Recommended)
-specfact import from-code my-project --repo .
+specfact import from-code legacy-api --repo .
 
 # Starting a new project?
-specfact plan init my-project --interactive
+specfact plan init legacy-api --interactive
 
 # Using GitHub Spec-Kit or other tools?
-specfact import from-bridge --repo ./my-project --adapter speckit --write
+specfact import from-bridge --repo . --adapter speckit --write
 ```
 
 That's it! 🎉

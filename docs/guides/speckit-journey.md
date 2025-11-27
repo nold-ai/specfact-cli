@@ -73,7 +73,7 @@ When modernizing legacy code, you can use **both tools together** for maximum va
 
 ```bash
 # Step 1: Use SpecFact to extract specs from legacy code
-specfact import from-code customer-portal --repo ./legacy-app
+specfact import from-code --bundle customer-portal --repo ./legacy-app
 
 # Output: Auto-generated project bundle from existing code
 # ✅ Analyzed 47 Python files
@@ -155,7 +155,7 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-
 specfact import from-bridge --adapter speckit --repo ./my-speckit-project --write
 
 # 3. Review generated bundle using CLI commands
-specfact plan review <bundle-name>
+specfact plan review --bundle <bundle-name>
 ```
 
 **What was created**:
@@ -311,7 +311,7 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-
 ✅ Found specs/001-user-authentication/tasks.md
 ✅ Found .specify/memory/constitution.md
 
-**💡 Tip**: If constitution is missing or minimal, run `specfact constitution bootstrap --repo .` to auto-generate from repository analysis.
+**💡 Tip**: If constitution is missing or minimal, run `specfact bridge constitution bootstrap --repo .` to auto-generate from repository analysis.
 
 📊 Migration Preview:
   - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
@@ -355,7 +355,7 @@ specfact import from-bridge \
 
 ```bash
 # Review plan bundle using CLI commands
-specfact plan review <bundle-name>
+specfact plan review --bundle <bundle-name>
 
 # Review enforcement config using CLI commands
 specfact enforce show-config
