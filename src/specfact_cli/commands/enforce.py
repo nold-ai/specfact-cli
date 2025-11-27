@@ -310,6 +310,55 @@ def enforce_sdd(
                 console.print(f"[dim]Frozen sections: {len(sdd_manifest.frozen_sections)}[/dim]")
                 # TODO: Implement hash-based frozen section validation in Phase 6
 
+            # 4. Validate OpenAPI/AsyncAPI specs with Specmatic (if found)
+            console.print("\n[cyan]Validating API specifications...[/cyan]")
+            import asyncio
+
+            from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+            base_path = Path(".")
+            spec_files = []
+            for pattern in [
+                "**/openapi.yaml",
+                "**/openapi.yml",
+                "**/openapi.json",
+                "**/asyncapi.yaml",
+                "**/asyncapi.yml",
+                "**/asyncapi.json",
+            ]:
+                spec_files.extend(base_path.glob(pattern))
+
+            if spec_files:
+                console.print(f"[dim]Found {len(spec_files)} API specification file(s)[/dim]")
+                is_available, error_msg = check_specmatic_available()
+                if is_available:
+                    for spec_file in spec_files[:5]:  # Validate up to 5 specs
+                        console.print(f"[dim]Validating {spec_file.relative_to(base_path)} with Specmatic...[/dim]")
+                        try:
+                            result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                            if not result.is_valid:
+                                deviation = Deviation(
+                                    type=DeviationType.CONTRACT_VIOLATION,
+                                    severity=DeviationSeverity.MEDIUM,
+                                    description=f"API specification validation failed: {spec_file.name}",
+                                    location=str(spec_file),
+                                    fix_hint=f"Run 'specfact spec validate {spec_file}' to see detailed errors",
+                                )
+                                report.add_deviation(deviation)
+                                console.print(f"  [bold yellow]⚠[/bold yellow] {spec_file.name} has validation issues")
+                            else:
+                                console.print(f"  [bold green]✓[/bold green] {spec_file.name} is valid")
+                        except Exception as e:
+                            console.print(f"  [bold yellow]⚠[/bold yellow] Validation error: {e!s}")
+                    if len(spec_files) > 5:
+                        console.print(
+                            f"[dim]... and {len(spec_files) - 5} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                        )
+                else:
+                    console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+            else:
+                console.print("[dim]No API specification files found[/dim]")
+
             # Generate output report
             output_format_str = output_format.lower()
             if out is None:

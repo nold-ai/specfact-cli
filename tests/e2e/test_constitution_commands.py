@@ -1,4 +1,4 @@
-"""End-to-end tests for specfact constitution commands."""
+"""End-to-end tests for specfact bridge constitution commands."""
 
 import os
 
@@ -11,7 +11,7 @@ runner = CliRunner()
 
 
 class TestConstitutionBootstrapE2E:
-    """End-to-end tests for specfact constitution bootstrap command."""
+    """End-to-end tests for specfact bridge constitution bootstrap command."""
 
     def test_bootstrap_creates_constitution_from_repo_analysis(self, tmp_path, monkeypatch):
         """Test bootstrap command analyzes repository and creates constitution."""
@@ -49,6 +49,7 @@ TDD mandatory: Tests written before implementation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -88,6 +89,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -125,6 +127,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -163,6 +166,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -185,6 +189,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -205,7 +210,7 @@ version = "1.0.0"
 
 
 class TestConstitutionEnrichE2E:
-    """End-to-end tests for specfact constitution enrich command."""
+    """End-to-end tests for specfact bridge constitution enrich command."""
 
     def test_enrich_fills_placeholders(self, tmp_path, monkeypatch):
         """Test enrich command fills placeholders in existing constitution."""
@@ -243,6 +248,7 @@ description = "Test enrichment"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -288,6 +294,7 @@ Constitution supersedes all other practices.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -308,6 +315,7 @@ Constitution supersedes all other practices.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -322,7 +330,7 @@ Constitution supersedes all other practices.
 
 
 class TestConstitutionValidateE2E:
-    """End-to-end tests for specfact constitution validate command."""
+    """End-to-end tests for specfact bridge constitution validate command."""
 
     def test_validate_passes_for_complete_constitution(self, tmp_path, monkeypatch):
         """Test validate command passes for complete constitution."""
@@ -363,6 +371,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -387,6 +396,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -419,6 +429,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -441,6 +452,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",

@@ -60,6 +60,13 @@ specfact repro --verbose
 - `sync bridge` - Sync with external tools via bridge architecture (Spec-Kit, Linear, Jira, etc.)
 - `sync repository` - Sync code changes
 
+**API Specification Management:**
+
+- `spec validate` - Validate OpenAPI/AsyncAPI specifications with Specmatic
+- `spec backward-compat` - Check backward compatibility between spec versions
+- `spec generate-tests` - Generate contract tests from specifications
+- `spec mock` - Launch mock server for development
+
 **Constitution Management (Spec-Kit Compatibility):**
 
 - `constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
@@ -1578,24 +1585,186 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 
 ---
 
-### `constitution` - Manage Project Constitutions
+### `spec` - API Specification Management (Specmatic Integration)
+
+Manage API specifications with Specmatic for OpenAPI/AsyncAPI validation, backward compatibility checking, and mock server functionality.
+
+**Note**: Specmatic is a Java CLI tool that must be installed separately from [https://docs.specmatic.io/](https://docs.specmatic.io/). SpecFact CLI will check for Specmatic availability and provide helpful error messages if it's not found.
+
+#### `spec validate`
+
+Validate OpenAPI/AsyncAPI specification using Specmatic.
+
+```bash
+specfact spec validate <spec-path> [OPTIONS]
+```
+
+**Arguments:**
+
+- `<spec-path>` - Path to OpenAPI/AsyncAPI specification file (required)
+
+**Options:**
+
+- `--previous PATH` - Path to previous version for backward compatibility check
+
+**Examples:**
+
+```bash
+# Basic validation
+specfact spec validate api/openapi.yaml
+
+# With backward compatibility check
+specfact spec validate api/openapi.yaml --previous api/openapi.v1.yaml
+```
+
+**What it checks:**
+
+- Schema structure validation
+- Example generation test
+- Backward compatibility (if previous version provided)
+
+**Output:**
+
+- Validation results table with status for each check
+- ✓ PASS or ✗ FAIL for each validation step
+- Detailed errors if validation fails
+
+#### `spec backward-compat`
+
+Check backward compatibility between two spec versions.
+
+```bash
+specfact spec backward-compat <old-spec> <new-spec>
+```
+
+**Arguments:**
+
+- `<old-spec>` - Path to old specification version (required)
+- `<new-spec>` - Path to new specification version (required)
+
+**Example:**
+
+```bash
+specfact spec backward-compat api/openapi.v1.yaml api/openapi.v2.yaml
+```
+
+**Output:**
+
+- ✓ Compatible - No breaking changes detected
+- ✗ Breaking changes - Lists incompatible changes
+
+#### `spec generate-tests`
+
+Generate Specmatic test suite from specification.
+
+```bash
+specfact spec generate-tests <spec-path> [OPTIONS]
+```
+
+**Arguments:**
+
+- `<spec-path>` - Path to OpenAPI/AsyncAPI specification (required)
+
+**Options:**
+
+- `--output PATH`, `--out PATH` - Output directory for generated tests (default: `.specfact/specmatic-tests/`)
+
+**Example:**
+
+```bash
+# Generate to default location
+specfact spec generate-tests api/openapi.yaml
+
+# Generate to custom location
+specfact spec generate-tests api/openapi.yaml --output tests/specmatic/
+```
+
+**Output:**
+
+- ✓ Test suite generated with path to output directory
+- Instructions to run the generated tests
+
+#### `spec mock`
+
+Launch Specmatic mock server from specification.
+
+```bash
+specfact spec mock [OPTIONS]
+```
+
+**Options:**
+
+- `--spec PATH` - Path to OpenAPI/AsyncAPI specification (default: auto-detect from current directory)
+- `--port INT` - Port number for mock server (default: 9000)
+- `--strict/--examples` - Use strict validation mode or examples mode (default: strict)
+
+**Example:**
+
+```bash
+# Auto-detect spec file
+specfact spec mock
+
+# Specify spec file and port
+specfact spec mock --spec api/openapi.yaml --port 9000
+
+# Use examples mode (less strict)
+specfact spec mock --spec api/openapi.yaml --examples
+```
+
+**Features:**
+
+- Serves API endpoints based on specification
+- Validates requests against spec
+- Returns example responses
+- Press Ctrl+C to stop
+
+**Common locations for auto-detection:**
+
+- `openapi.yaml`, `openapi.yml`, `openapi.json`
+- `asyncapi.yaml`, `asyncapi.yml`, `asyncapi.json`
+- `api/openapi.yaml`
+- `specs/openapi.yaml`
+
+**Integration:**
+
+The `spec` commands are automatically integrated into:
+
+- `import from-code` - Auto-validates OpenAPI/AsyncAPI specs after import
+- `enforce sdd` - Validates API specs during SDD enforcement
+- `sync bridge` and `sync repository` - Auto-validates specs after sync
+
+See [Specmatic Integration Guide](../guides/specmatic-integration.md) for detailed documentation.
+
+---
+
+---
+
+### `bridge` - Bridge Adapters for External Tool Integration
+
+Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.). These commands enable bidirectional sync and format conversion between SpecFact and external tools.
+
+#### `bridge constitution` - Manage Project Constitutions
 
 Manage project constitutions for Spec-Kit format compatibility. Auto-generate bootstrap templates from repository analysis.
 
 **Note**: These commands are for **Spec-Kit format compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when:
 
 - Syncing with Spec-Kit artifacts (`specfact sync bridge --adapter speckit`)
+
 - Working in Spec-Kit format (using `/speckit.*` commands)
+
 - Migrating from Spec-Kit to SpecFact format
 
 If you're using SpecFact standalone (without Spec-Kit), you don't need constitutions - use `specfact plan` commands instead.
 
-#### `constitution bootstrap`
+**Deprecation Notice**: The old `specfact constitution` command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
+
+##### `bridge constitution bootstrap`
 
 Generate bootstrap constitution from repository analysis:
 
 ```bash
-specfact constitution bootstrap [OPTIONS]
+specfact bridge constitution bootstrap [OPTIONS]
 ```
 
 **Options:**
@@ -1608,13 +1777,13 @@ specfact constitution bootstrap [OPTIONS]
 
 ```bash
 # Generate bootstrap constitution
-specfact constitution bootstrap --repo .
+specfact bridge constitution bootstrap --repo .
 
 # Generate with custom output path
-specfact constitution bootstrap --repo . --out custom-constitution.md
+specfact bridge constitution bootstrap --repo . --out custom-constitution.md
 
 # Overwrite existing constitution
-specfact constitution bootstrap --repo . --overwrite
+specfact bridge constitution bootstrap --repo . --overwrite
 ```
 
 **What it does:**
@@ -1646,12 +1815,12 @@ specfact constitution bootstrap --repo . --overwrite
 
 ---
 
-#### `constitution enrich`
+##### `bridge constitution enrich`
 
 Auto-enrich existing constitution with repository context (Spec-Kit format):
 
 ```bash
-specfact constitution enrich [OPTIONS]
+specfact bridge constitution enrich [OPTIONS]
 ```
 
 **Options:**
@@ -1663,10 +1832,10 @@ specfact constitution enrich [OPTIONS]
 
 ```bash
 # Enrich existing constitution
-specfact constitution enrich --repo .
+specfact bridge constitution enrich --repo .
 
 # Enrich specific constitution file
-specfact constitution enrich --repo . --constitution custom-constitution.md
+specfact bridge constitution enrich --repo . --constitution custom-constitution.md
 ```
 
 **What it does:**
@@ -1684,12 +1853,12 @@ specfact constitution enrich --repo . --constitution custom-constitution.md
 
 ---
 
-#### `constitution validate`
+##### `bridge constitution validate`
 
 Validate constitution completeness (Spec-Kit format):
 
 ```bash
-specfact constitution validate [OPTIONS]
+specfact bridge constitution validate [OPTIONS]
 ```
 
 **Options:**
@@ -1700,10 +1869,10 @@ specfact constitution validate [OPTIONS]
 
 ```bash
 # Validate default constitution
-specfact constitution validate
+specfact bridge constitution validate
 
 # Validate specific constitution file
-specfact constitution validate --constitution custom-constitution.md
+specfact bridge constitution validate --constitution custom-constitution.md
 ```
 
 **What it checks:**
@@ -1725,6 +1894,22 @@ specfact constitution validate --constitution custom-constitution.md
 - Before syncing with Spec-Kit (`specfact sync bridge --adapter speckit` requires valid constitution)
 - After manual edits to verify completeness
 - In CI/CD pipelines to ensure constitution quality
+
+---
+
+### `constitution` - Manage Project Constitutions (DEPRECATED)
+
+**⚠️ Deprecation Notice**: This command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
+
+The old `specfact constitution` commands still work but show deprecation warnings. All functionality has been moved to `specfact bridge constitution`.
+
+**Migration**: Replace `specfact constitution <command>` with `specfact bridge constitution <command>`.
+
+**Example Migration:**
+
+- `specfact constitution bootstrap` → `specfact bridge constitution bootstrap`
+- `specfact constitution enrich` → `specfact bridge constitution enrich`
+- `specfact constitution validate` → `specfact bridge constitution validate`
 
 ---
 

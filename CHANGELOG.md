@@ -9,6 +9,72 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.10.0] - 2025-11-27
+
+### Added (0.10.0)
+
+- **Specmatic Integration** - API contract testing layer
+  - New `spec` command group for Specmatic operations
+    - `specfact spec validate <spec-file>` - Validate OpenAPI/AsyncAPI specifications
+    - `specfact spec backward-compat <old> <new>` - Check backward compatibility between spec versions
+    - `specfact spec generate-tests <spec>` - Generate Specmatic test suite
+    - `specfact spec mock [--port 9000]` - Launch Specmatic mock server
+  - Automatic Specmatic detection (supports both direct `specmatic` and `npx specmatic`)
+  - Integration with core commands: `import`, `enforce`, and `sync` now auto-validate OpenAPI specs with Specmatic
+  - Comprehensive documentation: `docs/guides/specmatic-integration.md`
+  - Full test coverage: unit, integration, and e2e tests
+
+- **Bridge Command Group** - External tool integration
+  - New `bridge` command group for adapter commands
+  - Moved `constitution` commands to `specfact bridge constitution *`
+  - Clearer organization: bridge commands grouped together for external tool integration
+
+### Changed (0.10.0)
+
+- **CLI Command Reorganization**
+  - Commands now ordered in logical workflow sequence:
+    1. `init` - Initialize SpecFact for IDE integration
+    2. `import` - Import codebases and external tool projects
+    3. `plan` - Manage development plans
+    4. `generate` - Generate artifacts from SDD and plans
+    5. `enforce` - Configure quality gates
+    6. `repro` - Run validation suite
+    7. `spec` - Specmatic integration for API contract testing
+    8. `sync` - Synchronize Spec-Kit artifacts and repository changes
+    9. `bridge` - Bridge adapters for external tool integration
+  - Removed `hello` command - welcome message now shown when no command is provided
+  - Removed legacy `constitution` command (use `specfact bridge constitution` instead)
+
+- **Default Behavior**
+  - Running `specfact` without arguments now shows welcome message instead of help
+  - Welcome message displays version and suggests using `--help` for available commands
+
+### Fixed (0.10.0)
+
+- **Test Suite**
+  - Fixed 4 failing e2e tests in `test_init_command.py` by updating template names to match actual naming convention
+  - All 1018 tests passing (1 skipped)
+  - Fixed linter issues: replaced list concatenation with iterable unpacking (RUF005)
+  - Fixed unused variable warnings (RUF059)
+
+- **Code Quality**
+  - Fixed all RUF005 linter warnings (iterable unpacking instead of concatenation)
+  - Fixed all RUF059 linter warnings (unused unpacked variables)
+  - All format checks passing
+
+### Documentation (0.10.0)
+
+- **New Guides**
+  - `docs/guides/specmatic-integration.md` - Comprehensive Specmatic integration guide
+  - `docs/guides/migration-cli-reorganization.md` - Updated migration guide (removed deprecation references)
+
+- **Updated Documentation**
+  - `README.md` - Added "API contract testing" to key capabilities
+  - `docs/reference/commands.md` - Updated with new `spec` command group and `bridge` command structure
+  - All examples updated to use `specfact bridge constitution` instead of deprecated `specfact constitution`
+
+---
+
 ## [0.9.2] - 2025-11-26
 
 ### Changed (0.9.2)

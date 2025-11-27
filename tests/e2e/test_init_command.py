@@ -26,7 +26,7 @@ class TestInitCommandE2E:
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
-        (templates_dir / "specfact-plan-init.md").write_text("---\ndescription: Plan Init\n---\nContent")
+        (templates_dir / "specfact.02-plan.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
         # Change to temp directory
         old_cwd = os.getcwd()
@@ -125,12 +125,12 @@ class TestInitCommandE2E:
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
-        (templates_dir / "specfact-plan-init.md").write_text("---\ndescription: Plan Init\n---\nContent")
+        (templates_dir / "specfact.02-plan.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
         # Pre-create one file (but not all)
         cursor_dir = tmp_path / ".cursor" / "commands"
         cursor_dir.mkdir(parents=True)
-        (cursor_dir / "specfact-import-from-code.md").write_text("existing content")
+        (cursor_dir / "specfact.01-import.md").write_text("existing content")
 
         old_cwd = os.getcwd()
         try:
@@ -147,19 +147,19 @@ class TestInitCommandE2E:
             or "No templates copied" in result.stdout
         )
         # Verify existing file was not overwritten
-        assert (cursor_dir / "specfact-import-from-code.md").read_text() == "existing content"
+        assert (cursor_dir / "specfact.01-import.md").read_text() == "existing content"
 
     def test_init_overwrites_with_force(self, tmp_path):
         """Test init command overwrites existing files with --force."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nNew content")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nNew content")
 
         # Pre-create one file
         cursor_dir = tmp_path / ".cursor" / "commands"
         cursor_dir.mkdir(parents=True)
-        (cursor_dir / "specfact-import-from-code.md").write_text("existing content")
+        (cursor_dir / "specfact.01-import.md").write_text("existing content")
 
         old_cwd = os.getcwd()
         try:
@@ -170,7 +170,7 @@ class TestInitCommandE2E:
 
         assert result.exit_code == 0
         # Verify file was overwritten (content should contain "New content" from template)
-        content = (cursor_dir / "specfact-import-from-code.md").read_text()
+        content = (cursor_dir / "specfact.01-import.md").read_text()
         assert "New content" in content or "Analyze" in content
 
     def test_init_handles_missing_templates(self, tmp_path, monkeypatch):
@@ -312,4 +312,4 @@ class TestInitCommandE2E:
         # Verify templates were copied
         claude_dir = tmp_path / ".claude" / "commands"
         assert claude_dir.exists()
-        assert (claude_dir / "specfact-import-from-code.md").exists()
+        assert (claude_dir / "specfact.01-import.md").exists()

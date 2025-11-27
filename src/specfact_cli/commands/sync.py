@@ -105,7 +105,7 @@ def _perform_sync_operation(
         console.print("[bold red]✗[/bold red] Constitution required")
         console.print(f"[red]{constitution_error}[/red]")
         console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-        console.print("1. Run 'specfact constitution bootstrap --repo .' to auto-generate constitution")
+        console.print("1. Run 'specfact bridge constitution bootstrap --repo .' to auto-generate constitution")
         console.print("2. Or run tool-specific constitution command in your AI assistant")
         console.print("3. Then run 'specfact sync bridge --adapter <adapter>' again")
         raise typer.Exit(1)
@@ -113,7 +113,7 @@ def _perform_sync_operation(
     # Check if constitution is minimal and suggest bootstrap
     constitution_path = repo / ".specify" / "memory" / "constitution.md"
     if constitution_path.exists():
-        from specfact_cli.commands.constitution import is_constitution_minimal
+        from specfact_cli.commands.bridge import is_constitution_minimal
 
         if is_constitution_minimal(constitution_path):
             # Auto-generate in test mode, prompt in interactive mode
@@ -145,12 +145,14 @@ def _perform_sync_operation(
                         console.print("[dim]Review and adjust as needed before syncing[/dim]")
                     else:
                         console.print(
-                            "[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]"
+                            "[dim]Skipping bootstrap. Run 'specfact bridge constitution bootstrap' manually if needed[/dim]"
                         )
                 else:
                     # Non-interactive mode: skip prompt
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
-                    console.print("[dim]Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]")
+                    console.print(
+                        "[dim]Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
+                    )
 
     console.print("[bold green]✓[/bold green] Constitution found and validated")
 
@@ -456,6 +458,46 @@ def _perform_sync_operation(
 
     console.print()
     console.print("[bold green]✓[/bold green] Sync complete!")
+
+    # Auto-validate OpenAPI/AsyncAPI specs with Specmatic (if found)
+    import asyncio
+
+    from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+    spec_files = []
+    for pattern in [
+        "**/openapi.yaml",
+        "**/openapi.yml",
+        "**/openapi.json",
+        "**/asyncapi.yaml",
+        "**/asyncapi.yml",
+        "**/asyncapi.json",
+    ]:
+        spec_files.extend(repo.glob(pattern))
+
+    if spec_files:
+        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+        is_available, error_msg = check_specmatic_available()
+        if is_available:
+            for spec_file in spec_files[:3]:  # Validate up to 3 specs
+                console.print(f"[dim]Validating {spec_file.relative_to(repo)} with Specmatic...[/dim]")
+                try:
+                    result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                    if result.is_valid:
+                        console.print(f"  [green]✓[/green] {spec_file.name} is valid")
+                    else:
+                        console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
+                        if result.errors:
+                            for error in result.errors[:2]:  # Show first 2 errors
+                                console.print(f"    - {error}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+            if len(spec_files) > 3:
+                console.print(
+                    f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                )
+        else:
+            console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
 
 
 def _sync_speckit_to_specfact(
@@ -1036,3 +1078,43 @@ def sync_repository(
         else:
             console.print("[bold green]✓[/bold green] No deviations detected")
         console.print("[bold green]✓[/bold green] Repository sync complete!")
+
+        # Auto-validate OpenAPI/AsyncAPI specs with Specmatic (if found)
+        import asyncio
+
+        from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+        spec_files = []
+        for pattern in [
+            "**/openapi.yaml",
+            "**/openapi.yml",
+            "**/openapi.json",
+            "**/asyncapi.yaml",
+            "**/asyncapi.yml",
+            "**/asyncapi.json",
+        ]:
+            spec_files.extend(resolved_repo.glob(pattern))
+
+        if spec_files:
+            console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+            is_available, error_msg = check_specmatic_available()
+            if is_available:
+                for spec_file in spec_files[:3]:  # Validate up to 3 specs
+                    console.print(f"[dim]Validating {spec_file.relative_to(resolved_repo)} with Specmatic...[/dim]")
+                    try:
+                        result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                        if result.is_valid:
+                            console.print(f"  [green]✓[/green] {spec_file.name} is valid")
+                        else:
+                            console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
+                            if result.errors:
+                                for error in result.errors[:2]:  # Show first 2 errors
+                                    console.print(f"    - {error}")
+                    except Exception as e:
+                        console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+                if len(spec_files) > 3:
+                    console.print(
+                        f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                    )
+            else:
+                console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")

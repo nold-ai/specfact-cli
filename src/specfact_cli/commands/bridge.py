@@ -1,8 +1,8 @@
 """
-Constitution command - Manage project constitutions.
+Bridge command - Adapter commands for external tool integration.
 
-This module provides commands for bootstrapping, enriching, and validating
-project constitutions based on repository context analysis.
+This module provides bridge adapters for external tools like Spec-Kit, Linear, Jira, etc.
+These commands enable bidirectional sync and format conversion between SpecFact and external tools.
 """
 
 from __future__ import annotations
@@ -19,13 +19,18 @@ from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 from specfact_cli.utils import print_error, print_info, print_success
 
 
-app = typer.Typer(
-    help="Manage project constitutions (Spec-Kit compatibility layer). Generates and validates constitutions at .specify/memory/constitution.md for Spec-Kit format compatibility."
-)
+bridge_app = typer.Typer(help="Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.)")
 console = Console()
 
+# Constitution subcommand group
+constitution_app = typer.Typer(
+    help="Manage project constitutions (Spec-Kit format compatibility). Generates and validates constitutions at .specify/memory/constitution.md for Spec-Kit format compatibility."
+)
 
-@app.command("bootstrap")
+bridge_app.add_typer(constitution_app, name="constitution")
+
+
+@constitution_app.command("bootstrap")
 @beartype
 @require(lambda repo: repo.exists(), "Repository path must exist")
 @require(lambda repo: repo.is_dir(), "Repository path must be a directory")
@@ -72,13 +77,13 @@ def bootstrap(
     - **Behavior/Options**: --overwrite
 
     **Examples:**
-        specfact constitution bootstrap --repo .
-        specfact constitution bootstrap --repo . --out custom-constitution.md
-        specfact constitution bootstrap --repo . --overwrite
+        specfact bridge constitution bootstrap --repo .
+        specfact bridge constitution bootstrap --repo . --out custom-constitution.md
+        specfact bridge constitution bootstrap --repo . --overwrite
     """
     from specfact_cli.telemetry import telemetry
 
-    with telemetry.track_command("constitution.bootstrap", {"repo": str(repo)}):
+    with telemetry.track_command("bridge.constitution.bootstrap", {"repo": str(repo)}):
         console.print(f"[bold cyan]Generating bootstrap constitution for:[/bold cyan] {repo}")
 
         # Determine output path
@@ -108,11 +113,11 @@ def bootstrap(
         console.print("\n[bold]Next Steps:[/bold]")
         console.print("1. Review the generated constitution")
         console.print("2. Adjust principles and sections as needed")
-        console.print("3. Run 'specfact constitution validate' to check completeness")
-        console.print("4. Run 'specfact sync spec-kit' to sync with Spec-Kit artifacts")
+        console.print("3. Run 'specfact bridge constitution validate' to check completeness")
+        console.print("4. Run 'specfact sync bridge --adapter speckit' to sync with Spec-Kit artifacts")
 
 
-@app.command("enrich")
+@constitution_app.command("enrich")
 @beartype
 @require(lambda repo: repo.exists(), "Repository path must exist")
 @require(lambda repo: repo.is_dir(), "Repository path must be a directory")
@@ -145,18 +150,18 @@ def enrich(
     additional principles and details extracted from repository context.
 
     Example:
-        specfact constitution enrich --repo .
+        specfact bridge constitution enrich --repo .
     """
     from specfact_cli.telemetry import telemetry
 
-    with telemetry.track_command("constitution.enrich", {"repo": str(repo)}):
+    with telemetry.track_command("bridge.constitution.enrich", {"repo": str(repo)}):
         # Determine constitution path
         if constitution is None:
             constitution = repo / ".specify" / "memory" / "constitution.md"
 
         if not constitution.exists():
             console.print(f"[bold red]✗[/bold red] Constitution not found: {constitution}")
-            console.print("[dim]Run 'specfact constitution bootstrap' first[/dim]")
+            console.print("[dim]Run 'specfact bridge constitution bootstrap' first[/dim]")
             raise typer.Exit(1)
 
         console.print(f"[bold cyan]Enriching constitution:[/bold cyan] {constitution}")
@@ -207,10 +212,10 @@ def enrich(
         console.print("\n[bold]Next Steps:[/bold]")
         console.print("1. Review the enriched constitution")
         console.print("2. Adjust as needed")
-        console.print("3. Run 'specfact constitution validate' to check completeness")
+        console.print("3. Run 'specfact bridge constitution validate' to check completeness")
 
 
-@app.command("validate")
+@constitution_app.command("validate")
 @beartype
 @require(lambda constitution: constitution.exists(), "Constitution path must exist")
 @ensure(lambda result: result is None, "Must return None")
@@ -235,12 +240,12 @@ def validate(
     has governance section, etc.).
 
     Example:
-        specfact constitution validate
-        specfact constitution validate --constitution custom-constitution.md
+        specfact bridge constitution validate
+        specfact bridge constitution validate --constitution custom-constitution.md
     """
     from specfact_cli.telemetry import telemetry
 
-    with telemetry.track_command("constitution.validate", {"constitution": str(constitution)}):
+    with telemetry.track_command("bridge.constitution.validate", {"constitution": str(constitution)}):
         console.print(f"[bold cyan]Validating constitution:[/bold cyan] {constitution}")
 
         enricher = ConstitutionEnricher()
@@ -255,8 +260,8 @@ def validate(
                 console.print(f"  - {issue}")
 
             console.print("\n[bold]Next Steps:[/bold]")
-            console.print("1. Run 'specfact constitution bootstrap' to generate a complete constitution")
-            console.print("2. Or run 'specfact constitution enrich' to enrich existing constitution")
+            console.print("1. Run 'specfact bridge constitution bootstrap' to generate a complete constitution")
+            console.print("2. Or run 'specfact bridge constitution enrich' to enrich existing constitution")
             raise typer.Exit(1)
 
 

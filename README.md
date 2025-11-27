@@ -50,6 +50,7 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 - ✅ **Reverse engineer legacy code** → Extract specs automatically from existing code
 - ✅ **Runtime contract enforcement** → Prevent regressions during modernization
 - ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
+- ✅ **API contract testing** → Validate OpenAPI/AsyncAPI specs with Specmatic integration
 - ✅ **Works offline** → No cloud required, fully local
 - ✅ **CLI integrations** → Works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow
 
