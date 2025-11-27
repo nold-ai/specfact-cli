@@ -3161,18 +3161,17 @@ def _validate_sdd_for_bundle(
     """
     from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
     from specfact_cli.models.sdd import SDDManifest
-    from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import load_structured_file
 
     report = ValidationReport()
-    # Construct SDD path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
+    # Find SDD using discovery utility
+    from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
+
     base_path = Path.cwd()
-    sdd_path = base_path / SpecFactStructure.SDD / f"{bundle_name}.yaml"
-    if not sdd_path.exists():
-        sdd_path = base_path / SpecFactStructure.SDD / f"{bundle_name}.json"
+    sdd_path = find_sdd_for_bundle(bundle_name, base_path)
 
     # Check if SDD manifest exists
-    if not sdd_path.exists():
+    if sdd_path is None:
         if require_sdd:
             deviation = Deviation(
                 type=DeviationType.COVERAGE_THRESHOLD,
@@ -3954,7 +3953,6 @@ def harden(
         SDDEnforcementBudget,
         SDDManifest,
     )
-    from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import dump_structured_file
 
     effective_format = output_format or runtime.get_output_format()
@@ -3985,11 +3983,12 @@ def harden(
                 raise typer.Exit(1)
 
             # Determine SDD output path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
+            from specfact_cli.utils.sdd_discovery import get_default_sdd_path_for_bundle
+
             if sdd_path is None:
                 base_path = Path(".")
-                sdd_dir = base_path / SpecFactStructure.SDD
-                sdd_dir.mkdir(parents=True, exist_ok=True)
-                sdd_path = sdd_dir / f"{bundle}.{effective_format.value}"
+                sdd_path = get_default_sdd_path_for_bundle(bundle, base_path, effective_format.value)
+                sdd_path.parent.mkdir(parents=True, exist_ok=True)
             else:
                 # Ensure correct extension
                 if effective_format == StructuredFormat.YAML:

@@ -187,25 +187,20 @@ def enforce_sdd(
             console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
             raise typer.Exit(1)
 
-        # Find SDD manifest path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
-        if sdd is None:
-            base_path = Path(".")
-            # Try YAML first, then JSON
-            sdd_yaml = base_path / SpecFactStructure.SDD / f"{bundle}.yaml"
-            sdd_json = base_path / SpecFactStructure.SDD / f"{bundle}.json"
-            if sdd_yaml.exists():
-                sdd = sdd_yaml
-            elif sdd_json.exists():
-                sdd = sdd_json
-            else:
-                console.print("[bold red]✗[/bold red] SDD manifest not found")
-                console.print(f"[dim]Expected: {sdd_yaml} or {sdd_json}[/dim]")
-                console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
-                raise typer.Exit(1)
+        # Find SDD manifest path using discovery utility
+        from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
 
-        if not sdd.exists():
-            console.print(f"[bold red]✗[/bold red] SDD manifest not found: {sdd}")
+        base_path = Path(".")
+        discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
+        if discovered_sdd is None:
+            console.print("[bold red]✗[/bold red] SDD manifest not found")
+            console.print(f"[dim]Searched for: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
+            console.print("[dim]Legacy fallback: .specfact/sdd.yaml or .specfact/sdd.json[/dim]")
+            console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
             raise typer.Exit(1)
+
+        sdd = discovered_sdd
+        console.print(f"[dim]Using SDD manifest: {sdd}[/dim]")
 
         try:
             # Load SDD manifest

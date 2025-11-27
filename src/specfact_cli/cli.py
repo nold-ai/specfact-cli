@@ -53,7 +53,20 @@ from rich.panel import Panel
 from specfact_cli import __version__, runtime
 
 # Import command modules
-from specfact_cli.commands import bridge, enforce, generate, import_cmd, init, plan, repro, spec, sync
+from specfact_cli.commands import (
+    bridge,
+    enforce,
+    generate,
+    implement,
+    import_cmd,
+    init,
+    plan,
+    repro,
+    run,
+    sdd,
+    spec,
+    sync,
+)
 from specfact_cli.modes import OperationalMode, detect_mode
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -295,19 +308,28 @@ app.add_typer(plan.app, name="plan", help="Manage development plans")
 # 4. Code Generation
 app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
 
-# 5. Quality Enforcement
+# 5. Code Implementation
+app.add_typer(implement.app, name="implement", help="Execute tasks and generate code")
+
+# 6. Quality Enforcement
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
 
-# 6. Validation
+# 7. Workflow Orchestration
+app.add_typer(run.app, name="run", help="Orchestrate end-to-end workflows")
+
+# 8. Validation
 app.add_typer(repro.app, name="repro", help="Run validation suite")
 
-# 7. API Contract Testing
+# 9. SDD Management
+app.add_typer(sdd.app, name="sdd", help="Manage SDD (Spec-Driven Development) manifests")
+
+# 10. API Contract Testing
 app.add_typer(spec.app, name="spec", help="Specmatic integration for API contract testing")
 
-# 8. Synchronization
+# 11. Synchronization
 app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")
 
-# 9. External Tool Integration
+# 12. External Tool Integration
 app.add_typer(
     bridge.bridge_app,
     name="bridge",
