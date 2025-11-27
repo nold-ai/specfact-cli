@@ -31,6 +31,7 @@ console = Console()
 @app.command("stage")
 @beartype
 def stage(
+    # Advanced/Configuration
     preset: str = typer.Option(
         "balanced",
         "--preset",
@@ -117,24 +118,24 @@ def enforce_sdd(
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest (default: .specfact/sdd/<bundle-name>.<format>)",
+        help="Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.<format>",
     ),
     # Output/Results
     output_format: str = typer.Option(
         "yaml",
         "--output-format",
-        help="Output format (yaml, json, markdown)",
+        help="Output format (yaml, json, markdown). Default: yaml",
     ),
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path (default: .specfact/reports/sdd/validation-<timestamp>.<format>)",
+        help="Output file path. Default: .specfact/reports/sdd/validation-<timestamp>.<format>",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
         False,
         "--no-interactive",
-        help="Non-interactive mode (for CI/CD automation)",
+        help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
     ),
 ) -> None:
     """
@@ -146,9 +147,15 @@ def enforce_sdd(
     - Frozen sections (hash mismatch detection)
     - Contract density metrics
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --sdd
+    - **Output/Results**: --output-format, --out
+    - **Behavior/Options**: --no-interactive
+
+    **Examples:**
         specfact enforce sdd legacy-api
         specfact enforce sdd auth-module --output-format json --out validation-report.json
+        specfact enforce sdd legacy-api --no-interactive
     """
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.utils.bundle_loader import load_project_bundle

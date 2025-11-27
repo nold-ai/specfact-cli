@@ -111,20 +111,16 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
 }
 
 # Commands available in SpecFact
+# Workflow-ordered commands (Phase 3)
 SPECFACT_COMMANDS = [
-    "specfact-import-from-code",
-    "specfact-plan-init",
-    "specfact-plan-add-feature",
-    "specfact-plan-add-story",
-    "specfact-plan-update-idea",
-    "specfact-plan-update-feature",
-    "specfact-plan-select",
-    "specfact-plan-promote",
-    "specfact-plan-compare",
-    "specfact-plan-review",
-    "specfact-sync",
-    "specfact-enforce",
-    "specfact-repro",
+    "specfact.01-import",
+    "specfact.02-plan",
+    "specfact.03-review",
+    "specfact.04-sdd",
+    "specfact.05-enforce",
+    "specfact.06-sync",
+    "specfact.compare",
+    "specfact.validate",
 ]
 
 
@@ -189,7 +185,7 @@ def read_template(template_path: Path) -> dict[str, str]:
         Dict with "description" (from frontmatter) and "content" (markdown body)
 
     Examples:
-        >>> template = read_template(Path("resources/prompts/specfact-import-from-code.md"))
+        >>> template = read_template(Path("resources/prompts/specfact.01-import.md"))
         >>> "description" in template
         True
         >>> "content" in template

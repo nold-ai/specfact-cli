@@ -60,7 +60,7 @@ Test goal.
 
     def test_validate_cli_alignment(self, tmp_path: Path):
         """Test CLI alignment validation."""
-        prompt_file = tmp_path / "specfact-import-from-code.md"
+        prompt_file = tmp_path / "specfact.01-import.md"
         prompt_content = """---
 description: Import from code
 ---
@@ -95,7 +95,7 @@ Test constraints.
 
     def test_validate_dual_stack_workflow(self, tmp_path: Path):
         """Test dual-stack workflow validation."""
-        prompt_file = tmp_path / "specfact-import-from-code.md"
+        prompt_file = tmp_path / "specfact.01-import.md"
         prompt_content = """---
 description: Import from code
 ---

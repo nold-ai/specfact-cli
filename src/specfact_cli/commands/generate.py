@@ -36,28 +36,28 @@ def generate_contracts(
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api). If specified, uses bundle instead of --plan/--sdd paths.",
+        help="Project bundle name (e.g., legacy-api). If specified, uses bundle instead of --plan/--sdd paths. Default: auto-detect from current directory.",
     ),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest (default: .specfact/sdd/<bundle-name>.yaml if --bundle specified, else .specfact/sdd.yaml). Ignored if --bundle is specified.",
+        help="Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.yaml if --bundle specified, else .specfact/sdd.yaml. Ignored if --bundle is specified.",
     ),
     plan: Path | None = typer.Option(
         None,
         "--plan",
-        help="Path to plan bundle (default: .specfact/projects/<bundle-name>/ if --bundle specified, else active plan). Ignored if --bundle is specified.",
+        help="Path to plan bundle. Default: .specfact/projects/<bundle-name>/ if --bundle specified, else active plan. Ignored if --bundle is specified.",
     ),
     repo: Path | None = typer.Option(
         None,
         "--repo",
-        help="Repository path (default: current directory)",
+        help="Repository path. Default: current directory (.)",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
         False,
         "--no-interactive",
-        help="Non-interactive mode (for CI/CD automation)",
+        help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
     ),
 ) -> None:
     """
@@ -69,8 +69,13 @@ def generate_contracts(
 
     Generated files are saved to `.specfact/contracts/` with one file per feature.
 
-    Example:
-        specfact generate contracts
+    **Parameter Groups:**
+    - **Target/Input**: --bundle, --sdd, --plan, --repo
+    - **Behavior/Options**: --no-interactive
+
+    **Examples:**
+        specfact generate contracts --bundle legacy-api
+        specfact generate contracts --bundle legacy-api --no-interactive
         specfact generate contracts --sdd .specfact/sdd.yaml --plan .specfact/plans/main.bundle.yaml
     """
     from specfact_cli.telemetry import telemetry

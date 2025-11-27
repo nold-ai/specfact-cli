@@ -79,6 +79,7 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
 
 @app.command("from-bridge")
 def from_bridge(
+    # Target/Input
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -87,11 +88,18 @@ def from_bridge(
         file_okay=False,
         dir_okay=True,
     ),
-    adapter: str = typer.Option(
-        "speckit",
-        "--adapter",
-        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+    # Output/Results
+    report: Path | None = typer.Option(
+        None,
+        "--report",
+        help="Path to write import report",
     ),
+    out_branch: str = typer.Option(
+        "feat/specfact-migration",
+        "--out-branch",
+        help="Feature branch name for migration",
+    ),
+    # Behavior/Options
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
@@ -102,20 +110,16 @@ def from_bridge(
         "--write",
         help="Write changes to disk",
     ),
-    out_branch: str = typer.Option(
-        "feat/specfact-migration",
-        "--out-branch",
-        help="Feature branch name for migration",
-    ),
-    report: Path | None = typer.Option(
-        None,
-        "--report",
-        help="Path to write import report",
-    ),
     force: bool = typer.Option(
         False,
         "--force",
         help="Overwrite existing files",
+    ),
+    # Advanced/Configuration
+    adapter: str = typer.Option(
+        "speckit",
+        "--adapter",
+        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
     ),
 ) -> None:
     """
@@ -324,51 +328,55 @@ def from_bridge(
 @require(lambda confidence: 0.0 <= confidence <= 1.0, "Confidence must be 0.0-1.0")
 @beartype
 def from_code(
+    # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
-        help="Path to repository to import",
+        help="Path to repository to import. Default: current directory (.)",
         exists=True,
         file_okay=False,
         dir_okay=True,
     ),
-    shadow_only: bool = typer.Option(
-        False,
-        "--shadow-only",
-        help="Shadow mode - observe without enforcing",
+    entry_point: Path | None = typer.Option(
+        None,
+        "--entry-point",
+        help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Default: None (analyze entire repo)",
     ),
+    enrichment: Path | None = typer.Option(
+        None,
+        "--enrichment",
+        help="Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context). Default: None",
+    ),
+    # Output/Results
     report: Path | None = typer.Option(
         None,
         "--report",
-        help="Path to write analysis report (default: .specfact/reports/brownfield/analysis-<timestamp>.md)",
+        help="Path to write analysis report. Default: .specfact/reports/brownfield/analysis-<timestamp>.md",
     ),
+    # Behavior/Options
+    shadow_only: bool = typer.Option(
+        False,
+        "--shadow-only",
+        help="Shadow mode - observe without enforcing. Default: False",
+    ),
+    enrich_for_speckit: bool = typer.Option(
+        False,
+        "--enrich-for-speckit",
+        help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature). Default: False",
+    ),
+    # Advanced/Configuration
     confidence: float = typer.Option(
         0.5,
         "--confidence",
         min=0.0,
         max=1.0,
-        help="Minimum confidence score for features",
+        help="Minimum confidence score for features. Default: 0.5 (range: 0.0-1.0)",
     ),
     key_format: str = typer.Option(
         "classname",
         "--key-format",
-        help="Feature key format: 'classname' (FEATURE-CLASSNAME) or 'sequential' (FEATURE-001)",
-    ),
-    enrichment: Path | None = typer.Option(
-        None,
-        "--enrichment",
-        help="Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)",
-    ),
-    enrich_for_speckit: bool = typer.Option(
-        False,
-        "--enrich-for-speckit",
-        help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)",
-    ),
-    entry_point: Path | None = typer.Option(
-        None,
-        "--entry-point",
-        help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories.",
+        help="Feature key format: 'classname' (FEATURE-CLASSNAME) or 'sequential' (FEATURE-001). Default: classname",
     ),
 ) -> None:
     """
@@ -381,9 +389,16 @@ def from_code(
     to refine the auto-detected plan bundle (add missing features, adjust confidence scores,
     add business context).
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --repo, --entry-point, --enrichment
+    - **Output/Results**: --report
+    - **Behavior/Options**: --shadow-only, --enrich-for-speckit
+    - **Advanced/Configuration**: --confidence, --key-format
+
+    **Examples:**
         specfact import from-code legacy-api --repo .
         specfact import from-code auth-module --repo . --enrichment enrichment-report.md
+        specfact import from-code my-project --repo . --confidence 0.7 --shadow-only
     """
     from specfact_cli.agents.analyze_agent import AnalyzeAgent
     from specfact_cli.agents.registry import get_agent

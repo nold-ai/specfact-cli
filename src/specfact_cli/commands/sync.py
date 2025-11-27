@@ -623,6 +623,7 @@ def _sync_speckit_to_specfact(
 
 @app.command("bridge")
 def sync_bridge(
+    # Target/Input
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -631,16 +632,12 @@ def sync_bridge(
         file_okay=False,
         dir_okay=True,
     ),
-    adapter: str = typer.Option(
-        "speckit",
-        "--adapter",
-        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
-    ),
     bundle: str | None = typer.Option(
         None,
         "--bundle",
         help="Project bundle name for SpecFact → tool conversion (default: auto-detect)",
     ),
+    # Behavior/Options
     bidirectional: bool = typer.Option(
         False,
         "--bidirectional",
@@ -656,16 +653,22 @@ def sync_bridge(
         "--watch",
         help="Watch mode for continuous sync",
     ),
+    ensure_compliance: bool = typer.Option(
+        False,
+        "--ensure-compliance",
+        help="Validate and auto-enrich plan bundle for tool compliance before sync",
+    ),
+    # Advanced/Configuration
+    adapter: str = typer.Option(
+        "speckit",
+        "--adapter",
+        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+    ),
     interval: int = typer.Option(
         5,
         "--interval",
         help="Watch interval in seconds (default: 5)",
         min=1,
-    ),
-    ensure_compliance: bool = typer.Option(
-        False,
-        "--ensure-compliance",
-        help="Validate and auto-enrich plan bundle for tool compliance before sync",
     ),
 ) -> None:
     """

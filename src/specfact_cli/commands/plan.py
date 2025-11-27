@@ -106,16 +106,18 @@ def _save_bundle_with_progress(bundle: ProjectBundle, bundle_dir: Path, atomic: 
 @beartype
 @require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 def init(
+    # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    # Behavior/Options
     interactive: bool = typer.Option(
         True,
         "--interactive/--no-interactive",
-        help="Interactive mode with prompts",
+        help="Interactive mode with prompts. Default: True (interactive)",
     ),
     scaffold: bool = typer.Option(
         True,
         "--scaffold/--no-scaffold",
-        help="Create complete .specfact directory structure",
+        help="Create complete .specfact directory structure. Default: True (scaffold enabled)",
     ),
 ) -> None:
     """
@@ -124,9 +126,14 @@ def init(
     Creates a new modular project bundle with idea, product, and features structure.
     The bundle is created in .specfact/projects/<bundle-name>/ directory.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument)
+    - **Behavior/Options**: --interactive/--no-interactive, --scaffold/--no-scaffold
+
+    **Examples:**
         specfact plan init legacy-api                    # Interactive with scaffold
         specfact plan init auth-module --no-interactive  # Minimal bundle
+        specfact plan init my-project --no-scaffold      # Bundle without directory structure
     """
     from specfact_cli.utils.structure import SpecFactStructure
 
@@ -416,16 +423,16 @@ def _prompt_story() -> Story:
 @require(lambda title: isinstance(title, str) and len(title) > 0, "Title must be non-empty string")
 @require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def add_feature(
-    key: str = typer.Option(..., "--key", help="Feature key (e.g., FEATURE-001)"),
-    title: str = typer.Option(..., "--title", help="Feature title"),
-    outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
-    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
     # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
         help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
+    key: str = typer.Option(..., "--key", help="Feature key (e.g., FEATURE-001)"),
+    title: str = typer.Option(..., "--title", help="Feature title"),
+    outcomes: str | None = typer.Option(None, "--outcomes", help="Expected outcomes (comma-separated)"),
+    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
 ) -> None:
     """
     Add a new feature to an existing project bundle.
@@ -539,19 +546,20 @@ def add_feature(
 )
 @require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def add_story(
-    feature: str = typer.Option(..., "--feature", help="Parent feature key"),
-    key: str = typer.Option(..., "--key", help="Story key (e.g., STORY-001)"),
-    title: str = typer.Option(..., "--title", help="Story title"),
-    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
-    story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity)"),
-    value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value)"),
-    draft: bool = typer.Option(False, "--draft", help="Mark story as draft"),
     # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
         help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
+    feature: str = typer.Option(..., "--feature", help="Parent feature key"),
+    key: str = typer.Option(..., "--key", help="Story key (e.g., STORY-001)"),
+    title: str = typer.Option(..., "--title", help="Story title"),
+    acceptance: str | None = typer.Option(None, "--acceptance", help="Acceptance criteria (comma-separated)"),
+    story_points: int | None = typer.Option(None, "--story-points", help="Story points (complexity)"),
+    value_points: int | None = typer.Option(None, "--value-points", help="Value points (business value)"),
+    # Behavior/Options
+    draft: bool = typer.Option(False, "--draft", help="Mark story as draft"),
 ) -> None:
     """
     Add a new story to a feature.
@@ -672,17 +680,17 @@ def add_story(
 @beartype
 @require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def update_idea(
-    title: str | None = typer.Option(None, "--title", help="Idea title"),
-    narrative: str | None = typer.Option(None, "--narrative", help="Idea narrative (brief description)"),
-    target_users: str | None = typer.Option(None, "--target-users", help="Target user personas (comma-separated)"),
-    value_hypothesis: str | None = typer.Option(None, "--value-hypothesis", help="Value hypothesis statement"),
-    constraints: str | None = typer.Option(None, "--constraints", help="Idea-level constraints (comma-separated)"),
     # Target/Input
     bundle: str | None = typer.Option(
         None,
         "--bundle",
         help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
+    title: str | None = typer.Option(None, "--title", help="Idea title"),
+    narrative: str | None = typer.Option(None, "--narrative", help="Idea narrative (brief description)"),
+    target_users: str | None = typer.Option(None, "--target-users", help="Target user personas (comma-separated)"),
+    value_hypothesis: str | None = typer.Option(None, "--value-hypothesis", help="Value hypothesis statement"),
+    constraints: str | None = typer.Option(None, "--constraints", help="Idea-level constraints (comma-separated)"),
 ) -> None:
     """
     Update idea section metadata in a project bundle (optional business context).
@@ -828,6 +836,12 @@ def update_idea(
 @beartype
 @require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
 def update_feature(
+    # Target/Input
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
+    ),
     key: str | None = typer.Option(
         None, "--key", help="Feature key to update (e.g., FEATURE-001). Required unless --batch-updates is provided."
     ),
@@ -845,12 +859,6 @@ def update_feature(
         None,
         "--batch-updates",
         help="Path to JSON/YAML file with multiple feature updates. File format: list of objects with 'key' and update fields (title, outcomes, acceptance, constraints, confidence, draft).",
-    ),
-    # Target/Input
-    bundle: str | None = typer.Option(
-        None,
-        "--bundle",
-        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -1148,6 +1156,12 @@ def update_feature(
 )
 @require(lambda confidence: confidence is None or (0.0 <= confidence <= 1.0), "Confidence must be 0.0-1.0 if provided")
 def update_story(
+    # Target/Input
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
+    ),
     feature: str | None = typer.Option(
         None, "--feature", help="Parent feature key (e.g., FEATURE-001). Required unless --batch-updates is provided."
     ),
@@ -1168,12 +1182,6 @@ def update_story(
         None,
         "--batch-updates",
         help="Path to JSON/YAML file with multiple story updates. File format: list of objects with 'feature', 'key' and update fields (title, acceptance, story_points, value_points, confidence, draft).",
-    ),
-    # Target/Input
-    bundle: str | None = typer.Option(
-        None,
-        "--bundle",
-        help="Project bundle name (required, e.g., legacy-api). If not specified, attempts to use default bundle.",
     ),
 ) -> None:
     """
@@ -1522,11 +1530,6 @@ def compare(
         "--auto",
         help="Auto-derived plan bundle path (default: latest in .specfact/plans/). Ignored if --bundle is specified.",
     ),
-    code_vs_plan: bool = typer.Option(
-        False,
-        "--code-vs-plan",
-        help="Alias for comparing code-derived plan vs manual plan (auto-detects latest auto plan)",
-    ),
     # Output/Results
     output_format: str = typer.Option(
         "markdown",
@@ -1537,6 +1540,12 @@ def compare(
         None,
         "--out",
         help="Output file path (default: .specfact/reports/comparison/deviations-<timestamp>.md)",
+    ),
+    # Behavior/Options
+    code_vs_plan: bool = typer.Option(
+        False,
+        "--code-vs-plan",
+        help="Alias for comparing code-derived plan vs manual plan (auto-detects latest auto plan)",
     ),
 ) -> None:
     """
@@ -1808,9 +1817,20 @@ def compare(
 @require(lambda plan: plan is None or isinstance(plan, str), "Plan must be None or str")
 @require(lambda last: last is None or last > 0, "Last must be None or positive integer")
 def select(
+    # Target/Input
     plan: str | None = typer.Argument(
         None,
         help="Plan name or number to select (e.g., 'main.bundle.<format>' or '1')",
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Select bundle by exact bundle name (non-interactive, e.g., 'main')",
+    ),
+    plan_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -1818,6 +1838,7 @@ def select(
         "--no-interactive",
         help="Non-interactive mode (for CI/CD automation). Disables interactive prompts.",
     ),
+    # Advanced/Configuration
     current: bool = typer.Option(
         False,
         "--current",
@@ -1833,16 +1854,6 @@ def select(
         "--last",
         help="Show last N plans by modification time (most recent first)",
         min=1,
-    ),
-    name: str | None = typer.Option(
-        None,
-        "--name",
-        help="Select bundle by exact bundle name (non-interactive, e.g., 'main')",
-    ),
-    plan_id: str | None = typer.Option(
-        None,
-        "--id",
-        help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
     ),
 ) -> None:
     """
@@ -2179,20 +2190,22 @@ def select(
 @require(lambda all_plans: isinstance(all_plans, bool), "All plans must be bool")
 @require(lambda dry_run: isinstance(dry_run, bool), "Dry run must be bool")
 def upgrade(
+    # Target/Input
     plan: Path | None = typer.Option(
         None,
         "--plan",
         help="Path to specific plan bundle to upgrade (default: active plan)",
     ),
-    all_plans: bool = typer.Option(
-        False,
-        "--all",
-        help="Upgrade all plan bundles in .specfact/plans/",
-    ),
+    # Behavior/Options
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
         help="Show what would be upgraded without making changes",
+    ),
+    all_plans: bool = typer.Option(
+        False,
+        "--all",
+        help="Upgrade all plan bundles in .specfact/plans/",
     ),
 ) -> None:
     """
@@ -2318,11 +2331,7 @@ def upgrade(
 @require(lambda watch: isinstance(watch, bool), "Watch must be bool")
 @require(lambda interval: isinstance(interval, int) and interval >= 1, "Interval must be int >= 1")
 def sync(
-    shared: bool = typer.Option(
-        False,
-        "--shared",
-        help="Enable shared plans sync (bidirectional sync with Spec-Kit)",
-    ),
+    # Target/Input
     repo: Path | None = typer.Option(
         None,
         "--repo",
@@ -2332,6 +2341,12 @@ def sync(
         None,
         "--plan",
         help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan)",
+    ),
+    # Behavior/Options
+    shared: bool = typer.Option(
+        False,
+        "--shared",
+        help="Enable shared plans sync (bidirectional sync with Spec-Kit)",
     ),
     overwrite: bool = typer.Option(
         False,
@@ -2343,6 +2358,7 @@ def sync(
         "--watch",
         help="Watch mode for continuous sync",
     ),
+    # Advanced/Configuration
     interval: int = typer.Option(
         5,
         "--interval",
@@ -2437,10 +2453,12 @@ def _validate_stage(value: str) -> str:
     "Stage must be draft, review, approved, or released",
 )
 def promote(
+    # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     stage: str = typer.Option(
         ..., "--stage", callback=_validate_stage, help="Target stage (draft, review, approved, released)"
     ),
+    # Behavior/Options
     validate: bool = typer.Option(
         True,
         "--validate/--no-validate",
@@ -3279,50 +3297,53 @@ def _validate_sdd_for_plan(
 @require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda max_questions: max_questions > 0, "Max questions must be positive")
 def review(
+    # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
-    max_questions: int = typer.Option(
-        5,
-        "--max-questions",
-        min=1,
-        max=10,
-        help="Maximum questions per session (default: 5)",
-    ),
     category: str | None = typer.Option(
         None,
         "--category",
-        help="Focus on specific taxonomy category (optional)",
+        help="Focus on specific taxonomy category (optional). Default: None (all categories)",
     ),
+    # Output/Results
     list_questions: bool = typer.Option(
         False,
         "--list-questions",
-        help="Output questions in JSON format without asking (for Copilot mode)",
+        help="Output questions in JSON format without asking (for Copilot mode). Default: False",
     ),
     list_findings: bool = typer.Option(
         False,
         "--list-findings",
-        help="Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment.",
+        help="Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment. Default: False",
     ),
     findings_format: str | None = typer.Option(
         None,
         "--findings-format",
-        help="Output format for --list-findings: json, yaml, or table (default: json for non-interactive, table for interactive)",
+        help="Output format for --list-findings: json, yaml, or table. Default: json for non-interactive, table for interactive",
         case_sensitive=False,
-    ),
-    answers: str | None = typer.Option(
-        None,
-        "--answers",
-        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file.",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
         False,
         "--no-interactive",
-        help="Non-interactive mode (for CI/CD automation)",
+        help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
+    ),
+    answers: str | None = typer.Option(
+        None,
+        "--answers",
+        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file. Default: None",
     ),
     auto_enrich: bool = typer.Option(
         False,
         "--auto-enrich",
-        help="Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching",
+        help="Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching. Default: False",
+    ),
+    # Advanced/Configuration
+    max_questions: int = typer.Option(
+        5,
+        "--max-questions",
+        min=1,
+        max=10,
+        help="Maximum questions per session. Default: 5 (range: 1-10)",
     ),
 ) -> None:
     """
@@ -3332,7 +3353,13 @@ def review(
     and unknowns. Asks targeted questions to resolve ambiguities and make
     the bundle ready for promotion.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --category
+    - **Output/Results**: --list-questions, --list-findings, --findings-format
+    - **Behavior/Options**: --no-interactive, --answers, --auto-enrich
+    - **Advanced/Configuration**: --max-questions
+
+    **Examples:**
         specfact plan review legacy-api
         specfact plan review auth-module --max-questions 3 --category "Functional Scope"
         specfact plan review legacy-api --list-questions  # Output questions as JSON
@@ -3850,23 +3877,25 @@ def _find_bundle_dir(bundle: str | None) -> Path | None:
 @require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda sdd_path: sdd_path is None or isinstance(sdd_path, Path), "SDD path must be None or Path")
 def harden(
+    # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
     sdd_path: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Output SDD manifest path (default: .specfact/sdd.<format>)",
+        help="Output SDD manifest path. Default: .specfact/sdd/<bundle-name>.<format>",
     ),
+    # Output/Results
     output_format: StructuredFormat | None = typer.Option(
         None,
         "--output-format",
-        help="SDD manifest format (yaml or json). Defaults to global --output-format.",
+        help="SDD manifest format (yaml or json). Default: global --output-format (yaml)",
         case_sensitive=False,
     ),
     # Behavior/Options
     interactive: bool = typer.Option(
         True,
         "--interactive/--no-interactive",
-        help="Interactive mode with prompts (default: auto-detect)",
+        help="Interactive mode with prompts. Default: True (interactive, auto-detect)",
     ),
 ) -> None:
     """
@@ -3879,9 +3908,15 @@ def harden(
     **Important**: SDD manifests are linked to specific project bundles via hash.
     Each project bundle has its own SDD manifest in `.specfact/sdd/<bundle-name>.yaml`.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --sdd
+    - **Output/Results**: --output-format
+    - **Behavior/Options**: --interactive/--no-interactive
+
+    **Examples:**
         specfact plan harden legacy-api                    # Interactive
         specfact plan harden auth-module --no-interactive  # CI/CD mode
+        specfact plan harden legacy-api --output-format json
     """
     from specfact_cli.models.sdd import (
         SDDCoverageThresholds,

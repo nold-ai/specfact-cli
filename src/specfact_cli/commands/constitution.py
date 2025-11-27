@@ -35,7 +35,7 @@ def bootstrap(
     repo: Path = typer.Option(
         Path("."),
         "--repo",
-        help="Repository path (default: current directory)",
+        help="Repository path. Default: current directory (.)",
         exists=True,
         file_okay=False,
         dir_okay=True,
@@ -44,12 +44,13 @@ def bootstrap(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output path for constitution (default: .specify/memory/constitution.md)",
+        help="Output path for constitution. Default: .specify/memory/constitution.md",
     ),
+    # Behavior/Options
     overwrite: bool = typer.Option(
         False,
         "--overwrite",
-        help="Overwrite existing constitution if it exists",
+        help="Overwrite existing constitution if it exists. Default: False",
     ),
 ) -> None:
     """
@@ -65,9 +66,15 @@ def bootstrap(
     to extract project metadata, development principles, and quality standards,
     then generates a bootstrap constitution template ready for review and adjustment.
 
-    Example:
+    **Parameter Groups:**
+    - **Target/Input**: --repo
+    - **Output/Results**: --out
+    - **Behavior/Options**: --overwrite
+
+    **Examples:**
         specfact constitution bootstrap --repo .
         specfact constitution bootstrap --repo . --out custom-constitution.md
+        specfact constitution bootstrap --repo . --overwrite
     """
     from specfact_cli.telemetry import telemetry
 

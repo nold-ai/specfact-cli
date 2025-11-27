@@ -25,7 +25,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
         (templates_dir / "specfact-plan-init.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
         # Change to temp directory
@@ -43,15 +43,15 @@ class TestInitCommandE2E:
         # Verify templates were copied
         cursor_dir = tmp_path / ".cursor" / "commands"
         assert cursor_dir.exists()
-        assert (cursor_dir / "specfact-import-from-code.md").exists()
-        assert (cursor_dir / "specfact-plan-init.md").exists()
+        assert (cursor_dir / "specfact.01-import.md").exists()
+        assert (cursor_dir / "specfact.02-plan.md").exists()
 
     def test_init_explicit_cursor(self, tmp_path):
         """Test init command with explicit Cursor selection."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -67,14 +67,14 @@ class TestInitCommandE2E:
         # Verify template was copied
         cursor_dir = tmp_path / ".cursor" / "commands"
         assert cursor_dir.exists()
-        assert (cursor_dir / "specfact-import-from-code.md").exists()
+        assert (cursor_dir / "specfact.01-import.md").exists()
 
     def test_init_explicit_vscode(self, tmp_path):
         """Test init command with explicit VS Code selection."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -90,7 +90,7 @@ class TestInitCommandE2E:
         # Verify template was copied
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
         # Verify VS Code settings were updated
         vscode_settings = tmp_path / ".vscode" / "settings.json"
@@ -101,7 +101,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -117,14 +117,14 @@ class TestInitCommandE2E:
         # Verify template was copied
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
     def test_init_skips_existing_files_without_force(self, tmp_path):
         """Test init command skips existing files without --force."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
         (templates_dir / "specfact-plan-init.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
         # Pre-create one file (but not all)
@@ -227,7 +227,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         supported_ides = ["cursor", "vscode", "copilot", "claude", "gemini", "qwen"]
 
@@ -263,7 +263,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -279,7 +279,7 @@ class TestInitCommandE2E:
         # Verify templates were copied
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
     def test_init_auto_detect_claude(self, tmp_path, monkeypatch):
         """Test init command with auto-detection (simulating Claude Code)."""
@@ -297,7 +297,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
