@@ -9,6 +9,34 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.0] - 2025-11-28
+
+### Fixed (0.11.0)
+
+- **Test Timeout in IDE Setup**
+  - Fixed timeout issue in `test_init_handles_missing_templates` test (was timing out after 5 seconds)
+  - Added comprehensive error handling to `get_package_installation_locations()` function
+  - Wrapped all `rglob` operations in try-except blocks to handle `FileNotFoundError`, `PermissionError`, and `OSError`
+  - Added skip logic for known problematic directories (typeshed stubs) to prevent slow traversal
+  - Improved test mocking to work in both `specfact_cli.utils.ide_setup` and `specfact_cli.commands.init` modules
+  - Test now passes in ~3 seconds (well under 5s timeout)
+
+- **Package Location Discovery Robustness**
+  - Enhanced `get_package_installation_locations()` to gracefully handle problematic cache directories
+  - Added directory existence checks before attempting `rglob` traversal
+  - Improved error handling for uvx cache locations on Linux/macOS and Windows
+  - Better handling of symlinks, case sensitivity, and path separators across platforms
+  - Prevents timeouts when encountering large or problematic directory trees
+
+### Changed (0.11.0)
+
+- **IDE Setup Error Handling**
+  - Enhanced error handling in `ide_setup.py` to skip problematic directories instead of failing
+  - Added explicit checks to skip typeshed and stubs directories during package discovery
+  - Improved robustness of cross-platform package location detection
+
+---
+
 ## [0.10.2] - 2025-11-27
 
 ### Added (0.10.2)

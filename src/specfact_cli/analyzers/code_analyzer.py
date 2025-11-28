@@ -364,6 +364,9 @@ class CodeAnalyzer:
             constraints=constraints,
             stories=stories,
             confidence=round(confidence, 2),
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
     def _extract_stories_from_methods(self, methods: list[ast.FunctionDef], class_name: str) -> list[Story]:

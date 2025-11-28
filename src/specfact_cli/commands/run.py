@@ -135,6 +135,10 @@ def idea_to_ship(
             if not skip_implementation:
                 print_section("Step 6: Code Implementation")
                 _implement_tasks(task_file, repo_path, no_interactive)
+
+                # Step 6.5: Test Generation (Specmatic-based)
+                print_section("Step 6.5: Test Generation (Specmatic)")
+                _generate_tests_specmatic(bundle_name, repo_path, no_interactive)
             else:
                 print_info("Skipping code implementation step")
 
@@ -418,6 +422,27 @@ def _run_enforcement_checks(bundle_name: str, repo_path: Path, no_interactive: b
         print_warning(f"Repro validation had issues: {result.stderr}")
     else:
         print_success("Repro validation passed")
+
+
+@beartype
+@require(lambda bundle_name: isinstance(bundle_name, str), "Bundle name must be string")
+@require(lambda repo_path: isinstance(repo_path, Path), "Repository path must be Path")
+@require(lambda no_interactive: isinstance(no_interactive, bool), "No interactive must be bool")
+@ensure(lambda result: result is None, "Must return None")
+def _generate_tests_specmatic(bundle_name: str, repo_path: Path, no_interactive: bool) -> None:
+    """Generate tests using Specmatic flows (not LLM)."""
+    import subprocess
+
+    cmd = ["hatch", "run", "specfact", "spec", "generate-tests", "--bundle", bundle_name]
+    if no_interactive:
+        cmd.append("--no-interactive")
+
+    result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True)
+    if result.returncode != 0:
+        print_warning(f"Specmatic test generation had issues: {result.stderr}")
+        print_info("Tests will need to be generated manually or via LLM")
+    else:
+        print_success("Tests generated via Specmatic")
 
 
 @beartype

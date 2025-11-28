@@ -37,6 +37,7 @@ from specfact_cli.models.sdd import (
     SDDWhat,
     SDDWhy,
 )
+from specfact_cli.models.source_tracking import SourceTracking
 
 
 __all__ = [
@@ -77,6 +78,7 @@ __all__ = [
     "SDDWhy",
     "SchemaMetadata",
     "SectionLock",
+    "SourceTracking",
     "Story",
     "TemplateMapping",
     "Transition",

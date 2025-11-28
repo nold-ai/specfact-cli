@@ -476,28 +476,69 @@ def get_package_installation_locations(package_name: str) -> list[Path]:
         # Linux/macOS: ~/.cache/uv/archive-v0/.../lib/python3.X/site-packages/
         uvx_cache_base = Path.home() / ".cache" / "uv" / "archive-v0"
         if uvx_cache_base.exists():
-            for archive_dir in uvx_cache_base.iterdir():
-                if archive_dir.is_dir():
-                    # Look for site-packages directories (rglob finds all matches)
-                    for site_packages_dir in archive_dir.rglob("site-packages"):
-                        if site_packages_dir.is_dir():
-                            package_path = site_packages_dir / package_name
-                            if package_path.exists():
-                                locations.append(package_path.resolve())
+            try:
+                for archive_dir in uvx_cache_base.iterdir():
+                    try:
+                        if not archive_dir.is_dir():
+                            continue
+                        # Skip known problematic directories (e.g., typeshed stubs)
+                        if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
+                            continue
+                        # Look for site-packages directories (rglob finds all matches)
+                        # Wrap in try-except to handle FileNotFoundError and other issues
+                        try:
+                            for site_packages_dir in archive_dir.rglob("site-packages"):
+                                try:
+                                    if site_packages_dir.is_dir():
+                                        package_path = site_packages_dir / package_name
+                                        if package_path.exists():
+                                            locations.append(package_path.resolve())
+                                except (FileNotFoundError, PermissionError, OSError):
+                                    # Skip problematic directories
+                                    continue
+                        except (FileNotFoundError, PermissionError, OSError):
+                            # Skip archive directories that cause issues
+                            continue
+                    except (FileNotFoundError, PermissionError, OSError):
+                        # Skip problematic archive directories
+                        continue
+            except (FileNotFoundError, PermissionError, OSError):
+                # Skip if cache base directory has issues
+                pass
     else:
         # Windows: Check %LOCALAPPDATA%\\uv\\cache\\archive-v0\\
         localappdata = os.environ.get("LOCALAPPDATA")
         if localappdata:
             uvx_cache_base = Path(localappdata) / "uv" / "cache" / "archive-v0"
             if uvx_cache_base.exists():
-                for archive_dir in uvx_cache_base.iterdir():
-                    if archive_dir.is_dir():
-                        # Look for site-packages directories
-                        for site_packages_dir in archive_dir.rglob("site-packages"):
-                            if site_packages_dir.is_dir():
-                                package_path = site_packages_dir / package_name
-                                if package_path.exists():
-                                    locations.append(package_path.resolve())
+                try:
+                    for archive_dir in uvx_cache_base.iterdir():
+                        try:
+                            if not archive_dir.is_dir():
+                                continue
+                            # Skip known problematic directories (e.g., typeshed stubs)
+                            if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
+                                continue
+                            # Look for site-packages directories
+                            try:
+                                for site_packages_dir in archive_dir.rglob("site-packages"):
+                                    try:
+                                        if site_packages_dir.is_dir():
+                                            package_path = site_packages_dir / package_name
+                                            if package_path.exists():
+                                                locations.append(package_path.resolve())
+                                    except (FileNotFoundError, PermissionError, OSError):
+                                        # Skip problematic directories
+                                        continue
+                            except (FileNotFoundError, PermissionError, OSError):
+                                # Skip archive directories that cause issues
+                                continue
+                        except (FileNotFoundError, PermissionError, OSError):
+                            # Skip problematic archive directories
+                            continue
+                except (FileNotFoundError, PermissionError, OSError):
+                    # Skip if cache base directory has issues
+                    pass
 
     # Remove duplicates while preserving order
     seen = set()

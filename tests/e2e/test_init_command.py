@@ -188,11 +188,17 @@ class TestInitCommandE2E:
         monkeypatch.setattr(importlib.util, "find_spec", mock_find_spec)
 
         # Mock get_package_installation_locations to return empty list to avoid slow search
+        # Must mock in the module where it's imported (init.py) to ensure it works
         def mock_get_locations(package_name: str) -> list:
             return []  # Return empty to simulate no package found
 
         monkeypatch.setattr(
             "specfact_cli.utils.ide_setup.get_package_installation_locations",
+            mock_get_locations,
+        )
+        # Also mock in the init command module where it's imported
+        monkeypatch.setattr(
+            "specfact_cli.commands.init.get_package_installation_locations",
             mock_get_locations,
         )
 
@@ -202,6 +208,11 @@ class TestInitCommandE2E:
 
         monkeypatch.setattr(
             "specfact_cli.utils.ide_setup.find_package_resources_path",
+            mock_find_resources,
+        )
+        # Also mock in the init command module where it's imported
+        monkeypatch.setattr(
+            "specfact_cli.commands.init.find_package_resources_path",
             mock_find_resources,
         )
 

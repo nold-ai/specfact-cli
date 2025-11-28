@@ -433,6 +433,9 @@ def apply_enrichment(plan_bundle: PlanBundle, enrichment: EnrichmentReport) -> P
                 stories=stories,  # Include parsed stories
                 confidence=missing_feature_data.get("confidence", 0.5),
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
             enriched.features.append(feature)
 
