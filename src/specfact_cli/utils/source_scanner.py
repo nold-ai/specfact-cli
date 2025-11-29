@@ -8,6 +8,9 @@ existing files, and mapping them to features/stories using AST analysis.
 from __future__ import annotations
 
 import ast
+import contextlib
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -69,13 +72,83 @@ class SourceArtifactScanner:
 
         return artifact_map
 
+    def _link_feature_to_specs(
+        self, feature: Feature, repo_path: Path, impl_files: list[Path], test_files: list[Path]
+    ) -> None:
+        """
+        Link a single feature to matching files (thread-safe helper).
+
+        Args:
+            feature: Feature to link
+            repo_path: Repository path
+            impl_files: Pre-collected implementation files
+            test_files: Pre-collected test files
+        """
+        if feature.source_tracking is None:
+            feature.source_tracking = SourceTracking()
+
+        # Try to match feature key/title to files
+        feature_key_lower = feature.key.lower()
+        feature_title_lower = feature.title.lower()
+
+        # Search for matching implementation files
+        for file_path in impl_files:
+            if self._is_implementation_file(file_path):
+                file_name_lower = file_path.stem.lower()
+                # Simple matching: check if feature key or title appears in filename
+                if feature_key_lower in file_name_lower or any(
+                    word in file_name_lower for word in feature_title_lower.split() if len(word) > 3
+                ):
+                    rel_path = str(file_path.relative_to(repo_path))
+                    if rel_path not in feature.source_tracking.implementation_files:
+                        feature.source_tracking.implementation_files.append(rel_path)
+                    # Compute and store hash
+                    feature.source_tracking.update_hash(file_path)
+
+        # Search for matching test files
+        for file_path in test_files:
+            if self._is_test_file(file_path):
+                file_name_lower = file_path.stem.lower()
+                # Match test files to features
+                if feature_key_lower in file_name_lower or any(
+                    word in file_name_lower for word in feature_title_lower.split() if len(word) > 3
+                ):
+                    rel_path = str(file_path.relative_to(repo_path))
+                    if rel_path not in feature.source_tracking.test_files:
+                        feature.source_tracking.test_files.append(rel_path)
+                    # Compute and store hash
+                    feature.source_tracking.update_hash(file_path)
+
+        # Extract function mappings for stories
+        for story in feature.stories:
+            for impl_file in feature.source_tracking.implementation_files:
+                file_path = repo_path / impl_file
+                if file_path.exists():
+                    functions = self.extract_function_mappings(file_path)
+                    for func_name in functions:
+                        func_mapping = f"{impl_file}::{func_name}"
+                        if func_mapping not in story.source_functions:
+                            story.source_functions.append(func_mapping)
+
+            for test_file in feature.source_tracking.test_files:
+                file_path = repo_path / test_file
+                if file_path.exists():
+                    test_functions = self.extract_test_mappings(file_path)
+                    for test_func_name in test_functions:
+                        test_mapping = f"{test_file}::{test_func_name}"
+                        if test_mapping not in story.test_functions:
+                            story.test_functions.append(test_mapping)
+
+        # Update sync timestamp
+        feature.source_tracking.update_sync_timestamp()
+
     @beartype
     @require(lambda self, features: isinstance(features, list), "Features must be list")
     @require(lambda self, features: all(isinstance(f, Feature) for f in features), "All items must be Feature")
     @ensure(lambda result: result is None, "Must return None")
     def link_to_specs(self, features: list[Feature], repo_path: Path | None = None) -> None:
         """
-        Map code files → feature specs using AST analysis.
+        Map code files → feature specs using AST analysis (parallelized).
 
         Args:
             features: List of features to link
@@ -84,68 +157,33 @@ class SourceArtifactScanner:
         if repo_path is None:
             repo_path = self.repo_path
 
-        # For each feature, try to find matching files
-        for feature in features:
-            if feature.source_tracking is None:
-                feature.source_tracking = SourceTracking()
+        if not features:
+            return
 
-            # Try to match feature key/title to files
-            # This is a simple heuristic - can be enhanced with LLM
-            feature_key_lower = feature.key.lower()
-            feature_title_lower = feature.title.lower()
+        # Pre-collect all files once (avoid repeated glob operations)
+        impl_files: list[Path] = []
+        for pattern in ["src/**/*.py", "lib/**/*.py", "app/**/*.py"]:
+            impl_files.extend(repo_path.glob(pattern))
 
-            # Search for matching implementation files
-            for pattern in ["src/**/*.py", "lib/**/*.py", "app/**/*.py"]:
-                for file_path in repo_path.glob(pattern):
-                    if self._is_implementation_file(file_path):
-                        file_name_lower = file_path.stem.lower()
-                        # Simple matching: check if feature key or title appears in filename
-                        if feature_key_lower in file_name_lower or any(
-                            word in file_name_lower for word in feature_title_lower.split() if len(word) > 3
-                        ):
-                            rel_path = str(file_path.relative_to(repo_path))
-                            if rel_path not in feature.source_tracking.implementation_files:
-                                feature.source_tracking.implementation_files.append(rel_path)
-                            # Compute and store hash
-                            feature.source_tracking.update_hash(file_path)
+        test_files: list[Path] = []
+        for pattern in ["tests/**/*.py", "test/**/*.py", "**/test_*.py", "**/*_test.py"]:
+            test_files.extend(repo_path.glob(pattern))
 
-            # Search for matching test files
-            for pattern in ["tests/**/*.py", "test/**/*.py", "**/test_*.py", "**/*_test.py"]:
-                for file_path in repo_path.glob(pattern):
-                    if self._is_test_file(file_path):
-                        file_name_lower = file_path.stem.lower()
-                        # Match test files to features
-                        if feature_key_lower in file_name_lower or any(
-                            word in file_name_lower for word in feature_title_lower.split() if len(word) > 3
-                        ):
-                            rel_path = str(file_path.relative_to(repo_path))
-                            if rel_path not in feature.source_tracking.test_files:
-                                feature.source_tracking.test_files.append(rel_path)
-                            # Compute and store hash
-                            feature.source_tracking.update_hash(file_path)
+        # Remove duplicates
+        impl_files = list(set(impl_files))
+        test_files = list(set(test_files))
 
-            # Extract function mappings for stories
-            for story in feature.stories:
-                for impl_file in feature.source_tracking.implementation_files:
-                    file_path = repo_path / impl_file
-                    if file_path.exists():
-                        functions = self.extract_function_mappings(file_path)
-                        for func_name in functions:
-                            func_mapping = f"{impl_file}::{func_name}"
-                            if func_mapping not in story.source_functions:
-                                story.source_functions.append(func_mapping)
+        # Process features in parallel
+        max_workers = min(os.cpu_count() or 4, 8, len(features))  # Cap at 8 workers
 
-                for test_file in feature.source_tracking.test_files:
-                    file_path = repo_path / test_file
-                    if file_path.exists():
-                        test_functions = self.extract_test_mappings(file_path)
-                        for test_func_name in test_functions:
-                            test_mapping = f"{test_file}::{test_func_name}"
-                            if test_mapping not in story.test_functions:
-                                story.test_functions.append(test_mapping)
-
-            # Update sync timestamp
-            feature.source_tracking.update_sync_timestamp()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_feature = {
+                executor.submit(self._link_feature_to_specs, feature, repo_path, impl_files, test_files): feature
+                for feature in features
+            }
+            for future in as_completed(future_to_feature):
+                with contextlib.suppress(Exception):
+                    future.result()  # Wait for completion
 
     @beartype
     @require(lambda self, file_path: isinstance(file_path, Path), "File path must be Path")

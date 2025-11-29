@@ -59,22 +59,27 @@ class TestPatternExtractor:
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "Must return list")
-    def extract_test_patterns_for_class(self, class_name: str, module_path: Path | None = None) -> list[str]:
+    def extract_test_patterns_for_class(
+        self, class_name: str, module_path: Path | None = None, as_openapi_examples: bool = False
+    ) -> list[str]:
         """
         Extract test patterns for a specific class.
 
         Args:
             class_name: Name of the class to find tests for
             module_path: Optional path to the source module (for better matching)
+            as_openapi_examples: If True, return minimal acceptance criteria (examples stored in contracts).
+                                 If False, return verbose GWT format (legacy behavior).
 
         Returns:
-            List of testable acceptance criteria in Given/When/Then format
+            List of testable acceptance criteria (GWT format if as_openapi_examples=False,
+            minimal format if as_openapi_examples=True)
         """
         acceptance_criteria: list[str] = []
 
         for test_file in self.test_files:
             try:
-                test_patterns = self._parse_test_file(test_file, class_name, module_path)
+                test_patterns = self._parse_test_file(test_file, class_name, module_path, as_openapi_examples)
                 acceptance_criteria.extend(test_patterns)
             except Exception:
                 # Skip files that can't be parsed
@@ -83,7 +88,9 @@ class TestPatternExtractor:
         return acceptance_criteria
 
     @beartype
-    def _parse_test_file(self, test_file: Path, class_name: str, module_path: Path | None) -> list[str]:
+    def _parse_test_file(
+        self, test_file: Path, class_name: str, module_path: Path | None, as_openapi_examples: bool = False
+    ) -> list[str]:
         """Parse a test file and extract test patterns for the given class."""
         try:
             content = test_file.read_text(encoding="utf-8")
@@ -96,11 +103,36 @@ class TestPatternExtractor:
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                 # Found a test function
-                test_pattern = self._extract_test_pattern(node, class_name)
+                if as_openapi_examples:
+                    # Return minimal acceptance criteria (examples will be in contracts)
+                    test_pattern = self._extract_minimal_acceptance(node, class_name)
+                else:
+                    # Return verbose GWT format (legacy behavior)
+                    test_pattern = self._extract_test_pattern(node, class_name)
                 if test_pattern:
                     acceptance_criteria.append(test_pattern)
 
         return acceptance_criteria
+
+    @beartype
+    @require(lambda test_node: isinstance(test_node, ast.FunctionDef), "Test node must be FunctionDef")
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return None or string")
+    def _extract_minimal_acceptance(self, test_node: ast.FunctionDef, class_name: str) -> str | None:
+        """
+        Extract minimal acceptance criteria (examples stored in contracts, not YAML).
+
+        Args:
+            test_node: AST node for the test function
+            class_name: Name of the class being tested
+
+        Returns:
+            Minimal acceptance criterion (high-level business logic only), or None
+        """
+        # Extract test name (remove "test_" prefix)
+        test_name = test_node.name.replace("test_", "").replace("_", " ")
+
+        # Return minimal acceptance (examples will be extracted to OpenAPI contracts)
+        return f"Given {class_name}, When {test_name}, Then expected behavior is verified (see contract examples)"
 
     @beartype
     def _extract_test_pattern(self, test_node: ast.FunctionDef, class_name: str) -> str | None:

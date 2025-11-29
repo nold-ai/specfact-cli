@@ -68,7 +68,8 @@ def generate_contracts(
     contract stub files with icontract decorators, beartype type checks,
     and CrossHair harness templates.
 
-    Generated files are saved to `.specfact/contracts/` with one file per feature.
+    Generated files are saved to `.specfact/projects/<bundle-name>/contracts/` when --bundle is specified,
+    or `.specfact/contracts/` for legacy mode, with one file per feature.
 
     **Parameter Groups:**
     - **Target/Input**: --bundle, --sdd, --plan, --repo
@@ -93,6 +94,9 @@ def generate_contracts(
             # Import here to avoid circular imports
             from specfact_cli.utils.bundle_loader import BundleFormat, detect_bundle_format, load_project_bundle
             from specfact_cli.utils.structure import SpecFactStructure
+
+            # Initialize bundle_dir (will be set if bundle is provided)
+            bundle_dir: Path | None = None
 
             # If --bundle is specified, use bundle-based paths
             if bundle:
@@ -192,10 +196,17 @@ def generate_contracts(
                 print_info("Run 'specfact plan harden' to update SDD manifest")
                 raise typer.Exit(1)
 
+            # Determine contracts directory based on bundle
+            # For bundle-based generation, save contracts inside project bundle directory
+            # Legacy mode uses global contracts directory
+            contracts_dir = (
+                bundle_dir / "contracts" if bundle_dir is not None else base_path / SpecFactStructure.ROOT / "contracts"
+            )
+
             # Generate contracts
             print_info("Generating contract stubs from SDD HOW sections...")
             generator = ContractGenerator()
-            result = generator.generate_contracts(sdd_manifest, plan_bundle, base_path)
+            result = generator.generate_contracts(sdd_manifest, plan_bundle, base_path, contracts_dir=contracts_dir)
 
             # Display results
             if result["errors"]:

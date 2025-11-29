@@ -35,6 +35,8 @@ source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
 pip install specfact-cli
 ```
 
+**Optional**: For enhanced graph-based dependency analysis, see [Enhanced Analysis Dependencies](../installation/enhanced-analysis-dependencies.md).
+
 **After installation**: Set up IDE integration for interactive mode:
 
 ```bash

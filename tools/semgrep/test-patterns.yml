@@ -1,0 +1,96 @@
+rules:
+  - id: extract-pytest-fixtures
+    pattern: |
+      @pytest.fixture
+      def $FIXTURE(...):
+        ...
+    message: "Extract fixture as OpenAPI example schema"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: test-extraction
+      subcategory: [fixtures, examples]
+      confidence: HIGH
+      fixture_name: $FIXTURE
+
+  - id: extract-pytest-test-functions
+    pattern: |
+      def test_$NAME(...):
+        ...
+    message: "Extract test function for OpenAPI test case"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: test-extraction
+      subcategory: [test-cases, assertions]
+      confidence: HIGH
+      test_name: $NAME
+
+  - id: extract-test-assertions
+    patterns:
+      - pattern: |
+          assert $ASSERTION
+      - pattern: |
+          assert $LEFT == $RIGHT
+      - pattern: |
+          assert $LEFT != $RIGHT
+      - pattern: |
+          assert $CONDITION is True
+      - pattern: |
+          assert $CONDITION is False
+    message: "Extract assertion as OpenAPI test case expectation"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: test-extraction
+      subcategory: [assertions, expectations]
+      confidence: MEDIUM
+
+  - id: extract-test-request-data
+    patterns:
+      - pattern: |
+          response = $CLIENT.$METHOD("$PATH", ...)
+      - pattern: |
+          response = requests.$METHOD("$PATH", json=$DATA)
+      - pattern: |
+          response = $CLIENT.$METHOD("$PATH", data=$DATA)
+    message: "Extract test request data as OpenAPI example"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: test-extraction
+      subcategory: [request-examples, http-requests]
+      confidence: HIGH
+      method: $METHOD
+      path: $PATH
+
+  - id: extract-test-response-data
+    patterns:
+      - pattern: |
+          assert response.status_code == $CODE
+      - pattern: |
+          assert response.json() == $DATA
+      - pattern: |
+          data = response.json()
+    message: "Extract test response data as OpenAPI example"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: test-extraction
+      subcategory: [response-examples, http-responses]
+      confidence: HIGH
+      status_code: $CODE
+
+  - id: extract-unittest-test-methods
+    pattern: |
+      def test_$NAME(self, ...):
+        ...
+    message: "Extract unittest test method for OpenAPI test case"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: test-extraction
+      subcategory: [test-cases, unittest]
+      confidence: HIGH
+      test_name: $NAME
+

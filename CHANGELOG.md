@@ -9,6 +9,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.1] - 2025-11-29
+
+### Added (0.11.1)
+
+- **Configurable Test File Filtering in Relationship Mapping**
+  - New `--include-tests` flag for `specfact import from-code` command
+  - Allows users to include test files in relationship mapping for more comprehensive analysis
+  - Default behavior: Test files are skipped for faster processing (~30-50% speed improvement)
+  - Rationale: Test files are consumers of production code (not producers), so skipping them has minimal impact on dependency graph quality
+  - When enabled: Includes test files but still filters vendor/venv files for optimal performance
+  - Updated help text and documentation with clear usage examples
+
+### Changed (0.11.1)
+
+- **Relationship Mapping Performance Optimization**
+  - Test files are now filtered by default in relationship mapping phase for faster processing
+  - Filtering rationale documented in code: Test files import production code (one-way dependency), so skipping them doesn't affect production dependency graph
+  - Interfaces and routes are defined in production code, not tests, so skipping tests has minimal quality impact
+  - Vendor and virtual environment files are always filtered regardless of `--include-tests` flag
+
+### Documentation (0.11.1)
+
+- **Enhanced Command Documentation**
+  - Added `--include-tests` flag to parameter groups in `import from-code` command docstring
+  - Added example usage: `specfact import from-code my-project --repo . --include-tests`
+  - Updated help text to explain trade-offs between speed (default) and completeness (with flag)
+
+---
+
 ## [0.11.0] - 2025-11-28
 
 ### Fixed (0.11.0)

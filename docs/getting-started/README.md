@@ -7,6 +7,7 @@ Welcome to SpecFact CLI! This guide will help you get started in under 60 second
 Choose your preferred installation method:
 
 - **[Installation Guide](installation.md)** - All installation options (uvx, pip, Docker, GitHub Actions)
+- **[Enhanced Analysis Dependencies](../installation/enhanced-analysis-dependencies.md)** - Optional dependencies for graph-based analysis (pyan3, syft, bearer, graphviz)
 
 ## Quick Start
 

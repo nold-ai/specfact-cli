@@ -93,8 +93,13 @@ class YAMLUtils:
         # Quote boolean-like strings to prevent YAML parsing issues
         data = self._quote_boolean_like_strings(data)
 
+        # Use context manager for proper file handling
+        # Thread-local YAML instances ensure thread-safety
         with open(file_path, "w", encoding="utf-8") as f:
             self.yaml.dump(data, f)
+            # Explicit flush to ensure data is written before context exits
+            # This helps prevent "I/O operation on closed file" errors in parallel operations
+            f.flush()
 
     @beartype
     def _quote_boolean_like_strings(self, data: Any) -> Any:

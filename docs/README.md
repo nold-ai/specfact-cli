@@ -96,6 +96,7 @@
 ### Getting Started
 
 - [Installation](getting-started/installation.md) - All installation options
+- [Enhanced Analysis Dependencies](installation/enhanced-analysis-dependencies.md) - Optional dependencies for graph-based analysis
 - [First Steps](getting-started/first-steps.md) - Step-by-step first commands
 
 ### User Guides

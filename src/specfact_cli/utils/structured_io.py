@@ -5,6 +5,7 @@ Provides helpers to load and dump JSON/YAML consistently with format detection.
 """
 
 import json
+import threading
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -64,6 +65,19 @@ class StructuredFormat(str, Enum):
         return StructuredFormat.YAML if default is None else default
 
 
+# Thread-local storage for YAML instances to ensure thread-safety
+# ruamel.yaml.YAML() is not thread-safe, so we create one per thread
+_thread_local = threading.local()
+
+
+def _get_yaml_instance() -> YAMLUtils:
+    """Get thread-local YAML instance for thread-safe operations."""
+    if not hasattr(_thread_local, "yaml"):
+        _thread_local.yaml = YAMLUtils()
+    return _thread_local.yaml
+
+
+# Module-level instance for backward compatibility (single-threaded use)
 _yaml = YAMLUtils()
 
 
@@ -90,7 +104,9 @@ def load_structured_file(file_path: Path | str, format: StructuredFormat | None 
     if fmt == StructuredFormat.JSON:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
-    return _yaml.load(path)
+    # Use thread-local YAML instance for thread-safety (though loading is less critical)
+    yaml_instance = _get_yaml_instance()
+    return yaml_instance.load(path)
 
 
 @beartype
@@ -98,6 +114,8 @@ def load_structured_file(file_path: Path | str, format: StructuredFormat | None 
 def dump_structured_file(data: Any, file_path: Path | str, format: StructuredFormat | None = None) -> None:
     """
     Dump structured data (JSON or YAML) to file.
+
+    Thread-safe: Uses thread-local YAML instance for parallel operations.
 
     Args:
         data: Serializable payload
@@ -111,14 +129,21 @@ def dump_structured_file(data: Any, file_path: Path | str, format: StructuredFor
     if fmt == StructuredFormat.JSON:
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     else:
-        _yaml.dump(data, path)
+        # Use thread-local YAML instance for thread-safety
+        # ruamel.yaml.YAML() is not thread-safe when used from multiple threads
+        yaml_instance = _get_yaml_instance()
+        yaml_instance.dump(data, path)
 
 
 @beartype
 @ensure(lambda result: isinstance(result, str), "Must return string output")
 def dumps_structured_data(data: Any, format: StructuredFormat) -> str:
     """Serialize data to string for the requested structured format."""
-    return json.dumps(data, indent=2) if format == StructuredFormat.JSON else _yaml.dump_string(data)
+    if format == StructuredFormat.JSON:
+        return json.dumps(data, indent=2)
+    # Use thread-local YAML instance for thread-safety
+    yaml_instance = _get_yaml_instance()
+    return yaml_instance.dump_string(data)
 
 
 @beartype
@@ -128,4 +153,6 @@ def loads_structured_data(payload: str, format: StructuredFormat) -> Any:
     """Deserialize structured payload string."""
     if format == StructuredFormat.JSON:
         return json.loads(payload)
-    return _yaml.load_string(payload)
+    # Use thread-local YAML instance for thread-safety
+    yaml_instance = _get_yaml_instance()
+    return yaml_instance.load_string(payload)
