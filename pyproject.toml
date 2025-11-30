@@ -344,7 +344,7 @@ packages = [
 "resources/templates" = "specfact_cli/resources/templates"
 "resources/schemas" = "specfact_cli/resources/schemas"
 "resources/mappings" = "specfact_cli/resources/mappings"
-"resources/semgrep" = "specfact_cli/resources/semgrep"
+# Note: resources/semgrep files are in src/specfact_cli/resources/semgrep/ and are automatically included
 
 [tool.hatch.build.targets.sdist]
 # Only include essential files in source distribution
