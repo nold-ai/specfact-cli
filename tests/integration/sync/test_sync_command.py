@@ -4,6 +4,7 @@ Integration tests for sync command with realistic scenarios.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -229,22 +230,24 @@ As a user, I want to test features so that I can validate functionality.
             result_container: dict[str, Any] = {"result": None}
 
             def run_command() -> None:
-                result_container["result"] = runner.invoke(
-                    app,
-                    [
-                        "sync",
-                        "bridge",
-                        "--repo",
-                        str(repo_path),
-                        "--adapter",
-                        "speckit",
-                        "--bundle",
-                        bundle_name,
-                        "--watch",
-                        "--interval",
-                        "1",
-                    ],
-                )
+                with contextlib.suppress(ValueError, OSError):
+                    # Handle case where streams are closed (expected in threading scenarios)
+                    result_container["result"] = runner.invoke(
+                        app,
+                        [
+                            "sync",
+                            "bridge",
+                            "--repo",
+                            str(repo_path),
+                            "--adapter",
+                            "speckit",
+                            "--bundle",
+                            bundle_name,
+                            "--watch",
+                            "--interval",
+                            "1",
+                        ],
+                    )
 
             thread = threading.Thread(target=run_command, daemon=True)
             thread.start()
@@ -435,23 +438,25 @@ As a user, I want to test features so that I can validate functionality.
             result_container: dict[str, Any] = {"result": None}
 
             def run_command() -> None:
-                result_container["result"] = runner.invoke(
-                    app,
-                    [
-                        "sync",
-                        "bridge",
-                        "--adapter",
-                        "speckit",
-                        "--bundle",
-                        bundle_name,
-                        "--repo",
-                        str(repo_path),
-                        "--watch",
-                        "--interval",
-                        "1",
-                    ],
-                    input="\n",  # Send empty input to simulate Ctrl+C
-                )
+                with contextlib.suppress(ValueError, OSError):
+                    # Handle case where streams are closed (expected in threading scenarios)
+                    result_container["result"] = runner.invoke(
+                        app,
+                        [
+                            "sync",
+                            "bridge",
+                            "--adapter",
+                            "speckit",
+                            "--bundle",
+                            bundle_name,
+                            "--repo",
+                            str(repo_path),
+                            "--watch",
+                            "--interval",
+                            "1",
+                        ],
+                        input="\n",  # Send empty input to simulate Ctrl+C
+                    )
 
             thread = threading.Thread(target=run_command, daemon=True)
             thread.start()
@@ -495,11 +500,13 @@ As a user, I want to test features so that I can validate functionality.
             result_container: dict[str, Any] = {"result": None}
 
             def run_command() -> None:
-                result_container["result"] = runner.invoke(
-                    app,
-                    ["sync", "repository", "--repo", str(repo_path), "--watch", "--interval", "1"],
-                    input="\n",  # Send empty input to simulate Ctrl+C
-                )
+                with contextlib.suppress(ValueError, OSError):
+                    # Handle case where streams are closed (expected in threading scenarios)
+                    result_container["result"] = runner.invoke(
+                        app,
+                        ["sync", "repository", "--repo", str(repo_path), "--watch", "--interval", "1"],
+                        input="\n",  # Send empty input to simulate Ctrl+C
+                    )
 
             thread = threading.Thread(target=run_command, daemon=True)
             thread.start()

@@ -209,11 +209,8 @@ def _analyze_codebase(
     console.print(
         "\n[yellow]⏱️  Note: This analysis typically takes 2-5 minutes for large codebases (optimized for speed)[/yellow]"
     )
-    if entry_point:
-        console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
-    else:
-        console.print("[cyan]🔍 Analyzing codebase...[/cyan]\n")
 
+    # Create analyzer to check plugin status
     analyzer = CodeAnalyzer(
         repo,
         confidence_threshold=confidence,
@@ -221,6 +218,36 @@ def _analyze_codebase(
         plan_name=bundle,
         entry_point=entry_point,
     )
+
+    # Display plugin status
+    plugin_status = analyzer.get_plugin_status()
+    if plugin_status:
+        from rich.table import Table
+
+        console.print("\n[bold]Analysis Plugins:[/bold]")
+        plugin_table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
+        plugin_table.add_column("Plugin", style="cyan", width=25)
+        plugin_table.add_column("Status", style="bold", width=12)
+        plugin_table.add_column("Details", style="dim", width=50)
+
+        for plugin in plugin_status:
+            if plugin["enabled"] and plugin["used"]:
+                status = "[green]✓ Enabled[/green]"
+            elif plugin["enabled"] and not plugin["used"]:
+                status = "[yellow]⚠ Enabled (not used)[/yellow]"
+            else:
+                status = "[dim]⊘ Disabled[/dim]"
+
+            plugin_table.add_row(plugin["name"], status, plugin["reason"])
+
+        console.print(plugin_table)
+        console.print()
+
+    if entry_point:
+        console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
+    else:
+        console.print("[cyan]🔍 Analyzing codebase...[/cyan]\n")
+
     return analyzer.analyze()
 
 
@@ -249,18 +276,41 @@ def _update_source_tracking(plan_bundle: PlanBundle, repo: Path) -> None:
 
     if hash_tasks:
         max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(hash_tasks)))
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        interrupted = False
+        try:
             future_to_task = {
                 executor.submit(update_file_hash, feature, file_path): (feature, file_path)
                 for feature, file_path in hash_tasks
             }
-            for future in as_completed(future_to_task):
-                try:
-                    future.result()
-                except KeyboardInterrupt:
-                    raise
-                except Exception:
-                    pass
+            try:
+                for future in as_completed(future_to_task):
+                    try:
+                        future.result()
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_task:
+                            if not f.done():
+                                f.cancel()
+                        break
+                    except Exception:
+                        pass
+            except KeyboardInterrupt:
+                interrupted = True
+                for f in future_to_task:
+                    if not f.done():
+                        f.cancel()
+            if interrupted:
+                raise KeyboardInterrupt
+        except KeyboardInterrupt:
+            interrupted = True
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        finally:
+            if not interrupted:
+                executor.shutdown(wait=True)
+            else:
+                executor.shutdown(wait=False)
 
     for feature in plan_bundle.features:
         if feature.source_tracking:
@@ -425,26 +475,47 @@ def _extract_contracts(
         features_with_contracts = [f for f in plan_bundle.features if f.contract]
         if features_with_contracts:
             max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_contracts)))
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            interrupted = False
+            existing_contracts_count = 0
+            try:
                 future_to_feature = {
                     executor.submit(load_contract, feature): feature for feature in features_with_contracts
                 }
-                existing_contracts_count = 0
-                for future in as_completed(future_to_feature):
-                    try:
-                        feature_key, contract_data = future.result()
-                        if contract_data:
-                            contracts_data[feature_key] = contract_data
-                            existing_contracts_count += 1
-                    except KeyboardInterrupt:
-                        raise
-                    except Exception:
-                        pass
+                try:
+                    for future in as_completed(future_to_feature):
+                        try:
+                            feature_key, contract_data = future.result()
+                            if contract_data:
+                                contracts_data[feature_key] = contract_data
+                                existing_contracts_count += 1
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_feature:
+                                if not f.done():
+                                    f.cancel()
+                            break
+                        except Exception:
+                            pass
+                except KeyboardInterrupt:
+                    interrupted = True
+                    for f in future_to_feature:
+                        if not f.done():
+                            f.cancel()
+                if interrupted:
+                    raise KeyboardInterrupt
+            except KeyboardInterrupt:
+                interrupted = True
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+            finally:
+                if not interrupted:
+                    executor.shutdown(wait=True)
+                else:
+                    executor.shutdown(wait=False)
 
-                if existing_contracts_count > 0:
-                    console.print(
-                        f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle"
-                    )
+            if existing_contracts_count > 0:
+                console.print(f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle")
 
     # Extract contracts if needed
     test_converter = OpenAPITestConverter(repo)
@@ -506,26 +577,49 @@ def _extract_contracts(
             console=console,
         ) as progress:
             task = progress.add_task("[cyan]Extracting contracts...", total=len(features_with_files))
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            interrupted = False
+            try:
                 future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
                 completed_count = 0
-                for future in as_completed(future_to_feature):
-                    try:
-                        feature_key, openapi_spec = future.result()
-                        completed_count += 1
-                        progress.update(task, completed=completed_count)
-                        if openapi_spec:
-                            feature = next(f for f in features_with_files if f.key == feature_key)
-                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
-                            feature.contract = contract_ref
-                            contracts_data[feature_key] = openapi_spec
-                            contracts_generated += 1
-                    except KeyboardInterrupt:
-                        raise
-                    except Exception as e:
-                        completed_count += 1
-                        progress.update(task, completed=completed_count)
-                        console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                try:
+                    for future in as_completed(future_to_feature):
+                        try:
+                            feature_key, openapi_spec = future.result()
+                            completed_count += 1
+                            progress.update(task, completed=completed_count)
+                            if openapi_spec:
+                                feature = next(f for f in features_with_files if f.key == feature_key)
+                                contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                                feature.contract = contract_ref
+                                contracts_data[feature_key] = openapi_spec
+                                contracts_generated += 1
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_feature:
+                                if not f.done():
+                                    f.cancel()
+                            break
+                        except Exception as e:
+                            completed_count += 1
+                            progress.update(task, completed=completed_count)
+                            console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                except KeyboardInterrupt:
+                    interrupted = True
+                    for f in future_to_feature:
+                        if not f.done():
+                            f.cancel()
+                if interrupted:
+                    raise KeyboardInterrupt
+            except KeyboardInterrupt:
+                interrupted = True
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+            finally:
+                if not interrupted:
+                    executor.shutdown(wait=True)
+                else:
+                    executor.shutdown(wait=False)
 
     elif should_regenerate_contracts:
         console.print("[dim]No features with implementation files found for contract extraction[/dim]")

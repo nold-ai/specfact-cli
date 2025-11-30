@@ -8,7 +8,6 @@ existing files, and mapping them to features/stories using AST analysis.
 from __future__ import annotations
 
 import ast
-import contextlib
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -176,14 +175,42 @@ class SourceArtifactScanner:
         # Process features in parallel
         max_workers = min(os.cpu_count() or 4, 8, len(features))  # Cap at 8 workers
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        interrupted = False
+        try:
             future_to_feature = {
                 executor.submit(self._link_feature_to_specs, feature, repo_path, impl_files, test_files): feature
                 for feature in features
             }
-            for future in as_completed(future_to_feature):
-                with contextlib.suppress(Exception):
-                    future.result()  # Wait for completion
+            try:
+                for future in as_completed(future_to_feature):
+                    try:
+                        future.result()  # Wait for completion
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_feature:
+                            if not f.done():
+                                f.cancel()
+                        break
+                    except Exception:
+                        # Suppress other exceptions (same as before)
+                        pass
+            except KeyboardInterrupt:
+                interrupted = True
+                for f in future_to_feature:
+                    if not f.done():
+                        f.cancel()
+            if interrupted:
+                raise KeyboardInterrupt
+        except KeyboardInterrupt:
+            interrupted = True
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        finally:
+            if not interrupted:
+                executor.shutdown(wait=True)
+            else:
+                executor.shutdown(wait=False)
 
     @beartype
     @require(lambda self, file_path: isinstance(file_path, Path), "File path must be Path")

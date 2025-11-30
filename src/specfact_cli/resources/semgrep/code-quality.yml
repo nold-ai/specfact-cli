@@ -1,0 +1,261 @@
+rules:
+  # ============================================================================
+  # Deprecated & Legacy Patterns (Critical for Legacy Code)
+  # ============================================================================
+  
+  - id: deprecated-imp-module
+    patterns:
+      - pattern-either:
+          - pattern: import imp
+          - pattern: from imp import $FUNC
+    message: "Deprecated 'imp' module detected (removed in Python 3.12)"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: deprecated
+      subcategory: [stdlib, import-system]
+      confidence: HIGH
+      deprecated_since: "3.4"
+      removed_in: "3.12"
+      replacement: "importlib"
+
+  - id: deprecated-optparse-module
+    patterns:
+      - pattern-either:
+          - pattern: import optparse
+          - pattern: from optparse import $CLASS
+    message: "Soft-deprecated 'optparse' module detected"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: deprecated
+      subcategory: [stdlib, cli]
+      confidence: HIGH
+      deprecated_since: "3.2"
+      replacement: "argparse"
+
+  - id: deprecated-urllib-usage
+    patterns:
+      - pattern-either:
+          - pattern: import urllib2
+          - pattern: from urllib2 import $FUNC
+    message: "Deprecated 'urllib2' module (Python 2.x only)"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: deprecated
+      subcategory: [stdlib, http]
+      confidence: HIGH
+      removed_in: "3.0"
+      replacement: "urllib.request"
+
+  # ============================================================================
+  # Security Vulnerabilities (OWASP Top 10 Coverage)
+  # ============================================================================
+  
+  - id: unsafe-eval-usage
+    patterns:
+      - pattern-either:
+          - pattern: eval($INPUT)
+          - pattern: exec($INPUT)
+          - pattern: compile($INPUT, ...)
+    message: "Unsafe eval/exec detected - potential code injection vulnerability"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [injection, code-execution]
+      confidence: HIGH
+      cwe: "CWE-94"
+      owasp: "A03:2021-Injection"
+
+  - id: unsafe-pickle-deserialization
+    patterns:
+      - pattern-either:
+          - pattern: pickle.loads($DATA)
+          - pattern: pickle.load($FILE)
+    message: "Unsafe pickle deserialization - potential code execution"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [deserialization]
+      confidence: HIGH
+      cwe: "CWE-502"
+      owasp: "A08:2021-Software and Data Integrity Failures"
+
+  - id: command-injection-risk
+    patterns:
+      - pattern-either:
+          - pattern: os.system($CMD)
+          - pattern: subprocess.run($CMD, shell=True)
+          - pattern: subprocess.call($CMD, shell=True)
+          - pattern: subprocess.Popen($CMD, shell=True)
+    message: "Command injection risk detected"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [injection, command-injection]
+      confidence: HIGH
+      cwe: "CWE-78"
+      owasp: "A03:2021-Injection"
+
+  - id: weak-cryptographic-hash
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+    message: "Weak cryptographic hash function detected"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [cryptography, weak-hash]
+      confidence: HIGH
+      cwe: "CWE-327"
+      owasp: "A02:2021-Cryptographic Failures"
+      replacement: "hashlib.sha256 or hashlib.sha512"
+
+  - id: hardcoded-secret
+    patterns:
+      - pattern-either:
+          - pattern: $VAR = "api_key:..."
+          - pattern: $VAR = "password:..."
+          - pattern: $VAR = "secret:..."
+          - pattern: API_KEY = "..."
+          - pattern: PASSWORD = "..."
+    message: "Potential hardcoded secret detected"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [secrets, hardcoded-credentials]
+      confidence: MEDIUM
+      cwe: "CWE-798"
+      owasp: "A07:2021-Identification and Authentication Failures"
+
+  - id: insecure-random
+    patterns:
+      - pattern-either:
+          - pattern: random.random()
+          - pattern: random.randint(...)
+    message: "Insecure random number generator - use secrets module for security"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [cryptography, weak-random]
+      confidence: HIGH
+      cwe: "CWE-338"
+      replacement: "secrets module"
+
+  # ============================================================================
+  # Code Quality & Anti-Patterns
+  # ============================================================================
+  
+  - id: god-class-detection
+    patterns:
+      - pattern: |
+          class $CLASS:
+            ...
+      - metavariable-pattern:
+          metavariable: $CLASS
+          patterns:
+            - pattern-not-inside: |
+                @dataclass
+                class $CLASS:
+                  ...
+    message: "Potential God Class - consider refactoring"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: code-smell
+      subcategory: [complexity, god-class]
+      confidence: MEDIUM
+
+  - id: bare-except-antipattern
+    patterns:
+      - pattern: |
+          try:
+            ...
+          except:
+            ...
+    message: "Bare except clause detected - antipattern"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: code-smell
+      subcategory: [exception-handling, antipattern]
+      confidence: HIGH
+
+  - id: mutable-default-argument
+    patterns:
+      - pattern-either:
+          - pattern: |
+              def $FUNC(..., $ARG=[], ...):
+                ...
+          - pattern: |
+              def $FUNC(..., $ARG={}, ...):
+                ...
+    message: "Mutable default argument detected - common Python antipattern"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: code-smell
+      subcategory: [antipattern, mutable-defaults]
+      confidence: HIGH
+
+  - id: lambda-assignment-antipattern
+    patterns:
+      - pattern: |
+          $VAR = lambda $ARGS: $BODY
+    message: "Lambda assignment - use 'def' instead for better debugging"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: code-smell
+      subcategory: [antipattern, lambda]
+      confidence: HIGH
+
+  - id: string-concatenation-loop
+    patterns:
+      - pattern: |
+          for $ITEM in $ITER:
+            ...
+            $STR = $STR + ...
+            ...
+    message: "String concatenation in loop - consider str.join() or list"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+      subcategory: [string-operations, antipattern]
+      confidence: MEDIUM
+
+  # ============================================================================
+  # Performance Patterns (Informational)
+  # ============================================================================
+  
+  - id: list-comprehension-usage
+    patterns:
+      - pattern: $VAR = [$EXPR for $ITEM in $ITER]
+    message: "List comprehension detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [performance, comprehensions]
+      confidence: HIGH
+
+  - id: generator-expression
+    patterns:
+      - pattern: $VAR = ($EXPR for $ITEM in $ITER)
+    message: "Generator expression detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [performance, generators]
+      confidence: HIGH
+

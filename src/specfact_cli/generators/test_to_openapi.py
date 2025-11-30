@@ -81,18 +81,43 @@ class OpenAPITestConverter:
 
         # Parallelize Semgrep calls for faster processing
         max_workers = min(len(test_paths_list), 4)  # Cap at 4 workers for Semgrep (I/O bound)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        interrupted = False
+        try:
             future_to_path = {executor.submit(self._run_semgrep, test_path): test_path for test_path in test_paths_list}
 
-            for future in as_completed(future_to_path):
-                test_path = future_to_path[future]
-                try:
-                    semgrep_results = future.result()
-                    file_examples = self._parse_semgrep_results(semgrep_results, test_path)
-                    examples.update(file_examples)
-                except Exception:
-                    # Fall back to AST if Semgrep fails for this file
-                    continue
+            try:
+                for future in as_completed(future_to_path):
+                    test_path = future_to_path[future]
+                    try:
+                        semgrep_results = future.result()
+                        file_examples = self._parse_semgrep_results(semgrep_results, test_path)
+                        examples.update(file_examples)
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_path:
+                            if not f.done():
+                                f.cancel()
+                        break
+                    except Exception:
+                        # Fall back to AST if Semgrep fails for this file
+                        continue
+            except KeyboardInterrupt:
+                interrupted = True
+                for f in future_to_path:
+                    if not f.done():
+                        f.cancel()
+            if interrupted:
+                raise KeyboardInterrupt
+        except KeyboardInterrupt:
+            interrupted = True
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        finally:
+            if not interrupted:
+                executor.shutdown(wait=True)
+            else:
+                executor.shutdown(wait=False)
 
         # If Semgrep didn't find anything, fall back to AST
         if not examples:

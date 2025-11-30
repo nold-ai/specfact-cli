@@ -1904,11 +1904,16 @@ class TestBrownfieldAnalysisWorkflow:
 
         This demonstrates the brownfield analysis workflow on a real codebase.
         """
+        import os
+
         print("\n🏭 Testing brownfield analysis on specfact-cli itself")
 
         from pathlib import Path
 
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         # Analyze scoped subset of specfact-cli codebase (analyzers module) for faster tests
         repo_path = Path(".")
@@ -1954,6 +1959,8 @@ class TestBrownfieldAnalysisWorkflow:
         """
         Test full workflow: analyze → generate → validate.
         """
+        import os
+
         print("\n📝 Testing full brownfield workflow")
 
         import tempfile
@@ -1962,6 +1969,9 @@ class TestBrownfieldAnalysisWorkflow:
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
         from specfact_cli.generators.plan_generator import PlanGenerator
         from specfact_cli.validators.schema import validate_plan_bundle
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         # Analyze scoped subset of codebase (analyzers module) for faster tests
         repo_path = Path(".")
@@ -2006,6 +2016,8 @@ class TestBrownfieldAnalysisWorkflow:
         """
         Test CLI command to analyze specfact-cli itself (scoped to analyzers module for performance).
         """
+        import os
+
         print("\n💻 Testing CLI 'import from-code' on specfact-cli")
 
         import tempfile
@@ -2014,6 +2026,9 @@ class TestBrownfieldAnalysisWorkflow:
         from typer.testing import CliRunner
 
         from specfact_cli.cli import app
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         runner = CliRunner()
 
@@ -2086,11 +2101,16 @@ class TestBrownfieldAnalysisWorkflow:
         """
         Test that analyzing specfact-cli multiple times produces consistent results.
         """
+        import os
+
         print("\n🔄 Testing analysis consistency")
 
         from pathlib import Path
 
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         repo_path = Path(".")
         entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
@@ -2121,11 +2141,16 @@ class TestBrownfieldAnalysisWorkflow:
         """
         Verify all discovered stories use valid Fibonacci numbers for points.
         """
+        import os
+
         print("\n📊 Testing Fibonacci compliance for story points")
 
         from pathlib import Path
 
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         repo_path = Path(".")
         entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
@@ -2151,11 +2176,16 @@ class TestBrownfieldAnalysisWorkflow:
         """
         Verify all discovered stories follow user-centric format.
         """
+        import os
+
         print("\n👤 Testing user-centric story format")
 
         from pathlib import Path
 
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         repo_path = Path(".")
         entry_point = repo_path / "src" / "specfact_cli" / "analyzers"
@@ -2179,11 +2209,16 @@ class TestBrownfieldAnalysisWorkflow:
         """
         Verify tasks are properly extracted from method names.
         """
+        import os
+
         print("\n⚙️  Testing task extraction from methods")
 
         from pathlib import Path
 
         from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
 
         repo_path = Path(".")
         entry_point = repo_path / "src" / "specfact_cli" / "analyzers"

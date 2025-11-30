@@ -44,6 +44,9 @@ SpecFact CLI supports two operational modes for different use cases:
 - No AI copilot dependency
 - Direct command execution
 - Structured JSON/Markdown output
+- **Enhanced Analysis**: AST + Semgrep hybrid pattern detection (API endpoints, models, CRUD, code quality)
+- **Optimized Bundle Size**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
+- **Interruptible**: All parallel operations support Ctrl+C for immediate cancellation
 
 **Usage:**
 
@@ -484,12 +487,56 @@ src/specfact_cli/
 │   ├── console.py       # Rich console output
 │   ├── git.py           # Git operations
 │   └── yaml_utils.py    # YAML helpers
+├── analyzers/          # Code analysis engines
+│   ├── code_analyzer.py # AST+Semgrep hybrid analysis
+│   ├── graph_analyzer.py # Dependency graph analysis
+│   └── relationship_mapper.py # Relationship extraction
 └── common/              # Shared utilities
     ├── logger_setup.py  # Logging infrastructure
     ├── logging_utils.py # Logging helpers
     ├── text_utils.py    # Text utilities
     └── utils.py         # File/JSON utilities
 ```
+
+## Analysis Components
+
+### AST+Semgrep Hybrid Analysis
+
+The `CodeAnalyzer` uses a hybrid approach combining AST parsing with Semgrep pattern detection:
+
+**AST Analysis** (Core):
+
+- Structural code analysis (classes, methods, imports)
+- Type hint extraction
+- Parallelized processing (2-4x speedup)
+- Interruptible with Ctrl+C (graceful cancellation)
+
+**Recent Improvements** (2025-11-30):
+
+- ✅ **Bundle Size Optimization**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
+- ✅ **Acceptance Criteria Limiting**: 1-3 high-level items per story (detailed examples in contract files)
+- ✅ **KeyboardInterrupt Handling**: All parallel operations support immediate cancellation
+- ✅ **Semgrep Detection Fix**: Increased timeout from 1s to 5s for reliable detection
+- Async pattern detection
+- Theme detection from imports
+
+**Semgrep Pattern Detection** (Enhancement):
+
+- **API Endpoint Detection**: FastAPI, Flask, Express, Gin routes
+- **Database Model Detection**: SQLAlchemy, Django, Pydantic, TortoiseORM, Peewee
+- **CRUD Operation Detection**: Function naming patterns (create_*, get_*, update_*, delete_*)
+- **Authentication Patterns**: Auth decorators, permission checks
+- **Code Quality Assessment**: Anti-patterns, code smells, security vulnerabilities
+- **Framework Patterns**: Async/await, context managers, type hints, configuration
+
+**Plugin Status**: The import command displays plugin status (AST Analysis, Semgrep Pattern Detection, Dependency Graph Analysis) showing which tools are enabled and used.
+
+**Benefits**:
+
+- Framework-aware feature detection
+- Enhanced confidence scores (AST + Semgrep evidence)
+- Code quality maturity assessment
+- Multi-language ready (TypeScript, JavaScript, Go patterns available)
 
 ## Testing Strategy
 

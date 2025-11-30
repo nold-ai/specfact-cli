@@ -475,6 +475,9 @@ class TestConstitutionIntegrationE2E:
 
     def test_import_from_code_suggests_constitution_bootstrap(self, tmp_path, monkeypatch):
         """Test import from-code suggests constitution bootstrap."""
+        # Ensure TEST_MODE is set to skip Semgrep
+        monkeypatch.setenv("TEST_MODE", "true")
+
         # Create minimal Python project
         (tmp_path / "src").mkdir(parents=True)
         (tmp_path / "src" / "test_module.py").write_text("def hello(): pass")

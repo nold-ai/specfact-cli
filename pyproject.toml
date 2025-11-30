@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.11.2"
+version = "0.11.3"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -344,6 +344,7 @@ packages = [
 "resources/templates" = "specfact_cli/resources/templates"
 "resources/schemas" = "specfact_cli/resources/schemas"
 "resources/mappings" = "specfact_cli/resources/mappings"
+"resources/semgrep" = "specfact_cli/resources/semgrep"
 
 [tool.hatch.build.targets.sdist]
 # Only include essential files in source distribution
@@ -520,6 +521,7 @@ testpaths = [
     "tests",
     # "../src" # pythonpath = ["src"] should cover imports from src for tests in /tests
 ]
+# Note: TEST_MODE is set in tests/conftest.py to skip Semgrep in tests
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

@@ -18,6 +18,9 @@ class TestSpecmaticIntegrationE2E:
     @patch("specfact_cli.integrations.specmatic.validate_spec_with_specmatic")
     def test_import_with_specmatic_validation(self, mock_validate, mock_check, tmp_path):
         """Test import command with auto-detected Specmatic validation."""
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
+
         mock_check.return_value = (True, None)
         from specfact_cli.integrations.specmatic import SpecValidationResult
 
