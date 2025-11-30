@@ -48,6 +48,9 @@ class TestGenerateContractsCommand:
                     scenarios=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         project_bundle.features["FEATURE-001"] = feature
 
@@ -274,6 +277,9 @@ class TestGenerateContractsCommand:
                     scenarios=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         project_bundle.features["FEATURE-001"] = feature
         save_project_bundle(project_bundle, bundle_dir, atomic=True)

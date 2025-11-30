@@ -360,7 +360,15 @@ class TestPlanUpdateIdea:
         project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        # Update idea without specifying bundle (should use default)
+        # Set active plan so command can use it as default
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        # Ensure plans directory exists
+        plans_dir = tmp_path / ".specfact" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        SpecFactStructure.set_active_plan(bundle_name, base_path=tmp_path)
+
+        # Update idea without specifying bundle (should use active plan)
         result = runner.invoke(
             app,
             [

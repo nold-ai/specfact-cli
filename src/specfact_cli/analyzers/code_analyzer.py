@@ -150,7 +150,9 @@ class CodeAnalyzer:
             files_to_analyze = [f for f in python_files if not self._should_skip_file(f)]
 
             # Process files in parallel
-            max_workers = min(os.cpu_count() or 4, 8, len(files_to_analyze))  # Cap at 8 workers
+            max_workers = max(
+                1, min(os.cpu_count() or 4, 8, len(files_to_analyze))
+            )  # Cap at 8 workers, ensure at least 1
             completed_count = 0
 
             def analyze_file_safe(file_path: Path) -> dict[str, Any]:

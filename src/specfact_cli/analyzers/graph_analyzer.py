@@ -148,14 +148,16 @@ class GraphAnalyzer:
             graph.add_node(module_name, path=str(file_path))
 
         # Add edges from AST imports (parallelized for performance)
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         import multiprocessing
-        
-        max_workers = min(multiprocessing.cpu_count() or 4, 16, len(python_files))  # Increased for faster processing
-        
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        max_workers = max(
+            1, min(multiprocessing.cpu_count() or 4, 16, len(python_files))
+        )  # Increased for faster processing, ensure at least 1
+
         # Get list of known modules for matching (needed for parallel processing)
         known_modules = list(graph.nodes())
-        
+
         # Process AST imports in parallel
         def process_imports(file_path: Path) -> list[tuple[str, str]]:
             """Process imports for a single file and return (module_name, matching_module) tuples."""
@@ -172,14 +174,11 @@ class GraphAnalyzer:
                     if matching_module:
                         edges.append((module_name, matching_module))
             return edges
-        
+
         # Process AST imports in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_file = {
-                executor.submit(process_imports, file_path): file_path
-                for file_path in python_files
-            }
-            
+            future_to_file = {executor.submit(process_imports, file_path): file_path for file_path in python_files}
+
             for future in as_completed(future_to_file):
                 try:
                     edges = future.result()
@@ -187,14 +186,13 @@ class GraphAnalyzer:
                         graph.add_edge(module_name, matching_module)
                 except Exception:
                     continue
-        
+
         # Extract call graphs using pyan (if available) - parallelized for performance
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_file = {
-                executor.submit(self.extract_call_graph, file_path): file_path
-                for file_path in python_files
+                executor.submit(self.extract_call_graph, file_path): file_path for file_path in python_files
             }
-            
+
             for future in as_completed(future_to_file):
                 file_path = future_to_file[future]
                 try:

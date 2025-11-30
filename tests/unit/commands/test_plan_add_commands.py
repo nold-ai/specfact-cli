@@ -51,6 +51,9 @@ def sample_bundle(tmp_path, monkeypatch):
                         contracts=None,
                     )
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,
@@ -297,7 +300,15 @@ class TestPlanAddFeature:
         project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        # Add feature without specifying bundle (should use default)
+        # Set active plan so command can use it as default
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        # Ensure plans directory exists
+        plans_dir = tmp_path / ".specfact" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        SpecFactStructure.set_active_plan(bundle_name, base_path=tmp_path)
+
+        # Add feature without specifying bundle (should use active plan)
         result = runner.invoke(
             app,
             [
@@ -576,6 +587,9 @@ class TestPlanAddStory:
                     outcomes=[],
                     acceptance=[],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             metadata=None,
@@ -584,7 +598,15 @@ class TestPlanAddStory:
         project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        # Add story without specifying bundle (should use default)
+        # Set active plan so command can use it as default
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        # Ensure plans directory exists
+        plans_dir = tmp_path / ".specfact" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        SpecFactStructure.set_active_plan(bundle_name, base_path=tmp_path)
+
+        # Add story without specifying bundle (should use active plan)
         result = runner.invoke(
             app,
             [

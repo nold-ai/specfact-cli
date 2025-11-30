@@ -72,6 +72,9 @@ def sample_plan_bundle() -> PlanBundle:
                         contracts=None,
                     ),
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -90,6 +93,9 @@ def sample_plan_bundle() -> PlanBundle:
                         contracts=None,
                     ),
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ],
         metadata=Metadata(

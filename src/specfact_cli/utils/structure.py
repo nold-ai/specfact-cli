@@ -252,6 +252,46 @@ class SpecFactStructure:
     @classmethod
     @beartype
     @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return None or string")
+    def get_active_bundle_name(cls, base_path: Path | None = None) -> str | None:
+        """
+        Get active bundle name from config.
+
+        Args:
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Active bundle name (e.g., "main", "legacy-api") or None if not set
+        """
+        if base_path is None:
+            base_path = Path(".")
+        else:
+            base_path = Path(base_path).resolve()
+            parts = base_path.parts
+            if ".specfact" in parts:
+                specfact_idx = parts.index(".specfact")
+                base_path = Path(*parts[:specfact_idx])
+
+        config_path = base_path / cls.PLANS_CONFIG
+        if config_path.exists():
+            try:
+                import yaml
+
+                with config_path.open() as f:
+                    config = yaml.safe_load(f) or {}
+                active_plan = config.get("active_plan")
+                if active_plan:
+                    # Active plan is stored as bundle name (not plan filename)
+                    return active_plan
+            except Exception:
+                # Fallback to None if config read fails
+                pass
+
+        return None
+
+    @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     @require(lambda plan_name: isinstance(plan_name, str) and len(plan_name) > 0, "Plan name must be non-empty string")
     @ensure(lambda result: result is None, "Must return None")
     def set_active_plan(cls, plan_name: str, base_path: Path | None = None) -> None:

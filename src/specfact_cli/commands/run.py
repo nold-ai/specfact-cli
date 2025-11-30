@@ -88,7 +88,18 @@ def idea_to_ship(
         specfact run idea-to-ship --repo . --bundle legacy-api
         specfact run idea-to-ship --repo . --skip-sdd --skip-implementation
     """
+    from rich.console import Console
+
     from specfact_cli.telemetry import telemetry
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle:
+            console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     telemetry_metadata = {
         "bundle": bundle,

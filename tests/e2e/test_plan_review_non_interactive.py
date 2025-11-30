@@ -54,6 +54,9 @@ def incomplete_plan(workspace: Path) -> Path:
                 stories=[],  # Missing stories - will trigger question
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -64,6 +67,9 @@ def incomplete_plan(workspace: Path) -> Path:
                 stories=[],  # Missing stories - will trigger question
                 confidence=0.7,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ],
         metadata=Metadata(
@@ -184,6 +190,9 @@ class TestPlanReviewNonInteractive:
                     stories=[],
                     confidence=0.9,
                     draft=False,
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             metadata=Metadata(

@@ -218,9 +218,19 @@ def generate_tests(
         specfact spec generate-tests api/openapi.yaml --output tests/specmatic/
         specfact spec generate-tests --bundle legacy-api --output tests/contract/
     """
+    from rich.console import Console
+
     from specfact_cli.telemetry import telemetry
     from specfact_cli.utils.bundle_loader import load_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle:
+            console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     # Validate inputs
     if not spec_path and not bundle:

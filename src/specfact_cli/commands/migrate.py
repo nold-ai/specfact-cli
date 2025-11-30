@@ -27,12 +27,17 @@ console = Console()
 
 @app.command("to-contracts")
 @beartype
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
 @ensure(lambda result: result is None, "Must return None")
 def to_contracts(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api)"),
+    bundle: str | None = typer.Argument(
+        None, help="Project bundle name (e.g., legacy-api). Default: active plan from 'specfact plan select'"
+    ),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -82,6 +87,18 @@ def to_contracts(
         specfact migrate to-contracts my-bundle --repo . --no-validate-with-specmatic
         specfact migrate to-contracts my-bundle --repo . --no-clean-verbose-specs
     """
+    from rich.console import Console
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
     from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
     from specfact_cli.telemetry import telemetry
 

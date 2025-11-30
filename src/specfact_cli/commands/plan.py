@@ -450,25 +450,32 @@ def add_feature(
     }
 
     with telemetry.track_command("plan.add_feature", telemetry_metadata) as record:
+        from specfact_cli.utils.structure import SpecFactStructure
+
         # Find bundle directory
         if bundle is None:
-            # Try to find default bundle (first bundle in projects directory)
-            projects_dir = Path(".specfact/projects")
-            if projects_dir.exists():
-                bundles = [
-                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
-                ]
-                if bundles:
-                    bundle = bundles[0]
-                    print_info(f"Using default bundle: {bundle}")
-                    print_info(f"Tip: Use --bundle {bundle} to explicitly specify the bundle name")
-                else:
-                    print_error(f"No project bundles found in {projects_dir}")
-                    print_error("Create one with: specfact plan init <bundle-name>")
-                    print_error("Or specify --bundle <bundle-name> if the bundle exists")
-                    raise typer.Exit(1)
+            # Try to use active plan first
+            bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+            if bundle:
+                print_info(f"Using active plan: {bundle}")
             else:
-                print_error(f"Projects directory not found: {projects_dir}")
+                # Fallback: Try to find default bundle (first bundle in projects directory)
+                projects_dir = Path(".specfact/projects")
+                if projects_dir.exists():
+                    bundles = [
+                        d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                    ]
+                    if bundles:
+                        bundle = bundles[0]
+                        print_info(f"Using default bundle: {bundle}")
+                        print_info(f"Tip: Use 'specfact plan select {bundle}' to set as active plan")
+                    else:
+                        print_error(f"No project bundles found in {projects_dir}")
+                        print_error("Create one with: specfact plan init <bundle-name>")
+                        print_error("Or specify --bundle <bundle-name> if the bundle exists")
+                        raise typer.Exit(1)
+                else:
+                    print_error(f"Projects directory not found: {projects_dir}")
                 print_error("Create one with: specfact plan init <bundle-name>")
                 print_error("Or specify --bundle <bundle-name> if the bundle exists")
                 raise typer.Exit(1)
@@ -586,25 +593,32 @@ def add_story(
     }
 
     with telemetry.track_command("plan.add_story", telemetry_metadata) as record:
+        from specfact_cli.utils.structure import SpecFactStructure
+
         # Find bundle directory
         if bundle is None:
-            # Try to find default bundle (first bundle in projects directory)
-            projects_dir = Path(".specfact/projects")
-            if projects_dir.exists():
-                bundles = [
-                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
-                ]
-                if bundles:
-                    bundle = bundles[0]
-                    print_info(f"Using default bundle: {bundle}")
-                    print_info(f"Tip: Use --bundle {bundle} to explicitly specify the bundle name")
-                else:
-                    print_error(f"No project bundles found in {projects_dir}")
-                    print_error("Create one with: specfact plan init <bundle-name>")
-                    print_error("Or specify --bundle <bundle-name> if the bundle exists")
-                    raise typer.Exit(1)
+            # Try to use active plan first
+            bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+            if bundle:
+                print_info(f"Using active plan: {bundle}")
             else:
-                print_error(f"Projects directory not found: {projects_dir}")
+                # Fallback: Try to find default bundle (first bundle in projects directory)
+                projects_dir = Path(".specfact/projects")
+                if projects_dir.exists():
+                    bundles = [
+                        d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                    ]
+                    if bundles:
+                        bundle = bundles[0]
+                        print_info(f"Using default bundle: {bundle}")
+                        print_info(f"Tip: Use 'specfact plan select {bundle}' to set as active plan")
+                    else:
+                        print_error(f"No project bundles found in {projects_dir}")
+                        print_error("Create one with: specfact plan init <bundle-name>")
+                        print_error("Or specify --bundle <bundle-name> if the bundle exists")
+                        raise typer.Exit(1)
+                else:
+                    print_error(f"Projects directory not found: {projects_dir}")
                 print_error("Create one with: specfact plan init <bundle-name>")
                 print_error("Or specify --bundle <bundle-name> if the bundle exists")
                 raise typer.Exit(1)
@@ -724,25 +738,32 @@ def update_idea(
     telemetry_metadata = {}
 
     with telemetry.track_command("plan.update_idea", telemetry_metadata) as record:
+        from specfact_cli.utils.structure import SpecFactStructure
+
         # Find bundle directory
         if bundle is None:
-            # Try to find default bundle (first bundle in projects directory)
-            projects_dir = Path(".specfact/projects")
-            if projects_dir.exists():
-                bundles = [
-                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
-                ]
-                if bundles:
-                    bundle = bundles[0]
-                    print_info(f"Using default bundle: {bundle}")
-                    print_info(f"Tip: Use --bundle {bundle} to explicitly specify the bundle name")
-                else:
-                    print_error(f"No project bundles found in {projects_dir}")
-                    print_error("Create one with: specfact plan init <bundle-name>")
-                    print_error("Or specify --bundle <bundle-name> if the bundle exists")
-                    raise typer.Exit(1)
+            # Try to use active plan first
+            bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+            if bundle:
+                print_info(f"Using active plan: {bundle}")
             else:
-                print_error(f"Projects directory not found: {projects_dir}")
+                # Fallback: Try to find default bundle (first bundle in projects directory)
+                projects_dir = Path(".specfact/projects")
+                if projects_dir.exists():
+                    bundles = [
+                        d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                    ]
+                    if bundles:
+                        bundle = bundles[0]
+                        print_info(f"Using default bundle: {bundle}")
+                        print_info(f"Tip: Use 'specfact plan select {bundle}' to set as active plan")
+                    else:
+                        print_error(f"No project bundles found in {projects_dir}")
+                        print_error("Create one with: specfact plan init <bundle-name>")
+                        print_error("Or specify --bundle <bundle-name> if the bundle exists")
+                        raise typer.Exit(1)
+                else:
+                    print_error(f"Projects directory not found: {projects_dir}")
                 print_error("Create one with: specfact plan init <bundle-name>")
                 print_error("Or specify --bundle <bundle-name> if the bundle exists")
                 raise typer.Exit(1)
@@ -915,21 +936,27 @@ def update_feature(
     with telemetry.track_command("plan.update_feature", telemetry_metadata) as record:
         # Find bundle directory
         if bundle is None:
-            # Try to find default bundle (first bundle in projects directory)
-            projects_dir = Path(".specfact/projects")
-            if projects_dir.exists():
-                bundles = [
-                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
-                ]
-                if bundles:
-                    bundle = bundles[0]
-                    print_info(f"Using default bundle: {bundle}")
+            # Try to use active plan first
+            bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+            if bundle:
+                print_info(f"Using active plan: {bundle}")
+            else:
+                # Fallback: Try to find default bundle (first bundle in projects directory)
+                projects_dir = Path(".specfact/projects")
+                if projects_dir.exists():
+                    bundles = [
+                        d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                    ]
+                    if bundles:
+                        bundle = bundles[0]
+                        print_info(f"Using default bundle: {bundle}")
+                        print_info(f"Tip: Use 'specfact plan select {bundle}' to set as active plan")
+                    else:
+                        print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
+                        raise typer.Exit(1)
                 else:
                     print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
                     raise typer.Exit(1)
-            else:
-                print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
-                raise typer.Exit(1)
 
         bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
         if not bundle_dir.exists():
@@ -1243,21 +1270,27 @@ def update_story(
     with telemetry.track_command("plan.update_story", telemetry_metadata) as record:
         # Find bundle directory
         if bundle is None:
-            # Try to find default bundle (first bundle in projects directory)
-            projects_dir = Path(".specfact/projects")
-            if projects_dir.exists():
-                bundles = [
-                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
-                ]
-                if bundles:
-                    bundle = bundles[0]
-                    print_info(f"Using default bundle: {bundle}")
+            # Try to use active plan first
+            bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+            if bundle:
+                print_info(f"Using active plan: {bundle}")
+            else:
+                # Fallback: Try to find default bundle (first bundle in projects directory)
+                projects_dir = Path(".specfact/projects")
+                if projects_dir.exists():
+                    bundles = [
+                        d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                    ]
+                    if bundles:
+                        bundle = bundles[0]
+                        print_info(f"Using default bundle: {bundle}")
+                        print_info(f"Tip: Use 'specfact plan select {bundle}' to set as active plan")
+                    else:
+                        print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
+                        raise typer.Exit(1)
                 else:
                     print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
                     raise typer.Exit(1)
-            else:
-                print_error("No bundles found. Create one with: specfact plan init <bundle-name>")
-                raise typer.Exit(1)
 
         bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
         if not bundle_dir.exists():
@@ -2483,7 +2516,10 @@ def _validate_stage(value: str) -> str:
 )
 def promote(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     stage: str = typer.Option(
         ..., "--stage", callback=_validate_stage, help="Target stage (draft, review, approved, released)"
     ),
@@ -2515,6 +2551,21 @@ def promote(
     """
     import os
     from datetime import datetime
+
+    from rich.console import Console
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     telemetry_metadata = {
         "target_stage": stage,
@@ -3327,11 +3378,17 @@ def _validate_sdd_for_plan(
 
 @app.command("review")
 @beartype
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda max_questions: max_questions > 0, "Max questions must be positive")
 def review(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     category: str | None = typer.Option(
         None,
         "--category",
@@ -3399,6 +3456,21 @@ def review(
         specfact plan review legacy-api --list-findings --findings-format json  # Output all findings as JSON
         specfact plan review legacy-api --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
     """
+    from rich.console import Console
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
     from datetime import date, datetime
 
     from specfact_cli.analyzers.ambiguity_scanner import (
@@ -3960,6 +4032,21 @@ def harden(
 
     effective_format = output_format or runtime.get_output_format()
     is_non_interactive = not interactive
+
+    from rich.console import Console
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     telemetry_metadata = {
         "interactive": interactive,

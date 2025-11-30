@@ -261,6 +261,9 @@ Gate checks before implementation.
             stories=[story],
             confidence=1.0,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         converter = SpecKitConverter(tmp_path)
@@ -302,6 +305,9 @@ Gate checks before implementation.
             stories=[],
             confidence=1.0,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         plan_bundle = PlanBundle(
@@ -371,6 +377,9 @@ Gate checks before implementation.
             stories=[story],
             confidence=1.0,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         # Add tasks to story (not feature)

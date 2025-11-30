@@ -220,7 +220,9 @@ class TestBridgeSync:
             project_metadata=None,
         )
         product = Product(themes=[], releases=[])
-        feature = PlanFeature(key="FEATURE-001", title="Authentication", stories=[])
+        feature = PlanFeature(
+            key="FEATURE-001", title="Authentication", stories=[], source_tracking=None, contract=None, protocol=None
+        )
         project_bundle = ProjectBundle(
             manifest=manifest,
             bundle_name="test-bundle",

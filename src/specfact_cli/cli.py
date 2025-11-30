@@ -401,14 +401,14 @@ def cli_main() -> None:
     # Record start time for command execution
     start_time = datetime.now()
     start_timestamp = start_time.strftime("%Y-%m-%d %H:%M:%S")
-    
+
     # Only show timing for actual commands (not help, version, or completion)
     show_timing = (
-        len(sys.argv) > 1 
+        len(sys.argv) > 1
         and sys.argv[1] not in ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
         and not sys.argv[1].startswith("_")  # Skip completion internals
     )
-    
+
     if show_timing:
         console.print(f"[dim]⏱️  Started: {start_timestamp}[/dim]")
 
@@ -428,7 +428,7 @@ def cli_main() -> None:
             end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
             duration = end_time - start_time
             duration_seconds = duration.total_seconds()
-            
+
             # Format duration nicely
             if duration_seconds < 60:
                 duration_str = f"{duration_seconds:.2f}s"
@@ -441,11 +441,9 @@ def cli_main() -> None:
                 minutes = int((duration_seconds % 3600) // 60)
                 seconds = duration_seconds % 60
                 duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
-            
+
             status_icon = "✓" if exit_code == 0 else "✗"
-            console.print(
-                f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]"
-            )
+            console.print(f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]")
             timing_shown = True
         raise  # Re-raise to let Typer handle it properly
     except ViolationError as e:
@@ -470,7 +468,7 @@ def cli_main() -> None:
             end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
             duration = end_time - start_time
             duration_seconds = duration.total_seconds()
-            
+
             # Format duration nicely
             if duration_seconds < 60:
                 duration_str = f"{duration_seconds:.2f}s"
@@ -483,15 +481,15 @@ def cli_main() -> None:
                 minutes = int((duration_seconds % 3600) // 60)
                 seconds = duration_seconds % 60
                 duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
-            
+
             # Show timing summary
             status_icon = "✓" if exit_code == 0 else "✗"
             status_color = "green" if exit_code == 0 else "red"
             console.print(
                 f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]",
-                style=status_color if exit_code != 0 else None
+                style=status_color if exit_code != 0 else None,
             )
-    
+
     if exit_code != 0:
         sys.exit(exit_code)
 

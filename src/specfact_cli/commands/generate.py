@@ -283,7 +283,10 @@ def generate_contracts(
 @ensure(lambda result: result is None, "Must return None")
 def generate_tasks(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
@@ -329,6 +332,8 @@ def generate_tasks(
         specfact generate tasks auth-module --output-format json
         specfact generate tasks legacy-api --out custom-tasks.yaml
     """
+    from rich.console import Console
+
     from specfact_cli.generators.task_generator import generate_tasks as generate_tasks_func
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.telemetry import telemetry
@@ -336,6 +341,17 @@ def generate_tasks(
     from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     telemetry_metadata = {
         "output_format": output_format.lower(),

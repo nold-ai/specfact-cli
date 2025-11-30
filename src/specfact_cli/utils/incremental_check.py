@@ -7,6 +7,7 @@ based on file hash changes, enabling fast incremental imports.
 
 from __future__ import annotations
 
+import contextlib
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -54,10 +55,10 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
     # This avoids loading and validating entire Feature models just to check file hashes
     if features is None:
         try:
-            from specfact_cli.utils.structured_io import load_structured_file
-            from specfact_cli.models.project import BundleManifest, FeatureIndex
             from specfact_cli.models.plan import Feature
+            from specfact_cli.models.project import BundleManifest, FeatureIndex
             from specfact_cli.models.source_tracking import SourceTracking
+            from specfact_cli.utils.structured_io import load_structured_file
 
             # Load manifest first (fast, single file)
             manifest_path = bundle_dir / "bundle.manifest.yaml"
@@ -81,36 +82,37 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                     in_section = False
                     section_lines: list[str] = []
                     indent_level = 0
-                    
-                    for i, line in enumerate(lines):
+
+                    for line in lines:
                         stripped = line.lstrip()
                         if not stripped or stripped.startswith("#"):
                             if in_section:
                                 section_lines.append(line)
                             continue
-                        
+
                         current_indent = len(line) - len(stripped)
-                        
+
                         # Check if this is the source_tracking key
                         if stripped.startswith("source_tracking:"):
                             in_section = True
                             indent_level = current_indent
                             section_lines.append(line)
                             continue
-                        
+
                         # If we're in the section, check if we've hit the next top-level key
                         if in_section:
                             if current_indent <= indent_level and ":" in stripped and not stripped.startswith("- "):
                                 # Hit next top-level key, stop
                                 break
                             section_lines.append(line)
-                    
+
                     if not section_lines:
                         return None
-                    
+
                     # Parse only the extracted section
                     section_text = "\n".join(section_lines)
-                    from specfact_cli.utils.structured_io import loads_structured_data, StructuredFormat
+                    from specfact_cli.utils.structured_io import StructuredFormat, loads_structured_data
+
                     section_data = loads_structured_data(section_text, StructuredFormat.YAML)
                     return section_data.get("source_tracking") if isinstance(section_data, dict) else None
                 except Exception:
@@ -120,7 +122,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                         return feature_data.get("source_tracking") if isinstance(feature_data, dict) else None
                     except Exception:
                         return None
-            
+
             def load_feature_source_tracking(feature_index: FeatureIndex) -> Feature | None:
                 """Load only source_tracking section from a feature file (optimized - no full YAML parse)."""
                 feature_path = features_dir / feature_index.file
@@ -129,7 +131,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                 try:
                     # Extract only source_tracking section (fast text-based extraction)
                     source_tracking_data = extract_source_tracking_section(feature_path)
-                    
+
                     if source_tracking_data:
                         source_tracking = SourceTracking.model_validate(source_tracking_data)
                         # Create minimal Feature object with just what we need
@@ -163,10 +165,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
             features = []
             executor = ThreadPoolExecutor(max_workers=max_workers)
             try:
-                future_to_index = {
-                    executor.submit(load_feature_source_tracking, fi): fi
-                    for fi in manifest.features
-                }
+                future_to_index = {executor.submit(load_feature_source_tracking, fi): fi for fi in manifest.features}
                 for future in as_completed(future_to_index):
                     try:
                         feature = future.result()
@@ -183,11 +182,8 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                 raise
             finally:
                 # Ensure executor is properly shutdown (shutdown() is safe to call multiple times)
-                try:
+                with contextlib.suppress(RuntimeError):
                     executor.shutdown(wait=True)
-                except RuntimeError:
-                    # Already shutdown, ignore
-                    pass
 
         except Exception:
             # Bundle exists but can't be loaded - regenerate everything
@@ -220,7 +216,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
     # Check files in parallel (early exit if any change detected)
     if check_tasks:
         max_workers = min(os.cpu_count() or 4, 8, len(check_tasks))  # Cap at 8 workers
-        
+
         def check_file_change(task: tuple[Feature, Path, str]) -> bool:
             """Check if a single file has changed (thread-safe)."""
             feature, file_path, _file_type = task
@@ -233,10 +229,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
         executor = ThreadPoolExecutor(max_workers=max_workers)
         try:
             # Submit all tasks
-            future_to_task = {
-                executor.submit(check_file_change, task): task
-                for task in check_tasks
-            }
+            future_to_task = {executor.submit(check_file_change, task): task for task in check_tasks}
 
             # Check results as they complete (early exit on first change)
             for future in as_completed(future_to_task):
@@ -260,7 +253,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                 executor.shutdown(wait=True)
 
     # Check contracts (sequential, fast operation)
-    for feature, contract_path in contract_checks:
+    for _feature, contract_path in contract_checks:
         if not contract_path.exists():
             contracts_exist = False
             contracts_changed = True

@@ -25,12 +25,17 @@ console = Console()
 
 @app.command("detect")
 @beartype
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
 @ensure(lambda result: result is None, "Must return None")
 def detect_drift(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api)"),
+    bundle: str | None = typer.Argument(
+        None, help="Project bundle name (e.g., legacy-api). Default: active plan from 'specfact plan select'"
+    ),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -70,6 +75,20 @@ def detect_drift(
         specfact drift detect legacy-api --repo .
         specfact drift detect my-bundle --repo . --format json --out drift-report.json
     """
+    from rich.console import Console
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
     from specfact_cli.sync.drift_detector import DriftDetector
 
     repo_path = repo.resolve()

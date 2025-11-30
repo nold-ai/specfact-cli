@@ -7,7 +7,6 @@ and available, enabling graceful degradation when they're not present.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -41,7 +40,7 @@ def check_cli_tool_available(
     """
     # First check if tool exists in system PATH
     tool_path = shutil.which(tool_name)
-    
+
     # If not in system PATH, check Python environment's bin directory
     # This handles cases where tools are installed in the same environment as the CLI
     if tool_path is None:
@@ -56,7 +55,7 @@ def check_cli_tool_available(
                 potential_path = scripts_dir / tool_name
                 if potential_path.exists() and potential_path.is_file():
                     tool_path = str(potential_path)
-    
+
     if tool_path is None:
         return (
             False,

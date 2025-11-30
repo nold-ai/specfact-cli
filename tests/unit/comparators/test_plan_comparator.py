@@ -21,6 +21,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         plan1 = PlanBundle(
@@ -60,6 +63,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -68,6 +74,9 @@ class TestPlanComparator:
             outcomes=["View metrics"],
             acceptance=["Dashboard loads"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -110,6 +119,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -118,6 +130,9 @@ class TestPlanComparator:
             outcomes=["View metrics"],
             acceptance=["Dashboard loads"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -160,6 +175,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature_auto = Feature(
@@ -168,6 +186,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -228,6 +249,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[story1, story2],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature_auto = Feature(
@@ -236,6 +260,9 @@ class TestPlanComparator:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[story1],  # Missing story2
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -381,6 +408,9 @@ class TestPlanComparator:
             outcomes=["Login"],
             acceptance=["Works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -389,6 +419,9 @@ class TestPlanComparator:
             outcomes=["Metrics"],
             acceptance=["Loads"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -425,9 +458,36 @@ class TestPlanComparator:
         idea = Idea(title="Test Project", narrative="A test project", metrics=None)
         product = Product(themes=[], releases=[])
 
-        feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
-        feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
-        feature3 = Feature(key="FEATURE-003", title="Reports", outcomes=[], acceptance=[], stories=[])
+        feature1 = Feature(
+            key="FEATURE-001",
+            title="Auth",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature2 = Feature(
+            key="FEATURE-002",
+            title="Dashboard",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature3 = Feature(
+            key="FEATURE-003",
+            title="Reports",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
 
         manual_plan = PlanBundle(
             version="1.0",
