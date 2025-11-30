@@ -9,6 +9,39 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.3] - 2025-12-01
+
+### Changed (0.11.3)
+
+- **Enhanced Target User Extraction in Plan Review**
+  - Refactored `_extract_target_users()` to prioritize reliable metadata sources over codebase scanning
+  - **Priority order** (most reliable first):
+    1. `pyproject.toml` classifiers (e.g., "Intended Audience :: Developers")
+    2. `README.md` patterns ("Perfect for:", "Target users:", etc.)
+    3. Story titles with "As a..." patterns
+    4. Codebase user models (optional fallback only if <2 suggestions found)
+  - Removed keyword extraction from `pyproject.toml` (keywords are technical terms, not personas)
+  - Simplified excluded terms list (reduced from 60+ to 14 terms)
+  - Improved README.md extraction to skip use cases (e.g., "data pipelines", "devops scripts")
+  - Updated question text from "Suggested from codebase" to "Suggested" (reflects multiple sources)
+
+- **Removed GWT Format References**
+  - Removed outdated "Given/When/Then format" question from completion signals scanning
+  - Updated vague acceptance criteria question to: "Should these be more specific? Note: Detailed test examples should be in OpenAPI contract files, not acceptance criteria."
+  - Removed "given", "when", "then" from testability keywords check
+  - Clarifies that acceptance criteria are simple text descriptions, not OpenAPI format
+  - Aligns with Phase 4/5 design where detailed examples are in OpenAPI contracts
+
+### Fixed (0.11.3)
+
+- **Target User Extraction Accuracy**
+  - Fixed false positives from codebase scanning (e.g., "Detecting", "Data Pipelines", "Async", "Beartype", "Brownfield")
+  - Now only extracts actual user personas from reliable metadata sources
+  - Codebase extraction only runs as fallback when metadata provides <2 suggestions
+  - Improved filtering to exclude technical terms and use cases
+
+---
+
 ## [0.11.2] - 2025-11-30
 
 ### Fixed (0.11.2)

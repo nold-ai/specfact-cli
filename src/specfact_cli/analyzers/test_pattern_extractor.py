@@ -131,8 +131,9 @@ class TestPatternExtractor:
         # Extract test name (remove "test_" prefix)
         test_name = test_node.name.replace("test_", "").replace("_", " ")
 
-        # Return minimal acceptance (examples will be extracted to OpenAPI contracts)
-        return f"Given {class_name}, When {test_name}, Then expected behavior is verified (see contract examples)"
+        # Return simple text description (not GWT format)
+        # Detailed examples will be extracted to OpenAPI contracts for Specmatic
+        return f"{test_name} works correctly (see contract examples)"
 
     @beartype
     def _extract_test_pattern(self, test_node: ast.FunctionDef, class_name: str) -> str | None:
@@ -289,21 +290,22 @@ class TestPatternExtractor:
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def infer_from_code_patterns(self, method_node: ast.FunctionDef, class_name: str) -> list[str]:
         """
-        Infer testable acceptance criteria from code patterns when tests are missing.
+        Infer minimal acceptance criteria from code patterns when tests are missing.
 
         Args:
             method_node: AST node for the method
             class_name: Name of the class containing the method
 
         Returns:
-            List of testable acceptance criteria in Given/When/Then format
+            List of minimal acceptance criteria (simple text, not GWT format)
+            Detailed examples will be extracted to OpenAPI contracts for Specmatic
         """
         acceptance_criteria: list[str] = []
 
         # Extract method name and purpose
         method_name = method_node.name
 
-        # Pattern 1: Validation logic → "Must verify [validation rule]"
+        # Pattern 1: Validation logic → simple description
         if any(keyword in method_name.lower() for keyword in ["validate", "check", "verify", "is_valid"]):
             validation_target = (
                 method_name.replace("validate", "")
@@ -313,26 +315,20 @@ class TestPatternExtractor:
                 .strip()
             )
             if validation_target:
-                acceptance_criteria.append(
-                    f"Given {class_name} instance, When {method_name} is called, Then {validation_target} is validated"
-                )
+                acceptance_criteria.append(f"{validation_target} validation works correctly")
 
-        # Pattern 2: Error handling → "Must handle [error condition]"
+        # Pattern 2: Error handling → simple description
         if any(keyword in method_name.lower() for keyword in ["handle", "catch", "error", "exception"]):
             error_type = method_name.replace("handle", "").replace("catch", "").strip()
-            acceptance_criteria.append(
-                f"Given error condition occurs, When {method_name} is called, Then {error_type or 'error'} is handled"
-            )
+            acceptance_criteria.append(f"Error handling for {error_type or 'errors'} works correctly")
 
-        # Pattern 3: Success paths → "Must return [expected result]"
+        # Pattern 3: Success paths → simple description
         # Check return type hints
         if method_node.returns:
             return_type = ast.unparse(method_node.returns) if hasattr(ast, "unparse") else str(method_node.returns)
-            acceptance_criteria.append(
-                f"Given {class_name} instance, When {method_name} is called, Then {return_type} is returned"
-            )
+            acceptance_criteria.append(f"{method_name} returns {return_type} correctly")
 
-        # Pattern 4: Type hints → "Must accept [type] and return [type]"
+        # Pattern 4: Type hints → simple description
         if method_node.args.args:
             param_types: list[str] = []
             for arg in method_node.args.args:
@@ -349,14 +345,10 @@ class TestPatternExtractor:
                     if method_node.returns
                     else "result"
                 )
-                acceptance_criteria.append(
-                    f"Given {class_name} instance with {params_str}, When {method_name} is called, Then {return_type_str} is returned"
-                )
+                acceptance_criteria.append(f"{method_name} accepts {params_str} and returns {return_type_str}")
 
-        # Default: Generic acceptance criterion
+        # Default: Generic acceptance criterion (simple text)
         if not acceptance_criteria:
-            acceptance_criteria.append(
-                f"Given {class_name} instance, When {method_name} is called, Then method executes successfully"
-            )
+            acceptance_criteria.append(f"{method_name} works correctly")
 
         return acceptance_criteria

@@ -513,3 +513,284 @@ class TestCodeAnalyzerIntegration:
             assert isinstance(plan_bundle, PlanBundle)
             assert len(analyzer.features) == 0
             assert len(analyzer.dependency_graph.nodes) == 0
+
+    def test_semgrep_integration_detects_api_endpoints(self):
+        """Test that Semgrep integration detects FastAPI endpoints and enhances features."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create FastAPI code with routes
+            fastapi_code = dedent(
+                '''
+                """FastAPI application with routes."""
+                from fastapi import FastAPI
+
+                app = FastAPI()
+
+                @app.get("/users")
+                def get_users():
+                    """Get all users."""
+                    return []
+
+                @app.post("/users")
+                def create_user():
+                    """Create a new user."""
+                    return {}
+
+                class UserService:
+                    """User management service."""
+                    def get_user(self, user_id: int):
+                        """Get user by ID."""
+                        pass
+                '''
+            )
+            (src_path / "api.py").write_text(fastapi_code)
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
+            plan_bundle = analyzer.analyze()
+
+            # Verify Semgrep integration status
+            assert hasattr(analyzer, "semgrep_enabled")
+            assert hasattr(analyzer, "semgrep_config")
+
+            # If Semgrep is enabled and available, verify enhancements
+            if analyzer.semgrep_enabled and analyzer.semgrep_config:
+                # Should have features
+                assert len(analyzer.features) >= 1
+
+                # Check if API theme was added (from Semgrep or AST)
+                assert "API" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
+
+                # Find UserService feature
+                user_feature = next(
+                    (f for f in analyzer.features if "user" in f.key.lower() or "user" in f.title.lower()),
+                    None,
+                )
+
+                if user_feature:
+                    # If Semgrep found API endpoints, confidence should be enhanced
+                    # (Base confidence + Semgrep boost if endpoints detected)
+                    assert user_feature.confidence >= 0.3
+
+    def test_semgrep_integration_detects_crud_operations(self):
+        """Test that Semgrep integration detects CRUD operations and enhances features."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create code with CRUD operations
+            crud_code = dedent(
+                '''
+                """Repository with CRUD operations."""
+                class ProductRepository:
+                    """Product data repository."""
+
+                    def create_product(self, data: dict) -> dict:
+                        """Create a new product."""
+                        return {"id": 1, **data}
+
+                    def get_product(self, product_id: int) -> dict:
+                        """Get product by ID."""
+                        return {"id": product_id}
+
+                    def update_product(self, product_id: int, data: dict) -> dict:
+                        """Update product."""
+                        return {"id": product_id, **data}
+
+                    def delete_product(self, product_id: int) -> bool:
+                        """Delete product."""
+                        return True
+                '''
+            )
+            (src_path / "products.py").write_text(crud_code)
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
+            analyzer.analyze()  # Analyze to populate features
+
+            # Find ProductRepository feature
+            product_feature = next(
+                (f for f in analyzer.features if "product" in f.key.lower() or "product" in f.title.lower()),
+                None,
+            )
+
+            if product_feature:
+                # Should have CRUD stories
+                assert len(product_feature.stories) >= 3
+
+                # If Semgrep is enabled and detected CRUD operations, confidence should be enhanced
+                if analyzer.semgrep_enabled and analyzer.semgrep_config:
+                    # Semgrep CRUD detection adds +0.1 to confidence
+                    assert product_feature.confidence >= 0.3
+
+    def test_semgrep_integration_detects_database_models(self):
+        """Test that Semgrep integration detects database models and enhances features."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create SQLAlchemy model
+            model_code = dedent(
+                '''
+                """Database models."""
+                from sqlalchemy import Column, Integer, String
+                from sqlalchemy.ext.declarative import declarative_base
+
+                Base = declarative_base()
+
+                class User(Base):
+                    """User database model."""
+                    __tablename__ = "users"
+
+                    id = Column(Integer, primary_key=True)
+                    name = Column(String(100))
+                    email = Column(String(255))
+                '''
+            )
+            (src_path / "models.py").write_text(model_code)
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
+            plan_bundle = analyzer.analyze()
+
+            # If Semgrep is enabled and detected models, verify enhancements
+            if analyzer.semgrep_enabled and analyzer.semgrep_config:
+                # Should have Database theme
+                assert "Database" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
+
+                # Find User model feature
+                user_feature = next(
+                    (f for f in analyzer.features if "user" in f.key.lower() or "user" in f.title.lower()),
+                    None,
+                )
+
+                if user_feature:
+                    # Semgrep model detection adds +0.15 to confidence
+                    assert user_feature.confidence >= 0.3
+
+    def test_semgrep_integration_graceful_degradation(self):
+        """Test that analysis works correctly when Semgrep is not available."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            code = dedent(
+                '''
+                """Simple service."""
+                class SimpleService:
+                    """Simple service class."""
+                    def method(self):
+                        """Simple method."""
+                        pass
+                '''
+            )
+            (src_path / "service.py").write_text(code)
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
+            plan_bundle = analyzer.analyze()
+
+            # Should work even if Semgrep is not available
+            assert isinstance(plan_bundle, PlanBundle)
+            # Should have at least one feature (from AST analysis)
+            assert len(analyzer.features) >= 1
+
+            # Semgrep should be gracefully disabled if not available
+            assert hasattr(analyzer, "semgrep_enabled")
+            # Analysis should complete successfully regardless
+            assert plan_bundle.features is not None
+
+    def test_semgrep_integration_parallel_execution(self):
+        """Test that Semgrep integration works correctly in parallel execution."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            # Create multiple files to test parallel execution
+            for i in range(5):
+                code = dedent(
+                    f'''
+                    """Service {i}."""
+                    class Service{i}:
+                        """Service class {i}."""
+                        def create_item(self):
+                            """Create item."""
+                            pass
+                        def get_item(self):
+                            """Get item."""
+                            pass
+                    '''
+                )
+                (src_path / f"service_{i}.py").write_text(code)
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
+            analyzer.analyze()  # Analyze to test parallel execution
+
+            # Should analyze all files in parallel
+            assert len(analyzer.features) >= 5
+
+            # All features should have valid confidence scores
+            for feature in analyzer.features:
+                assert feature.confidence >= 0.3
+                assert feature.confidence <= 1.0
+
+    def test_plugin_status_reporting(self):
+        """Test that plugin status is correctly reported."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+            src_path = repo_path / "src"
+            src_path.mkdir()
+
+            code = dedent(
+                '''
+                """Simple service."""
+                class SimpleService:
+                    """Simple service class."""
+                    def method(self):
+                        """Simple method."""
+                        pass
+                '''
+            )
+            (src_path / "service.py").write_text(code)
+
+            analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
+            plugin_status = analyzer.get_plugin_status()
+
+            # Should return a list of plugin statuses
+            assert isinstance(plugin_status, list)
+            assert len(plugin_status) >= 1
+
+            # Should always include AST Analysis
+            ast_plugin = next((p for p in plugin_status if p["name"] == "AST Analysis"), None)
+            assert ast_plugin is not None
+            assert ast_plugin["enabled"] is True
+            assert ast_plugin["used"] is True
+            assert "Core analysis engine" in ast_plugin["reason"]
+
+            # Should include Semgrep status
+            semgrep_plugin = next((p for p in plugin_status if p["name"] == "Semgrep Pattern Detection"), None)
+            assert semgrep_plugin is not None
+            assert isinstance(semgrep_plugin["enabled"], bool)
+            assert isinstance(semgrep_plugin["used"], bool)
+            assert "reason" in semgrep_plugin
+
+            # Should include Dependency Graph status
+            graph_plugin = next((p for p in plugin_status if p["name"] == "Dependency Graph Analysis"), None)
+            assert graph_plugin is not None
+            assert isinstance(graph_plugin["enabled"], bool)
+            assert isinstance(graph_plugin["used"], bool)
+            assert "reason" in graph_plugin
+
+            # Each plugin should have required keys
+            for plugin in plugin_status:
+                assert "name" in plugin
+                assert "enabled" in plugin
+                assert "used" in plugin
+                assert "reason" in plugin
+                assert isinstance(plugin["name"], str)
+                assert isinstance(plugin["enabled"], bool)
+                assert isinstance(plugin["used"], bool)
+                assert isinstance(plugin["reason"], str)

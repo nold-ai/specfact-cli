@@ -382,26 +382,51 @@ class RelationshipMapper:
         # Use ThreadPoolExecutor for parallel processing
         max_workers = min(os.cpu_count() or 4, 16, len(python_files))  # Cap at 16 workers for faster processing
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        interrupted = False
+        try:
             # Submit all tasks
             future_to_file = {executor.submit(self._analyze_file_parallel, f): f for f in python_files}
 
             # Collect results as they complete
-            for future in as_completed(future_to_file):
-                try:
-                    file_key, result = future.result()
-                    # Merge results into instance variables
-                    self.imports[file_key] = result["imports"]
-                    self.dependencies[file_key] = result["dependencies"]
-                    # Merge interfaces
-                    for interface_name, interface_info in result["interfaces"].items():
-                        self.interfaces[interface_name] = interface_info
-                    # Store routes
-                    if result["routes"]:
-                        self.framework_routes[file_key] = result["routes"]
-                except Exception:
-                    # Skip files that fail to process
-                    pass
+            try:
+                for future in as_completed(future_to_file):
+                    try:
+                        file_key, result = future.result()
+                        # Merge results into instance variables
+                        self.imports[file_key] = result["imports"]
+                        self.dependencies[file_key] = result["dependencies"]
+                        # Merge interfaces
+                        for interface_name, interface_info in result["interfaces"].items():
+                            self.interfaces[interface_name] = interface_info
+                        # Store routes
+                        if result["routes"]:
+                            self.framework_routes[file_key] = result["routes"]
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_file:
+                            if not f.done():
+                                f.cancel()
+                        break
+                    except Exception:
+                        # Skip files that fail to process
+                        pass
+            except KeyboardInterrupt:
+                interrupted = True
+                for f in future_to_file:
+                    if not f.done():
+                        f.cancel()
+            if interrupted:
+                raise KeyboardInterrupt
+        except KeyboardInterrupt:
+            interrupted = True
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        finally:
+            if not interrupted:
+                executor.shutdown(wait=True)
+            else:
+                executor.shutdown(wait=False)
 
         return {
             "imports": dict(self.imports),

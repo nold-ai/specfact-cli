@@ -1,0 +1,775 @@
+rules:
+  # ============================================================================
+  # API Endpoint Detection
+  # ============================================================================
+  
+  - id: fastapi-route-detection
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @app.$METHOD("$PATH")
+              def $FUNC(...):
+                ...
+          - pattern: |
+              @router.$METHOD("$PATH")
+              def $FUNC(...):
+                ...
+          - pattern: |
+              @$APP.$METHOD("$PATH")
+              def $FUNC(...):
+                ...
+    message: "API endpoint detected: $METHOD $PATH"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [api, endpoints, fastapi]
+      confidence: HIGH
+      framework: fastapi
+      method: $METHOD
+      path: $PATH
+      function: $FUNC
+
+  - id: flask-route-detection
+    patterns:
+      - pattern: |
+          @app.route("$PATH", methods=[$METHODS])
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @$APP.route("$PATH")
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @$BLUEPRINT.route("$PATH", methods=[$METHODS])
+          def $FUNC(...):
+            ...
+    message: "Flask route detected: $PATH"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [api, endpoints, flask]
+      confidence: HIGH
+      framework: flask
+      path: $PATH
+      function: $FUNC
+
+  - id: express-route-detection
+    patterns:
+      - pattern: |
+          app.$METHOD("$PATH", $HANDLER)
+      - pattern: |
+          router.$METHOD("$PATH", $HANDLER)
+      - pattern: |
+          $APP.$METHOD("$PATH", $HANDLER)
+    message: "Express route detected: $METHOD $PATH"
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [api, endpoints, express]
+      confidence: HIGH
+      framework: express
+      method: $METHOD
+      path: $PATH
+
+  - id: gin-route-detection
+    patterns:
+      - pattern: |
+          router.$METHOD("$PATH", $HANDLER)
+      - pattern: |
+          $ROUTER.$METHOD("$PATH", $HANDLER)
+      - pattern: |
+          gin.$METHOD("$PATH", $HANDLER)
+    message: "Gin route detected: $METHOD $PATH"
+    languages: [go]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [api, endpoints, gin]
+      confidence: HIGH
+      framework: gin
+      method: $METHOD
+      path: $PATH
+
+  # ============================================================================
+  # Database Model Detection
+  # ============================================================================
+  
+  - id: sqlalchemy-model-detection
+    patterns:
+      - pattern: |
+          class $MODEL(db.Model):
+            ...
+      - pattern: |
+          class $MODEL(Base):
+            ...
+      - pattern: |
+          class $MODEL(DeclarativeBase):
+            ...
+    message: "SQLAlchemy model detected: $MODEL"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [database, models, sqlalchemy]
+      confidence: HIGH
+      framework: sqlalchemy
+      model: $MODEL
+
+  - id: django-model-detection
+    patterns:
+      - pattern: |
+          class $MODEL(models.Model):
+            ...
+      - pattern: |
+          class $MODEL(Model):
+            ...
+    message: "Django model detected: $MODEL"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [database, models, django]
+      confidence: HIGH
+      framework: django
+      model: $MODEL
+
+  - id: pydantic-model-detection
+    patterns:
+      - pattern: |
+          class $MODEL(BaseModel):
+            ...
+      - pattern: |
+          class $MODEL(pydantic.BaseModel):
+            ...
+    message: "Pydantic model detected: $MODEL"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [models, schemas, pydantic]
+      confidence: HIGH
+      framework: pydantic
+      model: $MODEL
+
+  # ============================================================================
+  # Authentication/Authorization Patterns
+  # ============================================================================
+  
+  - id: auth-decorator-detection
+    patterns:
+      - pattern: |
+          @require_auth
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @require_permission("$PERM")
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @login_required
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @$AUTH_DECORATOR
+          def $FUNC(...):
+            ...
+    message: "Protected endpoint: $FUNC requires authentication/authorization"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [security, auth]
+      confidence: MEDIUM
+      function: $FUNC
+
+  - id: fastapi-dependency-auth-detection
+    patterns:
+      - pattern: |
+          @app.$METHOD("$PATH", dependencies=[Depends($AUTH)])
+          def $FUNC(...):
+            ...
+      - pattern: |
+          @router.$METHOD("$PATH", dependencies=[Depends($AUTH)])
+          def $FUNC(...):
+            ...
+    message: "FastAPI endpoint with auth dependency: $METHOD $PATH"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [security, auth, fastapi]
+      confidence: HIGH
+      framework: fastapi
+      method: $METHOD
+      path: $PATH
+
+  # ============================================================================
+  # CRUD Operation Patterns
+  # ============================================================================
+  
+  - id: crud-create-operation
+    patterns:
+      - pattern-either:
+          - pattern: |
+              def $FUNC(...):
+                ...
+          - pattern: |
+              async def $FUNC(...):
+                ...
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: (create|add|insert)_(\w+)
+    message: "Create operation detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [crud, operations, create]
+      confidence: MEDIUM
+      operation: create
+
+  - id: crud-read-operation
+    patterns:
+      - pattern-either:
+          - pattern: |
+              def $FUNC(...):
+                ...
+          - pattern: |
+              async def $FUNC(...):
+                ...
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: (get|find|fetch|retrieve)_(\w+)
+    message: "Read operation detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [crud, operations, read]
+      confidence: MEDIUM
+      operation: read
+
+  - id: crud-update-operation
+    patterns:
+      - pattern-either:
+          - pattern: |
+              def $FUNC(...):
+                ...
+          - pattern: |
+              async def $FUNC(...):
+                ...
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: (update|modify|edit)_(\w+)
+    message: "Update operation detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [crud, operations, update]
+      confidence: MEDIUM
+      operation: update
+
+  - id: crud-delete-operation
+    patterns:
+      - pattern-either:
+          - pattern: |
+              def $FUNC(...):
+                ...
+          - pattern: |
+              async def $FUNC(...):
+                ...
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: (delete|remove|destroy)_(\w+)
+    message: "Delete operation detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [crud, operations, delete]
+      confidence: MEDIUM
+      operation: delete
+
+  # ============================================================================
+  # Test Pattern Detection
+  # ============================================================================
+  # Note: More detailed test pattern extraction is in test-patterns.yml
+  # This provides basic test detection for feature linking
+  
+  - id: pytest-test-detection
+    patterns:
+      - pattern: |
+          def $FUNC(...):
+            ...
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: test_\w+
+    message: "Pytest test detected: test_$NAME"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [testing, pytest]
+      confidence: HIGH
+      test_name: $NAME
+
+  - id: unittest-test-detection
+    patterns:
+      - pattern: |
+          def $FUNC(self, ...):
+            ...
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: test_\w+
+    message: "Unittest test detected: test_$NAME"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [testing, unittest]
+      confidence: HIGH
+      test_name: $NAME
+
+  # ============================================================================
+  # Service/Component Patterns
+  # ============================================================================
+  
+  - id: service-class-detection
+    patterns:
+      - pattern: |
+          class $SERVICE(Service):
+            ...
+      - pattern: |
+          class $SERVICE:
+            def __init__(self, ...):
+              ...
+    message: "Service class detected: $SERVICE"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [services, components]
+      confidence: LOW
+      service: $SERVICE
+
+  - id: repository-pattern-detection
+    patterns:
+      - pattern: |
+          class $REPO(Repository):
+            ...
+      - pattern: |
+          class $REPO:
+            def __init__(self, ...):
+              ...
+    message: "Repository class detected: $REPO"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [repositories, data-access]
+      confidence: LOW
+      repository: $REPO
+
+  # ============================================================================
+  # Middleware/Interceptor Patterns
+  # ============================================================================
+  
+  - id: middleware-detection
+    patterns:
+      - pattern: |
+          @app.middleware("http")
+          async def $MIDDLEWARE(...):
+            ...
+      - pattern: |
+          class $MIDDLEWARE:
+            def __init__(self, app):
+              ...
+    message: "Middleware detected: $MIDDLEWARE"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [middleware, interceptors]
+      confidence: MEDIUM
+      middleware: $MIDDLEWARE
+
+  # ============================================================================
+  # Async/Await Patterns (Modern Python 2020-2025)
+  # ============================================================================
+  
+  - id: async-function-detection
+    patterns:
+      - pattern-either:
+          - pattern: |
+              async def $FUNC(...):
+                ...
+          - pattern: |
+              async def $FUNC(...) -> $TYPE:
+                ...
+    message: "Async function detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [async, coroutines]
+      confidence: HIGH
+      function: $FUNC
+
+  - id: asyncio-gather-pattern
+    patterns:
+      - pattern: await asyncio.gather(...)
+    message: "Concurrent async operation detected using asyncio.gather"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [async, concurrency]
+      confidence: HIGH
+      pattern_type: concurrent_execution
+
+  # ============================================================================
+  # Type Hints & Validation Patterns
+  # ============================================================================
+  
+  - id: type-annotations-detection
+    patterns:
+      - pattern-either:
+          - pattern: |
+              def $FUNC(...) -> $RETURN:
+                ...
+          - pattern: |
+              $VAR: $TYPE = $VALUE
+    message: "Type annotations detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [type-hints, typing]
+      confidence: HIGH
+
+  - id: dataclass-usage
+    patterns:
+      - pattern: |
+          @dataclass
+          class $CLASS:
+            ...
+    message: "Dataclass detected: $CLASS"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [dataclass, models]
+      confidence: HIGH
+      class: $CLASS
+
+  - id: pydantic-settings-detection
+    patterns:
+      - pattern: |
+          class $SETTINGS(BaseSettings):
+            ...
+      - pattern: |
+          class $SETTINGS(pydantic.BaseSettings):
+            ...
+    message: "Pydantic Settings class detected: $SETTINGS"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [configuration, settings, pydantic]
+      confidence: HIGH
+      framework: pydantic
+      settings: $SETTINGS
+
+  - id: beartype-decorator-detection
+    patterns:
+      - pattern: |
+          @beartype
+          def $FUNC(...):
+            ...
+    message: "Beartype runtime type checking detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [type-checking, validation, beartype]
+      confidence: HIGH
+      function: $FUNC
+
+  - id: icontract-decorator-detection
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @require(...)
+              def $FUNC(...):
+                ...
+          - pattern: |
+              @ensure(...)
+              def $FUNC(...):
+                ...
+          - pattern: |
+              @invariant(...)
+              class $CLASS:
+                ...
+    message: "Contract-based validation detected (icontract)"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [contracts, validation, icontract]
+      confidence: HIGH
+
+  # ============================================================================
+  # Context Manager Patterns
+  # ============================================================================
+  
+  - id: context-manager-class
+    patterns:
+      - pattern: |
+          class $MGR:
+            def __enter__(self):
+              ...
+            def __exit__(self, ...):
+              ...
+    message: "Context manager class detected: $MGR"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [context-managers, resource-management]
+      confidence: HIGH
+      manager: $MGR
+
+  - id: contextlib-contextmanager
+    patterns:
+      - pattern: |
+          @contextmanager
+          def $FUNC(...):
+            ...
+            yield $RESOURCE
+            ...
+    message: "Context manager function detected: $FUNC"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [context-managers, generators]
+      confidence: HIGH
+      function: $FUNC
+
+  # ============================================================================
+  # Logging Patterns
+  # ============================================================================
+  
+  - id: structlog-usage
+    patterns:
+      - pattern-either:
+          - pattern: import structlog
+          - pattern: structlog.get_logger(...)
+          - pattern: structlog.configure(...)
+    message: "Structured logging (structlog) detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [logging, structured-logging]
+      confidence: HIGH
+      library: structlog
+
+  - id: logger-instantiation
+    patterns:
+      - pattern-either:
+          - pattern: logging.getLogger($NAME)
+          - pattern: logger = logging.getLogger(...)
+    message: "Logger instantiation detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [logging]
+      confidence: HIGH
+
+  # ============================================================================
+  # Configuration Management Patterns
+  # ============================================================================
+  
+  - id: env-variable-access
+    patterns:
+      - pattern-either:
+          - pattern: os.environ[$KEY]
+          - pattern: os.getenv($KEY)
+          - pattern: os.environ.get($KEY)
+    message: "Environment variable access detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [configuration, environment]
+      confidence: HIGH
+
+  - id: dotenv-usage
+    patterns:
+      - pattern-either:
+          - pattern: from dotenv import load_dotenv
+          - pattern: load_dotenv(...)
+    message: "python-dotenv usage detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [configuration, dotenv]
+      confidence: HIGH
+      library: python-dotenv
+
+  # ============================================================================
+  # Enhanced Testing Patterns
+  # ============================================================================
+  
+  - id: pytest-fixture-detection
+    patterns:
+      - pattern: |
+          @pytest.fixture
+          def $FIXTURE(...):
+            ...
+    message: "Pytest fixture detected: $FIXTURE"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [testing, fixtures]
+      confidence: HIGH
+      framework: pytest
+      fixture: $FIXTURE
+
+  - id: pytest-parametrize
+    patterns:
+      - pattern: |
+          @pytest.mark.parametrize($PARAMS, $VALUES)
+          def $TEST(...):
+            ...
+    message: "Parametrized test detected: $TEST"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [testing, parametrize]
+      confidence: HIGH
+      framework: pytest
+      test: $TEST
+
+  - id: unittest-mock-usage
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @mock.patch($TARGET)
+              def $FUNC(...):
+                ...
+          - pattern: |
+              with mock.patch($TARGET) as $MOCK:
+                ...
+          - pattern: mock.Mock(...)
+    message: "Mock usage detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [testing, mocking]
+      confidence: HIGH
+
+  # ============================================================================
+  # Additional ORM Patterns
+  # ============================================================================
+  
+  - id: tortoise-orm-model-detection
+    patterns:
+      - pattern: |
+          from tortoise.models import Model
+          class $MODEL(Model):
+            ...
+      - pattern: |
+          from tortoise import fields
+          ...
+          class $MODEL(Model):
+            ...
+    message: "TortoiseORM model detected: $MODEL"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [database, models, tortoise-orm]
+      confidence: HIGH
+      framework: tortoise-orm
+      async_support: true
+      model: $MODEL
+
+  - id: peewee-model-detection
+    patterns:
+      - pattern: |
+          class $MODEL(Model):
+            class Meta:
+              database = $DB
+              ...
+    message: "Peewee model detected: $MODEL"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [database, models, peewee]
+      confidence: HIGH
+      framework: peewee
+      model: $MODEL
+
+  # ============================================================================
+  # Exception Handling Patterns
+  # ============================================================================
+  
+  - id: custom-exception-class
+    patterns:
+      - pattern: |
+          class $EXCEPTION(Exception):
+            ...
+    message: "Custom exception class detected: $EXCEPTION"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [exception-handling, custom-exceptions]
+      confidence: HIGH
+      exception: $EXCEPTION
+
+  - id: finally-block-usage
+    patterns:
+      - pattern: |
+          try:
+            ...
+          finally:
+            ...
+    message: "Finally block detected for cleanup"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [exception-handling, cleanup]
+      confidence: HIGH
+
+  # ============================================================================
+  # Package Structure Patterns
+  # ============================================================================
+  
+  - id: __all__-declaration
+    patterns:
+      - pattern: __all__ = [...]
+    paths:
+      include:
+        - "**/__init__.py"
+    message: "Public API declaration (__all__) detected"
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: feature-detection
+      subcategory: [package-structure, api]
+      confidence: HIGH
+

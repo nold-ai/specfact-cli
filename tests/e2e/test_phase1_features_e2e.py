@@ -132,7 +132,7 @@ class TestPhase1FeaturesE2E:
         return repo
 
     def test_step1_1_test_patterns_extraction(self, test_repo: Path) -> None:
-        """Test Step 1.1: Extract test patterns for acceptance criteria (Given/When/Then format)."""
+        """Test Step 1.1: Extract test patterns for acceptance criteria (simple text format, Phase 4)."""
         os.environ["TEST_MODE"] = "true"
         try:
             bundle_name = "auto-derived"
@@ -162,22 +162,29 @@ class TestPhase1FeaturesE2E:
 
             assert len(features) > 0, "Should extract features"
 
-            # Verify acceptance criteria are in Given/When/Then format
+            # Verify acceptance criteria are in simple text format (Phase 4: GWT elimination)
+            # Examples are stored in contracts, not in feature YAML
             for feature in features:
                 stories = feature.get("stories", [])
                 for story in stories:
                     acceptance = story.get("acceptance", [])
                     assert len(acceptance) > 0, f"Story {story.get('key')} should have acceptance criteria"
 
-                    # Check that acceptance criteria are in Given/When/Then format
-                    gwt_found = False
+                    # Phase 4: Acceptance criteria should be simple text (not verbose GWT)
+                    # Format: "Feature works correctly (see contract examples)" or similar
                     for criterion in acceptance:
+                        # Should not be verbose GWT format (Given...When...Then)
                         criterion_lower = criterion.lower()
-                        if "given" in criterion_lower and "when" in criterion_lower and "then" in criterion_lower:
-                            gwt_found = True
-                            break
-
-                    assert gwt_found, f"Story {story.get('key')} should have Given/When/Then format acceptance criteria"
+                        has_gwt = "given" in criterion_lower and "when" in criterion_lower and "then" in criterion_lower
+                        assert not has_gwt, (
+                            f"Story {story.get('key')} should use simple text format, not verbose GWT. "
+                            f"Found: {criterion}"
+                        )
+                        # Should be a simple description
+                        assert len(criterion) < 200, (
+                            f"Story {story.get('key')} acceptance criteria should be concise. "
+                            f"Found: {criterion[:100]}..."
+                        )
 
         finally:
             os.environ.pop("TEST_MODE", None)
@@ -401,18 +408,33 @@ class TestPhase1FeaturesE2E:
             # Verify all Phase 1 features are present
             features = plan_data.get("features", [])
 
-            # Step 1.1: Test patterns
-            gwt_found = False
+            # Step 1.1: Test patterns (Phase 4: Simple text format, not GWT)
+            acceptance_found = False
             for feature in features:
                 stories = feature.get("stories", [])
                 for story in stories:
                     acceptance = story.get("acceptance", [])
-                    for criterion in acceptance:
-                        if "given" in criterion.lower() and "when" in criterion.lower() and "then" in criterion.lower():
-                            gwt_found = True
-                            break
+                    if acceptance:
+                        acceptance_found = True
+                        # Phase 4: Verify simple text format (not verbose GWT)
+                        for criterion in acceptance:
+                            # Should not be verbose GWT format
+                            criterion_lower = criterion.lower()
+                            has_gwt = (
+                                "given" in criterion_lower and "when" in criterion_lower and "then" in criterion_lower
+                            )
+                            assert not has_gwt, (
+                                f"Step 1.1: Should use simple text format, not verbose GWT. Found: {criterion}"
+                            )
+                            # Should be concise
+                            assert len(criterion) < 200, (
+                                f"Step 1.1: Acceptance criteria should be concise. Found: {criterion[:100]}..."
+                            )
+                        break
+                if acceptance_found:
+                    break
 
-            assert gwt_found, "Step 1.1: Should have Given/When/Then acceptance criteria"
+            assert acceptance_found, "Step 1.1: Should have acceptance criteria"
 
             # Step 1.2: Scenarios
             scenario_found = False

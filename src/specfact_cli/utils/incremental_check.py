@@ -227,30 +227,42 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
             return feature.source_tracking.has_changed(file_path)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
+        interrupted = False
         try:
             # Submit all tasks
             future_to_task = {executor.submit(check_file_change, task): task for task in check_tasks}
 
             # Check results as they complete (early exit on first change)
-            for future in as_completed(future_to_task):
-                try:
-                    if future.result():
-                        source_files_changed = True
-                        # Cancel remaining tasks (they'll complete but we won't wait)
+            try:
+                for future in as_completed(future_to_task):
+                    try:
+                        if future.result():
+                            source_files_changed = True
+                            # Cancel remaining tasks (they'll complete but we won't wait)
+                            break
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_task:
+                            if not f.done():
+                                f.cancel()
                         break
-                except KeyboardInterrupt:
-                    # Cancel remaining tasks and re-raise
-                    for f in future_to_task:
+            except KeyboardInterrupt:
+                interrupted = True
+                for f in future_to_task:
+                    if not f.done():
                         f.cancel()
-                    raise
+            if interrupted:
+                raise KeyboardInterrupt
         except KeyboardInterrupt:
-            # Gracefully shutdown executor on interrupt (cancel pending tasks)
+            interrupted = True
             executor.shutdown(wait=False, cancel_futures=True)
             raise
         finally:
             # Ensure executor is properly shutdown (safe to call multiple times)
-            if not executor._shutdown:  # type: ignore[attr-defined]
+            if not interrupted:
                 executor.shutdown(wait=True)
+            else:
+                executor.shutdown(wait=False)
 
     # Check contracts (sequential, fast operation)
     for _feature, contract_path in contract_checks:

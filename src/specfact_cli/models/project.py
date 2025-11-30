@@ -251,7 +251,9 @@ class ProjectBundle(BaseModel):
             return (artifact_name, validated)
 
         if load_tasks:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            interrupted = False
+            try:
                 # Submit all tasks
                 future_to_task = {
                     executor.submit(load_artifact, name, path, validator): (name, path, validator)
@@ -259,31 +261,56 @@ class ProjectBundle(BaseModel):
                 }
 
                 # Collect results as they complete
-                for future in as_completed(future_to_task):
-                    try:
-                        artifact_name, result = future.result()
-                        completed_count += 1
+                try:
+                    for future in as_completed(future_to_task):
+                        try:
+                            artifact_name, result = future.result()
+                            completed_count += 1
 
-                        if progress_callback:
-                            progress_callback(completed_count, total_artifacts, artifact_name)
+                            if progress_callback:
+                                progress_callback(completed_count, total_artifacts, artifact_name)
 
-                        # Assign results to appropriate variables
-                        if artifact_name == "idea.yaml":
-                            idea = result  # type: ignore[assignment]  # Validated by validator
-                        elif artifact_name == "business.yaml":
-                            business = result  # type: ignore[assignment]  # Validated by validator
-                        elif artifact_name == "product.yaml":
-                            product = result  # type: ignore[assignment]  # Validated by validator, required field
-                        elif artifact_name == "clarifications.yaml":
-                            clarifications = result  # type: ignore[assignment]  # Validated by validator
-                        elif artifact_name.startswith("features/") and isinstance(result, tuple) and len(result) == 2:
-                            # Result is (key, Feature) tuple for features
-                            key, feature = result
-                            features[key] = feature
-                    except Exception as e:
-                        # Log error but continue loading other artifacts
-                        artifact_name = future_to_task[future][0]
-                        raise ValueError(f"Failed to load {artifact_name}: {e}") from e
+                            # Assign results to appropriate variables
+                            if artifact_name == "idea.yaml":
+                                idea = result  # type: ignore[assignment]  # Validated by validator
+                            elif artifact_name == "business.yaml":
+                                business = result  # type: ignore[assignment]  # Validated by validator
+                            elif artifact_name == "product.yaml":
+                                product = result  # type: ignore[assignment]  # Validated by validator, required field
+                            elif artifact_name == "clarifications.yaml":
+                                clarifications = result  # type: ignore[assignment]  # Validated by validator
+                            elif (
+                                artifact_name.startswith("features/") and isinstance(result, tuple) and len(result) == 2
+                            ):
+                                # Result is (key, Feature) tuple for features
+                                key, feature = result
+                                features[key] = feature
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_task:
+                                if not f.done():
+                                    f.cancel()
+                            break
+                        except Exception as e:
+                            # Log error but continue loading other artifacts
+                            artifact_name = future_to_task[future][0]
+                            raise ValueError(f"Failed to load {artifact_name}: {e}") from e
+                except KeyboardInterrupt:
+                    interrupted = True
+                    for f in future_to_task:
+                        if not f.done():
+                            f.cancel()
+                if interrupted:
+                    raise KeyboardInterrupt
+            except KeyboardInterrupt:
+                interrupted = True
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+            finally:
+                if not interrupted:
+                    executor.shutdown(wait=True)
+                else:
+                    executor.shutdown(wait=False)
 
         # Validate that required product was loaded
         if product is None:
@@ -381,7 +408,9 @@ class ProjectBundle(BaseModel):
             return (artifact_name, checksum)
 
         if save_tasks:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            interrupted = False
+            try:
                 # Submit all tasks
                 future_to_task = {
                     executor.submit(save_artifact, name, path, data): (name, path, data)
@@ -389,40 +418,63 @@ class ProjectBundle(BaseModel):
                 }
 
                 # Collect results as they complete
-                for future in as_completed(future_to_task):
-                    try:
-                        artifact_name, checksum = future.result()
-                        completed_count += 1
-                        checksums[artifact_name] = checksum
+                try:
+                    for future in as_completed(future_to_task):
+                        try:
+                            artifact_name, checksum = future.result()
+                            completed_count += 1
+                            checksums[artifact_name] = checksum
 
-                        if progress_callback:
-                            progress_callback(completed_count, total_artifacts, artifact_name)
+                            if progress_callback:
+                                progress_callback(completed_count, total_artifacts, artifact_name)
 
-                        # Build feature indices for features
-                        if artifact_name.startswith("features/"):
-                            feature_file = artifact_name.split("/", 1)[1]
-                            key = feature_file.replace(".yaml", "")
-                            if key in self.features:
-                                feature = self.features[key]
-                                feature_index = FeatureIndex(
-                                    key=key,
-                                    title=feature.title,
-                                    file=feature_file,
-                                    status="active" if not feature.draft else "draft",
-                                    stories_count=len(feature.stories),
-                                    created_at=now,  # TODO: Preserve original created_at if exists
-                                    updated_at=now,
-                                    contract=None,  # Contract will be linked separately if needed
-                                    checksum=checksum,
-                                )
-                                feature_indices.append(feature_index)
-                    except Exception as e:
-                        # Get artifact name from the future's task
-                        artifact_name = future_to_task.get(future, ("unknown", None, None))[0]
-                        error_msg = f"Failed to save {artifact_name}"
-                        if str(e):
-                            error_msg += f": {e}"
-                        raise ValueError(error_msg) from e
+                            # Build feature indices for features
+                            if artifact_name.startswith("features/"):
+                                feature_file = artifact_name.split("/", 1)[1]
+                                key = feature_file.replace(".yaml", "")
+                                if key in self.features:
+                                    feature = self.features[key]
+                                    feature_index = FeatureIndex(
+                                        key=key,
+                                        title=feature.title,
+                                        file=feature_file,
+                                        status="active" if not feature.draft else "draft",
+                                        stories_count=len(feature.stories),
+                                        created_at=now,  # TODO: Preserve original created_at if exists
+                                        updated_at=now,
+                                        contract=None,  # Contract will be linked separately if needed
+                                        checksum=checksum,
+                                    )
+                                    feature_indices.append(feature_index)
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_task:
+                                if not f.done():
+                                    f.cancel()
+                            break
+                        except Exception as e:
+                            # Get artifact name from the future's task
+                            artifact_name = future_to_task.get(future, ("unknown", None, None))[0]
+                            error_msg = f"Failed to save {artifact_name}"
+                            if str(e):
+                                error_msg += f": {e}"
+                            raise ValueError(error_msg) from e
+                except KeyboardInterrupt:
+                    interrupted = True
+                    for f in future_to_task:
+                        if not f.done():
+                            f.cancel()
+                if interrupted:
+                    raise KeyboardInterrupt
+            except KeyboardInterrupt:
+                interrupted = True
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+            finally:
+                if not interrupted:
+                    executor.shutdown(wait=True)
+                else:
+                    executor.shutdown(wait=False)
 
         # Update manifest with checksums and feature indices
         self.manifest.checksums.files.update(checksums)

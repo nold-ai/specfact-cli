@@ -228,7 +228,7 @@ specfact import from-code [OPTIONS]
 
 - **CoPilot Mode** (AI-first - Pragmatic): Uses AI IDE's native LLM (Cursor, CoPilot, etc.) for semantic understanding. The AI IDE understands the codebase semantically, then calls the SpecFact CLI for structured analysis. No separate LLM API setup needed. Multi-language support, high-quality Spec-Kit artifacts.
 
-- **CI/CD Mode** (AST fallback): Uses Python AST for fast, deterministic analysis (Python-only). Works offline, no LLM required.
+- **CI/CD Mode** (AST+Semgrep Hybrid): Uses Python AST + Semgrep pattern detection for fast, deterministic analysis. Framework-aware detection (API endpoints, models, CRUD, code quality). Works offline, no LLM required. Displays plugin status (AST Analysis, Semgrep Pattern Detection, Dependency Graph Analysis).
 
 **Pragmatic Integration**:
 
@@ -265,12 +265,19 @@ specfact import from-code --bundle api-service \
 
 **What it does:**
 
-- Builds module dependency graph
-- Mines commit history for feature boundaries
-- Extracts acceptance criteria from tests
-- Infers API surfaces from type hints
-- Detects async anti-patterns with Semgrep
-- Generates plan bundle with confidence scores
+- **AST Analysis**: Extracts classes, methods, imports, docstrings
+- **Semgrep Pattern Detection**: Detects API endpoints, database models, CRUD operations, auth patterns, framework usage, code quality issues
+- **Dependency Graph**: Builds module dependency graph (when pyan3 and networkx available)
+- **Evidence-Based Confidence Scoring**: Systematically combines AST + Semgrep evidence for accurate confidence scores:
+  - Framework patterns (API, models, CRUD) increase confidence
+  - Test patterns increase confidence
+  - Anti-patterns and security issues decrease confidence
+- **Code Quality Assessment**: Identifies anti-patterns and security vulnerabilities
+- **Plugin Status**: Displays which analysis tools are enabled and used
+- **Optimized Bundle Size**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
+- **Acceptance Criteria**: Limited to 1-3 high-level items per story, detailed examples in contract files
+- **Interruptible**: Press Ctrl+C during analysis to cancel immediately (all parallel operations support graceful cancellation)
+- Generates plan bundle with enhanced confidence scores
 
 **Partial Repository Coverage:**
 
@@ -988,11 +995,17 @@ specfact plan select --id abc123def456
 
 **What it does:**
 
-- Lists all available plan bundles in `.specfact/plans/` with metadata (features, stories, stage, modified date)
+- Lists all available plan bundles in `.specfact/projects/` with metadata (features, stories, stage, modified date)
 - Displays numbered list with active plan indicator
 - Applies filters (current, stages, last N) before display/selection
 - Updates `.specfact/plans/config.yaml` to set the active plan
-- The active plan becomes the default for all plan operations
+- The active plan becomes the default for all commands with `--bundle` option:
+  - **Plan management**: `plan compare`, `plan promote`, `plan add-feature`, `plan add-story`, `plan update-idea`, `plan update-feature`, `plan update-story`, `plan review`
+  - **Analysis & generation**: `import from-code`, `generate contracts`, `analyze contracts`
+  - **Synchronization**: `sync bridge`, `sync intelligent`
+  - **Enforcement & migration**: `enforce sdd`, `migrate to-contracts`, `drift detect`
+  
+  Use `--bundle <name>` to override the active plan for any command.
 
 **Filter Options:**
 

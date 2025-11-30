@@ -2237,13 +2237,13 @@ def select(
         print_info(f"  Stories: {selected_plan['stories']}")
         print_info(f"  Stage: {selected_plan.get('stage', 'unknown')}")
 
-        print_info("\nThis plan will now be used as the default for:")
-        print_info("  - specfact plan compare")
-        print_info("  - specfact plan promote")
-        print_info("  - specfact plan add-feature")
-        print_info("  - specfact plan add-story")
-        print_info("  - specfact plan sync --shared")
-        print_info("  - specfact sync spec-kit")
+        print_info("\nThis plan will now be used as the default for all commands with --bundle option:")
+        print_info("  • Plan management: plan compare, plan promote, plan add-feature, plan add-story,")
+        print_info("    plan update-idea, plan update-feature, plan update-story, plan review")
+        print_info("  • Analysis & generation: import from-code, generate contracts, analyze contracts")
+        print_info("  • Synchronization: sync bridge, sync intelligent")
+        print_info("  • Enforcement & migration: enforce sdd, migrate to-contracts, drift detect")
+        print_info("\n  Use --bundle <name> to override the active plan for any command.")
 
 
 @app.command("upgrade")
@@ -3578,7 +3578,21 @@ def review(
 
             # Scan for ambiguities
             print_info("Scanning plan bundle for ambiguities...")
-            scanner = AmbiguityScanner()
+            # Try to find repo path from bundle directory (go up to find .specfact parent, then repo root)
+            repo_path: Path | None = None
+            if bundle_dir.exists():
+                # bundle_dir is typically .specfact/projects/<bundle-name>
+                # Go up to .specfact, then up to repo root
+                specfact_dir = bundle_dir.parent.parent if bundle_dir.parent.name == "projects" else bundle_dir.parent
+                if specfact_dir.name == ".specfact" and specfact_dir.parent.exists():
+                    repo_path = specfact_dir.parent
+                else:
+                    # Fallback: try current directory
+                    repo_path = Path(".")
+            else:
+                repo_path = Path(".")
+
+            scanner = AmbiguityScanner(repo_path=repo_path)
             report = scanner.scan(plan_bundle)
 
             # Filter by category if specified
@@ -3793,9 +3807,8 @@ def review(
                     break
 
             # Save project bundle once at the end (more efficient than saving after each question)
-            # Reload to get current state, then update with changes
-            project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
-            # Update from enriched bundle
+            # Update existing project_bundle in memory (no need to reload - we already have it)
+            # Preserve manifest from original bundle
             project_bundle.idea = plan_bundle.idea
             project_bundle.business = plan_bundle.business
             project_bundle.product = plan_bundle.product
@@ -3979,11 +3992,17 @@ def _find_bundle_dir(bundle: str | None) -> Path | None:
 
 @app.command("harden")
 @beartype
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda sdd_path: sdd_path is None or isinstance(sdd_path, Path), "SDD path must be None or Path")
 def harden(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     sdd_path: Path | None = typer.Option(
         None,
         "--sdd",
@@ -4014,12 +4033,13 @@ def harden(
     Each project bundle has its own SDD manifest in `.specfact/sdd/<bundle-name>.yaml`.
 
     **Parameter Groups:**
-    - **Target/Input**: bundle (required argument), --sdd
+    - **Target/Input**: bundle (optional argument, defaults to active plan), --sdd
     - **Output/Results**: --output-format
     - **Behavior/Options**: --interactive/--no-interactive
 
     **Examples:**
-        specfact plan harden legacy-api                    # Interactive
+        specfact plan harden                    # Uses active plan (set via 'plan select')
+        specfact plan harden legacy-api       # Interactive
         specfact plan harden auth-module --no-interactive  # CI/CD mode
         specfact plan harden legacy-api --output-format json
     """
@@ -4044,7 +4064,9 @@ def harden(
         bundle = SpecFactStructure.get_active_bundle_name(Path("."))
         if bundle is None:
             console.print("[bold red]✗[/bold red] Bundle name required")
-            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            console.print(
+                "[yellow]→[/yellow] Specify bundle name as argument or run 'specfact plan select' to set active plan"
+            )
             raise typer.Exit(1)
         console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
