@@ -78,7 +78,10 @@ def detect_bundle_format(path: Path) -> tuple[BundleFormat, str | None]:
         # Check if directory has partial bundle files (incomplete save)
         # If it has features/ or contracts/ but no manifest, it's likely an incomplete modular bundle
         if (path / "features").exists() or (path / "contracts").exists():
-            return BundleFormat.UNKNOWN, "Incomplete bundle directory (missing bundle.manifest.yaml). This may be from a failed save. Consider removing the directory and re-running import."
+            return (
+                BundleFormat.UNKNOWN,
+                "Incomplete bundle directory (missing bundle.manifest.yaml). This may be from a failed save. Consider removing the directory and re-running import.",
+            )
         # Check for legacy plans directory
         if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
             return BundleFormat.MONOLITHIC, None

@@ -39,10 +39,10 @@ def analyze_contracts(
         file_okay=False,
         dir_okay=True,
     ),
-    bundle: str = typer.Option(
-        ...,
+    bundle: str | None = typer.Option(
+        None,
         "--bundle",
-        help="Project bundle name (e.g., legacy-api)",
+        help="Project bundle name (e.g., legacy-api). Default: active plan from 'specfact plan select'",
     ),
 ) -> None:
     """
@@ -57,9 +57,22 @@ def analyze_contracts(
     **Examples:**
         specfact analyze contracts --repo . --bundle legacy-api
     """
+    from rich.console import Console
+
     from specfact_cli.models.quality import QualityTracking
     from specfact_cli.utils.bundle_loader import load_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     repo_path = repo.resolve()
     bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)

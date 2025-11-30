@@ -119,7 +119,10 @@ def stage(
 @require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def enforce_sdd(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
@@ -162,11 +165,25 @@ def enforce_sdd(
         specfact enforce sdd auth-module --output-format json --out validation-report.json
         specfact enforce sdd legacy-api --no-interactive
     """
+    from rich.console import Console
+
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.utils.bundle_loader import load_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import StructuredFormat
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
     from specfact_cli.utils.structured_io import (
-        StructuredFormat,
         dump_structured_file,
         load_structured_file,
     )

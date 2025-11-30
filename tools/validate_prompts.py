@@ -255,7 +255,8 @@ def validate_all_prompts(prompts_dir: Path | None = None) -> list[dict[str, Any]
         prompts_dir = Path(__file__).parent.parent / "resources" / "prompts"
 
     results = []
-    for prompt_file in sorted(prompts_dir.glob("specfact-*.md")):
+    # Match both specfact.*.md and specfact-*.md patterns
+    for prompt_file in sorted(prompts_dir.glob("specfact.*.md")):
         validator = PromptValidator(prompt_file)
         results.append(validator.validate_all())
 

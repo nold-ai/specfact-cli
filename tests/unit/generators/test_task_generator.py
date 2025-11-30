@@ -51,6 +51,9 @@ def sample_plan_bundle() -> PlanBundle:
                         contracts=None,
                     )
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         idea=None,

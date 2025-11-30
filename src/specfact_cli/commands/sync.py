@@ -1128,12 +1128,17 @@ def sync_repository(
 
 @app.command("intelligent")
 @beartype
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
 @ensure(lambda result: result is None, "Must return None")
 def sync_intelligent(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api)"),
+    bundle: str | None = typer.Argument(
+        None, help="Project bundle name (e.g., legacy-api). Default: active plan from 'specfact plan select'"
+    ),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -1181,6 +1186,21 @@ def sync_intelligent(
         specfact sync intelligent my-bundle --repo . --watch
         specfact sync intelligent my-bundle --repo . --code-to-spec auto --spec-to-code llm-prompt --tests specmatic
     """
+    from rich.console import Console
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
     from specfact_cli.sync.change_detector import ChangeDetector
     from specfact_cli.sync.code_to_spec import CodeToSpecSync
     from specfact_cli.sync.spec_to_code import SpecToCodeSync

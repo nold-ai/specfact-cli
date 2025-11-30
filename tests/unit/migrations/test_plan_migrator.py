@@ -44,7 +44,7 @@ class TestPlanMigrator:
     def test_migrate_plan_bundle_1_0_to_1_1(self):
         """Test migration from schema 1.0 to 1.1 (add summary metadata)."""
         product = Product(themes=["Theme1"])
-        features = [Feature(key="FEATURE-001", title="Feature 1")]
+        features = [Feature(key="FEATURE-001", title="Feature 1", source_tracking=None, contract=None, protocol=None)]
 
         bundle = PlanBundle(
             version="1.0",

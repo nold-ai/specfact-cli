@@ -96,7 +96,7 @@ class TestProjectBundle:
         product = Product()
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature = Feature(key="FEATURE-001", title="Test Feature")
+        feature = Feature(key="FEATURE-001", title="Test Feature", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature)
 
         assert "FEATURE-001" in bundle.features
@@ -108,10 +108,12 @@ class TestProjectBundle:
         product = Product()
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature1 = Feature(key="FEATURE-001", title="Original Title")
+        feature1 = Feature(
+            key="FEATURE-001", title="Original Title", source_tracking=None, contract=None, protocol=None
+        )
         bundle.add_feature(feature1)
 
-        feature2 = Feature(key="FEATURE-001", title="Updated Title")
+        feature2 = Feature(key="FEATURE-001", title="Updated Title", source_tracking=None, contract=None, protocol=None)
         bundle.update_feature("FEATURE-001", feature2)
 
         assert bundle.features["FEATURE-001"].title == "Updated Title"
@@ -122,10 +124,10 @@ class TestProjectBundle:
         product = Product()
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature = Feature(key="FEATURE-001", title="Test")
+        feature = Feature(key="FEATURE-001", title="Test", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature)
 
-        feature2 = Feature(key="FEATURE-002", title="Test")
+        feature2 = Feature(key="FEATURE-002", title="Test", source_tracking=None, contract=None, protocol=None)
         with pytest.raises(ValueError, match="Feature key mismatch"):
             bundle.update_feature("FEATURE-001", feature2)
 
@@ -135,7 +137,7 @@ class TestProjectBundle:
         product = Product()
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature = Feature(key="FEATURE-001", title="Test Feature")
+        feature = Feature(key="FEATURE-001", title="Test Feature", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature)
 
         retrieved = bundle.get_feature("FEATURE-001")
@@ -163,6 +165,9 @@ class TestProjectBundle:
                     contracts=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         feature2 = Feature(
             key="FEATURE-002",
@@ -177,6 +182,9 @@ class TestProjectBundle:
                     contracts=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         bundle.add_feature(feature1)
         bundle.add_feature(feature2)
@@ -193,7 +201,7 @@ class TestProjectBundle:
         product = Product()
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature = Feature(key="FEATURE-001", title="Test")
+        feature = Feature(key="FEATURE-001", title="Test", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature)
 
         summary = bundle.compute_summary(include_hash=True)
@@ -261,7 +269,7 @@ class TestProjectBundle:
         product = Product(themes=["Theme1"])
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature = Feature(key="FEATURE-001", title="Test Feature")
+        feature = Feature(key="FEATURE-001", title="Test Feature", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature)
 
         bundle.save_to_directory(bundle_dir)
@@ -313,6 +321,9 @@ class TestProjectBundle:
                     contracts=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         bundle.add_feature(feature)
 

@@ -9,32 +9,66 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.2] - 2025-11-30
+
+### Fixed (0.11.2)
+
+- **ThreadPoolExecutor max_workers Validation**
+  - Fixed "max_workers must be greater than 0" error in `build_dependency_graph()` when processing empty file lists
+  - Added `max(1, ...)` protection to all `max_workers` calculations in:
+    - `src/specfact_cli/analyzers/graph_analyzer.py` - Graph dependency analysis
+    - `src/specfact_cli/commands/import_cmd.py` - Contract loading, hash updates, and contract extraction (3 locations)
+    - `src/specfact_cli/analyzers/code_analyzer.py` - File analysis parallelization
+  - Ensures `ThreadPoolExecutor` always receives at least 1 worker, preventing runtime errors when processing empty collections
+  - All 9 previously failing tests now passing
+
+- **Prompt Validation Test Path Resolution**
+  - Fixed `test_validate_all_prompts` test failure due to incorrect path calculation
+  - Updated path from `Path(__file__).parent.parent.parent` to `Path(__file__).parent.parent.parent.parent`
+  - Correctly navigates from `tests/unit/prompts/test_prompt_validation.py` to root `resources/prompts/` directory
+  - Test now successfully locates and validates all prompt files
+
+- **Prompt File Glob Pattern**
+  - Fixed `validate_all_prompts()` function to match actual file naming convention
+  - Changed glob pattern from `specfact-*.md` to `specfact.*.md` to match files like `specfact.01-import.md`
+  - Function now correctly discovers and validates all 8 prompt files in `resources/prompts/`
+
+- **Type Checking Errors**
+  - Fixed all basedpyright `reportCallIssue` errors for missing `source_tracking`, `contract`, and `protocol` parameters
+  - Updated all `Feature` instantiations across test files to include explicit `None` values for optional parameters
+  - Fixed 53 type checking errors across 20+ test files
+  - All linter errors from basedpyright resolved
+
+---
+
 ## [0.11.1] - 2025-11-29
 
 ### Added (0.11.1)
 
 - **Configurable Test File Filtering in Relationship Mapping**
-  - New `--include-tests` flag for `specfact import from-code` command
-  - Allows users to include test files in relationship mapping for more comprehensive analysis
-  - Default behavior: Test files are skipped for faster processing (~30-50% speed improvement)
-  - Rationale: Test files are consumers of production code (not producers), so skipping them has minimal impact on dependency graph quality
-  - When enabled: Includes test files but still filters vendor/venv files for optimal performance
+  - New `--exclude-tests` flag for `specfact import from-code` command to optimize processing speed
+  - Default behavior: Test files are **included** by default for comprehensive analysis
+  - Use `--exclude-tests` to skip test files for faster processing (~30-50% speed improvement)
+  - Rationale for excluding tests: Test files are consumers of production code (not producers), so skipping them has minimal impact on dependency graph quality
+  - When excluding tests: Test files are filtered but vendor/venv files are always filtered regardless of flag
   - Updated help text and documentation with clear usage examples
+  - Backward compatibility: `--include-tests` flag still available (now default behavior)
 
 ### Changed (0.11.1)
 
-- **Relationship Mapping Performance Optimization**
-  - Test files are now filtered by default in relationship mapping phase for faster processing
-  - Filtering rationale documented in code: Test files import production code (one-way dependency), so skipping them doesn't affect production dependency graph
-  - Interfaces and routes are defined in production code, not tests, so skipping tests has minimal quality impact
-  - Vendor and virtual environment files are always filtered regardless of `--include-tests` flag
+- **Relationship Mapping Default Behavior**
+  - Test files are now **included by default** in relationship mapping phase for comprehensive analysis
+  - Previous default (skipping tests) can be restored using `--exclude-tests` flag for speed optimization
+  - Filtering rationale documented in code: Test files import production code (one-way dependency), so excluding them doesn't affect production dependency graph
+  - Interfaces and routes are defined in production code, not tests, so excluding tests has minimal quality impact
+  - Vendor and virtual environment files are always filtered regardless of flag
 
 ### Documentation (0.11.1)
 
 - **Enhanced Command Documentation**
-  - Added `--include-tests` flag to parameter groups in `import from-code` command docstring
-  - Added example usage: `specfact import from-code my-project --repo . --include-tests`
-  - Updated help text to explain trade-offs between speed (default) and completeness (with flag)
+  - Added `--include-tests/--exclude-tests` flags to parameter groups in `import from-code` command docstring
+  - Updated example usage: `specfact import from-code my-project --repo . --exclude-tests` (for speed optimization)
+  - Updated help text to explain default behavior (comprehensive) and optimization option (with `--exclude-tests`)
 
 ---
 

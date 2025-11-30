@@ -54,6 +54,9 @@ class TestPlanGenerator:
                             contracts=None,
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             metadata=None,

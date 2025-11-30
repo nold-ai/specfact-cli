@@ -202,7 +202,7 @@ class RelationshipMapper:
                 return (file_key, {"imports": [], "dependencies": [], "interfaces": {}, "routes": []})
         except Exception:
             pass
-        
+
         try:
             with file_path.open(encoding="utf-8") as f:
                 content = f.read()
@@ -220,8 +220,11 @@ class RelationshipMapper:
                         file_key = str(file_path.relative_to(self.repo_path))
                     except ValueError:
                         file_key = str(file_path)
-                    return (file_key, {"imports": large_file_imports, "dependencies": [], "interfaces": {}, "routes": []})
-                
+                    return (
+                        file_key,
+                        {"imports": large_file_imports, "dependencies": [], "interfaces": {}, "routes": []},
+                    )
+
                 tree = ast.parse(content, filename=str(file_path))
 
             file_imports: list[str] = []

@@ -6,11 +6,11 @@ Tests graph-based dependency and call graph analysis, including parallel process
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import networkx as nx
-import pytest
 
 from specfact_cli.analyzers.graph_analyzer import GraphAnalyzer
 
@@ -33,7 +33,7 @@ class TestGraphAnalyzer:
             file_path = tmp_path / f"module_{i}.py"
             if i > 0:
                 # Import previous module
-                file_path.write_text(f"from module_{i-1} import something\n")
+                file_path.write_text(f"from module_{i - 1} import something\n")
             else:
                 file_path.write_text("# First module\n")
             files.append(file_path)
@@ -48,7 +48,6 @@ class TestGraphAnalyzer:
 
     def test_build_dependency_graph_parallel_imports(self, tmp_path: Path) -> None:
         """Test that AST import processing is parallelized."""
-        from concurrent.futures import ThreadPoolExecutor
 
         # Create multiple files
         files = []
@@ -58,11 +57,11 @@ class TestGraphAnalyzer:
             files.append(file_path)
 
         analyzer = GraphAnalyzer(tmp_path)
-        
+
         # Verify parallel processing by checking execution time
         # (in a real scenario, parallel should be faster, but we can't easily test that)
         graph = analyzer.build_dependency_graph(files)
-        
+
         # Should process all files
         assert len(graph.nodes()) == 10
 
@@ -82,12 +81,12 @@ def func_{i}():
             files.append(file_path)
 
         analyzer = GraphAnalyzer(tmp_path)
-        
+
         # Mock pyan3 to avoid requiring it in tests
         with patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
             graph = analyzer.build_dependency_graph(files)
-            
+
             # Should process all files (even if pyan3 not available)
             assert len(graph.nodes()) == 5
 
@@ -97,14 +96,12 @@ def func_{i}():
         file_path.write_text("def test_func(): pass\n")
 
         analyzer = GraphAnalyzer(tmp_path)
-        
+
         with patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-            try:
+            with contextlib.suppress(Exception):  # May fail if pyan3 not available
                 analyzer.extract_call_graph(file_path)
-            except Exception:
-                pass  # May fail if pyan3 not available
-            
+
             # Verify timeout was set to 15 seconds
             if mock_run.called:
                 call_kwargs = mock_run.call_args[1]
@@ -113,15 +110,15 @@ def func_{i}():
     def test_get_graph_summary(self, tmp_path: Path) -> None:
         """Test getting graph summary."""
         analyzer = GraphAnalyzer(tmp_path)
-        
+
         # Build a simple graph
         files = [tmp_path / "module1.py", tmp_path / "module2.py"]
         for f in files:
             f.write_text("# Module\n")
-        
-        graph = analyzer.build_dependency_graph(files)
+
+        analyzer.build_dependency_graph(files)
         summary = analyzer.get_graph_summary()
-        
+
         assert "nodes" in summary
         assert "edges" in summary
         assert summary["nodes"] == 2
@@ -129,12 +126,11 @@ def func_{i}():
     def test_path_to_module_name(self, tmp_path: Path) -> None:
         """Test converting file path to module name."""
         analyzer = GraphAnalyzer(tmp_path)
-        
+
         file_path = tmp_path / "src" / "module" / "test.py"
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text("# Test\n")
-        
+
         module_name = analyzer._path_to_module_name(file_path)
         assert "module" in module_name
         assert "test" in module_name
-

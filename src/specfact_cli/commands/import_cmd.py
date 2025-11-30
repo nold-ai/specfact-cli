@@ -8,7 +8,6 @@ SpecFact contract-driven format using the bridge architecture.
 
 from __future__ import annotations
 
-import contextlib
 import multiprocessing
 from pathlib import Path
 from typing import Any
@@ -106,9 +105,7 @@ def _check_incremental_changes(
         if not any(incremental_changes.values()):
             console.print(f"[green]✓[/green] Project bundle already exists: {bundle_dir}")
             console.print("[dim]No changes detected - all artifacts are up-to-date[/dim]")
-            console.print(
-                "[dim]Skipping regeneration of relationships, contracts, graph, and enrichment context[/dim]"
-            )
+            console.print("[dim]Skipping regeneration of relationships, contracts, graph, and enrichment context[/dim]")
             console.print(
                 "[dim]Use --force to force regeneration, or modify source files to trigger incremental update[/dim]"
             )
@@ -130,7 +127,7 @@ def _check_incremental_changes(
         error_msg = str(e) if str(e) else f"{type(e).__name__}"
         if "bundle.manifest.yaml" in error_msg or "Cannot determine bundle format" in error_msg:
             console.print(
-                f"[yellow]⚠ Incomplete bundle directory detected (likely from a failed save) - will regenerate all artifacts[/yellow]\n"
+                "[yellow]⚠ Incomplete bundle directory detected (likely from a failed save) - will regenerate all artifacts[/yellow]\n"
             )
         else:
             console.print(
@@ -141,8 +138,8 @@ def _check_incremental_changes(
 
 def _load_existing_bundle(bundle_dir: Path) -> PlanBundle | None:
     """Load existing project bundle and convert to PlanBundle."""
-    from specfact_cli.utils.bundle_loader import load_project_bundle
     from specfact_cli.models.plan import PlanBundle as PlanBundleModel
+    from specfact_cli.utils.bundle_loader import load_project_bundle
 
     try:
         with Progress(
@@ -205,8 +202,7 @@ def _analyze_codebase(
             plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=bundle)
             console.print("[green]✓[/green] AI import complete")
             return plan_bundle
-        else:
-            console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
+        console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
 
     # AST-based import (CI/CD mode or fallback)
     console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
@@ -230,8 +226,9 @@ def _analyze_codebase(
 
 def _update_source_tracking(plan_bundle: PlanBundle, repo: Path) -> None:
     """Update source tracking with file hashes (parallelized)."""
-    from specfact_cli.utils.source_scanner import SourceArtifactScanner
     from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from specfact_cli.utils.source_scanner import SourceArtifactScanner
 
     console.print("\n[cyan]🔗 Linking source files to features...[/cyan]")
     scanner = SourceArtifactScanner(repo)
@@ -251,7 +248,7 @@ def _update_source_tracking(plan_bundle: PlanBundle, repo: Path) -> None:
                 hash_tasks.append((feature, repo / test_file))
 
     if hash_tasks:
-        max_workers = min(multiprocessing.cpu_count() or 4, 16, len(hash_tasks))
+        max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(hash_tasks)))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_task = {
                 executor.submit(update_file_hash, feature, file_path): (feature, file_path)
@@ -280,7 +277,7 @@ def _extract_relationships_and_graph(
     plan_bundle: PlanBundle | None,
     should_regenerate_relationships: bool,
     should_regenerate_graph: bool,
-    include_tests: bool = False,
+    include_tests: bool = True,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Extract relationships and graph dependencies."""
     relationships: dict[str, Any] = {}
@@ -293,9 +290,7 @@ def _extract_relationships_and_graph(
             relationships = {"imports": {}, "interfaces": {}, "routes": {}}
         return relationships, graph_summary
 
-    console.print(
-        "\n[cyan]🔍 Enhanced analysis: Extracting relationships, contracts, and graph dependencies...[/cyan]"
-    )
+    console.print("\n[cyan]🔍 Enhanced analysis: Extracting relationships, contracts, and graph dependencies...[/cyan]")
     from specfact_cli.analyzers.graph_analyzer import GraphAnalyzer
     from specfact_cli.analyzers.relationship_mapper import RelationshipMapper
     from specfact_cli.utils.optional_deps import check_cli_tool_available
@@ -328,23 +323,41 @@ def _extract_relationships_and_graph(
         python_files = list(repo.rglob("*.py"))
         if entry_point:
             python_files = [f for f in python_files if entry_point in f.parts]
-        
-        # Filter out test files and vendor files for faster processing (unless --include-tests is set)
-        # Rationale: Test files are consumers of production code (not producers)
+
+        # Filter files based on --include-tests/--exclude-tests flag
+        # Default: Include test files for comprehensive analysis
+        # --exclude-tests: Skip test files for faster processing (~30-50% speedup)
+        # Rationale for excluding tests:
+        # - Test files are consumers of production code (not producers)
         # - Test files import production code, but production code doesn't import tests
         # - Interfaces and routes are defined in production code, not tests
         # - Dependency graph flows from production code, so skipping tests has minimal impact
-        # - This optimization reduces processing time by ~30-50% for typical codebases
         if not include_tests:
+            # Exclude test files when --exclude-tests is specified
             python_files = [
-                f for f in python_files
-                if not any(skip in str(f) for skip in ["/test_", "/tests/", "/vendor/", "/.venv/", "/venv/", "/node_modules/", "/__pycache__/"])
+                f
+                for f in python_files
+                if not any(
+                    skip in str(f)
+                    for skip in [
+                        "/test_",
+                        "/tests/",
+                        "/vendor/",
+                        "/.venv/",
+                        "/venv/",
+                        "/node_modules/",
+                        "/__pycache__/",
+                    ]
+                )
             ]
         else:
-            # Still filter vendor/venv files even with --include-tests
+            # Default: Include test files, but still filter vendor/venv files
             python_files = [
-                f for f in python_files
-                if not any(skip in str(f) for skip in ["/vendor/", "/.venv/", "/venv/", "/node_modules/", "/__pycache__/"])
+                f
+                for f in python_files
+                if not any(
+                    skip in str(f) for skip in ["/vendor/", "/.venv/", "/venv/", "/node_modules/", "/__pycache__/"]
+                )
             ]
 
     # Analyze relationships in parallel (optimized for speed)
@@ -378,9 +391,10 @@ def _extract_contracts(
     record_event: Any,
 ) -> dict[str, dict[str, Any]]:
     """Extract OpenAPI contracts from features."""
-    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
-    from specfact_cli.generators.test_to_openapi import TestToOpenAPIConverter
     from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
+    from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
 
     openapi_extractor = OpenAPIExtractor(repo)
     contracts_generated = 0
@@ -399,6 +413,7 @@ def _extract_contracts(
                 if contract_path.exists():
                     try:
                         import yaml
+
                         contract_data = yaml.safe_load(contract_path.read_text())
                         return (feature.key, contract_data)
                     except KeyboardInterrupt:
@@ -409,7 +424,7 @@ def _extract_contracts(
 
         features_with_contracts = [f for f in plan_bundle.features if f.contract]
         if features_with_contracts:
-            max_workers = min(multiprocessing.cpu_count() or 4, 16, len(features_with_contracts))
+            max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_contracts)))
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_to_feature = {
                     executor.submit(load_contract, feature): feature for feature in features_with_contracts
@@ -427,10 +442,12 @@ def _extract_contracts(
                         pass
 
                 if existing_contracts_count > 0:
-                    console.print(f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle")
+                    console.print(
+                        f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle"
+                    )
 
     # Extract contracts if needed
-    test_converter = TestToOpenAPIConverter(repo)
+    test_converter = OpenAPITestConverter(repo)
     if should_regenerate_contracts:
         features_with_files = [
             f for f in plan_bundle.features if f.source_tracking and f.source_tracking.implementation_files
@@ -439,8 +456,10 @@ def _extract_contracts(
         features_with_files = []
 
     if features_with_files and should_regenerate_contracts:
-        max_workers = min(multiprocessing.cpu_count() or 4, 16, len(features_with_files))
-        console.print(f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]")
+        max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_files)))
+        console.print(
+            f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
+        )
 
         from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
@@ -581,8 +600,12 @@ def _apply_enrichment(
         if enrichment_report.missing_features:
             console.print(f"[green]✓[/green] Added {len(enrichment_report.missing_features)} missing features")
         if enrichment_report.confidence_adjustments:
-            console.print(f"[green]✓[/green] Adjusted confidence for {len(enrichment_report.confidence_adjustments)} features")
-        if enrichment_report.business_context.get("priorities") or enrichment_report.business_context.get("constraints"):
+            console.print(
+                f"[green]✓[/green] Adjusted confidence for {len(enrichment_report.confidence_adjustments)} features"
+            )
+        if enrichment_report.business_context.get("priorities") or enrichment_report.business_context.get(
+            "constraints"
+        ):
             console.print("[green]✓[/green] Applied business context")
 
         record_event(
@@ -616,7 +639,9 @@ def _save_bundle_if_needed(
         or should_regenerate_contracts
         or should_regenerate_enrichment
     )
-    should_regenerate_bundle = incremental_changes is None or any_artifact_changed or incremental_changes.get("bundle", False)
+    should_regenerate_bundle = (
+        incremental_changes is None or any_artifact_changed or incremental_changes.get("bundle", False)
+    )
 
     if should_regenerate_bundle:
         console.print("\n[cyan]💾 Compiling and saving project bundle...[/cyan]")
@@ -662,7 +687,9 @@ def _validate_api_specs(repo: Path) -> None:
                 except Exception as e:
                     console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
             if len(spec_files) > 3:
-                console.print(f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]")
+                console.print(
+                    f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                )
             console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
         else:
             console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
@@ -673,8 +700,7 @@ def _suggest_constitution_bootstrap(repo: Path) -> None:
     specify_dir = repo / ".specify" / "memory"
     constitution_path = specify_dir / "constitution.md"
     if not constitution_path.exists() or (
-        constitution_path.exists()
-        and constitution_path.read_text(encoding="utf-8").strip() in ("", "# Constitution")
+        constitution_path.exists() and constitution_path.read_text(encoding="utf-8").strip() in ("", "# Constitution")
     ):
         import os
 
@@ -704,10 +730,14 @@ def _suggest_constitution_bootstrap(repo: Path) -> None:
                     constitution_path.write_text(enriched_content, encoding="utf-8")
                     console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
                     console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
-                    console.print("[dim]Then run 'specfact sync bridge --adapter <tool>' to sync with external tool artifacts[/dim]")
+                    console.print(
+                        "[dim]Then run 'specfact sync bridge --adapter <tool>' to sync with external tool artifacts[/dim]"
+                    )
             else:
                 console.print()
-                console.print("[dim]💡 Tip: Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]")
+                console.print(
+                    "[dim]💡 Tip: Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
+                )
 
 
 def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
@@ -777,7 +807,9 @@ def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
                 if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
                     enhanced_acceptance = []
                     for acc in story.acceptance:
-                        if not any(keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]):
+                        if not any(
+                            keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]
+                        ):
                             if acc.startswith(("User can", "System can")):
                                 enhanced_acceptance.append(f"Must verify {acc.lower()}")
                             else:
@@ -1096,12 +1128,18 @@ def from_bridge(
 
 @app.command("from-code")
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda confidence: 0.0 <= confidence <= 1.0, "Confidence must be 0.0-1.0")
 @beartype
 def from_code(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -1143,9 +1181,9 @@ def from_code(
         help="Force full regeneration of all artifacts, ignoring incremental changes. Default: False",
     ),
     include_tests: bool = typer.Option(
-        False,
-        "--include-tests",
-        help="Include test files in relationship mapping (slower but more comprehensive). Default: False (test files are skipped for faster processing)",
+        True,
+        "--include-tests/--exclude-tests",
+        help="Include/exclude test files in relationship mapping. Default: --include-tests (test files are included for comprehensive analysis). Use --exclude-tests to optimize speed.",
     ),
     # Advanced/Configuration
     confidence: float = typer.Option(
@@ -1174,7 +1212,7 @@ def from_code(
     **Parameter Groups:**
     - **Target/Input**: bundle (required argument), --repo, --entry-point, --enrichment
     - **Output/Results**: --report
-    - **Behavior/Options**: --shadow-only, --enrich-for-speckit, --force, --include-tests
+    - **Behavior/Options**: --shadow-only, --enrich-for-speckit, --force, --include-tests/--exclude-tests
     - **Advanced/Configuration**: --confidence, --key-format
 
     **Examples:**
@@ -1182,12 +1220,20 @@ def from_code(
         specfact import from-code auth-module --repo . --enrichment enrichment-report.md
         specfact import from-code my-project --repo . --confidence 0.7 --shadow-only
         specfact import from-code my-project --repo . --force  # Force full regeneration
-        specfact import from-code my-project --repo . --include-tests  # Include test files in relationship mapping
+        specfact import from-code my-project --repo . --exclude-tests  # Exclude test files for faster processing
     """
-    from specfact_cli.agents.analyze_agent import AnalyzeAgent
-    from specfact_cli.agents.registry import get_agent
     from specfact_cli.cli import get_current_mode
     from specfact_cli.modes import get_router
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     mode = get_current_mode()
 
@@ -1235,7 +1281,7 @@ def from_code(
             # Note: For now, enrichment workflow needs to be updated for modular bundles
             # TODO: Phase 4 - Update enrichment to work with modular bundles
             plan_bundle: PlanBundle | None = None
-            
+
             # Check if we need to regenerate features (requires full codebase scan)
             # Features need regeneration if:
             # - No incremental changes detected (new bundle)
@@ -1244,21 +1290,21 @@ def from_code(
             # - Bundle needs regeneration (indicates features changed)
             # If only graph or enrichment_context need regeneration, we can skip full scan
             should_regenerate_features = incremental_changes is None or any(
-                incremental_changes.get(key, True) 
+                incremental_changes.get(key, True)
                 for key in ["relationships", "contracts", "bundle"]  # These indicate source file/feature changes
             )
-            
+
             # If we have incremental changes and features don't need regeneration, load existing bundle
             if incremental_changes and not should_regenerate_features and not enrichment:
                 plan_bundle = _load_existing_bundle(bundle_dir)
                 if plan_bundle:
                     console.print("[dim]Skipping codebase analysis (features unchanged)[/dim]\n")
-            
+
             if plan_bundle is None:
                 # Need to run full codebase analysis (either no bundle exists, or features need regeneration)
                 if enrichment:
                     plan_bundle = _load_existing_bundle(bundle_dir)
-                
+
                 if plan_bundle is None:
                     plan_bundle = _analyze_codebase(repo, entry_point, bundle, confidence, key_format, routing_result)
                     if plan_bundle is None:
@@ -1291,8 +1337,14 @@ def from_code(
             )
 
             relationships, _graph_summary = _extract_relationships_and_graph(
-                repo, entry_point, bundle_dir, incremental_changes, plan_bundle,
-                should_regenerate_relationships, should_regenerate_graph, include_tests
+                repo,
+                entry_point,
+                bundle_dir,
+                incremental_changes,
+                plan_bundle,
+                should_regenerate_relationships,
+                should_regenerate_graph,
+                include_tests,
             )
 
             # Extract contracts
@@ -1302,8 +1354,7 @@ def from_code(
 
             # Build enrichment context
             _build_enrichment_context(
-                bundle_dir, repo, plan_bundle, relationships, contracts_data,
-                should_regenerate_enrichment, record_event
+                bundle_dir, repo, plan_bundle, relationships, contracts_data, should_regenerate_enrichment, record_event
             )
 
             # Apply enrichment if provided
@@ -1312,9 +1363,14 @@ def from_code(
 
             # Save bundle if needed
             _save_bundle_if_needed(
-                plan_bundle, bundle, bundle_dir, incremental_changes,
-                should_regenerate_relationships, should_regenerate_graph,
-                should_regenerate_contracts, should_regenerate_enrichment
+                plan_bundle,
+                bundle,
+                bundle_dir,
+                incremental_changes,
+                should_regenerate_relationships,
+                should_regenerate_graph,
+                should_regenerate_contracts,
+                should_regenerate_enrichment,
             )
 
             console.print("\n[bold green]✓ Import complete![/bold green]")

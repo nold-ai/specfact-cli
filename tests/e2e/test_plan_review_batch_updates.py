@@ -77,6 +77,9 @@ def incomplete_plan(workspace: Path) -> Path:
                 ],
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -87,6 +90,9 @@ def incomplete_plan(workspace: Path) -> Path:
                 stories=[],
                 confidence=0.7,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ],
         metadata=Metadata(

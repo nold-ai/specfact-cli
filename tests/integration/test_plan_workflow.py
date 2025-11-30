@@ -199,6 +199,9 @@ class TestPlanBundleWorkflow:
                 outcomes=["outcome"],
                 acceptance=["criteria"],
                 confidence=1.5,  # Invalid: > 1.0
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
 
     def test_feature_with_stories(self, sample_plan_path: Path):
@@ -321,6 +324,9 @@ class TestPlanBundleEdgeCases:
             title="Test Feature",
             outcomes=["outcome"],
             acceptance=["criteria"],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         assert len(feature.stories) == 0

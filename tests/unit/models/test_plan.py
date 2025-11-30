@@ -94,6 +94,9 @@ class TestFeature:
             constraints=["Must use OAuth2"],
             stories=stories,
             confidence=0.9,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         # Test business logic: nested relationships
@@ -115,7 +118,7 @@ class TestPlanBundle:
         idea = Idea(title="Test Idea", narrative="Test narrative", metrics=None)
         business = Business(segments=["Developers"])
         product = Product(themes=["Innovation"])
-        features = [Feature(key="FEATURE-001", title="Feature 1")]
+        features = [Feature(key="FEATURE-001", title="Feature 1", source_tracking=None, contract=None, protocol=None)]
 
         bundle = PlanBundle(
             idea=idea, business=business, product=product, features=features, metadata=None, clarifications=None

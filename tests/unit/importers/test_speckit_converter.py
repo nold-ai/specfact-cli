@@ -136,6 +136,9 @@ As a user, I want to test features so that I can validate functionality.
                 stories=[],
                 confidence=1.0,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-PAYMENT",  # No number in key
@@ -146,6 +149,9 @@ As a user, I want to test features so that I can validate functionality.
                 stories=[],
                 confidence=1.0,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-003",  # Has number in key
@@ -156,6 +162,9 @@ As a user, I want to test features so that I can validate functionality.
                 stories=[],
                 confidence=1.0,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ]
 

@@ -18,7 +18,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 
-class TestToOpenAPIConverter:
+class OpenAPITestConverter:
     """
     Converts test patterns to OpenAPI examples using Semgrep.
 
@@ -74,19 +74,16 @@ class TestToOpenAPIConverter:
         # Run Semgrep on test files in parallel (limit to avoid excessive processing time)
         # Process up to 10 test files per feature to avoid timeout issues
         test_paths_list = [p for p in list(test_paths)[:10] if p.exists()]
-        
+
         if not test_paths_list:
             # No valid test files, fall back to AST
             return self._extract_examples_from_ast(test_files)
-        
+
         # Parallelize Semgrep calls for faster processing
         max_workers = min(len(test_paths_list), 4)  # Cap at 4 workers for Semgrep (I/O bound)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_path = {
-                executor.submit(self._run_semgrep, test_path): test_path
-                for test_path in test_paths_list
-            }
-            
+            future_to_path = {executor.submit(self._run_semgrep, test_path): test_path for test_path in test_paths_list}
+
             for future in as_completed(future_to_path):
                 test_path = future_to_path[future]
                 try:

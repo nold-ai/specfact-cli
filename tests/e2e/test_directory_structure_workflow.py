@@ -249,6 +249,9 @@ class TestCompleteWorkflowWithNewStructure:
             outcomes=["Users can manage tasks"],
             acceptance=["Create works", "Read works", "Update works", "Delete works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         project_bundle.features["FEATURE-002"] = Feature(
             key="FEATURE-002",
@@ -256,6 +259,9 @@ class TestCompleteWorkflowWithNewStructure:
             outcomes=["Users can search tasks"],
             acceptance=["Search works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
@@ -665,6 +671,9 @@ class TestRealWorldScenarios:
             outcomes=["Secure login"],
             acceptance=["Login works", "Logout works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 

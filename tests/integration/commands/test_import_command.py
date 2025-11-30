@@ -239,7 +239,7 @@ def test_create_user():
                         for path_info in contract.get("paths", {}).values()
                         if isinstance(path_info, dict)
                     )
-                    
+
                     # If contract has good structure, test analysis was likely skipped
                     # (we can't directly verify skipping, but we can verify the contract is good)
                     assert has_schemas or has_request_body
@@ -291,4 +291,3 @@ def create_resource_{i}():
                 # Should have generated contracts for multiple features (if features were detected)
                 # May be 0 if no contracts detected, which is OK
                 assert len(contract_files) >= 0
-

@@ -73,6 +73,9 @@ class TestConstitutionEvidenceIntegration:
                             },
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             idea=None,
@@ -104,6 +107,9 @@ class TestConstitutionEvidenceIntegration:
                     key="FEATURE-001",
                     title="Test Feature",
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             idea=None,
@@ -131,6 +137,9 @@ class TestConstitutionEvidenceIntegration:
                     key="FEATURE-001",
                     title="Test Feature",
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             idea=None,
@@ -158,6 +167,9 @@ class TestConstitutionEvidenceIntegration:
                     key="FEATURE-001",
                     title="Test Feature",
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             idea=None,

@@ -222,7 +222,7 @@ class TestSaveProjectBundle:
         product = Product(themes=[])
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature = Feature(key="FEATURE-001", title="Test Feature")
+        feature = Feature(key="FEATURE-001", title="Test Feature", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature)
 
         # Save bundle
@@ -315,8 +315,8 @@ class TestLoadSaveRoundtrip:
         product = Product(themes=[])
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
-        feature1 = Feature(key="FEATURE-001", title="Feature 1")
-        feature2 = Feature(key="FEATURE-002", title="Feature 2")
+        feature1 = Feature(key="FEATURE-001", title="Feature 1", source_tracking=None, contract=None, protocol=None)
+        feature2 = Feature(key="FEATURE-002", title="Feature 2", source_tracking=None, contract=None, protocol=None)
         bundle.add_feature(feature1)
         bundle.add_feature(feature2)
 
