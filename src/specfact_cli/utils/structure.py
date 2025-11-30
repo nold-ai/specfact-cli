@@ -40,6 +40,7 @@ class SpecFactStructure:
     GATES_RESULTS = f"{ROOT}/gates/results"
     CACHE = f"{ROOT}/cache"
     SDD = f"{ROOT}/sdd"  # SDD manifests (one per project bundle)
+    TASKS = f"{ROOT}/tasks"  # Task breakdowns (one per project bundle)
     CONFIG = f"{ROOT}/config"  # Global configuration (bridge.yaml, etc.)
 
     # Configuration files

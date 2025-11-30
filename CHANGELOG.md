@@ -9,6 +9,58 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.10.2] - 2025-11-27
+
+### Added (0.10.2)
+
+- **SDD Feature Parity Implementation** - Complete task generation and code implementation workflow
+  - **Multi-SDD Infrastructure** (Phase 1.5 Complete)
+    - SDD discovery utility (`sdd_discovery.py`) with `find_sdd_for_bundle`, `list_all_sdds`, `get_sdd_by_hash` functions
+    - Support for multiple SDD manifests per repository, linked to specific project bundles
+    - Auto-discovery of SDD manifests based on bundle name (`.specfact/sdd/<bundle-name>.yaml`)
+    - New `sdd list` command to display all SDD manifests with linked bundles, hashes, and coverage thresholds
+    - Updated `plan harden`, `enforce sdd`, `plan review`, and `plan promote` commands to use multi-SDD layout
+  - **Task Generation** (Phase 5.1 Complete)
+    - New `generate tasks` command to create dependency-ordered task lists from plan bundles and SDD manifests
+    - Task data models (`Task`, `TaskList`, `TaskPhase`, `TaskStatus`) with Pydantic validation
+    - Task generator (`task_generator.py`) that parses plan bundles and SDD HOW sections
+    - Tasks organized by phases: Setup, Foundational, User Stories, Polish
+    - Tasks include acceptance criteria, file paths, dependencies, and parallelization markers
+    - Support for YAML, JSON, and Markdown output formats
+  - **Code Implementation** (Phase 5.2 Complete)
+    - New `implement tasks` command to execute task breakdowns and generate code files
+    - Phase-by-phase task execution (Setup → Foundational → User Stories → Polish)
+    - Dependency validation before task execution
+    - Code generation from task descriptions with templates for different phases
+    - Progress tracking with task status updates saved to task file
+    - Support for `--dry-run`, `--phase`, `--task`, `--skip-validation`, `--no-interactive` options
+  - **Idea-to-Ship Orchestrator** (Phase 5.3 Complete)
+    - New `run idea-to-ship` command to orchestrate end-to-end workflow from SDD scaffold to code implementation
+    - 8-step workflow: SDD scaffold → Plan init/import → Plan review → Contract generation → Task generation → Code implementation → Enforcement checks → Bridge sync
+    - Auto-detection of bundle names from existing bundles
+    - Support for skipping steps: `--skip-sdd`, `--skip-sync`, `--skip-implementation`
+    - Non-interactive mode for CI/CD automation
+
+### Fixed (0.10.2)
+
+- **Enum Serialization Bug**
+  - Fixed YAML serialization error when generating task lists (enum values now properly serialized as strings)
+  - Updated `generate tasks` command to use `model_dump(mode="json")` for proper enum serialization
+- **Bundle Name Validation**
+  - Fixed empty bundle name validation in `run idea-to-ship` command
+  - Added strict validation to ensure bundle names are always non-empty strings
+  - Fixed projects directory path construction to avoid calling `SpecFactStructure.project_dir()` without bundle name
+  - Enhanced bundle name auto-detection with proper filtering of empty directory names
+
+### Testing (0.10.2)
+
+- **Comprehensive Test Coverage**
+  - 12 unit tests for SDD discovery utility (`test_sdd_discovery.py`) - all passing
+  - 14 unit tests for task generator (`test_task_generator.py`) - all passing
+  - All tests cover multi-SDD scenarios, legacy layouts, task generation, phase organization, dependencies, and edge cases
+
+---
+
 ## [0.10.1] - 2025-11-27
 
 ### Changed (0.10.1)
