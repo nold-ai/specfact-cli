@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 from typing import Annotated
 
 
@@ -397,11 +398,56 @@ def cli_main() -> None:
         print_banner()
         console.print()  # Empty line after banner
 
+    # Record start time for command execution
+    start_time = datetime.now()
+    start_timestamp = start_time.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Only show timing for actual commands (not help, version, or completion)
+    show_timing = (
+        len(sys.argv) > 1 
+        and sys.argv[1] not in ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
+        and not sys.argv[1].startswith("_")  # Skip completion internals
+    )
+    
+    if show_timing:
+        console.print(f"[dim]⏱️  Started: {start_timestamp}[/dim]")
+
+    exit_code = 0
+    timing_shown = False  # Track if timing was already shown (for typer.Exit case)
     try:
         app()
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
-        sys.exit(130)
+        exit_code = 130
+    except typer.Exit as e:
+        # Typer.Exit is used for clean exits (e.g., --version, --help)
+        exit_code = e.exit_code if hasattr(e, "exit_code") else 0
+        # Show timing before re-raising (finally block will execute, but we show it here to ensure it's shown)
+        if show_timing:
+            end_time = datetime.now()
+            end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
+            duration = end_time - start_time
+            duration_seconds = duration.total_seconds()
+            
+            # Format duration nicely
+            if duration_seconds < 60:
+                duration_str = f"{duration_seconds:.2f}s"
+            elif duration_seconds < 3600:
+                minutes = int(duration_seconds // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{minutes}m {seconds:.2f}s"
+            else:
+                hours = int(duration_seconds // 3600)
+                minutes = int((duration_seconds % 3600) // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
+            
+            status_icon = "✓" if exit_code == 0 else "✗"
+            console.print(
+                f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]"
+            )
+            timing_shown = True
+        raise  # Re-raise to let Typer handle it properly
     except ViolationError as e:
         # Extract user-friendly error message from ViolationError
         error_msg = str(e)
@@ -411,10 +457,43 @@ def cli_main() -> None:
             console.print(f"[bold red]✗[/bold red] {contract_msg}", style="red")
         else:
             console.print(f"[bold red]✗[/bold red] {error_msg}", style="red")
-        sys.exit(1)
+        exit_code = 1
     except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {e}", style="red")
-        sys.exit(1)
+        # Escape any Rich markup in the error message to prevent markup errors
+        error_str = str(e).replace("[", "\\[").replace("]", "\\]")
+        console.print(f"[bold red]Error:[/bold red] {error_str}", style="red")
+        exit_code = 1
+    finally:
+        # Record end time and display timing information (if not already shown)
+        if show_timing and not timing_shown:
+            end_time = datetime.now()
+            end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
+            duration = end_time - start_time
+            duration_seconds = duration.total_seconds()
+            
+            # Format duration nicely
+            if duration_seconds < 60:
+                duration_str = f"{duration_seconds:.2f}s"
+            elif duration_seconds < 3600:
+                minutes = int(duration_seconds // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{minutes}m {seconds:.2f}s"
+            else:
+                hours = int(duration_seconds // 3600)
+                minutes = int((duration_seconds % 3600) // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
+            
+            # Show timing summary
+            status_icon = "✓" if exit_code == 0 else "✗"
+            status_color = "green" if exit_code == 0 else "red"
+            console.print(
+                f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]",
+                style=status_color if exit_code != 0 else None
+            )
+    
+    if exit_code != 0:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

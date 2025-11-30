@@ -9,10 +9,13 @@ support dual versioning (schema + project).
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
@@ -187,62 +190,104 @@ class ProjectBundle(BaseModel):
 
         current = 0
 
-        # Load manifest
+        # Load manifest first (required for feature index)
         if progress_callback:
             progress_callback(current + 1, total_artifacts, "bundle.manifest.yaml")
         manifest_data = load_structured_file(manifest_path)
         manifest = BundleManifest.model_validate(manifest_data)
         current += 1
 
-        # Load aspects
-        idea = None
+        # Load all other artifacts in parallel (they're independent)
+        idea: Idea | None = None
+        business: Business | None = None
+        product: Product | None = None  # Will be set from parallel loading (required)
+        clarifications: Clarifications | None = None
+        features: dict[str, Feature] = {}
+
+        # Prepare tasks for parallel loading
+        load_tasks: list[tuple[str, Path, Callable]] = []
+
+        # Add aspect loading tasks
         idea_path = bundle_dir / "idea.yaml"
         if idea_path.exists():
-            if progress_callback:
-                progress_callback(current + 1, total_artifacts, "idea.yaml")
-            idea_data = load_structured_file(idea_path)
-            idea = Idea.model_validate(idea_data)
-            current += 1
+            load_tasks.append(("idea.yaml", idea_path, lambda data: Idea.model_validate(data)))
 
-        business = None
         business_path = bundle_dir / "business.yaml"
         if business_path.exists():
-            if progress_callback:
-                progress_callback(current + 1, total_artifacts, "business.yaml")
-            business_data = load_structured_file(business_path)
-            business = Business.model_validate(business_data)
-            current += 1
+            load_tasks.append(("business.yaml", business_path, lambda data: Business.model_validate(data)))
 
         product_path = bundle_dir / "product.yaml"
         if not product_path.exists():
             raise FileNotFoundError(f"Product file not found: {product_path}")
-        if progress_callback:
-            progress_callback(current + 1, total_artifacts, "product.yaml")
-        product_data = load_structured_file(product_path)
-        product = Product.model_validate(product_data)
-        current += 1
+        load_tasks.append(("product.yaml", product_path, lambda data: Product.model_validate(data)))
 
-        clarifications = None
         clarifications_path = bundle_dir / "clarifications.yaml"
         if clarifications_path.exists():
-            if progress_callback:
-                progress_callback(current + 1, total_artifacts, "clarifications.yaml")
-            clarifications_data = load_structured_file(clarifications_path)
-            clarifications = Clarifications.model_validate(clarifications_data)
-            current += 1
+            load_tasks.append(
+                ("clarifications.yaml", clarifications_path, lambda data: Clarifications.model_validate(data))
+            )
 
-        # Load features (lazy loading - only load from index initially)
-        features: dict[str, Feature] = {}
+        # Add feature loading tasks (from manifest index)
         if features_dir.exists():
-            # Load features from index in manifest
-            for idx, feature_index in enumerate(manifest.features, start=1):
+            for feature_index in manifest.features:
                 feature_path = features_dir / feature_index.file
                 if feature_path.exists():
-                    if progress_callback:
-                        progress_callback(current + idx, total_artifacts, f"features/{feature_index.file}")
-                    feature_data = load_structured_file(feature_path)
-                    feature = Feature.model_validate(feature_data)
-                    features[feature_index.key] = feature
+                    load_tasks.append(
+                        (
+                            f"features/{feature_index.file}",
+                            feature_path,
+                            lambda data, key=feature_index.key: (key, Feature.model_validate(data)),
+                        )
+                    )
+
+        # Load artifacts in parallel using ThreadPoolExecutor
+        max_workers = min(os.cpu_count() or 4, 8, len(load_tasks))  # Cap at 8 workers
+        completed_count = current
+
+        def load_artifact(artifact_name: str, artifact_path: Path, validator: Callable) -> tuple[str, Any]:
+            """Load a single artifact and return (name, validated_data)."""
+            data = load_structured_file(artifact_path)
+            validated = validator(data)
+            return (artifact_name, validated)
+
+        if load_tasks:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all tasks
+                future_to_task = {
+                    executor.submit(load_artifact, name, path, validator): (name, path, validator)
+                    for name, path, validator in load_tasks
+                }
+
+                # Collect results as they complete
+                for future in as_completed(future_to_task):
+                    try:
+                        artifact_name, result = future.result()
+                        completed_count += 1
+
+                        if progress_callback:
+                            progress_callback(completed_count, total_artifacts, artifact_name)
+
+                        # Assign results to appropriate variables
+                        if artifact_name == "idea.yaml":
+                            idea = result  # type: ignore[assignment]  # Validated by validator
+                        elif artifact_name == "business.yaml":
+                            business = result  # type: ignore[assignment]  # Validated by validator
+                        elif artifact_name == "product.yaml":
+                            product = result  # type: ignore[assignment]  # Validated by validator, required field
+                        elif artifact_name == "clarifications.yaml":
+                            clarifications = result  # type: ignore[assignment]  # Validated by validator
+                        elif artifact_name.startswith("features/") and isinstance(result, tuple) and len(result) == 2:
+                            # Result is (key, Feature) tuple for features
+                            key, feature = result
+                            features[key] = feature
+                    except Exception as e:
+                        # Log error but continue loading other artifacts
+                        artifact_name = future_to_task[future][0]
+                        raise ValueError(f"Failed to load {artifact_name}: {e}") from e
+
+        # Validate that required product was loaded
+        if product is None:
+            raise FileNotFoundError(f"Product file not found or failed to load: {bundle_dir / 'product.yaml'}")
 
         bundle_name = bundle_dir.name
 
@@ -251,7 +296,7 @@ class ProjectBundle(BaseModel):
             bundle_name=bundle_name,
             idea=idea,
             business=business,
-            product=product,
+            product=product,  # type: ignore[arg-type]  # Verified to be non-None above
             features=features,
             clarifications=clarifications,
         )
@@ -288,7 +333,6 @@ class ProjectBundle(BaseModel):
             + (1 if self.clarifications else 0)
             + num_features
         )
-        current = 0
 
         # Update manifest bundle metadata
         now = datetime.now(UTC).isoformat()
@@ -297,72 +341,91 @@ class ProjectBundle(BaseModel):
         self.manifest.bundle["last_modified"] = now
         self.manifest.bundle["format"] = "directory-based"
 
-        # Save aspects
+        # Prepare tasks for parallel saving (all artifacts except manifest)
+        save_tasks: list[tuple[str, Path, dict[str, Any]]] = []
+
+        # Add aspect saving tasks
         if self.idea:
-            if progress_callback:
-                progress_callback(current + 1, total_artifacts, "idea.yaml")
-            idea_path = bundle_dir / "idea.yaml"
-            dump_structured_file(self.idea.model_dump(), idea_path)
-            # Update checksum
-            self.manifest.checksums.files["idea.yaml"] = self._compute_file_checksum(idea_path)
-            current += 1
+            save_tasks.append(("idea.yaml", bundle_dir / "idea.yaml", self.idea.model_dump()))
 
         if self.business:
-            if progress_callback:
-                progress_callback(current + 1, total_artifacts, "business.yaml")
-            business_path = bundle_dir / "business.yaml"
-            dump_structured_file(self.business.model_dump(), business_path)
-            self.manifest.checksums.files["business.yaml"] = self._compute_file_checksum(business_path)
-            current += 1
+            save_tasks.append(("business.yaml", bundle_dir / "business.yaml", self.business.model_dump()))
 
-        if progress_callback:
-            progress_callback(current + 1, total_artifacts, "product.yaml")
-        product_path = bundle_dir / "product.yaml"
-        dump_structured_file(self.product.model_dump(), product_path)
-        self.manifest.checksums.files["product.yaml"] = self._compute_file_checksum(product_path)
-        current += 1
+        save_tasks.append(("product.yaml", bundle_dir / "product.yaml", self.product.model_dump()))
 
         if self.clarifications:
-            if progress_callback:
-                progress_callback(current + 1, total_artifacts, "clarifications.yaml")
-            clarifications_path = bundle_dir / "clarifications.yaml"
-            dump_structured_file(self.clarifications.model_dump(), clarifications_path)
-            self.manifest.checksums.files["clarifications.yaml"] = self._compute_file_checksum(clarifications_path)
-            current += 1
+            save_tasks.append(
+                ("clarifications.yaml", bundle_dir / "clarifications.yaml", self.clarifications.model_dump())
+            )
 
-        # Save features
+        # Prepare feature saving tasks
         features_dir = bundle_dir / "features"
         features_dir.mkdir(parents=True, exist_ok=True)
 
-        # Update feature index in manifest
-        feature_indices: list[FeatureIndex] = []
-        for idx, (key, feature) in enumerate(self.features.items(), start=1):
+        for key, feature in self.features.items():
             feature_file = f"{key}.yaml"
             feature_path = features_dir / feature_file
+            save_tasks.append((f"features/{feature_file}", feature_path, feature.model_dump()))
 
-            if progress_callback:
-                progress_callback(current + idx, total_artifacts, f"features/{feature_file}")
+        # Save artifacts in parallel using ThreadPoolExecutor
+        max_workers = min(os.cpu_count() or 4, 8, len(save_tasks))  # Cap at 8 workers
+        completed_count = 0
+        checksums: dict[str, str] = {}  # Track checksums for manifest update
+        feature_indices: list[FeatureIndex] = []  # Track feature indices
 
-            dump_structured_file(feature.model_dump(), feature_path)
-            checksum = self._compute_file_checksum(feature_path)
+        def save_artifact(artifact_name: str, artifact_path: Path, data: dict[str, Any]) -> tuple[str, str]:
+            """Save a single artifact and return (name, checksum)."""
+            dump_structured_file(data, artifact_path)
+            # Compute checksum after file is written (static method)
+            checksum = ProjectBundle._compute_file_checksum(artifact_path)
+            return (artifact_name, checksum)
 
-            # Find or create feature index
-            feature_index = FeatureIndex(
-                key=key,
-                title=feature.title,
-                file=feature_file,
-                status="active" if not feature.draft else "draft",
-                stories_count=len(feature.stories),
-                created_at=now,  # TODO: Preserve original created_at if exists
-                updated_at=now,
-                contract=None,  # Contract will be linked separately if needed
-                checksum=checksum,
-            )
-            feature_indices.append(feature_index)
+        if save_tasks:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all tasks
+                future_to_task = {
+                    executor.submit(save_artifact, name, path, data): (name, path, data)
+                    for name, path, data in save_tasks
+                }
 
-            # Update checksum in manifest
-            self.manifest.checksums.files[f"features/{feature_file}"] = checksum
+                # Collect results as they complete
+                for future in as_completed(future_to_task):
+                    try:
+                        artifact_name, checksum = future.result()
+                        completed_count += 1
+                        checksums[artifact_name] = checksum
 
+                        if progress_callback:
+                            progress_callback(completed_count, total_artifacts, artifact_name)
+
+                        # Build feature indices for features
+                        if artifact_name.startswith("features/"):
+                            feature_file = artifact_name.split("/", 1)[1]
+                            key = feature_file.replace(".yaml", "")
+                            if key in self.features:
+                                feature = self.features[key]
+                                feature_index = FeatureIndex(
+                                    key=key,
+                                    title=feature.title,
+                                    file=feature_file,
+                                    status="active" if not feature.draft else "draft",
+                                    stories_count=len(feature.stories),
+                                    created_at=now,  # TODO: Preserve original created_at if exists
+                                    updated_at=now,
+                                    contract=None,  # Contract will be linked separately if needed
+                                    checksum=checksum,
+                                )
+                                feature_indices.append(feature_index)
+                    except Exception as e:
+                        # Get artifact name from the future's task
+                        artifact_name = future_to_task.get(future, ("unknown", None, None))[0]
+                        error_msg = f"Failed to save {artifact_name}"
+                        if str(e):
+                            error_msg += f": {e}"
+                        raise ValueError(error_msg) from e
+
+        # Update manifest with checksums and feature indices
+        self.manifest.checksums.files.update(checksums)
         self.manifest.features = feature_indices
 
         # Save manifest (last, after all checksums are computed)

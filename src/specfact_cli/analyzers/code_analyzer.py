@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import ast
+import os
 import re
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -139,17 +141,47 @@ class CodeAnalyzer:
             progress.update(task2, description="[green]✓ Dependency graph built")
             progress.remove_task(task2)
 
-            # Phase 3: Analyze files and extract features
+            # Phase 3: Analyze files and extract features (parallelized)
             task3 = progress.add_task(
                 "[cyan]Phase 3: Analyzing files and extracting features...", total=len(python_files)
             )
-            for file_path in python_files:
-                if self._should_skip_file(file_path):
-                    progress.advance(task3)
-                    continue
 
-                self._analyze_file(file_path)
-                progress.advance(task3)
+            # Filter out files to skip
+            files_to_analyze = [f for f in python_files if not self._should_skip_file(f)]
+
+            # Process files in parallel
+            max_workers = min(os.cpu_count() or 4, 8, len(files_to_analyze))  # Cap at 8 workers
+            completed_count = 0
+
+            def analyze_file_safe(file_path: Path) -> dict[str, Any]:
+                """Analyze a file and return results (thread-safe)."""
+                return self._analyze_file_parallel(file_path)
+
+            if files_to_analyze:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all tasks
+                    future_to_file = {executor.submit(analyze_file_safe, f): f for f in files_to_analyze}
+
+                    # Collect results as they complete
+                    for future in as_completed(future_to_file):
+                        try:
+                            results = future.result()
+                            # Merge results into instance variables (sequential merge is fast)
+                            self._merge_analysis_results(results)
+                            completed_count += 1
+                            progress.update(task3, completed=completed_count)
+                        except Exception as e:
+                            # Log error but continue processing
+                            file_path = future_to_file[future]
+                            console.print(f"[dim]⚠ Warning: Failed to analyze {file_path}: {e}[/dim]")
+                            completed_count += 1
+                            progress.update(task3, completed=completed_count)
+
+            # Update progress for skipped files
+            skipped_count = len(python_files) - len(files_to_analyze)
+            if skipped_count > 0:
+                progress.update(task3, completed=len(python_files))
+
             progress.update(
                 task3,
                 description=f"[green]✓ Analyzed {len(python_files)} files, extracted {len(self.features)} features",
@@ -249,33 +281,91 @@ class CodeAnalyzer:
         return any(pattern in str(file_path) for pattern in skip_patterns)
 
     def _analyze_file(self, file_path: Path) -> None:
-        """Analyze a single Python file."""
+        """Analyze a single Python file (legacy sequential version)."""
+        results = self._analyze_file_parallel(file_path)
+        self._merge_analysis_results(results)
+
+    def _analyze_file_parallel(self, file_path: Path) -> dict[str, Any]:
+        """
+        Analyze a single Python file and return results (thread-safe).
+
+        Returns:
+            Dictionary with extracted data:
+            - 'themes': set of theme strings
+            - 'type_hints': dict mapping module -> {function: type_hint}
+            - 'async_patterns': dict mapping module -> [async_methods]
+            - 'features': list of Feature objects
+        """
+        results: dict[str, Any] = {
+            "themes": set(),
+            "type_hints": {},
+            "async_patterns": {},
+            "features": [],
+        }
+
         try:
             content = file_path.read_text(encoding="utf-8")
             tree = ast.parse(content)
 
-            # Extract module-level info
-            self._extract_themes_from_imports(tree)
+            # Extract module-level info (return themes instead of modifying self)
+            themes = self._extract_themes_from_imports_parallel(tree)
+            results["themes"].update(themes)
 
-            # Extract type hints
-            self._extract_type_hints(tree, file_path)
+            # Extract type hints (return instead of modifying self)
+            module_name = self._path_to_module_name(file_path)
+            type_hints = self._extract_type_hints_parallel(tree, file_path)
+            if type_hints:
+                results["type_hints"][module_name] = type_hints
 
-            # Detect async patterns
-            self._detect_async_patterns(tree, file_path)
+            # Detect async patterns (return instead of modifying self)
+            async_methods = self._detect_async_patterns_parallel(tree, file_path)
+            if async_methods:
+                results["async_patterns"][module_name] = async_methods
 
             # Extract classes as features
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
-                    feature = self._extract_feature_from_class(node, file_path)
+                    # For sequential keys, use placeholder (will be fixed after all features collected)
+                    # For classname keys, we can generate immediately
+                    current_count = 0 if self.key_format == "sequential" else len(self.features)
+                    feature = self._extract_feature_from_class_parallel(node, file_path, current_count)
                     if feature:
-                        self.features.append(feature)
+                        results["features"].append(feature)
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files that can't be parsed
             pass
 
+        return results
+
+    def _merge_analysis_results(self, results: dict[str, Any]) -> None:
+        """Merge parallel analysis results into instance variables."""
+        # Merge themes
+        self.themes.update(results.get("themes", set()))
+
+        # Merge type hints
+        for module, hints in results.get("type_hints", {}).items():
+            if module not in self.type_hints:
+                self.type_hints[module] = {}
+            self.type_hints[module].update(hints)
+
+        # Merge async patterns
+        for module, methods in results.get("async_patterns", {}).items():
+            if module not in self.async_patterns:
+                self.async_patterns[module] = []
+            self.async_patterns[module].extend(methods)
+
+        # Merge features (append to list)
+        self.features.extend(results.get("features", []))
+
     def _extract_themes_from_imports(self, tree: ast.AST) -> None:
-        """Extract themes from import statements."""
+        """Extract themes from import statements (legacy version)."""
+        themes = self._extract_themes_from_imports_parallel(tree)
+        self.themes.update(themes)
+
+    def _extract_themes_from_imports_parallel(self, tree: ast.AST) -> set[str]:
+        """Extract themes from import statements (thread-safe, returns themes)."""
+        themes: set[str] = set()
         theme_keywords = {
             "fastapi": "API",
             "flask": "API",
@@ -299,25 +389,34 @@ class CodeAnalyzer:
                     for alias in node.names:
                         for keyword, theme in theme_keywords.items():
                             if keyword in alias.name.lower():
-                                self.themes.add(theme)
+                                themes.add(theme)
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     for keyword, theme in theme_keywords.items():
                         if keyword in node.module.lower():
-                            self.themes.add(theme)
+                            themes.add(theme)
+
+        return themes
 
     def _extract_feature_from_class(self, node: ast.ClassDef, file_path: Path) -> Feature | None:
-        """Extract feature from class definition."""
+        """Extract feature from class definition (legacy version)."""
+        return self._extract_feature_from_class_parallel(node, file_path, len(self.features))
+
+    def _extract_feature_from_class_parallel(
+        self, node: ast.ClassDef, file_path: Path, current_feature_count: int
+    ) -> Feature | None:
+        """Extract feature from class definition (thread-safe version)."""
         # Skip private classes and test classes
         if node.name.startswith("_") or node.name.startswith("Test"):
             return None
 
         # Generate feature key based on configured format
-        if self.key_format == "sequential":
-            # Use sequential numbering (will be updated after all features are collected)
-            feature_key = f"FEATURE-{len(self.features) + 1:03d}"
-        else:
-            # Default: classname format
-            feature_key = to_classname_key(node.name)
+        # For sequential keys, use placeholder (will be fixed after all features collected)
+        # During parallel processing, we can't know the final position
+        feature_key = (
+            "FEATURE-PLACEHOLDER"  # Will be replaced in post-processing
+            if self.key_format == "sequential"
+            else to_classname_key(node.name)
+        )
 
         # Extract docstring as outcome
         docstring = ast.get_docstring(node)
@@ -467,7 +566,8 @@ class CodeAnalyzer:
         tasks: list[str] = []
 
         # Try to extract test patterns from existing tests
-        test_patterns = self.test_extractor.extract_test_patterns_for_class(class_name)
+        # Use minimal acceptance criteria (examples stored in contracts, not YAML)
+        test_patterns = self.test_extractor.extract_test_patterns_for_class(class_name, as_openapi_examples=True)
 
         # If test patterns found, use them
         if test_patterns:
@@ -824,13 +924,18 @@ class CodeAnalyzer:
 
     def _extract_type_hints(self, tree: ast.AST, file_path: Path) -> dict[str, str]:
         """
-        Extract type hints from function/method signatures.
+        Extract type hints from function/method signatures (legacy version).
+        """
+        return self._extract_type_hints_parallel(tree, file_path)
+
+    def _extract_type_hints_parallel(self, tree: ast.AST, file_path: Path) -> dict[str, str]:
+        """
+        Extract type hints from function/method signatures (thread-safe version).
 
         Returns:
             Dictionary mapping function names to their return type hints
         """
         type_hints: dict[str, str] = {}
-        module_name = self._path_to_module_name(file_path)
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -849,22 +954,27 @@ class CodeAnalyzer:
 
                 type_hints[func_name] = return_type
 
-        # Store per module
-        if module_name not in self.type_hints:
-            self.type_hints[module_name] = {}
-        self.type_hints[module_name].update(type_hints)
-
         return type_hints
 
     def _detect_async_patterns(self, tree: ast.AST, file_path: Path) -> list[str]:
         """
-        Detect async/await patterns in code.
+        Detect async/await patterns in code (legacy version).
+        """
+        async_methods = self._detect_async_patterns_parallel(tree, file_path)
+        module_name = self._path_to_module_name(file_path)
+        if module_name not in self.async_patterns:
+            self.async_patterns[module_name] = []
+        self.async_patterns[module_name].extend(async_methods)
+        return async_methods
+
+    def _detect_async_patterns_parallel(self, tree: ast.AST, file_path: Path) -> list[str]:
+        """
+        Detect async/await patterns in code (thread-safe version).
 
         Returns:
             List of async method/function names
         """
         async_methods: list[str] = []
-        module_name = self._path_to_module_name(file_path)
 
         for node in ast.walk(tree):
             # Check for async functions
@@ -881,9 +991,6 @@ class CodeAnalyzer:
                                 if parent.name not in async_methods:
                                     async_methods.append(parent.name)
                                 break
-
-        # Store per module
-        self.async_patterns[module_name] = async_methods
 
         return async_methods
 

@@ -302,13 +302,14 @@ See [Integration Showcases](../examples/integration-showcases.md) for real examp
 
 ### How fast is code2spec extraction?
 
-**Typically < 10 seconds** for:
+**Typical timing**:
 
-- 50-100 Python files
-- Standard project structure
-- Normal code complexity
+- **Small codebases** (10-50 files): ~10 seconds to 1-2 minutes
+- **Medium codebases** (50-100 files): ~1-2 minutes
+- **Large codebases** (100+ files): **2-3 minutes** for AST + Semgrep analysis
+- **Large codebases with contracts** (100+ files): **15-30+ minutes** with contract extraction, graph analysis, and parallel processing (8 workers)
 
-Larger codebases may take 30-60 seconds. SpecFact is optimized for speed.
+The import process performs AST analysis, Semgrep pattern detection, and (when enabled) extracts OpenAPI contracts, relationships, and graph dependencies in parallel, which can take significant time for large repositories.
 
 ### Does SpecFact require internet?
 

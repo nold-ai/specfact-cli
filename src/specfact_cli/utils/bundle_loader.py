@@ -75,6 +75,10 @@ def detect_bundle_format(path: Path) -> tuple[BundleFormat, str | None]:
         manifest_path = path / "bundle.manifest.yaml"
         if manifest_path.exists():
             return BundleFormat.MODULAR, None
+        # Check if directory has partial bundle files (incomplete save)
+        # If it has features/ or contracts/ but no manifest, it's likely an incomplete modular bundle
+        if (path / "features").exists() or (path / "contracts").exists():
+            return BundleFormat.UNKNOWN, "Incomplete bundle directory (missing bundle.manifest.yaml). This may be from a failed save. Consider removing the directory and re-running import."
         # Check for legacy plans directory
         if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
             return BundleFormat.MONOLITHIC, None
@@ -262,26 +266,64 @@ def save_project_bundle(
     try:
         if atomic:
             # Atomic write: write to temp directory, then rename
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir) / bundle_dir.name
-                bundle.save_to_directory(temp_path, progress_callback=progress_callback)
+            # IMPORTANT: Preserve non-bundle directories (contracts, protocols, etc.)
+            import shutil
 
-                # Ensure target directory parent exists
-                bundle_dir.parent.mkdir(parents=True, exist_ok=True)
+            # Directories/files to preserve during atomic save
+            preserve_items = ["contracts", "protocols", "enrichment_context.md"]
 
-                # Remove existing directory if it exists
-                if bundle_dir.exists():
-                    import shutil
+            # Backup directories/files to preserve (use separate temp dir that persists)
+            preserved_data: dict[str, Path] = {}
+            backup_temp_dir = None
+            if bundle_dir.exists():
+                backup_temp_dir = tempfile.mkdtemp()
+                for preserve_name in preserve_items:
+                    preserve_path = bundle_dir / preserve_name
+                    if preserve_path.exists():
+                        backup_path = Path(backup_temp_dir) / preserve_name
+                        if preserve_path.is_dir():
+                            shutil.copytree(preserve_path, backup_path, dirs_exist_ok=True)
+                        else:
+                            backup_path.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(preserve_path, backup_path)
+                        preserved_data[preserve_name] = backup_path
 
-                    shutil.rmtree(bundle_dir)
+            try:
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir) / bundle_dir.name
+                    bundle.save_to_directory(temp_path, progress_callback=progress_callback)
 
-                # Move temp directory to target
-                temp_path.rename(bundle_dir)
+                    # Restore preserved directories/files to temp before moving
+                    for preserve_name, backup_path in preserved_data.items():
+                        restore_path = temp_path / preserve_name
+                        if backup_path.exists():
+                            if backup_path.is_dir():
+                                shutil.copytree(backup_path, restore_path, dirs_exist_ok=True)
+                            else:
+                                restore_path.parent.mkdir(parents=True, exist_ok=True)
+                                shutil.copy2(backup_path, restore_path)
+
+                    # Ensure target directory parent exists
+                    bundle_dir.parent.mkdir(parents=True, exist_ok=True)
+
+                    # Remove existing directory if it exists
+                    if bundle_dir.exists():
+                        shutil.rmtree(bundle_dir)
+
+                    # Move temp directory to target
+                    temp_path.rename(bundle_dir)
+            finally:
+                # Clean up backup temp directory
+                if backup_temp_dir and Path(backup_temp_dir).exists():
+                    shutil.rmtree(backup_temp_dir, ignore_errors=True)
         else:
             # Direct write
             bundle.save_to_directory(bundle_dir, progress_callback=progress_callback)
     except Exception as e:
-        raise BundleSaveError(f"Failed to save bundle: {e}") from e
+        error_msg = "Failed to save bundle"
+        if str(e):
+            error_msg += f": {e}"
+        raise BundleSaveError(error_msg) from e
 
 
 @beartype
