@@ -9,6 +9,149 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.2] - 2025-11-30
+
+### Fixed (0.11.2)
+
+- **ThreadPoolExecutor max_workers Validation**
+  - Fixed "max_workers must be greater than 0" error in `build_dependency_graph()` when processing empty file lists
+  - Added `max(1, ...)` protection to all `max_workers` calculations in:
+    - `src/specfact_cli/analyzers/graph_analyzer.py` - Graph dependency analysis
+    - `src/specfact_cli/commands/import_cmd.py` - Contract loading, hash updates, and contract extraction (3 locations)
+    - `src/specfact_cli/analyzers/code_analyzer.py` - File analysis parallelization
+  - Ensures `ThreadPoolExecutor` always receives at least 1 worker, preventing runtime errors when processing empty collections
+  - All 9 previously failing tests now passing
+
+- **Prompt Validation Test Path Resolution**
+  - Fixed `test_validate_all_prompts` test failure due to incorrect path calculation
+  - Updated path from `Path(__file__).parent.parent.parent` to `Path(__file__).parent.parent.parent.parent`
+  - Correctly navigates from `tests/unit/prompts/test_prompt_validation.py` to root `resources/prompts/` directory
+  - Test now successfully locates and validates all prompt files
+
+- **Prompt File Glob Pattern**
+  - Fixed `validate_all_prompts()` function to match actual file naming convention
+  - Changed glob pattern from `specfact-*.md` to `specfact.*.md` to match files like `specfact.01-import.md`
+  - Function now correctly discovers and validates all 8 prompt files in `resources/prompts/`
+
+- **Type Checking Errors**
+  - Fixed all basedpyright `reportCallIssue` errors for missing `source_tracking`, `contract`, and `protocol` parameters
+  - Updated all `Feature` instantiations across test files to include explicit `None` values for optional parameters
+  - Fixed 53 type checking errors across 20+ test files
+  - All linter errors from basedpyright resolved
+
+---
+
+## [0.11.1] - 2025-11-29
+
+### Added (0.11.1)
+
+- **Configurable Test File Filtering in Relationship Mapping**
+  - New `--exclude-tests` flag for `specfact import from-code` command to optimize processing speed
+  - Default behavior: Test files are **included** by default for comprehensive analysis
+  - Use `--exclude-tests` to skip test files for faster processing (~30-50% speed improvement)
+  - Rationale for excluding tests: Test files are consumers of production code (not producers), so skipping them has minimal impact on dependency graph quality
+  - When excluding tests: Test files are filtered but vendor/venv files are always filtered regardless of flag
+  - Updated help text and documentation with clear usage examples
+  - Backward compatibility: `--include-tests` flag still available (now default behavior)
+
+### Changed (0.11.1)
+
+- **Relationship Mapping Default Behavior**
+  - Test files are now **included by default** in relationship mapping phase for comprehensive analysis
+  - Previous default (skipping tests) can be restored using `--exclude-tests` flag for speed optimization
+  - Filtering rationale documented in code: Test files import production code (one-way dependency), so excluding them doesn't affect production dependency graph
+  - Interfaces and routes are defined in production code, not tests, so excluding tests has minimal quality impact
+  - Vendor and virtual environment files are always filtered regardless of flag
+
+### Documentation (0.11.1)
+
+- **Enhanced Command Documentation**
+  - Added `--include-tests/--exclude-tests` flags to parameter groups in `import from-code` command docstring
+  - Updated example usage: `specfact import from-code my-project --repo . --exclude-tests` (for speed optimization)
+  - Updated help text to explain default behavior (comprehensive) and optimization option (with `--exclude-tests`)
+
+---
+
+## [0.11.0] - 2025-11-28
+
+### Fixed (0.11.0)
+
+- **Test Timeout in IDE Setup**
+  - Fixed timeout issue in `test_init_handles_missing_templates` test (was timing out after 5 seconds)
+  - Added comprehensive error handling to `get_package_installation_locations()` function
+  - Wrapped all `rglob` operations in try-except blocks to handle `FileNotFoundError`, `PermissionError`, and `OSError`
+  - Added skip logic for known problematic directories (typeshed stubs) to prevent slow traversal
+  - Improved test mocking to work in both `specfact_cli.utils.ide_setup` and `specfact_cli.commands.init` modules
+  - Test now passes in ~3 seconds (well under 5s timeout)
+
+- **Package Location Discovery Robustness**
+  - Enhanced `get_package_installation_locations()` to gracefully handle problematic cache directories
+  - Added directory existence checks before attempting `rglob` traversal
+  - Improved error handling for uvx cache locations on Linux/macOS and Windows
+  - Better handling of symlinks, case sensitivity, and path separators across platforms
+  - Prevents timeouts when encountering large or problematic directory trees
+
+### Changed (0.11.0)
+
+- **IDE Setup Error Handling**
+  - Enhanced error handling in `ide_setup.py` to skip problematic directories instead of failing
+  - Added explicit checks to skip typeshed and stubs directories during package discovery
+  - Improved robustness of cross-platform package location detection
+
+---
+
+## [0.10.2] - 2025-11-27
+
+### Added (0.10.2)
+
+- **SDD Feature Parity Implementation** - Complete task generation and code implementation workflow
+  - **Multi-SDD Infrastructure** (Phase 1.5 Complete)
+    - SDD discovery utility (`sdd_discovery.py`) with `find_sdd_for_bundle`, `list_all_sdds`, `get_sdd_by_hash` functions
+    - Support for multiple SDD manifests per repository, linked to specific project bundles
+    - Auto-discovery of SDD manifests based on bundle name (`.specfact/sdd/<bundle-name>.yaml`)
+    - New `sdd list` command to display all SDD manifests with linked bundles, hashes, and coverage thresholds
+    - Updated `plan harden`, `enforce sdd`, `plan review`, and `plan promote` commands to use multi-SDD layout
+  - **Task Generation** (Phase 5.1 Complete)
+    - New `generate tasks` command to create dependency-ordered task lists from plan bundles and SDD manifests
+    - Task data models (`Task`, `TaskList`, `TaskPhase`, `TaskStatus`) with Pydantic validation
+    - Task generator (`task_generator.py`) that parses plan bundles and SDD HOW sections
+    - Tasks organized by phases: Setup, Foundational, User Stories, Polish
+    - Tasks include acceptance criteria, file paths, dependencies, and parallelization markers
+    - Support for YAML, JSON, and Markdown output formats
+  - **Code Implementation** (Phase 5.2 Complete)
+    - New `implement tasks` command to execute task breakdowns and generate code files
+    - Phase-by-phase task execution (Setup → Foundational → User Stories → Polish)
+    - Dependency validation before task execution
+    - Code generation from task descriptions with templates for different phases
+    - Progress tracking with task status updates saved to task file
+    - Support for `--dry-run`, `--phase`, `--task`, `--skip-validation`, `--no-interactive` options
+  - **Idea-to-Ship Orchestrator** (Phase 5.3 Complete)
+    - New `run idea-to-ship` command to orchestrate end-to-end workflow from SDD scaffold to code implementation
+    - 8-step workflow: SDD scaffold → Plan init/import → Plan review → Contract generation → Task generation → Code implementation → Enforcement checks → Bridge sync
+    - Auto-detection of bundle names from existing bundles
+    - Support for skipping steps: `--skip-sdd`, `--skip-sync`, `--skip-implementation`
+    - Non-interactive mode for CI/CD automation
+
+### Fixed (0.10.2)
+
+- **Enum Serialization Bug**
+  - Fixed YAML serialization error when generating task lists (enum values now properly serialized as strings)
+  - Updated `generate tasks` command to use `model_dump(mode="json")` for proper enum serialization
+- **Bundle Name Validation**
+  - Fixed empty bundle name validation in `run idea-to-ship` command
+  - Added strict validation to ensure bundle names are always non-empty strings
+  - Fixed projects directory path construction to avoid calling `SpecFactStructure.project_dir()` without bundle name
+  - Enhanced bundle name auto-detection with proper filtering of empty directory names
+
+### Testing (0.10.2)
+
+- **Comprehensive Test Coverage**
+  - 12 unit tests for SDD discovery utility (`test_sdd_discovery.py`) - all passing
+  - 14 unit tests for task generator (`test_task_generator.py`) - all passing
+  - All tests cover multi-SDD scenarios, legacy layouts, task generation, phase organization, dependencies, and edge cases
+
+---
+
 ## [0.10.1] - 2025-11-27
 
 ### Changed (0.10.1)

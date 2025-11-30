@@ -89,6 +89,9 @@ class TestContractGenerator:
                             contracts=None,
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-002",
@@ -105,6 +108,9 @@ class TestContractGenerator:
                             contracts=None,
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
             ],
             metadata=None,
@@ -224,6 +230,9 @@ class TestContractGenerator:
                     title="",  # Empty title might cause issues
                     outcomes=[],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             metadata=None,
@@ -243,6 +252,9 @@ class TestContractGenerator:
             title="Payment Processing",
             outcomes=[],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         contracts = generator._extract_feature_contracts(sample_sdd_manifest.how, feature)
@@ -258,6 +270,9 @@ class TestContractGenerator:
             title="Payment Processing",
             outcomes=[],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         invariants = generator._extract_feature_invariants(sample_sdd_manifest.how, feature)
@@ -283,6 +298,9 @@ class TestContractGenerator:
                     contracts=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         contracts = generator._extract_feature_contracts(sample_sdd_manifest.how, feature)
@@ -299,6 +317,9 @@ class TestContractGenerator:
             title="Payment Processing",
             outcomes=[],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         contracts = ["Contract 1: Amount must be positive"]

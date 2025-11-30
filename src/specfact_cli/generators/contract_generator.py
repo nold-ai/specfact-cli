@@ -33,8 +33,14 @@ class ContractGenerator:
     @require(lambda sdd: isinstance(sdd, SDDManifest), "SDD must be SDDManifest instance")
     @require(lambda plan: isinstance(plan, PlanBundle), "Plan must be PlanBundle instance")
     @require(lambda base_path: isinstance(base_path, Path), "Base path must be Path")
+    @require(
+        lambda contracts_dir: contracts_dir is None or isinstance(contracts_dir, Path),
+        "Contracts dir must be None or Path",
+    )
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
-    def generate_contracts(self, sdd: SDDManifest, plan: PlanBundle, base_path: Path | None = None) -> dict[str, Any]:
+    def generate_contracts(
+        self, sdd: SDDManifest, plan: PlanBundle, base_path: Path | None = None, contracts_dir: Path | None = None
+    ) -> dict[str, Any]:
         """
         Generate contract stubs from SDD HOW sections.
 
@@ -42,6 +48,7 @@ class ContractGenerator:
             sdd: SDD manifest with HOW section containing invariants and contracts
             plan: Plan bundle to map contracts to stories/features
             base_path: Base directory for output (default: current directory)
+            contracts_dir: Specific contracts directory (default: .specfact/contracts/ or bundle-specific if provided)
 
         Returns:
             Dictionary with generation results:
@@ -53,8 +60,9 @@ class ContractGenerator:
         if base_path is None:
             base_path = Path(".")
 
-        # Ensure contracts directory exists
-        contracts_dir = base_path / SpecFactStructure.ROOT / "contracts"
+        # Determine contracts directory: use provided one, or default to global .specfact/contracts/
+        if contracts_dir is None:
+            contracts_dir = base_path / SpecFactStructure.ROOT / "contracts"
         contracts_dir.mkdir(parents=True, exist_ok=True)
 
         generated_files: list[Path] = []

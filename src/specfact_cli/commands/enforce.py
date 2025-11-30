@@ -119,7 +119,10 @@ def stage(
 @require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def enforce_sdd(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
@@ -162,11 +165,25 @@ def enforce_sdd(
         specfact enforce sdd auth-module --output-format json --out validation-report.json
         specfact enforce sdd legacy-api --no-interactive
     """
+    from rich.console import Console
+
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.utils.bundle_loader import load_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import StructuredFormat
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
     from specfact_cli.utils.structured_io import (
-        StructuredFormat,
         dump_structured_file,
         load_structured_file,
     )
@@ -187,25 +204,20 @@ def enforce_sdd(
             console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
             raise typer.Exit(1)
 
-        # Find SDD manifest path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
-        if sdd is None:
-            base_path = Path(".")
-            # Try YAML first, then JSON
-            sdd_yaml = base_path / SpecFactStructure.SDD / f"{bundle}.yaml"
-            sdd_json = base_path / SpecFactStructure.SDD / f"{bundle}.json"
-            if sdd_yaml.exists():
-                sdd = sdd_yaml
-            elif sdd_json.exists():
-                sdd = sdd_json
-            else:
-                console.print("[bold red]✗[/bold red] SDD manifest not found")
-                console.print(f"[dim]Expected: {sdd_yaml} or {sdd_json}[/dim]")
-                console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
-                raise typer.Exit(1)
+        # Find SDD manifest path using discovery utility
+        from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
 
-        if not sdd.exists():
-            console.print(f"[bold red]✗[/bold red] SDD manifest not found: {sdd}")
+        base_path = Path(".")
+        discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
+        if discovered_sdd is None:
+            console.print("[bold red]✗[/bold red] SDD manifest not found")
+            console.print(f"[dim]Searched for: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
+            console.print("[dim]Legacy fallback: .specfact/sdd.yaml or .specfact/sdd.json[/dim]")
+            console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
             raise typer.Exit(1)
+
+        sdd = discovered_sdd
+        console.print(f"[dim]Using SDD manifest: {sdd}[/dim]")
 
         try:
             # Load SDD manifest

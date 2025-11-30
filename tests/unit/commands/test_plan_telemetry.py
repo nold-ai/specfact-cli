@@ -100,7 +100,18 @@ class TestPlanCommandTelemetry:
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
-            features=[Feature(key="FEATURE-001", title="Test Feature", outcomes=[], acceptance=[], stories=[])],
+            features=[
+                Feature(
+                    key="FEATURE-001",
+                    title="Test Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                )
+            ],
             metadata=None,
             clarifications=None,
         )
@@ -159,7 +170,18 @@ class TestPlanCommandTelemetry:
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
-            features=[Feature(key="FEATURE-001", title="Manual Feature", outcomes=[], acceptance=[], stories=[])],
+            features=[
+                Feature(
+                    key="FEATURE-001",
+                    title="Manual Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                )
+            ],
             metadata=None,
             clarifications=None,
         )
@@ -168,8 +190,26 @@ class TestPlanCommandTelemetry:
             business=None,
             product=Product(themes=["Testing"]),
             features=[
-                Feature(key="FEATURE-001", title="Manual Feature", outcomes=[], acceptance=[], stories=[]),
-                Feature(key="FEATURE-002", title="Auto Feature", outcomes=[], acceptance=[], stories=[]),
+                Feature(
+                    key="FEATURE-001",
+                    title="Manual Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                ),
+                Feature(
+                    key="FEATURE-002",
+                    title="Auto Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                ),
             ],
             metadata=None,
             clarifications=None,

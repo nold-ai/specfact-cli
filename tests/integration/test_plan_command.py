@@ -468,7 +468,17 @@ class TestPlanAddFeature:
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         project_bundle = load_project_bundle(bundle_dir)
         plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
-        plan_bundle.features.append(Feature(key="FEATURE-000", title="Existing Feature", outcomes=[], acceptance=[]))
+        plan_bundle.features.append(
+            Feature(
+                key="FEATURE-000",
+                title="Existing Feature",
+                outcomes=[],
+                acceptance=[],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
+            )
+        )
         updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
         save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
@@ -688,6 +698,9 @@ class TestPlanAddStory:
                     contracts=None,
                 )
             ],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         plan_bundle.features.append(feature)
         updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)

@@ -24,7 +24,7 @@ from specfact_cli.integrations.specmatic import (
     generate_specmatic_tests,
     validate_spec_with_specmatic,
 )
-from specfact_cli.utils import print_error, print_success
+from specfact_cli.utils import print_error, print_success, print_warning
 
 
 app = typer.Typer(
@@ -182,11 +182,18 @@ def backward_compat(
 
 @app.command("generate-tests")
 @beartype
-@require(lambda spec_path: spec_path.exists(), "Spec file must exist")
+@require(lambda spec_path: spec_path.exists() if spec_path else True, "Spec file must exist if provided")
 @ensure(lambda result: result is None, "Must return None")
 def generate_tests(
     # Target/Input
-    spec_path: Path = typer.Argument(..., help="Path to OpenAPI/AsyncAPI specification", exists=True),
+    spec_path: Path | None = typer.Argument(
+        None, help="Path to OpenAPI/AsyncAPI specification (optional if --bundle provided)", exists=True
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If provided, generates tests for all contracts in bundle",
+    ),
     # Output
     output_dir: Path | None = typer.Option(
         None,
@@ -199,36 +206,102 @@ def generate_tests(
     Generate Specmatic test suite from specification.
 
     Auto-generates contract tests from the OpenAPI/AsyncAPI specification
-    that can be run to validate API implementations.
+    that can be run to validate API implementations. Can generate tests for
+    a single contract file or all contracts in a project bundle.
 
     **Parameter Groups:**
-    - **Target/Input**: spec_path (required)
+    - **Target/Input**: spec_path (optional if --bundle provided), --bundle
     - **Output**: --output
 
     **Examples:**
         specfact spec generate-tests api/openapi.yaml
         specfact spec generate-tests api/openapi.yaml --output tests/specmatic/
+        specfact spec generate-tests --bundle legacy-api --output tests/contract/
     """
-    from specfact_cli.telemetry import telemetry
+    from rich.console import Console
 
-    with telemetry.track_command("spec.generate-tests", {"spec_path": str(spec_path)}):
+    from specfact_cli.telemetry import telemetry
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle:
+            console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
+    # Validate inputs
+    if not spec_path and not bundle:
+        print_error("Either spec_path or --bundle must be provided")
+        raise typer.Exit(1)
+
+    repo_path = Path(".").resolve()
+    spec_paths: list[Path] = []
+
+    # If bundle provided, load all contracts from bundle
+    if bundle:
+        bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
+        if not bundle_dir.exists():
+            print_error(f"Project bundle not found: {bundle_dir}")
+            raise typer.Exit(1)
+
+        project_bundle = load_project_bundle(bundle_dir)
+
+        for feature_key, feature in project_bundle.features.items():
+            if feature.contract:
+                contract_path = bundle_dir / feature.contract
+                if contract_path.exists():
+                    spec_paths.append(contract_path)
+                else:
+                    print_warning(f"Contract file not found for {feature_key}: {feature.contract}")
+    elif spec_path:
+        spec_paths = [spec_path]
+
+    if not spec_paths:
+        print_error("No contract files found to generate tests from")
+        raise typer.Exit(1)
+
+    telemetry_metadata = {
+        "spec_path": str(spec_path) if spec_path else None,
+        "bundle": bundle,
+        "contracts_count": len(spec_paths),
+    }
+
+    with telemetry.track_command("spec.generate-tests", telemetry_metadata) as record:
         # Check if Specmatic is available
         is_available, error_msg = check_specmatic_available()
         if not is_available:
             print_error(f"Specmatic not available: {error_msg}")
             raise typer.Exit(1)
 
-        console.print(f"[bold cyan]Generating test suite from:[/bold cyan] {spec_path}")
-
         import asyncio
 
-        try:
-            output = asyncio.run(generate_specmatic_tests(spec_path, output_dir))
-            print_success(f"✓ Test suite generated: {output}")
+        generated_count = 0
+        failed_count = 0
+
+        for contract_path in spec_paths:
+            console.print(f"[bold cyan]Generating test suite from:[/bold cyan] {contract_path}")
+
+            try:
+                output = asyncio.run(generate_specmatic_tests(contract_path, output_dir))
+                print_success(f"✓ Test suite generated: {output}")
+                generated_count += 1
+            except Exception as e:
+                print_error(f"✗ Test generation failed for {contract_path.name}: {e!s}")
+                failed_count += 1
+
+        if generated_count > 0:
+            console.print(f"\n[bold green]✓[/bold green] Generated tests for {generated_count} contract(s)")
             console.print("[dim]Run the generated tests to validate your API implementation[/dim]")
-        except Exception as e:
-            print_error(f"✗ Test generation failed: {e!s}")
-            raise typer.Exit(1) from e
+
+        if failed_count > 0:
+            print_warning(f"Failed to generate tests for {failed_count} contract(s)")
+            if generated_count == 0:
+                raise typer.Exit(1)
+
+        record({"generated": generated_count, "failed": failed_count})
 
 
 @app.command("mock")

@@ -49,6 +49,9 @@ def test_review_workflow_with_incomplete_plan(tmp_path: Path) -> None:
                 stories=[],  # Missing stories
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=Metadata(
@@ -109,6 +112,9 @@ def test_clarification_integration() -> None:
                 stories=[],
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,
@@ -181,6 +187,9 @@ def test_prioritization_by_impact_uncertainty() -> None:
                 stories=[],  # High impact finding
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,

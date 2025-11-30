@@ -8,7 +8,9 @@ SpecFact contract-driven format using the bridge architecture.
 
 from __future__ import annotations
 
+import multiprocessing
 from pathlib import Path
+from typing import Any
 
 import typer
 from beartype import beartype
@@ -75,6 +77,801 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
         features=features_dict,
         clarifications=plan_bundle.clarifications,
     )
+
+
+def _check_incremental_changes(
+    bundle_dir: Path, repo: Path, enrichment: Path | None, force: bool = False
+) -> dict[str, bool] | None:
+    """Check for incremental changes and return what needs regeneration."""
+    if force:
+        console.print("[yellow]⚠ Force mode enabled - regenerating all artifacts[/yellow]\n")
+        return None  # None means regenerate everything
+    if not bundle_dir.exists() or enrichment:
+        return None
+
+    from specfact_cli.utils.incremental_check import check_incremental_changes
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Checking for changes...", total=None)
+            progress.update(task, description="[cyan]Loading manifest and checking file changes...")
+
+        incremental_changes = check_incremental_changes(bundle_dir, repo, features=None)
+
+        if not any(incremental_changes.values()):
+            console.print(f"[green]✓[/green] Project bundle already exists: {bundle_dir}")
+            console.print("[dim]No changes detected - all artifacts are up-to-date[/dim]")
+            console.print("[dim]Skipping regeneration of relationships, contracts, graph, and enrichment context[/dim]")
+            console.print(
+                "[dim]Use --force to force regeneration, or modify source files to trigger incremental update[/dim]"
+            )
+            raise typer.Exit(0)
+
+        changed_items = [key for key, value in incremental_changes.items() if value]
+        if changed_items:
+            console.print("[yellow]⚠[/yellow] Project bundle exists, but some artifacts need regeneration:")
+            for item in changed_items:
+                console.print(f"  [dim]- {item}[/dim]")
+            console.print("[dim]Regenerating only changed artifacts...[/dim]\n")
+
+        return incremental_changes
+    except KeyboardInterrupt:
+        raise
+    except typer.Exit:
+        raise
+    except Exception as e:
+        error_msg = str(e) if str(e) else f"{type(e).__name__}"
+        if "bundle.manifest.yaml" in error_msg or "Cannot determine bundle format" in error_msg:
+            console.print(
+                "[yellow]⚠ Incomplete bundle directory detected (likely from a failed save) - will regenerate all artifacts[/yellow]\n"
+            )
+        else:
+            console.print(
+                f"[yellow]⚠ Existing bundle found but couldn't be loaded ({type(e).__name__}: {error_msg}) - will regenerate all artifacts[/yellow]\n"
+            )
+        return None
+
+
+def _load_existing_bundle(bundle_dir: Path) -> PlanBundle | None:
+    """Load existing project bundle and convert to PlanBundle."""
+    from specfact_cli.models.plan import PlanBundle as PlanBundleModel
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Loading existing project bundle...", total=None)
+
+            def progress_callback(current: int, total: int, artifact: str) -> None:
+                progress.update(task, description=f"[cyan]Loading artifact {current}/{total}: {artifact}")
+
+            existing_bundle = load_project_bundle(bundle_dir, progress_callback=progress_callback)
+            progress.update(task, description="[green]✓[/green] Bundle loaded")
+
+        plan_bundle = PlanBundleModel(
+            version="1.0",
+            idea=existing_bundle.idea,
+            business=existing_bundle.business,
+            product=existing_bundle.product,
+            features=list(existing_bundle.features.values()),
+            metadata=None,
+            clarifications=existing_bundle.clarifications,
+        )
+        total_stories = sum(len(f.stories) for f in plan_bundle.features)
+        console.print(
+            f"[green]✓[/green] Loaded existing bundle: {len(plan_bundle.features)} features, {total_stories} stories"
+        )
+        return plan_bundle
+    except Exception as e:
+        console.print(f"[yellow]⚠ Could not load existing bundle: {e}[/yellow]")
+        console.print("[dim]Falling back to full codebase analysis...[/dim]\n")
+        return None
+
+
+def _analyze_codebase(
+    repo: Path,
+    entry_point: Path | None,
+    bundle: str,
+    confidence: float,
+    key_format: str,
+    routing_result: Any,
+) -> PlanBundle:
+    """Analyze codebase using AI agent or AST fallback."""
+    from specfact_cli.agents.analyze_agent import AnalyzeAgent
+    from specfact_cli.agents.registry import get_agent
+    from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+
+    if routing_result.execution_mode == "agent":
+        console.print("[dim]Mode: CoPilot (AI-first import)[/dim]")
+        agent = get_agent("import from-code")
+        if agent and isinstance(agent, AnalyzeAgent):
+            context = {
+                "workspace": str(repo),
+                "current_file": None,
+                "selection": None,
+            }
+            _enhanced_context = agent.inject_context(context)
+            console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
+            plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=bundle)
+            console.print("[green]✓[/green] AI import complete")
+            return plan_bundle
+        console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
+
+    # AST-based import (CI/CD mode or fallback)
+    console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
+    console.print(
+        "\n[yellow]⏱️  Note: This analysis typically takes 2-5 minutes for large codebases (optimized for speed)[/yellow]"
+    )
+    if entry_point:
+        console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
+    else:
+        console.print("[cyan]🔍 Analyzing codebase...[/cyan]\n")
+
+    analyzer = CodeAnalyzer(
+        repo,
+        confidence_threshold=confidence,
+        key_format=key_format,
+        plan_name=bundle,
+        entry_point=entry_point,
+    )
+    return analyzer.analyze()
+
+
+def _update_source_tracking(plan_bundle: PlanBundle, repo: Path) -> None:
+    """Update source tracking with file hashes (parallelized)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from specfact_cli.utils.source_scanner import SourceArtifactScanner
+
+    console.print("\n[cyan]🔗 Linking source files to features...[/cyan]")
+    scanner = SourceArtifactScanner(repo)
+    scanner.link_to_specs(plan_bundle.features, repo)
+
+    def update_file_hash(feature: Feature, file_path: Path) -> None:
+        """Update hash for a single file (thread-safe)."""
+        if file_path.exists() and feature.source_tracking is not None:
+            feature.source_tracking.update_hash(file_path)
+
+    hash_tasks: list[tuple[Feature, Path]] = []
+    for feature in plan_bundle.features:
+        if feature.source_tracking:
+            for impl_file in feature.source_tracking.implementation_files:
+                hash_tasks.append((feature, repo / impl_file))
+            for test_file in feature.source_tracking.test_files:
+                hash_tasks.append((feature, repo / test_file))
+
+    if hash_tasks:
+        max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(hash_tasks)))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_task = {
+                executor.submit(update_file_hash, feature, file_path): (feature, file_path)
+                for feature, file_path in hash_tasks
+            }
+            for future in as_completed(future_to_task):
+                try:
+                    future.result()
+                except KeyboardInterrupt:
+                    raise
+                except Exception:
+                    pass
+
+    for feature in plan_bundle.features:
+        if feature.source_tracking:
+            feature.source_tracking.update_sync_timestamp()
+
+    console.print("[green]✓[/green] Source tracking complete")
+
+
+def _extract_relationships_and_graph(
+    repo: Path,
+    entry_point: Path | None,
+    bundle_dir: Path,
+    incremental_changes: dict[str, bool] | None,
+    plan_bundle: PlanBundle | None,
+    should_regenerate_relationships: bool,
+    should_regenerate_graph: bool,
+    include_tests: bool = True,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Extract relationships and graph dependencies."""
+    relationships: dict[str, Any] = {}
+    graph_summary: dict[str, Any] | None = None
+
+    if not (should_regenerate_relationships or should_regenerate_graph):
+        console.print("\n[dim]⏭ Skipping relationships and graph analysis (no changes detected)[/dim]")
+        enrichment_context_path = bundle_dir / "enrichment_context.md"
+        if enrichment_context_path.exists():
+            relationships = {"imports": {}, "interfaces": {}, "routes": {}}
+        return relationships, graph_summary
+
+    console.print("\n[cyan]🔍 Enhanced analysis: Extracting relationships, contracts, and graph dependencies...[/cyan]")
+    from specfact_cli.analyzers.graph_analyzer import GraphAnalyzer
+    from specfact_cli.analyzers.relationship_mapper import RelationshipMapper
+    from specfact_cli.utils.optional_deps import check_cli_tool_available
+
+    pyan3_available, _ = check_cli_tool_available("pyan3")
+    if not pyan3_available:
+        console.print(
+            "[dim]💡 Note: Enhanced analysis tool pyan3 is not available (call graph analysis will be skipped)[/dim]"
+        )
+        console.print("[dim]   Install with: pip install pyan3[/dim]")
+
+    relationship_mapper = RelationshipMapper(repo)
+
+    changed_files: set[Path] = set()
+    if incremental_changes and plan_bundle:
+        from specfact_cli.utils.incremental_check import get_changed_files
+
+        changed_files_dict = get_changed_files(bundle_dir, repo, list(plan_bundle.features))
+        for feature_changes in changed_files_dict.values():
+            for file_path_str in feature_changes:
+                clean_path = file_path_str.replace(" (deleted)", "")
+                file_path = repo / clean_path
+                if file_path.exists():
+                    changed_files.add(file_path)
+
+    if changed_files:
+        python_files = list(changed_files)
+        console.print(f"[dim]Analyzing {len(python_files)} changed file(s) for relationships...[/dim]")
+    else:
+        python_files = list(repo.rglob("*.py"))
+        if entry_point:
+            python_files = [f for f in python_files if entry_point in f.parts]
+
+        # Filter files based on --include-tests/--exclude-tests flag
+        # Default: Include test files for comprehensive analysis
+        # --exclude-tests: Skip test files for faster processing (~30-50% speedup)
+        # Rationale for excluding tests:
+        # - Test files are consumers of production code (not producers)
+        # - Test files import production code, but production code doesn't import tests
+        # - Interfaces and routes are defined in production code, not tests
+        # - Dependency graph flows from production code, so skipping tests has minimal impact
+        if not include_tests:
+            # Exclude test files when --exclude-tests is specified
+            python_files = [
+                f
+                for f in python_files
+                if not any(
+                    skip in str(f)
+                    for skip in [
+                        "/test_",
+                        "/tests/",
+                        "/vendor/",
+                        "/.venv/",
+                        "/venv/",
+                        "/node_modules/",
+                        "/__pycache__/",
+                    ]
+                )
+            ]
+        else:
+            # Default: Include test files, but still filter vendor/venv files
+            python_files = [
+                f
+                for f in python_files
+                if not any(
+                    skip in str(f) for skip in ["/vendor/", "/.venv/", "/venv/", "/node_modules/", "/__pycache__/"]
+                )
+            ]
+
+    # Analyze relationships in parallel (optimized for speed)
+    relationships = relationship_mapper.analyze_files(python_files)
+    console.print(f"[green]✓[/green] Mapped {len(relationships['imports'])} files with relationships")
+
+    # Graph analysis is optional and can be slow - only run if explicitly needed
+    # Skip by default for faster imports (can be enabled with --with-graph flag in future)
+    if should_regenerate_graph and pyan3_available:
+        console.print("[dim]Building dependency graph (this may take a moment)...[/dim]")
+        graph_analyzer = GraphAnalyzer(repo)
+        graph_analyzer.build_dependency_graph(python_files)
+        graph_summary = graph_analyzer.get_graph_summary()
+        if graph_summary:
+            console.print(
+                f"[green]✓[/green] Built dependency graph: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies"
+            )
+            relationships["dependency_graph"] = graph_summary
+            relationships["call_graphs"] = graph_analyzer.call_graphs
+    elif should_regenerate_graph and not pyan3_available:
+        console.print("[dim]⏭ Skipping graph analysis (pyan3 not available)[/dim]")
+
+    return relationships, graph_summary
+
+
+def _extract_contracts(
+    repo: Path,
+    bundle_dir: Path,
+    plan_bundle: PlanBundle,
+    should_regenerate_contracts: bool,
+    record_event: Any,
+) -> dict[str, dict[str, Any]]:
+    """Extract OpenAPI contracts from features."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
+    from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
+
+    openapi_extractor = OpenAPIExtractor(repo)
+    contracts_generated = 0
+    contracts_dir = bundle_dir / "contracts"
+    contracts_dir.mkdir(parents=True, exist_ok=True)
+    contracts_data: dict[str, dict[str, Any]] = {}
+
+    # Load existing contracts if not regenerating (parallelized)
+    if not should_regenerate_contracts:
+        console.print("\n[dim]⏭ Skipping contract extraction (no changes detected)[/dim]")
+
+        def load_contract(feature: Feature) -> tuple[str, dict[str, Any] | None]:
+            """Load contract for a single feature (thread-safe)."""
+            if feature.contract:
+                contract_path = bundle_dir / feature.contract
+                if contract_path.exists():
+                    try:
+                        import yaml
+
+                        contract_data = yaml.safe_load(contract_path.read_text())
+                        return (feature.key, contract_data)
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception:
+                        pass
+            return (feature.key, None)
+
+        features_with_contracts = [f for f in plan_bundle.features if f.contract]
+        if features_with_contracts:
+            max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_contracts)))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_feature = {
+                    executor.submit(load_contract, feature): feature for feature in features_with_contracts
+                }
+                existing_contracts_count = 0
+                for future in as_completed(future_to_feature):
+                    try:
+                        feature_key, contract_data = future.result()
+                        if contract_data:
+                            contracts_data[feature_key] = contract_data
+                            existing_contracts_count += 1
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception:
+                        pass
+
+                if existing_contracts_count > 0:
+                    console.print(
+                        f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle"
+                    )
+
+    # Extract contracts if needed
+    test_converter = OpenAPITestConverter(repo)
+    if should_regenerate_contracts:
+        features_with_files = [
+            f for f in plan_bundle.features if f.source_tracking and f.source_tracking.implementation_files
+        ]
+    else:
+        features_with_files = []
+
+    if features_with_files and should_regenerate_contracts:
+        max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_files)))
+        console.print(
+            f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
+        )
+
+        from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+        def process_feature(feature: Feature) -> tuple[str, dict[str, Any] | None]:
+            """Process a single feature and return (feature_key, openapi_spec or None)."""
+            try:
+                openapi_spec = openapi_extractor.extract_openapi_from_code(repo, feature)
+                if openapi_spec.get("paths"):
+                    test_examples: dict[str, Any] = {}
+                    has_test_functions = any(story.test_functions for story in feature.stories) or (
+                        feature.source_tracking and feature.source_tracking.test_functions
+                    )
+
+                    if has_test_functions:
+                        all_test_functions: list[str] = []
+                        for story in feature.stories:
+                            if story.test_functions:
+                                all_test_functions.extend(story.test_functions)
+                        if feature.source_tracking and feature.source_tracking.test_functions:
+                            all_test_functions.extend(feature.source_tracking.test_functions)
+                        if all_test_functions:
+                            test_examples = test_converter.extract_examples_from_tests(all_test_functions)
+
+                    if test_examples:
+                        openapi_spec = openapi_extractor.add_test_examples(openapi_spec, test_examples)
+
+                    contract_filename = f"{feature.key}.openapi.yaml"
+                    contract_path = contracts_dir / contract_filename
+                    openapi_extractor.save_openapi_contract(openapi_spec, contract_path)
+                    return (feature.key, openapi_spec)
+            except KeyboardInterrupt:
+                raise
+            except Exception:
+                pass
+            return (feature.key, None)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TextColumn("({task.completed}/{task.total})"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Extracting contracts...", total=len(features_with_files))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+                completed_count = 0
+                for future in as_completed(future_to_feature):
+                    try:
+                        feature_key, openapi_spec = future.result()
+                        completed_count += 1
+                        progress.update(task, completed=completed_count)
+                        if openapi_spec:
+                            feature = next(f for f in features_with_files if f.key == feature_key)
+                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                            feature.contract = contract_ref
+                            contracts_data[feature_key] = openapi_spec
+                            contracts_generated += 1
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception as e:
+                        completed_count += 1
+                        progress.update(task, completed=completed_count)
+                        console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+
+    elif should_regenerate_contracts:
+        console.print("[dim]No features with implementation files found for contract extraction[/dim]")
+
+    # Report contract status
+    if should_regenerate_contracts:
+        if contracts_generated > 0:
+            console.print(f"[green]✓[/green] Generated {contracts_generated} contract scaffolds")
+        elif not features_with_files:
+            console.print("[dim]No API contracts detected in codebase[/dim]")
+
+    return contracts_data
+
+
+def _build_enrichment_context(
+    bundle_dir: Path,
+    repo: Path,
+    plan_bundle: PlanBundle,
+    relationships: dict[str, Any],
+    contracts_data: dict[str, dict[str, Any]],
+    should_regenerate_enrichment: bool,
+    record_event: Any,
+) -> Path:
+    """Build enrichment context for LLM."""
+    context_path = bundle_dir / "enrichment_context.md"
+    if should_regenerate_enrichment:
+        console.print("\n[cyan]📊 Building enrichment context...[/cyan]")
+        from specfact_cli.utils.enrichment_context import build_enrichment_context
+
+        enrichment_context = build_enrichment_context(
+            plan_bundle, relationships=relationships, contracts=contracts_data
+        )
+        _enrichment_context_md = enrichment_context.to_markdown()
+        context_path.write_text(_enrichment_context_md, encoding="utf-8")
+        try:
+            rel_path = context_path.relative_to(repo.resolve())
+            console.print(f"[green]✓[/green] Enrichment context saved to: {rel_path}")
+        except ValueError:
+            console.print(f"[green]✓[/green] Enrichment context saved to: {context_path}")
+    else:
+        console.print("\n[dim]⏭ Skipping enrichment context generation (no changes detected)[/dim]")
+        _ = context_path.read_text(encoding="utf-8") if context_path.exists() else ""
+
+    record_event(
+        {
+            "enrichment_context_available": True,
+            "relationships_files": len(relationships.get("imports", {})),
+            "contracts_count": len(contracts_data),
+        }
+    )
+    return context_path
+
+
+def _apply_enrichment(
+    enrichment: Path,
+    plan_bundle: PlanBundle,
+    record_event: Any,
+) -> PlanBundle:
+    """Apply enrichment report to plan bundle."""
+    if not enrichment.exists():
+        console.print(f"[bold red]✗ Enrichment report not found: {enrichment}[/bold red]")
+        raise typer.Exit(1)
+
+    console.print(f"\n[cyan]📝 Applying enrichment from: {enrichment}[/cyan]")
+    from specfact_cli.utils.enrichment_parser import EnrichmentParser, apply_enrichment
+
+    try:
+        parser = EnrichmentParser()
+        enrichment_report = parser.parse(enrichment)
+        plan_bundle = apply_enrichment(plan_bundle, enrichment_report)
+
+        if enrichment_report.missing_features:
+            console.print(f"[green]✓[/green] Added {len(enrichment_report.missing_features)} missing features")
+        if enrichment_report.confidence_adjustments:
+            console.print(
+                f"[green]✓[/green] Adjusted confidence for {len(enrichment_report.confidence_adjustments)} features"
+            )
+        if enrichment_report.business_context.get("priorities") or enrichment_report.business_context.get(
+            "constraints"
+        ):
+            console.print("[green]✓[/green] Applied business context")
+
+        record_event(
+            {
+                "enrichment_applied": True,
+                "features_added": len(enrichment_report.missing_features),
+                "confidence_adjusted": len(enrichment_report.confidence_adjustments),
+            }
+        )
+    except Exception as e:
+        console.print(f"[bold red]✗ Failed to apply enrichment: {e}[/bold red]")
+        raise typer.Exit(1) from e
+
+    return plan_bundle
+
+
+def _save_bundle_if_needed(
+    plan_bundle: PlanBundle,
+    bundle: str,
+    bundle_dir: Path,
+    incremental_changes: dict[str, bool] | None,
+    should_regenerate_relationships: bool,
+    should_regenerate_graph: bool,
+    should_regenerate_contracts: bool,
+    should_regenerate_enrichment: bool,
+) -> None:
+    """Save project bundle only if something changed."""
+    any_artifact_changed = (
+        should_regenerate_relationships
+        or should_regenerate_graph
+        or should_regenerate_contracts
+        or should_regenerate_enrichment
+    )
+    should_regenerate_bundle = (
+        incremental_changes is None or any_artifact_changed or incremental_changes.get("bundle", False)
+    )
+
+    if should_regenerate_bundle:
+        console.print("\n[cyan]💾 Compiling and saving project bundle...[/cyan]")
+        project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+        console.print("[green]✓[/green] Project bundle saved")
+    else:
+        console.print("\n[dim]⏭ Skipping bundle save (no changes detected)[/dim]")
+
+
+def _validate_api_specs(repo: Path) -> None:
+    """Validate OpenAPI/AsyncAPI specs with Specmatic if available."""
+    import asyncio
+
+    spec_files = []
+    for pattern in [
+        "**/openapi.yaml",
+        "**/openapi.yml",
+        "**/openapi.json",
+        "**/asyncapi.yaml",
+        "**/asyncapi.yml",
+        "**/asyncapi.json",
+    ]:
+        spec_files.extend(repo.glob(pattern))
+
+    if spec_files:
+        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+        from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+        is_available, error_msg = check_specmatic_available()
+        if is_available:
+            for spec_file in spec_files[:3]:
+                console.print(f"[dim]Validating {spec_file.relative_to(repo)} with Specmatic...[/dim]")
+                try:
+                    result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                    if result.is_valid:
+                        console.print(f"  [green]✓[/green] {spec_file.name} is valid")
+                    else:
+                        console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
+                        if result.errors:
+                            for error in result.errors[:2]:
+                                console.print(f"    - {error}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+            if len(spec_files) > 3:
+                console.print(
+                    f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                )
+            console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
+        else:
+            console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+
+
+def _suggest_constitution_bootstrap(repo: Path) -> None:
+    """Suggest or generate constitution bootstrap for brownfield imports."""
+    specify_dir = repo / ".specify" / "memory"
+    constitution_path = specify_dir / "constitution.md"
+    if not constitution_path.exists() or (
+        constitution_path.exists() and constitution_path.read_text(encoding="utf-8").strip() in ("", "# Constitution")
+    ):
+        import os
+
+        is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+        if is_test_env:
+            from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+
+            specify_dir.mkdir(parents=True, exist_ok=True)
+            enricher = ConstitutionEnricher()
+            enriched_content = enricher.bootstrap(repo, constitution_path)
+            constitution_path.write_text(enriched_content, encoding="utf-8")
+        else:
+            if runtime.is_interactive():
+                console.print()
+                console.print("[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for tool integration")
+                suggest_constitution = typer.confirm(
+                    "Generate bootstrap constitution from repository analysis?",
+                    default=True,
+                )
+                if suggest_constitution:
+                    from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+
+                    console.print("[dim]Generating bootstrap constitution...[/dim]")
+                    specify_dir.mkdir(parents=True, exist_ok=True)
+                    enricher = ConstitutionEnricher()
+                    enriched_content = enricher.bootstrap(repo, constitution_path)
+                    constitution_path.write_text(enriched_content, encoding="utf-8")
+                    console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
+                    console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
+                    console.print(
+                        "[dim]Then run 'specfact sync bridge --adapter <tool>' to sync with external tool artifacts[/dim]"
+                    )
+            else:
+                console.print()
+                console.print(
+                    "[dim]💡 Tip: Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
+                )
+
+
+def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
+    """Enrich plan for Spec-Kit compliance."""
+    console.print("\n[cyan]🔧 Enriching plan for tool compliance...[/cyan]")
+    try:
+        from specfact_cli.analyzers.ambiguity_scanner import AmbiguityScanner
+
+        console.print("[dim]Running plan review to identify gaps...[/dim]")
+        scanner = AmbiguityScanner()
+        _ambiguity_report = scanner.scan(plan_bundle)
+
+        features_with_one_story = [f for f in plan_bundle.features if len(f.stories) == 1]
+        if features_with_one_story:
+            console.print(f"[yellow]⚠ Found {len(features_with_one_story)} features with only 1 story[/yellow]")
+            console.print("[dim]Adding edge case stories for better tool compliance...[/dim]")
+
+            for feature in features_with_one_story:
+                edge_case_title = f"As a user, I receive error handling for {feature.title.lower()}"
+                edge_case_acceptance = [
+                    "Must verify error conditions are handled gracefully",
+                    "Must validate error messages are clear and actionable",
+                    "Must ensure system recovers from errors",
+                ]
+
+                existing_story_nums = []
+                for s in feature.stories:
+                    parts = s.key.split("-")
+                    if len(parts) >= 2:
+                        last_part = parts[-1]
+                        if last_part.isdigit():
+                            existing_story_nums.append(int(last_part))
+
+                next_story_num = max(existing_story_nums) + 1 if existing_story_nums else 2
+                feature_key_parts = feature.key.split("-")
+                if len(feature_key_parts) >= 2:
+                    class_name = feature_key_parts[-1]
+                    story_key = f"STORY-{class_name}-{next_story_num:03d}"
+                else:
+                    story_key = f"STORY-{next_story_num:03d}"
+
+                from specfact_cli.models.plan import Story
+
+                edge_case_story = Story(
+                    key=story_key,
+                    title=edge_case_title,
+                    acceptance=edge_case_acceptance,
+                    story_points=3,
+                    value_points=None,
+                    confidence=0.8,
+                    scenarios=None,
+                    contracts=None,
+                )
+                feature.stories.append(edge_case_story)
+
+            console.print(f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]")
+
+        features_updated = 0
+        for feature in plan_bundle.features:
+            for story in feature.stories:
+                testable_count = sum(
+                    1
+                    for acc in story.acceptance
+                    if any(keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"])
+                )
+
+                if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
+                    enhanced_acceptance = []
+                    for acc in story.acceptance:
+                        if not any(
+                            keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]
+                        ):
+                            if acc.startswith(("User can", "System can")):
+                                enhanced_acceptance.append(f"Must verify {acc.lower()}")
+                            else:
+                                enhanced_acceptance.append(f"Must verify {acc}")
+                        else:
+                            enhanced_acceptance.append(acc)
+
+                    story.acceptance = enhanced_acceptance
+                    features_updated += 1
+
+        if features_updated > 0:
+            console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
+
+        console.print("[green]✓ Tool enrichment complete[/green]")
+
+    except Exception as e:
+        console.print(f"[yellow]⚠ Tool enrichment failed: {e}[/yellow]")
+        console.print("[dim]Plan is still valid, but may need manual enrichment[/dim]")
+
+
+def _generate_report(
+    repo: Path,
+    bundle_dir: Path,
+    plan_bundle: PlanBundle,
+    confidence: float,
+    enrichment: Path | None,
+    report: Path,
+) -> None:
+    """Generate import report."""
+    total_stories = sum(len(f.stories) for f in plan_bundle.features)
+
+    report_content = f"""# Brownfield Import Report
+
+## Repository: {repo}
+
+## Summary
+- **Features Found**: {len(plan_bundle.features)}
+- **Total Stories**: {total_stories}
+- **Detected Themes**: {", ".join(plan_bundle.product.themes)}
+- **Confidence Threshold**: {confidence}
+"""
+    if enrichment:
+        report_content += f"""
+## Enrichment Applied
+- **Enrichment Report**: `{enrichment}`
+"""
+    report_content += f"""
+## Output Files
+- **Project Bundle**: `{bundle_dir}`
+- **Import Report**: `{report}`
+
+## Features
+
+"""
+    for feature in plan_bundle.features:
+        report_content += f"### {feature.title} ({feature.key})\n"
+        report_content += f"- **Stories**: {len(feature.stories)}\n"
+        report_content += f"- **Confidence**: {feature.confidence}\n"
+        report_content += f"- **Outcomes**: {', '.join(feature.outcomes)}\n\n"
+
+    report.write_text(report_content)
+    console.print(f"[dim]Report written to: {report}[/dim]")
 
 
 @app.command("from-bridge")
@@ -331,12 +1128,18 @@ def from_bridge(
 
 @app.command("from-code")
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda confidence: 0.0 <= confidence <= 1.0, "Confidence must be 0.0-1.0")
 @beartype
 def from_code(
     # Target/Input
-    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -372,6 +1175,16 @@ def from_code(
         "--enrich-for-speckit",
         help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature). Default: False",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force full regeneration of all artifacts, ignoring incremental changes. Default: False",
+    ),
+    include_tests: bool = typer.Option(
+        True,
+        "--include-tests/--exclude-tests",
+        help="Include/exclude test files in relationship mapping. Default: --include-tests (test files are included for comprehensive analysis). Use --exclude-tests to optimize speed.",
+    ),
     # Advanced/Configuration
     confidence: float = typer.Option(
         0.5,
@@ -399,18 +1212,28 @@ def from_code(
     **Parameter Groups:**
     - **Target/Input**: bundle (required argument), --repo, --entry-point, --enrichment
     - **Output/Results**: --report
-    - **Behavior/Options**: --shadow-only, --enrich-for-speckit
+    - **Behavior/Options**: --shadow-only, --enrich-for-speckit, --force, --include-tests/--exclude-tests
     - **Advanced/Configuration**: --confidence, --key-format
 
     **Examples:**
         specfact import from-code legacy-api --repo .
         specfact import from-code auth-module --repo . --enrichment enrichment-report.md
         specfact import from-code my-project --repo . --confidence 0.7 --shadow-only
+        specfact import from-code my-project --repo . --force  # Force full regeneration
+        specfact import from-code my-project --repo . --exclude-tests  # Exclude test files for faster processing
     """
-    from specfact_cli.agents.analyze_agent import AnalyzeAgent
-    from specfact_cli.agents.registry import get_agent
     from specfact_cli.cli import get_current_mode
     from specfact_cli.modes import get_router
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
     mode = get_current_mode()
 
@@ -427,12 +1250,9 @@ def from_code(
 
     # Get project bundle directory
     bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
-    # Allow existing bundle if enrichment is provided (enrichment workflow updates existing bundle)
-    if bundle_dir.exists() and not enrichment:
-        console.print(f"[bold red]✗[/bold red] Project bundle already exists: {bundle_dir}")
-        console.print("[dim]Use a different bundle name or remove the existing bundle[/dim]")
-        console.print("[dim]Or use --enrichment to update existing bundle with enrichment report[/dim]")
-        raise typer.Exit(1)
+
+    # Check for incremental processing (if bundle exists)
+    incremental_changes = _check_incremental_changes(bundle_dir, repo, enrichment, force)
 
     # Ensure project structure exists
     SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle)
@@ -461,410 +1281,127 @@ def from_code(
             # Note: For now, enrichment workflow needs to be updated for modular bundles
             # TODO: Phase 4 - Update enrichment to work with modular bundles
             plan_bundle: PlanBundle | None = None
-            if enrichment:
-                # Try to load existing bundle from bundle_dir
-                from specfact_cli.utils.bundle_loader import load_project_bundle
 
-                try:
-                    existing_bundle = load_project_bundle(bundle_dir)
-                    # Convert ProjectBundle to PlanBundle for enrichment (temporary)
-                    from specfact_cli.models.plan import PlanBundle as PlanBundleModel
+            # Check if we need to regenerate features (requires full codebase scan)
+            # Features need regeneration if:
+            # - No incremental changes detected (new bundle)
+            # - Relationships need regeneration (indicates source file changes)
+            # - Contracts need regeneration (indicates source file changes)
+            # - Bundle needs regeneration (indicates features changed)
+            # If only graph or enrichment_context need regeneration, we can skip full scan
+            should_regenerate_features = incremental_changes is None or any(
+                incremental_changes.get(key, True)
+                for key in ["relationships", "contracts", "bundle"]  # These indicate source file/feature changes
+            )
 
-                    plan_bundle = PlanBundleModel(
-                        version="1.0",
-                        idea=existing_bundle.idea,
-                        business=existing_bundle.business,
-                        product=existing_bundle.product,
-                        features=list(existing_bundle.features.values()),
-                        metadata=None,
-                        clarifications=existing_bundle.clarifications,
-                    )
-                    total_stories = sum(len(f.stories) for f in plan_bundle.features)
-                    console.print(
-                        f"[green]✓[/green] Loaded existing bundle: {len(plan_bundle.features)} features, {total_stories} stories"
-                    )
-                except Exception:
-                    # Bundle doesn't exist yet, will be created from analysis
-                    plan_bundle = None
-            else:
-                # Use AI-first approach in CoPilot mode, fallback to AST in CI/CD mode
-                if routing_result.execution_mode == "agent":
-                    console.print("[dim]Mode: CoPilot (AI-first import)[/dim]")
-                    # Get agent for this command
-                    agent = get_agent("import from-code")
-                    if agent and isinstance(agent, AnalyzeAgent):
-                        # Build context for agent
-                        context = {
-                            "workspace": str(repo),
-                            "current_file": None,  # TODO: Get from IDE in Phase 4.2+
-                            "selection": None,  # TODO: Get from IDE in Phase 4.2+
-                        }
-                        # Inject context (for future LLM integration)
-                        _enhanced_context = agent.inject_context(context)
-                        # Use AI-first import
-                        console.print("\n[cyan]🤖 AI-powered import (semantic understanding)...[/cyan]")
-                        plan_bundle = agent.analyze_codebase(repo, confidence=confidence, plan_name=bundle)
-                        console.print("[green]✓[/green] AI import complete")
-                    else:
-                        # Fallback to AST if agent not available
-                        console.print("[yellow]⚠ Agent not available, falling back to AST-based import[/yellow]")
-                        from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+            # If we have incremental changes and features don't need regeneration, load existing bundle
+            if incremental_changes and not should_regenerate_features and not enrichment:
+                plan_bundle = _load_existing_bundle(bundle_dir)
+                if plan_bundle:
+                    console.print("[dim]Skipping codebase analysis (features unchanged)[/dim]\n")
 
-                        console.print(
-                            "\n[yellow]⏱️  Note: This analysis may take several minutes for larger codebases[/yellow]"
-                        )
-                        if entry_point:
-                            console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
-                        else:
-                            console.print("[cyan]🔍 Analyzing codebase (AST-based fallback)...[/cyan]\n")
-                        analyzer = CodeAnalyzer(
-                            repo,
-                            confidence_threshold=confidence,
-                            key_format=key_format,
-                            plan_name=bundle,
-                            entry_point=entry_point,
-                        )
-                        plan_bundle = analyzer.analyze()
-                else:
-                    # CI/CD mode: use AST-based import (no LLM available)
-                    console.print("[dim]Mode: CI/CD (AST-based import)[/dim]")
-                    from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
+            if plan_bundle is None:
+                # Need to run full codebase analysis (either no bundle exists, or features need regeneration)
+                if enrichment:
+                    plan_bundle = _load_existing_bundle(bundle_dir)
 
-                    console.print("\n[yellow]⏱️  Note: This analysis may take 2+ minutes for large codebases[/yellow]")
-                    if entry_point:
-                        console.print(f"[cyan]🔍 Analyzing codebase (scoped to {entry_point})...[/cyan]\n")
-                    else:
-                        console.print("[cyan]🔍 Analyzing codebase...[/cyan]\n")
-                    analyzer = CodeAnalyzer(
-                        repo,
-                        confidence_threshold=confidence,
-                        key_format=key_format,
-                        plan_name=bundle,
-                        entry_point=entry_point,
-                    )
-                    plan_bundle = analyzer.analyze()
-
-                # Ensure plan_bundle is not None
                 if plan_bundle is None:
-                    console.print("[bold red]✗ Failed to analyze codebase[/bold red]")
-                    raise typer.Exit(1)
+                    plan_bundle = _analyze_codebase(repo, entry_point, bundle, confidence, key_format, routing_result)
+                    if plan_bundle is None:
+                        console.print("[bold red]✗ Failed to analyze codebase[/bold red]")
+                        raise typer.Exit(1)
 
-                console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
-                console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
-
-                # Show summary
-                total_stories = sum(len(f.stories) for f in plan_bundle.features)
-                console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
-
-                record_event({"features_detected": len(plan_bundle.features), "stories_detected": total_stories})
+                    console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
+                    console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
+                    total_stories = sum(len(f.stories) for f in plan_bundle.features)
+                    console.print(f"[green]✓[/green] Total stories: {total_stories}\n")
+                    record_event({"features_detected": len(plan_bundle.features), "stories_detected": total_stories})
 
             # Ensure plan_bundle is not None before proceeding
             if plan_bundle is None:
                 console.print("[bold red]✗ No plan bundle available[/bold red]")
                 raise typer.Exit(1)
 
+            # Add source tracking to features
+            _update_source_tracking(plan_bundle, repo)
+
+            # Enhanced Analysis Phase: Extract relationships, contracts, and graph dependencies
+            # Check if we need to regenerate these artifacts
+            should_regenerate_relationships = incremental_changes is None or incremental_changes.get(
+                "relationships", True
+            )
+            should_regenerate_graph = incremental_changes is None or incremental_changes.get("graph", True)
+            should_regenerate_contracts = incremental_changes is None or incremental_changes.get("contracts", True)
+            should_regenerate_enrichment = incremental_changes is None or incremental_changes.get(
+                "enrichment_context", True
+            )
+
+            relationships, _graph_summary = _extract_relationships_and_graph(
+                repo,
+                entry_point,
+                bundle_dir,
+                incremental_changes,
+                plan_bundle,
+                should_regenerate_relationships,
+                should_regenerate_graph,
+                include_tests,
+            )
+
+            # Extract contracts
+            contracts_data = _extract_contracts(
+                repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
+            )
+
+            # Build enrichment context
+            _build_enrichment_context(
+                bundle_dir, repo, plan_bundle, relationships, contracts_data, should_regenerate_enrichment, record_event
+            )
+
             # Apply enrichment if provided
             if enrichment:
-                if not enrichment.exists():
-                    console.print(f"[bold red]✗ Enrichment report not found: {enrichment}[/bold red]")
-                    raise typer.Exit(1)
+                plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
 
-                console.print(f"\n[cyan]📝 Applying enrichment from: {enrichment}[/cyan]")
-                from specfact_cli.utils.enrichment_parser import EnrichmentParser, apply_enrichment
+            # Save bundle if needed
+            _save_bundle_if_needed(
+                plan_bundle,
+                bundle,
+                bundle_dir,
+                incremental_changes,
+                should_regenerate_relationships,
+                should_regenerate_graph,
+                should_regenerate_contracts,
+                should_regenerate_enrichment,
+            )
 
-                try:
-                    parser = EnrichmentParser()
-                    enrichment_report = parser.parse(enrichment)
-                    plan_bundle = apply_enrichment(plan_bundle, enrichment_report)
-
-                    # Report enrichment results
-                    if enrichment_report.missing_features:
-                        console.print(
-                            f"[green]✓[/green] Added {len(enrichment_report.missing_features)} missing features"
-                        )
-                    if enrichment_report.confidence_adjustments:
-                        console.print(
-                            f"[green]✓[/green] Adjusted confidence for {len(enrichment_report.confidence_adjustments)} features"
-                        )
-                    if enrichment_report.business_context.get("priorities") or enrichment_report.business_context.get(
-                        "constraints"
-                    ):
-                        console.print("[green]✓[/green] Applied business context")
-
-                    # Update enrichment metrics
-                    record_event(
-                        {
-                            "enrichment_applied": True,
-                            "features_added": len(enrichment_report.missing_features),
-                            "confidence_adjusted": len(enrichment_report.confidence_adjustments),
-                        }
-                    )
-                except Exception as e:
-                    console.print(f"[bold red]✗ Failed to apply enrichment: {e}[/bold red]")
-                    raise typer.Exit(1) from e
-
-            # Convert PlanBundle to ProjectBundle and save
-            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
-            save_project_bundle(project_bundle, bundle_dir, atomic=True)
-
-            console.print("[bold green]✓ Import complete![/bold green]")
+            console.print("\n[bold green]✓ Import complete![/bold green]")
             console.print(f"[dim]Project bundle written to: {bundle_dir}[/dim]")
 
-            # Auto-detect and validate OpenAPI/AsyncAPI specs with Specmatic
-            import asyncio
+            # Validate API specs
+            _validate_api_specs(repo)
 
-            spec_files = []
-            for pattern in [
-                "**/openapi.yaml",
-                "**/openapi.yml",
-                "**/openapi.json",
-                "**/asyncapi.yaml",
-                "**/asyncapi.yml",
-                "**/asyncapi.json",
-            ]:
-                spec_files.extend(repo.glob(pattern))
-
-            if spec_files:
-                console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
-                from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
-
-                is_available, error_msg = check_specmatic_available()
-                if is_available:
-                    for spec_file in spec_files[:3]:  # Validate up to 3 specs
-                        console.print(f"[dim]Validating {spec_file.relative_to(repo)} with Specmatic...[/dim]")
-                        try:
-                            result = asyncio.run(validate_spec_with_specmatic(spec_file))
-                            if result.is_valid:
-                                console.print(f"  [green]✓[/green] {spec_file.name} is valid")
-                            else:
-                                console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
-                                if result.errors:
-                                    for error in result.errors[:2]:  # Show first 2 errors
-                                        console.print(f"    - {error}")
-                        except Exception as e:
-                            console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
-                    if len(spec_files) > 3:
-                        console.print(
-                            f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
-                        )
-                    console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
-                else:
-                    console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
-
-            # Suggest constitution bootstrap for brownfield imports
-            specify_dir = repo / ".specify" / "memory"
-            constitution_path = specify_dir / "constitution.md"
-            if not constitution_path.exists() or (
-                constitution_path.exists()
-                and constitution_path.read_text(encoding="utf-8").strip() in ("", "# Constitution")
-            ):
-                # Auto-generate in test mode, prompt in interactive mode
-                import os
-
-                # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-                is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-                if is_test_env:
-                    # Auto-generate bootstrap constitution in test mode
-                    from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
-
-                    specify_dir.mkdir(parents=True, exist_ok=True)
-                    enricher = ConstitutionEnricher()
-                    enriched_content = enricher.bootstrap(repo, constitution_path)
-                    constitution_path.write_text(enriched_content, encoding="utf-8")
-                else:
-                    # Check if we're in an interactive environment
-                    if runtime.is_interactive():
-                        console.print()
-                        console.print(
-                            "[bold cyan]💡 Tip:[/bold cyan] Generate project constitution for tool integration"
-                        )
-                        suggest_constitution = typer.confirm(
-                            "Generate bootstrap constitution from repository analysis?",
-                            default=True,
-                        )
-                        if suggest_constitution:
-                            from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
-
-                            console.print("[dim]Generating bootstrap constitution...[/dim]")
-                            specify_dir.mkdir(parents=True, exist_ok=True)
-                            enricher = ConstitutionEnricher()
-                            enriched_content = enricher.bootstrap(repo, constitution_path)
-                            constitution_path.write_text(enriched_content, encoding="utf-8")
-                            console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
-                            console.print(f"[dim]Review and adjust: {constitution_path}[/dim]")
-                            console.print(
-                                "[dim]Then run 'specfact sync bridge --adapter <tool>' to sync with external tool artifacts[/dim]"
-                            )
-                    else:
-                        # Non-interactive mode: skip prompt
-                        console.print()
-                        console.print(
-                            "[dim]💡 Tip: Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
-                        )
+            # Suggest constitution bootstrap
+            _suggest_constitution_bootstrap(repo)
 
             # Enrich for tool compliance if requested
             if enrich_for_speckit:
-                console.print("\n[cyan]🔧 Enriching plan for tool compliance...[/cyan]")
-                try:
-                    from specfact_cli.analyzers.ambiguity_scanner import AmbiguityScanner
-
-                    # Run plan review to identify gaps
-                    console.print("[dim]Running plan review to identify gaps...[/dim]")
-                    scanner = AmbiguityScanner()
-                    # Ensure plan_bundle is not None
-                    if plan_bundle is None:
-                        console.print("[yellow]⚠ Cannot enrich: plan bundle is None[/yellow]")
-                        return
-                    _ambiguity_report = scanner.scan(plan_bundle)  # Scanned but not used in auto-enrichment
-
-                    # Add missing stories for features with only 1 story
-                    features_with_one_story = [f for f in plan_bundle.features if len(f.stories) == 1]
-                    if features_with_one_story:
-                        console.print(
-                            f"[yellow]⚠ Found {len(features_with_one_story)} features with only 1 story[/yellow]"
-                        )
-                        console.print("[dim]Adding edge case stories for better tool compliance...[/dim]")
-
-                        for feature in features_with_one_story:
-                            # Generate edge case story based on feature title
-                            edge_case_title = f"As a user, I receive error handling for {feature.title.lower()}"
-                            edge_case_acceptance = [
-                                "Must verify error conditions are handled gracefully",
-                                "Must validate error messages are clear and actionable",
-                                "Must ensure system recovers from errors",
-                            ]
-
-                            # Find next story number - extract from existing story keys
-                            existing_story_nums = []
-                            for s in feature.stories:
-                                # Story keys are like STORY-CLASSNAME-001 or STORY-001
-                                parts = s.key.split("-")
-                                if len(parts) >= 2:
-                                    # Get the last part which should be the number
-                                    last_part = parts[-1]
-                                    if last_part.isdigit():
-                                        existing_story_nums.append(int(last_part))
-
-                            next_story_num = max(existing_story_nums) + 1 if existing_story_nums else 2
-
-                            # Extract class name from feature key (FEATURE-CLASSNAME -> CLASSNAME)
-                            feature_key_parts = feature.key.split("-")
-                            if len(feature_key_parts) >= 2:
-                                class_name = feature_key_parts[-1]  # Get last part (CLASSNAME)
-                                story_key = f"STORY-{class_name}-{next_story_num:03d}"
-                            else:
-                                # Fallback if feature key format is unexpected
-                                story_key = f"STORY-{next_story_num:03d}"
-
-                            from specfact_cli.models.plan import Story
-
-                            edge_case_story = Story(
-                                key=story_key,
-                                title=edge_case_title,
-                                acceptance=edge_case_acceptance,
-                                story_points=3,
-                                value_points=None,
-                                confidence=0.8,
-                                scenarios=None,
-                                contracts=None,
-                            )
-                            feature.stories.append(edge_case_story)
-
-                        # Note: Plan will be saved as ProjectBundle at the end
-                        # No need to regenerate monolithic bundle during enrichment
-                        console.print(
-                            f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]"
-                        )
-
-                    # Ensure testable acceptance criteria
-                    features_updated = 0
-                    for feature in plan_bundle.features:
-                        for story in feature.stories:
-                            # Check if acceptance criteria are testable
-                            testable_count = sum(
-                                1
-                                for acc in story.acceptance
-                                if any(
-                                    keyword in acc.lower()
-                                    for keyword in ["must", "should", "verify", "validate", "ensure"]
-                                )
-                            )
-
-                            if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
-                                # Enhance acceptance criteria to be more testable
-                                enhanced_acceptance = []
-                                for acc in story.acceptance:
-                                    if not any(
-                                        keyword in acc.lower()
-                                        for keyword in ["must", "should", "verify", "validate", "ensure"]
-                                    ):
-                                        # Convert to testable format
-                                        if acc.startswith(("User can", "System can")):
-                                            enhanced_acceptance.append(f"Must verify {acc.lower()}")
-                                        else:
-                                            enhanced_acceptance.append(f"Must verify {acc}")
-                                    else:
-                                        enhanced_acceptance.append(acc)
-
-                                story.acceptance = enhanced_acceptance
-                                features_updated += 1
-
-                    if features_updated > 0:
-                        # Note: Plan will be saved as ProjectBundle at the end
-                        # No need to regenerate monolithic bundle during enrichment
-                        console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
-
-                    console.print("[green]✓ Tool enrichment complete[/green]")
-
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Tool enrichment failed: {e}[/yellow]")
-                    console.print("[dim]Plan is still valid, but may need manual enrichment[/dim]")
-
-            # Note: Validation will be done after conversion to ProjectBundle
-            # TODO: Add ProjectBundle validation
+                if plan_bundle is None:
+                    console.print("[yellow]⚠ Cannot enrich: plan bundle is None[/yellow]")
+                else:
+                    _enrich_for_speckit_compliance(plan_bundle)
 
             # Generate report
-            # Ensure plan_bundle is not None and total_stories is set
             if plan_bundle is None:
                 console.print("[bold red]✗ Cannot generate report: plan bundle is None[/bold red]")
                 raise typer.Exit(1)
 
-            total_stories = sum(len(f.stories) for f in plan_bundle.features)
+            _generate_report(repo, bundle_dir, plan_bundle, confidence, enrichment, report)
 
-            report_content = f"""# Brownfield Import Report
-
-## Repository: {repo}
-
-## Summary
-- **Features Found**: {len(plan_bundle.features)}
-- **Total Stories**: {total_stories}
-- **Detected Themes**: {", ".join(plan_bundle.product.themes)}
-- **Confidence Threshold**: {confidence}
-"""
-            if enrichment:
-                report_content += f"""
-## Enrichment Applied
-- **Enrichment Report**: `{enrichment}`
-"""
-            report_content += f"""
-## Output Files
-- **Project Bundle**: `{bundle_dir}`
-- **Import Report**: `{report}`
-
-## Features
-
-"""
-            for feature in plan_bundle.features:
-                report_content += f"### {feature.title} ({feature.key})\n"
-                report_content += f"- **Stories**: {len(feature.stories)}\n"
-                report_content += f"- **Confidence**: {feature.confidence}\n"
-                report_content += f"- **Outcomes**: {', '.join(feature.outcomes)}\n\n"
-
-            # Type guard: report is guaranteed to be Path after line 323
-            assert report is not None, "Report path must be set"
-            report.write_text(report_content)
-            console.print(f"[dim]Report written to: {report}[/dim]")
-
+        except KeyboardInterrupt:
+            # Re-raise KeyboardInterrupt immediately (don't catch it here)
+            raise
+        except typer.Exit:
+            # Re-raise typer.Exit (used for clean exits)
+            raise
         except Exception as e:
             console.print(f"[bold red]✗ Import failed:[/bold red] {e}")
             raise typer.Exit(1) from e

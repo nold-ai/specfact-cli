@@ -219,6 +219,9 @@ As a user, I want to test features so that I can validate functionality.
                     stories=[],
                     confidence=0.8,
                     draft=False,
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             )
             updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
@@ -346,6 +349,9 @@ As a user, I want to test features so that I can validate functionality.
                         stories=[],
                         confidence=0.8,
                         draft=False,
+                        source_tracking=None,
+                        contract=None,
+                        protocol=None,
                     )
                 )
                 updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)

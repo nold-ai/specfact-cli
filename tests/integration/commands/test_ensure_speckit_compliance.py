@@ -136,6 +136,9 @@ class TestEnsureSpeckitComplianceFlag:
                             stories=[],
                             confidence=0.9,
                             draft=False,
+                            source_tracking=None,
+                            contract=None,
+                            protocol=None,
                         )
                     ],
                     clarifications=None,
@@ -225,6 +228,9 @@ class TestEnsureSpeckitComplianceFlag:
                             ],
                             confidence=0.9,
                             draft=False,
+                            source_tracking=None,
+                            contract=None,
+                            protocol=None,
                         )
                     ],
                     clarifications=None,

@@ -597,17 +597,23 @@ feature:
 
 ### Benchmarks
 
-| Repository Size | Files | Time | Throughput |
-|----------------|-------|------|------------|
-| **Small** (10 files) | 10 | < 1s | 10+ files/sec |
-| **Medium** (50 files) | 50 | ~2s | 25 files/sec |
-| **Large** (100+ files) | 100+ | ~5s | 20+ files/sec |
+| Repository Size | Files | Time | Throughput | Notes |
+|----------------|-------|------|------------|-------|
+| **Small** (10 files) | 10 | ~10-30s | ~0.3-1 files/sec | AST + Semgrep analysis |
+| **Medium** (50 files) | 50 | ~1-2 min | ~0.4-0.8 files/sec | AST + Semgrep analysis |
+| **Large** (100+ files) | 100+ | 2-3 min | ~0.5-0.8 files/sec | AST + Semgrep analysis |
+| **Large with Contracts** (100+ files) | 100+ | 15-30+ min | Varies | With contract extraction, graph analysis, and parallel processing (8 workers) |
 
-**SpecFact CLI on itself**: 19 files in 3 seconds = **6.3 files/second**
+**SpecFact CLI on itself**: 19 files in ~30-60 seconds = **~0.3-0.6 files/second** (AST + Semgrep analysis)
+
+**Note**:
+
+- **Basic analysis** (AST + Semgrep): Takes **2-3 minutes** for large codebases (100+ files) even without contract extraction
+- **With contract extraction** (default in `import from-code`): The process uses parallel workers to extract OpenAPI contracts, relationships, and graph dependencies. For large codebases, this can take **15-30+ minutes** even with 8 parallel workers
 
 ### Optimization Opportunities
 
-1. **Parallel Processing**: Analyze files concurrently (future enhancement)
+1. ✅ **Parallel Processing**: Contract extraction uses 8 parallel workers (implemented)
 2. **Caching**: Cache AST parsing results (future enhancement)
 3. **Incremental Analysis**: Only analyze changed files (future enhancement)
 

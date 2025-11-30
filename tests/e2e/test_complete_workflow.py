@@ -106,6 +106,9 @@ class TestCompleteWorkflow:
             stories=[story1, story2],
             confidence=0.85,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -116,6 +119,9 @@ class TestCompleteWorkflow:
             stories=[],
             confidence=0.7,
             draft=True,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         # Step 5: Create complete plan bundle
@@ -240,6 +246,9 @@ class TestCompleteWorkflow:
                     outcomes=["Secure login"],
                     acceptance=["Login works", "Logout works"],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-002",
@@ -247,6 +256,9 @@ class TestCompleteWorkflow:
                     outcomes=["User can edit profile"],
                     acceptance=["Edit profile works"],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
             ],
             metadata=None,
@@ -266,6 +278,9 @@ class TestCompleteWorkflow:
                     outcomes=["Secure login"],
                     acceptance=["Login works"],  # Missing "Logout works"
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-003",  # Different key!
@@ -273,6 +288,9 @@ class TestCompleteWorkflow:
                     outcomes=["User can change settings"],
                     acceptance=["Settings work"],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 # Missing FEATURE-002 entirely
             ],
@@ -350,6 +368,9 @@ class TestCompleteWorkflow:
             title="Command Execution",
             outcomes=["Fast command execution"],
             acceptance=["Commands work"],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
         plan = PlanBundle(
             version="1.0",
@@ -539,6 +560,9 @@ class TestGeneratorE2EWorkflows:
                     outcomes=["Automated review", "Quality checks"],
                     acceptance=["Reviews generated", "Actionable feedback"],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-002",
@@ -546,6 +570,9 @@ class TestGeneratorE2EWorkflows:
                     outcomes=["Specialized agents", "Collaborative review"],
                     acceptance=["Agents work together", "Consensus reached"],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
             ],
             metadata=None,
@@ -626,6 +653,9 @@ class TestGeneratorE2EWorkflows:
                             contracts=None,
                         ),
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-002",
@@ -643,6 +673,9 @@ class TestGeneratorE2EWorkflows:
                             contracts=None,
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
             ],
             metadata=None,
@@ -879,6 +912,9 @@ class TestGeneratorE2EWorkflows:
                             contracts=None,
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             metadata=None,
@@ -1236,6 +1272,9 @@ class TestPlanCreationE2E:
                             contracts=None,
                         ),
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-002",
@@ -1253,6 +1292,9 @@ class TestPlanCreationE2E:
                             contracts=None,
                         )
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
             ],
             metadata=None,
@@ -1474,6 +1516,9 @@ class TestPlanComparisonWorkflow:
                         contracts=None,
                     ),
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -1491,6 +1536,9 @@ class TestPlanComparisonWorkflow:
                         contracts=None,
                     ),
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-003",
@@ -1498,6 +1546,9 @@ class TestPlanComparisonWorkflow:
                 outcomes=["Users get notified of task updates"],
                 acceptance=["Notifications sent"],
                 stories=[],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ]
 
@@ -1547,6 +1598,9 @@ class TestPlanComparisonWorkflow:
                     ),
                     # Missing STORY-003 (Delete Task)
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -1564,6 +1618,9 @@ class TestPlanComparisonWorkflow:
                         contracts=None,
                     ),
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             # Missing FEATURE-003 (Notifications)
             Feature(
@@ -1572,6 +1629,9 @@ class TestPlanComparisonWorkflow:
                 outcomes=["Users can search tasks"],
                 acceptance=["Search works"],
                 stories=[],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ]
 
@@ -1672,6 +1732,9 @@ class TestPlanComparisonWorkflow:
                 outcomes=["Authentication works"],
                 acceptance=["Users can login"],
                 stories=[],  # No stories documented
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ]
 
@@ -1724,6 +1787,9 @@ class TestPlanComparisonWorkflow:
                         contracts=None,
                     ),
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -1731,6 +1797,9 @@ class TestPlanComparisonWorkflow:
                 outcomes=["Secure sessions"],
                 acceptance=["Sessions work"],
                 stories=[],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ]
 
@@ -1790,6 +1859,9 @@ class TestPlanComparisonWorkflow:
                             contracts=None,
                         ),
                     ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
                 Feature(
                     key="FEATURE-002",
@@ -1797,6 +1869,9 @@ class TestPlanComparisonWorkflow:
                     outcomes=["Secure sessions"],
                     acceptance=["Sessions work"],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 ),
             ],
             metadata=None,
