@@ -506,6 +506,9 @@ def add_feature(
                 stories=[],
                 confidence=1.0,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
 
             # Add feature to plan bundle

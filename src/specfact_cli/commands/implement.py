@@ -215,7 +215,9 @@ def _get_tasks_to_execute(task_list: TaskList, phase: str | None, task_id: str |
 @require(lambda base_path: isinstance(base_path, Path), "Base path must be Path")
 @ensure(lambda result: result is None, "Must return None")
 def _execute_task(task: Task, task_list: TaskList, base_path: Path) -> None:
-    """Execute a single task and generate code."""
+    """Execute a single task by preparing LLM prompt context (not generating code)."""
+    from specfact_cli.sync.spec_to_code import SpecToCodeSync
+
     # Check dependencies
     if task.dependencies:
         for dep_id in task.dependencies:
@@ -223,15 +225,83 @@ def _execute_task(task: Task, task_list: TaskList, base_path: Path) -> None:
             if dep_task and dep_task.status != TaskStatus.COMPLETED:
                 raise ValueError(f"Task {task.id} depends on {dep_id} which is not completed")
 
-    # Generate code based on task phase and description
-    if task.file_path:
-        file_path = base_path / task.file_path
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+    # Prepare LLM prompt context instead of generating code
+    spec_to_code_sync = SpecToCodeSync(base_path)
 
-        # Generate file content based on task
-        content = _generate_code_for_task(task, task_list)
-        file_path.write_text(content, encoding="utf-8")
-        console.print(f"[dim]Generated: {file_path}[/dim]")
+    # Analyze codebase patterns
+    existing_patterns = spec_to_code_sync._analyze_codebase_patterns(base_path)
+    dependencies = spec_to_code_sync._read_requirements(base_path)
+    style_guide = spec_to_code_sync._detect_style_patterns(base_path)
+
+    # Generate LLM prompt
+    prompt_parts = [
+        "# Code Generation Request",
+        "",
+        f"## Task: {task.id} - {task.title}",
+        "",
+        f"**Description:** {task.description}",
+        "",
+        f"**Phase:** {task.phase.value}",
+        "",
+    ]
+
+    if task.acceptance_criteria:
+        prompt_parts.append("**Acceptance Criteria:**")
+        for ac in task.acceptance_criteria:
+            prompt_parts.append(f"- {ac}")
+        prompt_parts.append("")
+
+    if task.file_path:
+        prompt_parts.append(f"**Target File:** {task.file_path}")
+        prompt_parts.append("")
+
+        # Check if file already exists
+        file_path = base_path / task.file_path
+        if file_path.exists():
+            prompt_parts.append("## Existing Code")
+            prompt_parts.append("```python")
+            prompt_parts.append(file_path.read_text(encoding="utf-8"))
+            prompt_parts.append("```")
+            prompt_parts.append("")
+            prompt_parts.append("**Note:** Update the existing code above, don't replace it entirely.")
+            prompt_parts.append("")
+
+    prompt_parts.extend(
+        [
+            "## Existing Codebase Patterns",
+            "```json",
+            str(existing_patterns),
+            "```",
+            "",
+            "## Dependencies",
+            "```",
+            "\n".join(dependencies),
+            "```",
+            "",
+            "## Style Guide",
+            "```json",
+            str(style_guide),
+            "```",
+            "",
+            "## Instructions",
+            "Generate or update the code file based on the task description and acceptance criteria.",
+            "Follow the existing codebase patterns and style guide.",
+            "Ensure all contracts (beartype, icontract) are properly applied.",
+            "",
+        ]
+    )
+
+    prompt = "\n".join(prompt_parts)
+
+    # Save prompt to file
+    prompts_dir = base_path / ".specfact" / "prompts"
+    prompts_dir.mkdir(parents=True, exist_ok=True)
+    prompt_file = prompts_dir / f"{task.id}-{task.file_path.stem if task.file_path else 'task'}.md"
+    prompt_file.write_text(prompt, encoding="utf-8")
+
+    console.print(f"[bold]LLM Prompt prepared for {task.id}[/bold]")
+    console.print(f"[dim]Prompt file: {prompt_file}[/dim]")
+    console.print("[yellow]Execute this prompt with your LLM to generate code[/yellow]")
 
 
 @beartype

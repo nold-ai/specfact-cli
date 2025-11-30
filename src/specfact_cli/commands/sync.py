@@ -1124,3 +1124,173 @@ def sync_repository(
                     )
             else:
                 console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+
+
+@app.command("intelligent")
+@beartype
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def sync_intelligent(
+    # Target/Input
+    bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api)"),
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository. Default: current directory (.)",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    # Behavior/Options
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        help="Watch mode for continuous sync. Default: False",
+    ),
+    code_to_spec: str = typer.Option(
+        "auto",
+        "--code-to-spec",
+        help="Code-to-spec sync mode: 'auto' (AST-based) or 'off'. Default: auto",
+    ),
+    spec_to_code: str = typer.Option(
+        "llm-prompt",
+        "--spec-to-code",
+        help="Spec-to-code sync mode: 'llm-prompt' (generate prompts) or 'off'. Default: llm-prompt",
+    ),
+    tests: str = typer.Option(
+        "specmatic",
+        "--tests",
+        help="Test generation mode: 'specmatic' (contract-based) or 'off'. Default: specmatic",
+    ),
+) -> None:
+    """
+    Continuous intelligent bidirectional sync with conflict resolution.
+
+    Detects changes via hashing and syncs intelligently:
+    - Code→Spec: AST-based automatic sync (CLI can do)
+    - Spec→Code: LLM prompt generation (CLI orchestrates, LLM writes)
+    - Spec→Tests: Specmatic flows (contract-based, not LLM guessing)
+
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --repo
+    - **Behavior/Options**: --watch, --code-to-spec, --spec-to-code, --tests
+
+    **Examples:**
+        specfact sync intelligent legacy-api --repo .
+        specfact sync intelligent my-bundle --repo . --watch
+        specfact sync intelligent my-bundle --repo . --code-to-spec auto --spec-to-code llm-prompt --tests specmatic
+    """
+    from specfact_cli.sync.change_detector import ChangeDetector
+    from specfact_cli.sync.code_to_spec import CodeToSpecSync
+    from specfact_cli.sync.spec_to_code import SpecToCodeSync
+    from specfact_cli.sync.spec_to_tests import SpecToTestsSync
+    from specfact_cli.telemetry import telemetry
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    repo_path = repo.resolve()
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
+
+    if not bundle_dir.exists():
+        console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
+        raise typer.Exit(1)
+
+    telemetry_metadata = {
+        "bundle": bundle,
+        "watch": watch,
+        "code_to_spec": code_to_spec,
+        "spec_to_code": spec_to_code,
+        "tests": tests,
+    }
+
+    with telemetry.track_command("sync.intelligent", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Intelligent Sync:[/bold cyan] {bundle}")
+        console.print(f"[dim]Repository:[/dim] {repo_path}")
+
+        # Load project bundle
+        project_bundle = load_project_bundle(bundle_dir)
+
+        # Initialize sync components
+        change_detector = ChangeDetector(bundle, repo_path)
+        code_to_spec_sync = CodeToSpecSync(repo_path)
+        spec_to_code_sync = SpecToCodeSync(repo_path)
+        spec_to_tests_sync = SpecToTestsSync(bundle, repo_path)
+
+        def perform_sync() -> None:
+            """Perform one sync cycle."""
+            console.print("\n[cyan]Detecting changes...[/cyan]")
+
+            # Detect changes
+            changeset = change_detector.detect_changes(project_bundle.features)
+
+            if not any([changeset.code_changes, changeset.spec_changes, changeset.test_changes]):
+                console.print("[dim]No changes detected[/dim]")
+                return
+
+            # Report changes
+            if changeset.code_changes:
+                console.print(f"[cyan]Code changes:[/cyan] {len(changeset.code_changes)}")
+            if changeset.spec_changes:
+                console.print(f"[cyan]Spec changes:[/cyan] {len(changeset.spec_changes)}")
+            if changeset.test_changes:
+                console.print(f"[cyan]Test changes:[/cyan] {len(changeset.test_changes)}")
+            if changeset.conflicts:
+                console.print(f"[yellow]⚠ Conflicts:[/yellow] {len(changeset.conflicts)}")
+
+            # Sync code→spec (AST-based, automatic)
+            if code_to_spec == "auto" and changeset.code_changes:
+                console.print("\n[cyan]Syncing code→spec (AST-based)...[/cyan]")
+                try:
+                    code_to_spec_sync.sync(changeset.code_changes, bundle)
+                    console.print("[green]✓[/green] Code→spec sync complete")
+                except Exception as e:
+                    console.print(f"[red]✗[/red] Code→spec sync failed: {e}")
+
+            # Sync spec→code (LLM prompt generation)
+            if spec_to_code == "llm-prompt" and changeset.spec_changes:
+                console.print("\n[cyan]Preparing LLM prompts for spec→code...[/cyan]")
+                try:
+                    context = spec_to_code_sync.prepare_llm_context(changeset.spec_changes, repo_path)
+                    prompt = spec_to_code_sync.generate_llm_prompt(context)
+
+                    # Save prompt to file
+                    prompts_dir = repo_path / ".specfact" / "prompts"
+                    prompts_dir.mkdir(parents=True, exist_ok=True)
+                    prompt_file = prompts_dir / f"{bundle}-code-generation-{len(changeset.spec_changes)}.md"
+                    prompt_file.write_text(prompt, encoding="utf-8")
+
+                    console.print(f"[green]✓[/green] LLM prompt generated: {prompt_file}")
+                    console.print("[yellow]Execute this prompt with your LLM to generate code[/yellow]")
+                except Exception as e:
+                    console.print(f"[red]✗[/red] LLM prompt generation failed: {e}")
+
+            # Sync spec→tests (Specmatic)
+            if tests == "specmatic" and changeset.spec_changes:
+                console.print("\n[cyan]Generating tests via Specmatic...[/cyan]")
+                try:
+                    spec_to_tests_sync.sync(changeset.spec_changes, bundle)
+                    console.print("[green]✓[/green] Test generation complete")
+                except Exception as e:
+                    console.print(f"[red]✗[/red] Test generation failed: {e}")
+
+        if watch:
+            console.print("[bold cyan]Watch mode enabled[/bold cyan]")
+            console.print("[dim]Watching for changes...[/dim]")
+            console.print("[yellow]Press Ctrl+C to stop[/yellow]\n")
+
+            from specfact_cli.sync.watcher import SyncWatcher
+
+            def sync_callback(_changes: list) -> None:
+                """Handle file changes and trigger sync."""
+                perform_sync()
+
+            watcher = SyncWatcher(repo_path, sync_callback, interval=5)
+            try:
+                watcher.watch()
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Stopping watch mode...[/yellow]")
+        else:
+            perform_sync()
+
+        record({"sync_completed": True})

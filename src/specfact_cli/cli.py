@@ -54,12 +54,15 @@ from specfact_cli import __version__, runtime
 
 # Import command modules
 from specfact_cli.commands import (
+    analyze,
     bridge,
+    drift,
     enforce,
     generate,
     implement,
     import_cmd,
     init,
+    migrate,
     plan,
     repro,
     run,
@@ -302,6 +305,9 @@ app.add_typer(
     import_cmd.app, name="import", help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira)"
 )
 
+# 2.5. Migration
+app.add_typer(migrate.app, name="migrate", help="Migrate project bundles between formats")
+
 # 3. Planning
 app.add_typer(plan.app, name="plan", help="Manage development plans")
 
@@ -328,6 +334,12 @@ app.add_typer(spec.app, name="spec", help="Specmatic integration for API contrac
 
 # 11. Synchronization
 app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")
+
+# 11.5. Drift Detection
+app.add_typer(drift.app, name="drift", help="Detect drift between code and specifications")
+
+# 11.6. Analysis
+app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
 
 # 12. External Tool Integration
 app.add_typer(

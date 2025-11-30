@@ -563,6 +563,14 @@ def from_code(
                 console.print("[bold red]✗ No plan bundle available[/bold red]")
                 raise typer.Exit(1)
 
+            # Add source tracking to features
+            console.print("\n[cyan]🔗 Linking source files to features...[/cyan]")
+            from specfact_cli.utils.source_scanner import SourceArtifactScanner
+
+            scanner = SourceArtifactScanner(repo)
+            scanner.link_to_specs(plan_bundle.features, repo)
+            console.print("[green]✓[/green] Source tracking complete")
+
             # Apply enrichment if provided
             if enrichment:
                 if not enrichment.exists():
