@@ -35,6 +35,8 @@ source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
 pip install specfact-cli
 ```
 
+**Optional**: For enhanced graph-based dependency analysis, see [Enhanced Analysis Dependencies](../installation/enhanced-analysis-dependencies.md).
+
 **After installation**: Set up IDE integration for interactive mode:
 
 ```bash
@@ -144,11 +146,11 @@ SpecFact CLI supports two operational modes:
 
 ```bash
 # CLI-only mode (uvx - no installation)
-uvx specfact-cli@latest import from-code --repo . --name my-project
+uvx specfact-cli@latest import from-code my-project --repo .
 
 # Interactive mode (pip + specfact init - recommended)
 # After: pip install specfact-cli && specfact init
-# Then use slash commands in IDE: /specfact-import-from-code
+# Then use slash commands in IDE: /specfact.01-import legacy-api --repo .
 ```
 
 **Note**: Mode is auto-detected based on whether `specfact` command is available and IDE integration is set up.
@@ -181,16 +183,18 @@ cd /path/to/your/project
 specfact init
 # Or specify IDE: specfact init --ide cursor
 
-# Step 4: Use slash command in IDE chat (no --repo . needed)
-/specfact-plan-init
+# Step 4: Use slash command in IDE chat
+/specfact.02-plan init legacy-api
+# Or use other plan operations: /specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
 ```
 
 **Important**:
 
 - Interactive mode automatically uses your IDE workspace
-- Slash commands are hyphenated: `/specfact-plan-init` (not `/specfact plan init`)
-- No `--repo .` parameter needed in interactive mode
-- The AI assistant will prompt you for plan names and other inputs
+- Slash commands use numbered format: `/specfact.01-import`, `/specfact.02-plan`, etc.
+- Commands are numbered for natural workflow progression (01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync)
+- No `--repo .` parameter needed in interactive mode (uses workspace automatically)
+- The AI assistant will prompt you for bundle names and other inputs if not provided
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
 
@@ -200,16 +204,16 @@ Convert an existing GitHub Spec-Kit project:
 
 ```bash
 # Preview what will be migrated
-specfact import from-spec-kit --repo ./my-speckit-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # Execute migration (one-time import)
-specfact import from-spec-kit \
+specfact import from-bridge \
+  --adapter speckit \
   --repo ./my-speckit-project \
-  --write \
-  --out-branch feat/specfact-migration
+  --write
 
 # Ongoing bidirectional sync (after migration)
-specfact sync spec-kit --repo . --bidirectional --watch
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Bidirectional Sync:**
@@ -218,10 +222,10 @@ Keep Spec-Kit and SpecFact artifacts synchronized:
 
 ```bash
 # One-time sync
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 ### For Brownfield Projects
@@ -230,13 +234,13 @@ Analyze existing code to generate specifications:
 
 ```bash
 # Analyze repository (CI/CD mode - fast)
-specfact import from-code \
+specfact import from-code my-project \
   --repo ./my-project \
   --shadow-only \
   --report analysis.md
 
 # Analyze with CoPilot mode (enhanced prompts)
-specfact --mode copilot import from-code \
+specfact --mode copilot import from-code my-project \
   --repo ./my-project \
   --confidence 0.7 \
   --report analysis.md
@@ -258,16 +262,17 @@ cd /path/to/your/project
 specfact init
 # Or specify IDE: specfact init --ide cursor
 
-# Step 4: Use slash command in IDE chat (no --repo . needed)
-/specfact-import-from-code
-# The AI assistant will prompt you for plan name and other options
+# Step 4: Use slash command in IDE chat
+/specfact.01-import legacy-api --repo .
+# Or let the AI assistant prompt you for bundle name and other options
 ```
 
 **Important**:
 
-- Interactive mode automatically uses your IDE workspace (no `--repo .` needed)
-- Slash commands are hyphenated: `/specfact-import-from-code` (not `/specfact import from-code`)
-- The AI assistant will prompt you for plan names and confidence thresholds
+- Interactive mode automatically uses your IDE workspace (no `--repo .` needed in interactive mode)
+- Slash commands use numbered format: `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
+- Commands follow natural progression: 01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync
+- The AI assistant will prompt you for bundle names and confidence thresholds if not provided
 - Better feature detection than CLI-only mode (semantic understanding vs AST-only)
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
@@ -300,9 +305,9 @@ specfact sync repository --repo . --watch
 - **Progressive enforcement**: Start with `minimal`, move to `balanced`, then `strict`
 - **CLI-only vs Interactive**: Use `uvx` for quick testing, `pip install + specfact init` for better results
 - **IDE integration**: Use `specfact init` to set up slash commands in IDE (requires pip install)
-- **Slash commands**: Use hyphenated format `/specfact-import-from-code` (no spaces, no `--repo .`)
+- **Slash commands**: Use numbered format `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
-- **Bidirectional sync**: Use `sync spec-kit` or `sync repository` for ongoing change management
+- **Bidirectional sync**: Use `sync bridge --adapter <adapter>` or `sync repository` for ongoing change management
 - **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact repro`
 
 ## Common Commands
@@ -315,8 +320,8 @@ specfact --version
 specfact --help
 specfact <command> --help
 
-# Initialize plan
-specfact plan init --interactive
+# Initialize plan (bundle name as positional argument)
+specfact plan init my-project --interactive
 
 # Add feature
 specfact plan add-feature --key FEATURE-001 --title "My Feature"

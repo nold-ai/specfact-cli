@@ -27,9 +27,8 @@ You inherited a 2-year-old Flask REST API with:
 
 ```bash
 # Analyze the legacy Flask API
-specfact import from-code \
+specfact import from-code customer-api \
   --repo ./legacy-flask-api \
-  --name customer-api \
   --language python
 
 ```
@@ -81,7 +80,7 @@ After extracting the plan, create a hard SDD manifest:
 
 ```bash
 # Create SDD manifest from the extracted plan
-specfact plan harden
+specfact plan harden customer-api
 ```
 
 ### Output
@@ -109,7 +108,7 @@ Validate that your SDD manifest matches your plan:
 
 ```bash
 # Validate SDD manifest against plan
-specfact enforce sdd
+specfact enforce sdd customer-api
 ```
 
 ### Output
@@ -131,7 +130,7 @@ Promote your plan to "review" stage (requires valid SDD):
 
 ```bash
 # Promote plan to review stage
-specfact plan promote --stage review
+specfact plan promote customer-api --stage review
 ```
 
 **Why this matters**: Plan promotion enforces SDD presence, ensuring you have a hard spec before starting modernization work.
@@ -213,7 +212,7 @@ def create_order():
 After adding contracts, re-validate your SDD:
 
 ```bash
-specfact enforce sdd
+specfact enforce sdd customer-api
 ```
 
 ---

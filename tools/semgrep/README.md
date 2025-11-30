@@ -1,8 +1,12 @@
 # Semgrep Rules for SpecFact CLI
 
-This directory contains Semgrep rules for detecting common async anti-patterns in Python code.
+This directory contains Semgrep rules for:
 
-**Note**: This file (`tools/semgrep/async.yml`) is used for **development** (hatch scripts, local testing). For **runtime** use in the installed package, the file is bundled as `src/specfact_cli/resources/semgrep/async.yml` and will be automatically included in the package distribution.
+1. **Async Anti-Patterns** - Detecting common async/await issues in Python code
+2. **Feature Detection** - Detecting API endpoints, models, CRUD operations, and patterns for code analysis
+3. **Test Patterns** - Extracting test patterns for OpenAPI example generation
+
+**Note**: These files (`tools/semgrep/*.yml`) are used for **development** (hatch scripts, local testing). For **runtime** use in the installed package, the files are bundled as `src/specfact_cli/resources/semgrep/*.yml` and will be automatically included in the package distribution.
 
 ## Rules
 
@@ -20,17 +24,70 @@ Detects 13 categories of async/await issues:
 
 #### WARNING Severity (Review Required)
 
-6. **bare-except-in-async** - Bare except or silent exception handling
-7. **missing-timeout-on-wait** - Async operations without timeouts
-8. **blocking-file-io-in-async** - Synchronous file I/O in async functions
-9. **asyncio-gather-without-error-handling** - `gather()` without error handling
-10. **task-result-not-checked** - Background tasks with unchecked results
+1. **bare-except-in-async** - Bare except or silent exception handling
+2. **missing-timeout-on-wait** - Async operations without timeouts
+3. **blocking-file-io-in-async** - Synchronous file I/O in async functions
+4. **asyncio-gather-without-error-handling** - `gather()` without error handling
+5. **task-result-not-checked** - Background tasks with unchecked results
 
 #### INFO Severity (Best Practice)
 
-11. **missing-async-context-manager** - Context manager without variable binding
-12. **sequential-await-could-be-parallel** - Opportunities for parallelization
-13. **missing-cancellation-handling** - No `CancelledError` handling
+1. **missing-async-context-manager** - Context manager without variable binding
+2. **sequential-await-could-be-parallel** - Opportunities for parallelization
+3. **missing-cancellation-handling** - No `CancelledError` handling
+
+### `feature-detection.yml` - Code Feature Detection
+
+Detects patterns for automated code analysis and feature extraction:
+
+#### API Endpoint Detection
+
+- **FastAPI**: `@app.get("/path")`, `@router.post("/path")`
+- **Flask**: `@app.route("/path", methods=["GET"])`
+- **Express** (TypeScript/JavaScript): `app.get("/path", handler)`
+- **Gin** (Go): `router.GET("/path", handler)`
+
+#### Database Model Detection
+
+- **SQLAlchemy**: `class Model(Base)`, `class Model(db.Model)`
+- **Django**: `class Model(models.Model)`
+- **Pydantic**: `class Model(BaseModel)` (for schemas)
+
+#### Authentication/Authorization Patterns
+
+- Auth decorators: `@require_auth`, `@login_required`, `@require_permission`
+- FastAPI dependencies: `dependencies=[Depends(auth)]`
+
+#### CRUD Operation Patterns
+
+- **Create**: `create_*`, `add_*`, `insert_*`
+- **Read**: `get_*`, `find_*`, `fetch_*`, `retrieve_*`
+- **Update**: `update_*`, `modify_*`, `edit_*`
+- **Delete**: `delete_*`, `remove_*`, `destroy_*`
+
+#### Test Pattern Detection
+
+- **Pytest**: `def test_*()`, `class Test*`
+- **Unittest**: `def test_*(self)`, `class Test*(unittest.TestCase)`
+
+#### Service/Component Patterns
+
+- Service classes
+- Repository pattern
+- Middleware/interceptors
+
+**Usage**: These rules are used by `CodeAnalyzer` during `import from-code` to enhance feature detection with framework-aware patterns and improve confidence scores.
+
+### `test-patterns.yml` - Test Pattern Extraction
+
+Extracts test patterns for OpenAPI example generation:
+
+- Pytest fixtures and test functions
+- Test assertions and expectations
+- Request/response data from tests
+- Unittest test methods
+
+**Usage**: Used to convert test patterns to OpenAPI examples instead of verbose GWT acceptance criteria.
 
 ## Usage
 
@@ -39,16 +96,22 @@ Detects 13 categories of async/await issues:
 Run Semgrep with these rules:
 
 ```bash
-# Scan entire project
+# Scan with async rules
 semgrep --config tools/semgrep/async.yml .
+
+# Scan with feature detection rules
+semgrep --config tools/semgrep/feature-detection.yml .
+
+# Scan with test pattern rules
+semgrep --config tools/semgrep/test-patterns.yml .
 
 # Scan specific directory
 semgrep --config tools/semgrep/async.yml src/
 
 # JSON output for CI
-semgrep --config tools/semgrep/async.yml --json . > semgrep-results.json
+semgrep --config tools/semgrep/feature-detection.yml --json . > semgrep-results.json
 
-# Auto-fix where possible
+# Auto-fix where possible (async rules only)
 semgrep --config tools/semgrep/async.yml --autofix .
 ```
 
@@ -225,5 +288,41 @@ When adding new rules:
 
 ---
 
-**Maintained by**: SpecFact CLI Team
-**Last Updated**: 2025-10-30
+### `code-quality.yml` - Code Quality & Anti-Patterns
+
+Detects code quality issues, deprecated patterns, and security vulnerabilities:
+
+#### Deprecated Patterns (WARNING/ERROR)
+
+- **deprecated-imp-module**: `imp` module (removed in Python 3.12)
+- **deprecated-optparse-module**: `optparse` (replaced by `argparse`)
+- **deprecated-urllib-usage**: `urllib2` (Python 2.x only)
+
+#### Security Vulnerabilities (ERROR/WARNING)
+
+- **unsafe-eval-usage**: `eval()`, `exec()`, `compile()` - code injection risk
+- **unsafe-pickle-deserialization**: `pickle.loads()` - code execution risk
+- **command-injection-risk**: `os.system()`, `subprocess` with `shell=True`
+- **weak-cryptographic-hash**: MD5, SHA1 usage
+- **hardcoded-secret**: Potential hardcoded API keys or passwords
+- **insecure-random**: `random.random()` instead of `secrets` module
+
+#### Code Quality Anti-Patterns (WARNING)
+
+- **bare-except-antipattern**: `except:` without specific exception
+- **mutable-default-argument**: `def func(arg=[])` anti-pattern
+- **lambda-assignment-antipattern**: `var = lambda ...` instead of `def`
+- **string-concatenation-loop**: String concatenation in loops
+
+#### Performance Patterns (INFO)
+
+- **list-comprehension-usage**: List comprehensions detected
+- **generator-expression**: Generator expressions detected
+
+**Total Rules**: 15 rules covering security, deprecated patterns, and code quality
+
+---
+
+**Maintained by**: SpecFact CLI Team  
+**Last Updated**: 2025-11-30  
+**Integration**: Based on comprehensive research of Python patterns (2020-2025)

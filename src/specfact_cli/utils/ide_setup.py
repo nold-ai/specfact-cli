@@ -111,20 +111,16 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
 }
 
 # Commands available in SpecFact
+# Workflow-ordered commands (Phase 3)
 SPECFACT_COMMANDS = [
-    "specfact-import-from-code",
-    "specfact-plan-init",
-    "specfact-plan-add-feature",
-    "specfact-plan-add-story",
-    "specfact-plan-update-idea",
-    "specfact-plan-update-feature",
-    "specfact-plan-select",
-    "specfact-plan-promote",
-    "specfact-plan-compare",
-    "specfact-plan-review",
-    "specfact-sync",
-    "specfact-enforce",
-    "specfact-repro",
+    "specfact.01-import",
+    "specfact.02-plan",
+    "specfact.03-review",
+    "specfact.04-sdd",
+    "specfact.05-enforce",
+    "specfact.06-sync",
+    "specfact.compare",
+    "specfact.validate",
 ]
 
 
@@ -189,7 +185,7 @@ def read_template(template_path: Path) -> dict[str, str]:
         Dict with "description" (from frontmatter) and "content" (markdown body)
 
     Examples:
-        >>> template = read_template(Path("resources/prompts/specfact-import-from-code.md"))
+        >>> template = read_template(Path("resources/prompts/specfact.01-import.md"))
         >>> "description" in template
         True
         >>> "content" in template
@@ -480,28 +476,69 @@ def get_package_installation_locations(package_name: str) -> list[Path]:
         # Linux/macOS: ~/.cache/uv/archive-v0/.../lib/python3.X/site-packages/
         uvx_cache_base = Path.home() / ".cache" / "uv" / "archive-v0"
         if uvx_cache_base.exists():
-            for archive_dir in uvx_cache_base.iterdir():
-                if archive_dir.is_dir():
-                    # Look for site-packages directories (rglob finds all matches)
-                    for site_packages_dir in archive_dir.rglob("site-packages"):
-                        if site_packages_dir.is_dir():
-                            package_path = site_packages_dir / package_name
-                            if package_path.exists():
-                                locations.append(package_path.resolve())
+            try:
+                for archive_dir in uvx_cache_base.iterdir():
+                    try:
+                        if not archive_dir.is_dir():
+                            continue
+                        # Skip known problematic directories (e.g., typeshed stubs)
+                        if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
+                            continue
+                        # Look for site-packages directories (rglob finds all matches)
+                        # Wrap in try-except to handle FileNotFoundError and other issues
+                        try:
+                            for site_packages_dir in archive_dir.rglob("site-packages"):
+                                try:
+                                    if site_packages_dir.is_dir():
+                                        package_path = site_packages_dir / package_name
+                                        if package_path.exists():
+                                            locations.append(package_path.resolve())
+                                except (FileNotFoundError, PermissionError, OSError):
+                                    # Skip problematic directories
+                                    continue
+                        except (FileNotFoundError, PermissionError, OSError):
+                            # Skip archive directories that cause issues
+                            continue
+                    except (FileNotFoundError, PermissionError, OSError):
+                        # Skip problematic archive directories
+                        continue
+            except (FileNotFoundError, PermissionError, OSError):
+                # Skip if cache base directory has issues
+                pass
     else:
         # Windows: Check %LOCALAPPDATA%\\uv\\cache\\archive-v0\\
         localappdata = os.environ.get("LOCALAPPDATA")
         if localappdata:
             uvx_cache_base = Path(localappdata) / "uv" / "cache" / "archive-v0"
             if uvx_cache_base.exists():
-                for archive_dir in uvx_cache_base.iterdir():
-                    if archive_dir.is_dir():
-                        # Look for site-packages directories
-                        for site_packages_dir in archive_dir.rglob("site-packages"):
-                            if site_packages_dir.is_dir():
-                                package_path = site_packages_dir / package_name
-                                if package_path.exists():
-                                    locations.append(package_path.resolve())
+                try:
+                    for archive_dir in uvx_cache_base.iterdir():
+                        try:
+                            if not archive_dir.is_dir():
+                                continue
+                            # Skip known problematic directories (e.g., typeshed stubs)
+                            if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
+                                continue
+                            # Look for site-packages directories
+                            try:
+                                for site_packages_dir in archive_dir.rglob("site-packages"):
+                                    try:
+                                        if site_packages_dir.is_dir():
+                                            package_path = site_packages_dir / package_name
+                                            if package_path.exists():
+                                                locations.append(package_path.resolve())
+                                    except (FileNotFoundError, PermissionError, OSError):
+                                        # Skip problematic directories
+                                        continue
+                            except (FileNotFoundError, PermissionError, OSError):
+                                # Skip archive directories that cause issues
+                                continue
+                        except (FileNotFoundError, PermissionError, OSError):
+                            # Skip problematic archive directories
+                            continue
+                except (FileNotFoundError, PermissionError, OSError):
+                    # Skip if cache base directory has issues
+                    pass
 
     # Remove duplicates while preserving order
     seen = set()

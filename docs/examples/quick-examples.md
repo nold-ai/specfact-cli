@@ -24,76 +24,72 @@ pip install specfact-cli
 
 ```bash
 # Starting a new project?
-specfact plan init --interactive
+specfact plan init my-project --interactive
 
 # Have existing code?
-specfact import from-code --repo . --name my-project
+specfact import from-code my-project --repo .
 
 # Using GitHub Spec-Kit?
-specfact import from-spec-kit --repo ./my-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./my-project --dry-run
 
 ```
 
-## Import from Spec-Kit
+## Import from Spec-Kit (via Bridge)
 
 ```bash
 # Preview migration
-specfact import from-spec-kit --repo ./spec-kit-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
 
 # Execute migration
-specfact import from-spec-kit --repo ./spec-kit-project --write
-
-# With custom branch
-specfact import from-spec-kit \
-  --repo ./spec-kit-project \
-  --write \
-  --out-branch feat/specfact-migration
+specfact import from-bridge --adapter speckit --repo ./spec-kit-project --write
 
 ```
 
 ## Import from Code
 
 ```bash
-# Basic import
-specfact import from-code --repo . --name my-project
+# Basic import (bundle name as positional argument)
+specfact import from-code my-project --repo .
 
 # With confidence threshold
-specfact import from-code --repo . --confidence 0.7
+specfact import from-code my-project --repo . --confidence 0.7
 
 # Shadow mode (observe only)
-specfact import from-code --repo . --shadow-only
+specfact import from-code my-project --repo . --shadow-only
 
 # CoPilot mode (enhanced prompts)
-specfact --mode copilot import from-code --repo . --confidence 0.7
+specfact --mode copilot import from-code my-project --repo . --confidence 0.7
 
 ```
 
 ## Plan Management
 
 ```bash
-# Initialize plan
-specfact plan init --interactive
+# Initialize plan (bundle name as positional argument)
+specfact plan init my-project --interactive
 
-# Add feature
+# Add feature (bundle name via --bundle option)
 specfact plan add-feature \
+  --bundle my-project \
   --key FEATURE-001 \
   --title "User Authentication" \
   --outcomes "Users can login securely"
 
-# Add story
+# Add story (bundle name via --bundle option)
 specfact plan add-story \
+  --bundle my-project \
   --feature FEATURE-001 \
   --title "As a user, I can login with email and password" \
   --acceptance "Login form validates input"
 
 # Create hard SDD manifest (required for promotion)
-specfact plan harden
+specfact plan harden my-project
 
-# Review plan (checks SDD automatically)
-specfact plan review --max-questions 5
+# Review plan (checks SDD automatically, bundle name as positional argument)
+specfact plan review my-project --max-questions 5
 
 # Promote plan (requires SDD for review+ stages)
-specfact plan promote --stage review
+specfact plan promote my-project --stage review
 
 ```
 
@@ -103,10 +99,10 @@ specfact plan promote --stage review
 # Quick comparison (auto-detects plans)
 specfact plan compare --repo .
 
-# Explicit comparison
+# Explicit comparison (bundle directory paths)
 specfact plan compare \
-  --manual .specfact/plans/main.bundle.yaml \
-  --auto .specfact/reports/brownfield/auto-derived.*.yaml
+  --manual .specfact/projects/manual-plan \
+  --auto .specfact/projects/auto-derived
 
 # Code vs plan comparison
 specfact plan compare --code-vs-plan --repo .
@@ -116,11 +112,11 @@ specfact plan compare --code-vs-plan --repo .
 ## Sync Operations
 
 ```bash
-# One-time Spec-Kit sync
-specfact sync spec-kit --repo . --bidirectional
+# One-time Spec-Kit sync (via bridge adapter)
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Watch mode (continuous sync)
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 
 # Repository sync
 specfact sync repository --repo . --target .specfact
@@ -140,7 +136,7 @@ specfact plan harden
 specfact enforce sdd
 
 # Validate SDD with custom output format
-specfact enforce sdd --format json --out validation-report.json
+specfact enforce sdd --output-format json --out validation-report.json
 
 # Review plan (automatically checks SDD)
 specfact plan review --max-questions 5
@@ -204,17 +200,17 @@ specfact init --ide cursor --force
 
 ```bash
 # Auto-detect mode (default)
-specfact import from-code --repo .
+specfact import from-code my-project --repo .
 
 # Force CI/CD mode
-specfact --mode cicd import from-code --repo .
+specfact --mode cicd import from-code my-project --repo .
 
 # Force CoPilot mode
-specfact --mode copilot import from-code --repo .
+specfact --mode copilot import from-code my-project --repo .
 
 # Set via environment variable
 export SPECFACT_MODE=copilot
-specfact import from-code --repo .
+specfact import from-code my-project --repo .
 ```
 
 ## Common Workflows
@@ -239,25 +235,25 @@ specfact plan compare --repo .
 
 ```bash
 # Step 1: Extract specs from legacy code
-specfact import from-code --repo . --name my-project
+specfact import from-code my-project --repo .
 
 # Step 2: Create hard SDD manifest
-specfact plan harden
+specfact plan harden my-project
 
 # Step 3: Validate SDD before starting work
-specfact enforce sdd
+specfact enforce sdd my-project
 
 # Step 4: Review plan (checks SDD automatically)
-specfact plan review --max-questions 5
+specfact plan review my-project --max-questions 5
 
 # Step 5: Promote plan (requires SDD for review+ stages)
-specfact plan promote --stage review
+specfact plan promote my-project --stage review
 
 # Step 6: Add contracts to critical paths
 # ... (add @icontract decorators to code)
 
 # Step 7: Re-validate SDD after adding contracts
-specfact enforce sdd
+specfact enforce sdd my-project
 
 # Step 8: Continue modernization with SDD safety net
 ```
@@ -266,13 +262,13 @@ specfact enforce sdd
 
 ```bash
 # Step 1: Preview
-specfact import from-spec-kit --repo . --dry-run
+specfact import from-bridge --adapter speckit --repo . --dry-run
 
 # Step 2: Execute
-specfact import from-spec-kit --repo . --write
+specfact import from-bridge --adapter speckit --repo . --write
 
 # Step 3: Set up sync
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 
 # Step 4: Enable enforcement
 specfact enforce stage --preset minimal
@@ -283,10 +279,10 @@ specfact enforce stage --preset minimal
 
 ```bash
 # Step 1: Analyze code
-specfact import from-code --repo . --confidence 0.7
+specfact import from-code my-project --repo . --confidence 0.7
 
-# Step 2: Review plan
-cat .specfact/reports/brownfield/auto-derived.*.yaml
+# Step 2: Review plan using CLI commands
+specfact plan review my-project
 
 # Step 3: Compare with manual plan
 specfact plan compare --repo .
@@ -297,13 +293,11 @@ specfact sync repository --repo . --watch --interval 5
 
 ## Advanced Examples
 
-### Custom Output Path
+### Bundle Name
 
 ```bash
-specfact import from-code \
-  --repo . \
-  --name my-project \
-  --out custom/path/my-plan.bundle.yaml
+# Bundle name is a positional argument (not --name option)
+specfact import from-code my-project --repo .
 
 ```
 
@@ -316,7 +310,7 @@ specfact import from-code \
 
 specfact plan compare \
   --repo . \
-  --output comparison-report.md
+  --out comparison-report.md
 
 ```
 
@@ -324,10 +318,10 @@ specfact plan compare \
 
 ```bash
 # Classname format (default for auto-derived)
-specfact import from-code --repo . --key-format classname
+specfact import from-code my-project --repo . --key-format classname
 
 # Sequential format (for manual plans)
-specfact import from-code --repo . --key-format sequential
+specfact import from-code my-project --repo . --key-format sequential
 
 ```
 
@@ -335,10 +329,10 @@ specfact import from-code --repo . --key-format sequential
 
 ```bash
 # Lower threshold (more features, lower confidence)
-specfact import from-code --repo . --confidence 0.3
+specfact import from-code my-project --repo . --confidence 0.3
 
 # Higher threshold (fewer features, higher confidence)
-specfact import from-code --repo . --confidence 0.8
+specfact import from-code my-project --repo . --confidence 0.8
 ```
 
 ## Integration Examples

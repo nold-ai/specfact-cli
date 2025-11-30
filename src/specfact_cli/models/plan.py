@@ -11,6 +11,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from specfact_cli.models.source_tracking import SourceTracking
+
 
 class Story(BaseModel):
     """User story model following Scrum/Agile practices."""
@@ -34,6 +36,14 @@ class Story(BaseModel):
         None,
         description="API contracts extracted from function signatures: parameters, return_type, preconditions, postconditions, error_contracts",
     )
+    source_functions: list[str] = Field(
+        default_factory=list,
+        description="Source function mappings (format: 'file.py::func')",
+    )
+    test_functions: list[str] = Field(
+        default_factory=list,
+        description="Test function mappings (format: 'test_file.py::test_func')",
+    )
 
 
 class Feature(BaseModel):
@@ -47,6 +57,11 @@ class Feature(BaseModel):
     stories: list[Story] = Field(default_factory=list, description="User stories")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
     draft: bool = Field(default=False, description="Whether this is a draft feature")
+    source_tracking: SourceTracking | None = Field(
+        None, description="Source tracking information linking specs to code/tests"
+    )
+    contract: str | None = Field(None, description="Path to OpenAPI contract (e.g., 'contracts/auth-api.openapi.yaml')")
+    protocol: str | None = Field(None, description="Path to FSM protocol (e.g., 'protocols/auth-fsm.yaml')")
 
 
 class Release(BaseModel):

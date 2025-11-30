@@ -15,13 +15,13 @@ Complete technical reference for SpecFact CLI.
 
 ### Commands
 
-- `specfact import from-spec-kit` - Import from GitHub Spec-Kit
-- `specfact import from-code` - Reverse-engineer plans from code
-- `specfact plan init` - Initialize new development plan
+- `specfact import from-bridge --adapter speckit` - Import from external tools via bridge adapter
+- `specfact import from-code <bundle-name>` - Reverse-engineer plans from code
+- `specfact plan init <bundle-name>` - Initialize new development plan
 - `specfact plan compare` - Compare manual vs auto plans
 - `specfact enforce stage` - Configure quality gates
 - `specfact repro` - Run full validation suite
-- `specfact sync spec-kit` - Sync with Spec-Kit artifacts
+- `specfact sync bridge --adapter <adapter> --bundle <bundle-name>` - Sync with external tools via bridge adapter
 - `specfact init` - Initialize IDE integration
 
 ### Modes

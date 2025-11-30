@@ -29,9 +29,8 @@ You inherited a 5-year-old Python data pipeline with:
 
 ```bash
 # Analyze the legacy data pipeline
-specfact import from-code \
+specfact import from-code customer-etl \
   --repo ./legacy-etl-pipeline \
-  --name customer-etl \
   --language python
 
 ```
@@ -82,7 +81,7 @@ After extracting the plan, create a hard SDD manifest:
 
 ```bash
 # Create SDD manifest from the extracted plan
-specfact plan harden
+specfact plan harden customer-etl
 ```
 
 ### Output
@@ -110,7 +109,7 @@ Validate that your SDD manifest matches your plan:
 
 ```bash
 # Validate SDD manifest against plan
-specfact enforce sdd
+specfact enforce sdd customer-etl
 ```
 
 ### Output
@@ -132,7 +131,7 @@ Promote your plan to "review" stage (requires valid SDD):
 
 ```bash
 # Promote plan to review stage
-specfact plan promote --stage review
+specfact plan promote customer-etl --stage review
 ```
 
 **Why this matters**: Plan promotion enforces SDD presence, ensuring you have a hard spec before starting modernization work.
@@ -212,7 +211,7 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
 After adding contracts, re-validate your SDD:
 
 ```bash
-specfact enforce sdd
+specfact enforce sdd customer-etl
 ```
 
 ---

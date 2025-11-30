@@ -77,7 +77,7 @@ specfact plan select --last 5
 
 ### Spec-Kit Not Detected
 
-**Issue**: `No Spec-Kit project found` when running `import from-spec-kit`
+**Issue**: `No Spec-Kit project found` when running `import from-bridge --adapter speckit`
 
 **Solutions**:
 
@@ -97,7 +97,7 @@ specfact plan select --last 5
 3. **Use explicit path**:
 
    ```bash
-   specfact import from-spec-kit --repo /path/to/speckit-project
+   specfact import from-bridge --adapter speckit --repo /path/to/speckit-project
    ```
 
 ### Code Analysis Fails (Brownfield) ⭐
@@ -109,13 +109,13 @@ specfact plan select --last 5
 1. **Check repository path**:
 
    ```bash
-   specfact import from-code --repo . --verbose
+   specfact import from-code --bundle legacy-api --repo . --verbose
    ```
 
 2. **Lower confidence threshold** (for legacy code with less structure):
 
    ```bash
-   specfact import from-code --repo . --confidence 0.3
+   specfact import from-code --bundle legacy-api --repo . --confidence 0.3
    ```
 
 3. **Check file structure**:
@@ -127,13 +127,13 @@ specfact plan select --last 5
 4. **Use CoPilot mode** (recommended for brownfield - better semantic understanding):
 
    ```bash
-   specfact --mode copilot import from-code --repo . --confidence 0.7
+   specfact --mode copilot import from-code --bundle legacy-api --repo . --confidence 0.7
    ```
 
 5. **For legacy codebases**, start with minimal confidence and review extracted features:
 
    ```bash
-   specfact import from-code --repo . --confidence 0.2 --name legacy-api
+   specfact import from-code --bundle legacy-api --repo . --confidence 0.2
    ```
 
 ---
@@ -149,7 +149,7 @@ specfact plan select --last 5
 1. **Check repository path**:
 
    ```bash
-   specfact sync spec-kit --repo . --watch --interval 5 --verbose
+   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --watch --interval 5 --verbose
    ```
 
 2. **Verify directory exists**:
@@ -162,13 +162,13 @@ specfact plan select --last 5
 3. **Check permissions**:
 
    ```bash
-   ls -la .specfact/plans/
+   ls -la .specfact/projects/
    ```
 
 4. **Try one-time sync first**:
 
    ```bash
-   specfact sync spec-kit --repo . --bidirectional
+   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
    ```
 
 ### Bidirectional Sync Conflicts
@@ -193,7 +193,7 @@ specfact plan select --last 5
 
    ```bash
    # Spec-Kit → SpecFact only
-   specfact sync spec-kit --repo .
+   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo .
 
    # SpecFact → Spec-Kit only (manual)
    # Edit Spec-Kit files manually
@@ -209,10 +209,10 @@ specfact plan select --last 5
 
 **Solutions**:
 
-1. **Check enforcement configuration**:
+1. **Check enforcement configuration** (use CLI commands):
 
    ```bash
-   cat .specfact/enforcement/config.yaml
+   specfact enforce show-config
    ```
 
 2. **Verify enforcement mode**:
@@ -248,13 +248,13 @@ specfact plan select --last 5
 2. **Adjust confidence threshold**:
 
    ```bash
-   specfact import from-code --repo . --confidence 0.7
+   specfact import from-code --bundle legacy-api --repo . --confidence 0.7
    ```
 
-3. **Check enforcement rules**:
+3. **Check enforcement rules** (use CLI commands):
 
    ```bash
-   cat .specfact/enforcement/config.yaml
+   specfact enforce show-config
    ```
 
 4. **Use minimal mode** (observe only):
@@ -269,7 +269,7 @@ specfact plan select --last 5
 
 ### Constitution Missing or Minimal
 
-**Issue**: `Constitution required` or `Constitution is minimal` when running `sync spec-kit`
+**Issue**: `Constitution required` or `Constitution is minimal` when running `sync bridge --adapter speckit`
 
 **Solutions**:
 
@@ -353,22 +353,22 @@ specfact plan select --last 5
 1. **Check plan locations**:
 
    ```bash
-   ls -la .specfact/plans/
+   ls -la .specfact/projects/
    ls -la .specfact/reports/brownfield/
    ```
 
-2. **Use explicit paths**:
+2. **Use explicit paths** (bundle directory paths):
 
    ```bash
    specfact plan compare \
-     --manual .specfact/plans/main.bundle.yaml \
-     --auto .specfact/reports/brownfield/auto-derived.*.yaml
+     --manual .specfact/projects/manual-plan \
+     --auto .specfact/projects/auto-derived
    ```
 
 3. **Generate auto-derived plan first**:
 
    ```bash
-   specfact import from-code --repo .
+   specfact import from-code --bundle legacy-api --repo .
    ```
 
 ### No Deviations Found (Expected Some)
@@ -382,16 +382,16 @@ specfact plan select --last 5
    - Different key formats may normalize to the same key
    - Check `reference/feature-keys.md` for details
 
-2. **Verify plan contents**:
+2. **Verify plan contents** (use CLI commands):
 
    ```bash
-   cat .specfact/plans/main.bundle.yaml | grep -A 5 "features:"
+   specfact plan review <bundle-name>
    ```
 
 3. **Use verbose mode**:
 
    ```bash
-   specfact plan compare --repo . --verbose
+   specfact plan compare --bundle legacy-api --verbose
    ```
 
 ---
@@ -461,7 +461,7 @@ specfact plan select --last 5
 1. **Use explicit mode**:
 
    ```bash
-   specfact --mode copilot import from-code --repo .
+   specfact --mode copilot import from-code my-project --repo .
    ```
 
 2. **Check environment variables**:
@@ -475,7 +475,7 @@ specfact plan select --last 5
 
    ```bash
    export SPECFACT_MODE=copilot
-   specfact import from-code --repo .
+   specfact import from-code --bundle legacy-api --repo .
    ```
 
 4. **See [Operational Modes](../reference/modes.md)** for details
@@ -493,20 +493,20 @@ specfact plan select --last 5
 1. **Use CI/CD mode** (faster):
 
    ```bash
-   specfact --mode cicd import from-code --repo .
+   specfact --mode cicd import from-code my-project --repo .
    ```
 
 2. **Increase confidence threshold** (fewer features):
 
    ```bash
-   specfact import from-code --repo . --confidence 0.8
+   specfact import from-code --bundle legacy-api --repo . --confidence 0.8
    ```
 
 3. **Exclude directories**:
 
    ```bash
    # Use .gitignore or exclude patterns
-   specfact import from-code --repo . --exclude "tests/"
+   specfact import from-code --bundle legacy-api --repo . --exclude "tests/"
    ```
 
 ### Watch Mode High CPU
@@ -518,13 +518,13 @@ specfact plan select --last 5
 1. **Increase interval**:
 
    ```bash
-   specfact sync spec-kit --repo . --watch --interval 10
+   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --watch --interval 10
    ```
 
 2. **Use one-time sync**:
 
    ```bash
-   specfact sync spec-kit --repo . --bidirectional
+   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
    ```
 
 3. **Check file system events**:

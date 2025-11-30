@@ -66,6 +66,9 @@ class TestPlanBundleSummary:
                         contracts=None,
                     )
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
             Feature(
                 key="FEATURE-002",
@@ -81,6 +84,9 @@ class TestPlanBundleSummary:
                         contracts=None,
                     )
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             ),
         ]
 
@@ -99,7 +105,7 @@ class TestPlanBundleSummary:
     def test_compute_summary_with_hash(self):
         """Test computing summary with content hash."""
         product = Product(themes=["Theme1"])
-        features = [Feature(key="FEATURE-001", title="Feature 1")]
+        features = [Feature(key="FEATURE-001", title="Feature 1", source_tracking=None, contract=None, protocol=None)]
 
         bundle = PlanBundle(
             product=product, features=features, idea=None, business=None, metadata=None, clarifications=None
@@ -113,7 +119,7 @@ class TestPlanBundleSummary:
     def test_update_summary(self):
         """Test updating summary in plan bundle metadata."""
         product = Product(themes=["Theme1"])
-        features = [Feature(key="FEATURE-001", title="Feature 1")]
+        features = [Feature(key="FEATURE-001", title="Feature 1", source_tracking=None, contract=None, protocol=None)]
 
         bundle = PlanBundle(
             product=product, features=features, idea=None, business=None, metadata=None, clarifications=None
@@ -146,6 +152,9 @@ class TestPlanBundleSummary:
                         contracts=None,
                     )
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ]
 

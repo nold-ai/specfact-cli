@@ -89,6 +89,9 @@ def test_scan_feature_completeness_missing_stories() -> None:
                 stories=[],  # No stories
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,
@@ -136,6 +139,9 @@ def test_scan_completion_signals_missing_acceptance() -> None:
                 ],
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,
@@ -169,6 +175,9 @@ def test_scan_prioritization() -> None:
                 stories=[],  # Missing stories (high impact)
                 confidence=0.8,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,
@@ -258,6 +267,9 @@ def test_scan_coverage_status() -> None:
                 ],
                 confidence=0.9,
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,

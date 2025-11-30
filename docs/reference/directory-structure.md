@@ -21,11 +21,29 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 ```bash
 .specfact/
 ├── config.yaml              # SpecFact configuration (optional)
-├── plans/                   # Plan bundles (versioned in git)
-│   ├── config.yaml          # Active plan configuration
-│   ├── main.bundle.<format>     # Primary plan bundle (fallback)
-│   ├── feature-auth.bundle.<format>    # Feature-specific plan
-│   └── my-project-2025-10-31T14-30-00.bundle.<format>  # Brownfield-derived plan (timestamped with name)
+├── projects/                # Modular project bundles (versioned in git)
+│   ├── <bundle-name>/       # Project bundle directory
+│   │   ├── bundle.manifest.yaml  # Bundle metadata, versioning, and checksums
+│   │   ├── idea.yaml             # Product vision (optional)
+│   │   ├── business.yaml         # Business context (optional)
+│   │   ├── product.yaml          # Releases, themes (required)
+│   │   ├── clarifications.yaml   # Clarification sessions (optional)
+│   │   └── features/             # Individual feature files
+│   │       ├── FEATURE-001.yaml
+│   │       ├── FEATURE-002.yaml
+│   │       └── ...
+│   ├── legacy-api/         # Example: Brownfield-derived bundle
+│   │   ├── bundle.manifest.yaml
+│   │   ├── product.yaml
+│   │   └── features/
+│   │       └── ...
+│   └── my-project/          # Example: Main project bundle
+│       ├── bundle.manifest.yaml
+│       ├── idea.yaml
+│       ├── business.yaml
+│       ├── product.yaml
+│       └── features/
+│           └── ...
 ├── protocols/               # FSM protocol definitions (versioned)
 │   ├── workflow.protocol.yaml
 │   └── deployment.protocol.yaml
@@ -38,7 +56,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 │   ├── enforcement/
 │   │   └── gate-results-2025-10-31.json
 │   └── sync/
-│       ├── speckit-sync-2025-10-31.json
+│       ├── bridge-sync-2025-10-31.json
 │       └── repository-sync-2025-10-31.json
 ├── gates/                   # Enforcement configuration and results
 │   ├── config.yaml          # Enforcement settings
@@ -52,17 +70,27 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 ## Directory Purposes
 
-### `.specfact/plans/` (Versioned)
+### `.specfact/projects/` (Versioned)
 
-**Purpose**: Store plan bundles that define the contract for the project.
+**Purpose**: Store modular project bundles that define the contract for the project.
 
 **Guidelines**:
 
-- One primary `main.bundle.<format>` for the main project plan
-- Additional plans for **brownfield analysis** ⭐ (primary), features, or experiments
+- Each project bundle is stored in its own directory: `.specfact/projects/<bundle-name>/`
+- Each bundle directory contains multiple aspect files:
+  - `bundle.manifest.yaml` - Bundle metadata, versioning, checksums, and feature index (required)
+  - `product.yaml` - Product definition with themes and releases (required)
+  - `idea.yaml` - Product vision and intent (optional)
+  - `business.yaml` - Business context and market segments (optional)
+  - `clarifications.yaml` - Clarification sessions and Q&A (optional)
+  - `features/` - Directory containing individual feature files:
+    - `FEATURE-001.yaml` - Individual feature with stories
+    - `FEATURE-002.yaml` - Individual feature with stories
+    - Each feature file is self-contained with its stories, acceptance criteria, etc.
 - **Always committed to git** - these are the source of truth
-- Use descriptive names: `legacy-<component>.bundle.<format>` (brownfield), `feature-<name>.bundle.<format>`
-- Plan bundles can be emitted as YAML or JSON. Use the CLI `--output-format {yaml,json}` (or the global flag) to choose.
+- Use descriptive bundle names: `legacy-api`, `my-project`, `feature-auth`
+- Supports multiple bundles per repository for brownfield modernization, monorepos, or feature branches
+- Aspect files are YAML format (JSON support may be added in future)
 
 **Plan Bundle Structure:**
 
@@ -125,11 +153,32 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 **Example**:
 
 ```bash
-.specfact/plans/
-├── main.bundle.<format>                    # Primary plan
-├── legacy-api.bundle.<format>              # ⭐ Reverse-engineered from existing API (brownfield)
-├── legacy-payment.bundle.<format>          # ⭐ Reverse-engineered from existing payment system (brownfield)
-└── feature-authentication.bundle.<format>  # Auth feature plan
+.specfact/projects/
+├── my-project/                    # Primary project bundle
+│   ├── bundle.manifest.yaml       # Metadata, checksums, feature index
+│   ├── idea.yaml                  # Product vision
+│   ├── business.yaml              # Business context
+│   ├── product.yaml               # Themes and releases
+│   └── features/                  # Individual feature files
+│       ├── FEATURE-001.yaml
+│       ├── FEATURE-002.yaml
+│       └── FEATURE-003.yaml
+├── legacy-api/                    # ⭐ Reverse-engineered from existing API (brownfield)
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       ├── FEATURE-AUTH.yaml
+│       └── FEATURE-PAYMENT.yaml
+├── legacy-payment/                 # ⭐ Reverse-engineered from existing payment system (brownfield)
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── FEATURE-PAYMENT.yaml
+└── feature-auth/                   # Auth feature bundle
+    ├── bundle.manifest.yaml
+    ├── product.yaml
+    └── features/
+        └── FEATURE-AUTH.yaml
 ```
 
 ### `.specfact/protocols/` (Versioned)
@@ -208,58 +257,81 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 
 ### `specfact import from-code` ⭐ PRIMARY
 
-**Primary use case**: Reverse-engineer existing codebases into plan bundles.
+**Primary use case**: Reverse-engineer existing codebases into project bundles.
 
 ```bash
-# Default paths (timestamped with custom name)
---out .specfact/plans/<name>-*.bundle.<format>  # Plan bundle (versioned in git)
---report .specfact/reports/brownfield/analysis-*.md  # Analysis report (gitignored)
+# Command syntax
+specfact import from-code <bundle-name> --repo . [OPTIONS]
 
-# Can override with custom names
---out .specfact/plans/legacy-api.bundle.<format>  # Save as versioned plan
---name my-project  # Custom plan name (sanitized for filesystem)
+# Creates modular bundle at:
+.specfact/projects/<bundle-name>/
+├── bundle.manifest.yaml  # Bundle metadata, versioning, checksums, feature index
+├── product.yaml          # Product definition (required)
+├── idea.yaml            # Product vision (if provided)
+├── business.yaml        # Business context (if provided)
+└── features/            # Individual feature files
+    ├── FEATURE-001.yaml
+    ├── FEATURE-002.yaml
+    └── ...
+
+# Analysis report (gitignored)
+.specfact/reports/brownfield/analysis-<timestamp>.md
 ```
 
 **Example (brownfield modernization)**:
 
 ```bash
 # Analyze legacy codebase
-specfact import from-code --repo . --name legacy-api --confidence 0.7
+specfact import from-code legacy-api --repo . --confidence 0.7
 
 # Creates:
-# - .specfact/plans/legacy-api-2025-10-31T14-30-00.bundle.<format> (versioned)
+# - .specfact/projects/legacy-api/bundle.manifest.yaml (versioned)
+# - .specfact/projects/legacy-api/product.yaml (versioned)
+# - .specfact/projects/legacy-api/features/FEATURE-*.yaml (versioned, one per feature)
 # - .specfact/reports/brownfield/analysis-2025-10-31T14-30-00.md (gitignored)
 ```
 
 ### `specfact plan init` (Alternative)
 
-**Alternative use case**: Create new plans for greenfield projects.
+**Alternative use case**: Create new project bundles for greenfield projects.
 
 ```bash
-# Creates
-.specfact/plans/main.bundle.<format>
-.specfact/config.yaml (if --interactive)
+# Command syntax
+specfact plan init <bundle-name> [OPTIONS]
+
+# Creates modular bundle at:
+.specfact/projects/<bundle-name>/
+├── bundle.manifest.yaml  # Bundle metadata and versioning
+├── product.yaml         # Product definition (required)
+├── idea.yaml           # Product vision (if provided via prompts)
+└── features/           # Empty features directory (created when first feature added)
+
+# Also creates (if --interactive):
+.specfact/config.yaml
 ```
 
 ### `specfact plan compare`
 
 ```bash
-# Default paths (smart defaults)
---manual .specfact/plans/active-plan  # Uses active plan from config.yaml (or main.bundle.<format> fallback)
---auto .specfact/plans/*.bundle.<format>  # Latest auto-derived in plans directory
---out .specfact/reports/comparison/report-*.md  # Timestamped
+# Compare two bundles (explicit paths to bundle directories)
+specfact plan compare \
+  --manual .specfact/projects/manual-plan \
+  --auto .specfact/projects/auto-derived \
+  --out .specfact/reports/comparison/report-*.md
+
+# Note: Commands accept bundle directory paths, not individual files
 ```
 
-### `specfact sync spec-kit`
+### `specfact sync bridge`
 
 ```bash
-# Sync changes
-specfact sync spec-kit --repo . --bidirectional
+# Sync with external tools (Spec-Kit, Linear, Jira, etc.)
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 
-# Sync files are tracked in .specfact/sync/
+# Sync files are tracked in .specfact/reports/sync/
 ```
 
 ### `specfact sync repository`
@@ -315,8 +387,8 @@ specfact init --ide copilot
 ```yaml
 version: "1.0"
 
-# Default plan to use
-default_plan: plans/main.bundle.<format>
+# Default bundle to use (optional)
+default_bundle: my-project
 
 # Analysis settings
 analysis:
@@ -365,11 +437,14 @@ When you run `specfact init`, prompt templates are copied to IDE-specific locati
 ```bash
 .cursor/
 └── commands/
-    ├── specfact-import-from-code.md
-    ├── specfact-plan-init.md
-    ├── specfact-plan-promote.md
-    ├── specfact-plan-compare.md
-    └── specfact-sync.md
+    ├── specfact.01-import.md
+    ├── specfact.02-plan.md
+    ├── specfact.03-review.md
+    ├── specfact.04-sdd.md
+    ├── specfact.05-enforce.md
+    ├── specfact.06-sync.md
+    ├── specfact.compare.md
+    └── specfact.validate.md
 ```
 
 ### Example Structure (VS Code / Copilot)
@@ -377,11 +452,14 @@ When you run `specfact init`, prompt templates are copied to IDE-specific locati
 ```bash
 .github/
 └── prompts/
-    ├── specfact-import-from-code.prompt.md
-    ├── specfact-plan-init.prompt.md
-    ├── specfact-plan-promote.prompt.md
-    ├── specfact-plan-compare.prompt.md
-    └── specfact-sync.prompt.md
+    ├── specfact.01-import.prompt.md
+    ├── specfact.02-plan.prompt.md
+    ├── specfact.03-review.prompt.md
+    ├── specfact.04-sdd.prompt.md
+    ├── specfact.05-enforce.prompt.md
+    ├── specfact.06-sync.prompt.md
+    ├── specfact.compare.prompt.md
+    └── specfact.validate.prompt.md
 .vscode/
 └── settings.json  # Updated with promptFilesRecommendations
 ```
@@ -408,11 +486,16 @@ The SpecFact CLI package includes prompt templates that are copied to IDE locati
 specfact-cli/
 └── resources/
     └── prompts/              # Prompt templates (in package)
-        ├── specfact-import-from-code.md
-        ├── specfact-plan-init.md
-        ├── specfact-plan-promote.md
-        ├── specfact-plan-compare.md
-        └── specfact-sync.md
+        ├── specfact.01-import.md
+        ├── specfact.02-plan.md
+        ├── specfact.03-review.md
+        ├── specfact.04-sdd.md
+        ├── specfact.05-enforce.md
+        ├── specfact.06-sync.md
+        ├── specfact.compare.md
+        ├── specfact.validate.md
+        └── shared/
+            └── cli-enforcement.md
 ```
 
 **These templates are:**
@@ -434,7 +517,7 @@ Add to `.gitignore`:
 .specfact/cache/
 
 # Keep these versioned
-!.specfact/plans/
+!.specfact/projects/
 !.specfact/protocols/
 !.specfact/config.yaml
 !.specfact/gates/config.yaml
@@ -456,17 +539,20 @@ Add to `.gitignore`:
 If you have existing artifacts in other locations:
 
 ```bash
-# Old structure
+# Old structure (monolithic bundles)
 contracts/plans/plan.bundle.<format>
 reports/analysis.md
 
-# New structure
-.specfact/plans/main.bundle.<format>
+# New structure (modular bundles)
+.specfact/projects/my-project/
+├── bundle.manifest.yaml
+└── bundle.yaml
 .specfact/reports/brownfield/analysis.md
 
 # Migration
-mkdir -p .specfact/plans .specfact/reports/brownfield
-mv contracts/plans/plan.bundle.<format> .specfact/plans/main.bundle.<format>
+mkdir -p .specfact/projects/my-project .specfact/reports/brownfield
+# Convert monolithic bundle to modular bundle structure
+# (Use 'specfact plan upgrade' or manual conversion)
 mv reports/analysis.md .specfact/reports/brownfield/
 ```
 
@@ -481,33 +567,52 @@ SpecFact supports multiple plan bundles for:
 **Example (Brownfield Modernization)**:
 
 ```bash
-.specfact/plans/
-├── main.bundle.<format>                      # Overall project plan
-├── legacy-api.bundle.<format>                # ⭐ Reverse-engineered from existing API (brownfield)
-├── legacy-payment.bundle.<format>            # ⭐ Reverse-engineered from existing payment system (brownfield)
-├── modernized-api.bundle.<format>            # New API plan (after modernization)
-└── feature-new-auth.bundle.<format>          # Experimental feature plan
+.specfact/projects/
+├── my-project/                      # Overall project bundle
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── ...
+├── legacy-api/                      # ⭐ Reverse-engineered from existing API (brownfield)
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       ├── FEATURE-AUTH.yaml
+│       └── FEATURE-API.yaml
+├── legacy-payment/                  # ⭐ Reverse-engineered from existing payment system (brownfield)
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── FEATURE-PAYMENT.yaml
+├── modernized-api/                  # New API bundle (after modernization)
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── ...
+└── feature-new-auth/                # Experimental feature bundle
+    ├── bundle.manifest.yaml
+    ├── product.yaml
+    └── features/
+        └── FEATURE-AUTH.yaml
 ```
 
 **Usage (Brownfield Workflow)**:
 
 ```bash
 # Step 1: Reverse-engineer legacy codebase
-specfact import from-code \
+specfact import from-code legacy-api \
   --repo src/legacy-api \
-  --name legacy-api \
-  --out .specfact/plans/legacy-api.bundle.<format>
+  --confidence 0.7
 
-# Step 2: Compare legacy vs modernized
+# Step 2: Compare legacy vs modernized (use bundle directories, not files)
 specfact plan compare \
-  --manual .specfact/plans/legacy-api.bundle.<format> \
-  --auto .specfact/plans/modernized-api.bundle.<format>
+  --manual .specfact/projects/legacy-api \
+  --auto .specfact/projects/modernized-api
 
 # Step 3: Analyze specific legacy component
-specfact import from-code \
+specfact import from-code legacy-payment \
   --repo src/legacy-payment \
-  --name legacy-payment \
-  --out .specfact/plans/legacy-payment.bundle.<format>
+  --confidence 0.7
 ```
 
 ## Summary
@@ -515,12 +620,13 @@ specfact import from-code \
 ### SpecFact Artifacts
 
 - **`.specfact/`** - All SpecFact artifacts live here
-- **`plans/` and `protocols/`** - Versioned (git)
+- **`projects/` and `protocols/`** - Versioned (git)
 - **`reports/`, `gates/results/`, `cache/`** - Gitignored (ephemeral)
-- **Use descriptive plan names** - Supports multiple plans per repo
+- **Modular bundles** - Each bundle in its own directory with manifest and content files
+- **Use descriptive bundle names** - Supports multiple bundles per repo
 - **Default paths always start with `.specfact/`** - Consistent and predictable
 - **Timestamped reports** - Auto-generated reports include timestamps for tracking
-- **Sync support** - Bidirectional sync with Spec-Kit and repositories
+- **Bridge architecture** - Bidirectional sync with external tools (Spec-Kit, Linear, Jira, etc.) via bridge adapters
 
 ### IDE Integration
 
@@ -534,7 +640,7 @@ specfact import from-code \
 
 | Type | Location | Git Status | Purpose |
 |------|----------|------------|---------|
-| **Plans** | `.specfact/plans/` | Versioned | Contract definitions |
+| **Project Bundles** | `.specfact/projects/<bundle-name>/` | Versioned | Modular contract definitions |
 | **Protocols** | `.specfact/protocols/` | Versioned | FSM definitions |
 | **Reports** | `.specfact/reports/` | Gitignored | Analysis reports |
 | **Cache** | `.specfact/cache/` | Gitignored | Tool caches |

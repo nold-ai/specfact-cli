@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.8.0"
+version = "0.11.3"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,13 +34,14 @@ dependencies = [
     
     # CLI framework
     "typer>=0.20.0",
-    "rich>=13.0.0,<14.0.0",
+    "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
     
     # Template engine
     "jinja2>=3.1.6",
     
     # Graph analysis
     "networkx>=3.4.2",
+    "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
     
     # Git operations
     "gitpython>=3.1.45",
@@ -82,18 +83,38 @@ dev = [
     "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
     "types-PyYAML>=6.0.12.20250516",
     "pip-tools>=7.5.1",
-    "semgrep>=1.141.1",
+    "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
     
     # Contract-First Development Dependencies (dev)
     "icontract>=2.7.1",
     "beartype>=0.22.4", 
     "crosshair-tool>=0.0.97",
     "hypothesis>=6.142.4",
+    
+    # Enhanced Analysis Tools (for local development)
+    # Note: syft excluded from dev/test due to rich version conflict with semgrep
+    # Install separately: pip install specfact-cli[enhanced-analysis] if needed
+    "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
+    "pyan3>=1.2.0",  # Python call graph analysis
+    "bearer>=3.1.0",  # Data flow analysis for security
 ]
 
 scanning = [
-    "semgrep>=1.141.1",  # Optional: Only needed for code scanning features
+    "semgrep>=1.144.0",  # Optional: Only needed for code scanning features
 ]
+
+enhanced-analysis = [
+    "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
+    "pyan3>=1.2.0",  # Python call graph analysis
+    "syft>=0.9.5",  # Software Bill of Materials (SBOM) generation
+    "bearer>=3.1.0",  # Data flow analysis for security
+]
+
+# Note: Specmatic integration (specfact spec commands) requires the Specmatic CLI tool
+# to be installed separately. Specmatic is a Java-based CLI tool, not a Python package.
+# Install from: https://docs.specmatic.io/
+# The specfact spec commands will check for Specmatic availability and provide
+# helpful error messages if it's not found.
 
 # Add other optional dependency groups from your original if they existed and are still needed (e.g., server, client, devtools, full from tpl)
 
@@ -127,12 +148,18 @@ dependencies = [
     "pylint>=4.0.2",
     "ruff>=0.14.2",
     "yamllint>=1.37.1",
-    "semgrep>=1.141.1",
+    "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4", 
     "crosshair-tool>=0.0.97",
     "hypothesis>=6.142.4",
+    # Enhanced Analysis Tools (for local development)
+    # Note: syft excluded from dev/test due to rich version conflict with semgrep
+    # Install separately: pip install specfact-cli[enhanced-analysis] if needed
+    "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
+    "pyan3>=1.2.0",  # Python call graph analysis
+    "bearer>=3.1.0",  # Data flow analysis for security
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -227,6 +254,12 @@ dependencies = [
     "crosshair-tool>=0.0.97",
     "hypothesis>=6.142.4",
     "yamllint>=1.37.1",
+    # Enhanced Analysis Tools (for testing)
+    # Note: syft excluded from test due to rich version conflict with semgrep
+    # Install separately: pip install specfact-cli[enhanced-analysis] if needed
+    "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
+    "pyan3>=1.2.0",  # Python call graph analysis
+    "bearer>=3.1.0",  # Data flow analysis for security
 ]
 dev-mode = true
 parallel = true
@@ -311,6 +344,7 @@ packages = [
 "resources/templates" = "specfact_cli/resources/templates"
 "resources/schemas" = "specfact_cli/resources/schemas"
 "resources/mappings" = "specfact_cli/resources/mappings"
+# Note: resources/semgrep files are in src/specfact_cli/resources/semgrep/ and are automatically included
 
 [tool.hatch.build.targets.sdist]
 # Only include essential files in source distribution
@@ -487,6 +521,7 @@ testpaths = [
     "tests",
     # "../src" # pythonpath = ["src"] should cover imports from src for tests in /tests
 ]
+# Note: TEST_MODE is set in tests/conftest.py to skip Semgrep in tests
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

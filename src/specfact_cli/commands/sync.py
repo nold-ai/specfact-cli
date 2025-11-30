@@ -1,8 +1,9 @@
 """
-Sync command - Bidirectional synchronization for Spec-Kit and repositories.
+Sync command - Bidirectional synchronization for external tools and repositories.
 
-This module provides commands for synchronizing changes between Spec-Kit artifacts,
-repository changes, and SpecFact plans.
+This module provides commands for synchronizing changes between external tool artifacts
+(e.g., Spec-Kit, Linear, Jira), repository changes, and SpecFact plans using the
+bridge architecture.
 """
 
 from __future__ import annotations
@@ -19,12 +20,13 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli import runtime
+from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.sync.speckit_sync import SpecKitSync
 from specfact_cli.telemetry import telemetry
 
 
-app = typer.Typer(help="Synchronize Spec-Kit artifacts and repository changes")
+app = typer.Typer(help="Synchronize external tool artifacts and repository changes")
 console = Console()
 
 
@@ -43,14 +45,16 @@ def _is_test_mode() -> bool:
 @require(lambda repo: repo.exists(), "Repository path must exist")
 @require(lambda repo: repo.is_dir(), "Repository path must be a directory")
 @require(lambda bidirectional: isinstance(bidirectional, bool), "Bidirectional must be bool")
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or str")
 @require(lambda overwrite: isinstance(overwrite, bool), "Overwrite must be bool")
+@require(lambda adapter_type: adapter_type is not None, "Adapter type must be set")
 @ensure(lambda result: result is None, "Must return None")
 def _perform_sync_operation(
     repo: Path,
     bidirectional: bool,
-    plan: Path | None,
+    bundle: str | None,
     overwrite: bool,
+    adapter_type: AdapterType,
 ) -> None:
     """
     Perform sync operation without watch mode.
@@ -60,38 +64,56 @@ def _perform_sync_operation(
     Args:
         repo: Path to repository
         bidirectional: Enable bidirectional sync
-        plan: Path to SpecFact plan bundle
-        overwrite: Overwrite existing Spec-Kit artifacts
+        bundle: Project bundle name
+        overwrite: Overwrite existing tool artifacts
+        adapter_type: Adapter type to use
     """
     from specfact_cli.importers.speckit_converter import SpecKitConverter
     from specfact_cli.importers.speckit_scanner import SpecKitScanner
+
+    # Step 1: Detect tool repository (using bridge probe for auto-detection)
+    from specfact_cli.sync.bridge_probe import BridgeProbe
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.validators.schema import validate_plan_bundle
 
-    # Step 1: Detect Spec-Kit repository
-    scanner = SpecKitScanner(repo)
-    if not scanner.is_speckit_repo():
-        console.print("[bold red]✗[/bold red] Not a Spec-Kit repository")
-        console.print("[dim]Expected Spec-Kit structure (.specify/ directory)[/dim]")
+    probe = BridgeProbe(repo)
+    _ = probe.detect()  # Probe for detection, result not used in this path
+
+    # For Spec-Kit adapter, use legacy scanner for now
+    if adapter_type == AdapterType.SPECKIT:
+        scanner = SpecKitScanner(repo)
+        if not scanner.is_speckit_repo():
+            console.print(f"[bold red]✗[/bold red] Not a {adapter_type.value} repository")
+            console.print("[dim]Expected: .specify/ directory[/dim]")
+            console.print("[dim]Tip: Use 'specfact bridge probe' to auto-detect tool configuration[/dim]")
+            raise typer.Exit(1)
+
+        console.print(f"[bold green]✓[/bold green] Detected {adapter_type.value} repository")
+    else:
+        console.print(f"[bold green]✓[/bold green] Using bridge adapter: {adapter_type.value}")
+        # TODO: Implement generic adapter detection
+        console.print("[yellow]⚠ Generic adapter not yet fully implemented[/yellow]")
         raise typer.Exit(1)
 
-    console.print("[bold green]✓[/bold green] Detected Spec-Kit repository")
-
-    # Step 1.5: Validate constitution exists and is not empty
-    has_constitution, constitution_error = scanner.has_constitution()
+    # Step 1.5: Validate constitution exists and is not empty (Spec-Kit specific)
+    if adapter_type == AdapterType.SPECKIT:
+        has_constitution, constitution_error = scanner.has_constitution()
+    else:
+        has_constitution = True
+        constitution_error = None
     if not has_constitution:
         console.print("[bold red]✗[/bold red] Constitution required")
         console.print(f"[red]{constitution_error}[/red]")
         console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-        console.print("1. Run 'specfact constitution bootstrap --repo .' to auto-generate constitution")
-        console.print("2. Or run '/speckit.constitution' command in your AI assistant")
-        console.print("3. Then run 'specfact sync spec-kit' again")
+        console.print("1. Run 'specfact bridge constitution bootstrap --repo .' to auto-generate constitution")
+        console.print("2. Or run tool-specific constitution command in your AI assistant")
+        console.print("3. Then run 'specfact sync bridge --adapter <adapter>' again")
         raise typer.Exit(1)
 
     # Check if constitution is minimal and suggest bootstrap
     constitution_path = repo / ".specify" / "memory" / "constitution.md"
     if constitution_path.exists():
-        from specfact_cli.commands.constitution import is_constitution_minimal
+        from specfact_cli.commands.bridge import is_constitution_minimal
 
         if is_constitution_minimal(constitution_path):
             # Auto-generate in test mode, prompt in interactive mode
@@ -123,12 +145,14 @@ def _perform_sync_operation(
                         console.print("[dim]Review and adjust as needed before syncing[/dim]")
                     else:
                         console.print(
-                            "[dim]Skipping bootstrap. Run 'specfact constitution bootstrap' manually if needed[/dim]"
+                            "[dim]Skipping bootstrap. Run 'specfact bridge constitution bootstrap' manually if needed[/dim]"
                         )
                 else:
                     # Non-interactive mode: skip prompt
                     console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
-                    console.print("[dim]Run 'specfact constitution bootstrap --repo .' to generate constitution[/dim]")
+                    console.print(
+                        "[dim]Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
+                    )
 
     console.print("[bold green]✓[/bold green] Constitution found and validated")
 
@@ -153,26 +177,29 @@ def _perform_sync_operation(
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        # Step 3: Scan Spec-Kit artifacts
-        task = progress.add_task("[cyan]Scanning Spec-Kit artifacts...[/cyan]", total=None)
+        # Step 3: Scan tool artifacts
+        task = progress.add_task(f"[cyan]Scanning {adapter_type.value} artifacts...[/cyan]", total=None)
         # Keep description showing current activity (spinner will show automatically)
-        progress.update(task, description="[cyan]Scanning Spec-Kit artifacts...[/cyan]")
+        progress.update(task, description=f"[cyan]Scanning {adapter_type.value} artifacts...[/cyan]")
         features = scanner.discover_features()
         # Update with final status after completion
         progress.update(task, description=f"[green]✓[/green] Found {len(features)} features in specs/")
 
-        # Step 3.5: Validate Spec-Kit artifacts for unidirectional sync
+        # Step 3.5: Validate tool artifacts for unidirectional sync
         if not bidirectional and len(features) == 0:
-            console.print("[bold red]✗[/bold red] No Spec-Kit features found")
+            console.print(f"[bold red]✗[/bold red] No {adapter_type.value} features found")
             console.print(
-                "[red]Unidirectional sync (Spec-Kit → SpecFact) requires at least one feature specification.[/red]"
+                f"[red]Unidirectional sync ({adapter_type.value} → SpecFact) requires at least one feature specification.[/red]"
             )
             console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-            console.print("1. Run '/speckit.specify' command in your AI assistant to create feature specifications")
-            console.print("2. Optionally run '/speckit.plan' and '/speckit.tasks' to create complete artifacts")
-            console.print("3. Then run 'specfact sync spec-kit' again")
+            if adapter_type == AdapterType.SPECKIT:
+                console.print("1. Run '/speckit.specify' command in your AI assistant to create feature specifications")
+                console.print("2. Optionally run '/speckit.plan' and '/speckit.tasks' to create complete artifacts")
+            else:
+                console.print(f"1. Create feature specifications in your {adapter_type.value} project")
+            console.print(f"3. Then run 'specfact sync bridge --adapter {adapter_type.value}' again")
             console.print(
-                "\n[dim]Note: For bidirectional sync, Spec-Kit artifacts are optional if syncing from SpecFact → Spec-Kit[/dim]"
+                f"\n[dim]Note: For bidirectional sync, {adapter_type.value} artifacts are optional if syncing from SpecFact → {adapter_type.value}[/dim]"
             )
             raise typer.Exit(1)
 
@@ -182,73 +209,82 @@ def _perform_sync_operation(
         features_converted_speckit = 0
 
         if bidirectional:
-            # Bidirectional sync: Spec-Kit → SpecFact and SpecFact → Spec-Kit
-            # Step 5.1: Spec-Kit → SpecFact (unidirectional sync)
-            # Skip expensive conversion if no Spec-Kit features found (optimization)
+            # Bidirectional sync: tool → SpecFact and SpecFact → tool
+            # Step 5.1: tool → SpecFact (unidirectional sync)
+            # Skip expensive conversion if no tool features found (optimization)
+            merged_bundle: PlanBundle | None = None
+            features_updated = 0
+            features_added = 0
+
             if len(features) == 0:
-                task = progress.add_task("[cyan]📝[/cyan] Converting Spec-Kit → SpecFact...", total=None)
+                task = progress.add_task(f"[cyan]📝[/cyan] Converting {adapter_type.value} → SpecFact...", total=None)
                 progress.update(
                     task,
-                    description="[green]✓[/green] Skipped (no Spec-Kit features found)",
+                    description=f"[green]✓[/green] Skipped (no {adapter_type.value} features found)",
                 )
-                console.print("[dim]  - Skipped Spec-Kit → SpecFact (no features in specs/)[/dim]")
+                console.print(f"[dim]  - Skipped {adapter_type.value} → SpecFact (no features found)[/dim]")
                 # Use existing plan bundle if available, otherwise create minimal empty one
                 from specfact_cli.utils.structure import SpecFactStructure
                 from specfact_cli.validators.schema import validate_plan_bundle
 
                 # Use get_default_plan_path() to find the active plan (checks config or falls back to main.bundle.yaml)
                 plan_path = SpecFactStructure.get_default_plan_path(repo)
-                if plan_path.exists():
+                if plan_path and plan_path.exists():
                     # Show progress while loading plan bundle
                     progress.update(task, description="[cyan]Parsing plan bundle YAML...[/cyan]")
                     validation_result = validate_plan_bundle(plan_path)
                     if isinstance(validation_result, tuple):
-                        is_valid, _error, bundle = validation_result
-                        if is_valid and bundle:
+                        is_valid, _error, loaded_plan_bundle = validation_result
+                        if is_valid and loaded_plan_bundle:
                             # Show progress during validation (Pydantic validation can be slow for large bundles)
                             progress.update(
-                                task, description=f"[cyan]Validating {len(bundle.features)} features...[/cyan]"
+                                task,
+                                description=f"[cyan]Validating {len(loaded_plan_bundle.features)} features...[/cyan]",
                             )
-                            merged_bundle = bundle
+                            merged_bundle = loaded_plan_bundle
                             progress.update(
                                 task,
-                                description=f"[green]✓[/green] Loaded plan bundle ({len(bundle.features)} features)",
+                                description=f"[green]✓[/green] Loaded plan bundle ({len(loaded_plan_bundle.features)} features)",
                             )
                         else:
                             # Fallback: create minimal bundle via converter (but skip expensive parsing)
-                            progress.update(task, description="[cyan]Creating plan bundle from Spec-Kit...[/cyan]")
+                            progress.update(
+                                task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
+                            )
                             merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
                     else:
-                        progress.update(task, description="[cyan]Creating plan bundle from Spec-Kit...[/cyan]")
+                        progress.update(
+                            task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
+                        )
                         merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
                 else:
-                    progress.update(task, description="[cyan]Creating plan bundle from Spec-Kit...[/cyan]")
+                    # No plan path found, create minimal bundle
+                    progress.update(task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]")
                     merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
-                features_updated = 0
-                features_added = 0
             else:
-                task = progress.add_task("[cyan]Converting Spec-Kit → SpecFact...[/cyan]", total=None)
+                task = progress.add_task(f"[cyan]Converting {adapter_type.value} → SpecFact...[/cyan]", total=None)
                 # Show current activity (spinner will show automatically)
-                progress.update(task, description="[cyan]Converting Spec-Kit → SpecFact...[/cyan]")
+                progress.update(task, description=f"[cyan]Converting {adapter_type.value} → SpecFact...[/cyan]")
                 merged_bundle, features_updated, features_added = _sync_speckit_to_specfact(
                     repo, converter, scanner, progress
                 )
 
-            if features_updated > 0 or features_added > 0:
-                progress.update(
-                    task,
-                    description=f"[green]✓[/green] Updated {features_updated}, Added {features_added} features",
-                )
-                console.print(f"[dim]  - Updated {features_updated} features[/dim]")
-                console.print(f"[dim]  - Added {features_added} new features[/dim]")
-            else:
-                progress.update(
-                    task,
-                    description=f"[green]✓[/green] Created plan with {len(merged_bundle.features)} features",
-                )
+            if merged_bundle:
+                if features_updated > 0 or features_added > 0:
+                    progress.update(
+                        task,
+                        description=f"[green]✓[/green] Updated {features_updated}, Added {features_added} features",
+                    )
+                    console.print(f"[dim]  - Updated {features_updated} features[/dim]")
+                    console.print(f"[dim]  - Added {features_added} new features[/dim]")
+                else:
+                    progress.update(
+                        task,
+                        description=f"[green]✓[/green] Created plan with {len(merged_bundle.features)} features",
+                    )
 
-            # Step 5.2: SpecFact → Spec-Kit (reverse conversion)
-            task = progress.add_task("[cyan]Converting SpecFact → Spec-Kit...[/cyan]", total=None)
+            # Step 5.2: SpecFact → tool (reverse conversion)
+            task = progress.add_task(f"[cyan]Converting SpecFact → {adapter_type.value}...[/cyan]", total=None)
             # Show current activity (spinner will show automatically)
             progress.update(task, description="[cyan]Detecting SpecFact changes...[/cyan]")
 
@@ -263,20 +299,28 @@ def _perform_sync_operation(
             if merged_bundle and len(merged_bundle.features) > 0:
                 plan_bundle_to_convert = merged_bundle
             else:
-                # Fallback: load plan bundle from file if merged_bundle is empty or None
-                if plan:
-                    plan_path = plan if plan.is_absolute() else repo / plan
-                else:
-                    # Use get_default_plan_path() to find the active plan (checks config or falls back to main.bundle.yaml)
-                    plan_path = SpecFactStructure.get_default_plan_path(repo)
+                # Fallback: load plan bundle from bundle name or default
+                plan_bundle_to_convert = None
+                if bundle:
+                    from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                    from specfact_cli.utils.bundle_loader import load_project_bundle
 
-                if plan_path.exists():
-                    progress.update(task, description="[cyan]Loading plan bundle...[/cyan]")
-                    validation_result = validate_plan_bundle(plan_path)
-                    if isinstance(validation_result, tuple):
-                        is_valid, _error, plan_bundle = validation_result
-                        if is_valid and plan_bundle and len(plan_bundle.features) > 0:
-                            plan_bundle_to_convert = plan_bundle
+                    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
+                    if bundle_dir.exists():
+                        project_bundle = load_project_bundle(bundle_dir)
+                        plan_bundle_to_convert = _convert_project_bundle_to_plan_bundle(project_bundle)
+                else:
+                    # Use get_default_plan_path() to find the active plan (legacy compatibility)
+                    plan_path: Path | None = None
+                    if hasattr(SpecFactStructure, "get_default_plan_path"):
+                        plan_path = SpecFactStructure.get_default_plan_path(repo)
+                    if plan_path and plan_path.exists():
+                        progress.update(task, description="[cyan]Loading plan bundle...[/cyan]")
+                        validation_result = validate_plan_bundle(plan_path)
+                        if isinstance(validation_result, tuple):
+                            is_valid, _error, plan_bundle = validation_result
+                            if is_valid and plan_bundle and len(plan_bundle.features) > 0:
+                                plan_bundle_to_convert = plan_bundle
 
             # Convert if we have a plan bundle with features
             if plan_bundle_to_convert and len(plan_bundle_to_convert.features) > 0:
@@ -291,24 +335,24 @@ def _perform_sync_operation(
                         specs_dir.mkdir(parents=True, exist_ok=True)
                         console.print("[green]✓[/green] Existing artifacts removed")
 
-                # Convert SpecFact plan bundle to Spec-Kit markdown
+                # Convert SpecFact plan bundle to tool format
                 total_features = len(plan_bundle_to_convert.features)
                 progress.update(
                     task,
-                    description=f"[cyan]Converting plan bundle to Spec-Kit format (0 of {total_features})...[/cyan]",
+                    description=f"[cyan]Converting plan bundle to {adapter_type.value} format (0 of {total_features})...[/cyan]",
                 )
 
                 # Progress callback to update during conversion
                 def update_progress(current: int, total: int) -> None:
                     progress.update(
                         task,
-                        description=f"[cyan]Converting plan bundle to Spec-Kit format ({current} of {total})...[/cyan]",
+                        description=f"[cyan]Converting plan bundle to {adapter_type.value} format ({current} of {total})...[/cyan]",
                     )
 
                 features_converted_speckit = converter.convert_to_speckit(plan_bundle_to_convert, update_progress)
                 progress.update(
                     task,
-                    description=f"[green]✓[/green] Converted {features_converted_speckit} features to Spec-Kit",
+                    description=f"[green]✓[/green] Converted {features_converted_speckit} features to {adapter_type.value}",
                 )
                 mode_text = "overwritten" if overwrite else "generated"
                 console.print(
@@ -319,7 +363,7 @@ def _perform_sync_operation(
                     "[yellow]⚠[/yellow] [dim]Note: Constitution Check gates in plan.md are set to PENDING - review and check gates based on your project's actual state[/dim]"
                 )
             else:
-                progress.update(task, description="[green]✓[/green] No features to convert to Spec-Kit")
+                progress.update(task, description=f"[green]✓[/green] No features to convert to {adapter_type.value}")
                 features_converted_speckit = 0
 
             # Detect conflicts between both directions
@@ -328,11 +372,13 @@ def _perform_sync_operation(
 
             if conflicts:
                 console.print(f"[yellow]⚠[/yellow] Found {len(conflicts)} conflicts")
-                console.print("[dim]Conflicts resolved using priority rules (SpecFact > Spec-Kit for artifacts)[/dim]")
+                console.print(
+                    f"[dim]Conflicts resolved using priority rules (SpecFact > {adapter_type.value} for artifacts)[/dim]"
+                )
             else:
                 console.print("[bold green]✓[/bold green] No conflicts detected")
         else:
-            # Unidirectional sync: Spec-Kit → SpecFact
+            # Unidirectional sync: tool → SpecFact
             task = progress.add_task("[cyan]Converting to SpecFact format...[/cyan]", total=None)
             # Show current activity (spinner will show automatically)
             progress.update(task, description="[cyan]Converting to SpecFact format...[/cyan]")
@@ -368,14 +414,16 @@ def _perform_sync_operation(
         console.print()
         if bidirectional:
             console.print("[bold cyan]Sync Summary (Bidirectional):[/bold cyan]")
-            console.print(f"  - Spec-Kit → SpecFact: Updated {features_updated}, Added {features_added} features")
+            console.print(
+                f"  - {adapter_type.value} → SpecFact: Updated {features_updated}, Added {features_added} features"
+            )
             # Always show conversion result (we convert if plan bundle exists, not just when changes detected)
             if features_converted_speckit > 0:
                 console.print(
-                    f"  - SpecFact → Spec-Kit: {features_converted_speckit} features converted to Spec-Kit markdown"
+                    f"  - SpecFact → {adapter_type.value}: {features_converted_speckit} features converted to {adapter_type.value} format"
                 )
             else:
-                console.print("  - SpecFact → Spec-Kit: No features to convert")
+                console.print(f"  - SpecFact → {adapter_type.value}: No features to convert")
             if conflicts:
                 console.print(f"  - Conflicts: {len(conflicts)} detected and resolved")
             else:
@@ -385,7 +433,10 @@ def _perform_sync_operation(
             if features_converted_speckit > 0:
                 console.print()
                 console.print("[bold cyan]Next Steps:[/bold cyan]")
-                console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
+                if adapter_type == AdapterType.SPECKIT:
+                    console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
+                else:
+                    console.print(f"  Validate {adapter_type.value} artifact consistency and quality")
                 console.print("  This will check for ambiguities, duplications, and constitution alignment")
         else:
             console.print("[bold cyan]Sync Summary (Unidirectional):[/bold cyan]")
@@ -394,28 +445,71 @@ def _perform_sync_operation(
             if features_updated > 0 or features_added > 0:
                 console.print(f"  - Updated: {features_updated} features")
                 console.print(f"  - Added: {features_added} new features")
-            console.print("  - Direction: Spec-Kit → SpecFact")
+            console.print(f"  - Direction: {adapter_type.value} → SpecFact")
 
             # Post-sync validation suggestion
             console.print()
             console.print("[bold cyan]Next Steps:[/bold cyan]")
-            console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
+            if adapter_type == AdapterType.SPECKIT:
+                console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
+            else:
+                console.print(f"  Validate {adapter_type.value} artifact consistency and quality")
             console.print("  This will check for ambiguities, duplications, and constitution alignment")
 
     console.print()
     console.print("[bold green]✓[/bold green] Sync complete!")
+
+    # Auto-validate OpenAPI/AsyncAPI specs with Specmatic (if found)
+    import asyncio
+
+    from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+    spec_files = []
+    for pattern in [
+        "**/openapi.yaml",
+        "**/openapi.yml",
+        "**/openapi.json",
+        "**/asyncapi.yaml",
+        "**/asyncapi.yml",
+        "**/asyncapi.json",
+    ]:
+        spec_files.extend(repo.glob(pattern))
+
+    if spec_files:
+        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+        is_available, error_msg = check_specmatic_available()
+        if is_available:
+            for spec_file in spec_files[:3]:  # Validate up to 3 specs
+                console.print(f"[dim]Validating {spec_file.relative_to(repo)} with Specmatic...[/dim]")
+                try:
+                    result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                    if result.is_valid:
+                        console.print(f"  [green]✓[/green] {spec_file.name} is valid")
+                    else:
+                        console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
+                        if result.errors:
+                            for error in result.errors[:2]:  # Show first 2 errors
+                                console.print(f"    - {error}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+            if len(spec_files) > 3:
+                console.print(
+                    f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                )
+        else:
+            console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
 
 
 def _sync_speckit_to_specfact(
     repo: Path, converter: Any, scanner: Any, progress: Any, task: int | None = None
 ) -> tuple[PlanBundle, int, int]:
     """
-    Sync Spec-Kit artifacts to SpecFact format.
+    Sync tool artifacts to SpecFact format.
 
     Args:
         repo: Repository path
-        converter: SpecKitConverter instance
-        scanner: SpecKitScanner instance
+        converter: Tool converter instance (e.g., SpecKitConverter)
+        scanner: Tool scanner instance (e.g., SpecKitScanner)
         progress: Rich Progress instance
         task: Optional progress task ID to update
 
@@ -467,9 +561,9 @@ def _sync_speckit_to_specfact(
                             description=f"[green]✓[/green] Removed {duplicates_removed} duplicates, cleaned plan saved",
                         )
 
-    # Convert Spec-Kit to SpecFact
+    # Convert tool artifacts to SpecFact
     if task is not None:
-        progress.update(task, description="[cyan]Converting Spec-Kit artifacts to SpecFact format...[/cyan]")
+        progress.update(task, description="[cyan]Converting tool artifacts to SpecFact format...[/cyan]")
     converted_bundle = converter.convert_plan(None if not existing_bundle else plan_path)
 
     # Merge with existing plan if it exists
@@ -512,7 +606,7 @@ def _sync_speckit_to_specfact(
                     shorter = min(normalized_key, existing_norm_key, key=len)
                     longer = max(normalized_key, existing_norm_key, key=len)
 
-                    # Check if at least one key has a numbered prefix (Spec-Kit format)
+                    # Check if at least one key has a numbered prefix (tool format, e.g., Spec-Kit)
                     import re
 
                     has_speckit_key = bool(
@@ -520,7 +614,7 @@ def _sync_speckit_to_specfact(
                     )
 
                     # More conservative matching:
-                    # 1. At least one key must have numbered prefix (Spec-Kit origin)
+                    # 1. At least one key must have numbered prefix (tool origin, e.g., Spec-Kit)
                     # 2. Shorter must be at least 10 chars
                     # 3. Longer must start with shorter (prefix match)
                     # 4. Length difference must be at least 6 chars
@@ -569,8 +663,9 @@ def _sync_speckit_to_specfact(
     return converted_bundle, 0, len(converted_bundle.features)
 
 
-@app.command("spec-kit")
-def sync_spec_kit(
+@app.command("bridge")
+def sync_bridge(
+    # Target/Input
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -579,25 +674,37 @@ def sync_spec_kit(
         file_okay=False,
         dir_okay=True,
     ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name for SpecFact → tool conversion (default: auto-detect)",
+    ),
+    # Behavior/Options
     bidirectional: bool = typer.Option(
         False,
         "--bidirectional",
-        help="Enable bidirectional sync (Spec-Kit ↔ SpecFact)",
-    ),
-    plan: Path | None = typer.Option(
-        None,
-        "--plan",
-        help="Path to SpecFact plan bundle for SpecFact → Spec-Kit conversion (default: active plan in .specfact/plans)",
+        help="Enable bidirectional sync (tool ↔ SpecFact)",
     ),
     overwrite: bool = typer.Option(
         False,
         "--overwrite",
-        help="Overwrite existing Spec-Kit artifacts (delete all existing before sync)",
+        help="Overwrite existing tool artifacts (delete all existing before sync)",
     ),
     watch: bool = typer.Option(
         False,
         "--watch",
         help="Watch mode for continuous sync",
+    ),
+    ensure_compliance: bool = typer.Option(
+        False,
+        "--ensure-compliance",
+        help="Validate and auto-enrich plan bundle for tool compliance before sync",
+    ),
+    # Advanced/Configuration
+    adapter: str = typer.Option(
+        "speckit",
+        "--adapter",
+        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
     ),
     interval: int = typer.Option(
         5,
@@ -605,87 +712,129 @@ def sync_spec_kit(
         help="Watch interval in seconds (default: 5)",
         min=1,
     ),
-    ensure_speckit_compliance: bool = typer.Option(
-        False,
-        "--ensure-speckit-compliance",
-        help="Validate and auto-enrich plan bundle for Spec-Kit compliance before sync (ensures technology stack, testable acceptance criteria, comprehensive scenarios)",
-    ),
 ) -> None:
     """
-    Sync changes between Spec-Kit artifacts and SpecFact.
+    Sync changes between external tool artifacts and SpecFact using bridge architecture.
 
-    Synchronizes markdown artifacts generated by Spec-Kit slash commands
-    with SpecFact plan bundles and protocols.
+    Synchronizes artifacts from external tools (e.g., Spec-Kit, Linear, Jira) with
+    SpecFact project bundles using configurable bridge mappings.
 
-    Example:
-        specfact sync spec-kit --repo . --bidirectional
+    Supported adapters:
+    - speckit: Spec-Kit projects (specs/, .specify/)
+    - generic-markdown: Generic markdown-based specifications
+
+    **Parameter Groups:**
+    - **Target/Input**: --repo, --bundle
+    - **Behavior/Options**: --bidirectional, --overwrite, --watch, --ensure-compliance
+    - **Advanced/Configuration**: --adapter, --interval
+
+    **Examples:**
+        specfact sync bridge --adapter speckit --repo . --bidirectional
+        specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
+        specfact sync bridge --repo . --watch --interval 10
     """
+    # Auto-detect adapter if not specified
+    from specfact_cli.sync.bridge_probe import BridgeProbe
+
+    if adapter == "speckit" or adapter == "auto":
+        probe = BridgeProbe(repo)
+        detected_capabilities = probe.detect()
+        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
+
+    # Validate adapter
+    try:
+        adapter_type = AdapterType(adapter.lower())
+    except ValueError as err:
+        console.print(f"[bold red]✗[/bold red] Unsupported adapter: {adapter}")
+        console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
+        raise typer.Exit(1) from err
+
     telemetry_metadata = {
+        "adapter": adapter,
         "bidirectional": bidirectional,
         "watch": watch,
         "overwrite": overwrite,
         "interval": interval,
     }
 
-    with telemetry.track_command("sync.spec_kit", telemetry_metadata) as record:
-        console.print(f"[bold cyan]Syncing Spec-Kit artifacts from:[/bold cyan] {repo}")
+    with telemetry.track_command("sync.bridge", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Syncing {adapter_type.value} artifacts from:[/bold cyan] {repo}")
 
-        # Ensure Spec-Kit compliance if requested
-        if ensure_speckit_compliance:
-            console.print("\n[cyan]🔍 Validating plan bundle for Spec-Kit compliance...[/cyan]")
+        # For now, Spec-Kit adapter uses legacy sync (will be migrated to bridge)
+        if adapter_type != AdapterType.SPECKIT:
+            console.print(f"[yellow]⚠ Generic adapter ({adapter_type.value}) not yet fully implemented[/yellow]")
+            console.print("[dim]Falling back to Spec-Kit adapter for now[/dim]")
+            # TODO: Implement generic adapter sync via bridge
+            raise typer.Exit(1)
+
+        # Ensure tool compliance if requested
+        if ensure_compliance:
+            console.print(f"\n[cyan]🔍 Validating plan bundle for {adapter_type.value} compliance...[/cyan]")
             from specfact_cli.utils.structure import SpecFactStructure
             from specfact_cli.validators.schema import validate_plan_bundle
 
-            # Use provided plan path or default
-            plan_path = plan if plan else SpecFactStructure.get_default_plan_path(repo)
-            if not plan_path.is_absolute():
-                plan_path = repo / plan_path
+            # Use provided bundle name or default
+            plan_bundle = None
+            if bundle:
+                from specfact_cli.utils.bundle_loader import load_project_bundle
 
-            if plan_path.exists():
-                validation_result = validate_plan_bundle(plan_path)
-                if isinstance(validation_result, tuple):
-                    is_valid, _error, plan_bundle = validation_result
-                    if is_valid and plan_bundle:
-                        # Check for technology stack in constraints
-                        has_tech_stack = bool(
-                            plan_bundle.idea
-                            and plan_bundle.idea.constraints
-                            and any(
-                                "Python" in c or "framework" in c.lower() or "database" in c.lower()
-                                for c in plan_bundle.idea.constraints
+                bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
+                if bundle_dir.exists():
+                    project_bundle = load_project_bundle(bundle_dir)
+                    # Convert to PlanBundle for validation (legacy compatibility)
+                    from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+
+                    plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                else:
+                    console.print(f"[yellow]⚠ Bundle '{bundle}' not found, skipping compliance check[/yellow]")
+                    plan_bundle = None
+            else:
+                # Legacy: Try to find default plan path (for backward compatibility)
+                if hasattr(SpecFactStructure, "get_default_plan_path"):
+                    plan_path = SpecFactStructure.get_default_plan_path(repo)
+                    if plan_path and plan_path.exists():
+                        validation_result = validate_plan_bundle(plan_path)
+                        if isinstance(validation_result, tuple):
+                            is_valid, _error, plan_bundle = validation_result
+                            if not is_valid:
+                                plan_bundle = None
+
+            if plan_bundle:
+                # Check for technology stack in constraints
+                has_tech_stack = bool(
+                    plan_bundle.idea
+                    and plan_bundle.idea.constraints
+                    and any(
+                        "Python" in c or "framework" in c.lower() or "database" in c.lower()
+                        for c in plan_bundle.idea.constraints
+                    )
+                )
+
+                if not has_tech_stack:
+                    console.print("[yellow]⚠ Technology stack not found in constraints[/yellow]")
+                    console.print("[dim]Technology stack will be extracted from constraints during sync[/dim]")
+
+                # Check for testable acceptance criteria
+                features_with_non_testable = []
+                for feature in plan_bundle.features:
+                    for story in feature.stories:
+                        testable_count = sum(
+                            1
+                            for acc in story.acceptance
+                            if any(
+                                keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]
                             )
                         )
+                        if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
+                            features_with_non_testable.append((feature.key, story.key))
 
-                        if not has_tech_stack:
-                            console.print("[yellow]⚠ Technology stack not found in constraints[/yellow]")
-                            console.print("[dim]Technology stack will be extracted from constraints during sync[/dim]")
+                if features_with_non_testable:
+                    console.print(
+                        f"[yellow]⚠ Found {len(features_with_non_testable)} stories with non-testable acceptance criteria[/yellow]"
+                    )
+                    console.print("[dim]Acceptance criteria will be enhanced during sync[/dim]")
 
-                        # Check for testable acceptance criteria
-                        features_with_non_testable = []
-                        for feature in plan_bundle.features:
-                            for story in feature.stories:
-                                testable_count = sum(
-                                    1
-                                    for acc in story.acceptance
-                                    if any(
-                                        keyword in acc.lower()
-                                        for keyword in ["must", "should", "verify", "validate", "ensure"]
-                                    )
-                                )
-                                if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
-                                    features_with_non_testable.append((feature.key, story.key))
-
-                        if features_with_non_testable:
-                            console.print(
-                                f"[yellow]⚠ Found {len(features_with_non_testable)} stories with non-testable acceptance criteria[/yellow]"
-                            )
-                            console.print("[dim]Acceptance criteria will be enhanced during sync[/dim]")
-
-                        console.print("[green]✓ Plan bundle validation complete[/green]")
-                    else:
-                        console.print("[yellow]⚠ Plan bundle validation failed, but continuing with sync[/yellow]")
-                else:
-                    console.print("[yellow]⚠ Could not validate plan bundle, but continuing with sync[/yellow]")
+                console.print("[green]✓ Plan bundle validation complete[/green]")
             else:
                 console.print("[yellow]⚠ Plan bundle not found, skipping compliance check[/yellow]")
 
@@ -698,12 +847,26 @@ def sync_spec_kit(
             console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
             raise typer.Exit(1)
 
-        # Watch mode implementation
+        # Watch mode implementation (using bridge-based watch)
         if watch:
-            from specfact_cli.sync.watcher import FileChange, SyncWatcher
+            from specfact_cli.sync.bridge_watch import BridgeWatch
 
             console.print("[bold cyan]Watch mode enabled[/bold cyan]")
             console.print(f"[dim]Watching for changes every {interval} seconds[/dim]\n")
+
+            # Use bridge-based watch mode
+            bridge_watch = BridgeWatch(
+                repo_path=resolved_repo,
+                bundle_name=bundle,
+                interval=interval,
+            )
+
+            bridge_watch.watch()
+            return
+
+        # Legacy watch mode (for backward compatibility during transition)
+        if False:  # Disabled - use bridge watch above
+            from specfact_cli.sync.watcher import FileChange, SyncWatcher
 
             @beartype
             @require(lambda changes: isinstance(changes, list), "Changes must be a list")
@@ -714,10 +877,10 @@ def sync_spec_kit(
             @ensure(lambda result: result is None, "Must return None")
             def sync_callback(changes: list[FileChange]) -> None:
                 """Handle file changes and trigger sync."""
-                spec_kit_changes = [c for c in changes if c.change_type == "spec_kit"]
+                tool_changes = [c for c in changes if c.change_type == "spec_kit"]
                 specfact_changes = [c for c in changes if c.change_type == "specfact"]
 
-                if spec_kit_changes or specfact_changes:
+                if tool_changes or specfact_changes:
                     console.print(f"[cyan]Detected {len(changes)} change(s), syncing...[/cyan]")
                     # Perform one-time sync (bidirectional if enabled)
                     try:
@@ -734,8 +897,9 @@ def sync_spec_kit(
                         _perform_sync_operation(
                             repo=resolved_repo,
                             bidirectional=bidirectional,
-                            plan=plan,
+                            bundle=bundle,
                             overwrite=overwrite,
+                            adapter_type=adapter_type,
                         )
                         console.print("[green]✓[/green] Sync complete\n")
                     except Exception as e:
@@ -752,8 +916,9 @@ def sync_spec_kit(
         _perform_sync_operation(
             repo=resolved_repo,
             bidirectional=bidirectional,
-            plan=plan,
+            bundle=bundle,
             overwrite=overwrite,
+            adapter_type=adapter_type,
         )
         record({"sync_completed": True})
 
@@ -919,3 +1084,233 @@ def sync_repository(
         else:
             console.print("[bold green]✓[/bold green] No deviations detected")
         console.print("[bold green]✓[/bold green] Repository sync complete!")
+
+        # Auto-validate OpenAPI/AsyncAPI specs with Specmatic (if found)
+        import asyncio
+
+        from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+        spec_files = []
+        for pattern in [
+            "**/openapi.yaml",
+            "**/openapi.yml",
+            "**/openapi.json",
+            "**/asyncapi.yaml",
+            "**/asyncapi.yml",
+            "**/asyncapi.json",
+        ]:
+            spec_files.extend(resolved_repo.glob(pattern))
+
+        if spec_files:
+            console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+            is_available, error_msg = check_specmatic_available()
+            if is_available:
+                for spec_file in spec_files[:3]:  # Validate up to 3 specs
+                    console.print(f"[dim]Validating {spec_file.relative_to(resolved_repo)} with Specmatic...[/dim]")
+                    try:
+                        result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                        if result.is_valid:
+                            console.print(f"  [green]✓[/green] {spec_file.name} is valid")
+                        else:
+                            console.print(f"  [yellow]⚠[/yellow] {spec_file.name} has validation issues")
+                            if result.errors:
+                                for error in result.errors[:2]:  # Show first 2 errors
+                                    console.print(f"    - {error}")
+                    except Exception as e:
+                        console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+                if len(spec_files) > 3:
+                    console.print(
+                        f"[dim]... and {len(spec_files) - 3} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                    )
+            else:
+                console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+
+
+@app.command("intelligent")
+@beartype
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def sync_intelligent(
+    # Target/Input
+    bundle: str | None = typer.Argument(
+        None, help="Project bundle name (e.g., legacy-api). Default: active plan from 'specfact plan select'"
+    ),
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository. Default: current directory (.)",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    # Behavior/Options
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        help="Watch mode for continuous sync. Default: False",
+    ),
+    code_to_spec: str = typer.Option(
+        "auto",
+        "--code-to-spec",
+        help="Code-to-spec sync mode: 'auto' (AST-based) or 'off'. Default: auto",
+    ),
+    spec_to_code: str = typer.Option(
+        "llm-prompt",
+        "--spec-to-code",
+        help="Spec-to-code sync mode: 'llm-prompt' (generate prompts) or 'off'. Default: llm-prompt",
+    ),
+    tests: str = typer.Option(
+        "specmatic",
+        "--tests",
+        help="Test generation mode: 'specmatic' (contract-based) or 'off'. Default: specmatic",
+    ),
+) -> None:
+    """
+    Continuous intelligent bidirectional sync with conflict resolution.
+
+    Detects changes via hashing and syncs intelligently:
+    - Code→Spec: AST-based automatic sync (CLI can do)
+    - Spec→Code: LLM prompt generation (CLI orchestrates, LLM writes)
+    - Spec→Tests: Specmatic flows (contract-based, not LLM guessing)
+
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --repo
+    - **Behavior/Options**: --watch, --code-to-spec, --spec-to-code, --tests
+
+    **Examples:**
+        specfact sync intelligent legacy-api --repo .
+        specfact sync intelligent my-bundle --repo . --watch
+        specfact sync intelligent my-bundle --repo . --code-to-spec auto --spec-to-code llm-prompt --tests specmatic
+    """
+    from rich.console import Console
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
+    from specfact_cli.sync.change_detector import ChangeDetector
+    from specfact_cli.sync.code_to_spec import CodeToSpecSync
+    from specfact_cli.sync.spec_to_code import SpecToCodeSync
+    from specfact_cli.sync.spec_to_tests import SpecToTestsSync
+    from specfact_cli.telemetry import telemetry
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    repo_path = repo.resolve()
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
+
+    if not bundle_dir.exists():
+        console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
+        raise typer.Exit(1)
+
+    telemetry_metadata = {
+        "bundle": bundle,
+        "watch": watch,
+        "code_to_spec": code_to_spec,
+        "spec_to_code": spec_to_code,
+        "tests": tests,
+    }
+
+    with telemetry.track_command("sync.intelligent", telemetry_metadata) as record:
+        console.print(f"[bold cyan]Intelligent Sync:[/bold cyan] {bundle}")
+        console.print(f"[dim]Repository:[/dim] {repo_path}")
+
+        # Load project bundle
+        project_bundle = load_project_bundle(bundle_dir)
+
+        # Initialize sync components
+        change_detector = ChangeDetector(bundle, repo_path)
+        code_to_spec_sync = CodeToSpecSync(repo_path)
+        spec_to_code_sync = SpecToCodeSync(repo_path)
+        spec_to_tests_sync = SpecToTestsSync(bundle, repo_path)
+
+        def perform_sync() -> None:
+            """Perform one sync cycle."""
+            console.print("\n[cyan]Detecting changes...[/cyan]")
+
+            # Detect changes
+            changeset = change_detector.detect_changes(project_bundle.features)
+
+            if not any([changeset.code_changes, changeset.spec_changes, changeset.test_changes]):
+                console.print("[dim]No changes detected[/dim]")
+                return
+
+            # Report changes
+            if changeset.code_changes:
+                console.print(f"[cyan]Code changes:[/cyan] {len(changeset.code_changes)}")
+            if changeset.spec_changes:
+                console.print(f"[cyan]Spec changes:[/cyan] {len(changeset.spec_changes)}")
+            if changeset.test_changes:
+                console.print(f"[cyan]Test changes:[/cyan] {len(changeset.test_changes)}")
+            if changeset.conflicts:
+                console.print(f"[yellow]⚠ Conflicts:[/yellow] {len(changeset.conflicts)}")
+
+            # Sync code→spec (AST-based, automatic)
+            if code_to_spec == "auto" and changeset.code_changes:
+                console.print("\n[cyan]Syncing code→spec (AST-based)...[/cyan]")
+                try:
+                    code_to_spec_sync.sync(changeset.code_changes, bundle)
+                    console.print("[green]✓[/green] Code→spec sync complete")
+                except Exception as e:
+                    console.print(f"[red]✗[/red] Code→spec sync failed: {e}")
+
+            # Sync spec→code (LLM prompt generation)
+            if spec_to_code == "llm-prompt" and changeset.spec_changes:
+                console.print("\n[cyan]Preparing LLM prompts for spec→code...[/cyan]")
+                try:
+                    context = spec_to_code_sync.prepare_llm_context(changeset.spec_changes, repo_path)
+                    prompt = spec_to_code_sync.generate_llm_prompt(context)
+
+                    # Save prompt to file
+                    prompts_dir = repo_path / ".specfact" / "prompts"
+                    prompts_dir.mkdir(parents=True, exist_ok=True)
+                    prompt_file = prompts_dir / f"{bundle}-code-generation-{len(changeset.spec_changes)}.md"
+                    prompt_file.write_text(prompt, encoding="utf-8")
+
+                    console.print(f"[green]✓[/green] LLM prompt generated: {prompt_file}")
+                    console.print("[yellow]Execute this prompt with your LLM to generate code[/yellow]")
+                except Exception as e:
+                    console.print(f"[red]✗[/red] LLM prompt generation failed: {e}")
+
+            # Sync spec→tests (Specmatic)
+            if tests == "specmatic" and changeset.spec_changes:
+                console.print("\n[cyan]Generating tests via Specmatic...[/cyan]")
+                try:
+                    spec_to_tests_sync.sync(changeset.spec_changes, bundle)
+                    console.print("[green]✓[/green] Test generation complete")
+                except Exception as e:
+                    console.print(f"[red]✗[/red] Test generation failed: {e}")
+
+        if watch:
+            console.print("[bold cyan]Watch mode enabled[/bold cyan]")
+            console.print("[dim]Watching for changes...[/dim]")
+            console.print("[yellow]Press Ctrl+C to stop[/yellow]\n")
+
+            from specfact_cli.sync.watcher import SyncWatcher
+
+            def sync_callback(_changes: list) -> None:
+                """Handle file changes and trigger sync."""
+                perform_sync()
+
+            watcher = SyncWatcher(repo_path, sync_callback, interval=5)
+            try:
+                watcher.watch()
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Stopping watch mode...[/yellow]")
+        else:
+            perform_sync()
+
+        record({"sync_completed": True})

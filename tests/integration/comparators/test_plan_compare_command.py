@@ -32,6 +32,9 @@ class TestPlanCompareCommand:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         plan = PlanBundle(
@@ -70,6 +73,9 @@ class TestPlanCompareCommand:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -78,6 +84,9 @@ class TestPlanCompareCommand:
             outcomes=["View metrics"],
             acceptance=["Dashboard loads"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -127,6 +136,9 @@ class TestPlanCompareCommand:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -135,6 +147,9 @@ class TestPlanCompareCommand:
             outcomes=["View metrics"],
             acceptance=["Dashboard loads"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -186,6 +201,9 @@ class TestPlanCompareCommand:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature2 = Feature(
@@ -194,6 +212,9 @@ class TestPlanCompareCommand:
             outcomes=["View metrics"],
             acceptance=["Dashboard loads"],
             stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -262,6 +283,9 @@ class TestPlanCompareCommand:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[story1, story2],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         feature_auto = Feature(
@@ -270,6 +294,9 @@ class TestPlanCompareCommand:
             outcomes=["Secure login"],
             acceptance=["Login works"],
             stories=[story1],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         manual_plan = PlanBundle(
@@ -312,8 +339,26 @@ class TestPlanCompareCommand:
         idea = Idea(title="Test Project", narrative="A test project", metrics=None)
         product = Product(themes=[], releases=[])
 
-        feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
-        feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
+        feature1 = Feature(
+            key="FEATURE-001",
+            title="Auth",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature2 = Feature(
+            key="FEATURE-002",
+            title="Dashboard",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
 
         manual_plan = PlanBundle(
             version="1.0",
@@ -351,7 +396,7 @@ class TestPlanCompareCommand:
                 str(manual_path),
                 "--auto",
                 str(auto_path),
-                "--format",
+                "--output-format",
                 "markdown",
                 "--out",
                 str(report_path),
@@ -372,8 +417,26 @@ class TestPlanCompareCommand:
         idea = Idea(title="Test Project", narrative="A test project", metrics=None)
         product = Product(themes=[], releases=[])
 
-        feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
-        feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
+        feature1 = Feature(
+            key="FEATURE-001",
+            title="Auth",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature2 = Feature(
+            key="FEATURE-002",
+            title="Dashboard",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
 
         manual_plan = PlanBundle(
             version="1.0",
@@ -411,7 +474,7 @@ class TestPlanCompareCommand:
                 str(manual_path),
                 "--auto",
                 str(auto_path),
-                "--format",
+                "--output-format",
                 "json",
                 "--out",
                 str(report_path),
@@ -480,8 +543,26 @@ class TestPlanCompareCommand:
         product1 = Product(themes=["AI"], releases=[])
         product2 = Product(themes=["ML"], releases=[])
 
-        feature1 = Feature(key="FEATURE-001", title="Auth", outcomes=[], acceptance=[], stories=[])
-        feature2 = Feature(key="FEATURE-002", title="Dashboard", outcomes=[], acceptance=[], stories=[])
+        feature1 = Feature(
+            key="FEATURE-001",
+            title="Auth",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature2 = Feature(
+            key="FEATURE-002",
+            title="Dashboard",
+            outcomes=[],
+            acceptance=[],
+            stories=[],
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
 
         manual_plan = PlanBundle(
             version="1.0",

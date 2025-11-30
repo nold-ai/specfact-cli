@@ -50,6 +50,7 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 - ✅ **Reverse engineer legacy code** → Extract specs automatically from existing code
 - ✅ **Runtime contract enforcement** → Prevent regressions during modernization
 - ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
+- ✅ **API contract testing** → Validate OpenAPI/AsyncAPI specs with Specmatic integration
 - ✅ **Works offline** → No cloud required, fully local
 - ✅ **CLI integrations** → Works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow
 
@@ -77,7 +78,7 @@ SpecFact CLI works with your existing tools—no new platform to learn. See real
 
 ```bash
 # Zero-install (just run it)
-uvx specfact-cli@latest --help
+uvx specfact-cli@latest
 
 # Or install with pip
 pip install specfact-cli
@@ -87,13 +88,13 @@ pip install specfact-cli
 
 ```bash
 # Modernizing legacy code? (Recommended)
-specfact import from-code --repo . --name my-project
+specfact import from-code legacy-api --repo .
 
 # Starting a new project?
-specfact plan init --interactive
+specfact plan init legacy-api --interactive
 
-# Using GitHub Spec-Kit?
-specfact import from-spec-kit --repo ./my-project --dry-run
+# Using GitHub Spec-Kit or other tools?
+specfact import from-bridge --repo . --adapter speckit --write
 ```
 
 That's it! 🎉

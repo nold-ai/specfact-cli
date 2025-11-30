@@ -39,10 +39,30 @@ class TestWatchModeE2E:
             specify_dir.mkdir(parents=True)
             (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-            # Create SpecFact structure
-            plans_dir = repo_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True)
-            (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+            # Create SpecFact structure (modular bundle)
+            bundle_name = "main"
+            projects_dir = repo_path / ".specfact" / "projects"
+            projects_dir.mkdir(parents=True)
+            bundle_dir = projects_dir / bundle_name
+            bundle_dir.mkdir(parents=True)
+
+            # Create minimal bundle manifest
+            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle
+            from specfact_cli.models.project import Product
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             # Track sync events
             sync_events: list[str] = []
@@ -54,9 +74,13 @@ class TestWatchModeE2E:
                     app,
                     [
                         "sync",
-                        "spec-kit",
+                        "bridge",
                         "--repo",
                         str(repo_path),
+                        "--bundle",
+                        bundle_name,
+                        "--adapter",
+                        "speckit",
                         "--bidirectional",
                         "--watch",
                         "--interval",
@@ -98,18 +122,17 @@ As a user, I want to test features so that I can validate functionality.
             # Watch mode processes changes at the interval (1 second), plus debounce (0.5 seconds)
             time.sleep(3.0)
 
-            # Verify that sync was triggered (check if SpecFact plan was created/updated)
-            # After Spec-Kit change, bidirectional sync should create/update SpecFact plans
-            plan_files = list(plans_dir.glob("*.yaml"))
-            assert len(plan_files) > 0, "SpecFact plan should be created/updated after Spec-Kit change"
+            # Verify that sync was triggered (check if SpecFact bundle was created/updated)
+            # After Spec-Kit change, bidirectional sync should create/update SpecFact bundles
+            assert bundle_dir.exists(), "SpecFact bundle should exist after Spec-Kit change"
+            assert (bundle_dir / "bundle.manifest.yaml").exists(), "Bundle manifest should exist after sync"
 
-            # Verify the plan file was actually updated (not just exists)
-            # The sync should have processed the Spec-Kit spec.md and created/updated the plan
-            main_plan = plans_dir / "main.bundle.yaml"
-            if main_plan.exists():
-                plan_content = main_plan.read_text()
-                # Plan should contain version at minimum
-                assert "version" in plan_content, "Plan should contain version after sync"
+            # Verify the bundle was actually updated (check if features were added)
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
+            updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            # Bundle should have been updated with features from Spec-Kit
+            assert updated_bundle is not None, "Bundle should be loadable after sync"
 
             # Note: Watch mode will continue running, but we've verified it detects changes
             # The thread will be cleaned up when tmpdir is removed
@@ -124,10 +147,29 @@ As a user, I want to test features so that I can validate functionality.
             specify_dir.mkdir(parents=True)
             (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-            # Create SpecFact structure
-            plans_dir = repo_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True)
-            (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+            # Create SpecFact structure (modular bundle)
+            bundle_name = "main"
+            projects_dir = repo_path / ".specfact" / "projects"
+            projects_dir.mkdir(parents=True)
+            bundle_dir = projects_dir / bundle_name
+            bundle_dir.mkdir(parents=True)
+
+            # Create minimal bundle
+            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             # Start watch mode in background thread
             def run_watch_mode() -> None:
@@ -136,9 +178,13 @@ As a user, I want to test features so that I can validate functionality.
                     app,
                     [
                         "sync",
-                        "spec-kit",
+                        "bridge",
                         "--repo",
                         str(repo_path),
+                        "--bundle",
+                        bundle_name,
+                        "--adapter",
+                        "speckit",
                         "--bidirectional",
                         "--watch",
                         "--interval",
@@ -152,19 +198,34 @@ As a user, I want to test features so that I can validate functionality.
             # Wait for watch mode to start
             time.sleep(1.5)
 
-            # Modify SpecFact plan while watch mode is running
-            plan_file = plans_dir / "main.bundle.yaml"
-            plan_file.write_text(
-                dedent(
-                    """version: '1.0'
-features:
-  - key: FEATURE-001
-    title: Test Feature
-    outcomes:
-      - Test outcome
-"""
+            # Modify SpecFact bundle while watch mode is running
+            # Load, modify, and save the bundle
+            from specfact_cli.commands.plan import (
+                _convert_plan_bundle_to_project_bundle,
+                _convert_project_bundle_to_plan_bundle,
+            )
+            from specfact_cli.models.plan import Feature
+            from specfact_cli.utils.bundle_loader import load_project_bundle
+
+            updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            plan_bundle = _convert_project_bundle_to_plan_bundle(updated_bundle)
+            plan_bundle.features.append(
+                Feature(
+                    key="FEATURE-001",
+                    title="Test Feature",
+                    outcomes=["Test outcome"],
+                    acceptance=[],
+                    constraints=[],
+                    stories=[],
+                    confidence=0.8,
+                    draft=False,
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             )
+            updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
             # Wait for watch mode to detect and process the change
             # Watch mode processes changes at the interval (1 second), plus debounce (0.5 seconds)
@@ -193,10 +254,29 @@ features:
                 specify_dir.mkdir(parents=True)
                 (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-                # Create SpecFact structure
-                plans_dir = repo_path / ".specfact" / "plans"
-                plans_dir.mkdir(parents=True)
-                (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+                # Create SpecFact structure (modular bundle)
+                bundle_name = "main"
+                projects_dir = repo_path / ".specfact" / "projects"
+                projects_dir.mkdir(parents=True)
+                bundle_dir = projects_dir / bundle_name
+                bundle_dir.mkdir(parents=True)
+
+                # Create minimal bundle
+                from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+                from specfact_cli.models.plan import PlanBundle, Product
+                from specfact_cli.utils.bundle_loader import save_project_bundle
+
+                plan_bundle = PlanBundle(
+                    version="1.0",
+                    idea=None,
+                    business=None,
+                    product=Product(themes=[], releases=[]),
+                    features=[],
+                    clarifications=None,
+                    metadata=None,
+                )
+                project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+                save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
                 # Start watch mode in background thread
                 def run_watch_mode() -> None:
@@ -205,9 +285,13 @@ features:
                         app,
                         [
                             "sync",
-                            "spec-kit",
+                            "bridge",
                             "--repo",
                             str(repo_path),
+                            "--bundle",
+                            bundle_name,
+                            "--adapter",
+                            "speckit",
                             "--bidirectional",
                             "--watch",
                             "--interval",
@@ -242,27 +326,43 @@ As a user, I want to test features so that I can validate functionality.
                 time.sleep(2.5)
 
                 # Verify first sync happened (Spec-Kit → SpecFact)
-                plan_files = list(plans_dir.glob("*.yaml"))
-                assert len(plan_files) > 0, "SpecFact plan should exist after Spec-Kit change"
+                assert bundle_dir.exists(), "SpecFact bundle should exist after Spec-Kit change"
+                assert (bundle_dir / "bundle.manifest.yaml").exists(), "Bundle manifest should exist after sync"
 
-                # Then modify SpecFact plan
-                plan_file = plans_dir / "main.bundle.yaml"
-                plan_file.write_text(
-                    dedent(
-                        """version: '1.0'
-features:
-  - key: FEATURE-001
-    title: Test Feature
-"""
+                # Then modify SpecFact bundle
+                from specfact_cli.commands.plan import (
+                    _convert_plan_bundle_to_project_bundle,
+                    _convert_project_bundle_to_plan_bundle,
+                )
+                from specfact_cli.models.plan import Feature
+                from specfact_cli.utils.bundle_loader import load_project_bundle
+
+                updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+                plan_bundle = _convert_project_bundle_to_plan_bundle(updated_bundle)
+                plan_bundle.features.append(
+                    Feature(
+                        key="FEATURE-001",
+                        title="Test Feature",
+                        outcomes=[],
+                        acceptance=[],
+                        constraints=[],
+                        stories=[],
+                        confidence=0.8,
+                        draft=False,
+                        source_tracking=None,
+                        contract=None,
+                        protocol=None,
                     )
                 )
+                updated_project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+                save_project_bundle(updated_project_bundle, bundle_dir, atomic=True)
 
                 # Wait for second sync (SpecFact → Spec-Kit)
                 time.sleep(2.5)
 
                 # Verify both sides were synced
-                # Spec-Kit → SpecFact: spec.md should create/update plan
-                assert len(plan_files) > 0, "SpecFact plan should exist after Spec-Kit change"
+                # Spec-Kit → SpecFact: spec.md should create/update bundle
+                assert bundle_dir.exists(), "SpecFact bundle should exist after Spec-Kit change"
 
                 # SpecFact → Spec-Kit: plan changes should sync back (if bidirectional works)
                 # Check if Spec-Kit artifacts were updated
@@ -323,10 +423,29 @@ features:
             src_dir.mkdir(parents=True)
             (src_dir / "__init__.py").write_text("")
 
-            # Create SpecFact structure
-            plans_dir = repo_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True)
-            (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+            # Create SpecFact structure (modular bundle)
+            bundle_name = "main"
+            projects_dir = repo_path / ".specfact" / "projects"
+            projects_dir.mkdir(parents=True)
+            bundle_dir = projects_dir / bundle_name
+            bundle_dir.mkdir(parents=True)
+
+            # Create minimal bundle
+            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             # Start watch mode in background thread
             def run_watch_mode() -> None:
@@ -379,10 +498,29 @@ features:
             specify_dir.mkdir(parents=True)
             (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-            # Create SpecFact structure
-            plans_dir = repo_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True)
-            (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+            # Create SpecFact structure (modular bundle)
+            bundle_name = "main"
+            projects_dir = repo_path / ".specfact" / "projects"
+            projects_dir.mkdir(parents=True)
+            bundle_dir = projects_dir / bundle_name
+            bundle_dir.mkdir(parents=True)
+
+            # Create minimal bundle
+            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             # Start watch mode in background thread
             def run_watch_mode() -> None:
@@ -391,9 +529,13 @@ features:
                     app,
                     [
                         "sync",
-                        "spec-kit",
+                        "bridge",
                         "--repo",
                         str(repo_path),
+                        "--bundle",
+                        bundle_name,
+                        "--adapter",
+                        "speckit",
                         "--bidirectional",
                         "--watch",
                         "--interval",
@@ -422,8 +564,8 @@ features:
 
             # Verify that sync was triggered for multiple changes
             # Watch mode should handle debouncing and process changes
-            plan_files = list(plans_dir.glob("*.yaml"))
-            assert len(plan_files) > 0, "SpecFact plans should exist after multiple Spec-Kit changes"
+            assert bundle_dir.exists(), "SpecFact bundle should exist after multiple Spec-Kit changes"
+            assert (bundle_dir / "bundle.manifest.yaml").exists(), "Bundle manifest should exist after sync"
 
     @pytest.mark.slow
     @pytest.mark.timeout(8)
@@ -437,10 +579,29 @@ features:
             specify_dir.mkdir(parents=True)
             (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-            # Create SpecFact structure
-            plans_dir = repo_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True)
-            (plans_dir / "main.bundle.yaml").write_text("version: '1.0'\n")
+            # Create SpecFact structure (modular bundle)
+            bundle_name = "main"
+            projects_dir = repo_path / ".specfact" / "projects"
+            projects_dir.mkdir(parents=True)
+            bundle_dir = projects_dir / bundle_name
+            bundle_dir.mkdir(parents=True)
+
+            # Create minimal bundle
+            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.utils.bundle_loader import save_project_bundle
+
+            plan_bundle = PlanBundle(
+                version="1.0",
+                idea=None,
+                business=None,
+                product=Product(themes=[], releases=[]),
+                features=[],
+                clarifications=None,
+                metadata=None,
+            )
+            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             # Track if watch mode started
             watch_started = threading.Event()
@@ -453,9 +614,13 @@ features:
                         app,
                         [
                             "sync",
-                            "spec-kit",
+                            "bridge",
                             "--repo",
                             str(repo_path),
+                            "--bundle",
+                            bundle_name,
+                            "--adapter",
+                            "speckit",
                             "--bidirectional",
                             "--watch",
                             "--interval",

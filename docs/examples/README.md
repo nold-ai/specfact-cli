@@ -8,7 +8,7 @@ Real-world examples of using SpecFact CLI.
   - **CLI-First**: Works offline, no account required, integrates with any IDE
   - Start with the [Integration Showcases README](integration-showcases/README.md) for an overview
   - Read the [main showcase document](integration-showcases/integration-showcases.md) for real examples
-- **[Brownfield Examples](#brownfield-examples)** ⭐ **NEW** - Complete hard-SDD workflow demonstrations
+- **[Brownfield Examples](./)** ⭐ **NEW** - Complete hard-SDD workflow demonstrations
   - **[Django Modernization](brownfield-django-modernization.md)** - Legacy Django app → contract-enforced modern codebase
   - **[Flask API](brownfield-flask-api.md)** - Legacy Flask API → contract-enforced modern service
   - **[Data Pipeline](brownfield-data-pipeline.md)** - Legacy ETL pipeline → contract-enforced data processing

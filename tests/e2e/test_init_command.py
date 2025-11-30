@@ -25,8 +25,8 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
-        (templates_dir / "specfact-plan-init.md").write_text("---\ndescription: Plan Init\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.02-plan.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
         # Change to temp directory
         old_cwd = os.getcwd()
@@ -43,15 +43,15 @@ class TestInitCommandE2E:
         # Verify templates were copied
         cursor_dir = tmp_path / ".cursor" / "commands"
         assert cursor_dir.exists()
-        assert (cursor_dir / "specfact-import-from-code.md").exists()
-        assert (cursor_dir / "specfact-plan-init.md").exists()
+        assert (cursor_dir / "specfact.01-import.md").exists()
+        assert (cursor_dir / "specfact.02-plan.md").exists()
 
     def test_init_explicit_cursor(self, tmp_path):
         """Test init command with explicit Cursor selection."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -67,14 +67,14 @@ class TestInitCommandE2E:
         # Verify template was copied
         cursor_dir = tmp_path / ".cursor" / "commands"
         assert cursor_dir.exists()
-        assert (cursor_dir / "specfact-import-from-code.md").exists()
+        assert (cursor_dir / "specfact.01-import.md").exists()
 
     def test_init_explicit_vscode(self, tmp_path):
         """Test init command with explicit VS Code selection."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -90,7 +90,7 @@ class TestInitCommandE2E:
         # Verify template was copied
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
         # Verify VS Code settings were updated
         vscode_settings = tmp_path / ".vscode" / "settings.json"
@@ -101,7 +101,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -117,20 +117,20 @@ class TestInitCommandE2E:
         # Verify template was copied
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
     def test_init_skips_existing_files_without_force(self, tmp_path):
         """Test init command skips existing files without --force."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
-        (templates_dir / "specfact-plan-init.md").write_text("---\ndescription: Plan Init\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.02-plan.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
         # Pre-create one file (but not all)
         cursor_dir = tmp_path / ".cursor" / "commands"
         cursor_dir.mkdir(parents=True)
-        (cursor_dir / "specfact-import-from-code.md").write_text("existing content")
+        (cursor_dir / "specfact.01-import.md").write_text("existing content")
 
         old_cwd = os.getcwd()
         try:
@@ -147,19 +147,19 @@ class TestInitCommandE2E:
             or "No templates copied" in result.stdout
         )
         # Verify existing file was not overwritten
-        assert (cursor_dir / "specfact-import-from-code.md").read_text() == "existing content"
+        assert (cursor_dir / "specfact.01-import.md").read_text() == "existing content"
 
     def test_init_overwrites_with_force(self, tmp_path):
         """Test init command overwrites existing files with --force."""
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nNew content")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nNew content")
 
         # Pre-create one file
         cursor_dir = tmp_path / ".cursor" / "commands"
         cursor_dir.mkdir(parents=True)
-        (cursor_dir / "specfact-import-from-code.md").write_text("existing content")
+        (cursor_dir / "specfact.01-import.md").write_text("existing content")
 
         old_cwd = os.getcwd()
         try:
@@ -170,7 +170,7 @@ class TestInitCommandE2E:
 
         assert result.exit_code == 0
         # Verify file was overwritten (content should contain "New content" from template)
-        content = (cursor_dir / "specfact-import-from-code.md").read_text()
+        content = (cursor_dir / "specfact.01-import.md").read_text()
         assert "New content" in content or "Analyze" in content
 
     def test_init_handles_missing_templates(self, tmp_path, monkeypatch):
@@ -188,11 +188,17 @@ class TestInitCommandE2E:
         monkeypatch.setattr(importlib.util, "find_spec", mock_find_spec)
 
         # Mock get_package_installation_locations to return empty list to avoid slow search
+        # Must mock in the module where it's imported (init.py) to ensure it works
         def mock_get_locations(package_name: str) -> list:
             return []  # Return empty to simulate no package found
 
         monkeypatch.setattr(
             "specfact_cli.utils.ide_setup.get_package_installation_locations",
+            mock_get_locations,
+        )
+        # Also mock in the init command module where it's imported
+        monkeypatch.setattr(
+            "specfact_cli.commands.init.get_package_installation_locations",
             mock_get_locations,
         )
 
@@ -202,6 +208,11 @@ class TestInitCommandE2E:
 
         monkeypatch.setattr(
             "specfact_cli.utils.ide_setup.find_package_resources_path",
+            mock_find_resources,
+        )
+        # Also mock in the init command module where it's imported
+        monkeypatch.setattr(
+            "specfact_cli.commands.init.find_package_resources_path",
             mock_find_resources,
         )
 
@@ -227,7 +238,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         supported_ides = ["cursor", "vscode", "copilot", "claude", "gemini", "qwen"]
 
@@ -263,7 +274,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -279,7 +290,7 @@ class TestInitCommandE2E:
         # Verify templates were copied
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
     def test_init_auto_detect_claude(self, tmp_path, monkeypatch):
         """Test init command with auto-detection (simulating Claude Code)."""
@@ -297,7 +308,7 @@ class TestInitCommandE2E:
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text("---\ndescription: Analyze\n---\nContent")
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
 
         old_cwd = os.getcwd()
         try:
@@ -312,4 +323,4 @@ class TestInitCommandE2E:
         # Verify templates were copied
         claude_dir = tmp_path / ".claude" / "commands"
         assert claude_dir.exists()
-        assert (claude_dir / "specfact-import-from-code.md").exists()
+        assert (claude_dir / "specfact.01-import.md").exists()

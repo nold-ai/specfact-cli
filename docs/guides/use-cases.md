@@ -50,7 +50,7 @@ specfact --mode copilot import from-code \
 specfact init --ide cursor
 
 # Then use slash command in IDE chat
-/specfact-import-from-code --repo . --confidence 0.7
+/specfact.01-import legacy-api --repo . --confidence 0.7
 ```
 
 See [IDE Integration Guide](ide-integration.md) for setup instructions. See [Integration Showcases](../examples/integration-showcases/) for real examples of bugs fixed via IDE integrations.
@@ -114,9 +114,9 @@ specfact sync repository --repo . --watch --interval 5
 
 ```bash
 specfact plan compare \
-  --manual .specfact/plans/main.bundle.yaml \
-  --auto .specfact/plans/my-project-*.bundle.yaml \
-  --format markdown \
+  --manual .specfact/projects/manual-plan \
+  --auto .specfact/projects/auto-derived \
+  --output-format markdown \
   --out .specfact/reports/comparison/deviation-report.md
 ```
 
@@ -124,7 +124,8 @@ specfact plan compare \
 
 ```bash
 # Use slash command in IDE chat (after specfact init)
-/specfact-plan-compare --manual main.bundle.yaml --auto auto.bundle.yaml
+/specfact.compare --bundle legacy-api
+# Or with explicit paths: /specfact.compare --manual main.bundle.yaml --auto auto.bundle.yaml
 ```
 
 **CoPilot Enhancement:**
@@ -202,13 +203,13 @@ specfact enforce stage --preset strict
 #### 1. Preview Migration
 
 ```bash
-specfact import from-spec-kit --repo ./spec-kit-project --dry-run
+specfact import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
 ```
 
 **Expected Output:**
 
 ```bash
-🔍 Analyzing Spec-Kit project...
+🔍 Analyzing Spec-Kit project via bridge adapter...
 ✅ Found .specify/ directory (modern format)
 ✅ Found specs/001-user-authentication/spec.md
 ✅ Found specs/001-user-authentication/plan.md
@@ -216,9 +217,9 @@ specfact import from-spec-kit --repo ./spec-kit-project --dry-run
 ✅ Found .specify/memory/constitution.md
 
 📊 Migration Preview:
-  - Will create: .specfact/plans/main.bundle.yaml
+  - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
   - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
-  - Will create: .specfact/enforcement/config.yaml
+  - Will create: .specfact/gates/config.yaml
   - Will convert: Spec-Kit features → SpecFact Feature models
   - Will convert: Spec-Kit user stories → SpecFact Story models
   
@@ -228,23 +229,23 @@ specfact import from-spec-kit --repo ./spec-kit-project --dry-run
 #### 2. Execute Migration
 
 ```bash
-specfact import from-spec-kit \
+specfact import from-bridge \
+  --adapter speckit \
   --repo ./spec-kit-project \
   --write \
-  --out-branch feat/specfact-migration \
   --report migration-report.md
 ```
 
 #### 3. Review Generated Contracts
 
 ```bash
-git checkout feat/specfact-migration
-git diff main
+# Review using CLI commands
+specfact plan review <bundle-name>
 ```
 
 Review:
 
-- `.specfact/plans/main.bundle.yaml` - Plan bundle (converted from Spec-Kit artifacts)
+- `.specfact/projects/<bundle-name>/` - Modular project bundle (converted from Spec-Kit artifacts)
 - `.specfact/protocols/workflow.protocol.yaml` - FSM definition (if protocol detected)
 - `.specfact/enforcement/config.yaml` - Quality gates configuration
 - `.semgrep/async-anti-patterns.yaml` - Anti-pattern rules (if async patterns detected)
@@ -256,16 +257,16 @@ Before syncing, ensure you have a valid constitution:
 
 ```bash
 # Auto-generate from repository analysis (recommended for brownfield)
-specfact constitution bootstrap --repo .
+specfact bridge constitution bootstrap --repo .
 
 # Validate completeness
-specfact constitution validate
+specfact bridge constitution validate
 
 # Or enrich existing minimal constitution
-specfact constitution enrich --repo .
+specfact bridge constitution enrich --repo .
 ```
 
-**Note**: The `sync spec-kit` command will detect if the constitution is missing or minimal and suggest bootstrap automatically.
+**Note**: The `sync bridge --adapter speckit` command will detect if the constitution is missing or minimal and suggest bootstrap automatically.
 
 #### 5. Enable Bidirectional Sync (Optional)
 
@@ -273,15 +274,15 @@ Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
 # One-time bidirectional sync
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it syncs:**
 
-- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/plans/*.yaml`
+- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/projects/<bundle-name>/` aspect files
 - `.specify/memory/constitution.md` ↔ SpecFact business context
 - `specs/[###-feature-name]/research.md`, `data-model.md`, `quickstart.md` ↔ SpecFact supporting artifacts
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
@@ -338,7 +339,8 @@ specfact --mode copilot plan init --interactive
 
 ```bash
 # Use slash command in IDE chat (after specfact init)
-/specfact-plan-init --idea idea.yaml
+/specfact.02-plan init legacy-api
+# Or update idea: /specfact.02-plan update-idea --bundle legacy-api --title "My Project"
 ```
 
 **Interactive prompts:**
@@ -361,7 +363,7 @@ What's the first release name?
 What are the release objectives? (comma-separated)
 > WebSocket server, Client SDK, Basic presence
 
-✅ Plan initialized: .specfact/plans/main.bundle.yaml
+✅ Plan initialized: .specfact/projects/<bundle-name>/
 ```
 
 #### 2. Add Features and Stories
@@ -611,7 +613,7 @@ cp ../shared-contracts/plan.bundle.yaml contracts/shared/
 specfact plan compare \
   --manual contracts/shared/plan.bundle.yaml \
   --auto contracts/service/plan.bundle.yaml \
-  --format markdown
+  --output-format markdown
 ```
 
 #### 4. Enforce Consistency

@@ -53,7 +53,7 @@ class TestAnalyzeAgent:
             # Create sample code files
             (src_dir / "main.py").write_text("class Main:\n    pass\n")
             (src_dir / "utils.py").write_text("def helper():\n    pass\n")
-            (repo_path / "requirements.txt").write_text("typer==0.9.0\n")
+            (repo_path / "requirements.txt").write_text("typer==0.9.1\n")
 
             context = agent._load_codebase_context(repo_path)
 

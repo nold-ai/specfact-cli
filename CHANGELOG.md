@@ -9,6 +9,564 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.3] - 2025-12-01
+
+### Changed (0.11.3)
+
+- **Enhanced Target User Extraction in Plan Review**
+  - Refactored `_extract_target_users()` to prioritize reliable metadata sources over codebase scanning
+  - **Priority order** (most reliable first):
+    1. `pyproject.toml` classifiers (e.g., "Intended Audience :: Developers")
+    2. `README.md` patterns ("Perfect for:", "Target users:", etc.)
+    3. Story titles with "As a..." patterns
+    4. Codebase user models (optional fallback only if <2 suggestions found)
+  - Removed keyword extraction from `pyproject.toml` (keywords are technical terms, not personas)
+  - Simplified excluded terms list (reduced from 60+ to 14 terms)
+  - Improved README.md extraction to skip use cases (e.g., "data pipelines", "devops scripts")
+  - Updated question text from "Suggested from codebase" to "Suggested" (reflects multiple sources)
+
+- **Removed GWT Format References**
+  - Removed outdated "Given/When/Then format" question from completion signals scanning
+  - Updated vague acceptance criteria question to: "Should these be more specific? Note: Detailed test examples should be in OpenAPI contract files, not acceptance criteria."
+  - Removed "given", "when", "then" from testability keywords check
+  - Clarifies that acceptance criteria are simple text descriptions, not OpenAPI format
+  - Aligns with Phase 4/5 design where detailed examples are in OpenAPI contracts
+
+### Fixed (0.11.3)
+
+- **Target User Extraction Accuracy**
+  - Fixed false positives from codebase scanning (e.g., "Detecting", "Data Pipelines", "Async", "Beartype", "Brownfield")
+  - Now only extracts actual user personas from reliable metadata sources
+  - Codebase extraction only runs as fallback when metadata provides <2 suggestions
+  - Improved filtering to exclude technical terms and use cases
+
+---
+
+## [0.11.2] - 2025-11-30
+
+### Fixed (0.11.2)
+
+- **ThreadPoolExecutor max_workers Validation**
+  - Fixed "max_workers must be greater than 0" error in `build_dependency_graph()` when processing empty file lists
+  - Added `max(1, ...)` protection to all `max_workers` calculations in:
+    - `src/specfact_cli/analyzers/graph_analyzer.py` - Graph dependency analysis
+    - `src/specfact_cli/commands/import_cmd.py` - Contract loading, hash updates, and contract extraction (3 locations)
+    - `src/specfact_cli/analyzers/code_analyzer.py` - File analysis parallelization
+  - Ensures `ThreadPoolExecutor` always receives at least 1 worker, preventing runtime errors when processing empty collections
+  - All 9 previously failing tests now passing
+
+- **Prompt Validation Test Path Resolution**
+  - Fixed `test_validate_all_prompts` test failure due to incorrect path calculation
+  - Updated path from `Path(__file__).parent.parent.parent` to `Path(__file__).parent.parent.parent.parent`
+  - Correctly navigates from `tests/unit/prompts/test_prompt_validation.py` to root `resources/prompts/` directory
+  - Test now successfully locates and validates all prompt files
+
+- **Prompt File Glob Pattern**
+  - Fixed `validate_all_prompts()` function to match actual file naming convention
+  - Changed glob pattern from `specfact-*.md` to `specfact.*.md` to match files like `specfact.01-import.md`
+  - Function now correctly discovers and validates all 8 prompt files in `resources/prompts/`
+
+- **Type Checking Errors**
+  - Fixed all basedpyright `reportCallIssue` errors for missing `source_tracking`, `contract`, and `protocol` parameters
+  - Updated all `Feature` instantiations across test files to include explicit `None` values for optional parameters
+  - Fixed 53 type checking errors across 20+ test files
+  - All linter errors from basedpyright resolved
+
+---
+
+## [0.11.1] - 2025-11-29
+
+### Added (0.11.1)
+
+- **Configurable Test File Filtering in Relationship Mapping**
+  - New `--exclude-tests` flag for `specfact import from-code` command to optimize processing speed
+  - Default behavior: Test files are **included** by default for comprehensive analysis
+  - Use `--exclude-tests` to skip test files for faster processing (~30-50% speed improvement)
+  - Rationale for excluding tests: Test files are consumers of production code (not producers), so skipping them has minimal impact on dependency graph quality
+  - When excluding tests: Test files are filtered but vendor/venv files are always filtered regardless of flag
+  - Updated help text and documentation with clear usage examples
+  - Backward compatibility: `--include-tests` flag still available (now default behavior)
+
+### Changed (0.11.1)
+
+- **Relationship Mapping Default Behavior**
+  - Test files are now **included by default** in relationship mapping phase for comprehensive analysis
+  - Previous default (skipping tests) can be restored using `--exclude-tests` flag for speed optimization
+  - Filtering rationale documented in code: Test files import production code (one-way dependency), so excluding them doesn't affect production dependency graph
+  - Interfaces and routes are defined in production code, not tests, so excluding tests has minimal quality impact
+  - Vendor and virtual environment files are always filtered regardless of flag
+
+### Documentation (0.11.1)
+
+- **Enhanced Command Documentation**
+  - Added `--include-tests/--exclude-tests` flags to parameter groups in `import from-code` command docstring
+  - Updated example usage: `specfact import from-code my-project --repo . --exclude-tests` (for speed optimization)
+  - Updated help text to explain default behavior (comprehensive) and optimization option (with `--exclude-tests`)
+
+---
+
+## [0.11.0] - 2025-11-28
+
+### Fixed (0.11.0)
+
+- **Test Timeout in IDE Setup**
+  - Fixed timeout issue in `test_init_handles_missing_templates` test (was timing out after 5 seconds)
+  - Added comprehensive error handling to `get_package_installation_locations()` function
+  - Wrapped all `rglob` operations in try-except blocks to handle `FileNotFoundError`, `PermissionError`, and `OSError`
+  - Added skip logic for known problematic directories (typeshed stubs) to prevent slow traversal
+  - Improved test mocking to work in both `specfact_cli.utils.ide_setup` and `specfact_cli.commands.init` modules
+  - Test now passes in ~3 seconds (well under 5s timeout)
+
+- **Package Location Discovery Robustness**
+  - Enhanced `get_package_installation_locations()` to gracefully handle problematic cache directories
+  - Added directory existence checks before attempting `rglob` traversal
+  - Improved error handling for uvx cache locations on Linux/macOS and Windows
+  - Better handling of symlinks, case sensitivity, and path separators across platforms
+  - Prevents timeouts when encountering large or problematic directory trees
+
+### Changed (0.11.0)
+
+- **IDE Setup Error Handling**
+  - Enhanced error handling in `ide_setup.py` to skip problematic directories instead of failing
+  - Added explicit checks to skip typeshed and stubs directories during package discovery
+  - Improved robustness of cross-platform package location detection
+
+---
+
+## [0.10.2] - 2025-11-27
+
+### Added (0.10.2)
+
+- **SDD Feature Parity Implementation** - Complete task generation and code implementation workflow
+  - **Multi-SDD Infrastructure** (Phase 1.5 Complete)
+    - SDD discovery utility (`sdd_discovery.py`) with `find_sdd_for_bundle`, `list_all_sdds`, `get_sdd_by_hash` functions
+    - Support for multiple SDD manifests per repository, linked to specific project bundles
+    - Auto-discovery of SDD manifests based on bundle name (`.specfact/sdd/<bundle-name>.yaml`)
+    - New `sdd list` command to display all SDD manifests with linked bundles, hashes, and coverage thresholds
+    - Updated `plan harden`, `enforce sdd`, `plan review`, and `plan promote` commands to use multi-SDD layout
+  - **Task Generation** (Phase 5.1 Complete)
+    - New `generate tasks` command to create dependency-ordered task lists from plan bundles and SDD manifests
+    - Task data models (`Task`, `TaskList`, `TaskPhase`, `TaskStatus`) with Pydantic validation
+    - Task generator (`task_generator.py`) that parses plan bundles and SDD HOW sections
+    - Tasks organized by phases: Setup, Foundational, User Stories, Polish
+    - Tasks include acceptance criteria, file paths, dependencies, and parallelization markers
+    - Support for YAML, JSON, and Markdown output formats
+  - **Code Implementation** (Phase 5.2 Complete)
+    - New `implement tasks` command to execute task breakdowns and generate code files
+    - Phase-by-phase task execution (Setup → Foundational → User Stories → Polish)
+    - Dependency validation before task execution
+    - Code generation from task descriptions with templates for different phases
+    - Progress tracking with task status updates saved to task file
+    - Support for `--dry-run`, `--phase`, `--task`, `--skip-validation`, `--no-interactive` options
+  - **Idea-to-Ship Orchestrator** (Phase 5.3 Complete)
+    - New `run idea-to-ship` command to orchestrate end-to-end workflow from SDD scaffold to code implementation
+    - 8-step workflow: SDD scaffold → Plan init/import → Plan review → Contract generation → Task generation → Code implementation → Enforcement checks → Bridge sync
+    - Auto-detection of bundle names from existing bundles
+    - Support for skipping steps: `--skip-sdd`, `--skip-sync`, `--skip-implementation`
+    - Non-interactive mode for CI/CD automation
+
+### Fixed (0.10.2)
+
+- **Enum Serialization Bug**
+  - Fixed YAML serialization error when generating task lists (enum values now properly serialized as strings)
+  - Updated `generate tasks` command to use `model_dump(mode="json")` for proper enum serialization
+- **Bundle Name Validation**
+  - Fixed empty bundle name validation in `run idea-to-ship` command
+  - Added strict validation to ensure bundle names are always non-empty strings
+  - Fixed projects directory path construction to avoid calling `SpecFactStructure.project_dir()` without bundle name
+  - Enhanced bundle name auto-detection with proper filtering of empty directory names
+
+### Testing (0.10.2)
+
+- **Comprehensive Test Coverage**
+  - 12 unit tests for SDD discovery utility (`test_sdd_discovery.py`) - all passing
+  - 14 unit tests for task generator (`test_task_generator.py`) - all passing
+  - All tests cover multi-SDD scenarios, legacy layouts, task generation, phase organization, dependencies, and edge cases
+
+---
+
+## [0.10.1] - 2025-11-27
+
+### Changed (0.10.1)
+
+- **CLI Reorganization Complete** - Comprehensive CLI parameter standardization and reorganization
+  - **Parameter Standardization** (Phase 1 Complete)
+    - All commands now use consistent parameter names: `--repo`, `--out`, `--output-format`, `--no-interactive`, `--bundle`
+    - Parameter standard document created: `docs/reference/parameter-standard.md`
+    - Deprecated parameter names show warnings (3-month transition period)
+  - **Parameter Grouping** (Phase 2 Complete)
+    - All commands organized with logical parameter groups: Target/Input → Output/Results → Behavior/Options → Advanced/Configuration
+    - Help text updated with parameter group documentation in all command docstrings
+    - Improved discoverability and organization of CLI parameters
+  - **Slash Command Reorganization** (Phase 3 Complete)
+    - Reduced from 13 to 8 slash commands with numbered workflow ordering
+    - New commands: `/specfact.01-import`, `/specfact.02-plan`, `/specfact.03-review`, `/specfact.04-sdd`, `/specfact.05-enforce`, `/specfact.06-sync`, `/specfact.compare`, `/specfact.validate`
+    - Shared CLI enforcement rules in `resources/prompts/shared/cli-enforcement.md`
+    - All templates follow consistent structure (150-200 lines, down from 600+)
+  - **Bundle Parameter Integration**
+    - All commands now require `--bundle` parameter (no default)
+    - Path resolution uses bundle name: `.specfact/projects/<bundle-name>/`
+    - Clear error messages when bundle not found with suggestions
+
+### Documentation (0.10.1)
+
+- **Comprehensive Documentation Updates** (Phase 4 Complete)
+  - All command reference documentation updated with new parameter structure
+  - All user guides updated: workflows, brownfield guides, troubleshooting, etc.
+  - Migration guide expanded: `docs/guides/migration-cli-reorganization.md`
+    - Parameter name changes (old → new)
+    - Slash command changes (13 → 8 commands)
+    - Bundle parameter addition
+    - Workflow ordering explanation
+    - CI/CD and script update examples
+  - All examples use consistent `--bundle legacy-api` format
+  - All examples use standardized parameter names
+
+### Fixed (0.10.1)
+
+- **Documentation Consistency**
+  - Fixed all command examples to use `--bundle` parameter instead of positional arguments
+  - Fixed parameter name inconsistencies across all documentation
+  - Updated all slash command references to new numbered format
+
+---
+
+## [0.10.0] - 2025-11-27
+
+### Added (0.10.0)
+
+- **Specmatic Integration** - API contract testing layer
+  - New `spec` command group for Specmatic operations
+    - `specfact spec validate <spec-file>` - Validate OpenAPI/AsyncAPI specifications
+    - `specfact spec backward-compat <old> <new>` - Check backward compatibility between spec versions
+    - `specfact spec generate-tests <spec>` - Generate Specmatic test suite
+    - `specfact spec mock [--port 9000]` - Launch Specmatic mock server
+  - Automatic Specmatic detection (supports both direct `specmatic` and `npx specmatic`)
+  - Integration with core commands: `import`, `enforce`, and `sync` now auto-validate OpenAPI specs with Specmatic
+  - Comprehensive documentation: `docs/guides/specmatic-integration.md`
+  - Full test coverage: unit, integration, and e2e tests
+
+- **Bridge Command Group** - External tool integration
+  - New `bridge` command group for adapter commands
+  - Moved `constitution` commands to `specfact bridge constitution *`
+  - Clearer organization: bridge commands grouped together for external tool integration
+
+### Changed (0.10.0)
+
+- **CLI Command Reorganization**
+  - Commands now ordered in logical workflow sequence:
+    1. `init` - Initialize SpecFact for IDE integration
+    2. `import` - Import codebases and external tool projects
+    3. `plan` - Manage development plans
+    4. `generate` - Generate artifacts from SDD and plans
+    5. `enforce` - Configure quality gates
+    6. `repro` - Run validation suite
+    7. `spec` - Specmatic integration for API contract testing
+    8. `sync` - Synchronize Spec-Kit artifacts and repository changes
+    9. `bridge` - Bridge adapters for external tool integration
+  - Removed `hello` command - welcome message now shown when no command is provided
+  - Removed legacy `constitution` command (use `specfact bridge constitution` instead)
+
+- **Default Behavior**
+  - Running `specfact` without arguments now shows welcome message instead of help
+  - Welcome message displays version and suggests using `--help` for available commands
+
+### Fixed (0.10.0)
+
+- **Test Suite**
+  - Fixed 4 failing e2e tests in `test_init_command.py` by updating template names to match actual naming convention
+  - All 1018 tests passing (1 skipped)
+  - Fixed linter issues: replaced list concatenation with iterable unpacking (RUF005)
+  - Fixed unused variable warnings (RUF059)
+
+- **Code Quality**
+  - Fixed all RUF005 linter warnings (iterable unpacking instead of concatenation)
+  - Fixed all RUF059 linter warnings (unused unpacked variables)
+  - All format checks passing
+
+### Documentation (0.10.0)
+
+- **New Guides**
+  - `docs/guides/specmatic-integration.md` - Comprehensive Specmatic integration guide
+  - `docs/guides/migration-cli-reorganization.md` - Updated migration guide (removed deprecation references)
+
+- **Updated Documentation**
+  - `README.md` - Added "API contract testing" to key capabilities
+  - `docs/reference/commands.md` - Updated with new `spec` command group and `bridge` command structure
+  - All examples updated to use `specfact bridge constitution` instead of deprecated `specfact constitution`
+
+---
+
+## [0.9.2] - 2025-11-26
+
+### Changed (0.9.2)
+
+- **CLI Parameter Standardization** (Phase 1 Complete)
+  - **Parameter Renaming**: Standardized all CLI parameters for consistency across commands
+    - `--base-path` → `--repo` (repository path parameter)
+    - `--output` → `--out` (output file path parameter)
+    - `--format` → `--output-format` (output format parameter)
+    - `--non-interactive` → `--no-interactive` (interactive mode control)
+  - **Global Flag Update**: Changed global interaction flag from `--non-interactive/--interactive` to `--interactive/--no-interactive`
+  - **Commands Updated**:
+    - `generate contracts`: `--base-path` → `--repo`
+    - `constitution bootstrap`: `--output` → `--out`
+    - `plan compare`: `--format` → `--output-format`
+    - `enforce sdd`: `--format` → `--output-format`
+    - All commands: `--non-interactive` → `--no-interactive`
+  - **Parameter Standard Document**: Created `docs/reference/parameter-standard.md` with comprehensive naming conventions and grouping guidelines
+
+- **`--bundle` Parameter Verification** (Phase 1.3 Complete)
+  - Enhanced `_find_bundle_dir()` function with improved error messages
+  - Lists available bundles when bundle not found
+  - Suggests similar bundle names
+  - Provides clear creation instructions
+  - All commands with optional `--bundle` have fallback logic to find default bundle
+  - Help text updated to indicate when `--bundle` is required vs optional
+  - Added `--bundle` parameter to `plan compare` and `generate contracts` commands
+
+### Fixed (0.9.2)
+
+- **Test Suite Updates**
+  - Fixed 37 test failures by updating all test files to use new parameter names
+  - Updated test files: `test_constitution_commands.py`, `test_plan_command.py`, `test_generate_command.py`, `test_enforce_command.py`, `test_plan_review_batch_updates.py`, `test_plan_review_non_interactive.py`, `test_plan_compare_command.py`, `test_plan_telemetry.py`
+  - All 993 tests now passing (1 skipped)
+  - Test coverage maintained at 70%
+
+- **Documentation Synchronization**
+  - Updated all documentation files to use new parameter names
+  - Fixed parameter references in: `docs/reference/commands.md`, `docs/reference/feature-keys.md`, `docs/guides/use-cases.md`, `docs/examples/quick-examples.md`, `docs/prompts/PROMPT_VALIDATION_CHECKLIST.md`, `docs/examples/integration-showcases/integration-showcases-testing-guide.md`
+  - All user-facing documentation now synchronized with code changes
+
+### Documentation (0.9.2)
+
+- **Parameter Standard Document**
+  - Created `docs/reference/parameter-standard.md` with comprehensive parameter naming conventions
+  - Documented parameter grouping guidelines (Target/Input, Output/Results, Behavior/Options, Advanced)
+  - Established deprecation policy (3-month transition period)
+  - Included examples and validation checklist
+
+---
+
+## [0.9.1] - 2025-11-26
+
+### Fixed (0.9.1)
+
+- **Updated all unit, integration and e2e tests.** Verified all tests are running without errors, failures and warnings.
+- **Fixed type errors** Refactored code to clean up type errors from ruff and basedbyright findings.
+
+---
+
+## [0.9.0] - 2025-11-26
+
+### Added (0.9.0)
+
+- **Modular Project Bundle Structure** (Phases 1-3 Complete)
+  - **New Directory-Based Structure** (`.specfact/projects/<bundle-name>/`)
+    - Directory-based project bundles with separated concerns (multiple bundles per repository)
+    - `bundle.manifest.yaml` - Entry point with dual versioning, checksums, locks, and metadata
+    - Separate aspect files: `idea.yaml`, `business.yaml`, `product.yaml`, `clarifications.yaml`
+    - `features/` directory with individual feature files (`FEATURE-001.yaml`, etc.)
+    - `protocols/` directory for FSM protocols (Architect-owned)
+    - `contracts/` directory for OpenAPI 3.0.3 contracts (Architect-owned)
+    - Feature index in manifest (no separate `index.yaml` files)
+    - Protocol and contract indices in manifest
+  - **Bundle Manifest Model** (`src/specfact_cli/models/project.py`)
+    - `BundleManifest` with dual versioning (schema version + project version)
+    - `BundleVersions`, `SchemaMetadata`, `ProjectMetadata` models
+    - `BundleChecksums` for file integrity validation
+    - `SectionLock` and `PersonaMapping` for persona-based workflows
+    - `FeatureIndex`, `ProtocolIndex` for fast lookup
+  - **ProjectBundle Class** (`src/specfact_cli/models/project.py`)
+    - `load_from_directory()` - Load project bundle from directory structure
+    - `save_to_directory()` - Save project bundle to directory structure with atomic writes
+    - `get_feature()` - Lazy loading for individual features
+    - `add_feature()`, `update_feature()` - Feature management with registry updates
+    - `compute_summary()` - Compute summary from all aspects (for compatibility)
+    - Automatic checksum computation and validation
+  - **Format Detection** (`src/specfact_cli/utils/bundle_loader.py`)
+    - `detect_bundle_format()` - Detect monolithic vs modular vs unknown format
+    - `validate_bundle_format()` - Validate detected format
+    - `is_monolithic_bundle()`, `is_modular_bundle()` - Helper functions
+    - Clear error messages for unsupported formats
+  - **Bundle Loader/Writer** (`src/specfact_cli/utils/bundle_loader.py`)
+    - `load_project_bundle()` - Load modular bundles with hash validation
+    - `save_project_bundle()` - Save modular bundles with atomic writes
+    - Lazy loading for features (loads only when accessed)
+    - Graceful handling of missing optional aspects (idea, business, clarifications)
+    - Hash consistency validation with `validate_hashes` parameter
+
+- **Configurable Compatibility Bridge Architecture** (Phase 4 Partial - 4.2-4.5 Complete)
+  - **Bridge Configuration Models** (`src/specfact_cli/models/bridge.py`)
+    - `BridgeConfig` - Adapter-agnostic bridge configuration
+    - `AdapterType` enum (speckit, generic-markdown, linear, jira, notion)
+    - `ArtifactMapping` - Maps SpecFact logical concepts to physical tool paths
+    - `CommandMapping` - Maps tool commands to SpecFact triggers
+    - `TemplateMapping` - Maps SpecFact schemas to tool prompt templates
+    - Dynamic path resolution with context variables (e.g., `{feature_id}`)
+  - **Bridge Detection and Probe** (`src/specfact_cli/sync/bridge_probe.py`)
+    - `BridgeProbe` class with capability detection
+    - Auto-detects tool version (Spec-Kit classic vs modern layout)
+    - Auto-detects directory structure (`specs/` vs `docs/specs/`)
+    - Detects external configuration presence and custom hooks
+    - `auto_generate_bridge()` - Generates appropriate bridge preset
+    - `validate_bridge()` - Validates bridge configuration with helpful error messages
+    - 16 unit tests passing (100% pass rate)
+  - **Bridge-Based Sync** (`src/specfact_cli/sync/bridge_sync.py`)
+    - `BridgeSync` class with adapter-agnostic bidirectional sync
+    - `resolve_artifact_path()` - Dynamic path resolution using bridge config
+    - `import_artifact()` - Import tool artifacts to project bundles
+    - `export_artifact()` - Export project bundles to tool format
+    - `sync_bidirectional()` - Full bidirectional sync with validation
+    - `_discover_feature_ids()` - Automatic feature discovery from bridge paths
+    - Placeholder implementations for Spec-Kit and generic markdown adapters
+    - Integrated with `BridgeProbe` for validation
+    - 13 unit tests passing (100% pass rate)
+  - **Bridge-Based Template System** (`src/specfact_cli/templates/bridge_templates.py`)
+    - `BridgeTemplateLoader` class with bridge-based template resolution
+    - `resolve_template_path()` - Dynamic template path resolution
+    - `load_template()` - Load Jinja2 templates from bridge-resolved paths
+    - `render_template()` - Render templates with context
+    - `list_available_templates()`, `template_exists()` - Template discovery
+    - Fallback to default templates when bridge templates not configured
+    - Support for template versioning via bridge config
+    - 12 unit tests passing (100% pass rate)
+  - **Bridge-Based Watch Mode** (`src/specfact_cli/sync/bridge_watch.py`)
+    - `BridgeWatch` class for continuous sync using bridge-resolved paths
+    - `BridgeWatchEventHandler` for bridge-aware change detection
+    - `_resolve_watch_paths()` - Dynamic path resolution from bridge config
+    - `_extract_feature_id_from_path()` - Feature ID extraction from file paths
+    - `_determine_artifact_key()` - Artifact type detection
+    - Auto-import on tool file changes (debounced)
+    - Support for watching multiple bridge-resolved directories
+    - 15 unit tests passing (100% pass rate)
+
+- **Command Updates for Modular Bundles** (Phase 3 Complete)
+  - **All Commands Now Use `--bundle` Parameter**
+    - `plan init` - Creates modular project bundle (requires bundle name)
+    - `import from-code` - Creates modular project bundle (requires bundle name)
+    - `plan harden` - Works with modular bundles (requires bundle name)
+    - `plan review` - Works with modular bundles (requires bundle name)
+    - `plan promote` - Works with modular bundles (requires bundle name)
+    - `enforce sdd` - Works with modular bundles (requires bundle name)
+    - `plan add-feature` - Uses `--bundle` option instead of `--plan`
+    - `plan add-story` - Uses `--bundle` option instead of `--plan`
+    - `plan update-idea` - Uses `--bundle` option instead of `--plan`
+  - **SDD Integration Updates**
+    - SDD manifests now link to project bundles via `bundle_name` (instead of `plan_bundle_id`)
+    - SDD saved to `.specfact/sdd/<bundle-name>.yaml` (one per project bundle)
+    - Hash computation from `ProjectBundle.compute_summary()` (all aspects combined)
+    - Updated `plan harden` to save SDD with `bundle_name` and `project_hash`
+    - Updated `enforce sdd` to load project bundle and validate hash match
+
+- **Bridge-Based Import/Sync Commands**
+  - **`import from-adapter` Command** (replaces `import from-spec-kit`)
+    - Adapter-agnostic import with `adapter` argument (e.g., `speckit`, `generic-markdown`)
+    - Uses `BridgeProbe` for auto-detection and `BridgeSync` for import
+    - Updated help text to indicate Spec-Kit is one adapter option among many
+  - **`sync bridge` Command** (replaces `sync spec-kit`)
+    - Adapter-agnostic sync with `adapter` argument (e.g., `speckit`, `generic-markdown`)
+    - Uses `BridgeSync` for bidirectional sync
+    - Uses `BridgeWatch` for watch mode
+    - Updated help text to indicate Spec-Kit is one adapter option among many
+
+### Changed (0.9.0)
+
+- **Breaking: All Commands Require `--bundle` Parameter**
+  - **No default bundle**: All commands require explicit `--bundle <name>` parameter
+  - **Removed `--plan` option**: Replaced with `--bundle` (string) instead of `--plan` (Path)
+  - **Removed `--out` option**: Modular bundles are directory-based, no output file needed
+  - **Removed `--format` option**: Modular format is the only format (no legacy support)
+  - Commands affected: `plan init`, `import from-code`, `plan harden`, `plan review`, `plan promote`, `enforce sdd`, `plan add-feature`, `plan add-story`, `plan update-idea`
+
+- **Breaking: File Structure Changed**
+  - **Old**: Single file `.specfact/plans/<name>.bundle.yaml`
+  - **New**: Directory `.specfact/projects/<bundle-name>/` with multiple files
+  - **SDD Location**: Changed from `.specfact/sdd.yaml` to `.specfact/sdd/<bundle-name>.yaml`
+  - **Hash Computation**: Now computed across all aspects (different from monolithic)
+
+- **Bridge Architecture (Adapter-Agnostic)**
+  - **`import from-spec-kit` → `import from-adapter`**: Renamed to reflect adapter-agnostic approach
+  - **`sync spec-kit` → `sync bridge`**: Renamed to reflect adapter-agnostic approach
+  - **Spec-Kit is one adapter option**: Updated all user-facing references to indicate Spec-Kit is one adapter among many (e.g., Spec-Kit, Linear, Jira)
+  - **Bridge configuration**: Uses `.specfact/config/bridge.yaml` for tool-specific mappings
+  - **Zero-code compatibility**: Tool structure changes require YAML updates, not CLI binary updates
+
+- **Command Help Text Updates**
+  - Updated `import` command help: "Import codebases and external tool projects" (was "Import codebases and Spec-Kit projects")
+  - Updated `sync` command help: "Synchronize external tool artifacts and repository changes" (was "Synchronize Spec-Kit artifacts and repository changes")
+  - All command examples updated to use `--bundle` parameter
+
+### Fixed (0.9.0)
+
+- **Type Checking Errors**
+  - Fixed missing parameters in `BundleManifest`, `BundleVersions`, `BundleChecksums` constructors
+  - Fixed `schema` field conflict in `BundleVersions` (renamed to `schema_version` with alias)
+  - Fixed optional field handling in Pydantic models (explicit `default=None` or `default="value"`)
+  - Fixed contract decorator parameter handling in bridge models
+  - All type checking errors resolved (only non-blocking warnings remain)
+
+- **Test Suite Updates**
+  - Updated all integration tests to use `--bundle` parameter instead of `--plan` or `--out`
+  - Updated path checks from `.specfact/plans/*.bundle.yaml` to `.specfact/projects/<bundle-name>/`
+  - Updated SDD path checks to use `.specfact/sdd/<bundle-name>.yaml`
+  - Fixed contract errors in helper functions (`_validate_sdd_for_bundle`, `_convert_project_bundle_to_plan_bundle`)
+  - All 68 integration tests passing (100% pass rate)
+
+- **Bridge Architecture Implementation**
+  - Fixed `BridgeSync` type errors related to optional `bridge_config`
+  - Fixed `BridgeWatch` type errors related to optional `bundle_name` and `bridge_config`
+  - Fixed template path resolution in `BridgeTemplateLoader`
+  - Fixed feature ID extraction regex patterns in `BridgeWatch`
+  - Fixed change type detection logic in `BridgeWatchEventHandler`
+
+### Testing (0.9.0)
+
+- **Comprehensive Test Coverage**
+  - **Unit Tests**: 31 tests for project bundle models and utilities (all passing)
+  - **Unit Tests**: 16 tests for bridge probe (all passing)
+  - **Unit Tests**: 13 tests for bridge sync (all passing)
+  - **Unit Tests**: 12 tests for bridge templates (all passing)
+  - **Unit Tests**: 15 tests for bridge watch (all passing)
+  - **Integration Tests**: 68 tests for command updates (all passing)
+    - 40 tests in `test_plan_command.py` (all passing)
+    - 11 tests in `test_analyze_command.py` (all passing)
+    - 17 tests in `test_enforce_command.py` (all passing)
+  - **Total**: 167 new/updated tests, all passing
+
+- **Contract-First Validation**
+  - All new models have `@icontract` and `@beartype` decorators
+  - All bridge components have runtime contract validation
+  - All contract tests passing (runtime contracts, exploration, scenarios)
+
+### Documentation (0.9.0)
+
+- **Implementation Plans Updated**
+  - Updated `PROJECT_BUNDLE_REFACTORING_PLAN.md` with completion status (Phases 1-3 complete, Phase 4 partial)
+  - Updated `SDD_FEATURE_PARITY_IMPLEMENTATION_PLAN.md` to reflect bridge architecture
+  - Updated `CLI_REORGANIZATION_IMPLEMENTATION_PLAN.md` to reflect bridge architecture
+  - Updated `README.md` in implementation folder with milestone status
+  - All plans updated to indicate Spec-Kit is one adapter option among many
+
+- **Architecture Documentation**
+  - Documented configurable bridge pattern (`.specfact/config/bridge.yaml`)
+  - Documented adapter-agnostic approach (Spec-Kit, Linear, Jira support)
+  - Documented zero-code compatibility benefits
+  - Updated all references from "Spec-Kit sync" to "bridge-based sync"
+
+### Migration Notes (0.9.0)
+
+**Important**: This version introduces breaking changes. Since SpecFact CLI has no existing users, migration is not required. However, if you have any test fixtures or internal tooling using the old format:
+
+1. **Bundle Name Required**: All commands now require `--bundle <name>` parameter
+2. **Directory Structure**: Bundles are now stored in `.specfact/projects/<bundle-name>/` instead of `.specfact/plans/<name>.bundle.yaml`
+3. **SDD Location**: SDD manifests are now in `.specfact/sdd/<bundle-name>.yaml` instead of `.specfact/sdd.yaml`
+4. **No Legacy Support**: Modular format is the only supported format (no monolithic bundle loader)
+
+**For External Bundle Imports**: Use `specfact migrate bundle` command (to be implemented in Phase 8) to convert external monolithic bundles to modular format.
+
+---
+
 ## [0.8.0] - 2025-11-24
 
 ### Added (0.8.0)

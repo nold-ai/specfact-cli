@@ -33,15 +33,16 @@ The automated validator checks:
 
 ## Validation Results
 
-All 7 prompts currently pass validation:
+All 8 prompts currently pass validation:
 
-- ✅ `specfact-import-from-code` (20 checks)
-- ✅ `specfact-plan-compare` (15 checks)
-- ✅ `specfact-plan-init` (15 checks)
-- ✅ `specfact-plan-promote` (15 checks)
-- ✅ `specfact-plan-review` (15 checks)
-- ✅ `specfact-plan-select` (15 checks)
-- ✅ `specfact-sync` (15 checks)
+- ✅ `specfact.01-import` (20 checks) - Import from codebase
+- ✅ `specfact.02-plan` (15 checks) - Plan management (init, add-feature, add-story, update-idea, update-feature, update-story)
+- ✅ `specfact.03-review` (15 checks) - Review plan and promote
+- ✅ `specfact.04-sdd` (15 checks) - Create SDD manifest
+- ✅ `specfact.05-enforce` (15 checks) - SDD enforcement
+- ✅ `specfact.06-sync` (15 checks) - Sync operations
+- ✅ `specfact.compare` (15 checks) - Compare plans
+- ✅ `specfact.validate` (15 checks) - Validation suite
 
 ## Manual Review
 

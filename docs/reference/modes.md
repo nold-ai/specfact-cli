@@ -166,8 +166,8 @@ hatch run python test_mode_practical.py
 The `import from-code` command now uses mode-aware routing. You should see mode information in the output (but execution is the same for now):
 
 ```bash
-# Test with CI/CD mode
-hatch run specfact --mode cicd import from-code --repo . --confidence 0.5 --shadow-only
+# Test with CI/CD mode (bundle name as positional argument)
+hatch run specfact --mode cicd import from-code test-project --repo . --confidence 0.5 --shadow-only
 
 # Expected output:
 # Mode: CI/CD (direct execution)
@@ -176,8 +176,8 @@ hatch run specfact --mode cicd import from-code --repo . --confidence 0.5 --shad
 ```
 
 ```bash
-# Test with CoPilot mode
-hatch run specfact --mode copilot import from-code --repo . --confidence 0.5 --shadow-only
+# Test with CoPilot mode (bundle name as positional argument)
+hatch run specfact --mode copilot import from-code test-project --repo . --confidence 0.5 --shadow-only
 
 # Expected output:
 # Mode: CoPilot (agent routing)
@@ -216,8 +216,8 @@ print(f'Execution mode: {result.execution_mode}')
 ```bash
 # In GitHub Actions or CI/CD
 # No environment variables set
-# Should auto-detect CI/CD mode
-hatch run specfact import from-code --repo . --confidence 0.7
+# Should auto-detect CI/CD mode (bundle name as positional argument)
+hatch run specfact import from-code my-project --repo . --confidence 0.7
 
 # Expected: Mode: CI/CD (direct execution)
 ```
@@ -227,8 +227,8 @@ hatch run specfact import from-code --repo . --confidence 0.7
 ```bash
 # Developer running in VS Code/Cursor with CoPilot enabled
 # IDE environment variables automatically set
-# Should auto-detect CoPilot mode
-hatch run specfact import from-code --repo . --confidence 0.7
+# Should auto-detect CoPilot mode (bundle name as positional argument)
+hatch run specfact import from-code my-project --repo . --confidence 0.7
 
 # Expected: Mode: CoPilot (agent routing)
 ```
@@ -236,8 +236,8 @@ hatch run specfact import from-code --repo . --confidence 0.7
 ### Scenario 3: Force Mode Override
 
 ```bash
-# Developer wants CI/CD mode even though CoPilot is available
-hatch run specfact --mode cicd import from-code --repo . --confidence 0.7
+# Developer wants CI/CD mode even though CoPilot is available (bundle name as positional argument)
+hatch run specfact --mode cicd import from-code my-project --repo . --confidence 0.7
 
 # Expected: Mode: CI/CD (direct execution) - flag overrides auto-detection
 ```

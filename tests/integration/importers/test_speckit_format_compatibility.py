@@ -261,6 +261,9 @@ Gate checks before implementation.
             stories=[story],
             confidence=1.0,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         converter = SpecKitConverter(tmp_path)
@@ -302,6 +305,9 @@ Gate checks before implementation.
             stories=[],
             confidence=1.0,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         plan_bundle = PlanBundle(
@@ -371,6 +377,9 @@ Gate checks before implementation.
             stories=[story],
             confidence=1.0,
             draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
         )
 
         # Add tasks to story (not feature)
@@ -493,10 +502,10 @@ Design tasks.
             plans_dir = repo_path / ".specfact" / "plans"
             plans_dir.mkdir(parents=True)
 
-            # Run bidirectional sync
+            # Run bidirectional sync (using bridge adapter)
             result = runner.invoke(
                 app,
-                ["sync", "spec-kit", "--repo", str(repo_path), "--bidirectional"],
+                ["sync", "bridge", "--adapter", "speckit", "--repo", str(repo_path), "--bidirectional"],
             )
 
             assert result.exit_code == 0

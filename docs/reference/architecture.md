@@ -44,15 +44,18 @@ SpecFact CLI supports two operational modes for different use cases:
 - No AI copilot dependency
 - Direct command execution
 - Structured JSON/Markdown output
+- **Enhanced Analysis**: AST + Semgrep hybrid pattern detection (API endpoints, models, CRUD, code quality)
+- **Optimized Bundle Size**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
+- **Interruptible**: All parallel operations support Ctrl+C for immediate cancellation
 
 **Usage:**
 
 ```bash
 # Auto-detected (default)
-specfact import from-code --repo .
+specfact import from-code my-project --repo .
 
 # Explicit CI/CD mode
-specfact --mode cicd import from-code --repo .
+specfact --mode cicd import from-code my-project --repo .
 ```
 
 ### Mode 2: CoPilot-Enabled
@@ -75,17 +78,17 @@ specfact --mode cicd import from-code --repo .
 
 ```bash
 # Auto-detected (if CoPilot available)
-specfact import from-code --repo .
+specfact import from-code my-project --repo .
 
 # Explicit CoPilot mode
-specfact --mode copilot import from-code --repo .
+specfact --mode copilot import from-code my-project --repo .
 
 # IDE integration (slash commands)
 # First, initialize: specfact init --ide cursor
 # Then use in IDE chat:
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-init --idea idea.yaml
-/specfact-sync --repo . --bidirectional
+/specfact.01-import legacy-api --repo . --confidence 0.7
+/specfact.02-plan init legacy-api
+/specfact.06-sync --adapter speckit --repo . --bidirectional
 ```
 
 ### Mode Detection
@@ -115,20 +118,20 @@ Each command uses specialized agent mode routing:
 
 ```python
 # Analyze agent mode
-/specfact-import-from-code --repo . --confidence 0.7
+/specfact.01-import legacy-api --repo . --confidence 0.7
 # → Enhanced prompts for code understanding
 # → Context injection (current file, selection, workspace)
 # → Interactive assistance for complex codebases
 
 # Plan agent mode
-/specfact-plan-init --idea idea.yaml
+/specfact.02-plan init legacy-api
 # → Guided wizard mode
 # → Natural language prompts
 # → Context-aware feature extraction
 
 # Sync agent mode
-/specfact-sync --source spec-kit --target .specfact
-# → Automatic source detection
+/specfact.06-sync --adapter speckit --repo . --bidirectional
+# → Automatic source detection via bridge adapter
 # → Conflict resolution assistance
 # → Change explanation and preview
 ```
@@ -139,25 +142,27 @@ Each command uses specialized agent mode routing:
 
 SpecFact CLI supports bidirectional synchronization for consistent change management:
 
-### Spec-Kit Sync
+### Bridge-Based Sync (Adapter-Agnostic)
 
-Bidirectional synchronization between Spec-Kit artifacts and SpecFact:
+Bidirectional synchronization between external tools (e.g., Spec-Kit) and SpecFact via configurable bridge:
 
 ```bash
 # One-time bidirectional sync
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it syncs:**
 
-- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/plans/*.yaml`
+- `specs/[###-feature-name]/spec.md`, `plan.md`, `tasks.md` ↔ `.specfact/projects/<bundle-name>/` aspect files
 - `.specify/memory/constitution.md` ↔ SpecFact business context
 - `specs/[###-feature-name]/research.md`, `data-model.md`, `quickstart.md` ↔ SpecFact supporting artifacts
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
 - Automatic conflict resolution with priority rules
+
+**Bridge Architecture**: The sync layer uses a configurable bridge (`.specfact/config/bridge.yaml`) that maps SpecFact logical concepts to physical tool artifacts, making it adapter-agnostic and extensible for future tool integrations (Linear, Jira, Notion, etc.).
 
 ### Repository Sync
 
@@ -193,7 +198,7 @@ graph TD
 
 ### 1. Specification Layer
 
-**Plan Bundle** (`.specfact/plans/main.bundle.yaml`):
+**Project Bundle** (`.specfact/projects/<bundle-name>/` - modular structure with multiple aspect files):
 
 ```yaml
 version: "1.0"
@@ -459,11 +464,15 @@ src/specfact_cli/
 │   ├── plan_agent.py    # Plan agent mode
 │   └── sync_agent.py    # Sync agent mode
 ├── sync/                  # Sync operation modules
-│   ├── speckit_sync.py  # Spec-Kit bidirectional sync
+│   ├── bridge_sync.py    # Bridge-based bidirectional sync (adapter-agnostic)
+│   ├── bridge_probe.py   # Bridge detection and auto-generation
+│   ├── bridge_watch.py   # Bridge-based watch mode
 │   ├── repository_sync.py # Repository sync
 │   └── watcher.py        # Watch mode for continuous sync
 ├── models/               # Pydantic data models
-│   ├── plan.py          # Plan bundle models
+│   ├── plan.py          # Plan bundle models (legacy compatibility)
+│   ├── project.py       # Project bundle models (modular structure)
+│   ├── bridge.py        # Bridge configuration models
 │   ├── protocol.py      # Protocol FSM models
 │   └── deviation.py     # Deviation models
 ├── validators/          # Schema validators
@@ -478,12 +487,56 @@ src/specfact_cli/
 │   ├── console.py       # Rich console output
 │   ├── git.py           # Git operations
 │   └── yaml_utils.py    # YAML helpers
+├── analyzers/          # Code analysis engines
+│   ├── code_analyzer.py # AST+Semgrep hybrid analysis
+│   ├── graph_analyzer.py # Dependency graph analysis
+│   └── relationship_mapper.py # Relationship extraction
 └── common/              # Shared utilities
     ├── logger_setup.py  # Logging infrastructure
     ├── logging_utils.py # Logging helpers
     ├── text_utils.py    # Text utilities
     └── utils.py         # File/JSON utilities
 ```
+
+## Analysis Components
+
+### AST+Semgrep Hybrid Analysis
+
+The `CodeAnalyzer` uses a hybrid approach combining AST parsing with Semgrep pattern detection:
+
+**AST Analysis** (Core):
+
+- Structural code analysis (classes, methods, imports)
+- Type hint extraction
+- Parallelized processing (2-4x speedup)
+- Interruptible with Ctrl+C (graceful cancellation)
+
+**Recent Improvements** (2025-11-30):
+
+- ✅ **Bundle Size Optimization**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
+- ✅ **Acceptance Criteria Limiting**: 1-3 high-level items per story (detailed examples in contract files)
+- ✅ **KeyboardInterrupt Handling**: All parallel operations support immediate cancellation
+- ✅ **Semgrep Detection Fix**: Increased timeout from 1s to 5s for reliable detection
+- Async pattern detection
+- Theme detection from imports
+
+**Semgrep Pattern Detection** (Enhancement):
+
+- **API Endpoint Detection**: FastAPI, Flask, Express, Gin routes
+- **Database Model Detection**: SQLAlchemy, Django, Pydantic, TortoiseORM, Peewee
+- **CRUD Operation Detection**: Function naming patterns (create_*, get_*, update_*, delete_*)
+- **Authentication Patterns**: Auth decorators, permission checks
+- **Code Quality Assessment**: Anti-patterns, code smells, security vulnerabilities
+- **Framework Patterns**: Async/await, context managers, type hints, configuration
+
+**Plugin Status**: The import command displays plugin status (AST Analysis, Semgrep Pattern Detection, Dependency Graph Analysis) showing which tools are enabled and used.
+
+**Benefits**:
+
+- Framework-aware feature detection
+- Enhanced confidence scores (AST + Semgrep evidence)
+- Code quality maturity assessment
+- Multi-language ready (TypeScript, JavaScript, Go patterns available)
 
 ## Testing Strategy
 

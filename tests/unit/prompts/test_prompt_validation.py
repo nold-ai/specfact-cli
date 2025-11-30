@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from tools.validate_prompts import PromptValidator, validate_all_prompts
 
 
@@ -60,7 +58,7 @@ Test goal.
 
     def test_validate_cli_alignment(self, tmp_path: Path):
         """Test CLI alignment validation."""
-        prompt_file = tmp_path / "specfact-import-from-code.md"
+        prompt_file = tmp_path / "specfact.01-import.md"
         prompt_content = """---
 description: Import from code
 ---
@@ -95,7 +93,7 @@ Test constraints.
 
     def test_validate_dual_stack_workflow(self, tmp_path: Path):
         """Test dual-stack workflow validation."""
-        prompt_file = tmp_path / "specfact-import-from-code.md"
+        prompt_file = tmp_path / "specfact.01-import.md"
         prompt_content = """---
 description: Import from code
 ---
@@ -138,9 +136,11 @@ Enrichment report location: `.specfact/reports/enrichment/`
 
     def test_validate_all_prompts(self):
         """Test validating all prompts in resources/prompts."""
-        prompts_dir = Path(__file__).parent.parent.parent / "resources" / "prompts"
-        if not prompts_dir.exists():
-            pytest.skip("Prompts directory not found")
+        # Path from tests/unit/prompts/test_prompt_validation.py to resources/prompts
+        # tests/unit/prompts -> tests/unit -> tests -> root -> resources/prompts
+        prompts_dir = Path(__file__).parent.parent.parent.parent / "resources" / "prompts"
+        # Prompts directory should exist in the repository
+        assert prompts_dir.exists(), f"Prompts directory not found at {prompts_dir}"
 
         results = validate_all_prompts(prompts_dir)
         assert len(results) > 0

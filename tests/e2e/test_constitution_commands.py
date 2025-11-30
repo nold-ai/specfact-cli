@@ -1,4 +1,4 @@
-"""End-to-end tests for specfact constitution commands."""
+"""End-to-end tests for specfact bridge constitution commands."""
 
 import os
 
@@ -11,7 +11,7 @@ runner = CliRunner()
 
 
 class TestConstitutionBootstrapE2E:
-    """End-to-end tests for specfact constitution bootstrap command."""
+    """End-to-end tests for specfact bridge constitution bootstrap command."""
 
     def test_bootstrap_creates_constitution_from_repo_analysis(self, tmp_path, monkeypatch):
         """Test bootstrap command analyzes repository and creates constitution."""
@@ -49,6 +49,7 @@ TDD mandatory: Tests written before implementation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -88,11 +89,12 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
                     str(tmp_path),
-                    "--output",
+                    "--out",
                     str(custom_output),
                 ],
             )
@@ -125,6 +127,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -163,6 +166,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -185,6 +189,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -205,7 +210,7 @@ version = "1.0.0"
 
 
 class TestConstitutionEnrichE2E:
-    """End-to-end tests for specfact constitution enrich command."""
+    """End-to-end tests for specfact bridge constitution enrich command."""
 
     def test_enrich_fills_placeholders(self, tmp_path, monkeypatch):
         """Test enrich command fills placeholders in existing constitution."""
@@ -243,6 +248,7 @@ description = "Test enrichment"
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -288,6 +294,7 @@ Constitution supersedes all other practices.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -308,6 +315,7 @@ Constitution supersedes all other practices.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -322,7 +330,7 @@ Constitution supersedes all other practices.
 
 
 class TestConstitutionValidateE2E:
-    """End-to-end tests for specfact constitution validate command."""
+    """End-to-end tests for specfact bridge constitution validate command."""
 
     def test_validate_passes_for_complete_constitution(self, tmp_path, monkeypatch):
         """Test validate command passes for complete constitution."""
@@ -363,6 +371,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -387,6 +396,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -419,6 +429,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -441,6 +452,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
+                    "bridge",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -463,6 +475,9 @@ class TestConstitutionIntegrationE2E:
 
     def test_import_from_code_suggests_constitution_bootstrap(self, tmp_path, monkeypatch):
         """Test import from-code suggests constitution bootstrap."""
+        # Ensure TEST_MODE is set to skip Semgrep
+        monkeypatch.setenv("TEST_MODE", "true")
+
         # Create minimal Python project
         (tmp_path / "src").mkdir(parents=True)
         (tmp_path / "src" / "test_module.py").write_text("def hello(): pass")
@@ -471,15 +486,15 @@ class TestConstitutionIntegrationE2E:
         try:
             os.chdir(tmp_path)
             # Mock user input: say "no" to bootstrap suggestion
+            bundle_name = "test-project"
             result = runner.invoke(
                 app,
                 [
                     "import",
                     "from-code",
+                    bundle_name,
                     "--repo",
                     str(tmp_path),
-                    "--name",
-                    "test-project",
                 ],
                 input="n\n",  # Decline bootstrap
             )
@@ -518,13 +533,29 @@ Test requirement.
         try:
             os.chdir(tmp_path)
             # Mock user input: say "yes" to bootstrap
+            # First create a bundle to sync
+            bundle_name = "test-bundle"
+            runner.invoke(
+                app,
+                [
+                    "plan",
+                    "init",
+                    bundle_name,
+                    "--no-interactive",
+                ],
+            )
+
             result = runner.invoke(
                 app,
                 [
                     "sync",
-                    "spec-kit",
+                    "bridge",
                     "--repo",
                     str(tmp_path),
+                    "--bundle",
+                    bundle_name,
+                    "--adapter",
+                    "speckit",
                 ],
                 input="y\n",  # Accept bootstrap
             )

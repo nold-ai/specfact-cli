@@ -26,7 +26,7 @@ This guide walks you through your first commands with SpecFact CLI, with step-by
 **Option A: CLI-only Mode** (Quick start, works with uvx):
 
 ```bash
-uvx specfact-cli@latest import from-code --repo . --name my-project
+uvx specfact-cli@latest import from-code my-project --repo .
 ```
 
 **Option B: Interactive AI Assistant Mode** (Recommended for better results):
@@ -42,8 +42,8 @@ cd /path/to/your/project
 specfact init
 
 # Step 4: Use slash command in IDE chat
-/specfact-import-from-code
-# The AI assistant will prompt you for plan name
+/specfact.01-import legacy-api --repo .
+# Or let the AI assistant prompt you for bundle name
 ```
 
 **What happens**:
@@ -76,15 +76,21 @@ specfact init
 ### Step 2: Review Extracted Specs
 
 ```bash
-cat .specfact/plans/my-project-*.bundle.yaml
+# Review the extracted bundle using CLI commands
+specfact plan review my-project
+
+# Or get structured findings for analysis
+specfact plan review my-project --list-findings --findings-format json
 ```
 
 Review the auto-generated plan to understand what SpecFact discovered about your codebase.
 
+**Note**: Use CLI commands to interact with bundles. The bundle structure is managed by SpecFact CLI - use commands like `plan review`, `plan add-feature`, `plan update-feature` to work with bundles, not direct file editing.
+
 **💡 Tip**: If you plan to sync with Spec-Kit later, the import command will suggest generating a bootstrap constitution. You can also run it manually:
 
 ```bash
-specfact constitution bootstrap --repo .
+specfact bridge constitution bootstrap --repo .
 ```
 
 ### Step 3: Add Contracts to Critical Functions
@@ -107,14 +113,14 @@ See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete w
 ### Step 1: Initialize a Plan
 
 ```bash
-specfact plan init --interactive
+specfact plan init my-project --interactive
 ```
 
 **What happens**:
 
 - Creates `.specfact/` directory structure
 - Prompts you for project title and description
-- Creates initial plan bundle at `.specfact/plans/main.bundle.yaml`
+- Creates modular project bundle at `.specfact/projects/my-project/`
 
 **Example output**:
 
@@ -125,13 +131,14 @@ Enter project title: My Awesome Project
 Enter project description: A project to demonstrate SpecFact CLI
 
 ✅ Plan initialized successfully!
-📁 Plan bundle: .specfact/plans/main.bundle.yaml
+📁 Project bundle: .specfact/projects/my-project/
 ```
 
 ### Step 2: Add Your First Feature
 
 ```bash
 specfact plan add-feature \
+  --bundle my-project \
   --key FEATURE-001 \
   --title "User Authentication" \
   --outcomes "Users can login securely"
@@ -139,7 +146,7 @@ specfact plan add-feature \
 
 **What happens**:
 
-- Adds a new feature to your plan bundle
+- Adds a new feature to your project bundle
 - Creates a feature with key `FEATURE-001`
 - Sets the title and outcomes
 
@@ -147,6 +154,7 @@ specfact plan add-feature \
 
 ```bash
 specfact plan add-story \
+  --bundle my-project \
   --feature FEATURE-001 \
   --title "As a user, I can login with email and password" \
   --acceptance "Login form validates input" \
@@ -196,8 +204,9 @@ specfact repro
 ### Step 1: Preview Migration
 
 ```bash
-specfact import from-spec-kit \
+specfact import from-bridge \
   --repo ./my-speckit-project \
+  --adapter speckit \
   --dry-run
 ```
 
@@ -219,7 +228,7 @@ specfact import from-spec-kit \
 ✅ Found .specify/memory/constitution.md
 
 📊 Migration Preview:
-  - Will create: .specfact/plans/main.bundle.yaml
+  - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
   - Will create: .specfact/protocols/workflow.protocol.yaml (if FSM detected)
   - Will convert: Spec-Kit features → SpecFact Feature models
   - Will convert: Spec-Kit user stories → SpecFact Story models
@@ -230,29 +239,37 @@ specfact import from-spec-kit \
 ### Step 2: Execute Migration
 
 ```bash
-specfact import from-spec-kit \
+specfact import from-bridge \
   --repo ./my-speckit-project \
+  --adapter speckit \
   --write
 ```
 
 **What happens**:
 
-- Imports Spec-Kit artifacts into SpecFact format
+- Imports Spec-Kit artifacts into SpecFact format using bridge architecture
 - Creates `.specfact/` directory structure
 - Converts Spec-Kit features and stories to SpecFact models
+- Creates modular project bundle at `.specfact/projects/<bundle-name>/`
 - Preserves all information
 
-### Step 3: Review Generated Contracts
+### Step 3: Review Generated Bundle
 
 ```bash
-ls -la .specfact/
+# Review the imported bundle
+specfact plan review <bundle-name>
+
+# Check bundle status
+specfact plan select
 ```
 
-**What you'll see**:
+**What was created**:
 
-- `.specfact/plans/main.bundle.yaml` - Plan bundle (converted from Spec-Kit)
+- Modular project bundle at `.specfact/projects/<bundle-name>/` with multiple aspect files
 - `.specfact/protocols/workflow.protocol.yaml` - FSM definition (if protocol detected)
-- `.specfact/enforcement/config.yaml` - Quality gates configuration
+- `.specfact/gates/config.yaml` - Quality gates configuration
+
+**Note**: Use CLI commands (`plan review`, `plan add-feature`, etc.) to interact with bundles. Do not edit `.specfact` files directly.
 
 ### Step 4: Set Up Bidirectional Sync (Optional)
 
@@ -260,13 +277,13 @@ Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
 # Generate constitution if missing (auto-suggested during sync)
-specfact constitution bootstrap --repo .
+specfact bridge constitution bootstrap --repo .
 
 # One-time bidirectional sync
-specfact sync spec-kit --repo . --bidirectional
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync spec-kit --repo . --bidirectional --watch --interval 5
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What happens**:

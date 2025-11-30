@@ -31,6 +31,7 @@ console = Console()
 @app.command("stage")
 @beartype
 def stage(
+    # Advanced/Configuration
     preset: str = typer.Option(
         "balanced",
         "--preset",
@@ -45,8 +46,13 @@ def stage(
     - balanced: Block HIGH severity, warn MEDIUM
     - strict:   Block all MEDIUM+ violations
 
-    Example:
+    **Parameter Groups:**
+    - **Advanced/Configuration**: --preset
+
+    **Examples:**
         specfact enforce stage --preset balanced
+        specfact enforce stage --preset strict
+        specfact enforce stage --preset minimal
     """
     telemetry_metadata = {
         "preset": preset.lower(),
@@ -104,96 +110,114 @@ def stage(
 
 @app.command("sdd")
 @beartype
+@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
 @require(lambda sdd: sdd is None or isinstance(sdd, Path), "SDD must be None or Path")
-@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
 @require(
-    lambda format: isinstance(format, str) and format.lower() in ("yaml", "json", "markdown"),
-    "Format must be yaml, json, or markdown",
+    lambda output_format: isinstance(output_format, str) and output_format.lower() in ("yaml", "json", "markdown"),
+    "Output format must be yaml, json, or markdown",
 )
 @require(lambda out: out is None or isinstance(out, Path), "Out must be None or Path")
 def enforce_sdd(
+    # Target/Input
+    bundle: str | None = typer.Argument(
+        None,
+        help="Project bundle name (e.g., legacy-api, auth-module). Default: active plan from 'specfact plan select'",
+    ),
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest (default: .specfact/sdd.<format>)",
+        help="Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.<format>",
     ),
-    plan: Path | None = typer.Option(
-        None,
-        "--plan",
-        help="Path to plan bundle (default: active plan)",
-    ),
-    format: str = typer.Option(
+    # Output/Results
+    output_format: str = typer.Option(
         "yaml",
-        "--format",
-        help="Output format (yaml, json, markdown)",
+        "--output-format",
+        help="Output format (yaml, json, markdown). Default: yaml",
     ),
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path (default: .specfact/reports/sdd/validation-<timestamp>.<format>)",
+        help="Output file path. Default: .specfact/reports/sdd/validation-<timestamp>.<format>",
     ),
-    non_interactive: bool = typer.Option(
+    # Behavior/Options
+    no_interactive: bool = typer.Option(
         False,
-        "--non-interactive",
-        help="Non-interactive mode (for CI/CD automation)",
+        "--no-interactive",
+        help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
     ),
 ) -> None:
     """
-    Validate SDD manifest against plan bundle and contracts.
+    Validate SDD manifest against project bundle and contracts.
 
     Checks:
-    - SDD ↔ plan hash match
+    - SDD ↔ bundle hash match
     - Coverage thresholds (contracts/story, invariants/feature, architecture facets)
     - Frozen sections (hash mismatch detection)
     - Contract density metrics
 
-    Example:
-        specfact enforce sdd
-        specfact enforce sdd --plan .specfact/plans/main.bundle.yaml
-        specfact enforce sdd --format json --out validation-report.json
+    **Parameter Groups:**
+    - **Target/Input**: bundle (required argument), --sdd
+    - **Output/Results**: --output-format, --out
+    - **Behavior/Options**: --no-interactive
+
+    **Examples:**
+        specfact enforce sdd legacy-api
+        specfact enforce sdd auth-module --output-format json --out validation-report.json
+        specfact enforce sdd legacy-api --no-interactive
     """
-    from specfact_cli.migrations.plan_migrator import load_plan_bundle
+    from rich.console import Console
+
     from specfact_cli.models.sdd import SDDManifest
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import StructuredFormat
+
+    console = Console()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle is None:
+            console.print("[bold red]✗[/bold red] Bundle name required")
+            console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
+            raise typer.Exit(1)
+        console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
     from specfact_cli.utils.structured_io import (
-        StructuredFormat,
         dump_structured_file,
         load_structured_file,
     )
 
     telemetry_metadata = {
-        "format": format.lower(),
-        "non_interactive": non_interactive,
+        "output_format": output_format.lower(),
+        "no_interactive": no_interactive,
     }
 
     with telemetry.track_command("enforce.sdd", telemetry_metadata) as record:
         console.print("\n[bold cyan]SpecFact CLI - SDD Validation[/bold cyan]")
         console.print("=" * 60)
 
-        # Find SDD manifest path
-        if sdd is None:
-            base_path = Path(".")
-            # Try YAML first, then JSON
-            sdd_yaml = base_path / SpecFactStructure.ROOT / "sdd.yaml"
-            sdd_json = base_path / SpecFactStructure.ROOT / "sdd.json"
-            if sdd_yaml.exists():
-                sdd = sdd_yaml
-            elif sdd_json.exists():
-                sdd = sdd_json
-            else:
-                console.print("[bold red]✗[/bold red] SDD manifest not found")
-                console.print(f"[dim]Expected: {sdd_yaml} or {sdd_json}[/dim]")
-                console.print("[dim]Create one with: specfact plan harden[/dim]")
-                raise typer.Exit(1)
-
-        if not sdd.exists():
-            console.print(f"[bold red]✗[/bold red] SDD manifest not found: {sdd}")
+        # Find bundle directory
+        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        if not bundle_dir.exists():
+            console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
+            console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
             raise typer.Exit(1)
 
-        # Find plan path (reuse logic from plan.py)
-        plan_path = _find_plan_path(plan)
-        if plan_path is None or not plan_path.exists():
-            console.print("[bold red]✗[/bold red] Plan bundle not found")
+        # Find SDD manifest path using discovery utility
+        from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
+
+        base_path = Path(".")
+        discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
+        if discovered_sdd is None:
+            console.print("[bold red]✗[/bold red] SDD manifest not found")
+            console.print(f"[dim]Searched for: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
+            console.print("[dim]Legacy fallback: .specfact/sdd.yaml or .specfact/sdd.json[/dim]")
+            console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
             raise typer.Exit(1)
+
+        sdd = discovered_sdd
+        console.print(f"[dim]Using SDD manifest: {sdd}[/dim]")
 
         try:
             # Load SDD manifest
@@ -201,28 +225,48 @@ def enforce_sdd(
             sdd_data = load_structured_file(sdd)
             sdd_manifest = SDDManifest.model_validate(sdd_data)
 
-            # Load plan bundle
-            console.print(f"[dim]Loading plan bundle: {plan_path}[/dim]")
-            bundle = load_plan_bundle(plan_path)
-            bundle.update_summary(include_hash=True)
-            plan_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+            # Load project bundle with progress indicator
+            from rich.progress import Progress, SpinnerColumn, TextColumn
 
-            if not plan_hash:
-                console.print("[bold red]✗[/bold red] Failed to compute plan bundle hash")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Loading project bundle...", total=None)
+
+                def progress_callback(current: int, total: int, artifact: str) -> None:
+                    progress.update(task, description=f"Loading artifact {current}/{total}: {artifact}")
+
+                project_bundle = load_project_bundle(
+                    bundle_dir, validate_hashes=False, progress_callback=progress_callback
+                )
+                progress.update(task, description="✓ Bundle loaded, computing hash...")
+
+            summary = project_bundle.compute_summary(include_hash=True)
+            project_hash = summary.content_hash
+
+            if not project_hash:
+                console.print("[bold red]✗[/bold red] Failed to compute project bundle hash")
                 raise typer.Exit(1)
+
+            # Convert to PlanBundle for compatibility with validation functions
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+
+            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Create validation report
             report = ValidationReport()
 
             # 1. Validate hash match
             console.print("\n[cyan]Validating hash match...[/cyan]")
-            if sdd_manifest.plan_bundle_hash != plan_hash:
+            if sdd_manifest.plan_bundle_hash != project_hash:
                 deviation = Deviation(
                     type=DeviationType.HASH_MISMATCH,
                     severity=DeviationSeverity.HIGH,
-                    description=f"SDD plan bundle hash mismatch: expected {plan_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
-                    location=".specfact/sdd.yaml",
-                    fix_hint="Run 'specfact plan harden' to update SDD manifest with current plan hash",
+                    description=f"SDD bundle hash mismatch: expected {project_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
+                    location=str(sdd),
+                    fix_hint=f"Run 'specfact plan harden {bundle}' to update SDD manifest with current bundle hash",
                 )
                 report.add_deviation(deviation)
                 console.print("[bold red]✗[/bold red] Hash mismatch detected")
@@ -235,10 +279,10 @@ def enforce_sdd(
             from specfact_cli.validators.contract_validator import calculate_contract_density, validate_contract_density
 
             # Calculate contract density metrics
-            metrics = calculate_contract_density(sdd_manifest, bundle)
+            metrics = calculate_contract_density(sdd_manifest, plan_bundle)
 
             # Validate against thresholds
-            density_deviations = validate_contract_density(sdd_manifest, bundle, metrics)
+            density_deviations = validate_contract_density(sdd_manifest, plan_bundle, metrics)
 
             # Add deviations to report
             for deviation in density_deviations:
@@ -283,20 +327,69 @@ def enforce_sdd(
                 console.print(f"[dim]Frozen sections: {len(sdd_manifest.frozen_sections)}[/dim]")
                 # TODO: Implement hash-based frozen section validation in Phase 6
 
+            # 4. Validate OpenAPI/AsyncAPI specs with Specmatic (if found)
+            console.print("\n[cyan]Validating API specifications...[/cyan]")
+            import asyncio
+
+            from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+            base_path = Path(".")
+            spec_files = []
+            for pattern in [
+                "**/openapi.yaml",
+                "**/openapi.yml",
+                "**/openapi.json",
+                "**/asyncapi.yaml",
+                "**/asyncapi.yml",
+                "**/asyncapi.json",
+            ]:
+                spec_files.extend(base_path.glob(pattern))
+
+            if spec_files:
+                console.print(f"[dim]Found {len(spec_files)} API specification file(s)[/dim]")
+                is_available, error_msg = check_specmatic_available()
+                if is_available:
+                    for spec_file in spec_files[:5]:  # Validate up to 5 specs
+                        console.print(f"[dim]Validating {spec_file.relative_to(base_path)} with Specmatic...[/dim]")
+                        try:
+                            result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                            if not result.is_valid:
+                                deviation = Deviation(
+                                    type=DeviationType.CONTRACT_VIOLATION,
+                                    severity=DeviationSeverity.MEDIUM,
+                                    description=f"API specification validation failed: {spec_file.name}",
+                                    location=str(spec_file),
+                                    fix_hint=f"Run 'specfact spec validate {spec_file}' to see detailed errors",
+                                )
+                                report.add_deviation(deviation)
+                                console.print(f"  [bold yellow]⚠[/bold yellow] {spec_file.name} has validation issues")
+                            else:
+                                console.print(f"  [bold green]✓[/bold green] {spec_file.name} is valid")
+                        except Exception as e:
+                            console.print(f"  [bold yellow]⚠[/bold yellow] Validation error: {e!s}")
+                    if len(spec_files) > 5:
+                        console.print(
+                            f"[dim]... and {len(spec_files) - 5} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                        )
+                else:
+                    console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+            else:
+                console.print("[dim]No API specification files found[/dim]")
+
             # Generate output report
-            output_format = format.lower()
+            output_format_str = output_format.lower()
             if out is None:
                 SpecFactStructure.ensure_structure()
                 reports_dir = Path(".") / SpecFactStructure.ROOT / "reports" / "sdd"
                 reports_dir.mkdir(parents=True, exist_ok=True)
                 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-                extension = "md" if output_format == "markdown" else output_format
+                extension = "md" if output_format_str == "markdown" else output_format_str
                 out = reports_dir / f"validation-{timestamp}.{extension}"
 
             # Save report
-            if output_format == "markdown":
-                _save_markdown_report(out, report, sdd_manifest, bundle, plan_hash)
-            elif output_format == "json":
+            if output_format_str == "markdown":
+                _save_markdown_report(out, report, sdd_manifest, bundle, project_hash)
+            elif output_format_str == "json":
                 dump_structured_file(report.model_dump(mode="json"), out, StructuredFormat.JSON)
             else:  # yaml
                 dump_structured_file(report.model_dump(mode="json"), out, StructuredFormat.YAML)
@@ -310,9 +403,51 @@ def enforce_sdd(
             console.print(f"  Low: {report.low_count}")
             console.print(f"\nReport saved to: {out}")
 
-            # Exit with appropriate code
+            # Exit with appropriate code and clear error messages
             if not report.passed:
                 console.print("\n[bold red]✗[/bold red] SDD validation failed")
+                console.print("\n[bold yellow]Issues Found:[/bold yellow]")
+
+                # Group deviations by type for clearer messaging
+                hash_mismatches = [d for d in report.deviations if d.type == DeviationType.HASH_MISMATCH]
+                coverage_issues = [d for d in report.deviations if d.type == DeviationType.COVERAGE_THRESHOLD]
+
+                if hash_mismatches:
+                    console.print("\n[bold red]1. Hash Mismatch (HIGH)[/bold red]")
+                    console.print("   The project bundle has been modified since the SDD manifest was created.")
+                    console.print(f"   [dim]SDD hash: {sdd_manifest.plan_bundle_hash[:16]}...[/dim]")
+                    console.print(f"   [dim]Bundle hash: {project_hash[:16]}...[/dim]")
+                    console.print("\n   [bold]Why this happens:[/bold]")
+                    console.print("   The hash changes when you modify:")
+                    console.print("   - Features (add/remove/update)")
+                    console.print("   - Stories (add/remove/update)")
+                    console.print("   - Product, idea, business, or clarifications")
+                    console.print(
+                        f"\n   [bold]Fix:[/bold] Run [cyan]specfact plan harden {bundle}[/cyan] to update the SDD manifest"
+                    )
+                    console.print(
+                        "   [dim]This updates the SDD with the current bundle hash and regenerates HOW sections[/dim]"
+                    )
+
+                if coverage_issues:
+                    console.print("\n[bold yellow]2. Coverage Thresholds Not Met (MEDIUM)[/bold yellow]")
+                    console.print("   Contract density metrics are below required thresholds:")
+                    console.print(
+                        f"   - Contracts/story: {metrics.contracts_per_story:.2f} (required: {thresholds.contracts_per_story})"
+                    )
+                    console.print(
+                        f"   - Invariants/feature: {metrics.invariants_per_feature:.2f} (required: {thresholds.invariants_per_feature})"
+                    )
+                    console.print("\n   [bold]Fix:[/bold] Add more contracts to stories and invariants to features")
+                    console.print("   [dim]Tip: Use 'specfact plan review' to identify areas needing contracts[/dim]")
+
+                console.print("\n[bold cyan]Next Steps:[/bold cyan]")
+                if hash_mismatches:
+                    console.print(f"   1. Update SDD: [cyan]specfact plan harden {bundle}[/cyan]")
+                if coverage_issues:
+                    console.print("   2. Add contracts: Review features and add @icontract decorators")
+                    console.print("   3. Re-validate: Run this command again after fixes")
+
                 record({"passed": False, "deviations": report.total_deviations})
                 raise typer.Exit(1)
 

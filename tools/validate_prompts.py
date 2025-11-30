@@ -26,21 +26,16 @@ REQUIRED_SECTIONS = [
     ("Operating Constraints", "## Operating Constraints"),
 ]
 
-# CLI commands that should be referenced
+# CLI commands that should be referenced (new slash command names)
 CLI_COMMANDS = {
-    "specfact-import-from-code": "specfact import from-code",
-    "specfact-plan-init": "specfact plan init",
-    "specfact-plan-add-feature": "specfact plan add-feature",
-    "specfact-plan-add-story": "specfact plan add-story",
-    "specfact-plan-update-idea": "specfact plan update-idea",
-    "specfact-plan-update-feature": "specfact plan update-feature",
-    "specfact-plan-compare": "specfact plan compare",
-    "specfact-plan-promote": "specfact plan promote",
-    "specfact-plan-review": "specfact plan review",
-    "specfact-plan-select": "specfact plan select",
-    "specfact-sync": "specfact sync spec-kit",
-    "specfact-enforce": "specfact enforce stage",
-    "specfact-repro": "specfact repro",
+    "specfact.01-import": "specfact import from-code",
+    "specfact.02-plan": "specfact plan <operation>",  # init, add-feature, add-story, update-idea, update-feature, update-story
+    "specfact.03-review": "specfact plan review",  # Also handles promote
+    "specfact.04-sdd": "specfact plan harden",
+    "specfact.05-enforce": "specfact enforce sdd",
+    "specfact.06-sync": "specfact sync bridge",
+    "specfact.compare": "specfact plan compare",
+    "specfact.validate": "specfact repro",
 }
 
 # Required CLI enforcement rules
@@ -60,7 +55,7 @@ WAIT_STATE_RULES = [
 ]
 
 # Commands that should have dual-stack workflow
-DUAL_STACK_COMMANDS = ["specfact-import-from-code"]
+DUAL_STACK_COMMANDS = ["specfact.01-import", "specfact-import-from-code"]  # New and legacy names
 
 
 class PromptValidator:
@@ -260,7 +255,8 @@ def validate_all_prompts(prompts_dir: Path | None = None) -> list[dict[str, Any]
         prompts_dir = Path(__file__).parent.parent / "resources" / "prompts"
 
     results = []
-    for prompt_file in sorted(prompts_dir.glob("specfact-*.md")):
+    # Match both specfact.*.md and specfact-*.md patterns
+    for prompt_file in sorted(prompts_dir.glob("specfact.*.md")):
         validator = PromptValidator(prompt_file)
         results.append(validator.validate_all())
 

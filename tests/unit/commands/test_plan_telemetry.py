@@ -25,7 +25,7 @@ class TestPlanCommandTelemetry:
         mock_telemetry.track_command.return_value.__enter__.return_value = mock_record
         mock_telemetry.track_command.return_value.__exit__.return_value = None
 
-        result = runner.invoke(app, ["plan", "init", "--no-interactive"])
+        result = runner.invoke(app, ["plan", "init", "main", "--no-interactive"])
 
         assert result.exit_code == 0
         # Verify telemetry was called
@@ -36,11 +36,10 @@ class TestPlanCommandTelemetry:
         assert "scaffold" in call_args[0][1]
 
     @patch("specfact_cli.commands.plan.telemetry")
-    def test_plan_add_feature_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path):
+    def test_plan_add_feature_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan add-feature command tracks telemetry."""
-        # Create a plan first
-        plan_path = tmp_path / "plan.yaml"
-        from specfact_cli.generators.plan_generator import PlanGenerator
+        monkeypatch.chdir(tmp_path)
+
         from specfact_cli.models.plan import PlanBundle, Product
 
         bundle = PlanBundle(
@@ -51,13 +50,21 @@ class TestPlanCommandTelemetry:
             metadata=None,
             clarifications=None,
         )
-        generator = PlanGenerator()
-        generator.generate(bundle, plan_path)
 
         # Mock the track_command context manager
         mock_record = MagicMock()
         mock_telemetry.track_command.return_value.__enter__.return_value = mock_record
         mock_telemetry.track_command.return_value.__exit__.return_value = None
+
+        # Create modular bundle instead of single file
+        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=tmp_path, bundle_name="test-bundle")
+        bundle_dir.mkdir(parents=True)
+        project_bundle = _convert_plan_bundle_to_project_bundle(bundle, "test-bundle")
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         result = runner.invoke(
             app,
@@ -68,8 +75,8 @@ class TestPlanCommandTelemetry:
                 "FEATURE-001",
                 "--title",
                 "Test Feature",
-                "--plan",
-                str(plan_path),
+                "--bundle",
+                "test-bundle",
             ],
         )
 
@@ -83,23 +90,40 @@ class TestPlanCommandTelemetry:
         mock_record.assert_called()
 
     @patch("specfact_cli.commands.plan.telemetry")
-    def test_plan_add_story_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path):
+    def test_plan_add_story_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan add-story command tracks telemetry."""
-        # Create a plan with a feature first
-        plan_path = tmp_path / "plan.yaml"
-        from specfact_cli.generators.plan_generator import PlanGenerator
+        monkeypatch.chdir(tmp_path)
+
         from specfact_cli.models.plan import Feature, PlanBundle, Product
 
         bundle = PlanBundle(
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
-            features=[Feature(key="FEATURE-001", title="Test Feature", outcomes=[], acceptance=[], stories=[])],
+            features=[
+                Feature(
+                    key="FEATURE-001",
+                    title="Test Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                )
+            ],
             metadata=None,
             clarifications=None,
         )
-        generator = PlanGenerator()
-        generator.generate(bundle, plan_path)
+        # Create modular bundle instead of single file
+        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=tmp_path, bundle_name="test-bundle")
+        bundle_dir.mkdir(parents=True)
+        project_bundle = _convert_plan_bundle_to_project_bundle(bundle, "test-bundle")
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Mock the track_command context manager
         mock_record = MagicMock()
@@ -117,8 +141,8 @@ class TestPlanCommandTelemetry:
                 "STORY-001",
                 "--title",
                 "Test Story",
-                "--plan",
-                str(plan_path),
+                "--bundle",
+                "test-bundle",
             ],
         )
 
@@ -146,7 +170,18 @@ class TestPlanCommandTelemetry:
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
-            features=[Feature(key="FEATURE-001", title="Manual Feature", outcomes=[], acceptance=[], stories=[])],
+            features=[
+                Feature(
+                    key="FEATURE-001",
+                    title="Manual Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                )
+            ],
             metadata=None,
             clarifications=None,
         )
@@ -155,8 +190,26 @@ class TestPlanCommandTelemetry:
             business=None,
             product=Product(themes=["Testing"]),
             features=[
-                Feature(key="FEATURE-001", title="Manual Feature", outcomes=[], acceptance=[], stories=[]),
-                Feature(key="FEATURE-002", title="Auto Feature", outcomes=[], acceptance=[], stories=[]),
+                Feature(
+                    key="FEATURE-001",
+                    title="Manual Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                ),
+                Feature(
+                    key="FEATURE-002",
+                    title="Auto Feature",
+                    outcomes=[],
+                    acceptance=[],
+                    stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                ),
             ],
             metadata=None,
             clarifications=None,
@@ -189,7 +242,7 @@ class TestPlanCommandTelemetry:
         call_args = mock_telemetry.track_command.call_args
         assert call_args[0][0] == "plan.compare"
         assert "code_vs_plan" in call_args[0][1]
-        assert "format" in call_args[0][1]
+        assert "output_format" in call_args[0][1]
         # Verify record was called with comparison results
         mock_record.assert_called()
         # Check that record was called with deviation counts
@@ -197,13 +250,13 @@ class TestPlanCommandTelemetry:
         assert any("total_deviations" in call for call in record_calls if isinstance(call, dict))
 
     @patch("specfact_cli.commands.plan.telemetry")
-    def test_plan_promote_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path):
+    def test_plan_promote_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan promote command tracks telemetry."""
-        from specfact_cli.generators.plan_generator import PlanGenerator
+        monkeypatch.chdir(tmp_path)
+
         from specfact_cli.models.plan import Metadata, PlanBundle, Product
 
         # Create a plan
-        plan_path = tmp_path / "plan.yaml"
         bundle = PlanBundle(
             idea=None,
             business=None,
@@ -214,8 +267,15 @@ class TestPlanCommandTelemetry:
             ),
             clarifications=None,
         )
-        generator = PlanGenerator()
-        generator.generate(bundle, plan_path)
+        # Create modular bundle instead of single file
+        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.utils.bundle_loader import save_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=tmp_path, bundle_name="test-bundle")
+        bundle_dir.mkdir(parents=True)
+        project_bundle = _convert_plan_bundle_to_project_bundle(bundle, "test-bundle")
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Mock the track_command context manager
         mock_record = MagicMock()
@@ -227,10 +287,9 @@ class TestPlanCommandTelemetry:
             [
                 "plan",
                 "promote",
+                "test-bundle",
                 "--stage",
                 "review",
-                "--plan",
-                str(plan_path),
                 "--force",
             ],
         )

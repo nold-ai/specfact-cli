@@ -53,7 +53,7 @@ SpecFact CLI **complements Spec-Kit** by adding automation and enforcement:
 Already using Spec-Kit? SpecFact CLI **imports your work** in one command:
 
 ```bash
-specfact import from-spec-kit --repo ./my-speckit-project --write
+specfact import from-bridge --adapter speckit --repo ./my-speckit-project --write
 ```
 
 **Result**: Your Spec-Kit artifacts (spec.md, plan.md, tasks.md) become production-ready contracts with zero manual work.
@@ -61,10 +61,8 @@ specfact import from-spec-kit --repo ./my-speckit-project --write
 **Ongoing**: Keep using Spec-Kit interactively, sync automatically with SpecFact:
 
 ```bash
-# Enable shared plans sync (bidirectional sync for team collaboration)
-specfact plan sync --shared --watch
-# Or use direct command:
-specfact sync spec-kit --repo . --bidirectional --watch
+# Enable bidirectional sync (bridge-based, adapter-agnostic)
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Best of both worlds**: Interactive authoring (Spec-Kit) + Automated enforcement (SpecFact)
@@ -72,14 +70,14 @@ specfact sync spec-kit --repo . --bidirectional --watch
 **Team collaboration**: **Shared structured plans** enable multiple developers to work on the same plan with automated deviation detection. Unlike Spec-Kit's manual markdown sharing, SpecFact provides automated bidirectional sync that keeps plans synchronized across team members:
 
 ```bash
-# Enable shared plans for team collaboration
-specfact plan sync --shared --watch
-# → Automatically syncs Spec-Kit artifacts ↔ SpecFact plans
+# Enable bidirectional sync for team collaboration
+specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+# → Automatically syncs Spec-Kit artifacts ↔ SpecFact project bundles
 # → Multiple developers can work on the same plan with automated synchronization
 # → No manual markdown sharing required
 
 # Detect code vs plan drift automatically
-specfact plan compare --code-vs-plan
+specfact plan compare --bundle legacy-api --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
@@ -126,9 +124,9 @@ When using Cursor, Copilot, or other AI assistants, SpecFact CLI integrates seam
 ```bash
 # Slash commands in IDE (after specfact init)
 specfact init --ide cursor
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-init --idea idea.yaml
-/specfact-sync --repo . --bidirectional
+/specfact.01-import legacy-api --repo . --confidence 0.7
+/specfact.02-plan init legacy-api
+/specfact.06-sync --repo . --bidirectional
 ```
 
 **Benefits:**
@@ -182,7 +180,7 @@ specfact repro --budget 120 --report evidence.md
 
 ```bash
 # Primary use case: Analyze legacy code
-specfact import from-code --repo ./legacy-app --name my-project
+specfact import from-code --bundle legacy-api --repo ./legacy-app
 
 # Extract specs from existing code in < 10 seconds
 # Then enforce contracts to prevent regressions
@@ -201,7 +199,7 @@ specfact enforce stage --preset balanced
 
 ```bash
 # Detect code vs plan drift automatically
-specfact plan compare --code-vs-plan
+specfact plan compare --bundle legacy-api --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
@@ -267,7 +265,7 @@ uvx specfact-cli@latest plan init --interactive
 
 ```bash
 # Primary use case: Analyze legacy codebase
-specfact import from-code --repo ./legacy-app --name my-project
+specfact import from-code --bundle legacy-api --repo ./legacy-app
 ```
 
 See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-code-modernization-primary) ⭐
@@ -277,7 +275,7 @@ See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-cod
 **One-command import**:
 
 ```bash
-specfact import from-spec-kit --repo . --write
+specfact import from-bridge --adapter speckit --repo . --write
 ```
 
 See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)
@@ -300,9 +298,9 @@ Use slash commands directly in your IDE:
 specfact init --ide cursor
 
 # Then use slash commands in IDE chat
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-compare --manual main.bundle.yaml --auto auto.bundle.yaml
-/specfact-sync --repo . --bidirectional
+/specfact.01-import legacy-api --repo . --confidence 0.7
+/specfact.compare --bundle legacy-api
+/specfact.06-sync --repo . --bidirectional
 ```
 
 SpecFact CLI automatically detects CoPilot and switches to enhanced mode.
@@ -311,7 +309,7 @@ SpecFact CLI automatically detects CoPilot and switches to enhanced mode.
 
 **Greenfield approach**:
 
-1. `specfact plan init --interactive`
+1. `specfact plan init --bundle legacy-api --interactive`
 2. Add features and stories
 3. Enable strict enforcement
 4. Let SpecFact guide development

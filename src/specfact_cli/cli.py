@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 from typing import Annotated
 
 
@@ -53,7 +54,23 @@ from rich.panel import Panel
 from specfact_cli import __version__, runtime
 
 # Import command modules
-from specfact_cli.commands import constitution, enforce, generate, import_cmd, init, plan, repro, sync
+from specfact_cli.commands import (
+    analyze,
+    bridge,
+    drift,
+    enforce,
+    generate,
+    implement,
+    import_cmd,
+    init,
+    migrate,
+    plan,
+    repro,
+    run,
+    sdd,
+    spec,
+    sync,
+)
 from specfact_cli.modes import OperationalMode, detect_mode
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -100,7 +117,7 @@ def normalize_shell_in_argv() -> None:
 
 app = typer.Typer(
     name="specfact",
-    help="SpecFact CLI - Spec→Contract→Sentinel tool for contract-driven development",
+    help="SpecFact CLI - Spec → Contract → Sentinel for Contract-Driven Development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},  # Add -h as alias for --help
@@ -128,7 +145,7 @@ def print_banner() -> None:
         "  ███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   ",
         "  ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ",
         "",
-        "        Spec→Contract→Sentinel for Contract-Driven Development",
+        "     Spec → Contract → Sentinel for Contract-Driven Development",
     ]
 
     # Smooth gradient from bright cyan (top) to blue (bottom) - 6 lines for ASCII art
@@ -234,7 +251,7 @@ def main(
     interaction: Annotated[
         bool | None,
         typer.Option(
-            "--non-interactive/--interactive",
+            "--interactive/--no-interactive",
             help="Force interaction mode (default auto based on CI/CD detection)",
         ),
     ] = None,
@@ -255,12 +272,23 @@ def main(
     _show_banner = not no_banner
 
     runtime.configure_io_formats(input_format=input_format, output_format=output_format)
-    runtime.set_non_interactive_override(interaction)
+    # Invert logic: --interactive means not non-interactive, --no-interactive means non-interactive
+    if interaction is not None:
+        runtime.set_non_interactive_override(not interaction)
+    else:
+        runtime.set_non_interactive_override(None)
 
-    # Show help if no command provided (avoids user confusion)
+    # Show welcome message if no command provided
     if ctx.invoked_subcommand is None:
-        # Show help by calling Typer's help callback
-        ctx.get_help()
+        console.print(
+            Panel.fit(
+                "[bold green]✓[/bold green] SpecFact CLI is installed and working!\n\n"
+                f"Version: [cyan]{__version__}[/cyan]\n"
+                "Run [bold]specfact --help[/bold] for available commands.",
+                title="[bold]Welcome to SpecFact CLI[/bold]",
+                border_style="green",
+            )
+        )
         raise typer.Exit()
 
     # Store mode in context for commands to access
@@ -269,35 +297,57 @@ def main(
     ctx.obj["mode"] = get_current_mode()
 
 
-@app.command()
-def hello() -> None:
-    """
-    Test command to verify CLI installation.
-    """
-    console.print(
-        Panel.fit(
-            "[bold green]✓[/bold green] SpecFact CLI is installed and working!\n\n"
-            f"Version: [cyan]{__version__}[/cyan]\n"
-            "Run [bold]specfact --help[/bold] for available commands.",
-            title="[bold]Welcome to SpecFact CLI[/bold]",
-            border_style="green",
-        )
-    )
-
-
-# Register command groups
-app.add_typer(
-    constitution.app,
-    name="constitution",
-    help="Manage project constitutions (Spec-Kit compatibility layer)",
-)
-app.add_typer(import_cmd.app, name="import", help="Import codebases and Spec-Kit projects")
-app.add_typer(plan.app, name="plan", help="Manage development plans")
-app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
-app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
-app.add_typer(repro.app, name="repro", help="Run validation suite")
-app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")
+# Register command groups in logical workflow order
+# 1. Setup & Initialization
 app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integration")
+
+# 2. Import & Analysis
+app.add_typer(
+    import_cmd.app, name="import", help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira)"
+)
+
+# 2.5. Migration
+app.add_typer(migrate.app, name="migrate", help="Migrate project bundles between formats")
+
+# 3. Planning
+app.add_typer(plan.app, name="plan", help="Manage development plans")
+
+# 4. Code Generation
+app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
+
+# 5. Code Implementation
+app.add_typer(implement.app, name="implement", help="Execute tasks and generate code")
+
+# 6. Quality Enforcement
+app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
+
+# 7. Workflow Orchestration
+app.add_typer(run.app, name="run", help="Orchestrate end-to-end workflows")
+
+# 8. Validation
+app.add_typer(repro.app, name="repro", help="Run validation suite")
+
+# 9. SDD Management
+app.add_typer(sdd.app, name="sdd", help="Manage SDD (Spec-Driven Development) manifests")
+
+# 10. API Contract Testing
+app.add_typer(spec.app, name="spec", help="Specmatic integration for API contract testing")
+
+# 11. Synchronization
+app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")
+
+# 11.5. Drift Detection
+app.add_typer(drift.app, name="drift", help="Detect drift between code and specifications")
+
+# 11.6. Analysis
+app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
+
+# 12. External Tool Integration
+app.add_typer(
+    bridge.bridge_app,
+    name="bridge",
+    help="Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.)",
+)
 
 
 def cli_main() -> None:
@@ -348,11 +398,54 @@ def cli_main() -> None:
         print_banner()
         console.print()  # Empty line after banner
 
+    # Record start time for command execution
+    start_time = datetime.now()
+    start_timestamp = start_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Only show timing for actual commands (not help, version, or completion)
+    show_timing = (
+        len(sys.argv) > 1
+        and sys.argv[1] not in ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
+        and not sys.argv[1].startswith("_")  # Skip completion internals
+    )
+
+    if show_timing:
+        console.print(f"[dim]⏱️  Started: {start_timestamp}[/dim]")
+
+    exit_code = 0
+    timing_shown = False  # Track if timing was already shown (for typer.Exit case)
     try:
         app()
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
-        sys.exit(130)
+        exit_code = 130
+    except typer.Exit as e:
+        # Typer.Exit is used for clean exits (e.g., --version, --help)
+        exit_code = e.exit_code if hasattr(e, "exit_code") else 0
+        # Show timing before re-raising (finally block will execute, but we show it here to ensure it's shown)
+        if show_timing:
+            end_time = datetime.now()
+            end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
+            duration = end_time - start_time
+            duration_seconds = duration.total_seconds()
+
+            # Format duration nicely
+            if duration_seconds < 60:
+                duration_str = f"{duration_seconds:.2f}s"
+            elif duration_seconds < 3600:
+                minutes = int(duration_seconds // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{minutes}m {seconds:.2f}s"
+            else:
+                hours = int(duration_seconds // 3600)
+                minutes = int((duration_seconds % 3600) // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
+
+            status_icon = "✓" if exit_code == 0 else "✗"
+            console.print(f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]")
+            timing_shown = True
+        raise  # Re-raise to let Typer handle it properly
     except ViolationError as e:
         # Extract user-friendly error message from ViolationError
         error_msg = str(e)
@@ -362,10 +455,43 @@ def cli_main() -> None:
             console.print(f"[bold red]✗[/bold red] {contract_msg}", style="red")
         else:
             console.print(f"[bold red]✗[/bold red] {error_msg}", style="red")
-        sys.exit(1)
+        exit_code = 1
     except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {e}", style="red")
-        sys.exit(1)
+        # Escape any Rich markup in the error message to prevent markup errors
+        error_str = str(e).replace("[", "\\[").replace("]", "\\]")
+        console.print(f"[bold red]Error:[/bold red] {error_str}", style="red")
+        exit_code = 1
+    finally:
+        # Record end time and display timing information (if not already shown)
+        if show_timing and not timing_shown:
+            end_time = datetime.now()
+            end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
+            duration = end_time - start_time
+            duration_seconds = duration.total_seconds()
+
+            # Format duration nicely
+            if duration_seconds < 60:
+                duration_str = f"{duration_seconds:.2f}s"
+            elif duration_seconds < 3600:
+                minutes = int(duration_seconds // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{minutes}m {seconds:.2f}s"
+            else:
+                hours = int(duration_seconds // 3600)
+                minutes = int((duration_seconds % 3600) // 60)
+                seconds = duration_seconds % 60
+                duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
+
+            # Show timing summary
+            status_icon = "✓" if exit_code == 0 else "✗"
+            status_color = "green" if exit_code == 0 else "red"
+            console.print(
+                f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]",
+                style=status_color if exit_code != 0 else None,
+            )
+
+    if exit_code != 0:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

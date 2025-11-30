@@ -123,7 +123,7 @@ This gives you a complete overview of what SpecFact can do with real examples.
 ## 🔗 Related Documentation
 
 - **[Examples README](../README.md)** - Overview of all SpecFact examples
-- **[Brownfield FAQ](../../brownfield-faq.md)** - Common questions about brownfield modernization
+- **[Brownfield FAQ](../brownfield-faq.md)** - Common questions about brownfield modernization
 - **[Getting Started](../../getting-started/README.md)** - Installation and setup
 - **[Command Reference](../../reference/commands.md)** - All available commands
 
@@ -161,4 +161,4 @@ This gives you a complete overview of what SpecFact can do with real examples.
 
 ---
 
-**Questions?** Check the [Brownfield FAQ](../../brownfield-faq.md) or open an issue on GitHub.
+**Questions?** Check the [Brownfield FAQ](../brownfield-faq.md) or open an issue on GitHub.

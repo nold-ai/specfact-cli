@@ -61,10 +61,18 @@ Once initialized, you can use slash commands directly in your IDE's AI chat:
 **In Cursor / VS Code / Copilot:**
 
 ```bash
-/specfact-import-from-code --repo . --confidence 0.7
-/specfact-plan-init --idea idea.yaml
-/specfact-plan-compare --manual main.bundle.yaml --auto auto.bundle.yaml
-/specfact-sync --repo . --bidirectional
+# Core workflow commands (numbered for natural progression)
+/specfact.01-import legacy-api --repo .
+/specfact.02-plan init legacy-api
+/specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
+/specfact.03-review legacy-api
+/specfact.04-sdd legacy-api
+/specfact.05-enforce legacy-api
+/specfact.06-sync --adapter speckit --repo . --bidirectional
+
+# Advanced commands
+/specfact.compare --bundle legacy-api
+/specfact.validate --repo .
 ```
 
 The IDE automatically recognizes these commands and provides enhanced prompts.
@@ -123,13 +131,23 @@ Detailed instructions for the AI assistant...
 
 ## Available Slash Commands
 
+**Core Workflow Commands** (numbered for workflow ordering):
+
 | Command | Description | CLI Equivalent |
 |---------|-------------|----------------|
-| `/specfact-import-from-code` | Reverse-engineer plan from brownfield code | `specfact import from-code` |
-| `/specfact-plan-init` | Initialize new development plan | `specfact plan init` |
-| `/specfact-plan-promote` | Promote plan through stages | `specfact plan promote` |
-| `/specfact-plan-compare` | Compare manual vs auto plans | `specfact plan compare` |
-| `/specfact-sync` | Sync with Spec-Kit or repository | `specfact sync spec-kit` |
+| `/specfact.01-import` | Import codebase into plan bundle | `specfact import from-code <bundle-name>` |
+| `/specfact.02-plan` | Plan management (init, add-feature, add-story, update-idea, update-feature, update-story) | `specfact plan <operation> <bundle-name>` |
+| `/specfact.03-review` | Review plan and promote through stages | `specfact plan review <bundle-name>`, `specfact plan promote <bundle-name>` |
+| `/specfact.04-sdd` | Create SDD manifest from plan | `specfact plan harden <bundle-name>` |
+| `/specfact.05-enforce` | Validate SDD and contracts | `specfact enforce sdd <bundle-name>` |
+| `/specfact.06-sync` | Sync with external tools or repository | `specfact sync bridge --adapter <adapter>` |
+
+**Advanced Commands** (no numbering):
+
+| Command | Description | CLI Equivalent |
+|---------|-------------|----------------|
+| `/specfact.compare` | Compare manual vs auto plans | `specfact plan compare` |
+| `/specfact.validate` | Run validation suite | `specfact repro` |
 
 ---
 
@@ -147,13 +165,13 @@ specfact init --ide cursor
 # Copied 5 template(s) to .cursor/commands/
 #
 # You can now use SpecFact slash commands in Cursor!
-# Example: /specfact-import-from-code --repo . --confidence 0.7
+# Example: /specfact.01-import legacy-api --repo .
 ```
 
 **Now in Cursor:**
 
 1. Open Cursor AI chat
-2. Type `/specfact-import-from-code --repo . --confidence 0.7`
+2. Type `/specfact.01-import legacy-api --repo .`
 3. Cursor recognizes the command and provides enhanced prompts
 
 ### Example 2: Initialize for VS Code / Copilot
@@ -175,11 +193,14 @@ specfact init --ide vscode
 {
   "chat": {
     "promptFilesRecommendations": [
-      ".github/prompts/specfact-import-from-code.prompt.md",
-      ".github/prompts/specfact-plan-init.prompt.md",
-      ".github/prompts/specfact-plan-compare.prompt.md",
-      ".github/prompts/specfact-plan-promote.prompt.md",
-      ".github/prompts/specfact-sync.prompt.md"
+      ".github/prompts/specfact.01-import.prompt.md",
+      ".github/prompts/specfact.02-plan.prompt.md",
+      ".github/prompts/specfact.03-review.prompt.md",
+      ".github/prompts/specfact.04-sdd.prompt.md",
+      ".github/prompts/specfact.05-enforce.prompt.md",
+      ".github/prompts/specfact.06-sync.prompt.md",
+      ".github/prompts/specfact.compare.prompt.md",
+      ".github/prompts/specfact.validate.prompt.md"
     ]
   }
 }

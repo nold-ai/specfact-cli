@@ -48,6 +48,7 @@ def _count_python_files(path: Path) -> int:
 # CrossHair: Skip analysis for Typer-decorated functions (signature analysis limitation)
 # type: ignore[crosshair]
 def main(
+    # Target/Input
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -56,16 +57,18 @@ def main(
         file_okay=False,
         dir_okay=True,
     ),
+    # Output/Results
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Output report path (default: .specfact/reports/enforcement/report-<timestamp>.yaml)",
+    ),
+    # Behavior/Options
     verbose: bool = typer.Option(
         False,
         "--verbose",
         "-v",
         help="Verbose output",
-    ),
-    budget: int = typer.Option(
-        120,
-        "--budget",
-        help="Time budget in seconds (must be > 0)",
     ),
     fail_fast: bool = typer.Option(
         False,
@@ -77,10 +80,11 @@ def main(
         "--fix",
         help="Apply auto-fixes where available (Semgrep auto-fixes)",
     ),
-    out: Path | None = typer.Option(
-        None,
-        "--out",
-        help="Output report path (default: .specfact/reports/enforcement/report-<timestamp>.yaml)",
+    # Advanced/Configuration
+    budget: int = typer.Option(
+        120,
+        "--budget",
+        help="Time budget in seconds (must be > 0)",
     ),
 ) -> None:
     """

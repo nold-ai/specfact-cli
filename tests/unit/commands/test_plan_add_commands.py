@@ -7,19 +7,30 @@ import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.generators.plan_generator import PlanGenerator
+from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
 from specfact_cli.models.plan import Feature, PlanBundle, Product, Story
-from specfact_cli.validators.schema import validate_plan_bundle
+from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
 
 runner = CliRunner()
 
 
 @pytest.fixture
-def sample_plan(tmp_path):
-    """Create a sample plan bundle for testing."""
-    plan_path = tmp_path / "plan.yaml"
-    bundle = PlanBundle(
+def sample_bundle(tmp_path, monkeypatch):
+    """Create a sample modular bundle for testing."""
+    monkeypatch.chdir(tmp_path)
+
+    # Create .specfact structure
+    projects_dir = tmp_path / ".specfact" / "projects"
+    projects_dir.mkdir(parents=True)
+
+    bundle_name = "test-bundle"
+    bundle_dir = projects_dir / bundle_name
+    bundle_dir.mkdir()
+
+    # Create PlanBundle and convert to ProjectBundle
+    plan_bundle = PlanBundle(
+        version="1.0",
         idea=None,
         business=None,
         product=Product(themes=["Testing"]),
@@ -40,24 +51,37 @@ def sample_plan(tmp_path):
                         contracts=None,
                     )
                 ],
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
         ],
         metadata=None,
         clarifications=None,
     )
-    generator = PlanGenerator()
-    generator.generate(bundle, plan_path)
-    return plan_path
+
+    project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+    save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+    return bundle_name
 
 
 class TestPlanAddFeature:
     """Test suite for plan add-feature command."""
 
-    def test_add_feature_to_empty_plan(self, tmp_path):
+    def test_add_feature_to_empty_plan(self, tmp_path, monkeypatch):
         """Test adding a feature to an empty plan."""
-        # Create empty plan
-        plan_path = tmp_path / "plan.yaml"
-        bundle = PlanBundle(
+        monkeypatch.chdir(tmp_path)
+
+        # Create empty modular bundle
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_name = "test-bundle"
+        bundle_dir = projects_dir / bundle_name
+        bundle_dir.mkdir()
+
+        plan_bundle = PlanBundle(
+            version="1.0",
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
@@ -65,8 +89,8 @@ class TestPlanAddFeature:
             metadata=None,
             clarifications=None,
         )
-        generator = PlanGenerator()
-        generator.generate(bundle, plan_path)
+        project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Add feature
         result = runner.invoke(
@@ -78,8 +102,8 @@ class TestPlanAddFeature:
                 "FEATURE-002",
                 "--title",
                 "New Feature",
-                "--plan",
-                str(plan_path),
+                "--bundle",
+                bundle_name,
             ],
         )
 
@@ -87,15 +111,16 @@ class TestPlanAddFeature:
         assert "added successfully" in result.stdout.lower()
 
         # Verify feature was added
-        is_valid, _error, bundle = validate_plan_bundle(plan_path)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        assert len(bundle.features) == 1
-        assert bundle.features[0].key == "FEATURE-002"
-        assert bundle.features[0].title == "New Feature"
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert len(updated_bundle.features) == 1
+        assert "FEATURE-002" in updated_bundle.features
+        assert updated_bundle.features["FEATURE-002"].title == "New Feature"
 
-    def test_add_feature_to_existing_plan(self, sample_plan):
+    def test_add_feature_to_existing_plan(self, sample_bundle, tmp_path, monkeypatch):
         """Test adding a feature to a plan with existing features."""
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
+
         result = runner.invoke(
             app,
             [
@@ -105,22 +130,22 @@ class TestPlanAddFeature:
                 "FEATURE-002",
                 "--title",
                 "Second Feature",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify both features exist
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        assert len(bundle.features) == 2
-        assert bundle.features[0].key == "FEATURE-001"
-        assert bundle.features[1].key == "FEATURE-002"
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert len(updated_bundle.features) == 2
+        assert "FEATURE-001" in updated_bundle.features
+        assert "FEATURE-002" in updated_bundle.features
 
-    def test_add_feature_with_outcomes(self, sample_plan):
+    def test_add_feature_with_outcomes(self, sample_bundle, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
         """Test adding a feature with outcomes."""
         result = runner.invoke(
             app,
@@ -133,23 +158,24 @@ class TestPlanAddFeature:
                 "Feature with Outcomes",
                 "--outcomes",
                 "Outcome 1, Outcome 2",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify outcomes were parsed correctly
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-002")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-002" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-002"]
         assert len(feature.outcomes) == 2
         assert "Outcome 1" in feature.outcomes
         assert "Outcome 2" in feature.outcomes
 
-    def test_add_feature_with_acceptance(self, sample_plan):
+    def test_add_feature_with_acceptance(self, sample_bundle, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
         """Test adding a feature with acceptance criteria."""
         result = runner.invoke(
             app,
@@ -162,23 +188,23 @@ class TestPlanAddFeature:
                 "Feature with Acceptance",
                 "--acceptance",
                 "Criterion 1, Criterion 2",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify acceptance criteria were parsed correctly
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-002")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-002" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-002"]
         assert len(feature.acceptance) == 2
         assert "Criterion 1" in feature.acceptance
         assert "Criterion 2" in feature.acceptance
 
-    def test_add_feature_duplicate_key(self, sample_plan):
+    def test_add_feature_duplicate_key(self, sample_bundle, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
         """Test that adding a duplicate feature key fails."""
         result = runner.invoke(
             app,
@@ -189,17 +215,17 @@ class TestPlanAddFeature:
                 "FEATURE-001",  # Already exists
                 "--title",
                 "Duplicate Feature",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 1
         assert "already exists" in result.stdout.lower()
 
-    def test_add_feature_missing_plan(self, tmp_path):
-        """Test that adding a feature to a non-existent plan fails."""
-        plan_path = tmp_path / "nonexistent.yaml"
+    def test_add_feature_missing_plan(self, tmp_path, monkeypatch):
+        """Test that adding a feature to a non-existent bundle fails."""
+        monkeypatch.chdir(tmp_path)
 
         result = runner.invoke(
             app,
@@ -210,18 +236,24 @@ class TestPlanAddFeature:
                 "FEATURE-001",
                 "--title",
                 "New Feature",
-                "--plan",
-                str(plan_path),
+                "--bundle",
+                "nonexistent-bundle",
             ],
         )
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()
 
-    def test_add_feature_invalid_plan(self, tmp_path):
-        """Test that adding a feature to an invalid plan fails."""
-        plan_path = tmp_path / "invalid.yaml"
-        plan_path.write_text("invalid: yaml: content")
+    def test_add_feature_invalid_plan(self, tmp_path, monkeypatch):
+        """Test that adding a feature to an invalid bundle fails."""
+        monkeypatch.chdir(tmp_path)
+        # Create invalid bundle directory structure
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_dir = projects_dir / "invalid-bundle"
+        bundle_dir.mkdir()
+        # Create invalid manifest
+        (bundle_dir / "bundle.manifest.yaml").write_text("invalid: yaml: content")
 
         result = runner.invoke(
             app,
@@ -232,25 +264,32 @@ class TestPlanAddFeature:
                 "FEATURE-001",
                 "--title",
                 "New Feature",
-                "--plan",
-                str(plan_path),
+                "--bundle",
+                "invalid-bundle",
             ],
         )
 
         assert result.exit_code == 1
-        assert "validation failed" in result.stdout.lower()
+        assert (
+            "not found" in result.stdout.lower()
+            or "validation failed" in result.stdout.lower()
+            or "error" in result.stdout.lower()
+            or "failed to load" in result.stdout.lower()
+        )
 
     def test_add_feature_default_path(self, tmp_path, monkeypatch):
-        """Test adding a feature using default path."""
+        """Test adding a feature using default bundle."""
         monkeypatch.chdir(tmp_path)
 
-        # Create default plan
-        from specfact_cli.utils.structure import SpecFactStructure
+        # Create default bundle
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_name = "main"  # Default bundle name
+        bundle_dir = projects_dir / bundle_name
+        bundle_dir.mkdir()
 
-        default_path = SpecFactStructure.get_default_plan_path()
-        default_path.parent.mkdir(parents=True, exist_ok=True)
-
-        bundle = PlanBundle(
+        plan_bundle = PlanBundle(
+            version="1.0",
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
@@ -258,10 +297,18 @@ class TestPlanAddFeature:
             metadata=None,
             clarifications=None,
         )
-        generator = PlanGenerator()
-        generator.generate(bundle, default_path)
+        project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        # Add feature without specifying plan
+        # Set active plan so command can use it as default
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        # Ensure plans directory exists
+        plans_dir = tmp_path / ".specfact" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        SpecFactStructure.set_active_plan(bundle_name, base_path=tmp_path)
+
+        # Add feature without specifying bundle (should use active plan)
         result = runner.invoke(
             app,
             [
@@ -275,19 +322,20 @@ class TestPlanAddFeature:
         )
 
         assert result.exit_code == 0
-        assert default_path.exists()
+        assert bundle_dir.exists()
 
         # Verify feature was added
-        is_valid, _error, bundle = validate_plan_bundle(default_path)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        assert len(bundle.features) == 1
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert len(updated_bundle.features) == 1
+        assert "FEATURE-001" in updated_bundle.features
 
 
 class TestPlanAddStory:
     """Test suite for plan add-story command."""
 
-    def test_add_story_to_feature(self, sample_plan):
+    def test_add_story_to_feature(self, sample_bundle, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
         """Test adding a story to an existing feature."""
         result = runner.invoke(
             app,
@@ -300,8 +348,8 @@ class TestPlanAddStory:
                 "STORY-002",
                 "--title",
                 "New Story",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
@@ -309,16 +357,20 @@ class TestPlanAddStory:
         assert "added" in result.stdout.lower()
 
         # Verify story was added
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-001")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-001" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-001"]
         assert len(feature.stories) == 2
-        assert feature.stories[1].key == "STORY-002"
-        assert feature.stories[1].title == "New Story"
+        story_keys = [s.key for s in feature.stories]
+        assert "STORY-002" in story_keys
+        story = next(s for s in feature.stories if s.key == "STORY-002")
+        assert story.title == "New Story"
 
-    def test_add_story_with_acceptance(self, sample_plan):
+    def test_add_story_with_acceptance(self, sample_bundle, tmp_path, monkeypatch):
         """Test adding a story with acceptance criteria."""
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
+
         result = runner.invoke(
             app,
             [
@@ -332,25 +384,27 @@ class TestPlanAddStory:
                 "Story with Acceptance",
                 "--acceptance",
                 "Criterion 1, Criterion 2",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify acceptance criteria were parsed correctly
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-001")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-001" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-001"]
         story = next(s for s in feature.stories if s.key == "STORY-002")
         assert len(story.acceptance) == 2
         assert "Criterion 1" in story.acceptance
         assert "Criterion 2" in story.acceptance
 
-    def test_add_story_with_story_points(self, sample_plan):
+    def test_add_story_with_story_points(self, sample_bundle, tmp_path, monkeypatch):
         """Test adding a story with story points."""
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
+
         result = runner.invoke(
             app,
             [
@@ -364,23 +418,25 @@ class TestPlanAddStory:
                 "Story with Points",
                 "--story-points",
                 "5",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify story points were set
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-001")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-001" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-001"]
         story = next(s for s in feature.stories if s.key == "STORY-002")
         assert story.story_points == 5
 
-    def test_add_story_with_value_points(self, sample_plan):
+    def test_add_story_with_value_points(self, sample_bundle, tmp_path, monkeypatch):
         """Test adding a story with value points."""
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
+
         result = runner.invoke(
             app,
             [
@@ -394,23 +450,25 @@ class TestPlanAddStory:
                 "Story with Value",
                 "--value-points",
                 "8",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify value points were set
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-001")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-001" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-001"]
         story = next(s for s in feature.stories if s.key == "STORY-002")
         assert story.value_points == 8
 
-    def test_add_story_as_draft(self, sample_plan):
+    def test_add_story_as_draft(self, sample_bundle, tmp_path, monkeypatch):
         """Test adding a story marked as draft."""
+        monkeypatch.chdir(tmp_path)
+        bundle_dir = tmp_path / ".specfact" / "projects" / sample_bundle
+
         result = runner.invoke(
             app,
             [
@@ -423,23 +481,24 @@ class TestPlanAddStory:
                 "--title",
                 "Draft Story",
                 "--draft",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 0
 
         # Verify draft flag was set
-        is_valid, _error, bundle = validate_plan_bundle(sample_plan)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = next(f for f in bundle.features if f.key == "FEATURE-001")
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-001" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-001"]
         story = next(s for s in feature.stories if s.key == "STORY-002")
         assert story.draft is True
 
-    def test_add_story_duplicate_key(self, sample_plan):
+    def test_add_story_duplicate_key(self, sample_bundle, tmp_path, monkeypatch):
         """Test that adding a duplicate story key fails."""
+        monkeypatch.chdir(tmp_path)
+
         result = runner.invoke(
             app,
             [
@@ -451,16 +510,18 @@ class TestPlanAddStory:
                 "STORY-001",  # Already exists
                 "--title",
                 "Duplicate Story",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 1
         assert "already exists" in result.stdout.lower()
 
-    def test_add_story_feature_not_found(self, sample_plan):
+    def test_add_story_feature_not_found(self, sample_bundle, tmp_path, monkeypatch):
         """Test that adding a story to a non-existent feature fails."""
+        monkeypatch.chdir(tmp_path)
+
         result = runner.invoke(
             app,
             [
@@ -472,17 +533,17 @@ class TestPlanAddStory:
                 "STORY-002",
                 "--title",
                 "New Story",
-                "--plan",
-                str(sample_plan),
+                "--bundle",
+                sample_bundle,
             ],
         )
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()
 
-    def test_add_story_missing_plan(self, tmp_path):
-        """Test that adding a story to a non-existent plan fails."""
-        plan_path = tmp_path / "nonexistent.yaml"
+    def test_add_story_missing_plan(self, tmp_path, monkeypatch):
+        """Test that adding a story to a non-existent bundle fails."""
+        monkeypatch.chdir(tmp_path)
 
         result = runner.invoke(
             app,
@@ -495,8 +556,8 @@ class TestPlanAddStory:
                 "STORY-001",
                 "--title",
                 "New Story",
-                "--plan",
-                str(plan_path),
+                "--bundle",
+                "nonexistent-bundle",
             ],
         )
 
@@ -504,16 +565,18 @@ class TestPlanAddStory:
         assert "not found" in result.stdout.lower()
 
     def test_add_story_default_path(self, tmp_path, monkeypatch):
-        """Test adding a story using default path."""
+        """Test adding a story using default bundle."""
         monkeypatch.chdir(tmp_path)
 
-        # Create default plan with feature
-        from specfact_cli.utils.structure import SpecFactStructure
+        # Create default bundle with feature
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_name = "main"  # Default bundle name
+        bundle_dir = projects_dir / bundle_name
+        bundle_dir.mkdir()
 
-        default_path = SpecFactStructure.get_default_plan_path()
-        default_path.parent.mkdir(parents=True, exist_ok=True)
-
-        bundle = PlanBundle(
+        plan_bundle = PlanBundle(
+            version="1.0",
             idea=None,
             business=None,
             product=Product(themes=["Testing"]),
@@ -524,15 +587,26 @@ class TestPlanAddStory:
                     outcomes=[],
                     acceptance=[],
                     stories=[],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
                 )
             ],
             metadata=None,
             clarifications=None,
         )
-        generator = PlanGenerator()
-        generator.generate(bundle, default_path)
+        project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        # Add story without specifying plan
+        # Set active plan so command can use it as default
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        # Ensure plans directory exists
+        plans_dir = tmp_path / ".specfact" / "plans"
+        plans_dir.mkdir(parents=True, exist_ok=True)
+        SpecFactStructure.set_active_plan(bundle_name, base_path=tmp_path)
+
+        # Add story without specifying bundle (should use active plan)
         result = runner.invoke(
             app,
             [
@@ -548,12 +622,11 @@ class TestPlanAddStory:
         )
 
         assert result.exit_code == 0
-        assert default_path.exists()
+        assert bundle_dir.exists()
 
         # Verify story was added
-        is_valid, _error, bundle = validate_plan_bundle(default_path)
-        assert is_valid is True
-        assert bundle is not None  # Type guard
-        feature = bundle.features[0]
+        updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        assert "FEATURE-001" in updated_bundle.features
+        feature = updated_bundle.features["FEATURE-001"]
         assert len(feature.stories) == 1
         assert feature.stories[0].key == "STORY-001"

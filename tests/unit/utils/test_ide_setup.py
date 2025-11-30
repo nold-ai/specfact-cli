@@ -151,9 +151,7 @@ class TestCopyTemplatesToIDE:
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text(
-            "---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS"
-        )
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
 
         # Copy templates
         copied_files, settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=True)
@@ -164,10 +162,10 @@ class TestCopyTemplatesToIDE:
 
         cursor_dir = tmp_path / ".cursor" / "commands"
         assert cursor_dir.exists()
-        assert (cursor_dir / "specfact-import-from-code.md").exists()
+        assert (cursor_dir / "specfact.01-import.md").exists()
 
         # Verify content
-        content = (cursor_dir / "specfact-import-from-code.md").read_text()
+        content = (cursor_dir / "specfact.01-import.md").read_text()
         assert "# Analyze" in content
         assert "$ARGUMENTS" in content
 
@@ -176,9 +174,7 @@ class TestCopyTemplatesToIDE:
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text(
-            "---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS"
-        )
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
 
         # Copy templates
         copied_files, settings_path = copy_templates_to_ide(tmp_path, "vscode", templates_dir, force=True)
@@ -191,7 +187,7 @@ class TestCopyTemplatesToIDE:
         # Verify template copied with .prompt.md extension
         prompts_dir = tmp_path / ".github" / "prompts"
         assert prompts_dir.exists()
-        assert (prompts_dir / "specfact-import-from-code.prompt.md").exists()
+        assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
         # Verify VS Code settings created
         assert (tmp_path / ".vscode" / "settings.json").exists()
@@ -201,14 +197,12 @@ class TestCopyTemplatesToIDE:
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text(
-            "---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS"
-        )
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
 
         # Pre-create file
         cursor_dir = tmp_path / ".cursor" / "commands"
         cursor_dir.mkdir(parents=True)
-        (cursor_dir / "specfact-import-from-code.md").write_text("existing")
+        (cursor_dir / "specfact.01-import.md").write_text("existing")
 
         # Try to copy without force
         copied_files, _settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=False)
@@ -217,21 +211,21 @@ class TestCopyTemplatesToIDE:
         assert len(copied_files) == 0
 
         # Verify existing file was not overwritten
-        assert (cursor_dir / "specfact-import-from-code.md").read_text() == "existing"
+        assert (cursor_dir / "specfact.01-import.md").read_text() == "existing"
 
     def test_copy_templates_overwrites_with_force(self, tmp_path):
         """Test copying templates overwrites existing files with force."""
         # Create templates directory
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
-        (templates_dir / "specfact-import-from-code.md").write_text(
+        (templates_dir / "specfact.01-import.md").write_text(
             "---\ndescription: Analyze\n---\n# New Content\n$ARGUMENTS"
         )
 
         # Pre-create file
         cursor_dir = tmp_path / ".cursor" / "commands"
         cursor_dir.mkdir(parents=True)
-        (cursor_dir / "specfact-import-from-code.md").write_text("existing")
+        (cursor_dir / "specfact.01-import.md").write_text("existing")
 
         # Copy with force
         copied_files, _settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=True)
@@ -240,5 +234,5 @@ class TestCopyTemplatesToIDE:
         assert len(copied_files) == 1
 
         # Verify file was overwritten
-        content = (cursor_dir / "specfact-import-from-code.md").read_text()
+        content = (cursor_dir / "specfact.01-import.md").read_text()
         assert "New Content" in content or "# New Content" in content

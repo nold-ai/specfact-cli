@@ -233,6 +233,9 @@ class SpecKitConverter:
                 stories=stories,
                 confidence=min(confidence, 1.0),
                 draft=False,
+                source_tracking=None,
+                contract=None,
+                protocol=None,
             )
 
             features.append(feature)

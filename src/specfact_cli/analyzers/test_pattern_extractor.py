@@ -59,22 +59,27 @@ class TestPatternExtractor:
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "Must return list")
-    def extract_test_patterns_for_class(self, class_name: str, module_path: Path | None = None) -> list[str]:
+    def extract_test_patterns_for_class(
+        self, class_name: str, module_path: Path | None = None, as_openapi_examples: bool = False
+    ) -> list[str]:
         """
         Extract test patterns for a specific class.
 
         Args:
             class_name: Name of the class to find tests for
             module_path: Optional path to the source module (for better matching)
+            as_openapi_examples: If True, return minimal acceptance criteria (examples stored in contracts).
+                                 If False, return verbose GWT format (legacy behavior).
 
         Returns:
-            List of testable acceptance criteria in Given/When/Then format
+            List of testable acceptance criteria (GWT format if as_openapi_examples=False,
+            minimal format if as_openapi_examples=True)
         """
         acceptance_criteria: list[str] = []
 
         for test_file in self.test_files:
             try:
-                test_patterns = self._parse_test_file(test_file, class_name, module_path)
+                test_patterns = self._parse_test_file(test_file, class_name, module_path, as_openapi_examples)
                 acceptance_criteria.extend(test_patterns)
             except Exception:
                 # Skip files that can't be parsed
@@ -83,7 +88,9 @@ class TestPatternExtractor:
         return acceptance_criteria
 
     @beartype
-    def _parse_test_file(self, test_file: Path, class_name: str, module_path: Path | None) -> list[str]:
+    def _parse_test_file(
+        self, test_file: Path, class_name: str, module_path: Path | None, as_openapi_examples: bool = False
+    ) -> list[str]:
         """Parse a test file and extract test patterns for the given class."""
         try:
             content = test_file.read_text(encoding="utf-8")
@@ -96,11 +103,37 @@ class TestPatternExtractor:
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                 # Found a test function
-                test_pattern = self._extract_test_pattern(node, class_name)
+                if as_openapi_examples:
+                    # Return minimal acceptance criteria (examples will be in contracts)
+                    test_pattern = self._extract_minimal_acceptance(node, class_name)
+                else:
+                    # Return verbose GWT format (legacy behavior)
+                    test_pattern = self._extract_test_pattern(node, class_name)
                 if test_pattern:
                     acceptance_criteria.append(test_pattern)
 
         return acceptance_criteria
+
+    @beartype
+    @require(lambda test_node: isinstance(test_node, ast.FunctionDef), "Test node must be FunctionDef")
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return None or string")
+    def _extract_minimal_acceptance(self, test_node: ast.FunctionDef, class_name: str) -> str | None:
+        """
+        Extract minimal acceptance criteria (examples stored in contracts, not YAML).
+
+        Args:
+            test_node: AST node for the test function
+            class_name: Name of the class being tested
+
+        Returns:
+            Minimal acceptance criterion (high-level business logic only), or None
+        """
+        # Extract test name (remove "test_" prefix)
+        test_name = test_node.name.replace("test_", "").replace("_", " ")
+
+        # Return simple text description (not GWT format)
+        # Detailed examples will be extracted to OpenAPI contracts for Specmatic
+        return f"{test_name} works correctly (see contract examples)"
 
     @beartype
     def _extract_test_pattern(self, test_node: ast.FunctionDef, class_name: str) -> str | None:
@@ -257,21 +290,22 @@ class TestPatternExtractor:
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def infer_from_code_patterns(self, method_node: ast.FunctionDef, class_name: str) -> list[str]:
         """
-        Infer testable acceptance criteria from code patterns when tests are missing.
+        Infer minimal acceptance criteria from code patterns when tests are missing.
 
         Args:
             method_node: AST node for the method
             class_name: Name of the class containing the method
 
         Returns:
-            List of testable acceptance criteria in Given/When/Then format
+            List of minimal acceptance criteria (simple text, not GWT format)
+            Detailed examples will be extracted to OpenAPI contracts for Specmatic
         """
         acceptance_criteria: list[str] = []
 
         # Extract method name and purpose
         method_name = method_node.name
 
-        # Pattern 1: Validation logic → "Must verify [validation rule]"
+        # Pattern 1: Validation logic → simple description
         if any(keyword in method_name.lower() for keyword in ["validate", "check", "verify", "is_valid"]):
             validation_target = (
                 method_name.replace("validate", "")
@@ -281,26 +315,20 @@ class TestPatternExtractor:
                 .strip()
             )
             if validation_target:
-                acceptance_criteria.append(
-                    f"Given {class_name} instance, When {method_name} is called, Then {validation_target} is validated"
-                )
+                acceptance_criteria.append(f"{validation_target} validation works correctly")
 
-        # Pattern 2: Error handling → "Must handle [error condition]"
+        # Pattern 2: Error handling → simple description
         if any(keyword in method_name.lower() for keyword in ["handle", "catch", "error", "exception"]):
             error_type = method_name.replace("handle", "").replace("catch", "").strip()
-            acceptance_criteria.append(
-                f"Given error condition occurs, When {method_name} is called, Then {error_type or 'error'} is handled"
-            )
+            acceptance_criteria.append(f"Error handling for {error_type or 'errors'} works correctly")
 
-        # Pattern 3: Success paths → "Must return [expected result]"
+        # Pattern 3: Success paths → simple description
         # Check return type hints
         if method_node.returns:
             return_type = ast.unparse(method_node.returns) if hasattr(ast, "unparse") else str(method_node.returns)
-            acceptance_criteria.append(
-                f"Given {class_name} instance, When {method_name} is called, Then {return_type} is returned"
-            )
+            acceptance_criteria.append(f"{method_name} returns {return_type} correctly")
 
-        # Pattern 4: Type hints → "Must accept [type] and return [type]"
+        # Pattern 4: Type hints → simple description
         if method_node.args.args:
             param_types: list[str] = []
             for arg in method_node.args.args:
@@ -317,14 +345,10 @@ class TestPatternExtractor:
                     if method_node.returns
                     else "result"
                 )
-                acceptance_criteria.append(
-                    f"Given {class_name} instance with {params_str}, When {method_name} is called, Then {return_type_str} is returned"
-                )
+                acceptance_criteria.append(f"{method_name} accepts {params_str} and returns {return_type_str}")
 
-        # Default: Generic acceptance criterion
+        # Default: Generic acceptance criterion (simple text)
         if not acceptance_criteria:
-            acceptance_criteria.append(
-                f"Given {class_name} instance, When {method_name} is called, Then method executes successfully"
-            )
+            acceptance_criteria.append(f"{method_name} works correctly")
 
         return acceptance_criteria

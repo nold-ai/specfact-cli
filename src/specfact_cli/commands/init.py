@@ -41,11 +41,7 @@ def _is_valid_repo_path(path: Path) -> bool:
 @ensure(lambda result: result is None, "Command should return None")
 @beartype
 def init(
-    ide: str = typer.Option(
-        "auto",
-        "--ide",
-        help="IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q)",
-    ),
+    # Target/Input
     repo: Path = typer.Option(
         Path("."),
         "--repo",
@@ -54,10 +50,17 @@ def init(
         file_okay=False,
         dir_okay=True,
     ),
+    # Behavior/Options
     force: bool = typer.Option(
         False,
         "--force",
         help="Overwrite existing files",
+    ),
+    # Advanced/Configuration
+    ide: str = typer.Option(
+        "auto",
+        "--ide",
+        help="IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q)",
     ),
 ) -> None:
     """
@@ -287,7 +290,7 @@ def init(
                 console.print(f"[green]Updated VS Code settings:[/green] {settings_path}")
             console.print()
             console.print("[dim]You can now use SpecFact slash commands in your IDE![/dim]")
-            console.print("[dim]Example: /specfact-import-from-code --repo . --confidence 0.7[/dim]")
+            console.print("[dim]Example: /specfact.01-import --bundle legacy-api --repo .[/dim]")
 
         except Exception as e:
             console.print(f"[red]Error:[/red] Failed to initialize IDE integration: {e}")
