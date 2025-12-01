@@ -50,17 +50,102 @@ Review project bundle to identify/resolve ambiguities and missing information. A
 - Extract bundle name (defaults to active plan if not specified)
 - Extract optional parameters (max-questions, category, etc.)
 
-### Step 2: Execute CLI
+### Step 2: Execute CLI to Get Findings
+
+**First, get findings to understand what needs enrichment:**
 
 ```bash
-specfact plan review [<bundle-name>] [--max-questions <n>] [--category <category>] [--list-questions] [--list-findings] [--answers JSON]
+specfact plan review [<bundle-name>] --list-findings --findings-format json
 # Uses active plan if bundle not specified
 ```
 
-### Step 3: Present Results
+This outputs all ambiguities and missing information in structured format.
+
+### Step 3: Create Enrichment Report (if needed)
+
+Based on the findings, create a Markdown enrichment report that addresses:
+
+- **Business Context**: Priorities, constraints, unknowns
+- **Confidence Adjustments**: Feature confidence score updates (if needed)
+- **Missing Features**: New features to add (if any)
+- **Manual Updates**: Guidance for updating `idea.yaml` fields like `target_users`, `value_hypothesis`, `narrative`
+
+**Enrichment Report Format:**
+
+```markdown
+## Business Context
+
+### Priorities
+- Priority 1
+- Priority 2
+
+### Constraints
+- Constraint 1
+- Constraint 2
+
+### Unknowns
+- Unknown 1
+- Unknown 2
+
+## Confidence Adjustments
+
+FEATURE-KEY → 0.95
+FEATURE-OTHER → 0.8
+
+## Missing Features
+
+(If any features are missing)
+
+## Recommendations for Manual Updates
+
+### idea.yaml Updates Required
+
+**target_users:**
+- Primary: [description]
+- Secondary: [description]
+
+**value_hypothesis:**
+[Value proposition]
+
+**narrative:**
+[Improved narrative]
+```
+
+### Step 4: Apply Enrichment
+
+#### Option A: Use enrichment to answer review questions
+
+Create answers JSON from enrichment report and use with review:
+
+```bash
+specfact plan review [<bundle-name>] --answers '{"Q001": "answer1", "Q002": "answer2"}'
+```
+
+#### Option B: Update idea fields directly via CLI
+
+Use `plan update-idea` to update idea fields from enrichment recommendations:
+
+```bash
+specfact plan update-idea --bundle [<bundle-name>] --value-hypothesis "..." --narrative "..." --target-users "..."
+```
+
+#### Option C: Apply enrichment via import (only if bundle needs regeneration)
+
+```bash
+specfact import from-code [<bundle-name>] --repo . --enrichment enrichment-report.md
+```
+
+**Note:**
+
+- **Preferred**: Use Option A (answers) or Option B (update-idea) for most cases
+- Only use Option C if you need to regenerate the bundle
+- Never manually edit `.specfact/` files directly - always use CLI commands
+
+### Step 5: Present Results
 
 - Display Q&A, sections touched, coverage summary (initial/updated)
 - Note: Clarifications don't affect hash (stable across review sessions)
+- If enrichment report was created, summarize what was addressed
 
 ## CLI Enforcement
 
@@ -99,13 +184,36 @@ Create one with: specfact plan init legacy-api
 ## Common Patterns
 
 ```bash
+# Get findings first
+/specfact.03-review --list-findings                    # List all findings
+/specfact.03-review --list-findings --findings-format json  # JSON format for enrichment
+
+# Interactive review
 /specfact.03-review                                    # Uses active plan
 /specfact.03-review legacy-api                         # Specific bundle
 /specfact.03-review --max-questions 3                  # Limit questions
 /specfact.03-review --category "Functional Scope"      # Focus category
-/specfact.03-review --list-questions                   # JSON output
-/specfact.03-review --auto-enrich                     # Auto-enrichment
+
+# Non-interactive with answers
+/specfact.03-review --answers '{"Q001": "answer"}'     # Provide answers directly
+/specfact.03-review --list-questions                   # Output questions as JSON
+
+# Auto-enrichment
+/specfact.03-review --auto-enrich                     # Auto-enrich vague criteria
 ```
+
+## Enrichment Workflow
+
+**Typical workflow when enrichment is needed:**
+
+1. **Get findings**: `specfact plan review --list-findings --findings-format json`
+2. **Analyze findings**: Review missing information (target_users, value_hypothesis, etc.)
+3. **Create enrichment report**: Write Markdown file addressing findings
+4. **Apply enrichment**:
+   - **Preferred**: Use enrichment to create `--answers` JSON and run `plan review --answers`
+   - **Alternative**: Use `plan update-idea` to update idea fields directly
+   - **Last resort**: If bundle needs regeneration, use `import from-code --enrichment`
+5. **Verify**: Run `plan review` again to confirm improvements
 
 ## Context
 
