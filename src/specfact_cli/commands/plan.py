@@ -3607,10 +3607,12 @@ def _handle_no_questions_case(
                 )
                 console.print(f"  {status_icon} {cat.value}: {status.value}")
 
+    return None
+
 
 @beartype
 @require(lambda questions_to_ask: isinstance(questions_to_ask, list), "Questions must be list")
-@ensure(lambda result: None, "Must return None")
+@ensure(lambda result: result is None, "Must return None")
 def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None:
     """
     Handle --list-questions mode by outputting questions as JSON.
@@ -3637,6 +3639,8 @@ def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None
     sys.stdout.write(json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2))
     sys.stdout.write("\n")
     sys.stdout.flush()
+
+    return None
 
 
 @beartype
@@ -3824,7 +3828,7 @@ def _ask_questions_interactive(
 @require(lambda report: report is not None, "Report must not be None")
 @require(lambda current_stage: isinstance(current_stage, str), "Current stage must be str")
 @require(lambda today_session: today_session is not None, "Today session must not be None")
-@ensure(lambda result: None, "Must return None")
+@ensure(lambda result: result is None, "Must return None")
 def _display_review_summary(
     plan_bundle: PlanBundle,
     scanner: Any,  # AmbiguityScanner
@@ -3897,6 +3901,8 @@ def _display_review_summary(
     elif current_stage == "review":
         console.print("  • Plan is ready for approval")
         console.print("  • Run: specfact plan promote --stage approved")
+
+    return None
 
 
 @app.command("review")
