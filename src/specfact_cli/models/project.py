@@ -555,12 +555,16 @@ class ProjectBundle(BaseModel):
         content_hash = None
         if include_hash:
             # Compute hash of all aspects combined
+            # NOTE: Exclude clarifications from hash - they are review metadata, not plan content
+            # This ensures hash stability across review sessions (clarifications change but plan doesn't)
+            # IMPORTANT: Sort features by key to ensure deterministic hash regardless of dict insertion order
+            sorted_features = sorted(self.features.items(), key=lambda x: x[0])
             bundle_dict = {
                 "idea": self.idea.model_dump() if self.idea else None,
                 "business": self.business.model_dump() if self.business else None,
                 "product": self.product.model_dump(),
-                "features": [f.model_dump() for f in self.features.values()],
-                "clarifications": self.clarifications.model_dump() if self.clarifications else None,
+                "features": [f.model_dump() for _, f in sorted_features],
+                # Exclude clarifications - they are review metadata, not part of the plan content
             }
             bundle_json = json.dumps(bundle_dict, sort_keys=True, default=str)
             content_hash = hashlib.sha256(bundle_json.encode("utf-8")).hexdigest()

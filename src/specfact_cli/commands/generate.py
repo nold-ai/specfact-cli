@@ -92,7 +92,8 @@ def generate_contracts(
             base_path = Path(".").resolve() if repo is None else Path(repo).resolve()
 
             # Import here to avoid circular imports
-            from specfact_cli.utils.bundle_loader import BundleFormat, detect_bundle_format, load_project_bundle
+            from specfact_cli.utils.bundle_loader import BundleFormat, detect_bundle_format
+            from specfact_cli.utils.progress import load_bundle_with_progress
             from specfact_cli.utils.structure import SpecFactStructure
 
             # Initialize bundle_dir (will be set if bundle is provided)
@@ -166,7 +167,7 @@ def generate_contracts(
                 # Load modular ProjectBundle and convert to PlanBundle for compatibility
                 from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
 
-                project_bundle = load_project_bundle(plan_path, validate_hashes=False)
+                project_bundle = load_bundle_with_progress(plan_path, validate_hashes=False, console_instance=console)
 
                 # Compute hash from ProjectBundle (same way as plan harden does)
                 summary = project_bundle.compute_summary(include_hash=True)
@@ -337,7 +338,7 @@ def generate_tasks(
     from specfact_cli.generators.task_generator import generate_tasks as generate_tasks_func
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.telemetry import telemetry
-    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.progress import load_bundle_with_progress
     from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
@@ -372,8 +373,7 @@ def generate_tasks(
                 console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
                 raise typer.Exit(1)
 
-            print_info(f"Loading project bundle: {bundle}")
-            project_bundle = load_project_bundle(bundle_dir)
+            project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
             # Load SDD manifest (optional but recommended)
             sdd_manifest: SDDManifest | None = None

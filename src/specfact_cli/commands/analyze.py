@@ -60,7 +60,7 @@ def analyze_contracts(
     from rich.console import Console
 
     from specfact_cli.models.quality import QualityTracking
-    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.progress import load_bundle_with_progress
     from specfact_cli.utils.structure import SpecFactStructure
 
     console = Console()
@@ -89,8 +89,8 @@ def analyze_contracts(
         console.print(f"[bold cyan]Contract Coverage Analysis:[/bold cyan] {bundle}")
         console.print(f"[dim]Repository:[/dim] {repo_path}\n")
 
-        # Load project bundle
-        project_bundle = load_project_bundle(bundle_dir)
+        # Load project bundle with unified progress display
+        project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
         # Analyze each feature's source files
         quality_tracking = QualityTracking()

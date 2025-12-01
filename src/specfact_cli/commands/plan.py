@@ -17,7 +17,6 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from specfact_cli import runtime
@@ -43,7 +42,7 @@ from specfact_cli.utils import (
     prompt_list,
     prompt_text,
 )
-from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+from specfact_cli.utils.progress import load_bundle_with_progress, save_bundle_with_progress
 from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 from specfact_cli.validators.schema import validate_plan_bundle
 
@@ -52,54 +51,15 @@ app = typer.Typer(help="Manage development plans, features, and stories")
 console = Console()
 
 
+# Use shared progress utilities for consistency (aliased to maintain existing function names)
 def _load_bundle_with_progress(bundle_dir: Path, validate_hashes: bool = False) -> ProjectBundle:
-    """
-    Load project bundle with progress indicator.
-
-    Args:
-        bundle_dir: Path to bundle directory
-        validate_hashes: Whether to validate file checksums
-
-    Returns:
-        Loaded ProjectBundle instance
-    """
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Loading project bundle...", total=None)
-
-        def progress_callback(current: int, total: int, artifact: str) -> None:
-            progress.update(task, description=f"Loading artifact {current}/{total}: {artifact}")
-
-        bundle = load_project_bundle(bundle_dir, validate_hashes=validate_hashes, progress_callback=progress_callback)
-        progress.update(task, description="✓ Bundle loaded")
-
-    return bundle
+    """Load project bundle with unified progress display."""
+    return load_bundle_with_progress(bundle_dir, validate_hashes=validate_hashes, console_instance=console)
 
 
 def _save_bundle_with_progress(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = True) -> None:
-    """
-    Save project bundle with progress indicator.
-
-    Args:
-        bundle: ProjectBundle instance to save
-        bundle_dir: Path to bundle directory
-        atomic: Whether to use atomic writes
-    """
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Saving project bundle...", total=None)
-
-        def progress_callback(current: int, total: int, artifact: str) -> None:
-            progress.update(task, description=f"Saving artifact {current}/{total}: {artifact}")
-
-        save_project_bundle(bundle, bundle_dir, atomic=atomic, progress_callback=progress_callback)
-        progress.update(task, description="✓ Bundle saved")
+    """Save project bundle with unified progress display."""
+    save_bundle_with_progress(bundle, bundle_dir, atomic=atomic, console_instance=console)
 
 
 @app.command("init")
@@ -3195,12 +3155,13 @@ def _deduplicate_features(bundle: PlanBundle) -> int:
 @require(
     lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty string"
 )
+@require(lambda project_hash: project_hash is None or isinstance(project_hash, str), "Project hash must be None or str")
 @ensure(
     lambda result: isinstance(result, tuple) and len(result) == 3,
     "Must return (bool, SDDManifest | None, ValidationReport) tuple",
 )
 def _validate_sdd_for_bundle(
-    bundle: PlanBundle, bundle_name: str, require_sdd: bool = False
+    bundle: PlanBundle, bundle_name: str, require_sdd: bool = False, project_hash: str | None = None
 ) -> tuple[bool, SDDManifest | None, ValidationReport]:
     """
     Validate SDD manifest for project bundle.
@@ -3209,6 +3170,7 @@ def _validate_sdd_for_bundle(
         bundle: Plan bundle to validate (converted from ProjectBundle)
         bundle_name: Project bundle name
         require_sdd: If True, return False if SDD is missing (for promotion gates)
+        project_hash: Optional hash computed from ProjectBundle BEFORE modifications (for consistency with plan harden)
 
     Returns:
         Tuple of (is_valid, sdd_manifest, validation_report)
@@ -3255,8 +3217,15 @@ def _validate_sdd_for_bundle(
         return (False, None, report)
 
     # Validate hash match
-    bundle.update_summary(include_hash=True)
-    bundle_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+    # IMPORTANT: Use project_hash if provided (computed from ProjectBundle BEFORE modifications)
+    # This ensures consistency with plan harden which computes hash from ProjectBundle.
+    # If not provided, fall back to computing from PlanBundle (for backward compatibility).
+    if project_hash:
+        bundle_hash = project_hash
+    else:
+        bundle.update_summary(include_hash=True)
+        bundle_hash = bundle.metadata.summary.content_hash if bundle.metadata and bundle.metadata.summary else None
+
     if bundle_hash and sdd_manifest.plan_bundle_hash != bundle_hash:
         deviation = Deviation(
             type=DeviationType.HASH_MISMATCH,
@@ -3376,6 +3345,560 @@ def _validate_sdd_for_plan(
     return (is_valid, sdd_manifest, report)
 
 
+@beartype
+@require(lambda project_bundle: isinstance(project_bundle, ProjectBundle), "Project bundle must be ProjectBundle")
+@require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle dir must be Path")
+@require(lambda bundle_name: isinstance(bundle_name, str), "Bundle name must be str")
+@require(lambda auto_enrich: isinstance(auto_enrich, bool), "Auto enrich must be bool")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return tuple of PlanBundle and str")
+def _prepare_review_bundle(
+    project_bundle: ProjectBundle, bundle_dir: Path, bundle_name: str, auto_enrich: bool
+) -> tuple[PlanBundle, str]:
+    """
+    Prepare plan bundle for review.
+
+    Args:
+        project_bundle: Loaded project bundle
+        bundle_dir: Path to bundle directory
+        bundle_name: Bundle name
+        auto_enrich: Whether to auto-enrich the bundle
+
+    Returns:
+        Tuple of (plan_bundle, current_stage)
+    """
+    # Compute hash from ProjectBundle BEFORE any modifications (same as plan harden does)
+    # This ensures hash consistency with SDD manifest created by plan harden
+    project_summary = project_bundle.compute_summary(include_hash=True)
+    project_hash = project_summary.content_hash
+    if not project_hash:
+        print_warning("Failed to compute project bundle hash for SDD validation")
+
+    # Convert to PlanBundle for compatibility with review functions
+    plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+
+    # Deduplicate features by normalized key (clean up duplicates from previous syncs)
+    duplicates_removed = _deduplicate_features(plan_bundle)
+    if duplicates_removed > 0:
+        # Convert back to ProjectBundle and save
+        # Update project bundle with deduplicated features
+        project_bundle.features = {f.key: f for f in plan_bundle.features}
+        _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
+        print_success(f"✓ Removed {duplicates_removed} duplicate features from project bundle")
+
+    # Check current stage (ProjectBundle doesn't have metadata.stage, use default)
+    current_stage = "draft"  # TODO: Add promotion status to ProjectBundle manifest
+
+    print_info(f"Current stage: {current_stage}")
+
+    # Validate SDD manifest (warn if missing, validate thresholds if present)
+    # Pass project_hash computed BEFORE modifications to ensure consistency
+    print_info("Checking SDD manifest...")
+    sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_bundle(
+        plan_bundle, bundle_name, require_sdd=False, project_hash=project_hash
+    )
+
+    if sdd_manifest is None:
+        print_warning("SDD manifest not found. Consider running 'specfact plan harden' to create one.")
+        from rich.console import Console
+
+        console = Console()
+        console.print("[dim]SDD manifest is recommended for plan review and promotion[/dim]")
+    elif not sdd_valid:
+        print_warning("SDD manifest validation failed:")
+        from rich.console import Console
+
+        from specfact_cli.models.deviation import DeviationSeverity
+
+        console = Console()
+        for deviation in sdd_report.deviations:
+            if deviation.severity == DeviationSeverity.HIGH:
+                console.print(f"  [bold red]✗[/bold red] {deviation.description}")
+            elif deviation.severity == DeviationSeverity.MEDIUM:
+                console.print(f"  [bold yellow]⚠[/bold yellow] {deviation.description}")
+            else:
+                console.print(f"  [dim]ℹ[/dim] {deviation.description}")
+        console.print("\n[dim]Run 'specfact enforce sdd' for detailed validation report[/dim]")
+    else:
+        print_success("SDD manifest validated successfully")
+
+        # Display contract density metrics
+        from rich.console import Console
+
+        from specfact_cli.validators.contract_validator import calculate_contract_density
+
+        console = Console()
+        metrics = calculate_contract_density(sdd_manifest, plan_bundle)
+        thresholds = sdd_manifest.coverage_thresholds
+
+        console.print("\n[bold]Contract Density Metrics:[/bold]")
+        console.print(
+            f"  Contracts/story: {metrics.contracts_per_story:.2f} (threshold: {thresholds.contracts_per_story})"
+        )
+        console.print(
+            f"  Invariants/feature: {metrics.invariants_per_feature:.2f} (threshold: {thresholds.invariants_per_feature})"
+        )
+        console.print(
+            f"  Architecture facets: {metrics.architecture_facets} (threshold: {thresholds.architecture_facets})"
+        )
+
+        if sdd_report.total_deviations > 0:
+            console.print(f"\n[dim]Found {sdd_report.total_deviations} coverage threshold warning(s)[/dim]")
+            console.print("[dim]Run 'specfact enforce sdd' for detailed report[/dim]")
+
+    # Initialize clarifications if needed
+    from specfact_cli.models.plan import Clarifications
+
+    if plan_bundle.clarifications is None:
+        plan_bundle.clarifications = Clarifications(sessions=[])
+
+    # Auto-enrich if requested (before scanning for ambiguities)
+    _handle_auto_enrichment(plan_bundle, bundle_dir, auto_enrich)
+
+    return (plan_bundle, current_stage)
+
+
+@beartype
+@require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Plan bundle must be PlanBundle")
+@require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle dir must be Path")
+@require(lambda category: category is None or isinstance(category, str), "Category must be None or str")
+@require(lambda max_questions: max_questions > 0, "Max questions must be positive")
+@ensure(
+    lambda result: isinstance(result, tuple) and len(result) == 3 and isinstance(result[0], list),
+    "Must return tuple of questions, report, scanner",
+)
+def _scan_and_prepare_questions(
+    plan_bundle: PlanBundle, bundle_dir: Path, category: str | None, max_questions: int
+) -> tuple[list[tuple[Any, str]], Any, Any]:  # Returns (questions_to_ask, report, scanner)
+    """
+    Scan plan bundle and prepare questions for review.
+
+    Args:
+        plan_bundle: Plan bundle to scan
+        bundle_dir: Bundle directory path (for finding repo path)
+        category: Optional category filter
+        max_questions: Maximum questions to prepare
+
+    Returns:
+        Tuple of (questions_to_ask, report, scanner)
+    """
+    from specfact_cli.analyzers.ambiguity_scanner import (
+        AmbiguityScanner,
+        TaxonomyCategory,
+    )
+
+    # Scan for ambiguities
+    print_info("Scanning plan bundle for ambiguities...")
+    # Try to find repo path from bundle directory (go up to find .specfact parent, then repo root)
+    repo_path: Path | None = None
+    if bundle_dir.exists():
+        # bundle_dir is typically .specfact/projects/<bundle-name>
+        # Go up to .specfact, then up to repo root
+        specfact_dir = bundle_dir.parent.parent if bundle_dir.parent.name == "projects" else bundle_dir.parent
+        if specfact_dir.name == ".specfact" and specfact_dir.parent.exists():
+            repo_path = specfact_dir.parent
+        else:
+            # Fallback: try current directory
+            repo_path = Path(".")
+    else:
+        repo_path = Path(".")
+
+    scanner = AmbiguityScanner(repo_path=repo_path)
+    report = scanner.scan(plan_bundle)
+
+    # Filter by category if specified
+    if category:
+        try:
+            target_category = TaxonomyCategory(category)
+            if report.findings:
+                report.findings = [f for f in report.findings if f.category == target_category]
+        except ValueError:
+            print_warning(f"Unknown category: {category}, ignoring filter")
+            category = None
+
+    # Prioritize questions by (Impact x Uncertainty)
+    findings_list = report.findings or []
+    prioritized_findings = sorted(
+        findings_list,
+        key=lambda f: f.impact * f.uncertainty,
+        reverse=True,
+    )
+
+    # Filter out findings that already have clarifications
+    existing_question_ids = set()
+    if plan_bundle.clarifications:
+        for session in plan_bundle.clarifications.sessions:
+            for q in session.questions:
+                existing_question_ids.add(q.id)
+
+    # Generate question IDs and filter
+    question_counter = 1
+    candidate_questions: list[tuple[Any, str]] = []
+    for finding in prioritized_findings:
+        if finding.question and (question_id := f"Q{question_counter:03d}") not in existing_question_ids:
+            # Generate question ID and add if not already answered
+            question_counter += 1
+            candidate_questions.append((finding, question_id))
+
+    # Limit to max_questions
+    questions_to_ask = candidate_questions[:max_questions]
+
+    return (questions_to_ask, report, scanner)
+
+
+@beartype
+@require(lambda questions_to_ask: isinstance(questions_to_ask, list), "Questions must be list")
+@require(lambda report: report is not None, "Report must not be None")
+@ensure(lambda result: result is None, "Must return None")
+def _handle_no_questions_case(
+    questions_to_ask: list[tuple[Any, str]],
+    report: Any,  # AmbiguityReport
+) -> None:
+    """
+    Handle case when there are no questions to ask.
+
+    Args:
+        questions_to_ask: List of questions (should be empty)
+        report: Ambiguity report
+    """
+    from rich.console import Console
+
+    from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus, TaxonomyCategory
+
+    console = Console()
+
+    # Check coverage status to determine if plan is truly ready for promotion
+    critical_categories = [
+        TaxonomyCategory.FUNCTIONAL_SCOPE,
+        TaxonomyCategory.FEATURE_COMPLETENESS,
+        TaxonomyCategory.CONSTRAINTS,
+    ]
+
+    missing_critical: list[TaxonomyCategory] = []
+    if report.coverage:
+        for category, status in report.coverage.items():
+            if category in critical_categories and status == AmbiguityStatus.MISSING:
+                missing_critical.append(category)
+
+    if missing_critical:
+        print_warning(
+            f"Plan has {len(missing_critical)} critical category(ies) marked as Missing, but no high-priority questions remain"
+        )
+        console.print("[dim]Missing critical categories:[/dim]")
+        for cat in missing_critical:
+            console.print(f"  - {cat.value}")
+        console.print("\n[bold]Coverage Summary:[/bold]")
+        if report.coverage:
+            for cat, status in report.coverage.items():
+                status_icon = (
+                    "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
+                )
+                console.print(f"  {status_icon} {cat.value}: {status.value}")
+        console.print(
+            "\n[bold]⚠️ Warning:[/bold] Plan may not be ready for promotion due to missing critical categories"
+        )
+        console.print("[dim]Consider addressing these categories before promoting[/dim]")
+    else:
+        print_success("No critical ambiguities detected. Plan is ready for promotion.")
+        console.print("\n[bold]Coverage Summary:[/bold]")
+        if report.coverage:
+            for cat, status in report.coverage.items():
+                status_icon = (
+                    "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
+                )
+                console.print(f"  {status_icon} {cat.value}: {status.value}")
+
+
+@beartype
+@require(lambda questions_to_ask: isinstance(questions_to_ask, list), "Questions must be list")
+@ensure(lambda result: None, "Must return None")
+def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None:
+    """
+    Handle --list-questions mode by outputting questions as JSON.
+
+    Args:
+        questions_to_ask: List of (finding, question_id) tuples
+    """
+    import json
+    import sys
+
+    questions_json = []
+    for finding, question_id in questions_to_ask:
+        questions_json.append(
+            {
+                "id": question_id,
+                "category": finding.category.value,
+                "question": finding.question,
+                "impact": finding.impact,
+                "uncertainty": finding.uncertainty,
+                "related_sections": finding.related_sections or [],
+            }
+        )
+    # Output JSON to stdout (for Copilot mode parsing)
+    sys.stdout.write(json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2))
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+
+@beartype
+@require(lambda answers: isinstance(answers, str), "Answers must be string")
+@ensure(lambda result: isinstance(result, dict), "Must return dict")
+def _parse_answers_dict(answers: str) -> dict[str, str]:
+    """
+    Parse --answers JSON string or file path.
+
+    Args:
+        answers: JSON string or file path
+
+    Returns:
+        Dictionary mapping question_id -> answer
+    """
+    import json
+
+    try:
+        # Try to parse as JSON string first
+        try:
+            answers_dict = json.loads(answers)
+        except json.JSONDecodeError:
+            # If JSON parsing fails, try as file path
+            answers_path = Path(answers)
+            if answers_path.exists() and answers_path.is_file():
+                answers_dict = json.loads(answers_path.read_text())
+            else:
+                raise ValueError(f"Invalid JSON string and file not found: {answers}") from None
+
+        if not isinstance(answers_dict, dict):
+            print_error("--answers must be a JSON object with question_id -> answer mappings")
+            raise typer.Exit(1)
+        return answers_dict
+    except (json.JSONDecodeError, ValueError) as e:
+        print_error(f"Invalid JSON in --answers: {e}")
+        raise typer.Exit(1) from e
+
+
+@beartype
+@require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Plan bundle must be PlanBundle")
+@require(lambda questions_to_ask: isinstance(questions_to_ask, list), "Questions must be list")
+@require(lambda answers_dict: isinstance(answers_dict, dict), "Answers dict must be dict")
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+@require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle dir must be Path")
+@require(lambda project_bundle: isinstance(project_bundle, ProjectBundle), "Project bundle must be ProjectBundle")
+@ensure(lambda result: isinstance(result, int), "Must return int")
+def _ask_questions_interactive(
+    plan_bundle: PlanBundle,
+    questions_to_ask: list[tuple[Any, str]],
+    answers_dict: dict[str, str],
+    is_non_interactive: bool,
+    bundle_dir: Path,
+    project_bundle: ProjectBundle,
+) -> int:
+    """
+    Ask questions interactively and integrate answers.
+
+    Args:
+        plan_bundle: Plan bundle to update
+        questions_to_ask: List of (finding, question_id) tuples
+        answers_dict: Pre-provided answers dict (may be empty)
+        is_non_interactive: Whether in non-interactive mode
+        bundle_dir: Bundle directory path
+        project_bundle: Project bundle to save
+
+    Returns:
+        Number of questions asked
+    """
+    from datetime import date, datetime
+
+    from rich.console import Console
+
+    from specfact_cli.models.plan import Clarification, ClarificationSession
+
+    console = Console()
+
+    # Create or get today's session
+    today = date.today().isoformat()
+    today_session: ClarificationSession | None = None
+    if plan_bundle.clarifications:
+        for session in plan_bundle.clarifications.sessions:
+            if session.date == today:
+                today_session = session
+                break
+
+    if today_session is None:
+        today_session = ClarificationSession(date=today, questions=[])
+        if plan_bundle.clarifications:
+            plan_bundle.clarifications.sessions.append(today_session)
+
+    # Ask questions sequentially
+    questions_asked = 0
+    for finding, question_id in questions_to_ask:
+        questions_asked += 1
+
+        # Get answer (interactive or from --answers)
+        if question_id in answers_dict:
+            # Non-interactive: use provided answer
+            answer = answers_dict[question_id]
+            if not isinstance(answer, str) or not answer.strip():
+                print_error(f"Answer for {question_id} must be a non-empty string")
+                raise typer.Exit(1)
+            console.print(f"\n[bold cyan]Question {questions_asked}/{len(questions_to_ask)}[/bold cyan]")
+            console.print(f"[dim]Category: {finding.category.value}[/dim]")
+            console.print(f"[bold]Q: {finding.question}[/bold]")
+            console.print(f"[dim]Answer (from --answers): {answer}[/dim]")
+            default_value = None
+        else:
+            # Interactive: prompt user
+            if is_non_interactive:
+                # In non-interactive mode without --answers, skip this question
+                print_warning(f"Skipping {question_id}: no answer provided in non-interactive mode")
+                continue
+
+            console.print(f"\n[bold cyan]Question {questions_asked}/{len(questions_to_ask)}[/bold cyan]")
+            console.print(f"[dim]Category: {finding.category.value}[/dim]")
+            console.print(f"[bold]Q: {finding.question}[/bold]")
+
+            # Show current settings for related sections before asking and get default value
+            default_value = _show_current_settings_for_finding(plan_bundle, finding, console_instance=console)
+
+            # Get answer from user with smart Yes/No handling (with default to confirm existing)
+            answer = _get_smart_answer(finding, plan_bundle, is_non_interactive, default_value=default_value)
+
+        # Validate answer length (warn if too long, but only if user typed something new)
+        # Don't warn if user confirmed existing default value
+        # Check if answer matches default (normalize whitespace for comparison)
+        is_confirmed_default = False
+        if default_value:
+            # Normalize both for comparison (strip and compare)
+            answer_normalized = answer.strip()
+            default_normalized = default_value.strip()
+            # Check exact match or if answer is empty and we have default (Enter pressed)
+            is_confirmed_default = answer_normalized == default_normalized or (
+                not answer_normalized and default_normalized
+            )
+        if not is_confirmed_default and len(answer.split()) > 5:
+            print_warning("Answer is longer than 5 words. Consider a shorter, more focused answer.")
+
+        # Integrate answer into plan bundle
+        integration_points = _integrate_clarification(plan_bundle, finding, answer)
+
+        # Create clarification record
+        clarification = Clarification(
+            id=question_id,
+            category=finding.category.value,
+            question=finding.question or "",
+            answer=answer,
+            integrated_into=integration_points,
+            timestamp=datetime.now(UTC).isoformat(),
+        )
+
+        today_session.questions.append(clarification)
+
+        # Answer integrated into bundle (will save at end for performance)
+        print_success("Answer recorded and integrated into plan bundle")
+
+        # Ask if user wants to continue (only in interactive mode)
+        if (
+            not is_non_interactive
+            and questions_asked < len(questions_to_ask)
+            and not prompt_confirm("Continue to next question?", default=True)
+        ):
+            break
+
+    # Save project bundle once at the end (more efficient than saving after each question)
+    # Update existing project_bundle in memory (no need to reload - we already have it)
+    # Preserve manifest from original bundle
+    project_bundle.idea = plan_bundle.idea
+    project_bundle.business = plan_bundle.business
+    project_bundle.product = plan_bundle.product
+    project_bundle.features = {f.key: f for f in plan_bundle.features}
+    project_bundle.clarifications = plan_bundle.clarifications
+    _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
+    print_success("Project bundle saved")
+
+    return questions_asked
+
+
+@beartype
+@require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Plan bundle must be PlanBundle")
+@require(lambda scanner: scanner is not None, "Scanner must not be None")
+@require(lambda bundle: isinstance(bundle, str), "Bundle must be str")
+@require(lambda questions_asked: questions_asked >= 0, "Questions asked must be non-negative")
+@require(lambda report: report is not None, "Report must not be None")
+@require(lambda current_stage: isinstance(current_stage, str), "Current stage must be str")
+@require(lambda today_session: today_session is not None, "Today session must not be None")
+@ensure(lambda result: None, "Must return None")
+def _display_review_summary(
+    plan_bundle: PlanBundle,
+    scanner: Any,  # AmbiguityScanner
+    bundle: str,
+    questions_asked: int,
+    report: Any,  # AmbiguityReport
+    current_stage: str,
+    today_session: Any,  # ClarificationSession
+) -> None:
+    """
+    Display final review summary and updated coverage.
+
+    Args:
+        plan_bundle: Updated plan bundle
+        scanner: Ambiguity scanner instance
+        bundle: Bundle name
+        questions_asked: Number of questions asked
+        report: Original ambiguity report
+        current_stage: Current plan stage
+        today_session: Today's clarification session
+    """
+    from rich.console import Console
+
+    from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus
+
+    console = Console()
+
+    # Final validation
+    print_info("Validating updated plan bundle...")
+    validation_result = validate_plan_bundle(plan_bundle)
+    if isinstance(validation_result, ValidationReport):
+        if not validation_result.passed:
+            print_warning(f"Validation found {len(validation_result.deviations)} issue(s)")
+        else:
+            print_success("Validation passed")
+    else:
+        print_success("Validation passed")
+
+    # Display summary
+    print_success(f"Review complete: {questions_asked} question(s) answered")
+    console.print(f"\n[bold]Project Bundle:[/bold] {bundle}")
+    console.print(f"[bold]Questions Asked:[/bold] {questions_asked}")
+
+    if today_session.questions:
+        console.print("\n[bold]Sections Touched:[/bold]")
+        all_sections = set()
+        for q in today_session.questions:
+            all_sections.update(q.integrated_into)
+        for section in sorted(all_sections):
+            console.print(f"  • {section}")
+
+    # Re-scan plan bundle after questions to get updated coverage summary
+    print_info("Re-scanning plan bundle for updated coverage...")
+    updated_report = scanner.scan(plan_bundle)
+
+    # Coverage summary (updated after questions)
+    console.print("\n[bold]Updated Coverage Summary:[/bold]")
+    if updated_report.coverage:
+        for cat, status in updated_report.coverage.items():
+            status_icon = (
+                "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
+            )
+            console.print(f"  {status_icon} {cat.value}: {status.value}")
+
+    # Next steps
+    console.print("\n[bold]Next Steps:[/bold]")
+    if current_stage == "draft":
+        console.print("  • Review plan bundle for completeness")
+        console.print("  • Run: specfact plan promote --stage review")
+    elif current_stage == "review":
+        console.print("  • Plan is ready for approval")
+        console.print("  • Run: specfact plan promote --stage approved")
+
+
 @app.command("review")
 @beartype
 @require(
@@ -3471,14 +3994,12 @@ def review(
             raise typer.Exit(1)
         console.print(f"[dim]Using active plan: {bundle}[/dim]")
 
-    from datetime import date, datetime
+    from datetime import date
 
     from specfact_cli.analyzers.ambiguity_scanner import (
-        AmbiguityScanner,
         AmbiguityStatus,
-        TaxonomyCategory,
     )
-    from specfact_cli.models.plan import Clarification, Clarifications, ClarificationSession
+    from specfact_cli.models.plan import ClarificationSession
 
     # Detect operational mode
     mode = detect_mode()
@@ -3501,25 +4022,9 @@ def review(
         print_section("SpecFact CLI - Plan Review")
 
         try:
-            # Load project bundle
+            # Load and prepare bundle
             project_bundle = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
-
-            # Convert to PlanBundle for compatibility with review functions
-            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
-
-            # Deduplicate features by normalized key (clean up duplicates from previous syncs)
-            duplicates_removed = _deduplicate_features(plan_bundle)
-            if duplicates_removed > 0:
-                # Convert back to ProjectBundle and save
-                # Update project bundle with deduplicated features
-                project_bundle.features = {f.key: f for f in plan_bundle.features}
-                _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
-                print_success(f"✓ Removed {duplicates_removed} duplicate features from project bundle")
-
-            # Check current stage (ProjectBundle doesn't have metadata.stage, use default)
-            current_stage = "draft"  # TODO: Add promotion status to ProjectBundle manifest
-
-            print_info(f"Current stage: {current_stage}")
+            plan_bundle, current_stage = _prepare_review_bundle(project_bundle, bundle_dir, bundle, auto_enrich)
 
             if current_stage not in ("draft", "review"):
                 print_warning("Review is typically run on 'draft' or 'review' stage plans")
@@ -3528,336 +4033,71 @@ def review(
                 if is_non_interactive:
                     print_info("Continuing in non-interactive mode")
 
-            # Validate SDD manifest (warn if missing, validate thresholds if present)
-            print_info("Checking SDD manifest...")
-            sdd_valid, sdd_manifest, sdd_report = _validate_sdd_for_bundle(plan_bundle, bundle, require_sdd=False)
-
-            if sdd_manifest is None:
-                print_warning("SDD manifest not found. Consider running 'specfact plan harden' to create one.")
-                console.print("[dim]SDD manifest is recommended for plan review and promotion[/dim]")
-            elif not sdd_valid:
-                print_warning("SDD manifest validation failed:")
-                for deviation in sdd_report.deviations:
-                    if deviation.severity == DeviationSeverity.HIGH:
-                        console.print(f"  [bold red]✗[/bold red] {deviation.description}")
-                    elif deviation.severity == DeviationSeverity.MEDIUM:
-                        console.print(f"  [bold yellow]⚠[/bold yellow] {deviation.description}")
-                    else:
-                        console.print(f"  [dim]ℹ[/dim] {deviation.description}")
-                console.print("\n[dim]Run 'specfact enforce sdd' for detailed validation report[/dim]")
-            else:
-                print_success("SDD manifest validated successfully")
-
-                # Display contract density metrics
-                from specfact_cli.validators.contract_validator import calculate_contract_density
-
-                metrics = calculate_contract_density(sdd_manifest, plan_bundle)
-                thresholds = sdd_manifest.coverage_thresholds
-
-                console.print("\n[bold]Contract Density Metrics:[/bold]")
-                console.print(
-                    f"  Contracts/story: {metrics.contracts_per_story:.2f} (threshold: {thresholds.contracts_per_story})"
-                )
-                console.print(
-                    f"  Invariants/feature: {metrics.invariants_per_feature:.2f} (threshold: {thresholds.invariants_per_feature})"
-                )
-                console.print(
-                    f"  Architecture facets: {metrics.architecture_facets} (threshold: {thresholds.architecture_facets})"
-                )
-
-                if sdd_report.total_deviations > 0:
-                    console.print(f"\n[dim]Found {sdd_report.total_deviations} coverage threshold warning(s)[/dim]")
-                    console.print("[dim]Run 'specfact enforce sdd' for detailed report[/dim]")
-
-            # Initialize clarifications if needed
-            if plan_bundle.clarifications is None:
-                plan_bundle.clarifications = Clarifications(sessions=[])
-
-            # Auto-enrich if requested (before scanning for ambiguities)
-            _handle_auto_enrichment(plan_bundle, bundle_dir, auto_enrich)
-
-            # Scan for ambiguities
-            print_info("Scanning plan bundle for ambiguities...")
-            # Try to find repo path from bundle directory (go up to find .specfact parent, then repo root)
-            repo_path: Path | None = None
-            if bundle_dir.exists():
-                # bundle_dir is typically .specfact/projects/<bundle-name>
-                # Go up to .specfact, then up to repo root
-                specfact_dir = bundle_dir.parent.parent if bundle_dir.parent.name == "projects" else bundle_dir.parent
-                if specfact_dir.name == ".specfact" and specfact_dir.parent.exists():
-                    repo_path = specfact_dir.parent
-                else:
-                    # Fallback: try current directory
-                    repo_path = Path(".")
-            else:
-                repo_path = Path(".")
-
-            scanner = AmbiguityScanner(repo_path=repo_path)
-            report = scanner.scan(plan_bundle)
-
-            # Filter by category if specified
-            if category:
-                try:
-                    target_category = TaxonomyCategory(category)
-                    if report.findings:
-                        report.findings = [f for f in report.findings if f.category == target_category]
-                except ValueError:
-                    print_warning(f"Unknown category: {category}, ignoring filter")
-                    category = None
+            # Scan and prepare questions
+            questions_to_ask, report, scanner = _scan_and_prepare_questions(
+                plan_bundle, bundle_dir, category, max_questions
+            )
 
             # Handle --list-findings mode
             if list_findings:
                 _output_findings(report, findings_format, is_non_interactive)
                 raise typer.Exit(0)
 
-            # Prioritize questions by (Impact x Uncertainty)
-            findings_list = report.findings or []
-            prioritized_findings = sorted(
-                findings_list,
-                key=lambda f: f.impact * f.uncertainty,
-                reverse=True,
-            )
+            # Show initial coverage summary BEFORE questions (so user knows what's missing)
+            if questions_to_ask:
+                from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus
 
-            # Filter out findings that already have clarifications
-            existing_question_ids = set()
-            if plan_bundle.clarifications:
-                for session in plan_bundle.clarifications.sessions:
-                    for q in session.questions:
-                        existing_question_ids.add(q.id)
-
-            # Generate question IDs and filter
-            question_counter = 1
-            candidate_questions: list[tuple[AmbiguityFinding, str]] = []
-            for finding in prioritized_findings:
-                if finding.question and (question_id := f"Q{question_counter:03d}") not in existing_question_ids:
-                    # Generate question ID and add if not already answered
-                    question_counter += 1
-                    candidate_questions.append((finding, question_id))
-
-            # Limit to max_questions
-            questions_to_ask = candidate_questions[:max_questions]
+                console.print("\n[bold]Initial Coverage Summary:[/bold]")
+                if report.coverage:
+                    for cat, status in report.coverage.items():
+                        status_icon = (
+                            "✅"
+                            if status == AmbiguityStatus.CLEAR
+                            else "⚠️"
+                            if status == AmbiguityStatus.PARTIAL
+                            else "❌"
+                        )
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                console.print(f"\n[dim]Found {len(questions_to_ask)} question(s) to resolve[/dim]\n")
 
             if not questions_to_ask:
-                # Check coverage status to determine if plan is truly ready for promotion
-                critical_categories = [
-                    TaxonomyCategory.FUNCTIONAL_SCOPE,
-                    TaxonomyCategory.FEATURE_COMPLETENESS,
-                    TaxonomyCategory.CONSTRAINTS,
-                ]
-
-                missing_critical: list[TaxonomyCategory] = []
-                if report.coverage:
-                    for category, status in report.coverage.items():
-                        if category in critical_categories and status == AmbiguityStatus.MISSING:
-                            missing_critical.append(category)
-
-                if missing_critical:
-                    print_warning(
-                        f"Plan has {len(missing_critical)} critical category(ies) marked as Missing, but no high-priority questions remain"
-                    )
-                    console.print("[dim]Missing critical categories:[/dim]")
-                    for cat in missing_critical:
-                        console.print(f"  - {cat.value}")
-                    console.print("\n[bold]Coverage Summary:[/bold]")
-                    if report.coverage:
-                        for cat, status in report.coverage.items():
-                            status_icon = (
-                                "✅"
-                                if status == AmbiguityStatus.CLEAR
-                                else "⚠️"
-                                if status == AmbiguityStatus.PARTIAL
-                                else "❌"
-                            )
-                            console.print(f"  {status_icon} {cat.value}: {status.value}")
-                    console.print(
-                        "\n[bold]⚠️ Warning:[/bold] Plan may not be ready for promotion due to missing critical categories"
-                    )
-                    console.print("[dim]Consider addressing these categories before promoting[/dim]")
-                else:
-                    print_success("No critical ambiguities detected. Plan is ready for promotion.")
-                    console.print("\n[bold]Coverage Summary:[/bold]")
-                    if report.coverage:
-                        for cat, status in report.coverage.items():
-                            status_icon = (
-                                "✅"
-                                if status == AmbiguityStatus.CLEAR
-                                else "⚠️"
-                                if status == AmbiguityStatus.PARTIAL
-                                else "❌"
-                            )
-                            console.print(f"  {status_icon} {cat.value}: {status.value}")
+                _handle_no_questions_case(questions_to_ask, report)
                 raise typer.Exit(0)
 
             # Handle --list-questions mode
             if list_questions:
-                questions_json = []
-                for finding, question_id in questions_to_ask:
-                    questions_json.append(
-                        {
-                            "id": question_id,
-                            "category": finding.category.value,
-                            "question": finding.question,
-                            "impact": finding.impact,
-                            "uncertainty": finding.uncertainty,
-                            "related_sections": finding.related_sections or [],
-                        }
-                    )
-                # Output JSON to stdout (for Copilot mode parsing)
-                import sys
-
-                sys.stdout.write(json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2))
-                sys.stdout.write("\n")
-                sys.stdout.flush()
+                _handle_list_questions_mode(questions_to_ask)
                 raise typer.Exit(0)
 
             # Parse answers if provided
             answers_dict: dict[str, str] = {}
             if answers:
-                try:
-                    # Try to parse as JSON string first
-                    try:
-                        answers_dict = json.loads(answers)
-                    except json.JSONDecodeError:
-                        # If JSON parsing fails, try as file path
-                        answers_path = Path(answers)
-                        if answers_path.exists() and answers_path.is_file():
-                            answers_dict = json.loads(answers_path.read_text())
-                        else:
-                            raise ValueError(f"Invalid JSON string and file not found: {answers}") from None
-
-                    if not isinstance(answers_dict, dict):
-                        print_error("--answers must be a JSON object with question_id -> answer mappings")
-                        raise typer.Exit(1)
-                except (json.JSONDecodeError, ValueError) as e:
-                    print_error(f"Invalid JSON in --answers: {e}")
-                    raise typer.Exit(1) from e
+                answers_dict = _parse_answers_dict(answers)
 
             print_info(f"Found {len(questions_to_ask)} question(s) to resolve")
 
-            # Create or get today's session
+            # Ask questions interactively
+            questions_asked = _ask_questions_interactive(
+                plan_bundle, questions_to_ask, answers_dict, is_non_interactive, bundle_dir, project_bundle
+            )
+
+            # Get today's session for summary display
+            from datetime import date
+
+            from specfact_cli.models.plan import ClarificationSession
+
             today = date.today().isoformat()
             today_session: ClarificationSession | None = None
-            for session in plan_bundle.clarifications.sessions:
-                if session.date == today:
-                    today_session = session
-                    break
-
+            if plan_bundle.clarifications:
+                for session in plan_bundle.clarifications.sessions:
+                    if session.date == today:
+                        today_session = session
+                        break
             if today_session is None:
                 today_session = ClarificationSession(date=today, questions=[])
-                plan_bundle.clarifications.sessions.append(today_session)
 
-            # Ask questions sequentially
-            questions_asked = 0
-            for finding, question_id in questions_to_ask:
-                questions_asked += 1
-
-                # Get answer (interactive or from --answers)
-                if question_id in answers_dict:
-                    # Non-interactive: use provided answer
-                    answer = answers_dict[question_id]
-                    if not isinstance(answer, str) or not answer.strip():
-                        print_error(f"Answer for {question_id} must be a non-empty string")
-                        raise typer.Exit(1)
-                    console.print(f"\n[bold cyan]Question {questions_asked}/{len(questions_to_ask)}[/bold cyan]")
-                    console.print(f"[dim]Category: {finding.category.value}[/dim]")
-                    console.print(f"[bold]Q: {finding.question}[/bold]")
-                    console.print(f"[dim]Answer (from --answers): {answer}[/dim]")
-                else:
-                    # Interactive: prompt user
-                    if is_non_interactive:
-                        # In non-interactive mode without --answers, skip this question
-                        print_warning(f"Skipping {question_id}: no answer provided in non-interactive mode")
-                        continue
-
-                    console.print(f"\n[bold cyan]Question {questions_asked}/{len(questions_to_ask)}[/bold cyan]")
-                    console.print(f"[dim]Category: {finding.category.value}[/dim]")
-                    console.print(f"[bold]Q: {finding.question}[/bold]")
-
-                    # Get answer from user
-                    answer = prompt_text("Your answer (<=5 words recommended):", required=True)
-
-                # Validate answer length (warn if too long, but allow)
-                if len(answer.split()) > 5:
-                    print_warning("Answer is longer than 5 words. Consider a shorter, more focused answer.")
-
-                # Integrate answer into plan bundle
-                integration_points = _integrate_clarification(plan_bundle, finding, answer)
-
-                # Create clarification record
-                clarification = Clarification(
-                    id=question_id,
-                    category=finding.category.value,
-                    question=finding.question or "",
-                    answer=answer,
-                    integrated_into=integration_points,
-                    timestamp=datetime.now(UTC).isoformat(),
-                )
-
-                today_session.questions.append(clarification)
-
-                # Answer integrated into bundle (will save at end for performance)
-                print_success("Answer recorded and integrated into plan bundle")
-
-                # Ask if user wants to continue (only in interactive mode)
-                if (
-                    not is_non_interactive
-                    and questions_asked < len(questions_to_ask)
-                    and not prompt_confirm("Continue to next question?", default=True)
-                ):
-                    break
-
-            # Save project bundle once at the end (more efficient than saving after each question)
-            # Update existing project_bundle in memory (no need to reload - we already have it)
-            # Preserve manifest from original bundle
-            project_bundle.idea = plan_bundle.idea
-            project_bundle.business = plan_bundle.business
-            project_bundle.product = plan_bundle.product
-            project_bundle.features = {f.key: f for f in plan_bundle.features}
-            project_bundle.clarifications = plan_bundle.clarifications
-            _save_bundle_with_progress(project_bundle, bundle_dir, atomic=True)
-            print_success("Project bundle saved")
-
-            # Final validation
-            print_info("Validating updated plan bundle...")
-            validation_result = validate_plan_bundle(plan_bundle)
-            if isinstance(validation_result, ValidationReport):
-                if not validation_result.passed:
-                    print_warning(f"Validation found {len(validation_result.deviations)} issue(s)")
-                else:
-                    print_success("Validation passed")
-            else:
-                print_success("Validation passed")
-
-            # Display summary
-            print_success(f"Review complete: {questions_asked} question(s) answered")
-            console.print(f"\n[bold]Project Bundle:[/bold] {bundle}")
-            console.print(f"[bold]Questions Asked:[/bold] {questions_asked}")
-
-            if today_session.questions:
-                console.print("\n[bold]Sections Touched:[/bold]")
-                all_sections = set()
-                for q in today_session.questions:
-                    all_sections.update(q.integrated_into)
-                for section in sorted(all_sections):
-                    console.print(f"  • {section}")
-
-            # Coverage summary
-            console.print("\n[bold]Coverage Summary:[/bold]")
-            if report.coverage:
-                for cat, status in report.coverage.items():
-                    status_icon = (
-                        "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
-                    )
-                    console.print(f"  {status_icon} {cat.value}: {status.value}")
-
-            # Next steps
-            console.print("\n[bold]Next Steps:[/bold]")
-            if current_stage == "draft":
-                console.print("  • Review plan bundle for completeness")
-                console.print("  • Run: specfact plan promote --stage review")
-            elif current_stage == "review":
-                console.print("  • Plan is ready for approval")
-                console.print("  • Run: specfact plan promote --stage approved")
+            # Display final summary
+            _display_review_summary(plan_bundle, scanner, bundle, questions_asked, report, current_stage, today_session)
 
             record(
                 {
@@ -4564,3 +4804,178 @@ def _integrate_clarification(
             integration_points.append("idea.constraints")
 
     return integration_points
+
+
+@beartype
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda finding: finding is not None, "Finding must not be None")
+def _show_current_settings_for_finding(
+    bundle: PlanBundle,
+    finding: Any,  # AmbiguityFinding (imported locally to avoid circular dependency)
+    console_instance: Any | None = None,  # Console (imported locally, optional)
+) -> str | None:
+    """
+    Show current settings for related sections before asking a question.
+
+    Displays current values for target_users, constraints, outcomes, acceptance criteria,
+    and narrative so users can confirm or modify them.
+
+    Args:
+        bundle: Plan bundle to inspect
+        finding: Ambiguity finding with related sections
+        console_instance: Rich console instance (defaults to module console)
+
+    Returns:
+        Default value string to use in prompt (or None if no current value)
+    """
+    from rich.console import Console
+
+    console = console_instance or Console()
+
+    related_sections = finding.related_sections or []
+    if not related_sections:
+        return None
+
+    # Only show high-level plan attributes (idea-level), not individual features/stories
+    # Only show where there are findings to fix
+    current_values: dict[str, list[str] | str] = {}
+    default_value: str | None = None
+
+    for section in related_sections:
+        # Only handle idea-level sections (high-level plan attributes)
+        if section == "idea.narrative" and bundle.idea and bundle.idea.narrative:
+            narrative_preview = (
+                bundle.idea.narrative[:100] + "..." if len(bundle.idea.narrative) > 100 else bundle.idea.narrative
+            )
+            current_values["Idea Narrative"] = narrative_preview
+            # Use full narrative as default (truncated for display only)
+            default_value = bundle.idea.narrative
+
+        elif section == "idea.target_users" and bundle.idea and bundle.idea.target_users:
+            current_values["Target Users"] = bundle.idea.target_users
+            # Use comma-separated list as default
+            if not default_value:
+                default_value = ", ".join(bundle.idea.target_users)
+
+        elif section == "idea.constraints" and bundle.idea and bundle.idea.constraints:
+            current_values["Idea Constraints"] = bundle.idea.constraints
+            # Use comma-separated list as default
+            if not default_value:
+                default_value = ", ".join(bundle.idea.constraints)
+
+        # For Completion Signals questions, also extract story acceptance criteria
+        # (these are the specific values we're asking about)
+        elif section.startswith("features.") and ".stories." in section and ".acceptance" in section:
+            parts = section.split(".")
+            if len(parts) >= 5:
+                feature_key = parts[1]
+                story_key = parts[3]
+                feature = next((f for f in bundle.features if f.key == feature_key), None)
+                if feature:
+                    story = next((s for s in feature.stories if s.key == story_key), None)
+                    if story and story.acceptance:
+                        # Show current acceptance criteria as default (for confirming or modifying)
+                        acceptance_str = ", ".join(story.acceptance)
+                        current_values[f"Story {story_key} Acceptance"] = story.acceptance
+                        # Use first acceptance criteria as default (or all if short)
+                        if not default_value:
+                            default_value = acceptance_str if len(acceptance_str) <= 200 else story.acceptance[0]
+
+        # Skip other feature/story-level sections - only show high-level plan attributes
+        # Other features and stories are handled through their specific questions
+
+    # Display current values if any (only high-level attributes)
+    if current_values:
+        console.print("\n[dim]Current Plan Settings:[/dim]")
+        for key, value in current_values.items():
+            if isinstance(value, list):
+                value_str = ", ".join(str(v) for v in value) if value else "(none)"
+            else:
+                value_str = str(value)
+            console.print(f"  [cyan]{key}:[/cyan] {value_str}")
+        console.print("[dim]Press Enter to confirm current value, or type a new value[/dim]")
+
+    return default_value
+
+
+@beartype
+@require(lambda finding: finding is not None, "Finding must not be None")
+@require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
+@require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
+@ensure(lambda result: isinstance(result, str) and bool(result.strip()), "Must return non-empty string")
+def _get_smart_answer(
+    finding: Any,  # AmbiguityFinding (imported locally)
+    bundle: PlanBundle,
+    is_non_interactive: bool,
+    default_value: str | None = None,
+) -> str:
+    """
+    Get answer from user with smart Yes/No handling.
+
+    For Completion Signals questions asking "Should these be more specific?",
+    if user answers "Yes", prompts for the actual specific criteria.
+    If "No", marks as acceptable and returns appropriate response.
+
+    Args:
+        finding: Ambiguity finding with question
+        bundle: Plan bundle (for context)
+        is_non_interactive: Whether in non-interactive mode
+        default_value: Default value to show in prompt (for confirming existing value)
+
+    Returns:
+        User answer (processed if Yes/No detected)
+    """
+    from rich.console import Console
+
+    from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
+    console = Console()
+
+    # Build prompt message with default hint
+    if default_value:
+        # Truncate default for display if too long
+        default_display = default_value[:60] + "..." if len(default_value) > 60 else default_value
+        prompt_msg = f"Your answer (press Enter to confirm, or type new value/Yes/No): [{default_display}]"
+    else:
+        prompt_msg = "Your answer (<=5 words recommended, or Yes/No):"
+
+    # Get initial answer (not required if default exists - user can press Enter)
+    # When default exists, allow empty answer (Enter) to confirm
+    answer = prompt_text(prompt_msg, default=default_value, required=not default_value)
+
+    # If user pressed Enter with default, return the default value (confirm existing)
+    if not answer.strip() and default_value:
+        return default_value
+
+    # Normalize Yes/No answers
+    answer_lower = answer.strip().lower()
+    is_yes = answer_lower in ("yes", "y", "true", "1")
+    is_no = answer_lower in ("no", "n", "false", "0")
+
+    # Handle Completion Signals questions about specificity
+    if (
+        finding.category == TaxonomyCategory.COMPLETION_SIGNALS
+        and "should these be more specific" in finding.question.lower()
+    ):
+        if is_yes:
+            # User wants to make it more specific - prompt for actual criteria
+            console.print("\n[yellow]Please provide the specific acceptance criteria:[/yellow]")
+            return prompt_text("Specific criteria:", required=True)
+        if is_no:
+            # User says no - mark as acceptable, return a note that it's acceptable as-is
+            return "Acceptable as-is (details in OpenAPI contracts)"
+        # Otherwise, return the original answer (might be a specific criteria already)
+        return answer
+
+    # Handle other Yes/No questions intelligently
+    # For questions asking if something should be done/added
+    if (is_yes or is_no) and ("should" in finding.question.lower() or "need" in finding.question.lower()):
+        if is_yes:
+            # Prompt for what should be added
+            console.print("\n[yellow]What should be added?[/yellow]")
+            return prompt_text("Details:", required=True)
+        if is_no:
+            return "Not needed"
+
+    # Return original answer if not a Yes/No or if Yes/No handling didn't apply
+    return answer

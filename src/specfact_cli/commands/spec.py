@@ -14,7 +14,7 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from specfact_cli.integrations.specmatic import (
@@ -83,14 +83,19 @@ def validate(
 
         # Run validation with progress
         import asyncio
+        from time import time
 
+        start_time = time()
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
         ) as progress:
             task = progress.add_task("Running Specmatic validation...", total=None)
             result = asyncio.run(validate_spec_with_specmatic(spec_path, previous_version))
-            progress.update(task, completed=True)
+            elapsed = time() - start_time
+            progress.update(task, description=f"✓ Validation complete ({elapsed:.2f}s)")
 
         # Display results
         table = Table(title="Validation Results")
@@ -221,7 +226,7 @@ def generate_tests(
     from rich.console import Console
 
     from specfact_cli.telemetry import telemetry
-    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.progress import load_bundle_with_progress
     from specfact_cli.utils.structure import SpecFactStructure
 
     console = Console()
@@ -247,7 +252,7 @@ def generate_tests(
             print_error(f"Project bundle not found: {bundle_dir}")
             raise typer.Exit(1)
 
-        project_bundle = load_project_bundle(bundle_dir)
+        project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
         for feature_key, feature in project_bundle.features.items():
             if feature.contract:

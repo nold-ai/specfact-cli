@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.11.3"
+version = "0.11.4"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -536,6 +536,7 @@ markers = [
     "state_transition_coverage: mark test for state transition coverage tracking",
 ]
 filterwarnings = [ # From pytest.ini
+    "ignore::UserWarning:rich.live",  # Filter Rich library warnings about ipywidgets (not needed for CLI tests)
     "ignore::pytest.PytestAssertRewriteWarning",
     "ignore::pytest.PytestDeprecationWarning",
 ]

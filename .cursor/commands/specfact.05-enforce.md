@@ -10,26 +10,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Validate SDD manifest against project bundle and contracts. Checks hash matching, coverage thresholds, frozen sections, and contract density metrics to ensure SDD is synchronized with bundle.
+Validate SDD manifest against project bundle and contracts. Checks hash matching, coverage thresholds, and contract density.
 
-**When to use:**
+**When to use:** After creating/updating SDD, before promotion, in CI/CD pipelines.
 
-- After creating or updating SDD manifest
-- Before promoting bundle to approved/released stages
-- In CI/CD pipelines for quality gates
-
-**Quick Example:**
-
-```bash
-/specfact.05-enforce legacy-api
-/specfact.05-enforce legacy-api --output-format json --out validation-report.json
-```
+**Quick:** `/specfact.05-enforce` (uses active plan) or `/specfact.05-enforce legacy-api`
 
 ## Parameters
 
 ### Target/Input
 
-- `bundle NAME` (required argument) - Project bundle name (e.g., legacy-api, auth-module)
+- `bundle NAME` (optional argument) - Project bundle name (e.g., legacy-api, auth-module). Default: active plan (set via `plan select`)
 - `--sdd PATH` - Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.<format>
 
 ### Output/Results
@@ -45,17 +36,14 @@ Validate SDD manifest against project bundle and contracts. Checks hash matching
 
 ### Step 1: Parse Arguments
 
-- Extract bundle name (required)
+- Extract bundle name (defaults to active plan if not specified)
 - Extract optional parameters (sdd path, output format, etc.)
 
 ### Step 2: Execute CLI
 
 ```bash
-# Validate SDD
-specfact enforce sdd <bundle-name> [--sdd <path>] [--output-format <format>] [--out <path>]
-
-# Non-interactive validation
-specfact enforce sdd <bundle-name> --no-interactive --output-format json
+specfact enforce sdd [<bundle-name>] [--sdd <path>] [--output-format <format>] [--out <path>]
+# Uses active plan if bundle not specified
 ```
 
 ### Step 3: Present Results
@@ -70,13 +58,7 @@ specfact enforce sdd <bundle-name> --no-interactive --output-format json
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:**
-
-1. **ALWAYS execute CLI first**: Run `specfact enforce sdd` before any analysis
-2. **ALWAYS use non-interactive mode for CI/CD**: Use `--no-interactive` flag in Copilot environments
-3. **NEVER modify .specfact folder directly**: All operations must go through CLI
-4. **NEVER create YAML/JSON directly**: All validation reports must be CLI-generated
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+**Rules:** Execute CLI first, use `--no-interactive` in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
 
 ## Expected Output
 
@@ -106,29 +88,18 @@ Issues Found:
    SDD hash: abc123def456...
    Bundle hash: xyz789ghi012...
 
-   Why this happens:
-   The hash changes when you modify:
-   - Features (add/remove/update)
-   - Stories (add/remove/update)
-   - Product, idea, business, or clarifications
-
-   Fix: Run specfact plan harden legacy-api to update the SDD manifest
+   Hash changes when modifying features, stories, or product/idea/business sections.
+   Note: Clarifications don't affect hash (review metadata). Hash stable across review sessions.
+   Fix: Run `specfact plan harden <bundle-name>` to update SDD manifest.
 ```
 
 ## Common Patterns
 
 ```bash
-# Validate SDD
-/specfact.05-enforce legacy-api
-
-# Validate with JSON output
-/specfact.05-enforce legacy-api --output-format json
-
-# Validate with custom report path
-/specfact.05-enforce legacy-api --out custom-report.json
-
-# Non-interactive validation
-/specfact.05-enforce legacy-api --no-interactive
+/specfact.05-enforce                    # Uses active plan
+/specfact.05-enforce legacy-api         # Specific bundle
+/specfact.05-enforce --output-format json --out report.json
+/specfact.05-enforce --no-interactive   # CI/CD mode
 ```
 
 ## Context

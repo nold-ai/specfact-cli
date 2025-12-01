@@ -10,26 +10,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Manage project bundles: initialize new bundles, add features and stories, and update plan metadata. This unified command replaces multiple granular commands for better LLM workflow integration.
+Manage project bundles: initialize, add features/stories, update metadata (idea/features/stories).
 
-**When to use:**
+**When to use:** Creating bundles, adding features/stories, updating metadata.
 
-- Creating a new project bundle (greenfield)
-- Adding features/stories to existing bundles
-- Updating plan metadata (idea, features, stories)
-
-**Quick Example:**
-
-```bash
-/specfact.02-plan init legacy-api
-/specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
-```
+**Quick:** `/specfact.02-plan init legacy-api` or `/specfact.02-plan add-feature --key FEATURE-001 --title "User Auth"`
 
 ## Parameters
 
 ### Target/Input
 
-- `--bundle NAME` - Project bundle name (required for most operations)
+- `--bundle NAME` - Project bundle name (optional, defaults to active plan set via `plan select`)
 - `--key KEY` - Feature/story key (e.g., FEATURE-001, STORY-001)
 - `--feature KEY` - Parent feature key (for story operations)
 
@@ -56,28 +47,18 @@ Manage project bundles: initialize new bundles, add features and stories, and up
 ### Step 1: Parse Arguments
 
 - Determine operation: `init`, `add-feature`, `add-story`, `update-idea`, `update-feature`, `update-story`
-- Extract required parameters (bundle name, keys, etc.)
+- Extract parameters (bundle name defaults to active plan if not specified, keys, etc.)
 
 ### Step 2: Execute CLI
 
 ```bash
-# Initialize bundle
 specfact plan init <bundle-name> [--interactive/--no-interactive] [--scaffold/--no-scaffold]
-
-# Add feature
-specfact plan add-feature --bundle <name> --key <key> --title <title> [--outcomes <outcomes>] [--acceptance <acceptance>]
-
-# Add story
-specfact plan add-story --bundle <name> --feature <feature-key> --key <story-key> --title <title> [--acceptance <acceptance>]
-
-# Update idea
-specfact plan update-idea --bundle <name> [--title <title>] [--narrative <narrative>] [--target-users <users>] [--value-hypothesis <hypothesis>] [--constraints <constraints>]
-
-# Update feature
-specfact plan update-feature --bundle <name> --key <key> [--title <title>] [--outcomes <outcomes>] [--acceptance <acceptance>] [--constraints <constraints>] [--confidence <score>] [--draft/--no-draft]
-
-# Update story
-specfact plan update-story --bundle <name> --feature <feature-key> --key <story-key> [--title <title>] [--acceptance <acceptance>] [--story-points <points>] [--value-points <points>] [--confidence <score>] [--draft/--no-draft]
+specfact plan add-feature [--bundle <name>] --key <key> --title <title> [--outcomes <outcomes>] [--acceptance <acceptance>]
+specfact plan add-story [--bundle <name>] --feature <feature-key> --key <story-key> --title <title> [--acceptance <acceptance>]
+specfact plan update-idea [--bundle <name>] [--title <title>] [--narrative <narrative>] [--target-users <users>] [--value-hypothesis <hypothesis>] [--constraints <constraints>]
+specfact plan update-feature [--bundle <name>] --key <key> [--title <title>] [--outcomes <outcomes>] [--acceptance <acceptance>] [--constraints <constraints>] [--confidence <score>] [--draft/--no-draft]
+specfact plan update-story [--bundle <name>] --feature <feature-key> --key <story-key> [--title <title>] [--acceptance <acceptance>] [--story-points <points>] [--value-points <points>] [--confidence <score>] [--draft/--no-draft]
+# --bundle defaults to active plan if not specified
 ```
 
 ### Step 3: Present Results
@@ -90,13 +71,7 @@ specfact plan update-story --bundle <name> --feature <feature-key> --key <story-
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:**
-
-1. **ALWAYS execute CLI first**: Run appropriate `specfact plan` command before any analysis
-2. **ALWAYS use non-interactive mode for CI/CD**: Use `--no-interactive` flag in Copilot environments
-3. **NEVER modify .specfact folder directly**: All operations must go through CLI
-4. **NEVER create YAML/JSON directly**: All artifacts must be CLI-generated
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+**Rules:** Execute CLI first, use `--no-interactive` in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
 
 ## Expected Output
 
@@ -118,28 +93,19 @@ Outcomes: Secure login, Session management
 ## Error (Missing Bundle)
 
 ```text
-✗ Project bundle name is required
-Usage: specfact plan <operation> --bundle <name> [options]
+✗ Project bundle name is required (or set active plan with 'plan select')
+Usage: specfact plan <operation> [--bundle <name>] [options]
 ```
 
 ## Common Patterns
 
 ```bash
-# Initialize new bundle
 /specfact.02-plan init legacy-api
-/specfact.02-plan init auth-module --no-interactive
-
-# Add feature with full metadata
-/specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth" --outcomes "Secure login, Session management" --acceptance "Users can log in, Sessions persist"
-
-# Add story to feature
-/specfact.02-plan add-story --bundle legacy-api --feature FEATURE-001 --key STORY-001 --title "Login API" --acceptance "API returns JWT token" --story-points 5
-
-# Update feature metadata
-/specfact.02-plan update-feature --bundle legacy-api --key FEATURE-001 --title "Updated Title" --confidence 0.9
-
-# Update idea section
-/specfact.02-plan update-idea --bundle legacy-api --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt"
+/specfact.02-plan add-feature --key FEATURE-001 --title "User Auth" --outcomes "Secure login" --acceptance "Users can log in"
+/specfact.02-plan add-story --feature FEATURE-001 --key STORY-001 --title "Login API" --acceptance "API returns JWT"
+/specfact.02-plan update-feature --key FEATURE-001 --title "Updated Title" --confidence 0.9
+/specfact.02-plan update-idea --target-users "Developers, DevOps" --value-hypothesis "Reduce technical debt"
+# --bundle defaults to active plan if not specified
 ```
 
 ## Context

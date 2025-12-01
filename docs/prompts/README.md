@@ -77,5 +77,5 @@ The validation tool is integrated into the development workflow:
 
 ---
 
-**Last Updated**: 2025-11-17  
-**Version**: 1.0
+**Last Updated**: 2025-12-02 (v0.11.4 - Active Plan Fallback, SDD Hash Stability)  
+**Version**: 1.1

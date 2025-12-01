@@ -14,26 +14,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Review project bundle to identify and resolve ambiguities, missing information, and unclear requirements. Asks targeted questions to make the bundle ready for promotion through development stages.
+Review project bundle to identify/resolve ambiguities and missing information. Asks targeted questions for promotion readiness.
 
-**When to use:**
+**When to use:** After import/creation, before promotion, when clarification needed.
 
-- After creating or importing a plan bundle
-- Before promoting to review/approved stages
-- When plan needs clarification or enrichment
-
-**Quick Example:**
-
-```bash
-/specfact.03-review legacy-api
-/specfact.03-review legacy-api --max-questions 3 --category "Functional Scope"
-```
+**Quick:** `/specfact.03-review` (uses active plan) or `/specfact.03-review legacy-api`
 
 ## Parameters
 
 ### Target/Input
 
-- `bundle NAME` (required argument) - Project bundle name (e.g., legacy-api, auth-module)
+- `bundle NAME` (optional argument) - Project bundle name (e.g., legacy-api, auth-module). Default: active plan (set via `plan select`)
 - `--category CATEGORY` - Focus on specific taxonomy category. Default: None (all categories)
 
 ### Output/Results
@@ -56,43 +47,26 @@ Review project bundle to identify and resolve ambiguities, missing information, 
 
 ### Step 1: Parse Arguments
 
-- Extract bundle name (required)
+- Extract bundle name (defaults to active plan if not specified)
 - Extract optional parameters (max-questions, category, etc.)
 
 ### Step 2: Execute CLI
 
 ```bash
-# Interactive review
-specfact plan review <bundle-name> [--max-questions <n>] [--category <category>]
-
-# Non-interactive with answers
-specfact plan review <bundle-name> --no-interactive --answers '{"Q001": "answer1", "Q002": "answer2"}'
-
-# List questions only
-specfact plan review <bundle-name> --list-questions
-
-# List findings
-specfact plan review <bundle-name> --list-findings --findings-format json
+specfact plan review [<bundle-name>] [--max-questions <n>] [--category <category>] [--list-questions] [--list-findings] [--answers JSON]
+# Uses active plan if bundle not specified
 ```
 
 ### Step 3: Present Results
 
-- Display questions asked and answers provided
-- Show sections touched by clarifications
-- Present coverage summary by category
-- Suggest next steps (promotion, additional review)
+- Display Q&A, sections touched, coverage summary (initial/updated)
+- Note: Clarifications don't affect hash (stable across review sessions)
 
 ## CLI Enforcement
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:**
-
-1. **ALWAYS execute CLI first**: Run `specfact plan review` before any analysis
-2. **ALWAYS use non-interactive mode for CI/CD**: Use `--no-interactive` flag in Copilot environments
-3. **NEVER modify .specfact folder directly**: All operations must go through CLI
-4. **NEVER create YAML/JSON directly**: All plan updates must be CLI-generated
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+**Rules:** Execute CLI first, use `--no-interactive` in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
 
 ## Expected Output
 
@@ -125,26 +99,12 @@ Create one with: specfact plan init legacy-api
 ## Common Patterns
 
 ```bash
-# Interactive review
-/specfact.03-review legacy-api
-
-# Review with question limit
-/specfact.03-review legacy-api --max-questions 3
-
-# Review specific category
-/specfact.03-review legacy-api --category "Functional Scope"
-
-# Non-interactive with answers
-/specfact.03-review legacy-api --no-interactive --answers '{"Q001": "answer1", "Q002": "answer2"}'
-
-# List questions for LLM processing
-/specfact.03-review legacy-api --list-questions
-
-# List all findings
-/specfact.03-review legacy-api --list-findings --findings-format json
-
-# Auto-enrich mode
-/specfact.03-review legacy-api --auto-enrich
+/specfact.03-review                                    # Uses active plan
+/specfact.03-review legacy-api                         # Specific bundle
+/specfact.03-review --max-questions 3                  # Limit questions
+/specfact.03-review --category "Functional Scope"      # Focus category
+/specfact.03-review --list-questions                   # JSON output
+/specfact.03-review --auto-enrich                     # Auto-enrichment
 ```
 
 ## Context

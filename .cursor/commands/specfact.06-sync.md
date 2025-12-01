@@ -10,20 +10,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Synchronize artifacts from external tools (e.g., Spec-Kit, Linear, Jira) with SpecFact project bundles using configurable bridge mappings. Supports bidirectional sync for team collaboration.
+Synchronize artifacts from external tools (Spec-Kit, Linear, Jira) with SpecFact project bundles using bridge mappings. Supports bidirectional sync.
 
-**When to use:**
+**When to use:** Syncing with Spec-Kit, integrating external tools, maintaining consistency.
 
-- Syncing with Spec-Kit projects
-- Integrating with external planning tools
-- Maintaining consistency across tool ecosystems
-
-**Quick Example:**
-
-```bash
-/specfact.06-sync --adapter speckit --repo . --bidirectional
-/specfact.06-sync --adapter speckit --bundle legacy-api --watch
-```
+**Quick:** `/specfact.06-sync --adapter speckit --repo . --bidirectional` or `/specfact.06-sync --bundle legacy-api --watch`
 
 ## Parameters
 
@@ -55,14 +46,8 @@ Synchronize artifacts from external tools (e.g., Spec-Kit, Linear, Jira) with Sp
 ### Step 2: Execute CLI
 
 ```bash
-# Bidirectional sync
-specfact sync bridge --adapter <adapter> --repo <path> --bidirectional [--bundle <name>] [--overwrite] [--watch]
-
-# One-way sync (Spec-Kit → SpecFact)
-specfact sync bridge --adapter speckit --repo <path> [--bundle <name>]
-
-# Watch mode
-specfact sync bridge --adapter speckit --repo <path> --watch --interval 5
+specfact sync bridge --adapter <adapter> --repo <path> [--bidirectional] [--bundle <name>] [--overwrite] [--watch] [--interval <seconds>]
+# --bundle defaults to active plan if not specified
 ```
 
 ### Step 3: Present Results
@@ -76,13 +61,7 @@ specfact sync bridge --adapter speckit --repo <path> --watch --interval 5
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:**
-
-1. **ALWAYS execute CLI first**: Run `specfact sync bridge` before any sync operation
-2. **ALWAYS use non-interactive mode for CI/CD**: Use appropriate flags in Copilot environments
-3. **NEVER modify .specfact or .specify folders directly**: All operations must go through CLI
-4. **NEVER create YAML/JSON directly**: All sync operations must be CLI-generated
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+**Rules:** Execute CLI first, use appropriate flags in CI/CD, never modify `.specfact/` or `.specify/` directly, use CLI output as grounding.
 
 ## Expected Output
 
@@ -111,20 +90,10 @@ Supported adapters: speckit, generic-markdown
 ## Common Patterns
 
 ```bash
-# Bidirectional sync with Spec-Kit
 /specfact.06-sync --adapter speckit --repo . --bidirectional
-
-# One-way sync (Spec-Kit → SpecFact)
 /specfact.06-sync --adapter speckit --repo . --bundle legacy-api
-
-# Watch mode for continuous sync
 /specfact.06-sync --adapter speckit --repo . --watch --interval 5
-
-# Sync with overwrite
-/specfact.06-sync --adapter speckit --repo . --bidirectional --overwrite
-
-# Auto-detect adapter
-/specfact.06-sync --repo . --bidirectional
+/specfact.06-sync --repo . --bidirectional  # Auto-detect adapter
 ```
 
 ## Context

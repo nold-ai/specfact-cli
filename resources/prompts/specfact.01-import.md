@@ -14,27 +14,25 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Import codebase → plan bundle. CLI extracts (routes, schemas, relationships, contracts). LLM enriches (context, "why", completeness).
+Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contracts. LLM enriches context/"why"/completeness.
 
 ## Parameters
 
-**Target/Input**: `--bundle NAME` (required), `--repo PATH`, `--entry-point PATH`, `--enrichment PATH`  
+**Target/Input**: `--bundle NAME` (optional, defaults to active plan), `--repo PATH`, `--entry-point PATH`, `--enrichment PATH`  
 **Output/Results**: `--report PATH`  
 **Behavior/Options**: `--shadow-only`, `--enrich-for-speckit`  
 **Advanced/Configuration**: `--confidence FLOAT` (0.0-1.0), `--key-format FORMAT` (classname|sequential)
 
 ## Workflow
 
-1. **Execute CLI**: `specfact import from-code <bundle> --repo <path> [options]`
-
-   CLI extracts (no AI): routes (FastAPI/Flask/Django), schemas (Pydantic), relationships (imports/deps), contracts (OpenAPI scaffolds), source tracking, bundle metadata.
+1. **Execute CLI**: `specfact import from-code [<bundle>] --repo <path> [options]`
+   - CLI extracts: routes (FastAPI/Flask/Django), schemas (Pydantic), relationships, contracts (OpenAPI scaffolds), source tracking
+   - Uses active plan if bundle not specified
 
 2. **LLM Enrichment** (if `--enrichment` provided):
-   - **Context file**: Read `.specfact/projects/<bundle>/enrichment_context.md` for relationships, contracts, schemas
-   - Use CLI output + bundle metadata + enrichment context as context
+   - Read `.specfact/projects/<bundle>/enrichment_context.md`
    - Enrich: business context, "why" reasoning, missing acceptance criteria
    - Validate: contracts vs code, feature/story alignment
-   - Complete: constraints, test scenarios, edge cases
 
 3. **Present**: Bundle location, report path, summary (features/stories/contracts/relationships)
 
@@ -50,10 +48,10 @@ Import codebase → plan bundle. CLI extracts (routes, schemas, relationships, c
 ## Common Patterns
 
 ```bash
+/specfact.01-import --repo .                    # Uses active plan
 /specfact.01-import --bundle legacy-api --repo .
-/specfact.01-import --bundle legacy-api --repo . --enrichment report.md
-/specfact.01-import --bundle auth-module --repo . --entry-point src/auth/
-/specfact.01-import --bundle legacy-api --repo . --enrich-for-speckit
+/specfact.01-import --repo . --entry-point src/auth/
+/specfact.01-import --repo . --enrichment report.md
 ```
 
 ## Context

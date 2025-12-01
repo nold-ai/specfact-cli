@@ -9,6 +9,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.4] - 2025-12-02
+
+### Fixed (0.11.4)
+
+- **SDD Checksum Mismatch Resolution**
+  - Fixed persistent hash mismatch between `plan harden` and `plan review` commands
+  - Excluded `clarifications` from hash computation (review metadata, not plan content)
+  - Added deterministic feature sorting by key in both `ProjectBundle` and `PlanBundle` hash computation
+  - Hash now remains stable across review sessions (clarifications can change without affecting hash)
+  - Ensures consistent hash calculation between `plan harden` and `plan review` commands
+
+- **Enforce SDD Command Bug Fix**
+  - Fixed `@require` decorator validation error when `bundle` parameter is `None`
+  - Updated contract to allow `None` or non-empty string (consistent with other commands)
+  - Command now works correctly when using active plan (bundle defaults to `None`)
+
+- **Test Suite Warnings**
+  - Suppressed Rich library warnings about ipywidgets in test output
+  - Added `filterwarnings` configuration in `pyproject.toml` to ignore Jupyter-related warnings
+  - Tests now run cleanly without irrelevant warnings from Rich library
+
+---
+
 ## [0.11.3] - 2025-12-01
 
 ### Changed (0.11.3)
