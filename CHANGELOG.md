@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.5] - 2025-12-02
+
+### Fixed (0.11.5)
+
+- **Rich Progress Display Conflicts in Tests**
+  - Fixed "Only one live display may be active at once" errors in test suite
+  - Added test mode detection to progress utilities (`TEST_MODE` and `PYTEST_CURRENT_TEST` environment variables)
+  - Implemented safe Progress display creation with fallback to direct load/save operations
+  - Progress display now gracefully handles nested Progress contexts and test environments
+  - All 11 previously failing tests now pass across Python 3.11, 3.12, and 3.13
+
+- **Contract Violation Errors**
+  - Fixed incorrect `@ensure` decorator syntax (`lambda result: None` -> `lambda result: result is None`)
+  - Added explicit `return None` statements to satisfy contract requirements
+  - Fixed contract violations in `_handle_list_questions_mode()` and `_display_review_summary()` functions
+  - Contract validation now works correctly with typer.Exit() patterns
+
+---
+
 ## [0.11.4] - 2025-12-02
 
 ### Fixed (0.11.4)
