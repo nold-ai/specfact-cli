@@ -126,13 +126,11 @@ def load_bundle_with_progress(
             pass
 
     # No progress display - just load directly
-    bundle = load_project_bundle(
+    return load_project_bundle(
         bundle_dir,
         validate_hashes=validate_hashes,
         progress_callback=None,
     )
-
-    return bundle
 
 
 def save_bundle_with_progress(

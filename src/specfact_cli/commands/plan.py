@@ -3607,7 +3607,7 @@ def _handle_no_questions_case(
                 )
                 console.print(f"  {status_icon} {cat.value}: {status.value}")
 
-    return None
+    return
 
 
 @beartype
@@ -3640,7 +3640,7 @@ def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None
     sys.stdout.write("\n")
     sys.stdout.flush()
 
-    return None
+    return
 
 
 @beartype
@@ -3902,7 +3902,7 @@ def _display_review_summary(
         console.print("  • Plan is ready for approval")
         console.print("  • Run: specfact plan promote --stage approved")
 
-    return None
+    return
 
 
 @app.command("review")
