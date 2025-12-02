@@ -64,6 +64,11 @@ def idea_to_ship(
         "--no-interactive",
         help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be created without actually performing operations. Default: False",
+    ),
 ) -> None:
     """
     Orchestrate end-to-end idea-to-ship workflow.
@@ -81,12 +86,13 @@ def idea_to_ship(
 
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle
-    - **Behavior/Options**: --skip-sdd, --skip-sync, --skip-implementation, --no-interactive
+    - **Behavior/Options**: --skip-sdd, --skip-sync, --skip-implementation, --no-interactive, --dry-run
 
     **Examples:**
         specfact run idea-to-ship --repo .
         specfact run idea-to-ship --repo . --bundle legacy-api
         specfact run idea-to-ship --repo . --skip-sdd --skip-implementation
+        specfact run idea-to-ship --repo . --dry-run
     """
     from rich.console import Console
 
@@ -114,6 +120,14 @@ def idea_to_ship(
         console.print()
         console.print(Panel("[bold cyan]SpecFact CLI - Idea-to-Ship Orchestrator[/bold cyan]", border_style="cyan"))
         console.print(f"[cyan]Repository:[/cyan] {repo_path}")
+
+        if dry_run:
+            console.print()
+            console.print(Panel("[yellow]DRY-RUN MODE: No changes will be made[/yellow]", border_style="yellow"))
+            console.print()
+            _show_dry_run_summary(bundle, repo_path, skip_sdd, skip_spec_kit_sync, skip_implementation, no_interactive)
+            return
+
         console.print()
 
         try:
@@ -467,3 +481,124 @@ def _sync_bridge(repo_path: Path, no_interactive: bool) -> None:
     # For now, just skip if no bridge config found
     print_info("Bridge sync skipped (auto-detection not implemented)")
     # TODO: Implement bridge auto-detection and sync
+
+
+@beartype
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
+@require(lambda repo_path: isinstance(repo_path, Path), "Repository path must be Path")
+@require(lambda skip_sdd: isinstance(skip_sdd, bool), "Skip SDD must be bool")
+@require(lambda skip_spec_kit_sync: isinstance(skip_spec_kit_sync, bool), "Skip sync must be bool")
+@require(lambda skip_implementation: isinstance(skip_implementation, bool), "Skip implementation must be bool")
+@require(lambda no_interactive: isinstance(no_interactive, bool), "No interactive must be bool")
+@ensure(lambda result: result is None, "Must return None")
+def _show_dry_run_summary(
+    bundle: str | None,
+    repo_path: Path,
+    skip_sdd: bool,
+    skip_spec_kit_sync: bool,
+    skip_implementation: bool,
+    no_interactive: bool,
+) -> None:
+    """Show what would be created/executed in dry-run mode."""
+    from rich.table import Table
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    console = Console()
+
+    # Determine bundle name
+    bundle_name = bundle
+    if bundle_name is None:
+        bundle_name = SpecFactStructure.get_active_bundle_name(repo_path)
+        if bundle_name is None:
+            bundle_name = "<to-be-determined>"
+
+    # Create summary table
+    table = Table(title="Dry-Run Summary: What Would Be Executed", show_header=True, header_style="bold cyan")
+    table.add_column("Step", style="cyan", width=25)
+    table.add_column("Action", style="green", width=50)
+    table.add_column("Status", style="yellow", width=15)
+
+    # Step 1: SDD Scaffold
+    if not skip_sdd:
+        sdd_path = repo_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        table.add_row(
+            "1. SDD Scaffold",
+            f"Create SDD manifest: {sdd_path}",
+            "Would execute",
+        )
+    else:
+        table.add_row("1. SDD Scaffold", "Skip SDD creation", "Skipped")
+
+    # Step 2: Plan Init/Import
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle_name)
+    if bundle_dir.exists():
+        table.add_row("2. Plan Init/Import", f"Load existing bundle: {bundle_dir}", "Would load")
+    else:
+        table.add_row(
+            "2. Plan Init/Import",
+            f"Create new bundle: {bundle_dir}",
+            "Would create",
+        )
+
+    # Step 3: Plan Review/Enrich
+    table.add_row(
+        "3. Plan Review/Enrich",
+        f"Review plan bundle: {bundle_name}",
+        "Would execute",
+    )
+
+    # Step 4: Contract Generation
+    contracts_dir = repo_path / ".specfact" / "contracts"
+    table.add_row(
+        "4. Contract Generation",
+        f"Generate contracts in: {contracts_dir}",
+        "Would generate",
+    )
+
+    # Step 5: Task Generation
+    tasks_dir = repo_path / ".specfact" / "tasks"
+    table.add_row(
+        "5. Task Generation",
+        f"Generate tasks in: {tasks_dir}",
+        "Would generate",
+    )
+
+    # Step 6: Code Implementation
+    if not skip_implementation:
+        table.add_row(
+            "6. Code Implementation",
+            "Execute tasks and generate code files",
+            "Would execute",
+        )
+        table.add_row(
+            "6.5. Test Generation",
+            "Generate Specmatic-based tests",
+            "Would generate",
+        )
+    else:
+        table.add_row("6. Code Implementation", "Skip code implementation", "Skipped")
+        table.add_row("6.5. Test Generation", "Skip test generation", "Skipped")
+
+    # Step 7: Enforcement Checks
+    table.add_row(
+        "7. Enforcement Checks",
+        f"Run enforce sdd and repro for: {bundle_name}",
+        "Would execute",
+    )
+
+    # Step 8: Bridge Sync
+    if not skip_spec_kit_sync:
+        table.add_row(
+            "8. Bridge-Based Sync",
+            "Sync with external tools (Spec-Kit, Linear, Jira)",
+            "Would sync",
+        )
+    else:
+        table.add_row("8. Bridge-Based Sync", "Skip bridge sync", "Skipped")
+
+    console.print()
+    console.print(table)
+    console.print()
+    console.print("[dim]Note: No files will be created or modified in dry-run mode.[/dim]")
+    console.print()

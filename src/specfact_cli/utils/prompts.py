@@ -29,7 +29,15 @@ def prompt_text(message: str, default: str | None = None, required: bool = True)
         User input string
     """
     while True:
-        result = Prompt.ask(message, default=default if default else "")
+        # Rich's Prompt.ask expects a string for default (empty string means no default shown)
+        # When default is None, pass empty string to Rich but handle required logic separately
+        rich_default = default if default is not None else ""
+        result = Prompt.ask(message, default=rich_default)
+        # If we have a default and user pressed Enter (empty result), return the default
+        # Rich should return the default when Enter is pressed, but handle edge case
+        if default and not result.strip():
+            return default
+        # If no default but result is empty and not required, return empty
         if result or not required:
             return result
         console.print("[yellow]This field is required[/yellow]")

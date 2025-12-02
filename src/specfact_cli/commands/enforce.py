@@ -110,7 +110,10 @@ def stage(
 
 @app.command("sdd")
 @beartype
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @require(lambda sdd: sdd is None or isinstance(sdd, Path), "SDD must be None or Path")
 @require(
     lambda output_format: isinstance(output_format, str) and output_format.lower() in ("yaml", "json", "markdown"),
@@ -168,7 +171,6 @@ def enforce_sdd(
     from rich.console import Console
 
     from specfact_cli.models.sdd import SDDManifest
-    from specfact_cli.utils.bundle_loader import load_project_bundle
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -226,22 +228,11 @@ def enforce_sdd(
             sdd_manifest = SDDManifest.model_validate(sdd_data)
 
             # Load project bundle with progress indicator
-            from rich.progress import Progress, SpinnerColumn, TextColumn
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Loading project bundle...", total=None)
+            from specfact_cli.utils.progress import load_bundle_with_progress
 
-                def progress_callback(current: int, total: int, artifact: str) -> None:
-                    progress.update(task, description=f"Loading artifact {current}/{total}: {artifact}")
-
-                project_bundle = load_project_bundle(
-                    bundle_dir, validate_hashes=False, progress_callback=progress_callback
-                )
-                progress.update(task, description="✓ Bundle loaded, computing hash...")
+            project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
+            console.print("[dim]Computing hash...[/dim]")
 
             summary = project_bundle.compute_summary(include_hash=True)
             project_hash = summary.content_hash

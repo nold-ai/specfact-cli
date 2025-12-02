@@ -14,20 +14,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Run full validation suite for reproducibility and contract compliance. Executes comprehensive validation checks including linting, type checking, contract exploration, and tests.
+Run full validation suite for reproducibility and contract compliance. Executes linting, type checking, contract exploration, and tests.
 
-**When to use:**
+**When to use:** Before committing, in CI/CD pipelines, validating contract compliance.
 
-- Before committing code
-- In CI/CD pipelines
-- Validating contract compliance
-
-**Quick Example:**
-
-```bash
-/specfact.validate --repo .
-/specfact.validate --verbose --budget 120
-```
+**Quick:** `/specfact.validate --repo .` or `/specfact.validate --verbose --budget 120`
 
 ## Parameters
 
@@ -59,7 +50,6 @@ Run full validation suite for reproducibility and contract compliance. Executes 
 ### Step 2: Execute CLI
 
 ```bash
-# Full validation suite
 specfact repro --repo <path> [--verbose] [--fail-fast] [--fix] [--budget <seconds>] [--out <path>]
 ```
 
@@ -107,19 +97,10 @@ Check Summary:
 ## Common Patterns
 
 ```bash
-# Basic validation
 /specfact.validate --repo .
-
-# Verbose validation
 /specfact.validate --verbose
-
-# Validation with auto-fix
 /specfact.validate --fix
-
-# Fail-fast validation
 /specfact.validate --fail-fast
-
-# Custom budget
 /specfact.validate --budget 300
 ```
 

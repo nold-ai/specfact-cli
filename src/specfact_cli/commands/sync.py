@@ -17,7 +17,7 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from specfact_cli import runtime
 from specfact_cli.models.bridge import AdapterType
@@ -175,6 +175,7 @@ def _perform_sync_operation(
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
         console=console,
     ) as progress:
         # Step 3: Scan tool artifacts
@@ -303,11 +304,13 @@ def _perform_sync_operation(
                 plan_bundle_to_convert = None
                 if bundle:
                     from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
-                    from specfact_cli.utils.bundle_loader import load_project_bundle
+                    from specfact_cli.utils.progress import load_bundle_with_progress
 
                     bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
                     if bundle_dir.exists():
-                        project_bundle = load_project_bundle(bundle_dir)
+                        project_bundle = load_bundle_with_progress(
+                            bundle_dir, validate_hashes=False, console_instance=console
+                        )
                         plan_bundle_to_convert = _convert_project_bundle_to_plan_bundle(project_bundle)
                 else:
                     # Use get_default_plan_path() to find the active plan (legacy compatibility)
@@ -776,11 +779,13 @@ def sync_bridge(
             # Use provided bundle name or default
             plan_bundle = None
             if bundle:
-                from specfact_cli.utils.bundle_loader import load_project_bundle
+                from specfact_cli.utils.progress import load_bundle_with_progress
 
                 bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
                 if bundle_dir.exists():
-                    project_bundle = load_project_bundle(bundle_dir)
+                    project_bundle = load_bundle_with_progress(
+                        bundle_dir, validate_hashes=False, console_instance=console
+                    )
                     # Convert to PlanBundle for validation (legacy compatibility)
                     from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
 
@@ -1047,6 +1052,7 @@ def sync_repository(
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
                 console=console,
             ) as progress:
                 # Step 1: Detect code changes
@@ -1206,7 +1212,7 @@ def sync_intelligent(
     from specfact_cli.sync.spec_to_code import SpecToCodeSync
     from specfact_cli.sync.spec_to_tests import SpecToTestsSync
     from specfact_cli.telemetry import telemetry
-    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.progress import load_bundle_with_progress
     from specfact_cli.utils.structure import SpecFactStructure
 
     repo_path = repo.resolve()
@@ -1228,8 +1234,8 @@ def sync_intelligent(
         console.print(f"[bold cyan]Intelligent Sync:[/bold cyan] {bundle}")
         console.print(f"[dim]Repository:[/dim] {repo_path}")
 
-        # Load project bundle
-        project_bundle = load_project_bundle(bundle_dir)
+        # Load project bundle with unified progress display
+        project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
         # Initialize sync components
         change_detector = ChangeDetector(bundle, repo_path)

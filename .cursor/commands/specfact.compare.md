@@ -10,20 +10,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Compare two project bundles (or legacy plan bundles) to detect deviations, mismatches, and missing features. Identifies gaps between planned features and actual implementation (code vs plan drift).
+Compare two project bundles (or legacy plan bundles) to detect deviations, mismatches, and missing features. Identifies code vs plan drift.
 
-**When to use:**
+**When to use:** After import to compare with manual plan, detecting spec/implementation drift, validating completeness.
 
-- After importing codebase to compare with manual plan
-- Detecting drift between specification and implementation
-- Validating plan completeness
-
-**Quick Example:**
-
-```bash
-/specfact.compare --bundle legacy-api
-/specfact.compare --code-vs-plan
-```
+**Quick:** `/specfact.compare --bundle legacy-api` or `/specfact.compare --code-vs-plan`
 
 ## Parameters
 
@@ -52,14 +43,8 @@ Compare two project bundles (or legacy plan bundles) to detect deviations, misma
 ### Step 2: Execute CLI
 
 ```bash
-# Compare bundles
-specfact plan compare --bundle <bundle-name>
-
-# Compare legacy plans
-specfact plan compare --manual <manual-plan> --auto <auto-plan>
-
-# Convenience alias for code vs plan
-specfact plan compare --code-vs-plan
+specfact plan compare [--bundle <bundle-name>] [--manual <path>] [--auto <path>] [--code-vs-plan] [--output-format <format>] [--out <path>]
+# --bundle defaults to active plan if not specified
 ```
 
 ### Step 3: Present Results
@@ -73,13 +58,7 @@ specfact plan compare --code-vs-plan
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:**
-
-1. **ALWAYS execute CLI first**: Run `specfact plan compare` before any analysis
-2. **ALWAYS use non-interactive mode for CI/CD**: Use appropriate flags in Copilot environments
-3. **NEVER modify .specfact folder directly**: All operations must go through CLI
-4. **NEVER create YAML/JSON directly**: All comparison reports must be CLI-generated
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+**Rules:** Execute CLI first, use appropriate flags in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
 
 ## Expected Output
 
@@ -110,16 +89,9 @@ Create one with: specfact plan init --interactive
 ## Common Patterns
 
 ```bash
-# Compare bundles
 /specfact.compare --bundle legacy-api
-
-# Compare code vs plan (convenience)
 /specfact.compare --code-vs-plan
-
-# Compare specific plans
-/specfact.compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-2025-11-26.bundle.yaml
-
-# Compare with JSON output
+/specfact.compare --manual <path> --auto <path>
 /specfact.compare --code-vs-plan --output-format json
 ```
 

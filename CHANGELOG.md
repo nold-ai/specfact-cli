@@ -9,6 +9,48 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.11.5] - 2025-12-02
+
+### Fixed (0.11.5)
+
+- **Rich Progress Display Conflicts in Tests**
+  - Fixed "Only one live display may be active at once" errors in test suite
+  - Added test mode detection to progress utilities (`TEST_MODE` and `PYTEST_CURRENT_TEST` environment variables)
+  - Implemented safe Progress display creation with fallback to direct load/save operations
+  - Progress display now gracefully handles nested Progress contexts and test environments
+  - All 11 previously failing tests now pass across Python 3.11, 3.12, and 3.13
+
+- **Contract Violation Errors**
+  - Fixed incorrect `@ensure` decorator syntax (`lambda result: None` -> `lambda result: result is None`)
+  - Added explicit `return None` statements to satisfy contract requirements
+  - Fixed contract violations in `_handle_list_questions_mode()` and `_display_review_summary()` functions
+  - Contract validation now works correctly with typer.Exit() patterns
+
+---
+
+## [0.11.4] - 2025-12-02
+
+### Fixed (0.11.4)
+
+- **SDD Checksum Mismatch Resolution**
+  - Fixed persistent hash mismatch between `plan harden` and `plan review` commands
+  - Excluded `clarifications` from hash computation (review metadata, not plan content)
+  - Added deterministic feature sorting by key in both `ProjectBundle` and `PlanBundle` hash computation
+  - Hash now remains stable across review sessions (clarifications can change without affecting hash)
+  - Ensures consistent hash calculation between `plan harden` and `plan review` commands
+
+- **Enforce SDD Command Bug Fix**
+  - Fixed `@require` decorator validation error when `bundle` parameter is `None`
+  - Updated contract to allow `None` or non-empty string (consistent with other commands)
+  - Command now works correctly when using active plan (bundle defaults to `None`)
+
+- **Test Suite Warnings**
+  - Suppressed Rich library warnings about ipywidgets in test output
+  - Added `filterwarnings` configuration in `pyproject.toml` to ignore Jupyter-related warnings
+  - Tests now run cleanly without irrelevant warnings from Rich library
+
+---
+
 ## [0.11.3] - 2025-12-01
 
 ### Changed (0.11.3)

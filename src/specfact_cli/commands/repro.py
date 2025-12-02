@@ -13,7 +13,7 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from specfact_cli.telemetry import telemetry
@@ -130,6 +130,7 @@ def main(
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
             console=console,
         ) as progress:
             progress.add_task("Running validation checks...", total=None)

@@ -16,14 +16,14 @@ import typer
 from beartype import beartype
 from icontract import require
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from specfact_cli import runtime
 from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.telemetry import telemetry
-from specfact_cli.utils.bundle_loader import save_project_bundle
+from specfact_cli.utils.progress import save_bundle_with_progress
 
 
 app = typer.Typer(help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format")
@@ -95,6 +95,7 @@ def _check_incremental_changes(
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
             console=console,
         ) as progress:
             task = progress.add_task("[cyan]Checking for changes...", total=None)
@@ -139,21 +140,10 @@ def _check_incremental_changes(
 def _load_existing_bundle(bundle_dir: Path) -> PlanBundle | None:
     """Load existing project bundle and convert to PlanBundle."""
     from specfact_cli.models.plan import PlanBundle as PlanBundleModel
-    from specfact_cli.utils.bundle_loader import load_project_bundle
+    from specfact_cli.utils.progress import load_bundle_with_progress
 
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Loading existing project bundle...", total=None)
-
-            def progress_callback(current: int, total: int, artifact: str) -> None:
-                progress.update(task, description=f"[cyan]Loading artifact {current}/{total}: {artifact}")
-
-            existing_bundle = load_project_bundle(bundle_dir, progress_callback=progress_callback)
-            progress.update(task, description="[green]✓[/green] Bundle loaded")
+        existing_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
         plan_bundle = PlanBundleModel(
             version="1.0",
@@ -740,8 +730,7 @@ def _save_bundle_if_needed(
     if should_regenerate_bundle:
         console.print("\n[cyan]💾 Compiling and saving project bundle...[/cyan]")
         project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle)
-        save_project_bundle(project_bundle, bundle_dir, atomic=True)
-        console.print("[green]✓[/green] Project bundle saved")
+        save_bundle_with_progress(project_bundle, bundle_dir, atomic=True, console_instance=console)
     else:
         console.print("\n[dim]⏭ Skipping bundle save (no changes detected)[/dim]")
 
@@ -1120,6 +1109,7 @@ def from_bridge(
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
             console=console,
         ) as progress:
             # Step 1: Discover features from markdown artifacts
@@ -1199,7 +1189,7 @@ def from_bridge(
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
             SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle_name)
-            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+            save_bundle_with_progress(project_bundle, bundle_dir, atomic=True, console_instance=console)
             console.print(f"[dim]Project bundle: .specfact/projects/{bundle_name}/[/dim]")
 
         console.print("[bold green]✓[/bold green] Import complete!")
