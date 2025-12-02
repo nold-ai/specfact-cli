@@ -15,6 +15,11 @@ from specfact_cli.utils.feature_keys import (
     to_underscore_key,
 )
 from specfact_cli.utils.git import GitOperations
+from specfact_cli.utils.progress import (
+    create_progress_callback,
+    load_bundle_with_progress,
+    save_bundle_with_progress,
+)
 from specfact_cli.utils.prompts import (
     display_summary,
     print_error,
@@ -44,11 +49,13 @@ __all__ = [
     "YAMLUtils",
     "console",
     "convert_feature_keys",
+    "create_progress_callback",
     "display_summary",
     "dump_structured_file",
     "dump_yaml",
     "dumps_structured_data",
     "find_feature_by_normalized_key",
+    "load_bundle_with_progress",
     "load_structured_file",
     "load_yaml",
     "loads_structured_data",
@@ -63,6 +70,7 @@ __all__ = [
     "prompt_dict",
     "prompt_list",
     "prompt_text",
+    "save_bundle_with_progress",
     "string_to_yaml",
     "structured_extension",
     "to_classname_key",

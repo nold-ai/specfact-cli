@@ -187,7 +187,19 @@ class PlanBundle(BaseModel):
         content_hash = None
         if include_hash:
             # Compute hash of plan content (excluding summary itself to avoid circular dependency)
+            # NOTE: Also exclude clarifications - they are review metadata, not plan content
+            # This ensures hash stability across review sessions (clarifications change but plan doesn't)
             plan_dict = self.model_dump(exclude={"metadata": {"summary"}})
+            # Remove clarifications from dict (they are review metadata, not plan content)
+            if "clarifications" in plan_dict:
+                del plan_dict["clarifications"]
+            # IMPORTANT: Sort features by key to ensure deterministic hash regardless of list order
+            # Features are stored as list, so we need to sort by feature.key
+            if "features" in plan_dict and isinstance(plan_dict["features"], list):
+                plan_dict["features"] = sorted(
+                    plan_dict["features"],
+                    key=lambda f: f.get("key", "") if isinstance(f, dict) else getattr(f, "key", ""),
+                )
             plan_json = json.dumps(plan_dict, sort_keys=True, default=str)
             content_hash = hashlib.sha256(plan_json.encode("utf-8")).hexdigest()
 

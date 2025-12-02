@@ -17,7 +17,7 @@ from rich.console import Console
 
 from specfact_cli.models.plan import Feature
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
-from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+from specfact_cli.utils.progress import load_bundle_with_progress, save_bundle_with_progress
 from specfact_cli.utils.structure import SpecFactStructure
 
 
@@ -124,9 +124,8 @@ def to_contracts(
             print_warning("DRY RUN MODE - No changes will be made")
 
         try:
-            # Load existing project bundle
-            print_info("Loading project bundle...")
-            project_bundle = load_project_bundle(bundle_dir)
+            # Load existing project bundle with unified progress display
+            project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
             # Ensure contracts directory exists
             contracts_dir = bundle_dir / "contracts"
@@ -252,7 +251,7 @@ def to_contracts(
                     shutil.copytree(contracts_dir, contracts_backup_path / "contracts", dirs_exist_ok=True)
 
                 # Save bundle (this will remove and recreate bundle_dir)
-                save_project_bundle(project_bundle, bundle_dir, atomic=True)
+                save_bundle_with_progress(project_bundle, bundle_dir, atomic=True, console_instance=console)
 
                 # Restore contracts directory after atomic save
                 if contracts_backup_path is not None and (contracts_backup_path / "contracts").exists():

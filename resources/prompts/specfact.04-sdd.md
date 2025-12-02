@@ -14,26 +14,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Create or update SDD (Software Design Document) manifest from project bundle. Generates canonical SDD that captures WHY (intent, constraints), WHAT (capabilities, acceptance), and HOW (architecture, invariants, contracts) with promotion status.
+Create/update SDD manifest from project bundle. Captures WHY (intent/constraints), WHAT (capabilities/acceptance), HOW (architecture/invariants/contracts).
 
-**When to use:**
+**When to use:** After plan review, before promotion, when plan changes.
 
-- After plan bundle is complete and reviewed
-- Before promoting to review/approved stages
-- When SDD needs to be updated after plan changes
-
-**Quick Example:**
-
-```bash
-/specfact.04-sdd legacy-api
-/specfact.04-sdd legacy-api --no-interactive --output-format json
-```
+**Quick:** `/specfact.04-sdd` (uses active plan) or `/specfact.04-sdd legacy-api`
 
 ## Parameters
 
 ### Target/Input
 
-- `bundle NAME` (required argument) - Project bundle name (e.g., legacy-api, auth-module)
+- `bundle NAME` (optional argument) - Project bundle name (e.g., legacy-api, auth-module). Default: active plan (set via `plan select`)
 - `--sdd PATH` - Output SDD manifest path. Default: .specfact/sdd/<bundle-name>.<format>
 
 ### Output/Results
@@ -48,37 +39,26 @@ Create or update SDD (Software Design Document) manifest from project bundle. Ge
 
 ### Step 1: Parse Arguments
 
-- Extract bundle name (required)
+- Extract bundle name (defaults to active plan if not specified)
 - Extract optional parameters (sdd path, output format, etc.)
 
 ### Step 2: Execute CLI
 
 ```bash
-# Interactive SDD creation
-specfact plan harden <bundle-name> [--sdd <path>] [--output-format <format>]
-
-# Non-interactive SDD creation
-specfact plan harden <bundle-name> --no-interactive [--output-format <format>]
+specfact plan harden [<bundle-name>] [--sdd <path>] [--output-format <format>]
+# Uses active plan if bundle not specified
 ```
 
 ### Step 3: Present Results
 
-- Display SDD manifest location
-- Show WHY/WHAT/HOW summary
-- Present coverage metrics (invariants, contracts)
-- Indicate hash linking to bundle
+- Display SDD location, WHY/WHAT/HOW summary, coverage metrics
+- Hash excludes clarifications (stable across review sessions)
 
 ## CLI Enforcement
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:**
-
-1. **ALWAYS execute CLI first**: Run `specfact plan harden` before any analysis
-2. **ALWAYS use non-interactive mode for CI/CD**: Use `--no-interactive` flag in Copilot environments
-3. **NEVER modify .specfact folder directly**: All operations must go through CLI
-4. **NEVER create YAML/JSON directly**: All SDD manifests must be CLI-generated
-5. **Use CLI output as grounding**: Parse CLI output, don't regenerate it
+**Rules:** Execute CLI first, use `--no-interactive` in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
 
 ## Expected Output
 
@@ -114,17 +94,10 @@ Create one with: specfact plan init legacy-api
 ## Common Patterns
 
 ```bash
-# Create SDD interactively
-/specfact.04-sdd legacy-api
-
-# Create SDD non-interactively
-/specfact.04-sdd legacy-api --no-interactive
-
-# Create SDD in JSON format
-/specfact.04-sdd legacy-api --output-format json
-
-# Create SDD at custom path
-/specfact.04-sdd legacy-api --sdd .specfact/sdd/custom-sdd.yaml
+/specfact.04-sdd                              # Uses active plan
+/specfact.04-sdd legacy-api                   # Specific bundle
+/specfact.04-sdd --output-format json         # JSON format
+/specfact.04-sdd --sdd .specfact/sdd/custom.yaml
 ```
 
 ## Context
