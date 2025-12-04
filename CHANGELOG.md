@@ -17,8 +17,9 @@ All notable changes to this project will be documented in this file.
   - Added 9 unit tests for drift detector covering all scenarios (added code, removed code, modified code, orphaned specs, test coverage gaps, no drift detection)
   - Added 9 integration tests for drift detect command (table, JSON, YAML formats, output to file, all drift scenarios)
   - Added 8 integration tests for Specmatic test generation flows (availability checks, contract handling, success/failure scenarios, npx fallback, multiple changes)
-  - All 26 new tests passing (9 unit + 17 integration tests)
-  - Total test count: 111 tests (up from 85)
+  - Added 11 integration tests for intelligent sync workflow (all sync modes, watch mode, change detection, code-to-spec, spec-to-code, spec-to-tests)
+  - All 37 new tests passing (9 unit + 28 integration tests)
+  - Total test count: 122 tests (up from 85)
 
 ### Fixed (0.12.1)
 
