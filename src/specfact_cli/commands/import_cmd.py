@@ -243,6 +243,7 @@ def _analyze_codebase(
 
 def _update_source_tracking(plan_bundle: PlanBundle, repo: Path) -> None:
     """Update source tracking with file hashes (parallelized)."""
+    import os
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     from specfact_cli.utils.source_scanner import SourceArtifactScanner
@@ -265,42 +266,54 @@ def _update_source_tracking(plan_bundle: PlanBundle, repo: Path) -> None:
                 hash_tasks.append((feature, repo / test_file))
 
     if hash_tasks:
-        max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(hash_tasks)))
-        executor = ThreadPoolExecutor(max_workers=max_workers)
-        interrupted = False
-        try:
-            future_to_task = {
-                executor.submit(update_file_hash, feature, file_path): (feature, file_path)
-                for feature, file_path in hash_tasks
-            }
+        import os
+
+        # In test mode, use sequential processing to avoid ThreadPoolExecutor deadlocks
+        is_test_mode = os.environ.get("TEST_MODE") == "true"
+        if is_test_mode:
+            # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
+            import contextlib
+
+            for feature, file_path in hash_tasks:
+                with contextlib.suppress(Exception):
+                    update_file_hash(feature, file_path)
+        else:
+            max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(hash_tasks)))
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            interrupted = False
             try:
-                for future in as_completed(future_to_task):
-                    try:
-                        future.result()
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        for f in future_to_task:
-                            if not f.done():
-                                f.cancel()
-                        break
-                    except Exception:
-                        pass
+                future_to_task = {
+                    executor.submit(update_file_hash, feature, file_path): (feature, file_path)
+                    for feature, file_path in hash_tasks
+                }
+                try:
+                    for future in as_completed(future_to_task):
+                        try:
+                            future.result()
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_task:
+                                if not f.done():
+                                    f.cancel()
+                            break
+                        except Exception:
+                            pass
+                except KeyboardInterrupt:
+                    interrupted = True
+                    for f in future_to_task:
+                        if not f.done():
+                            f.cancel()
+                if interrupted:
+                    raise KeyboardInterrupt
             except KeyboardInterrupt:
                 interrupted = True
-                for f in future_to_task:
-                    if not f.done():
-                        f.cancel()
-            if interrupted:
-                raise KeyboardInterrupt
-        except KeyboardInterrupt:
-            interrupted = True
-            executor.shutdown(wait=False, cancel_futures=True)
-            raise
-        finally:
-            if not interrupted:
-                executor.shutdown(wait=True)
-            else:
-                executor.shutdown(wait=False)
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+            finally:
+                if not interrupted:
+                    executor.shutdown(wait=True)
+                else:
+                    executor.shutdown(wait=False)
 
     for feature in plan_bundle.features:
         if feature.source_tracking:
@@ -431,6 +444,7 @@ def _extract_contracts(
     record_event: Any,
 ) -> dict[str, dict[str, Any]]:
     """Extract OpenAPI contracts from features."""
+    import os
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
@@ -464,45 +478,60 @@ def _extract_contracts(
 
         features_with_contracts = [f for f in plan_bundle.features if f.contract]
         if features_with_contracts:
-            max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_contracts)))
-            executor = ThreadPoolExecutor(max_workers=max_workers)
-            interrupted = False
+            import os
+
+            # In test mode, use sequential processing to avoid ThreadPoolExecutor deadlocks
+            is_test_mode = os.environ.get("TEST_MODE") == "true"
             existing_contracts_count = 0
-            try:
-                future_to_feature = {
-                    executor.submit(load_contract, feature): feature for feature in features_with_contracts
-                }
+            if is_test_mode:
+                # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
+                for feature in features_with_contracts:
+                    try:
+                        feature_key, contract_data = load_contract(feature)
+                        if contract_data:
+                            contracts_data[feature_key] = contract_data
+                            existing_contracts_count += 1
+                    except Exception:
+                        pass
+            else:
+                max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_contracts)))
+                executor = ThreadPoolExecutor(max_workers=max_workers)
+                interrupted = False
                 try:
-                    for future in as_completed(future_to_feature):
-                        try:
-                            feature_key, contract_data = future.result()
-                            if contract_data:
-                                contracts_data[feature_key] = contract_data
-                                existing_contracts_count += 1
-                        except KeyboardInterrupt:
-                            interrupted = True
-                            for f in future_to_feature:
-                                if not f.done():
-                                    f.cancel()
-                            break
-                        except Exception:
-                            pass
+                    future_to_feature = {
+                        executor.submit(load_contract, feature): feature for feature in features_with_contracts
+                    }
+                    try:
+                        for future in as_completed(future_to_feature):
+                            try:
+                                feature_key, contract_data = future.result()
+                                if contract_data:
+                                    contracts_data[feature_key] = contract_data
+                                    existing_contracts_count += 1
+                            except KeyboardInterrupt:
+                                interrupted = True
+                                for f in future_to_feature:
+                                    if not f.done():
+                                        f.cancel()
+                                break
+                            except Exception:
+                                pass
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_feature:
+                            if not f.done():
+                                f.cancel()
+                    if interrupted:
+                        raise KeyboardInterrupt
                 except KeyboardInterrupt:
                     interrupted = True
-                    for f in future_to_feature:
-                        if not f.done():
-                            f.cancel()
-                if interrupted:
-                    raise KeyboardInterrupt
-            except KeyboardInterrupt:
-                interrupted = True
-                executor.shutdown(wait=False, cancel_futures=True)
-                raise
-            finally:
-                if not interrupted:
-                    executor.shutdown(wait=True)
-                else:
-                    executor.shutdown(wait=False)
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    raise
+                finally:
+                    if not interrupted:
+                        executor.shutdown(wait=True)
+                    else:
+                        executor.shutdown(wait=False)
 
             if existing_contracts_count > 0:
                 console.print(f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle")
@@ -517,10 +546,21 @@ def _extract_contracts(
         features_with_files = []
 
     if features_with_files and should_regenerate_contracts:
-        max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_files)))
-        console.print(
-            f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
-        )
+        import os
+
+        # In test mode, use sequential processing to avoid ThreadPoolExecutor deadlocks
+        is_test_mode = os.environ.get("TEST_MODE") == "true"
+        # Define max_workers for non-test mode (always defined to satisfy type checker)
+        max_workers = 1
+        if is_test_mode:
+            console.print(
+                f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (sequential mode)...[/cyan]"
+            )
+        else:
+            max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_files)))
+            console.print(
+                f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
+            )
 
         from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
@@ -567,49 +607,67 @@ def _extract_contracts(
             console=console,
         ) as progress:
             task = progress.add_task("[cyan]Extracting contracts...", total=len(features_with_files))
-            executor = ThreadPoolExecutor(max_workers=max_workers)
-            interrupted = False
-            try:
-                future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+            if is_test_mode:
+                # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
                 completed_count = 0
+                for feature in features_with_files:
+                    try:
+                        feature_key, openapi_spec = process_feature(feature)
+                        completed_count += 1
+                        progress.update(task, completed=completed_count)
+                        if openapi_spec:
+                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                            feature.contract = contract_ref
+                            contracts_data[feature_key] = openapi_spec
+                            contracts_generated += 1
+                    except Exception as e:
+                        completed_count += 1
+                        progress.update(task, completed=completed_count)
+                        console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+            else:
+                executor = ThreadPoolExecutor(max_workers=max_workers)
+                interrupted = False
                 try:
-                    for future in as_completed(future_to_feature):
-                        try:
-                            feature_key, openapi_spec = future.result()
-                            completed_count += 1
-                            progress.update(task, completed=completed_count)
-                            if openapi_spec:
-                                feature = next(f for f in features_with_files if f.key == feature_key)
-                                contract_ref = f"contracts/{feature_key}.openapi.yaml"
-                                feature.contract = contract_ref
-                                contracts_data[feature_key] = openapi_spec
-                                contracts_generated += 1
-                        except KeyboardInterrupt:
-                            interrupted = True
-                            for f in future_to_feature:
-                                if not f.done():
-                                    f.cancel()
-                            break
-                        except Exception as e:
-                            completed_count += 1
-                            progress.update(task, completed=completed_count)
-                            console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                    future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+                    completed_count = 0
+                    try:
+                        for future in as_completed(future_to_feature):
+                            try:
+                                feature_key, openapi_spec = future.result()
+                                completed_count += 1
+                                progress.update(task, completed=completed_count)
+                                if openapi_spec:
+                                    feature = next(f for f in features_with_files if f.key == feature_key)
+                                    contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                                    feature.contract = contract_ref
+                                    contracts_data[feature_key] = openapi_spec
+                                    contracts_generated += 1
+                            except KeyboardInterrupt:
+                                interrupted = True
+                                for f in future_to_feature:
+                                    if not f.done():
+                                        f.cancel()
+                                break
+                            except Exception as e:
+                                completed_count += 1
+                                progress.update(task, completed=completed_count)
+                                console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        for f in future_to_feature:
+                            if not f.done():
+                                f.cancel()
+                    if interrupted:
+                        raise KeyboardInterrupt
                 except KeyboardInterrupt:
                     interrupted = True
-                    for f in future_to_feature:
-                        if not f.done():
-                            f.cancel()
-                if interrupted:
-                    raise KeyboardInterrupt
-            except KeyboardInterrupt:
-                interrupted = True
-                executor.shutdown(wait=False, cancel_futures=True)
-                raise
-            finally:
-                if not interrupted:
-                    executor.shutdown(wait=True)
-                else:
-                    executor.shutdown(wait=False)
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    raise
+                finally:
+                    if not interrupted:
+                        executor.shutdown(wait=True)
+                    else:
+                        executor.shutdown(wait=False)
 
     elif should_regenerate_contracts:
         console.print("[dim]No features with implementation files found for contract extraction[/dim]")

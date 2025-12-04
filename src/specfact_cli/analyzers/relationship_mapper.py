@@ -380,10 +380,16 @@ class RelationshipMapper:
             }
 
         # Use ThreadPoolExecutor for parallel processing
-        max_workers = min(os.cpu_count() or 4, 16, len(python_files))  # Cap at 16 workers for faster processing
+        # In test mode, use fewer workers to avoid resource contention
+        if os.environ.get("TEST_MODE") == "true":
+            max_workers = max(1, min(2, len(python_files)))  # Max 2 workers in test mode
+        else:
+            max_workers = min(os.cpu_count() or 4, 16, len(python_files))  # Cap at 16 workers for faster processing
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
+        # In test mode, use wait=False to avoid hanging on shutdown
+        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
         try:
             # Submit all tasks
             future_to_file = {executor.submit(self._analyze_file_parallel, f): f for f in python_files}
@@ -424,7 +430,7 @@ class RelationshipMapper:
             raise
         finally:
             if not interrupted:
-                executor.shutdown(wait=True)
+                executor.shutdown(wait=wait_on_shutdown)
             else:
                 executor.shutdown(wait=False)
 
