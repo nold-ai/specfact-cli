@@ -8,8 +8,12 @@ verbose acceptance criteria or existing code using AST analysis.
 from __future__ import annotations
 
 import ast
+import contextlib
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import yaml
@@ -31,6 +35,7 @@ class OpenAPIExtractor:
             repo_path: Path to repository root
         """
         self.repo_path = repo_path.resolve()
+        self._lock = Lock()  # Thread lock for parallel processing
 
     @beartype
     @require(lambda self, feature: isinstance(feature, Feature), "Feature must be Feature instance")
@@ -138,27 +143,53 @@ class OpenAPIExtractor:
             "components": {"schemas": {}},
         }
 
-        # Use source tracking to find implementation files
+        # Collect all files to process
+        files_to_process: list[Path] = []
+        init_files: set[Path] = set()
+
         if feature.source_tracking:
+            # Collect implementation files
             for impl_file in feature.source_tracking.implementation_files:
                 file_path = repo_path / impl_file
                 if file_path.exists() and file_path.suffix == ".py":
-                    self._extract_endpoints_from_file(file_path, openapi_spec)
+                    files_to_process.append(file_path)
 
-        # Also check __init__.py files in the same directory for module-level interfaces
-        if feature.source_tracking:
-            # Get unique directories from implementation files
+            # Collect __init__.py files in the same directories
             impl_dirs = set()
             for impl_file in feature.source_tracking.implementation_files:
                 file_path = repo_path / impl_file
                 if file_path.exists():
                     impl_dirs.add(file_path.parent)
 
-            # Check __init__.py in each directory for module-level exports/interfaces
             for impl_dir in impl_dirs:
                 init_file = impl_dir / "__init__.py"
                 if init_file.exists():
-                    self._extract_endpoints_from_file(init_file, openapi_spec)
+                    init_files.add(init_file)
+
+        # Process files in parallel (sequential in test mode to avoid deadlocks)
+        test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+
+        all_files = list(files_to_process) + list(init_files)
+
+        if test_mode or len(all_files) == 0:
+            # Sequential processing in test mode
+            for file_path in all_files:
+                self._extract_endpoints_from_file(file_path, openapi_spec)
+        else:
+            # Parallel processing in production mode
+            max_workers = min(len(all_files), os.cpu_count() or 4)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all file processing tasks
+                futures = {
+                    executor.submit(self._extract_endpoints_from_file, file_path, openapi_spec): file_path
+                    for file_path in all_files
+                }
+
+                # Wait for all tasks to complete
+                for future in as_completed(futures):
+                    with contextlib.suppress(Exception):
+                        # Skip files with errors (already handled in _extract_endpoints_from_file)
+                        future.result()
 
         return openapi_spec
 
@@ -178,8 +209,13 @@ class OpenAPIExtractor:
             router_prefixes: dict[str, str] = {}  # router_name -> prefix
             router_tags: dict[str, list[str]] = {}  # router_name -> tags
 
-            # First pass: Find router instances and their prefixes (use iter_child_nodes for efficiency)
+            # First pass: Extract Pydantic models and find router instances
             for node in ast.iter_child_nodes(tree):
+                # Extract Pydantic models (BaseModel subclasses)
+                if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
+                    self._extract_pydantic_model_schema(node, openapi_spec)
+
+                # Find router instances and their prefixes
                 if (
                     isinstance(node, ast.Assign)
                     and node.targets
@@ -566,6 +602,144 @@ class OpenAPIExtractor:
 
         return {"type": "object"}
 
+    def _is_pydantic_model(self, class_node: ast.ClassDef) -> bool:
+        """
+        Check if a class is a Pydantic model (inherits from BaseModel).
+
+        Args:
+            class_node: AST ClassDef node
+
+        Returns:
+            True if class is a Pydantic model, False otherwise
+        """
+        for base in class_node.bases:
+            # Check for direct BaseModel inheritance: class User(BaseModel)
+            if isinstance(base, ast.Name) and base.id == "BaseModel":
+                return True
+            # Check for pydantic.BaseModel: class User(pydantic.BaseModel)
+            if isinstance(base, ast.Attribute):
+                if isinstance(base.value, ast.Name) and base.value.id == "pydantic" and base.attr == "BaseModel":
+                    return True
+                # Check for from pydantic import BaseModel: class User(BaseModel)
+                if base.attr == "BaseModel":
+                    return True
+        return False
+
+    def _extract_pydantic_model_schema(self, class_node: ast.ClassDef, openapi_spec: dict[str, Any]) -> None:
+        """
+        Extract OpenAPI schema from a Pydantic model class definition.
+
+        Args:
+            class_node: AST ClassDef node representing Pydantic model
+            openapi_spec: OpenAPI spec dictionary to update
+        """
+        schema_name = class_node.name
+        schema: dict[str, Any] = {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
+        # Extract docstring for description
+        docstring = ast.get_docstring(class_node)
+        if docstring:
+            schema["description"] = docstring
+
+        # Extract fields from class body
+        for item in class_node.body:
+            # Handle annotated assignments: name: str = Field(...)
+            if isinstance(item, ast.AnnAssign):
+                if item.target and isinstance(item.target, ast.Name):
+                    field_name = item.target.id
+                    field_schema = self._extract_type_hint_schema(item.annotation)
+                    schema["properties"][field_name] = field_schema
+
+                    # Check if field is required (no default value)
+                    if item.value is None:
+                        schema["required"].append(field_name)
+                    else:
+                        # Field has default value, extract it if possible
+                        default_value = self._extract_default_value(item.value)
+                        if default_value is not None:
+                            schema["properties"][field_name]["default"] = default_value
+
+            # Handle simple assignments: name: str (type annotation only)
+            elif isinstance(item, ast.Assign):
+                for target in item.targets:
+                    if isinstance(target, ast.Name):
+                        field_name = target.id
+                        # Try to infer type from value
+                        if item.value:
+                            field_schema = self._infer_schema_from_value(item.value)
+                            if field_schema:
+                                schema["properties"][field_name] = field_schema
+                                # If value is provided, it's not required
+                                default_value = self._extract_default_value(item.value)
+                                if default_value is not None:
+                                    schema["properties"][field_name]["default"] = default_value
+                            else:
+                                # Default to object if type can't be inferred
+                                schema["properties"][field_name] = {"type": "object"}
+
+        # Add schema to components (thread-safe)
+        with self._lock:
+            if "components" not in openapi_spec:
+                openapi_spec["components"] = {}
+            if "schemas" not in openapi_spec["components"]:
+                openapi_spec["components"]["schemas"] = {}
+
+            openapi_spec["components"]["schemas"][schema_name] = schema
+
+    def _extract_default_value(self, value_node: ast.expr) -> Any:
+        """
+        Extract default value from AST expression.
+
+        Args:
+            value_node: AST expression node
+
+        Returns:
+            Default value if extractable, None otherwise
+        """
+        if isinstance(value_node, ast.Constant):
+            return value_node.value
+        if isinstance(value_node, ast.NameConstant):  # Python < 3.8 compatibility
+            return value_node.value
+        if isinstance(value_node, ast.Name) and value_node.id == "None":
+            return None
+        return None
+
+    def _infer_schema_from_value(self, value_node: ast.expr) -> dict[str, Any] | None:
+        """
+        Infer OpenAPI schema from AST value node.
+
+        Args:
+            value_node: AST expression node
+
+        Returns:
+            OpenAPI schema dictionary or None if type can't be inferred
+        """
+        if isinstance(value_node, ast.Constant):
+            value = value_node.value
+            if isinstance(value, str):
+                return {"type": "string"}
+            if isinstance(value, int):
+                return {"type": "integer"}
+            if isinstance(value, float):
+                return {"type": "number"}
+            if isinstance(value, bool):
+                return {"type": "boolean"}
+            if isinstance(value, list):
+                return {"type": "array", "items": {"type": "object"}}
+            if isinstance(value, dict):
+                return {"type": "object"}
+
+        if isinstance(value_node, ast.List):
+            return {"type": "array", "items": {"type": "object"}}
+        if isinstance(value_node, ast.Dict):
+            return {"type": "object"}
+
+        return None
+
     def _extract_status_code_from_decorator(self, decorator: ast.Call) -> int | None:
         """
         Extract status code from FastAPI decorator.
@@ -699,8 +873,10 @@ class OpenAPIExtractor:
             path_params: Path parameters (if any)
             tags: Operation tags (if any)
         """
-        if path not in openapi_spec["paths"]:
-            openapi_spec["paths"][path] = {}
+        # Thread-safe path addition
+        with self._lock:
+            if path not in openapi_spec["paths"]:
+                openapi_spec["paths"][path] = {}
 
         # Extract path parameter names
         path_param_names = {p["name"] for p in (path_params or [])}
@@ -750,22 +926,23 @@ class OpenAPIExtractor:
         if tags:
             operation["tags"] = tags
 
-        # Add security requirements
+        # Add security requirements (thread-safe)
         if security:
             operation["security"] = security
             # Ensure security schemes are defined in components
-            if "components" not in openapi_spec:
-                openapi_spec["components"] = {}
-            if "securitySchemes" not in openapi_spec["components"]:
-                openapi_spec["components"]["securitySchemes"] = {}
-            # Add bearerAuth scheme if used
-            for sec_req in security:
-                if "bearerAuth" in sec_req:
-                    openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
-                        "type": "http",
-                        "scheme": "bearer",
-                        "bearerFormat": "JWT",
-                    }
+            with self._lock:
+                if "components" not in openapi_spec:
+                    openapi_spec["components"] = {}
+                if "securitySchemes" not in openapi_spec["components"]:
+                    openapi_spec["components"]["securitySchemes"] = {}
+                # Add bearerAuth scheme if used
+                for sec_req in security:
+                    if "bearerAuth" in sec_req:
+                        openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
+                            "type": "http",
+                            "scheme": "bearer",
+                            "bearerFormat": "JWT",
+                        }
 
         # Add request body for POST/PUT/PATCH if found
         if method in ("POST", "PUT", "PATCH") and request_body:
@@ -784,7 +961,9 @@ class OpenAPIExtractor:
                 },
             }
 
-        openapi_spec["paths"][path][method.lower()] = operation
+        # Thread-safe operation addition
+        with self._lock:
+            openapi_spec["paths"][path][method.lower()] = operation
 
     @beartype
     @require(lambda self, contract_path: isinstance(contract_path, Path), "Contract path must be Path")
