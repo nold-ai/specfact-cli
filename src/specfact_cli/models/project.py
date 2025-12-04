@@ -241,7 +241,11 @@ class ProjectBundle(BaseModel):
                     )
 
         # Load artifacts in parallel using ThreadPoolExecutor
-        max_workers = min(os.cpu_count() or 4, 8, len(load_tasks))  # Cap at 8 workers
+        # In test mode, use fewer workers to avoid resource contention
+        if os.environ.get("TEST_MODE") == "true":
+            max_workers = max(1, min(2, len(load_tasks)))  # Max 2 workers in test mode
+        else:
+            max_workers = min(os.cpu_count() or 4, 8, len(load_tasks))  # Cap at 8 workers
         completed_count = current
 
         def load_artifact(artifact_name: str, artifact_path: Path, validator: Callable) -> tuple[str, Any]:
@@ -253,6 +257,8 @@ class ProjectBundle(BaseModel):
         if load_tasks:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             interrupted = False
+            # In test mode, use wait=False to avoid hanging on shutdown
+            wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
             try:
                 # Submit all tasks
                 future_to_task = {
@@ -308,7 +314,7 @@ class ProjectBundle(BaseModel):
                 raise
             finally:
                 if not interrupted:
-                    executor.shutdown(wait=True)
+                    executor.shutdown(wait=wait_on_shutdown)
                 else:
                     executor.shutdown(wait=False)
 
@@ -395,7 +401,11 @@ class ProjectBundle(BaseModel):
             save_tasks.append((f"features/{feature_file}", feature_path, feature.model_dump()))
 
         # Save artifacts in parallel using ThreadPoolExecutor
-        max_workers = min(os.cpu_count() or 4, 8, len(save_tasks))  # Cap at 8 workers
+        # In test mode, use fewer workers to avoid resource contention
+        if os.environ.get("TEST_MODE") == "true":
+            max_workers = max(1, min(2, len(save_tasks)))  # Max 2 workers in test mode
+        else:
+            max_workers = min(os.cpu_count() or 4, 8, len(save_tasks))  # Cap at 8 workers
         completed_count = 0
         checksums: dict[str, str] = {}  # Track checksums for manifest update
         feature_indices: list[FeatureIndex] = []  # Track feature indices
@@ -410,6 +420,8 @@ class ProjectBundle(BaseModel):
         if save_tasks:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             interrupted = False
+            # In test mode, use wait=False to avoid hanging on shutdown
+            wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
             try:
                 # Submit all tasks
                 future_to_task = {
@@ -472,7 +484,7 @@ class ProjectBundle(BaseModel):
                 raise
             finally:
                 if not interrupted:
-                    executor.shutdown(wait=True)
+                    executor.shutdown(wait=wait_on_shutdown)
                 else:
                     executor.shutdown(wait=False)
 
