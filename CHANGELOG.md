@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.12.1] - 2025-12-05
+
+### Added (0.12.1)
+
+- **Comprehensive Test Coverage for Drift Detection and Specmatic Integration**
+  - Added 9 unit tests for drift detector covering all scenarios (added code, removed code, modified code, orphaned specs, test coverage gaps, no drift detection)
+  - Added 9 integration tests for drift detect command (table, JSON, YAML formats, output to file, all drift scenarios)
+  - Added 8 integration tests for Specmatic test generation flows (availability checks, contract handling, success/failure scenarios, npx fallback, multiple changes)
+  - All 26 new tests passing (9 unit + 17 integration tests)
+  - Total test count: 111 tests (up from 85)
+
+### Fixed (0.12.1)
+
+- **Code Quality Improvements**
+  - Fixed nested `with` statements (SIM117) by combining into single `with` statement with multiple contexts
+  - Fixed type errors in test files (Story constructor parameters, source_tracking None checks)
+  - Improved JSON/YAML parsing in integration tests to handle extra output text
+
+### Changed (0.12.1)
+
+- **Test Infrastructure**
+  - Enhanced drift detector tests to properly handle file hash storage (absolute vs relative paths)
+  - Improved integration test JSON parsing to extract JSON objects from mixed output
+  - Added proper error handling for YAML tuple serialization in drift command tests
+
+---
+
 ## [0.12.0] - 2025-12-05
 
 ### Added (0.12.0)
