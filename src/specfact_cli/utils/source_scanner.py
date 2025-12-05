@@ -173,10 +173,16 @@ class SourceArtifactScanner:
         test_files = list(set(test_files))
 
         # Process features in parallel
-        max_workers = min(os.cpu_count() or 4, 8, len(features))  # Cap at 8 workers
+        # In test mode, use fewer workers to avoid resource contention
+        if os.environ.get("TEST_MODE") == "true":
+            max_workers = max(1, min(2, len(features)))  # Max 2 workers in test mode
+        else:
+            max_workers = min(os.cpu_count() or 4, 8, len(features))  # Cap at 8 workers
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
+        # In test mode, use wait=False to avoid hanging on shutdown
+        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
         try:
             future_to_feature = {
                 executor.submit(self._link_feature_to_specs, feature, repo_path, impl_files, test_files): feature
@@ -208,7 +214,7 @@ class SourceArtifactScanner:
             raise
         finally:
             if not interrupted:
-                executor.shutdown(wait=True)
+                executor.shutdown(wait=wait_on_shutdown)
             else:
                 executor.shutdown(wait=False)
 

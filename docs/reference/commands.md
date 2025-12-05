@@ -69,11 +69,13 @@ specfact repro --verbose
 
 **Constitution Management (Spec-Kit Compatibility):**
 
-- `constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
-- `constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
-- `constitution validate` - Validate constitution completeness (for Spec-Kit format)
+- `bridge constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
+- `bridge constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
+- `bridge constitution validate` - Validate constitution completeness (for Spec-Kit format)
 
-**Note**: The `constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
+**Note**: The `bridge constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
+
+**⚠️ Deprecation Notice**: The old `specfact constitution` command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
 
 **Setup:**
 
@@ -277,6 +279,26 @@ specfact import from-code --bundle api-service \
 - **Optimized Bundle Size**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
 - **Acceptance Criteria**: Limited to 1-3 high-level items per story, detailed examples in contract files
 - **Interruptible**: Press Ctrl+C during analysis to cancel immediately (all parallel operations support graceful cancellation)
+- **Contract Extraction**: Automatically extracts API contracts from function signatures, type hints, and validation logic:
+  - Function parameters → Request schema (JSON Schema format)
+  - Return types → Response schema
+  - Validation logic → Preconditions and postconditions
+  - Error handling → Error contracts
+  - Contracts stored in `Story.contracts` field for runtime enforcement
+  - Contracts included in Spec-Kit plan.md for Article IX compliance
+- **Test Pattern Extraction**: Extracts test patterns from existing test files:
+  - Parses pytest and unittest test functions
+  - Converts test assertions to Given/When/Then acceptance criteria format
+  - Maps test scenarios to user story scenarios
+- **Control Flow Analysis**: Extracts scenarios from code control flow:
+  - Primary scenarios (happy path)
+  - Alternate scenarios (conditional branches)
+  - Exception scenarios (error handling)
+  - Recovery scenarios (retry logic)
+- **Requirement Extraction**: Extracts complete requirements from code semantics:
+  - Subject + Modal + Action + Object + Outcome format
+  - Non-functional requirements (NFRs) from code patterns
+  - Performance, security, reliability, maintainability patterns
 - Generates plan bundle with enhanced confidence scores
 
 **Partial Repository Coverage:**
@@ -1293,6 +1315,74 @@ specfact enforce stage --preset strict
 
 ---
 
+### `drift` - Detect Drift Between Code and Specifications
+
+Detect misalignment between code and specifications.
+
+#### `drift detect`
+
+Detect drift between code and specifications.
+
+```bash
+specfact drift detect [BUNDLE] [OPTIONS]
+```
+
+**Arguments:**
+
+- `BUNDLE` - Project bundle name (e.g., `legacy-api`). Default: active plan from `specfact plan select`
+
+**Options:**
+
+- `--repo PATH` - Path to repository. Default: current directory (`.`)
+- `--format {table,json,yaml}` - Output format. Default: `table`
+- `--out PATH` - Output file path (for JSON/YAML format). Default: stdout
+
+**What it detects:**
+
+- **Added code** - Files with no spec (untracked implementation files)
+- **Removed code** - Deleted files but spec still exists
+- **Modified code** - Files with hash changed (implementation modified)
+- **Orphaned specs** - Specifications with no source tracking (no linked code)
+- **Test coverage gaps** - Stories missing test functions
+- **Contract violations** - Implementation doesn't match contract (requires Specmatic)
+
+**Examples:**
+
+```bash
+# Detect drift for active plan
+specfact drift detect
+
+# Detect drift for specific bundle
+specfact drift detect legacy-api --repo .
+
+# Output to JSON file
+specfact drift detect my-bundle --format json --out drift-report.json
+
+# Output to YAML file
+specfact drift detect my-bundle --format yaml --out drift-report.yaml
+```
+
+**Output Formats:**
+
+- **Table** (default) - Rich formatted table with color-coded sections
+- **JSON** - Machine-readable JSON format for CI/CD integration
+- **YAML** - Human-readable YAML format
+
+**Integration:**
+
+The drift detection command integrates with:
+
+- Source tracking (hash-based change detection)
+- Project bundles (feature and story tracking)
+- Specmatic (contract validation, if available)
+
+**See also:**
+
+- `plan compare` - Compare plans to detect code vs plan drift
+- `sync intelligent` - Continuous sync with drift detection
+
+---
+
 ### `repro` - Reproducibility Validation
 
 Run full validation suite for reproducibility.
@@ -1558,6 +1648,22 @@ When syncing from SpecFact to Spec-Kit (`--bidirectional`), the CLI automaticall
 - **tasks.md**: Phase organization (Phase 1: Setup, Phase 2: Foundational, Phase 3+: User Stories), Story mappings ([US1], [US2]), Parallel markers [P]
 
 **All Spec-Kit fields are auto-generated** - no manual editing required unless you want to customize defaults. Generated artifacts are ready for `/speckit.analyze` without additional work.
+
+**Constitution Evidence Extraction:**
+
+When generating Spec-Kit `plan.md` files, SpecFact automatically extracts evidence-based constitution alignment from your codebase:
+
+- **Article VII (Simplicity)**: Analyzes project structure, directory depth, file organization, and naming patterns to determine PASS/FAIL status with rationale
+- **Article VIII (Anti-Abstraction)**: Detects framework usage, abstraction layers, and framework-specific patterns to assess anti-abstraction compliance
+- **Article IX (Integration-First)**: Analyzes contract patterns (icontract decorators, OpenAPI definitions, type hints) to verify integration-first approach
+
+**Evidence-Based Status**: Constitution check sections include PASS/FAIL status (not PENDING) with:
+
+- Evidence citations from code patterns
+- Rationale explaining why each article passes or fails
+- Actionable recommendations for improvement (if FAIL)
+
+This evidence extraction happens automatically during `sync bridge --adapter speckit` when generating Spec-Kit artifacts. No additional configuration required.
 
 #### `sync repository`
 
@@ -1917,11 +2023,11 @@ specfact bridge constitution validate --constitution custom-constitution.md
 
 ---
 
-### `constitution` - Manage Project Constitutions (DEPRECATED)
+---
 
-**⚠️ Deprecation Notice**: This command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
+---
 
-The old `specfact constitution` commands still work but show deprecation warnings. All functionality has been moved to `specfact bridge constitution`.
+**Note**: The old `specfact constitution` command has been moved to `specfact bridge constitution`. See the [`bridge constitution`](#bridge-constitution---manage-project-constitutions) section above for complete documentation. The old command path is deprecated and will be removed in a future version.
 
 **Migration**: Replace `specfact constitution <command>` with `specfact bridge constitution <command>`.
 

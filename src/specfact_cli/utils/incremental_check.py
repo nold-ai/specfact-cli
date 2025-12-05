@@ -161,9 +161,15 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                     )
 
             # Load source_tracking sections in parallel
-            max_workers = min(os.cpu_count() or 4, 8, len(manifest.features))
+            # In test mode, use fewer workers to avoid resource contention
+            if os.environ.get("TEST_MODE") == "true":
+                max_workers = max(1, min(2, len(manifest.features)))  # Max 2 workers in test mode
+            else:
+                max_workers = min(os.cpu_count() or 4, 8, len(manifest.features))
             features = []
             executor = ThreadPoolExecutor(max_workers=max_workers)
+            # In test mode, use wait=False to avoid hanging on shutdown
+            wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
             try:
                 future_to_index = {executor.submit(load_feature_source_tracking, fi): fi for fi in manifest.features}
                 for future in as_completed(future_to_index):
@@ -183,7 +189,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
             finally:
                 # Ensure executor is properly shutdown (shutdown() is safe to call multiple times)
                 with contextlib.suppress(RuntimeError):
-                    executor.shutdown(wait=True)
+                    executor.shutdown(wait=wait_on_shutdown)
 
         except Exception:
             # Bundle exists but can't be loaded - regenerate everything
@@ -215,7 +221,11 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
 
     # Check files in parallel (early exit if any change detected)
     if check_tasks:
-        max_workers = min(os.cpu_count() or 4, 8, len(check_tasks))  # Cap at 8 workers
+        # In test mode, use fewer workers to avoid resource contention
+        if os.environ.get("TEST_MODE") == "true":
+            max_workers = max(1, min(2, len(check_tasks)))  # Max 2 workers in test mode
+        else:
+            max_workers = min(os.cpu_count() or 4, 8, len(check_tasks))  # Cap at 8 workers
 
         def check_file_change(task: tuple[Feature, Path, str]) -> bool:
             """Check if a single file has changed (thread-safe)."""
@@ -228,6 +238,8 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
+        # In test mode, use wait=False to avoid hanging on shutdown
+        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
         try:
             # Submit all tasks
             future_to_task = {executor.submit(check_file_change, task): task for task in check_tasks}
@@ -260,7 +272,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
         finally:
             # Ensure executor is properly shutdown (safe to call multiple times)
             if not interrupted:
-                executor.shutdown(wait=True)
+                executor.shutdown(wait=wait_on_shutdown)
             else:
                 executor.shutdown(wait=False)
 

@@ -149,11 +149,17 @@ class GraphAnalyzer:
 
         # Add edges from AST imports (parallelized for performance)
         import multiprocessing
+
+        # In test mode, use fewer workers to avoid resource contention
+        import os
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        max_workers = max(
-            1, min(multiprocessing.cpu_count() or 4, 16, len(python_files))
-        )  # Increased for faster processing, ensure at least 1
+        if os.environ.get("TEST_MODE") == "true":
+            max_workers = max(1, min(2, len(python_files)))  # Max 2 workers in test mode
+        else:
+            max_workers = max(
+                1, min(multiprocessing.cpu_count() or 4, 16, len(python_files))
+            )  # Increased for faster processing, ensure at least 1
 
         # Get list of known modules for matching (needed for parallel processing)
         known_modules = list(graph.nodes())
@@ -176,8 +182,12 @@ class GraphAnalyzer:
             return edges
 
         # Process AST imports in parallel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_file = {executor.submit(process_imports, file_path): file_path for file_path in python_files}
+        import os
+
+        executor1 = ThreadPoolExecutor(max_workers=max_workers)
+        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
+        try:
+            future_to_file = {executor1.submit(process_imports, file_path): file_path for file_path in python_files}
 
             for future in as_completed(future_to_file):
                 try:
@@ -186,11 +196,14 @@ class GraphAnalyzer:
                         graph.add_edge(module_name, matching_module)
                 except Exception:
                     continue
+        finally:
+            executor1.shutdown(wait=wait_on_shutdown)
 
         # Extract call graphs using pyan (if available) - parallelized for performance
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor2 = ThreadPoolExecutor(max_workers=max_workers)
+        try:
             future_to_file = {
-                executor.submit(self.extract_call_graph, file_path): file_path for file_path in python_files
+                executor2.submit(self.extract_call_graph, file_path): file_path for file_path in python_files
             }
 
             for future in as_completed(future_to_file):
@@ -206,6 +219,8 @@ class GraphAnalyzer:
                 except Exception:
                     # Skip if call graph extraction fails for this file
                     continue
+        finally:
+            executor2.shutdown(wait=wait_on_shutdown)
 
         self.dependency_graph = graph
         return graph
