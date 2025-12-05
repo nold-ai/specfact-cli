@@ -1315,6 +1315,74 @@ specfact enforce stage --preset strict
 
 ---
 
+### `drift` - Detect Drift Between Code and Specifications
+
+Detect misalignment between code and specifications.
+
+#### `drift detect`
+
+Detect drift between code and specifications.
+
+```bash
+specfact drift detect [BUNDLE] [OPTIONS]
+```
+
+**Arguments:**
+
+- `BUNDLE` - Project bundle name (e.g., `legacy-api`). Default: active plan from `specfact plan select`
+
+**Options:**
+
+- `--repo PATH` - Path to repository. Default: current directory (`.`)
+- `--format {table,json,yaml}` - Output format. Default: `table`
+- `--out PATH` - Output file path (for JSON/YAML format). Default: stdout
+
+**What it detects:**
+
+- **Added code** - Files with no spec (untracked implementation files)
+- **Removed code** - Deleted files but spec still exists
+- **Modified code** - Files with hash changed (implementation modified)
+- **Orphaned specs** - Specifications with no source tracking (no linked code)
+- **Test coverage gaps** - Stories missing test functions
+- **Contract violations** - Implementation doesn't match contract (requires Specmatic)
+
+**Examples:**
+
+```bash
+# Detect drift for active plan
+specfact drift detect
+
+# Detect drift for specific bundle
+specfact drift detect legacy-api --repo .
+
+# Output to JSON file
+specfact drift detect my-bundle --format json --out drift-report.json
+
+# Output to YAML file
+specfact drift detect my-bundle --format yaml --out drift-report.yaml
+```
+
+**Output Formats:**
+
+- **Table** (default) - Rich formatted table with color-coded sections
+- **JSON** - Machine-readable JSON format for CI/CD integration
+- **YAML** - Human-readable YAML format
+
+**Integration:**
+
+The drift detection command integrates with:
+
+- Source tracking (hash-based change detection)
+- Project bundles (feature and story tracking)
+- Specmatic (contract validation, if available)
+
+**See also:**
+
+- `plan compare` - Compare plans to detect code vs plan drift
+- `sync intelligent` - Continuous sync with drift detection
+
+---
+
 ### `repro` - Reproducibility Validation
 
 Run full validation suite for reproducibility.
