@@ -148,6 +148,7 @@ Detailed instructions for the AI assistant...
 |---------|-------------|----------------|
 | `/specfact.compare` | Compare manual vs auto plans | `specfact plan compare` |
 | `/specfact.validate` | Run validation suite | `specfact repro` |
+| `/specfact.generate-contracts-prompt` | Generate AI IDE prompt for adding contracts | `specfact generate contracts-prompt <file> --apply <contracts>` |
 
 ---
 

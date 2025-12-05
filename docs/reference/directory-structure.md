@@ -28,10 +28,12 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 │   │   ├── business.yaml         # Business context (optional)
 │   │   ├── product.yaml          # Releases, themes (required)
 │   │   ├── clarifications.yaml   # Clarification sessions (optional)
-│   │   └── features/             # Individual feature files
-│   │       ├── FEATURE-001.yaml
-│   │       ├── FEATURE-002.yaml
-│   │       └── ...
+│   │   ├── features/             # Individual feature files
+│   │   │   ├── FEATURE-001.yaml
+│   │   │   ├── FEATURE-002.yaml
+│   │   │   └── ...
+│   │   └── prompts/              # AI IDE contract enhancement prompts (optional)
+│   │       └── enhance-<filename>-<contracts>.md
 │   ├── legacy-api/         # Example: Brownfield-derived bundle
 │   │   ├── bundle.manifest.yaml
 │   │   ├── product.yaml
@@ -159,16 +161,20 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 │   ├── idea.yaml                  # Product vision
 │   ├── business.yaml              # Business context
 │   ├── product.yaml               # Themes and releases
-│   └── features/                  # Individual feature files
-│       ├── FEATURE-001.yaml
-│       ├── FEATURE-002.yaml
-│       └── FEATURE-003.yaml
+│   ├── features/                  # Individual feature files
+│   │   ├── FEATURE-001.yaml
+│   │   ├── FEATURE-002.yaml
+│   │   └── FEATURE-003.yaml
+│   └── prompts/                   # AI IDE contract enhancement prompts (optional)
+│       └── enhance-<filename>-<contracts>.md
 ├── legacy-api/                    # ⭐ Reverse-engineered from existing API (brownfield)
 │   ├── bundle.manifest.yaml
 │   ├── product.yaml
-│   └── features/
-│       ├── FEATURE-AUTH.yaml
-│       └── FEATURE-PAYMENT.yaml
+│   ├── features/
+│   │   ├── FEATURE-AUTH.yaml
+│   │   └── FEATURE-PAYMENT.yaml
+│   └── prompts/                   # Bundle-specific prompts (avoids conflicts)
+│       └── enhance-<filename>-<contracts>.md
 ├── legacy-payment/                 # ⭐ Reverse-engineered from existing payment system (brownfield)
 │   ├── bundle.manifest.yaml
 │   ├── product.yaml
@@ -641,6 +647,7 @@ specfact import from-code legacy-payment \
 | Type | Location | Git Status | Purpose |
 |------|----------|------------|---------|
 | **Project Bundles** | `.specfact/projects/<bundle-name>/` | Versioned | Modular contract definitions |
+| **Bundle Prompts** | `.specfact/projects/<bundle-name>/prompts/` | Versioned (optional) | AI IDE contract enhancement prompts |
 | **Protocols** | `.specfact/protocols/` | Versioned | FSM definitions |
 | **Reports** | `.specfact/reports/` | Gitignored | Analysis reports |
 | **Cache** | `.specfact/cache/` | Gitignored | Tool caches |

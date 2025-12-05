@@ -1584,6 +1584,128 @@ Each file includes:
 
 ---
 
+#### `generate contracts-prompt`
+
+Generate AI IDE prompts for adding contracts to existing code files:
+
+```bash
+specfact generate contracts-prompt [FILE] [OPTIONS]
+```
+
+**Purpose:**
+
+Creates structured prompt files that you can use with your AI IDE (Cursor, CoPilot, etc.) to add beartype, icontract, or CrossHair contracts to existing Python code. The CLI generates the prompt, your AI IDE's LLM applies the contracts.
+
+**Options:**
+
+- `FILE` - Path to file to enhance (optional if `--bundle` provided)
+- `--bundle BUNDLE_NAME` - Project bundle name. If provided, selects files from bundle. Default: active plan from `specfact plan select`
+- `--apply CONTRACTS` - **Required**. Contracts to apply: `all-contracts`, `beartype`, `icontract`, `crosshair`, or comma-separated list (e.g., `beartype,icontract`)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts.
+
+**Contract Types:**
+
+- `all-contracts` - Apply all available contract types (beartype, icontract, crosshair)
+- `beartype` - Type checking decorators (`@beartype`)
+- `icontract` - Pre/post condition decorators (`@require`, `@ensure`, `@invariant`)
+- `crosshair` - Property-based test functions
+
+**Examples:**
+
+```bash
+# Apply all contract types to a specific file
+specfact generate contracts-prompt src/auth/login.py --apply all-contracts
+
+# Apply specific contract types
+specfact generate contracts-prompt src/auth/login.py --apply beartype,icontract
+
+# Apply to all files in a bundle (interactive selection)
+specfact generate contracts-prompt --bundle legacy-api --apply all-contracts
+
+# Apply to all files in a bundle (non-interactive)
+specfact generate contracts-prompt --bundle legacy-api --apply all-contracts --no-interactive
+```
+
+**How It Works:**
+
+1. **CLI generates prompt**: Reads the file and creates a structured prompt
+2. **Prompt saved**: Saved to `.specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md` (or `.specfact/prompts/` if no bundle)
+3. **You copy prompt**: Copy the prompt to your AI IDE (Cursor, CoPilot, etc.)
+4. **AI IDE enhances code**: AI IDE reads the file and provides enhanced code (does NOT modify file directly)
+5. **AI IDE writes to temp file**: Enhanced code written to `enhanced_<filename>.py`
+6. **Validate with CLI**: AI IDE runs `specfact generate contracts-apply enhanced_<filename>.py --original <original-file>`
+7. **Iterative validation**: If validation fails, AI IDE fixes issues and re-validates (up to 3 attempts)
+8. **Apply changes**: If validation succeeds, CLI applies changes automatically
+9. **Verify and test**: Run `specfact analyze contracts --bundle <bundle>` and your test suite
+
+**Prompt File Location:**
+
+- **With bundle**: `.specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md`
+- **Without bundle**: `.specfact/prompts/enhance-<filename>-<contracts>.md`
+
+**Why This Approach:**
+
+- Uses your existing AI IDE infrastructure (no separate LLM API setup)
+- No additional API costs (leverages IDE's native LLM)
+- You maintain control (review before committing)
+- Works with any AI IDE (Cursor, CoPilot, Claude, etc.)
+- Iterative validation ensures code quality before applying changes
+
+**Complete Workflow:**
+
+```bash
+# 1. Generate prompt
+specfact generate contracts-prompt src/auth/login.py --apply all-contracts
+
+# 2. Open prompt file
+cat .specfact/projects/my-bundle/prompts/enhance-login-beartype-icontract-crosshair.md
+
+# 3. Copy prompt to your AI IDE (Cursor, CoPilot, etc.)
+
+# 4. AI IDE reads the file and provides enhanced code (does NOT modify file directly)
+
+# 5. AI IDE writes enhanced code to temporary file: enhanced_login.py
+
+# 6. AI IDE runs validation
+specfact generate contracts-apply enhanced_login.py --original src/auth/login.py
+
+# 7. If validation fails, AI IDE fixes issues and re-validates (up to 3 attempts)
+
+# 8. If validation succeeds, CLI applies changes automatically
+
+# 9. Verify contract coverage
+specfact analyze contracts --bundle my-bundle
+
+# 10. Run your test suite
+pytest
+
+# 11. Commit the enhanced code
+git add src/auth/login.py && git commit -m "feat: add contracts to login module"
+```
+
+**Validation Steps (performed by `contracts-apply`):**
+
+The `contracts-apply` command performs rigorous validation before applying changes:
+
+1. **File size check**: Enhanced file must not be smaller than original
+2. **Python syntax validation**: Uses `python -m py_compile`
+3. **AST structure comparison**: Ensures no functions or classes are accidentally removed
+4. **Contract imports verification**: Checks for required imports (`beartype`, `icontract`)
+5. **Test execution**: Runs `specfact repro` or `pytest` to ensure code functions correctly
+6. **Diff preview**: Displays changes before applying
+
+Only if all validation steps pass are changes applied to the original file.
+
+**Error Messages:**
+
+If `--apply` is missing or invalid, the CLI shows helpful error messages with:
+
+- Available contract types and descriptions
+- Usage examples
+- Link to full documentation
+
+---
+
 ### `sync` - Synchronize Changes
 
 Bidirectional synchronization for consistent change management.
@@ -1719,29 +1841,42 @@ Manage API specifications with Specmatic for OpenAPI/AsyncAPI validation, backwa
 
 #### `spec validate`
 
-Validate OpenAPI/AsyncAPI specification using Specmatic.
+Validate OpenAPI/AsyncAPI specification using Specmatic. Can validate a single file or all contracts in a project bundle.
 
 ```bash
-specfact spec validate <spec-path> [OPTIONS]
+specfact spec validate [<spec-path>] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<spec-path>` - Path to OpenAPI/AsyncAPI specification file (required)
+- `<spec-path>` - Path to OpenAPI/AsyncAPI specification file (optional if --bundle provided)
 
 **Options:**
 
+- `--bundle NAME` - Project bundle name (e.g., legacy-api). If provided, validates all contracts in bundle. Default: active plan from 'specfact plan select'
 - `--previous PATH` - Path to previous version for backward compatibility check
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts.
 
 **Examples:**
 
 ```bash
-# Basic validation
+# Validate a single spec file
 specfact spec validate api/openapi.yaml
 
 # With backward compatibility check
 specfact spec validate api/openapi.yaml --previous api/openapi.v1.yaml
+
+# Validate all contracts in active bundle (interactive selection)
+specfact spec validate
+
+# Validate all contracts in specific bundle
+specfact spec validate --bundle legacy-api
+
+# Non-interactive: validate all contracts
+specfact spec validate --bundle legacy-api --no-interactive
 ```
+
+**CLI-First Pattern**: Uses active plan (from `specfact plan select`) as default, or specify `--bundle`. Never requires direct `.specfact` paths - always use the CLI interface. When multiple contracts are available, shows interactive list for selection.
 
 **What it checks:**
 
@@ -1754,6 +1889,7 @@ specfact spec validate api/openapi.yaml --previous api/openapi.v1.yaml
 - Validation results table with status for each check
 - ✓ PASS or ✗ FAIL for each validation step
 - Detailed errors if validation fails
+- Summary when validating multiple contracts
 
 #### `spec backward-compat`
 
@@ -1781,38 +1917,96 @@ specfact spec backward-compat api/openapi.v1.yaml api/openapi.v2.yaml
 
 #### `spec generate-tests`
 
-Generate Specmatic test suite from specification.
+Generate Specmatic test suite from specification. Can generate for a single file or all contracts in a bundle.
 
 ```bash
-specfact spec generate-tests <spec-path> [OPTIONS]
+specfact spec generate-tests [<spec-path>] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<spec-path>` - Path to OpenAPI/AsyncAPI specification (required)
+- `<spec-path>` - Path to OpenAPI/AsyncAPI specification (optional if --bundle provided)
 
 **Options:**
 
+- `--bundle NAME` - Project bundle name (e.g., legacy-api). If provided, generates tests for all contracts in bundle. Default: active plan from 'specfact plan select'
 - `--out PATH` - Output directory for generated tests (default: `.specfact/specmatic-tests/`)
 
-**Example:**
+**Examples:**
 
 ```bash
-# Generate to default location
+# Generate for a single spec file
 specfact spec generate-tests api/openapi.yaml
 
 # Generate to custom location
 specfact spec generate-tests api/openapi.yaml --out tests/specmatic/
+
+# Generate tests for all contracts in active bundle
+specfact spec generate-tests --bundle legacy-api
+
+# Generate tests for all contracts in specific bundle
+specfact spec generate-tests --bundle legacy-api --out tests/contract/
 ```
+
+**CLI-First Pattern**: Uses active plan as default, or specify `--bundle`. Never requires direct `.specfact` paths.
+
+**Caching:**
+Test generation results are cached in `.specfact/cache/specmatic-tests.json` based on file content hashes. Unchanged contracts are automatically skipped on subsequent runs. Use `--force` to bypass cache.
 
 **Output:**
 
 - ✓ Test suite generated with path to output directory
 - Instructions to run the generated tests
+- Summary when generating tests for multiple contracts
+
+**What to Do With Generated Tests:**
+
+The generated tests are executable contract tests that validate your API implementation against the OpenAPI/AsyncAPI specification. Here's how to use them:
+
+1. **Generate tests** (you just did this):
+
+   ```bash
+   specfact spec generate-tests --bundle my-api --output tests/contract/
+   ```
+
+2. **Start your API server**:
+
+   ```bash
+   python -m uvicorn main:app --port 8000
+   ```
+
+3. **Run tests against your API**:
+
+   ```bash
+   specmatic test \
+     --spec .specfact/projects/my-api/contracts/api.openapi.yaml \
+     --host http://localhost:8000
+   ```
+
+4. **Tests validate**:
+   - Request format matches spec (headers, body, query params)
+   - Response format matches spec (status codes, headers, body schema)
+   - All endpoints are implemented
+   - Data types and constraints are respected
+
+**CI/CD Integration:**
+
+```yaml
+- name: Generate contract tests
+  run: specfact spec generate-tests --bundle my-api --output tests/contract/
+
+- name: Start API server
+  run: python -m uvicorn main:app --port 8000 &
+
+- name: Run contract tests
+  run: specmatic test --spec ... --host http://localhost:8000
+```
+
+See [Specmatic Integration Guide](../guides/specmatic-integration.md#what-can-you-do-with-generated-tests) for complete walkthrough.
 
 #### `spec mock`
 
-Launch Specmatic mock server from specification.
+Launch Specmatic mock server from specification. Can use a single spec file or select from bundle contracts.
 
 ```bash
 specfact spec mock [OPTIONS]
@@ -1821,13 +2015,15 @@ specfact spec mock [OPTIONS]
 **Options:**
 
 - `--spec PATH` - Path to OpenAPI/AsyncAPI specification (default: auto-detect from current directory)
+- `--bundle NAME` - Project bundle name (e.g., legacy-api). If provided, selects contract from bundle. Default: active plan from 'specfact plan select'
 - `--port INT` - Port number for mock server (default: 9000)
 - `--strict/--examples` - Use strict validation mode or examples mode (default: strict)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Uses first contract if multiple available.
 
-**Example:**
+**Examples:**
 
 ```bash
-# Auto-detect spec file
+# Auto-detect spec file from current directory
 specfact spec mock
 
 # Specify spec file and port
@@ -1835,7 +2031,15 @@ specfact spec mock --spec api/openapi.yaml --port 9000
 
 # Use examples mode (less strict)
 specfact spec mock --spec api/openapi.yaml --examples
+
+# Select contract from active bundle (interactive)
+specfact spec mock --bundle legacy-api
+
+# Use specific bundle (non-interactive, uses first contract)
+specfact spec mock --bundle legacy-api --no-interactive
 ```
+
+**CLI-First Pattern**: Uses active plan as default, or specify `--bundle`. Interactive selection when multiple contracts available.
 
 **Features:**
 

@@ -916,6 +916,75 @@ def sync_bridge(
             record({"watch_mode": True})
             return
 
+        # Validate OpenAPI specs before sync (if bundle provided)
+        if bundle:
+            import asyncio
+
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.utils.progress import load_bundle_with_progress
+            from specfact_cli.utils.structure import SpecFactStructure
+
+            bundle_dir = SpecFactStructure.project_dir(base_path=resolved_repo, bundle_name=bundle)
+            if bundle_dir.exists():
+                console.print("\n[cyan]🔍 Validating OpenAPI contracts before sync...[/cyan]")
+                project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
+                plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+
+                from specfact_cli.integrations.specmatic import (
+                    check_specmatic_available,
+                    validate_spec_with_specmatic,
+                )
+
+                is_available, error_msg = check_specmatic_available()
+                if is_available:
+                    # Validate contracts referenced in bundle
+                    contract_files = []
+                    for feature in plan_bundle.features:
+                        if feature.contract:
+                            contract_path = bundle_dir / feature.contract
+                            if contract_path.exists():
+                                contract_files.append(contract_path)
+
+                    if contract_files:
+                        console.print(f"[dim]Validating {len(contract_files)} contract(s)...[/dim]")
+                        validation_failed = False
+                        for contract_path in contract_files[:5]:  # Validate up to 5 contracts
+                            console.print(f"[dim]Validating {contract_path.relative_to(bundle_dir)}...[/dim]")
+                            try:
+                                result = asyncio.run(validate_spec_with_specmatic(contract_path))
+                                if not result.is_valid:
+                                    console.print(
+                                        f"  [bold yellow]⚠[/bold yellow] {contract_path.name} has validation issues"
+                                    )
+                                    if result.errors:
+                                        for error in result.errors[:2]:
+                                            console.print(f"    - {error}")
+                                    validation_failed = True
+                                else:
+                                    console.print(f"  [bold green]✓[/bold green] {contract_path.name} is valid")
+                            except Exception as e:
+                                console.print(f"  [bold yellow]⚠[/bold yellow] Validation error: {e!s}")
+                                validation_failed = True
+
+                        if validation_failed:
+                            console.print(
+                                "[yellow]⚠[/yellow] Some contracts have validation issues. Sync will continue, but consider fixing them."
+                            )
+                        else:
+                            console.print("[green]✓[/green] All contracts validated successfully")
+
+                        # Check backward compatibility if previous version exists (for bidirectional sync)
+                        if bidirectional and len(contract_files) > 0:
+                            # TODO: Implement backward compatibility check by comparing with previous version
+                            # This would require storing previous contract versions
+                            console.print(
+                                "[dim]Backward compatibility check skipped (previous versions not stored)[/dim]"
+                            )
+                    else:
+                        console.print("[dim]No contracts found in bundle[/dim]")
+                else:
+                    console.print(f"[dim]💡 Tip: Install Specmatic to validate contracts: {error_msg}[/dim]")
+
         # Perform sync operation (extracted to avoid recursion in watch mode)
         # Use resolved_repo (already resolved and validated above)
         _perform_sync_operation(

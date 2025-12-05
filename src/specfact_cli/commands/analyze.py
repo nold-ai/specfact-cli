@@ -15,9 +15,11 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
-from specfact_cli.models.quality import CodeQuality
+from specfact_cli.models.quality import CodeQuality, QualityTracking
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_success
+from specfact_cli.utils.progress import load_bundle_with_progress
+from specfact_cli.utils.structure import SpecFactStructure
 
 
 app = typer.Typer(help="Analyze codebase for contract coverage and quality")
@@ -27,7 +29,10 @@ console = Console()
 @app.command("contracts")
 @beartype
 @require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
-@require(lambda bundle: isinstance(bundle, str) and len(bundle) > 0, "Bundle name must be non-empty string")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle name must be None or non-empty string",
+)
 @ensure(lambda result: result is None, "Must return None")
 def analyze_contracts(
     # Target/Input
@@ -57,12 +62,6 @@ def analyze_contracts(
     **Examples:**
         specfact analyze contracts --repo . --bundle legacy-api
     """
-    from rich.console import Console
-
-    from specfact_cli.models.quality import QualityTracking
-    from specfact_cli.utils.progress import load_bundle_with_progress
-    from specfact_cli.utils.structure import SpecFactStructure
-
     console = Console()
 
     # Use active plan as default if bundle not provided
@@ -119,43 +118,68 @@ def analyze_contracts(
                 if quality.crosshair:
                     files_with_crosshair += 1
 
+        # Sort files: prioritize files missing contracts
+        # Sort key: (has_all_contracts, total_contracts, file_path)
+        # This puts files missing contracts first, then by number of contracts (asc), then alphabetically
+        def sort_key(item: tuple[str, CodeQuality]) -> tuple[bool, int, str]:
+            file_path, quality = item
+            has_all = quality.beartype and quality.icontract and quality.crosshair
+            total_contracts = sum([quality.beartype, quality.icontract, quality.crosshair])
+            return (has_all, total_contracts, file_path)
+
+        sorted_files = sorted(quality_tracking.code_quality.items(), key=sort_key)
+
+        # Show files needing attention first, limit to 30 for readability
+        max_display = 30
+        files_to_display = sorted_files[:max_display]
+        total_files = len(sorted_files)
+
         # Display results
-        table = Table(title="Contract Coverage Analysis")
+        table_title = "Contract Coverage Analysis"
+        if total_files > max_display:
+            table_title += f" (showing top {max_display} files needing attention)"
+        table = Table(title=table_title)
         table.add_column("File", style="cyan")
         table.add_column("beartype", justify="center")
         table.add_column("icontract", justify="center")
         table.add_column("crosshair", justify="center")
         table.add_column("Coverage", justify="right")
 
-        for file_path, quality in list(quality_tracking.code_quality.items())[:20]:  # Show first 20
+        for file_path, quality in files_to_display:
+            # Highlight files missing contracts
+            file_style = "yellow" if not (quality.beartype and quality.icontract) else "cyan"
             table.add_row(
-                file_path,
-                "✓" if quality.beartype else "✗",
-                "✓" if quality.icontract else "✗",
-                "✓" if quality.crosshair else "✗",
+                f"[{file_style}]{file_path}[/{file_style}]",
+                "✓" if quality.beartype else "[red]✗[/red]",
+                "✓" if quality.icontract else "[red]✗[/red]",
+                "✓" if quality.crosshair else "[dim]✗[/dim]",
                 f"{quality.coverage:.0%}",
             )
 
         console.print(table)
 
+        # Show message if files were filtered
+        if total_files > max_display:
+            console.print(
+                f"\n[yellow]Note:[/yellow] Showing top {max_display} files needing attention "
+                f"(out of {total_files} total files analyzed). "
+                f"Files missing contracts are prioritized."
+            )
+
         # Summary
         console.print("\n[bold]Summary:[/bold]")
         console.print(f"  Files analyzed: {files_analyzed}")
-        console.print(
-            f"  Files with beartype: {files_with_beartype} ({files_with_beartype / files_analyzed * 100:.0%}%)"
-            if files_analyzed > 0
-            else "  Files with beartype: 0"
-        )
-        console.print(
-            f"  Files with icontract: {files_with_icontract} ({files_with_icontract / files_analyzed * 100:.0%}%)"
-            if files_analyzed > 0
-            else "  Files with icontract: 0"
-        )
-        console.print(
-            f"  Files with crosshair: {files_with_crosshair} ({files_with_crosshair / files_analyzed * 100:.0%}%)"
-            if files_analyzed > 0
-            else "  Files with crosshair: 0"
-        )
+        if files_analyzed > 0:
+            beartype_pct = files_with_beartype / files_analyzed
+            icontract_pct = files_with_icontract / files_analyzed
+            crosshair_pct = files_with_crosshair / files_analyzed
+            console.print(f"  Files with beartype: {files_with_beartype} ({beartype_pct:.1%})")
+            console.print(f"  Files with icontract: {files_with_icontract} ({icontract_pct:.1%})")
+            console.print(f"  Files with crosshair: {files_with_crosshair} ({crosshair_pct:.1%})")
+        else:
+            console.print("  Files with beartype: 0")
+            console.print("  Files with icontract: 0")
+            console.print("  Files with crosshair: 0")
 
         # Save quality tracking
         quality_file = bundle_dir / "quality-tracking.yaml"
@@ -179,9 +203,6 @@ def analyze_contracts(
 
 def _analyze_file_quality(file_path: Path) -> CodeQuality:
     """Analyze a file for contract coverage."""
-
-    from specfact_cli.models.quality import CodeQuality
-
     try:
         with file_path.open(encoding="utf-8") as f:
             content = f.read()
@@ -202,114 +223,3 @@ def _analyze_file_quality(file_path: Path) -> CodeQuality:
     except Exception:
         # Return default quality if analysis fails
         return CodeQuality()
-
-
-@app.command("enhance")
-@beartype
-@require(lambda file: isinstance(file, Path), "File path must be Path")
-@require(lambda apply: isinstance(apply, str), "Apply must be string")
-@ensure(lambda result: result is None, "Must return None")
-def enhance_contracts(
-    # Target/Input
-    file: Path = typer.Argument(..., help="Path to file to enhance", exists=True),
-    apply: str = typer.Option(
-        ...,
-        "--apply",
-        help="Contracts to apply: 'beartype', 'icontract', 'crosshair', or comma-separated list (e.g., 'beartype,icontract')",
-    ),
-    # Output
-    output: Path | None = typer.Option(
-        None,
-        "--output",
-        help="Output file path (default: overwrite input file)",
-    ),
-) -> None:
-    """
-    Apply contracts to existing code (LLM-assisted).
-
-    Prepares LLM prompt context for adding beartype, icontract, or CrossHair
-    contracts to existing code files. The CLI orchestrates, LLM writes code.
-
-    **Parameter Groups:**
-    - **Target/Input**: file (required argument), --apply
-    - **Output**: --output
-
-    **Examples:**
-        specfact enhance contracts src/auth/login.py --apply beartype,icontract
-        specfact enhance contracts src/models/user.py --apply beartype --output src/models/user_enhanced.py
-    """
-
-    file_path = file.resolve()
-    repo_path = file_path.parent.parent  # Assume repo root is 2 levels up
-
-    contracts_to_apply = [c.strip() for c in apply.split(",")]
-    valid_contracts = {"beartype", "icontract", "crosshair"}
-    invalid_contracts = set(contracts_to_apply) - valid_contracts
-
-    if invalid_contracts:
-        print_error(f"Invalid contract types: {', '.join(invalid_contracts)}")
-        print_error(f"Valid types: {', '.join(valid_contracts)}")
-        raise typer.Exit(1)
-
-    telemetry_metadata = {
-        "file": str(file_path),
-        "contracts": contracts_to_apply,
-    }
-
-    with telemetry.track_command("enhance.contracts", telemetry_metadata) as record:
-        console.print(f"[bold cyan]Enhancing contracts for:[/bold cyan] {file_path}")
-        console.print(f"[dim]Contracts to apply:[/dim] {', '.join(contracts_to_apply)}\n")
-
-        # Read file content
-        file_content = file_path.read_text(encoding="utf-8")
-
-        # Generate LLM prompt
-        prompt_parts = [
-            "# Contract Enhancement Request",
-            "",
-            f"## File: {file_path}",
-            "",
-            "## Current Code",
-            "```python",
-            file_content,
-            "```",
-            "",
-            "## Contracts to Apply",
-        ]
-
-        for contract_type in contracts_to_apply:
-            if contract_type == "beartype":
-                prompt_parts.append("- **beartype**: Add `@beartype` decorator to all functions")
-            elif contract_type == "icontract":
-                prompt_parts.append(
-                    "- **icontract**: Add `@require` and `@ensure` decorators with appropriate contracts"
-                )
-            elif contract_type == "crosshair":
-                prompt_parts.append("- **crosshair**: Add property tests using CrossHair")
-
-        prompt_parts.extend(
-            [
-                "",
-                "## Instructions",
-                "Add the requested contracts to the code above.",
-                "Maintain existing functionality and code style.",
-                "Ensure all contracts are properly imported.",
-                "",
-            ]
-        )
-
-        prompt = "\n".join(prompt_parts)
-
-        # Save prompt to file
-        prompts_dir = repo_path / ".specfact" / "prompts"
-        prompts_dir.mkdir(parents=True, exist_ok=True)
-        prompt_file = prompts_dir / f"enhance-{file_path.stem}-{'-'.join(contracts_to_apply)}.md"
-        prompt_file.write_text(prompt, encoding="utf-8")
-
-        print_success(f"LLM prompt generated: {prompt_file}")
-        console.print("[yellow]Execute this prompt with your LLM to enhance the code[/yellow]")
-
-        if output:
-            console.print(f"[dim]Output will be written to: {output}[/dim]")
-
-        record({"prompt_generated": True, "prompt_file": str(prompt_file)})
