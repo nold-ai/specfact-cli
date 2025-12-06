@@ -29,6 +29,7 @@ Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contr
    - Read `.specfact/projects/<bundle>/enrichment_context.md`
    - Enrich: business context, "why" reasoning, missing acceptance criteria
    - Validate: contracts vs code, feature/story alignment
+   - Save enrichment report to `.specfact/reports/enrichment/` (if created)
 
 3. **Present**: Bundle location, report path, summary (features/stories/contracts/relationships)
 

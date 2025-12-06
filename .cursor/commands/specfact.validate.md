@@ -60,6 +60,11 @@ specfact repro --repo <path> [--verbose] [--fail-fast] [--fix] [--budget <second
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
+**Rules:**
+- Execute CLI first - never create artifacts directly
+- Never modify `.specfact/` directly
+- Use CLI output as grounding for validation results
+
 ## Expected Output
 
 ### Success

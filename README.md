@@ -1,11 +1,49 @@
 # SpecFact CLI
 
-> **Understand and Modernize Legacy Code with Confidence**  
-> Automatically extract specs from existing Python code, then enforce them as contracts
+> **Stop vibe coding. Start shipping quality code with contracts.**  
+> Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts
 
+[![PyPI version](https://img.shields.io/pypi/v/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
+[![Python versions](https://img.shields.io/pypi/pyversions/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE.md)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Status](https://img.shields.io/badge/status-beta-orange.svg)](https://github.com/nold-ai/specfact-cli)
+
+<div align="center">
+
+**[🌐 Learn More at noldai.com](https://noldai.com)** • **[📚 Documentation](https://nold-ai.github.io/specfact-cli)** • **[💬 Support](mailto:hello@noldai.com)**
+
+</div>
+
+---
+
+## 🚀 Quick Start in 60 Seconds
+
+### Install in 10 seconds
+
+```bash
+# Zero-install (recommended)
+uvx --from specfact-cli specfact
+
+# Or install with pip
+pip install specfact-cli
+```
+
+### Your first command (< 60 seconds)
+
+```bash
+# Modernizing legacy code? (Recommended)
+specfact import from-code legacy-api --repo .
+
+# Starting a new project?
+specfact plan init legacy-api --interactive
+
+# Using GitHub Spec-Kit or other tools?
+specfact import from-bridge --repo . --adapter speckit --write
+```
+
+That's it! 🎉
+
+> **Need machine-readable artifacts?** Use `specfact --output-format json …` (or the per-command `--output-format` flag) to emit plan bundles and reports as JSON instead of YAML.
 
 ---
 
@@ -13,7 +51,7 @@
 
 A brownfield-first CLI that **reverse engineers your legacy code** into documented specs, then prevents regressions with runtime contract enforcement.
 
-**Stop guessing what your legacy code does.** SpecFact automatically extracts specs from existing code, then enforces them as you modernize.
+**Stop vibe coding. Start shipping quality code with contracts.** SpecFact automatically extracts specs from existing code, then enforces them as you modernize—preventing bugs before they reach production.
 
 **Perfect for:** Teams modernizing legacy Python systems, data pipelines, DevOps scripts
 
@@ -69,37 +107,6 @@ SpecFact CLI works with your existing tools—no new platform to learn. See real
 👉 **[Integration Showcases](docs/examples/integration-showcases/)** - Real examples of bugs fixed via CLI integrations
 
 **Core USP**: Pure CLI-first approach—works offline, no account required, zero vendor lock-in. Regularly showcases successful integrations that fix bugs not detected by other tools.
-
----
-
-## Quick Start
-
-### Install in 10 seconds
-
-```bash
-# Zero-install (just run it)
-uvx specfact-cli@latest
-
-# Or install with pip
-pip install specfact-cli
-```
-
-### Your first command (< 60 seconds)
-
-```bash
-# Modernizing legacy code? (Recommended)
-specfact import from-code legacy-api --repo .
-
-# Starting a new project?
-specfact plan init legacy-api --interactive
-
-# Using GitHub Spec-Kit or other tools?
-specfact import from-bridge --repo . --adapter speckit --write
-```
-
-That's it! 🎉
-
-> Need machine-readable artifacts? Use `specfact --output-format json …` (or the per-command `--output-format` flag) to emit plan bundles and reports as JSON instead of YAML.
 
 ---
 
@@ -202,11 +209,16 @@ SpecFact CLI is licensed under the Apache License 2.0, which means:
 - 💬 **Questions?** [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
 - 🐛 **Found a bug?** [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
 - 📧 **Need help?** [hello@noldai.com](mailto:hello@noldai.com)
+- 🌐 **Learn more:** [noldai.com](https://noldai.com)
 
 ---
 
-> **Built with ❤️ by [NOLD AI](https://noldai.com)**
+<div align="center">
+
+**Built with ❤️ by [NOLD AI](https://noldai.com)**
 
 Copyright © 2025 Nold AI (Owner: Dominikus Nold)
 
 **Trademarks**: NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All other trademarks mentioned in this project are the property of their respective owners. See [TRADEMARKS.md](TRADEMARKS.md) for more information.
+
+</div>

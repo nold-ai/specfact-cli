@@ -9,6 +9,143 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.13.3] - 2025-12-06
+
+### Fixed (0.13.3)
+
+- **Contract Analysis**: Improved data model detection to avoid false positives
+  - Pure Pydantic/dataclass files are now correctly identified and marked as having contracts (Pydantic validation)
+  - Fixed detection logic to properly distinguish between class methods and module-level functions
+  - Files like `models/plan.py` and `models/protocol.py` are no longer flagged as needing contracts
+  - Added support for common helper methods (`compute_summary`, `update_summary`, etc.) on data models
+
+### Changed (0.13.3)
+
+- **Test Timeouts**: Increased timeout for slow E2E tests from 5s to 20s
+  - `test_complete_brownfield_to_speckit_workflow`
+  - `test_contracts_included_in_speckit_plan_md`
+  - `test_article_ix_checkbox_checked_when_contracts_exist`
+
+---
+
+## [0.13.2] - 2025-12-06
+
+### Added (0.13.2)
+
+- **Streamlined Setup Option**
+  - `specfact init --install-deps` option to automatically install required packages for contract enhancement
+  - Installs: `beartype>=0.22.4`, `icontract>=2.7.1`, `crosshair-tool>=0.0.97`, `pytest>=8.4.2`
+  - Non-intrusive: only installs when explicitly requested (opt-in)
+  - Provides helpful error messages and manual installation instructions if pip fails
+  - Telemetry tracking for installation attempts
+
+### Improved (0.13.2)
+
+- **Documentation Updates**
+  - Updated command reference with `--install-deps` option and examples
+  - Updated IDE integration guide with dependency installation workflow
+  - Updated installation guide with streamlined setup option
+  - Updated internal plans with recent contract enhancement improvements
+
+---
+
+## [0.13.1] - 2025-12-06
+
+### Added (0.13.1)
+
+- **Automatic Code Quality Validation**
+  - `generate contracts-apply` now automatically detects and runs available linting/formatting tools
+  - Supports: `ruff`, `pylint`, `basedpyright`, `mypy` (runs if installed, skips if not)
+  - Non-blocking validation: issues are reported as warnings but don't prevent application
+  - Provides summary of code quality checks (X/Y tools passed)
+  - Added as Step 5 in validation workflow (between contract imports and tests)
+
+### Improved (0.13.1)
+
+- **Contract Enhancement Prompts**
+  - Enhanced prompt instructions with **CRITICAL REQUIREMENT** to add contracts to ALL eligible functions
+  - Explicit prohibition against asking user whether to add contracts (must add automatically)
+  - Detailed contract-specific requirements for beartype, icontract, and crosshair
+  - Added code quality guidance: follow project formatting rules, avoid common issues (e.g., `dict.keys()`)
+  - Note that SpecFact CLI will automatically run available linting tools during validation
+
+- **Test Execution Optimization**
+  - Optimized test execution in `generate contracts-apply` for single-file enhancements
+  - Changed from full repository validation (`specfact repro`) to scoped `pytest` runs on relevant test files
+  - Automatically discovers test files matching the enhanced source file pattern
+  - Falls back to import validation if no specific test file is found
+  - Significantly faster validation (seconds instead of minutes for single-file enhancements)
+  - Tests always run for validation, even in `--dry-run` mode
+
+- **Validation Workflow**
+  - Updated step numbering: now 7 steps total (was 6)
+  - Step 5: Code quality checks (new, optional tools)
+  - Step 6: Test execution (optimized, scoped)
+  - Step 7: Diff preview
+
+### Fixed (0.13.1)
+
+- Fixed linting issue in enhanced code: changed `result.keys()` to `result` (SIM118 rule compliance)
+- Improved code quality guidance in prompts to prevent common linting issues
+
+---
+
+## [0.13.0] - 2025-12-06
+
+### Added (0.13.0)
+
+- **AI IDE Contract Enhancement Workflow**
+  - `generate contracts-prompt` command for generating structured prompts for AI IDEs (Cursor, CoPilot, etc.)
+  - Support for `all-contracts`, `beartype`, `icontract`, `crosshair` contract types
+  - Bundle-specific prompt storage (`.specfact/projects/<bundle-name>/prompts/`) to avoid conflicts between multiple bundles
+  - Fallback to `.specfact/prompts/` when no bundle is identified
+  - Improved error messages for missing/invalid `--apply` parameter with examples and available options
+
+- **Comprehensive Contract Validation**
+  - `generate contracts-apply` command with rigorous 6-step validation:
+    - File size check (enhanced file must not be smaller than original)
+    - Python syntax validation (`python -m py_compile`)
+    - AST structure comparison (ensures no functions/classes removed)
+    - Contract imports verification (checks for required imports)
+    - Test execution (`specfact repro` or `pytest` fallback)
+    - Diff preview before applying changes
+  - Iterative validation workflow (up to 3 attempts with LLM feedback)
+  - Only applies changes if all validation steps pass
+
+- **Documentation Updates**
+  - Added `generate contracts-prompt` command documentation to reference guide
+  - Updated directory structure documentation to include bundle-specific `prompts/` directory
+  - Updated IDE integration guide with new contract enhancement workflow
+  - Updated internal implementation plans with Phase 4.1 completion status
+
+### Fixed (0.13.0)
+
+- **Critical Bug Fixes**
+  - Fixed `AttributeError: 'list' object has no attribute 'values'` in `sync.py`, `import_cmd.py`, and `enforce.py`
+  - Root cause: `PlanBundle.features` is a `list`, while `ProjectBundle.features` is a `dict`
+  - Added type checking to handle both `PlanBundle` and `ProjectBundle` types correctly
+  - Resolved 71 test failures related to this issue
+
+- **Command Improvements**
+  - Renamed `--apply all` to `--apply all-contracts` for clarity (avoids confusion with "all files")
+  - Enhanced error messages for missing `--apply` parameter with helpful examples
+  - Improved prompt file naming (contract types sorted alphabetically for consistency)
+
+### Changed (0.13.0)
+
+- **Contract Enhancement Workflow**
+  - Prompts now instruct LLM to read files from paths (not embedded) to avoid token limits
+  - Added "Step 0: Verify SpecFact CLI" to generated prompts (checks version, availability, and upgrade instructions)
+  - Prompt structure reordered: Instructions first, then file path (not content)
+  - Enhanced validation feedback provides clear, actionable error messages for LLM iteration
+
+- **Project Bundle Structure**
+  - Contract enhancement prompts stored in bundle-specific directories (`.specfact/projects/<bundle-name>/prompts/`)
+  - Prevents conflicts when multiple bundles exist in the same repository
+  - Maintains separation of concerns per project bundle
+
+---
+
 ## [0.12.1] - 2025-12-05
 
 ### Added (0.12.1)

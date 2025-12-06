@@ -1,6 +1,6 @@
 # Real-World Example: SpecFact CLI Analyzing Itself
 
-> **TL;DR**: We ran SpecFact CLI on its own codebase. It discovered **19 features** and **49 stories** in **under 3 seconds**. When we compared the auto-derived plan against our manual plan, it found **24 deviations** and blocked the merge (as configured). Total time: **< 10 seconds**. 🚀
+> **TL;DR**: We ran SpecFact CLI on its own codebase in two ways: (1) **Brownfield analysis** discovered **19 features** and **49 stories** in **under 3 seconds**, found **24 deviations**, and blocked the merge (as configured). (2) **Contract enhancement** added beartype, icontract, and CrossHair contracts to our core telemetry module with **7-step validation** (all tests passed, code quality maintained). Total time: **< 10 seconds** for analysis, **~3 minutes** for contract enhancement. 🚀
 > **Note**: "Dogfooding" is a well-known tech term meaning "eating your own dog food" - using your own product. It's a common practice in software development to validate that tools work in real-world scenarios.
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
@@ -16,6 +16,7 @@ We built SpecFact CLI and wanted to validate that it actually works in the real 
 1. How fast brownfield analysis is
 2. How enforcement actually blocks bad code
 3. How the complete workflow works end-to-end
+4. How contract enhancement works on real production code
 
 ---
 
@@ -277,6 +278,234 @@ Using enforcement config: .specfact/gates/config/enforcement.yaml
 
 ---
 
+## Part 2: Contract Enhancement Workflow (Production Use Case) 🎯
+
+After validating the brownfield analysis workflow, we took it a step further: **we used SpecFact CLI to enhance one of our own core modules with contracts**. This demonstrates the complete contract enhancement workflow in a real production scenario.
+
+**Goal**: Add beartype, icontract, and CrossHair contracts to `src/specfact_cli/telemetry.py` - a core module that handles privacy-first telemetry.
+
+---
+
+## Step 7: Generate Contract Enhancement Prompt (1 second 📝)
+
+First, we generated a structured prompt for our AI IDE (Cursor) to enhance the telemetry module:
+
+```bash
+specfact generate contracts-prompt src/specfact_cli/telemetry.py --bundle specfact-cli-test --apply all-contracts --no-interactive
+```
+
+**Output**:
+
+```bash
+✓ Analyzing file: src/specfact_cli/telemetry.py
+✓ Generating prompt for: beartype, icontract, crosshair
+✓ Prompt saved to: .specfact/projects/specfact-cli-test/prompts/enhance-telemetry-beartype-icontract-crosshair.md
+```
+
+**What happened**:
+
+- CLI analyzed the telemetry module (543 lines)
+- Generated a structured prompt with:
+  - **CRITICAL REQUIREMENT**: Add contracts to ALL eligible functions (no asking the user)
+  - Detailed instructions for each contract type (beartype, icontract, crosshair)
+  - Code quality guidance (follow project formatting rules)
+  - Step-by-step validation workflow
+- Saved prompt to bundle-specific directory (prevents conflicts with multiple bundles)
+
+---
+
+## Step 8: AI IDE Enhancement (2-3 minutes 🤖)
+
+We copied the prompt to Cursor (our AI IDE), which:
+
+1. **Read the file** from the provided path
+2. **Added contracts to ALL eligible functions**:
+   - `@beartype` decorators on all functions/methods
+   - `@require` and `@ensure` decorators where appropriate
+   - CrossHair property-based test functions
+3. **Wrote enhanced code** to `enhanced_telemetry.py` (temporary file)
+4. **Ran validation** using SpecFact CLI (see Step 9)
+
+**Key Point**: The AI IDE followed the prompt's **CRITICAL REQUIREMENT** and added contracts to all eligible functions automatically, without asking for confirmation.
+
+---
+
+## Step 9: Comprehensive Validation (7-step process ✅)
+
+The AI IDE ran SpecFact CLI validation on the enhanced code:
+
+```bash
+specfact generate contracts-apply enhanced_telemetry.py --original src/specfact_cli/telemetry.py
+```
+
+### Validation Results
+
+**Step 1/7: File Size Check** ✅
+
+- Enhanced file: 678 lines (was 543 lines)
+- Validation: Passed (enhanced file is larger, indicating contracts were added)
+
+**Step 2/7: Syntax Validation** ✅
+
+- Python syntax check: Passed
+- File compiles successfully
+
+**Step 3/7: AST Structure Comparison** ✅
+
+- Original: 23 definitions (functions, classes, methods)
+- Enhanced: 23 definitions preserved
+- Validation: All definitions maintained (no functions removed)
+
+**Step 4/7: Contract Imports Verification** ✅
+
+- Required imports present:
+  - `from beartype import beartype`
+  - `from icontract import require, ensure`
+- Validation: All imports verified
+
+**Step 5/7: Code Quality Checks** ✅
+
+- **Ruff linting**: Passed (1 tool checked, 1 passed)
+- **Pylint**: Not available (skipped)
+- **BasedPyright**: Not available (skipped)
+- **MyPy**: Not available (skipped)
+- Note: Tools run automatically if installed (non-blocking)
+
+**Step 6/7: Test Execution** ✅
+
+- **Scoped test run**: `pytest tests/unit/specfact_cli/test_telemetry.py`
+- **Results**: 10/10 tests passed
+- **Time**: Seconds (optimized scoped run, not full repository validation)
+- Note: Tests always run for validation, even in `--dry-run` mode
+
+**Step 7/7: Diff Preview** ✅
+
+- Previewed changes before applying
+- All validations passed
+
+### Final Result
+
+```bash
+✓ All validations passed!
+✓ Enhanced code applied to: src/specfact_cli/telemetry.py
+✓ Temporary file cleaned up: enhanced_telemetry.py
+```
+
+**Total validation time**: < 10 seconds (7-step comprehensive validation)
+
+---
+
+## What We Achieved
+
+### Contracts Applied
+
+1. **beartype decorators**: Added `@beartype` to all eligible functions and methods
+   - Regular functions, class methods, static methods, async functions
+   - Runtime type checking for all public APIs
+
+2. **icontract decorators**: Added `@require` and `@ensure` where appropriate
+   - Preconditions for parameter validation and state checks
+   - Postconditions for return value validation and guarantees
+
+3. **CrossHair tests**: Added property-based test functions
+   - `test_coerce_bool_property()` - Validates boolean coercion
+   - `test_parse_headers_property()` - Validates header parsing
+   - `test_telemetry_settings_from_env_property()` - Validates settings creation
+   - `test_telemetry_manager_sanitize_property()` - Validates data sanitization
+   - `test_telemetry_manager_normalize_value_property()` - Validates value normalization
+
+### Validation Quality
+
+- ✅ **File size check**: Ensured no code was removed
+- ✅ **Syntax validation**: Python compilation successful
+- ✅ **AST structure**: All 23 definitions preserved
+- ✅ **Contract imports**: All required imports verified
+- ✅ **Code quality**: Ruff linting passed
+- ✅ **Tests**: 10/10 tests passed
+- ✅ **Diff preview**: Changes reviewed before applying
+
+### Production Value
+
+This demonstrates **real production use**:
+
+- Enhanced a **core module** (telemetry) used throughout the CLI
+- Applied **all three contract types** (beartype, icontract, crosshair)
+- **All tests passed** (10/10) - no regressions introduced
+- **Code quality maintained** (ruff linting passed)
+- **Fast validation** (< 10 seconds for comprehensive 7-step process)
+
+---
+
+## Complete Contract Enhancement Workflow
+
+```bash
+# 1. Generate prompt (1 second)
+specfact generate contracts-prompt src/specfact_cli/telemetry.py \
+  --bundle specfact-cli-test \
+  --apply all-contracts \
+  --no-interactive
+# ✅ Prompt saved to: .specfact/projects/specfact-cli-test/prompts/
+
+# 2. AI IDE enhancement (2-3 minutes)
+# - Copy prompt to Cursor/CoPilot/etc.
+# - AI IDE reads file and adds contracts
+# - AI IDE writes to enhanced_telemetry.py
+
+# 3. Validate and apply (10 seconds)
+specfact generate contracts-apply enhanced_telemetry.py \
+  --original src/specfact_cli/telemetry.py
+# ✅ 7-step validation passed
+# ✅ All tests passed (10/10)
+# ✅ Code quality checks passed
+# ✅ Changes applied to original file
+
+# Total time: ~3 minutes (mostly AI IDE processing)
+# Total value: Production-ready contract-enhanced code
+```
+
+---
+
+## What We Learned (Part 2)
+
+### 1. **Comprehensive Validation** 🛡️
+
+The 7-step validation process caught potential issues:
+
+- File size check prevents accidental code removal
+- AST structure comparison ensures no functions are deleted
+- Contract imports verification prevents missing dependencies
+- Code quality checks (if tools available) catch linting issues
+- Test execution validates functionality (10/10 passed)
+
+### 2. **Production-Ready Workflow** 🚀
+
+- **Fast**: Validation completes in < 10 seconds
+- **Thorough**: 7-step comprehensive validation
+- **Safe**: Only applies changes if all validations pass
+- **Flexible**: Works with any AI IDE (Cursor, CoPilot, etc.)
+- **Non-blocking**: Code quality tools optional (run if available)
+
+### 3. **Real-World Validation** 💎
+
+We enhanced a **real production module**:
+
+- Core telemetry module (used throughout CLI)
+- 543 lines → 678 lines (contracts added)
+- All tests passing (10/10)
+- Code quality maintained (ruff passed)
+- No regressions introduced
+
+### 4. **Self-Improvement** 🔄
+
+This demonstrates **true dogfooding**:
+
+- We used SpecFact CLI to enhance SpecFact CLI
+- Validated the workflow on real production code
+- Proved the tool works for its intended purpose
+- Enhanced our own codebase with contracts
+
+---
+
 ## What We Learned
 
 ### 1. **Speed** ⚡
@@ -422,17 +651,33 @@ All artifacts are stored in `.specfact/`:
 
 ## Conclusion
 
-SpecFact CLI **works**. We proved it by running it on itself and finding real issues in **under 10 seconds**.
+SpecFact CLI **works**. We proved it by running it on itself in two real-world scenarios:
+
+### Part 1: Brownfield Analysis
+
+- ⚡ **Fast**: Analyzed 19 files → 19 features, 49 stories in **3 seconds**
+- 🎯 **Accurate**: Found **24 real deviations** (naming inconsistencies, undocumented features)
+- 🚫 **Blocks bad code**: Enforcement prevented merge with 2 HIGH violations
+- 🔄 **CI/CD ready**: Standard exit codes, works everywhere
+
+### Part 2: Contract Enhancement
+
+- 🛡️ **Comprehensive**: 7-step validation process (file size, syntax, AST, imports, quality, tests, diff)
+- ✅ **Production-ready**: Enhanced core telemetry module (543 → 678 lines)
+- 🧪 **All tests passed**: 10/10 tests passed, no regressions
+- 🚀 **Fast validation**: < 10 seconds for complete validation workflow
 
 **Key Takeaways**:
 
-1. ⚡ **Fast**: Analyze thousands of lines in seconds
+1. ⚡ **Fast**: Analyze thousands of lines in seconds, validate contracts in < 10 seconds
 2. 🎯 **Accurate**: Finds real deviations, not false positives
 3. 🚫 **Blocks bad code**: Enforcement actually prevents merges
-4. 🔄 **CI/CD ready**: Standard exit codes, works everywhere
+4. 🛡️ **Comprehensive validation**: 7-step process ensures code quality
+5. 🔄 **CI/CD ready**: Standard exit codes, works everywhere
+6. 🐕 **True dogfooding**: We use it on our own production code
 
 **Try it yourself** and see how much time you save!
 
 ---
 
-> **Built by dogfooding** - This example is real, not fabricated. We ran SpecFact CLI on itself and documented the actual results.
+> **Built by dogfooding** - This example is real, not fabricated. We ran SpecFact CLI on itself in two ways: (1) brownfield analysis workflow, and (2) contract enhancement workflow on our core telemetry module. All results are actual, documented outcomes from production use.

@@ -12,28 +12,49 @@ class TestPromptValidator:
 
     def test_validate_structure(self, tmp_path: Path):
         """Test structure validation."""
-        # Create a minimal valid prompt
+        # Create a minimal valid prompt with new structure
         prompt_file = tmp_path / "test-prompt.md"
         prompt_content = """---
 description: Test prompt
 ---
+
 # Test Prompt
 
-## ⚠️ CRITICAL: CLI Usage Enforcement
+## User Input
 
-**YOU MUST ALWAYS USE THE SPECFACT CLI**.
+```text
+$ARGUMENTS
+```
 
-## ⏸️ Wait States: User Input Required
+You **MUST** consider the user input before proceeding (if not empty).
 
-**When user input is required, you MUST wait.**
+## Purpose
 
-## Goal
+Test purpose.
 
-Test goal.
+## Parameters
 
-## Operating Constraints
+Test parameters.
 
-Test constraints.
+## Workflow
+
+Test workflow.
+
+## CLI Enforcement
+
+**ALWAYS execute CLI first**. Never modify `.specfact/` directly. Use CLI output as grounding.
+
+## Expected Output
+
+Test expected output.
+
+## Common Patterns
+
+Test common patterns.
+
+## Context
+
+Test context.
 """
         prompt_file.write_text(prompt_content)
 

@@ -29,12 +29,18 @@ The validator checks:
 
 - [ ] **Frontmatter present**: YAML frontmatter with `description` field
 - [ ] **Required sections present**:
-  - [ ] `## ⚠️ CRITICAL: CLI Usage Enforcement`
-  - [ ] `## ⏸️ Wait States: User Input Required`
-  - [ ] `## Goal`
-  - [ ] `## Operating Constraints`
+  - [ ] `# SpecFact [Command Name]` - Main title (H1)
+  - [ ] `## User Input` - Contains `$ARGUMENTS` placeholder in code block
+  - [ ] `## Purpose` - Clear description of what the command does
+  - [ ] `## Parameters` - Organized by groups (Target/Input, Output/Results, Behavior/Options, Advanced/Configuration)
+  - [ ] `## Workflow` - Step-by-step execution instructions
+  - [ ] `## CLI Enforcement` - Rules for using CLI commands
+  - [ ] `## Expected Output` - Success and error examples
+  - [ ] `## Common Patterns` - Usage examples
+  - [ ] `## Context` - Contains `{ARGS}` placeholder
 - [ ] **Markdown formatting**: Proper headers, code blocks, lists
-- [ ] **$ARGUMENTS placeholder**: Present in "User Input" section
+- [ ] **$ARGUMENTS placeholder**: Present in "User Input" section within code block
+- [ ] **{ARGS} placeholder**: Present in "Context" section
 
 ### 2. CLI Alignment
 
@@ -64,14 +70,16 @@ The validator checks:
 
 ### 3. Wait States & User Input
 
-- [ ] **Wait state rules present**:
+- [ ] **User Input section**: Contains `$ARGUMENTS` placeholder in code block with `text` language
+- [ ] **User Input instruction**: Includes "You **MUST** consider the user input before proceeding (if not empty)"
+- [ ] **Wait state rules** (if applicable for interactive workflows):
   - [ ] "Never assume"
   - [ ] "Never continue"
   - [ ] "Be explicit"
   - [ ] "Provide options"
-- [ ] **Explicit wait markers**: `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]` present where needed
+- [ ] **Explicit wait markers**: `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]` present where needed (for interactive workflows)
 - [ ] **Missing argument handling**: Clear instructions for what to do when arguments are missing
-- [ ] **User prompts**: Examples show how to ask for user input
+- [ ] **User prompts**: Examples show how to ask for user input (if applicable)
 - [ ] **No assumptions**: Prompt doesn't allow LLM to assume values and continue
 
 ### 4. Flow Logic
@@ -413,6 +421,7 @@ The following prompts are available for SpecFact CLI commands:
 - `specfact.04-sdd.md` - Create SDD manifest (new, based on `plan harden`)
 - `specfact.05-enforce.md` - SDD enforcement (replaces `specfact-enforce.md`)
 - `specfact.06-sync.md` - Sync operations (replaces `specfact-sync.md`)
+- `specfact.07-contracts.md` - Contract enhancement workflow: analyze → generate prompts → apply contracts sequentially (new, based on `analyze contracts`, `generate contracts-prompt`, `generate contracts-apply`)
 
 ### Advanced Commands (No Numbering)
 
@@ -430,6 +439,12 @@ The following prompts are available for SpecFact CLI commands:
 **Version**: 1.10
 
 ## Changelog
+
+### Version 1.11 (2025-12-06)
+
+- Added `specfact.07-contracts.md` to available prompts list
+- New contract enhancement workflow prompt for sequential contract application
+- Workflow: analyze contracts → generate prompts → apply contracts with careful review
 
 ### Version 1.10 (2025-01-XX)
 

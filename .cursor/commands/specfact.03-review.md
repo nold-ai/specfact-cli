@@ -117,13 +117,25 @@ Create answers JSON from enrichment report and use with review:
 specfact plan review [<bundle-name>] --answers '{"Q001": "answer1", "Q002": "answer2"}'
 ```
 
-#### Option B: Apply enrichment via import (only if bundle needs regeneration)
+#### Option B: Update idea fields directly via CLI
+
+Use `plan update-idea` to update idea fields from enrichment recommendations:
+
+```bash
+specfact plan update-idea --bundle [<bundle-name>] --value-hypothesis "..." --narrative "..." --target-users "..."
+```
+
+#### Option C: Apply enrichment via import (only if bundle needs regeneration)
 
 ```bash
 specfact import from-code [<bundle-name>] --repo . --enrichment enrichment-report.md
 ```
 
-**Note**: Only use Option B if you need to regenerate the bundle. For most cases, use Option A or manually update `idea.yaml` based on enrichment recommendations.
+**Note:**
+
+- **Preferred**: Use Option A (answers) or Option B (update-idea) for most cases
+- Only use Option C if you need to regenerate the bundle
+- Never manually edit `.specfact/` files directly - always use CLI commands
 
 ### Step 5: Present Results
 
@@ -195,7 +207,8 @@ Create one with: specfact plan init legacy-api
 3. **Create enrichment report**: Write Markdown file addressing findings
 4. **Apply enrichment**:
    - **Preferred**: Use enrichment to create `--answers` JSON and run `plan review --answers`
-   - **Alternative**: If bundle needs regeneration, use `import from-code --enrichment`
+   - **Alternative**: Use `plan update-idea` to update idea fields directly
+   - **Last resort**: If bundle needs regeneration, use `import from-code --enrichment`
 5. **Verify**: Run `plan review` again to confirm improvements
 
 ## Context

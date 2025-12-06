@@ -45,6 +45,12 @@ specfact init
 specfact init --ide cursor
 specfact init --ide vscode
 specfact init --ide copilot
+
+# Install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize for specific IDE and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 **What it does:**
@@ -53,6 +59,11 @@ specfact init --ide copilot
 2. Copies prompt templates from `resources/prompts/` to IDE-specific location
 3. Creates/updates VS Code settings if needed
 4. Makes slash commands available in your IDE
+5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
+   - `beartype>=0.22.4` - Runtime type checking
+   - `icontract>=2.7.1` - Design-by-contract decorators
+   - `crosshair-tool>=0.0.97` - Contract exploration
+   - `pytest>=8.4.2` - Testing framework
 
 ### Step 2: Use Slash Commands in Your IDE
 
@@ -69,6 +80,7 @@ Once initialized, you can use slash commands directly in your IDE's AI chat:
 /specfact.04-sdd legacy-api
 /specfact.05-enforce legacy-api
 /specfact.06-sync --adapter speckit --repo . --bidirectional
+/specfact.07-contracts legacy-api --apply all-contracts  # Analyze, generate prompts, apply contracts sequentially
 
 # Advanced commands
 /specfact.compare --bundle legacy-api
@@ -141,6 +153,7 @@ Detailed instructions for the AI assistant...
 | `/specfact.04-sdd` | Create SDD manifest from plan | `specfact plan harden <bundle-name>` |
 | `/specfact.05-enforce` | Validate SDD and contracts | `specfact enforce sdd <bundle-name>` |
 | `/specfact.06-sync` | Sync with external tools or repository | `specfact sync bridge --adapter <adapter>` |
+| `/specfact.07-contracts` | Contract enhancement workflow: analyze → generate prompts → apply sequentially | `specfact analyze contracts`, `specfact generate contracts-prompt`, `specfact generate contracts-apply` |
 
 **Advanced Commands** (no numbering):
 
@@ -148,6 +161,7 @@ Detailed instructions for the AI assistant...
 |---------|-------------|----------------|
 | `/specfact.compare` | Compare manual vs auto plans | `specfact plan compare` |
 | `/specfact.validate` | Run validation suite | `specfact repro` |
+| `/specfact.generate-contracts-prompt` | Generate AI IDE prompt for adding contracts | `specfact generate contracts-prompt <file> --apply <contracts>` |
 
 ---
 
@@ -199,6 +213,7 @@ specfact init --ide vscode
       ".github/prompts/specfact.04-sdd.prompt.md",
       ".github/prompts/specfact.05-enforce.prompt.md",
       ".github/prompts/specfact.06-sync.prompt.md",
+      ".github/prompts/specfact.07-contracts.prompt.md",
       ".github/prompts/specfact.compare.prompt.md",
       ".github/prompts/specfact.validate.prompt.md"
     ]

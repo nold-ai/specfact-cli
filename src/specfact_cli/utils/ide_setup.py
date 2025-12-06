@@ -119,6 +119,7 @@ SPECFACT_COMMANDS = [
     "specfact.04-sdd",
     "specfact.05-enforce",
     "specfact.06-sync",
+    "specfact.07-contracts",
     "specfact.compare",
     "specfact.validate",
 ]

@@ -793,8 +793,78 @@ def _save_bundle_if_needed(
         console.print("\n[dim]⏭ Skipping bundle save (no changes detected)[/dim]")
 
 
-def _validate_api_specs(repo: Path) -> None:
-    """Validate OpenAPI/AsyncAPI specs with Specmatic if available."""
+def _validate_bundle_contracts(bundle_dir: Path, plan_bundle: PlanBundle) -> tuple[int, int]:
+    """
+    Validate OpenAPI/AsyncAPI contracts in bundle with Specmatic if available.
+
+    Args:
+        bundle_dir: Path to bundle directory
+        plan_bundle: Plan bundle containing features with contract references
+
+    Returns:
+        Tuple of (validated_count, failed_count)
+    """
+    import asyncio
+
+    from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+    is_available, _error_msg = check_specmatic_available()
+    if not is_available:
+        return 0, 0
+
+    validated_count = 0
+    failed_count = 0
+    contract_files = []
+
+    # Collect contract files from features
+    # PlanBundle.features is a list, not a dict
+    features_iter = plan_bundle.features.values() if isinstance(plan_bundle.features, dict) else plan_bundle.features
+    for feature in features_iter:
+        if feature.contract:
+            contract_path = bundle_dir / feature.contract
+            if contract_path.exists():
+                contract_files.append((contract_path, feature.key))
+
+    if not contract_files:
+        return 0, 0
+
+    console.print(f"\n[cyan]🔍 Validating {len(contract_files)} contract(s) in bundle with Specmatic...[/cyan]")
+    for contract_path, feature_key in contract_files[:5]:  # Validate up to 5 contracts
+        console.print(f"[dim]Validating {contract_path.relative_to(bundle_dir)} (from {feature_key})...[/dim]")
+        try:
+            result = asyncio.run(validate_spec_with_specmatic(contract_path))
+            if result.is_valid:
+                console.print(f"  [green]✓[/green] {contract_path.name} is valid")
+                validated_count += 1
+            else:
+                console.print(f"  [yellow]⚠[/yellow] {contract_path.name} has validation issues")
+                if result.errors:
+                    for error in result.errors[:2]:
+                        console.print(f"    - {error}")
+                failed_count += 1
+        except Exception as e:
+            console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+            failed_count += 1
+
+    if len(contract_files) > 5:
+        console.print(
+            f"[dim]... and {len(contract_files) - 5} more contract(s) (run 'specfact spec validate' to validate all)[/dim]"
+        )
+
+    return validated_count, failed_count
+
+
+def _validate_api_specs(repo: Path, bundle_dir: Path | None = None, plan_bundle: PlanBundle | None = None) -> None:
+    """
+    Validate OpenAPI/AsyncAPI specs with Specmatic if available.
+
+    Validates both repo-level spec files and bundle contracts if provided.
+
+    Args:
+        repo: Repository path
+        bundle_dir: Optional bundle directory path
+        plan_bundle: Optional plan bundle for contract validation
+    """
     import asyncio
 
     spec_files = []
@@ -808,8 +878,16 @@ def _validate_api_specs(repo: Path) -> None:
     ]:
         spec_files.extend(repo.glob(pattern))
 
+    validated_contracts = 0
+    failed_contracts = 0
+
+    # Validate bundle contracts if provided
+    if bundle_dir and plan_bundle:
+        validated_contracts, failed_contracts = _validate_bundle_contracts(bundle_dir, plan_bundle)
+
+    # Validate repo-level spec files
     if spec_files:
-        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s) in repository[/cyan]")
         from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
 
         is_available, error_msg = check_specmatic_available()
@@ -834,6 +912,9 @@ def _validate_api_specs(repo: Path) -> None:
             console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
         else:
             console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+    elif validated_contracts > 0 or failed_contracts > 0:
+        # Only show mock server tip if we validated contracts
+        console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
 
 
 def _suggest_constitution_bootstrap(repo: Path) -> None:
@@ -1518,8 +1599,8 @@ def from_code(
             console.print("\n[bold green]✓ Import complete![/bold green]")
             console.print(f"[dim]Project bundle written to: {bundle_dir}[/dim]")
 
-            # Validate API specs
-            _validate_api_specs(repo)
+            # Validate API specs (both repo-level and bundle contracts)
+            _validate_api_specs(repo, bundle_dir=bundle_dir, plan_bundle=plan_bundle)
 
             # Suggest constitution bootstrap
             _suggest_constitution_bootstrap(repo)
