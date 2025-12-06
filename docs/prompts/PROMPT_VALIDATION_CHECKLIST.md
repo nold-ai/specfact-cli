@@ -29,12 +29,18 @@ The validator checks:
 
 - [ ] **Frontmatter present**: YAML frontmatter with `description` field
 - [ ] **Required sections present**:
-  - [ ] `## ⚠️ CRITICAL: CLI Usage Enforcement`
-  - [ ] `## ⏸️ Wait States: User Input Required`
-  - [ ] `## Goal`
-  - [ ] `## Operating Constraints`
+  - [ ] `# SpecFact [Command Name]` - Main title (H1)
+  - [ ] `## User Input` - Contains `$ARGUMENTS` placeholder in code block
+  - [ ] `## Purpose` - Clear description of what the command does
+  - [ ] `## Parameters` - Organized by groups (Target/Input, Output/Results, Behavior/Options, Advanced/Configuration)
+  - [ ] `## Workflow` - Step-by-step execution instructions
+  - [ ] `## CLI Enforcement` - Rules for using CLI commands
+  - [ ] `## Expected Output` - Success and error examples
+  - [ ] `## Common Patterns` - Usage examples
+  - [ ] `## Context` - Contains `{ARGS}` placeholder
 - [ ] **Markdown formatting**: Proper headers, code blocks, lists
-- [ ] **$ARGUMENTS placeholder**: Present in "User Input" section
+- [ ] **$ARGUMENTS placeholder**: Present in "User Input" section within code block
+- [ ] **{ARGS} placeholder**: Present in "Context" section
 
 ### 2. CLI Alignment
 
@@ -64,14 +70,16 @@ The validator checks:
 
 ### 3. Wait States & User Input
 
-- [ ] **Wait state rules present**:
+- [ ] **User Input section**: Contains `$ARGUMENTS` placeholder in code block with `text` language
+- [ ] **User Input instruction**: Includes "You **MUST** consider the user input before proceeding (if not empty)"
+- [ ] **Wait state rules** (if applicable for interactive workflows):
   - [ ] "Never assume"
   - [ ] "Never continue"
   - [ ] "Be explicit"
   - [ ] "Provide options"
-- [ ] **Explicit wait markers**: `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]` present where needed
+- [ ] **Explicit wait markers**: `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]` present where needed (for interactive workflows)
 - [ ] **Missing argument handling**: Clear instructions for what to do when arguments are missing
-- [ ] **User prompts**: Examples show how to ask for user input
+- [ ] **User prompts**: Examples show how to ask for user input (if applicable)
 - [ ] **No assumptions**: Prompt doesn't allow LLM to assume values and continue
 
 ### 4. Flow Logic
