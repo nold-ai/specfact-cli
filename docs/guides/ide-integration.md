@@ -213,6 +213,7 @@ specfact init --ide vscode
       ".github/prompts/specfact.04-sdd.prompt.md",
       ".github/prompts/specfact.05-enforce.prompt.md",
       ".github/prompts/specfact.06-sync.prompt.md",
+      ".github/prompts/specfact.07-contracts.prompt.md",
       ".github/prompts/specfact.compare.prompt.md",
       ".github/prompts/specfact.validate.prompt.md"
     ]
