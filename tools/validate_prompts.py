@@ -118,7 +118,9 @@ class PromptValidator:
         for rule_name, rule_variants in CLI_ENFORCEMENT_RULES:
             found = any(variant in self.content for variant in rule_variants)
             if not found:
-                self.warnings.append(f"CLI enforcement rule not found: '{rule_name}' (checked variants: {', '.join(rule_variants[:2])}...)")
+                self.warnings.append(
+                    f"CLI enforcement rule not found: '{rule_name}' (checked variants: {', '.join(rule_variants[:2])}...)"
+                )
             else:
                 self.checks.append(
                     {
@@ -154,7 +156,9 @@ class PromptValidator:
 
         # Check for user input instruction
         if "consider the user input" not in self.content.lower():
-            self.warnings.append("User input instruction not found (should include 'You **MUST** consider the user input before proceeding')")
+            self.warnings.append(
+                "User input instruction not found (should include 'You **MUST** consider the user input before proceeding')"
+            )
         else:
             self.checks.append(
                 {
@@ -189,16 +193,30 @@ class PromptValidator:
 
         # Check for dual-stack workflow section (flexible matching)
         dual_stack_markers = [
-            ("Dual-Stack Workflow", ["Dual-Stack Workflow", "Dual-stack workflow", "dual-stack workflow", "## Workflow"]),
-            ("Phase 1: CLI Grounding", ["Phase 1: CLI Grounding", "Phase 1", "CLI Grounding", "Execute CLI", "1. **Execute CLI"]),
-            ("Phase 2: LLM Enrichment", ["Phase 2: LLM Enrichment", "Phase 2", "LLM Enrichment", "2. **LLM Enrichment", "enrichment"]),
-            ("Phase 3: CLI Artifact Creation", ["Phase 3: CLI Artifact Creation", "Phase 3", "CLI Artifact Creation", "3. **Present"]),
+            (
+                "Dual-Stack Workflow",
+                ["Dual-Stack Workflow", "Dual-stack workflow", "dual-stack workflow", "## Workflow"],
+            ),
+            (
+                "Phase 1: CLI Grounding",
+                ["Phase 1: CLI Grounding", "Phase 1", "CLI Grounding", "Execute CLI", "1. **Execute CLI"],
+            ),
+            (
+                "Phase 2: LLM Enrichment",
+                ["Phase 2: LLM Enrichment", "Phase 2", "LLM Enrichment", "2. **LLM Enrichment", "enrichment"],
+            ),
+            (
+                "Phase 3: CLI Artifact Creation",
+                ["Phase 3: CLI Artifact Creation", "Phase 3", "CLI Artifact Creation", "3. **Present"],
+            ),
         ]
 
         for marker_name, marker_variants in dual_stack_markers:
             found = any(variant in self.content for variant in marker_variants)
             if not found:
-                self.errors.append(f"Missing dual-stack workflow marker: '{marker_name}' (checked variants: {', '.join(marker_variants[:2])}...)")
+                self.errors.append(
+                    f"Missing dual-stack workflow marker: '{marker_name}' (checked variants: {', '.join(marker_variants[:2])}...)"
+                )
                 passed = False
             else:
                 self.checks.append(
@@ -274,10 +292,11 @@ class PromptValidator:
             )
 
         # Check for main title (H1)
-        if not self.content.startswith("# SpecFact"):
-            # Allow for frontmatter before title
-            if "# SpecFact" not in self.content[:500]:  # Check first 500 chars
-                self.warnings.append("Main title (H1) may be missing or not starting with '# SpecFact'")
+        # Allow for frontmatter before title
+        if (
+            not self.content.startswith("# SpecFact") and "# SpecFact" not in self.content[:500]
+        ):  # Check first 500 chars
+            self.warnings.append("Main title (H1) may be missing or not starting with '# SpecFact'")
 
         return passed
 
