@@ -413,6 +413,7 @@ The following prompts are available for SpecFact CLI commands:
 - `specfact.04-sdd.md` - Create SDD manifest (new, based on `plan harden`)
 - `specfact.05-enforce.md` - SDD enforcement (replaces `specfact-enforce.md`)
 - `specfact.06-sync.md` - Sync operations (replaces `specfact-sync.md`)
+- `specfact.07-contracts.md` - Contract enhancement workflow: analyze → generate prompts → apply contracts sequentially (new, based on `analyze contracts`, `generate contracts-prompt`, `generate contracts-apply`)
 
 ### Advanced Commands (No Numbering)
 
@@ -430,6 +431,12 @@ The following prompts are available for SpecFact CLI commands:
 **Version**: 1.10
 
 ## Changelog
+
+### Version 1.11 (2025-12-06)
+
+- Added `specfact.07-contracts.md` to available prompts list
+- New contract enhancement workflow prompt for sequential contract application
+- Workflow: analyze contracts → generate prompts → apply contracts with careful review
 
 ### Version 1.10 (2025-01-XX)
 
