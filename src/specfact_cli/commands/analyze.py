@@ -7,9 +7,9 @@ contract coverage, code quality metrics, and enhancement opportunities.
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
-import ast
 import typer
 from beartype import beartype
 from icontract import ensure, require
@@ -290,23 +290,22 @@ def _is_pure_data_model_file(tree: ast.AST) -> bool:
         if isinstance(node, ast.ClassDef):
             # Check methods in this class
             for item in node.body:
-                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    if item.name not in standard_methods:
-                        # Non-standard method - likely business logic
-                        has_business_logic = True
-                        break
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name not in standard_methods:
+                    # Non-standard method - likely business logic
+                    has_business_logic = True
+                    break
             if has_business_logic:
                 break
 
     # Then check for module-level functions (functions not inside any class)
-    if not has_business_logic:
+    if not has_business_logic and isinstance(tree, ast.Module):
         # Get all top-level nodes (module body)
-        if isinstance(tree, ast.Module):
-            for node in tree.body:
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    if not node.name.startswith("_"):  # Public functions
-                        has_business_logic = True
-                        break
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith(
+                "_"
+            ):  # Public functions
+                has_business_logic = True
+                break
 
     # Check for Pydantic models and dataclasses
     for node in ast.walk(tree):
@@ -315,16 +314,14 @@ def _is_pure_data_model_file(tree: ast.AST) -> bool:
                 if isinstance(base, ast.Name) and base.id == "BaseModel":
                     has_pydantic_models = True
                     break
-                elif isinstance(base, ast.Attribute):
-                    if base.attr == "BaseModel":
-                        has_pydantic_models = True
-                        break
+                if isinstance(base, ast.Attribute) and base.attr == "BaseModel":
+                    has_pydantic_models = True
+                    break
 
             for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
-                    has_dataclasses = True
-                    break
-                elif isinstance(decorator, ast.Attribute) and decorator.attr == "dataclass":
+                if (isinstance(decorator, ast.Name) and decorator.id == "dataclass") or (
+                    isinstance(decorator, ast.Attribute) and decorator.attr == "dataclass"
+                ):
                     has_dataclasses = True
                     break
 
