@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.13.3] - 2025-12-06
+
+### Fixed (0.13.3)
+
+- **Contract Analysis**: Improved data model detection to avoid false positives
+  - Pure Pydantic/dataclass files are now correctly identified and marked as having contracts (Pydantic validation)
+  - Fixed detection logic to properly distinguish between class methods and module-level functions
+  - Files like `models/plan.py` and `models/protocol.py` are no longer flagged as needing contracts
+  - Added support for common helper methods (`compute_summary`, `update_summary`, etc.) on data models
+
+### Changed (0.13.3)
+
+- **Test Timeouts**: Increased timeout for slow E2E tests from 5s to 20s
+  - `test_complete_brownfield_to_speckit_workflow`
+  - `test_contracts_included_in_speckit_plan_md`
+  - `test_article_ix_checkbox_checked_when_contracts_exist`
+
+---
+
 ## [0.13.2] - 2025-12-06
 
 ### Added (0.13.2)

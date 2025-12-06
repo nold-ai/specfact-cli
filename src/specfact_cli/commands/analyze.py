@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import ast
 import typer
 from beartype import beartype
 from icontract import ensure, require
@@ -207,6 +208,30 @@ def _analyze_file_quality(file_path: Path) -> CodeQuality:
         with file_path.open(encoding="utf-8") as f:
             content = f.read()
 
+        # Quick check: if file is in models/ directory, likely a data model file
+        # This avoids expensive AST parsing for most data model files
+        file_str = str(file_path)
+        is_models_dir = "/models/" in file_str or "\\models\\" in file_str
+
+        # For files in models/ directory, do quick AST check to confirm
+        if is_models_dir:
+            try:
+                import ast
+
+                tree = ast.parse(content, filename=str(file_path))
+                # Quick check: if only BaseModel classes with no business logic, skip contract check
+                if _is_pure_data_model_file(tree):
+                    return CodeQuality(
+                        beartype=True,  # Pydantic provides type validation
+                        icontract=True,  # Pydantic provides validation (Field validators)
+                        crosshair=False,  # CrossHair not typically used for data models
+                        coverage=0.0,
+                    )
+            except (SyntaxError, ValueError):
+                # If AST parsing fails, fall through to normal check
+                pass
+
+        # Check for contract decorators in content
         has_beartype = "beartype" in content or "@beartype" in content
         has_icontract = "icontract" in content or "@require" in content or "@ensure" in content
         has_crosshair = "crosshair" in content.lower()
@@ -223,3 +248,89 @@ def _analyze_file_quality(file_path: Path) -> CodeQuality:
     except Exception:
         # Return default quality if analysis fails
         return CodeQuality()
+
+
+def _is_pure_data_model_file(tree: ast.AST) -> bool:
+    """
+    Quick check if file contains only pure data models (Pydantic BaseModel, dataclasses) with no business logic.
+
+    Returns:
+        True if file is pure data models, False otherwise
+    """
+    has_pydantic_models = False
+    has_dataclasses = False
+    has_business_logic = False
+
+    # Standard methods that don't need contracts (including common helper methods)
+    standard_methods = {
+        "__init__",
+        "__str__",
+        "__repr__",
+        "__eq__",
+        "__hash__",
+        "model_dump",
+        "model_validate",
+        "dict",
+        "json",
+        "copy",
+        "update",
+        # Common helper methods on data models (convenience methods, not business logic)
+        "compute_summary",
+        "update_summary",
+        "to_dict",
+        "from_dict",
+        "validate",
+        "serialize",
+        "deserialize",
+    }
+
+    # Check module-level functions and class methods separately
+    # First, collect all classes and check their methods
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            # Check methods in this class
+            for item in node.body:
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if item.name not in standard_methods:
+                        # Non-standard method - likely business logic
+                        has_business_logic = True
+                        break
+            if has_business_logic:
+                break
+
+    # Then check for module-level functions (functions not inside any class)
+    if not has_business_logic:
+        # Get all top-level nodes (module body)
+        if isinstance(tree, ast.Module):
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if not node.name.startswith("_"):  # Public functions
+                        has_business_logic = True
+                        break
+
+    # Check for Pydantic models and dataclasses
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                if isinstance(base, ast.Name) and base.id == "BaseModel":
+                    has_pydantic_models = True
+                    break
+                elif isinstance(base, ast.Attribute):
+                    if base.attr == "BaseModel":
+                        has_pydantic_models = True
+                        break
+
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
+                    has_dataclasses = True
+                    break
+                elif isinstance(decorator, ast.Attribute) and decorator.attr == "dataclass":
+                    has_dataclasses = True
+                    break
+
+    # Business logic check is done above (methods and module-level functions)
+
+    # File is pure data model if:
+    # 1. Has Pydantic models or dataclasses
+    # 2. No business logic methods or functions
+    return (has_pydantic_models or has_dataclasses) and not has_business_logic

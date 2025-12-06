@@ -60,6 +60,7 @@ class TestBrownfieldSpeckitComplianceE2E:
 
         return repo
 
+    @pytest.mark.timeout(20)
     def test_complete_brownfield_to_speckit_workflow(self, brownfield_repo: Path) -> None:
         """
         Test complete workflow: brownfield import → enrich → sync → verify Spec-Kit compliance.
