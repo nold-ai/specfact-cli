@@ -80,6 +80,7 @@ Once initialized, you can use slash commands directly in your IDE's AI chat:
 /specfact.04-sdd legacy-api
 /specfact.05-enforce legacy-api
 /specfact.06-sync --adapter speckit --repo . --bidirectional
+/specfact.07-contracts legacy-api --apply all-contracts  # Analyze, generate prompts, apply contracts sequentially
 
 # Advanced commands
 /specfact.compare --bundle legacy-api
@@ -152,6 +153,7 @@ Detailed instructions for the AI assistant...
 | `/specfact.04-sdd` | Create SDD manifest from plan | `specfact plan harden <bundle-name>` |
 | `/specfact.05-enforce` | Validate SDD and contracts | `specfact enforce sdd <bundle-name>` |
 | `/specfact.06-sync` | Sync with external tools or repository | `specfact sync bridge --adapter <adapter>` |
+| `/specfact.07-contracts` | Contract enhancement workflow: analyze → generate prompts → apply sequentially | `specfact analyze contracts`, `specfact generate contracts-prompt`, `specfact generate contracts-apply` |
 
 **Advanced Commands** (no numbering):
 

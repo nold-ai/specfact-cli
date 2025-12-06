@@ -2322,11 +2322,13 @@ Slash commands provide an intuitive interface for IDE integration (VS Code, Curs
 4. `/specfact.04-sdd [args]` - Create SDD manifest (new, based on `plan harden`)
 5. `/specfact.05-enforce [args]` - SDD enforcement (replaces `specfact-enforce`)
 6. `/specfact.06-sync [args]` - Sync operations (replaces `specfact-sync`)
+7. `/specfact.07-contracts [args]` - Contract enhancement workflow: analyze → generate prompts → apply contracts sequentially
 
 **Advanced Commands** (no numbering):
 
 - `/specfact.compare [args]` - Compare plans (replaces `specfact-plan-compare`)
 - `/specfact.validate [args]` - Validation suite (replaces `specfact-repro`)
+- `/specfact.generate-contracts-prompt [args]` - Generate AI IDE prompt for adding contracts (see `generate contracts-prompt`)
 
 ### Setup
 
@@ -2358,6 +2360,7 @@ After initialization, use slash commands directly in your IDE's AI chat:
 /specfact.04-sdd legacy-api
 /specfact.05-enforce legacy-api
 /specfact.06-sync --repo . --adapter speckit
+/specfact.07-contracts legacy-api --apply all-contracts  # Analyze, generate prompts, apply contracts sequentially
 
 # Advanced commands
 /specfact.compare --bundle legacy-api
