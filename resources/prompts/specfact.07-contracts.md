@@ -201,6 +201,7 @@ Next steps:
 - Always validate before applying changes
 - Process files sequentially for careful review
 - Use `--no-interactive` only in CI/CD environments
+- Use CLI output as grounding for all operations
 
 ## Expected Output
 
