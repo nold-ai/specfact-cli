@@ -9,6 +9,68 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.13.2] - 2025-12-06
+
+### Added (0.13.2)
+
+- **Streamlined Setup Option**
+  - `specfact init --install-deps` option to automatically install required packages for contract enhancement
+  - Installs: `beartype>=0.22.4`, `icontract>=2.7.1`, `crosshair-tool>=0.0.97`, `pytest>=8.4.2`
+  - Non-intrusive: only installs when explicitly requested (opt-in)
+  - Provides helpful error messages and manual installation instructions if pip fails
+  - Telemetry tracking for installation attempts
+
+### Improved (0.13.2)
+
+- **Documentation Updates**
+  - Updated command reference with `--install-deps` option and examples
+  - Updated IDE integration guide with dependency installation workflow
+  - Updated installation guide with streamlined setup option
+  - Updated internal plans with recent contract enhancement improvements
+
+---
+
+## [0.13.1] - 2025-12-06
+
+### Added (0.13.1)
+
+- **Automatic Code Quality Validation**
+  - `generate contracts-apply` now automatically detects and runs available linting/formatting tools
+  - Supports: `ruff`, `pylint`, `basedpyright`, `mypy` (runs if installed, skips if not)
+  - Non-blocking validation: issues are reported as warnings but don't prevent application
+  - Provides summary of code quality checks (X/Y tools passed)
+  - Added as Step 5 in validation workflow (between contract imports and tests)
+
+### Improved (0.13.1)
+
+- **Contract Enhancement Prompts**
+  - Enhanced prompt instructions with **CRITICAL REQUIREMENT** to add contracts to ALL eligible functions
+  - Explicit prohibition against asking user whether to add contracts (must add automatically)
+  - Detailed contract-specific requirements for beartype, icontract, and crosshair
+  - Added code quality guidance: follow project formatting rules, avoid common issues (e.g., `dict.keys()`)
+  - Note that SpecFact CLI will automatically run available linting tools during validation
+
+- **Test Execution Optimization**
+  - Optimized test execution in `generate contracts-apply` for single-file enhancements
+  - Changed from full repository validation (`specfact repro`) to scoped `pytest` runs on relevant test files
+  - Automatically discovers test files matching the enhanced source file pattern
+  - Falls back to import validation if no specific test file is found
+  - Significantly faster validation (seconds instead of minutes for single-file enhancements)
+  - Tests always run for validation, even in `--dry-run` mode
+
+- **Validation Workflow**
+  - Updated step numbering: now 7 steps total (was 6)
+  - Step 5: Code quality checks (new, optional tools)
+  - Step 6: Test execution (optimized, scoped)
+  - Step 7: Diff preview
+
+### Fixed (0.13.1)
+
+- Fixed linting issue in enhanced code: changed `result.keys()` to `result` (SIM118 rule compliance)
+- Improved code quality guidance in prompts to prevent common linting issues
+
+---
+
 ## [0.13.0] - 2025-12-06
 
 ### Added (0.13.0)

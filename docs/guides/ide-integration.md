@@ -45,6 +45,12 @@ specfact init
 specfact init --ide cursor
 specfact init --ide vscode
 specfact init --ide copilot
+
+# Install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize for specific IDE and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 **What it does:**
@@ -53,6 +59,11 @@ specfact init --ide copilot
 2. Copies prompt templates from `resources/prompts/` to IDE-specific location
 3. Creates/updates VS Code settings if needed
 4. Makes slash commands available in your IDE
+5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
+   - `beartype>=0.22.4` - Runtime type checking
+   - `icontract>=2.7.1` - Design-by-contract decorators
+   - `crosshair-tool>=0.0.97` - Contract exploration
+   - `pytest>=8.4.2` - Testing framework
 
 ### Step 2: Use Slash Commands in Your IDE
 

@@ -19,6 +19,7 @@ from specfact_cli.models.sdd import SDDManifest
 from specfact_cli.models.task import TaskList, TaskPhase
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
+from specfact_cli.utils.optional_deps import check_cli_tool_available
 from specfact_cli.utils.structured_io import load_structured_file
 
 
@@ -551,6 +552,53 @@ def generate_contracts_prompt(
                 prompt_parts = [
                     "# Contract Enhancement Request",
                     "",
+                    "## ⚠️ MANDATORY PRE-CHECK: SpecFact CLI Verification",
+                    "",
+                    "**🚨 CRITICAL STOP CONDITION - READ THIS FIRST 🚨**",
+                    "",
+                    "**YOU MUST VERIFY SpecFact CLI BEFORE DOING ANYTHING ELSE.**",
+                    "",
+                    "**If SpecFact CLI is missing, outdated, or commands don't work:**",
+                    "",
+                    "1. **STOP IMMEDIATELY** - Do NOT read files, do NOT generate code, do NOT proceed",
+                    "2. **DO NOT attempt to manually add contracts** - This will NOT work correctly",
+                    "3. **DO NOT proceed with any enhancement** - The workflow REQUIRES SpecFact CLI",
+                    "4. **Inform the user** with this exact message:",
+                    "   ```",
+                    "   ❌ SpecFact CLI is required but not available or outdated.",
+                    "   Please install/upgrade: pip install -U specfact-cli",
+                    "   Then verify: specfact --version",
+                    "   This task cannot proceed without SpecFact CLI.",
+                    "   ```",
+                    "5. **END THE CONVERSATION** - Do not continue until SpecFact CLI is working",
+                    "",
+                    "**Verification Steps (MUST complete all before proceeding):**",
+                    "",
+                    "1. Check if `specfact` command is available:",
+                    "   ```bash",
+                    "   specfact --version",
+                    "   ```",
+                    "   - **If this fails**: STOP and inform user (see message above)",
+                    "",
+                    "2. Verify the required command exists:",
+                    "   ```bash",
+                    "   specfact generate contracts-apply --help",
+                    "   ```",
+                    "   - **If this fails**: STOP and inform user (see message above)",
+                    "",
+                    "3. Check the latest available version from PyPI:",
+                    "   ```bash",
+                    "   pip index versions specfact-cli",
+                    "   ```",
+                    "   - Compare installed version (from step 1) with latest available",
+                    "   - **If versions don't match**: STOP and inform user to upgrade",
+                    "",
+                    "**ONLY IF ALL THREE STEPS PASS** - You may proceed to the sections below.",
+                    "",
+                    "**If ANY step fails, you MUST stop and inform the user. Do NOT proceed.**",
+                    "",
+                    "---",
+                    "",
                     "## Target File",
                     "",
                     f"**File Path:** `{file_path_relative}`",
@@ -580,35 +628,7 @@ def generate_contracts_prompt(
                         "",
                         "**IMPORTANT**: Do NOT modify the original file directly. Follow this iterative validation workflow:",
                         "",
-                        "### Step 0: Verify SpecFact CLI",
-                        "**CRITICAL**: Before proceeding, verify that SpecFact CLI is installed and working:",
-                        "",
-                        "1. Check if `specfact` command is available:",
-                        "   ```bash",
-                        "   specfact --version",
-                        "   ```",
-                        "",
-                        "2. Verify the required command exists:",
-                        "   ```bash",
-                        "   specfact generate contracts-apply --help",
-                        "   ```",
-                        "",
-                        "3. Check the latest available version from PyPI for comparison:",
-                        "   ```bash",
-                        "   pip index versions specfact-cli",
-                        "   ```",
-                        "   - Compare the installed version (from step 1) with the latest available version",
-                        "   - If versions don't match, an upgrade is needed",
-                        "",
-                        "**If SpecFact CLI is not available, outdated, or commands are missing:**",
-                        "- **ABORT immediately**",
-                        "- **DO NOT proceed** with code enhancement",
-                        "- **Inform the user clearly** that they need to:",
-                        "  - Install/Upgrade SpecFact CLI: `pip install -U specfact-cli` or `uvx specfact-cli@latest`",
-                        "  - Verify installation: `specfact --version`",
-                        "- **Only continue** after confirming SpecFact CLI is working correctly",
-                        "",
-                        "**This validation is mandatory** - the workflow depends on SpecFact CLI for validation and application.",
+                        "**REMINDER**: If you haven't completed the mandatory SpecFact CLI verification at the top of this prompt, STOP NOW and do that first. Do NOT proceed with any code enhancement until SpecFact CLI is verified.",
                         "",
                         "### Step 1: Read the File",
                         f"1. Read the file content from: `{file_path_relative}`",
@@ -616,13 +636,41 @@ def generate_contracts_prompt(
                         "3. Note the existing code style and patterns",
                         "",
                         "### Step 2: Generate Enhanced Code",
-                        "1. Add the requested contracts to the code",
+                        "**IMPORTANT**: Only proceed to this step if SpecFact CLI verification passed.",
+                        "",
+                        "**CRITICAL REQUIREMENT**: You MUST add contracts to ALL eligible functions and methods in the file. Do NOT ask the user whether to add contracts - add them to all compatible functions automatically.",
+                        "",
+                        "1. **Add the requested contracts to ALL eligible functions/methods** - This is mandatory, not optional",
                         "2. Maintain existing functionality and code style",
                         "3. Ensure all contracts are properly imported at the top of the file",
-                        "4. Add appropriate preconditions (`@require`) and postconditions (`@ensure`) where they make sense",
-                        "5. For beartype: Add decorator to all public functions and methods",
-                        "6. For icontract: Focus on critical functions with clear pre/post conditions",
-                        "7. For crosshair: Add property test functions that validate contract behavior",
+                        "4. **Code Quality**: Follow the project's existing code style and formatting conventions",
+                        "   - If the project has formatting/linting rules (e.g., `.editorconfig`, `pyproject.toml` with formatting config, `ruff.toml`, `.pylintrc`, etc.), ensure the enhanced code adheres to them",
+                        "   - Match the existing code style: indentation, line length, import organization, naming conventions",
+                        "   - Avoid common code quality issues: use `key in dict` instead of `key in dict.keys()`, proper type hints, etc.",
+                        "   - **Note**: SpecFact CLI will automatically run available linting/formatting tools (ruff, pylint, basedpyright, mypy) during validation if they are installed",
+                        "",
+                        "**Contract-Specific Requirements:**",
+                        "",
+                        "- **beartype**: Add `@beartype` decorator to ALL functions and methods (public and private, unless they have incompatible signatures)",
+                        "  - Apply to: regular functions, class methods, static methods, async functions",
+                        "  - Skip only if: function has `*args, **kwargs` without type hints (incompatible with beartype)",
+                        "",
+                        "- **icontract**: Add `@require` decorators for preconditions and `@ensure` decorators for postconditions to ALL functions where conditions can be expressed",
+                        "  - Apply to: all functions with clear input/output contracts",
+                        "  - Add preconditions for: parameter validation, state checks, input constraints",
+                        "  - Add postconditions for: return value validation, state changes, output guarantees",
+                        "  - Skip only if: function has no meaningful pre/post conditions to express",
+                        "",
+                        "- **crosshair**: Add property-based test functions using CrossHair patterns for ALL testable functions",
+                        "  - Create test functions that validate contract behavior",
+                        "  - Focus on functions with clear input/output relationships",
+                        "",
+                        "**DO NOT:**",
+                        "- Ask the user whether to add contracts (add them automatically to all eligible functions)",
+                        "- Skip functions because you're unsure (add contracts unless technically incompatible)",
+                        "- Manually apply contracts to the original file (use SpecFact CLI validation workflow)",
+                        "",
+                        "**You MUST use SpecFact CLI validation workflow (Step 4) to apply changes.**",
                         "",
                         "### Step 3: Write Enhanced Code to Temporary File",
                         f"1. Write the complete enhanced code to: `enhanced_{file_path.stem}.py`",
@@ -631,10 +679,15 @@ def generate_contracts_prompt(
                         "2. Ensure the file is properly formatted and complete",
                         "",
                         "### Step 4: Validate with CLI",
+                        "**CRITICAL**: If `specfact generate contracts-apply` command is not available or fails, DO NOT proceed. STOP and inform the user that SpecFact CLI must be installed/upgraded first.",
+                        "",
                         "1. Run the validation command:",
                         "   ```bash",
                         f"   specfact generate contracts-apply enhanced_{file_path.stem}.py --original {file_path_relative}",
                         "   ```",
+                        "",
+                        "   - **If command not found**: STOP immediately and inform user (see mandatory pre-check message)",
+                        "   - **If command fails with error**: Review error, but if it's a missing command error, STOP and inform user",
                         "",
                         "### Step 5: Handle Validation Results",
                         "",
@@ -643,12 +696,14 @@ def generate_contracts_prompt(
                         "- You're done! The file has been enhanced with contracts",
                         "",
                         "**If validation fails:**",
-                        "- The CLI will show specific error messages explaining what's wrong",
-                        "- Review the errors carefully",
+                        "- **If error is 'command not found' or 'command does not exist'**: STOP immediately and inform user (see mandatory pre-check message)",
+                        "- **If error is validation failure** (syntax, AST, tests, etc.): Review the errors carefully",
                         "- Fix the issues in the enhanced code",
                         "- Write the corrected code to the same temporary file (`enhanced_{file_path.stem}.py`)",
                         "- Run the validation command again",
                         "- Repeat until validation passes (maximum 3 attempts)",
+                        "",
+                        "**CRITICAL**: If `specfact generate contracts-apply` command is not available or fails with 'command not found', DO NOT manually apply changes to the original file. STOP and inform the user that SpecFact CLI must be installed/upgraded first.",
                         "",
                         "### Common Validation Errors and Fixes",
                         "",
@@ -676,6 +731,8 @@ def generate_contracts_prompt(
                         "**Maximum Attempts: 3**",
                         "If validation fails after 3 attempts, review the errors manually and apply fixes.",
                         "",
+                        "**FINAL REMINDER**: This entire workflow REQUIRES SpecFact CLI. If SpecFact CLI is not available, you MUST stop and inform the user. Do NOT attempt to manually add contracts or modify files directly.",
+                        "",
                         "## Summary",
                         "",
                         f"- **Target File:** `{file_path_relative}`",
@@ -683,7 +740,7 @@ def generate_contracts_prompt(
                         f"- **Validation Command:** `specfact generate contracts-apply enhanced_{file_path.stem}.py --original {file_path_relative}`",
                         "- **Contracts:** " + ", ".join(contracts_to_apply),
                         "",
-                        "Please start by reading the file and then proceed with the enhancement workflow.",
+                        "**BEFORE STARTING**: Complete the mandatory SpecFact CLI verification at the top of this prompt. Do NOT proceed with file reading or code generation until SpecFact CLI is verified.",
                         "",
                     ]
                 )
@@ -994,95 +1051,219 @@ def apply_enhanced_contracts(
 
     print_success("Contract imports verified")
 
-    # Step 5: Run tests
-    console.print("\n[bold cyan]Step 5/6: Running tests...[/bold cyan]")
+    # Step 5: Run linting/formatting checks (if tools available)
+    console.print("\n[bold cyan]Step 5/7: Running code quality checks (if tools available)...[/bold cyan]")
+    lint_issues: list[str] = []
+    tools_checked = 0
+    tools_passed = 0
+
+    # List of common linting/formatting tools to check
+    linting_tools = [
+        ("ruff", ["ruff", "check", str(enhanced_file)], "Ruff linting"),
+        ("pylint", ["pylint", str(enhanced_file), "--disable=all", "--enable=E,F"], "Pylint basic checks"),
+        ("basedpyright", ["basedpyright", str(enhanced_file)], "BasedPyright type checking"),
+        ("mypy", ["mypy", str(enhanced_file)], "MyPy type checking"),
+    ]
+
+    for tool_name, command, description in linting_tools:
+        is_available, _error_msg = check_cli_tool_available(tool_name, version_flag="--version", timeout=3)
+        if not is_available:
+            console.print(f"[dim]Skipping {description}: {tool_name} not available[/dim]")
+            continue
+
+        tools_checked += 1
+        console.print(f"[dim]Running {description}...[/dim]")
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 seconds per tool
+                cwd=str(repo_path),
+            )
+
+            if result.returncode == 0:
+                tools_passed += 1
+                console.print(f"[green]✓[/green] {description} passed")
+            else:
+                # Collect issues but don't fail immediately (warnings only)
+                output = result.stdout + result.stderr
+                # Limit output length for readability
+                output_lines = output.split("\n")
+                if len(output_lines) > 20:
+                    output = "\n".join(output_lines[:20]) + f"\n... ({len(output_lines) - 20} more lines)"
+                lint_issues.append(f"{description} found issues:\n{output}")
+                console.print(f"[yellow]⚠[/yellow] {description} found issues (non-blocking)")
+
+        except subprocess.TimeoutExpired:
+            console.print(f"[yellow]⚠[/yellow] {description} timed out (non-blocking)")
+            lint_issues.append(f"{description} timed out after 30 seconds")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] {description} error: {e} (non-blocking)")
+            lint_issues.append(f"{description} error: {e}")
+
+    if tools_checked == 0:
+        console.print("[dim]No linting/formatting tools available. Skipping code quality checks.[/dim]")
+    elif tools_passed == tools_checked:
+        print_success(f"All code quality checks passed ({tools_passed}/{tools_checked} tools)")
+    else:
+        console.print(f"[yellow]Code quality checks: {tools_passed}/{tools_checked} tools passed[/yellow]")
+        if lint_issues:
+            console.print("\n[yellow]Code Quality Issues (non-blocking):[/yellow]")
+            for issue in lint_issues[:3]:  # Show first 3 issues
+                console.print(Panel(issue[:500], title="Issue", border_style="yellow"))
+            if len(lint_issues) > 3:
+                console.print(f"[dim]... and {len(lint_issues) - 3} more issue(s)[/dim]")
+            console.print("\n[yellow]Note:[/yellow] These are warnings. Fix them for better code quality.")
+
+    # Step 6: Run tests (scoped to relevant file only for performance)
+    # NOTE: Tests always run for validation, even in --dry-run mode, to ensure code quality
+    console.print("\n[bold cyan]Step 6/7: Running tests (scoped to relevant file)...[/bold cyan]")
     test_failed = False
     test_output = ""
 
-    # Try specfact repro first (public command for validation)
+    # For single-file validation, we scope tests to the specific file only (not full repo)
+    # This is much faster than running specfact repro on the entire repository
     try:
-        console.print("[dim]Running specfact repro for validation...[/dim]")
-        result = subprocess.run(
-            ["specfact", "repro", "--repo", str(repo_path)],
-            capture_output=True,
-            text=True,
-            timeout=120,  # 2 minutes for tests
-        )
+        # Find the original file path to determine test file location
+        original_file_rel = original_file.relative_to(repo_path) if original_file else None
+        enhanced_file_rel = enhanced_file.relative_to(repo_path)
+
+        # Determine the source file we're testing (original or enhanced)
+        source_file_rel = original_file_rel if original_file_rel else enhanced_file_rel
+
+        # Convert source file path to potential test file paths
+        # Pattern: src/specfact_cli/telemetry.py -> tests/unit/specfact_cli/test_telemetry.py
+        # or: src/common/logger.py -> tests/unit/common/test_logger.py
+        test_paths: list[Path] = []
+
+        # Remove 'src/' prefix if present
+        test_rel_path = str(source_file_rel)
+        if test_rel_path.startswith("src/"):
+            test_rel_path = test_rel_path[4:]  # Remove 'src/'
+        elif test_rel_path.startswith("tools/"):
+            test_rel_path = test_rel_path[6:]  # Remove 'tools/'
+
+        # Get directory and filename
+        test_file_dir = Path(test_rel_path).parent
+        test_file_name = Path(test_rel_path).stem  # e.g., "telemetry" from "telemetry.py"
+
+        # Try common test file patterns
+        test_file_patterns = [
+            f"test_{test_file_name}.py",
+            f"{test_file_name}_test.py",
+        ]
+
+        # Try common test directory structures
+        test_dirs = [
+            repo_path / "tests" / "unit" / test_file_dir,
+            repo_path / "tests" / test_file_dir,
+            repo_path / "tests" / "unit",
+            repo_path / "tests",
+        ]
+
+        # Build list of possible test file paths
+        for test_dir in test_dirs:
+            if test_dir.exists():
+                for pattern in test_file_patterns:
+                    test_path = test_dir / pattern
+                    if test_path.exists():
+                        test_paths.append(test_path)
+
+        # Also try E2E tests if unit tests not found
+        if not test_paths:
+            e2e_test_dirs = [
+                repo_path / "tests" / "e2e" / test_file_dir,
+                repo_path / "tests" / "e2e",
+            ]
+            for test_dir in e2e_test_dirs:
+                if test_dir.exists():
+                    for pattern in test_file_patterns:
+                        test_path = test_dir / pattern
+                        if test_path.exists():
+                            test_paths.append(test_path)
+
+        # If we found specific test files, run them
+        if test_paths:
+            # Use the first matching test file (most specific)
+            test_path = test_paths[0]
+            console.print(f"[dim]Found test file: {test_path.relative_to(repo_path)}[/dim]")
+            console.print("[dim]Running pytest on specific test file (fast, scoped validation)...[/dim]")
+
+            result = subprocess.run(
+                ["pytest", str(test_path), "-v", "--tb=short"],
+                capture_output=True,
+                text=True,
+                timeout=60,  # 1 minute should be enough for a single test file
+                cwd=str(repo_path),
+            )
+        else:
+            # No specific test file found, try to import and test the enhanced file directly
+            # This validates that the file can be imported and basic syntax works
+            console.print(f"[dim]No specific test file found for {source_file_rel}[/dim]")
+            console.print("[dim]Running syntax and import validation on enhanced file...[/dim]")
+
+            # Try to import the module to verify it works
+            import importlib.util
+            import sys
+            from dataclasses import dataclass
+
+            @dataclass
+            class ImportResult:
+                """Result object for import validation."""
+
+                returncode: int
+                stdout: str
+                stderr: str
+
+            try:
+                # Add the enhanced file's directory to path temporarily
+                enhanced_file_dir = str(enhanced_file.parent)
+                if enhanced_file_dir not in sys.path:
+                    sys.path.insert(0, enhanced_file_dir)
+
+                # Try to load the module
+                spec = importlib.util.spec_from_file_location(enhanced_file.stem, enhanced_file)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    print_success("Enhanced file imports successfully")
+                    result = ImportResult(returncode=0, stdout="", stderr="")
+                else:
+                    raise ImportError("Could not create module spec")
+            except Exception as import_error:
+                test_failed = True
+                test_output = f"Import validation failed: {import_error}"
+                print_error(test_output)
+                console.print(
+                    "\n[yellow]Note:[/yellow] No specific test file found. Enhanced file should be importable."
+                )
+                result = ImportResult(returncode=1, stdout="", stderr=test_output)
+
         if result.returncode != 0:
             test_failed = True
             test_output = result.stdout + result.stderr
-            print_error("Validation failed:")
+            print_error("Test execution failed:")
             # Limit output for readability
             output_lines = test_output.split("\n")
             console.print("\n".join(output_lines[:50]))  # First 50 lines
             if len(output_lines) > 50:
                 console.print(f"\n... ({len(output_lines) - 50} more lines)")
         else:
-            print_success("All validations passed")
+            if test_paths:
+                print_success(f"All tests passed ({test_paths[0].relative_to(repo_path)})")
+            else:
+                print_success("Import validation passed")
+    except FileNotFoundError:
+        console.print("[yellow]Warning:[/yellow] 'pytest' not found. Skipping test execution.")
+        console.print("[yellow]Please run tests manually before applying changes.[/yellow]")
+        test_failed = False  # Don't fail if tools not available
     except subprocess.TimeoutExpired:
         test_failed = True
-        test_output = "Validation timed out after 120 seconds"
+        test_output = "Test execution timed out after 60 seconds"
         print_error(test_output)
-    except FileNotFoundError:
-        # specfact not available, try pytest directly
-        console.print("[dim]specfact not available, trying pytest directly...[/dim]")
-        try:
-            # Try to find and run tests for the enhanced file
-            # Look for test files that might test this module
-            enhanced_file_rel = enhanced_file.relative_to(repo_path)
-            test_file_pattern = f"test_{enhanced_file.stem}.py"
-
-            # Try common test locations
-            possible_test_paths = [
-                repo_path / "tests" / "unit" / enhanced_file_rel.parent / test_file_pattern,
-                repo_path / "tests" / test_file_pattern,
-                repo_path / "tests" / "unit" / test_file_pattern,
-            ]
-
-            test_path = None
-            for path in possible_test_paths:
-                if path.exists():
-                    test_path = path
-                    break
-
-            if test_path:
-                result = subprocess.run(
-                    ["pytest", str(test_path), "-v"],
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                    cwd=str(repo_path),
-                )
-            else:
-                # No specific test file found, run pytest on the enhanced file itself
-                # (pytest can test Python files directly)
-                result = subprocess.run(
-                    ["pytest", str(enhanced_file), "-v"],
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                    cwd=str(repo_path),
-                )
-
-            if result.returncode != 0:
-                test_failed = True
-                test_output = result.stdout + result.stderr
-                print_error("Test execution failed:")
-                # Limit output for readability
-                output_lines = test_output.split("\n")
-                console.print("\n".join(output_lines[:50]))  # First 50 lines
-                if len(output_lines) > 50:
-                    console.print(f"\n... ({len(output_lines) - 50} more lines)")
-            else:
-                print_success("All tests passed")
-        except FileNotFoundError:
-            console.print("[yellow]Warning:[/yellow] Neither 'specfact' nor 'pytest' found. Skipping test execution.")
-            console.print("[yellow]Please run tests manually before applying changes.[/yellow]")
-            test_failed = False  # Don't fail if tools not available
-        except subprocess.TimeoutExpired:
-            test_failed = True
-            test_output = "Test execution timed out after 120 seconds"
-            print_error(test_output)
+        console.print("\n[yellow]Note:[/yellow] Test execution took too long. Consider running tests manually.")
     except Exception as e:
         test_failed = True
         test_output = f"Test execution error: {e}"
@@ -1100,8 +1281,8 @@ def apply_enhanced_contracts(
         console.print("  - Contract conditions may be invalid")
         raise typer.Exit(1) from None
 
-    # Step 6: Show diff
-    console.print("\n[bold cyan]Step 6/6: Previewing changes...[/bold cyan]")
+    # Step 7: Show diff
+    console.print("\n[bold cyan]Step 7/7: Previewing changes...[/bold cyan]")
     diff = list(
         difflib.unified_diff(
             original_content.splitlines(keepends=True),

@@ -2256,6 +2256,7 @@ specfact init [OPTIONS]
 - `--ide TEXT` - IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q) (default: auto)
 - `--repo PATH` - Repository path (default: current directory)
 - `--force` - Overwrite existing files
+- `--install-deps` - Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) via pip
 
 **Examples:**
 
@@ -2270,6 +2271,12 @@ specfact init --ide copilot
 
 # Force overwrite existing files
 specfact init --ide cursor --force
+
+# Install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize IDE integration and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 **What it does:**
@@ -2278,6 +2285,11 @@ specfact init --ide cursor --force
 2. Copies prompt templates from `resources/prompts/` to IDE-specific location **at the repository root level**
 3. Creates/updates VS Code settings.json if needed (for VS Code/Copilot)
 4. Makes slash commands available in your IDE
+5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
+   - `beartype>=0.22.4` - Runtime type checking
+   - `icontract>=2.7.1` - Design-by-contract decorators
+   - `crosshair-tool>=0.0.97` - Contract exploration
+   - `pytest>=8.4.2` - Testing framework
 
 **Important:** Templates are always copied to the repository root level (where `.github/`, `.cursor/`, etc. directories must reside for IDE recognition). The `--repo` parameter specifies the repository root path. For multi-project codebases, run `specfact init` from the repository root to ensure IDE integration works correctly.
 
@@ -2324,6 +2336,12 @@ specfact init --ide cursor
 
 # Or auto-detect IDE
 specfact init
+
+# Initialize and install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize for specific IDE and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 ### Usage
