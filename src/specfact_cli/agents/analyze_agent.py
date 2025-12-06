@@ -397,3 +397,54 @@ Dependencies: {len(dependencies)} dependency files found
             ),
             clarifications=None,
         )
+
+
+# CrossHair property-based test functions
+# These functions are designed for CrossHair symbolic execution analysis
+@beartype
+def test_generate_prompt_property(command: str, context: dict[str, Any] | None) -> None:
+    """CrossHair property test for generate_prompt method."""
+    agent = AnalyzeAgent()
+    result = agent.generate_prompt(command, context)
+    assert isinstance(result, str)
+    assert len(result) > 0
+    # Contract: result must be non-empty string
+    assert bool(result)
+
+
+@beartype
+def test_execute_property(command: str, args: dict[str, Any] | None, context: dict[str, Any] | None) -> None:
+    """CrossHair property test for execute method."""
+    agent = AnalyzeAgent()
+    result = agent.execute(command, args, context)
+    assert isinstance(result, dict)
+    # Contract: result must be a dictionary
+    assert "type" in result or "command" in result or "prompt" in result
+
+
+@beartype
+def test_inject_context_property(context: dict[str, Any] | None) -> None:
+    """CrossHair property test for inject_context method."""
+    agent = AnalyzeAgent()
+    result = agent.inject_context(context)
+    assert isinstance(result, dict)
+    # Contract: result must be a dictionary
+    assert result is not None
+
+
+@beartype
+def test_analyze_codebase_property(repo_path: Path, confidence: float, plan_name: str | None) -> None:
+    """CrossHair property test for analyze_codebase method."""
+    # Only test if repo_path exists and is a directory
+    if not (repo_path.exists() and repo_path.is_dir()):  # type: ignore[reportUnknownMemberType]
+        return
+    # Only test if confidence is in valid range
+    if not (0.0 <= confidence <= 1.0):
+        return
+    agent = AnalyzeAgent()
+    result = agent.analyze_codebase(repo_path, confidence, plan_name)
+    assert isinstance(result, PlanBundle)
+    # Contract: result must be PlanBundle
+    assert result.version is not None
+    assert result.idea is not None
+    assert result.product is not None
