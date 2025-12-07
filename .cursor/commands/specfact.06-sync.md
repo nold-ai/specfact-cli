@@ -61,7 +61,61 @@ specfact sync bridge --adapter <adapter> --repo <path> [--bidirectional] [--bund
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:** Execute CLI first, use appropriate flags in CI/CD, never modify `.specfact/` or `.specify/` directly, use CLI output as grounding.
+**Rules:**
+
+- Execute CLI first - never create artifacts directly
+- Use `--no-interactive` flag in CI/CD environments
+- Never modify `.specfact/` or `.specify/` directly
+- Use CLI output as grounding for validation
+- Code generation requires LLM (only via AI IDE slash prompts, not CLI-only)
+
+## Dual-Stack Workflow (Copilot Mode)
+
+When in copilot mode, follow this three-phase workflow:
+
+### Phase 1: CLI Grounding (REQUIRED)
+
+```bash
+# Execute CLI to get structured output
+specfact sync bridge --adapter <adapter> --repo <path> [options] --no-interactive
+```
+
+**Capture**:
+
+- CLI-generated sync results
+- Artifacts synchronized
+- Conflict resolution status
+
+### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+
+**Purpose**: Add semantic understanding to sync results
+
+**What to do**:
+
+- Read CLI-generated sync results (use file reading tools for display only)
+- Research codebase for context on conflicts
+- Suggest resolution strategies
+
+**What NOT to do**:
+
+- ❌ Create YAML/JSON artifacts directly
+- ❌ Modify CLI artifacts directly (use CLI commands to update)
+- ❌ Bypass CLI validation
+- ❌ Write to `.specfact/` or `.specify/` folders directly (always use CLI)
+
+**Output**: Generate conflict resolution suggestions (Markdown)
+
+### Phase 3: CLI Artifact Creation (REQUIRED)
+
+```bash
+# Apply resolutions via CLI commands, then re-sync
+specfact plan update-feature [--bundle <name>] [options] --no-interactive
+specfact sync bridge --adapter <adapter> --repo <path> --no-interactive
+```
+
+**Result**: Final artifacts are CLI-generated with validated resolutions
+
+**Note**: If code generation is needed, use the validation loop pattern (see [CLI Enforcement Rules](./shared/cli-enforcement.md#standard-validation-loop-pattern-for-llm-generated-code))
 
 ## Expected Output
 

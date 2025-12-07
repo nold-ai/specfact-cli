@@ -1,5 +1,6 @@
 """Integration tests for .specfact directory structure."""
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -248,6 +249,7 @@ class TestService:
         bundles = [d for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
         assert len(bundles) > 0
 
+    @pytest.mark.timeout(20)
     def test_analyze_creates_structure(self, tmp_path):
         """Test that analyze creates .specfact/ structure automatically."""
         src_dir = tmp_path / "src"

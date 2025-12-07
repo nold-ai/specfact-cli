@@ -147,7 +147,63 @@ specfact import from-code [<bundle-name>] --repo . --enrichment enrichment-repor
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:** Execute CLI first, use `--no-interactive` in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
+**Rules:**
+
+- Execute CLI first - never create artifacts directly
+- Use `--no-interactive` flag in CI/CD environments
+- Never modify `.specfact/` directly
+- Use CLI output as grounding for validation
+- Code generation requires LLM (only via AI IDE slash prompts, not CLI-only)
+
+## Dual-Stack Workflow (Copilot Mode)
+
+When in copilot mode, follow this three-phase workflow:
+
+### Phase 1: CLI Grounding (REQUIRED)
+
+```bash
+# Execute CLI to get structured output
+specfact plan review [<bundle-name>] --list-findings --findings-format json --no-interactive
+```
+
+**Capture**:
+
+- CLI-generated findings (ambiguities, missing information)
+- Structured JSON/YAML output for bulk processing
+- Metadata (timestamps, confidence scores)
+
+### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+
+**Purpose**: Add semantic understanding to CLI findings
+
+**What to do**:
+
+- Read CLI-generated findings (use file reading tools for display only)
+- Research codebase for additional context
+- Generate enrichment report or batch update file
+- Address ambiguities with business context
+
+**What NOT to do**:
+
+- ❌ Create YAML/JSON artifacts directly
+- ❌ Modify CLI artifacts directly (use CLI commands to update)
+- ❌ Bypass CLI validation
+- ❌ Write to `.specfact/` folder directly (always use CLI)
+
+**Output**: Generate enrichment report (Markdown) or batch update JSON/YAML file
+
+### Phase 3: CLI Artifact Creation (REQUIRED)
+
+```bash
+# Use enrichment to update plan via CLI
+specfact plan update-feature [--bundle <name>] --batch-updates <updates.json> --no-interactive
+# Or use auto-enrich:
+specfact plan review [<bundle-name>] --auto-enrich --no-interactive
+```
+
+**Result**: Final artifacts are CLI-generated with validated enrichments
+
+**Note**: If code generation is needed, use the validation loop pattern (see [CLI Enforcement Rules](./shared/cli-enforcement.md#standard-validation-loop-pattern-for-llm-generated-code))
 
 ## Expected Output
 

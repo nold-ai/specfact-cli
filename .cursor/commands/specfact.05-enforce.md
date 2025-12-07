@@ -58,7 +58,61 @@ specfact enforce sdd [<bundle-name>] [--sdd <path>] [--output-format <format>] [
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
-**Rules:** Execute CLI first, use `--no-interactive` in CI/CD, never modify `.specfact/` directly, use CLI output as grounding.
+**Rules:**
+
+- Execute CLI first - never create artifacts directly
+- Use `--no-interactive` flag in CI/CD environments
+- Never modify `.specfact/` directly
+- Use CLI output as grounding for validation
+- Code generation requires LLM (only via AI IDE slash prompts, not CLI-only)
+
+## Dual-Stack Workflow (Copilot Mode)
+
+When in copilot mode, follow this three-phase workflow:
+
+### Phase 1: CLI Grounding (REQUIRED)
+
+```bash
+# Execute CLI to get structured output
+specfact enforce sdd [<bundle-name>] [--sdd <path>] --no-interactive
+```
+
+**Capture**:
+
+- CLI-generated validation report
+- Deviation counts and severity
+- Coverage metrics vs thresholds
+
+### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+
+**Purpose**: Add semantic understanding to validation results
+
+**What to do**:
+
+- Read CLI-generated validation report (use file reading tools for display only)
+- Research codebase for context on deviations
+- Suggest fixes for validation failures
+
+**What NOT to do**:
+
+- ❌ Create YAML/JSON artifacts directly
+- ❌ Modify CLI artifacts directly (use CLI commands to update)
+- ❌ Bypass CLI validation
+- ❌ Write to `.specfact/` folder directly (always use CLI)
+
+**Output**: Generate fix suggestions report (Markdown)
+
+### Phase 3: CLI Artifact Creation (REQUIRED)
+
+```bash
+# Apply fixes via CLI commands, then re-validate
+specfact plan update-feature [--bundle <name>] [options] --no-interactive
+specfact enforce sdd [<bundle-name>] --no-interactive
+```
+
+**Result**: Final artifacts are CLI-generated with validated fixes
+
+**Note**: If code generation is needed, use the validation loop pattern (see [CLI Enforcement Rules](./shared/cli-enforcement.md#standard-validation-loop-pattern-for-llm-generated-code))
 
 ## Expected Output
 

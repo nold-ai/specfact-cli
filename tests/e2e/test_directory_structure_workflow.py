@@ -2,6 +2,7 @@
 
 from textwrap import dedent
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -627,6 +628,7 @@ class Test:
 class TestRealWorldScenarios:
     """Test real-world usage scenarios with .specfact structure."""
 
+    @pytest.mark.timeout(20)
     def test_continuous_integration_workflow(self, tmp_path):
         """
         Simulate CI/CD workflow:

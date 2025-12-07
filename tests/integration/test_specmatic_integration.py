@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -23,6 +24,7 @@ class TestSpecmaticImportIntegration:
 
     @patch("specfact_cli.integrations.specmatic.check_specmatic_available")
     @patch("specfact_cli.integrations.specmatic.validate_spec_with_specmatic")
+    @pytest.mark.timeout(20)
     def test_import_validates_bundle_contracts(
         self, mock_validate: AsyncMock, mock_check: MagicMock, tmp_path: Path
     ) -> None:
@@ -115,6 +117,7 @@ features:
         # Note: This test verifies the integration point exists, not full import flow
         assert mock_check.called or result.exit_code in (0, 1)  # May fail if bundle doesn't exist
 
+    @pytest.mark.timeout(20)
     @patch("specfact_cli.integrations.specmatic.check_specmatic_available")
     def test_import_suggests_mock_server_when_specs_found(self, mock_check: MagicMock, tmp_path: Path) -> None:
         """Test that import command suggests mock server when API specs are found."""

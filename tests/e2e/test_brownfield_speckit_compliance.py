@@ -190,6 +190,7 @@ class TestBrownfieldSpeckitComplianceE2E:
         finally:
             os.environ.pop("TEST_MODE", None)
 
+    @pytest.mark.timeout(20)
     def test_brownfield_import_extracts_technology_stack(self, brownfield_repo: Path) -> None:
         """Test that brownfield import extracts technology stack from requirements.txt."""
         os.environ["TEST_MODE"] = "true"
