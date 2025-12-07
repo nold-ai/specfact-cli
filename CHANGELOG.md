@@ -9,6 +9,39 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.14.0] - 2025-12-02
+
+### Added (0.14.0)
+
+- **Phase 4.9: Quick Start Optimization**
+  - Incremental results display - shows features as they're discovered during analysis
+  - Early feedback mechanism - first value shown within < 60 seconds
+  - Next steps suggestions - contextual commands displayed after first import
+  - Enhanced progress indicators - incremental updates every 5 features
+  - `_suggest_next_steps()` function providing actionable next commands
+
+- **Phase 4.10: CI Performance Optimization**
+  - Performance monitoring utility (`src/specfact_cli/utils/performance.py`)
+  - Threshold-based slow operation detection (> 5 seconds)
+  - Performance report display in interactive mode (suppressed in CI)
+  - Operation tracking for all major import steps:
+    - `analyze_codebase`, `extract_relationships_and_graph`, `extract_contracts`
+    - `build_enrichment_context`, `apply_enrichment`, `save_bundle`, `validate_api_specs`
+
+### Improved (0.14.0)
+
+- **Import Command Enhancements**
+  - Real-time feature discovery with incremental callback mechanism
+  - Performance tracking integrated into import workflow
+  - Better user experience with immediate feedback and actionable suggestions
+
+### Testing (0.14.0)
+
+- Added 8 unit tests for performance monitoring utility (all passing)
+- Added 6 e2e tests for quick start and performance optimization (all passing)
+
+---
+
 ## [0.13.3] - 2025-12-06
 
 ### Fixed (0.13.3)
