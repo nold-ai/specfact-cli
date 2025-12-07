@@ -9,6 +9,7 @@ SpecFact contract-driven format using the bridge architecture.
 from __future__ import annotations
 
 import multiprocessing
+import os
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.performance import track_performance
 from specfact_cli.utils.progress import save_bundle_with_progress
 
 
@@ -172,6 +174,7 @@ def _analyze_codebase(
     confidence: float,
     key_format: str,
     routing_result: Any,
+    incremental_callback: Any | None = None,
 ) -> PlanBundle:
     """Analyze codebase using AI agent or AST fallback."""
     from specfact_cli.agents.analyze_agent import AnalyzeAgent
@@ -200,13 +203,29 @@ def _analyze_codebase(
         "\n[yellow]⏱️  Note: This analysis typically takes 2-5 minutes for large codebases (optimized for speed)[/yellow]"
     )
 
-    # Create analyzer to check plugin status
+    # Phase 4.9: Create incremental callback for early feedback
+    first_value_shown = False
+
+    def on_incremental_update(features_count: int, themes: list[str]) -> None:
+        """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
+        nonlocal first_value_shown
+        if not first_value_shown and features_count >= 1:
+            # Show first value immediately when first feature is discovered
+            console.print(f"\n[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]")
+            if themes:
+                console.print(f"[dim]Themes detected: {', '.join(themes[:3])}{'...' if len(themes) > 3 else ''}[/dim]")
+            first_value_shown = True
+        elif features_count % 5 == 0:  # Show updates every 5 features
+            console.print(f"[dim]Progress: {features_count} features discovered...[/dim]")
+
+    # Create analyzer with incremental callback
     analyzer = CodeAnalyzer(
         repo,
         confidence_threshold=confidence,
         key_format=key_format,
         plan_name=bundle,
         entry_point=entry_point,
+        incremental_callback=incremental_callback or on_incremental_update,
     )
 
     # Display plugin status
@@ -917,6 +936,49 @@ def _validate_api_specs(repo: Path, bundle_dir: Path | None = None, plan_bundle:
         console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
 
 
+def _suggest_next_steps(repo: Path, bundle: str, plan_bundle: PlanBundle | None) -> None:
+    """
+    Suggest next steps after first import (Phase 4.9: Quick Start Optimization).
+
+    Args:
+        repo: Repository path
+        bundle: Bundle name
+        plan_bundle: Generated plan bundle
+    """
+    if plan_bundle is None:
+        return
+
+    console.print("\n[bold cyan]📋 Next Steps:[/bold cyan]")
+    console.print("[dim]Here are some commands you might want to run next:[/dim]\n")
+
+    # Check if this is a first run (no existing bundle)
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
+    is_first_run = not (bundle_dir / "bundle.manifest.yaml").exists()
+
+    if is_first_run:
+        console.print("  [yellow]→[/yellow] [bold]Review your plan:[/bold]")
+        console.print(f"     specfact plan review {bundle}")
+        console.print("     [dim]Review and refine the generated plan bundle[/dim]\n")
+
+        console.print("  [yellow]→[/yellow] [bold]Compare with code:[/bold]")
+        console.print(f"     specfact plan compare --bundle {bundle}")
+        console.print("     [dim]Detect deviations between plan and code[/dim]\n")
+
+        console.print("  [yellow]→[/yellow] [bold]Validate SDD:[/bold]")
+        console.print(f"     specfact enforce sdd {bundle}")
+        console.print("     [dim]Check for violations and coverage thresholds[/dim]\n")
+    else:
+        console.print("  [yellow]→[/yellow] [bold]Review changes:[/bold]")
+        console.print(f"     specfact plan review {bundle}")
+        console.print("     [dim]Review updates to your plan bundle[/dim]\n")
+
+        console.print("  [yellow]→[/yellow] [bold]Check deviations:[/bold]")
+        console.print(f"     specfact plan compare --bundle {bundle}")
+        console.print("     [dim]See what changed since last import[/dim]\n")
+
+
 def _suggest_constitution_bootstrap(repo: Path) -> None:
     """Suggest or generate constitution bootstrap for brownfield imports."""
     specify_dir = repo / ".specify" / "memory"
@@ -1498,7 +1560,11 @@ def from_code(
         "shadow_mode": shadow_only,
     }
 
-    with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
+    # Phase 4.10: CI Performance Optimization - Track performance
+    with (
+        track_performance("import.from_code", threshold=5.0) as perf_monitor,
+        telemetry.track_command("import.from_code", telemetry_metadata) as record_event,
+    ):
         try:
             # If enrichment is provided, try to load existing bundle
             # Note: For now, enrichment workflow needs to be updated for modular bundles
@@ -1529,11 +1595,41 @@ def from_code(
                     plan_bundle = _load_existing_bundle(bundle_dir)
 
                 if plan_bundle is None:
-                    plan_bundle = _analyze_codebase(repo, entry_point, bundle, confidence, key_format, routing_result)
+                    # Phase 4.9 & 4.10: Track codebase analysis performance
+                    with perf_monitor.track("analyze_codebase", {"files": python_file_count}):
+                        # Phase 4.9: Create callback for incremental results
+                        first_value_shown = False
+
+                        def on_incremental_update(features_count: int, themes: list[str]) -> None:
+                            """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
+                            nonlocal first_value_shown
+                            if not first_value_shown and features_count >= 1:
+                                # Show first value immediately when first feature is discovered
+                                console.print(
+                                    f"\n[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]"
+                                )
+                                if themes:
+                                    console.print(
+                                        f"[dim]Themes detected: {', '.join(themes[:3])}{'...' if len(themes) > 3 else ''}[/dim]"
+                                    )
+                                first_value_shown = True
+                            elif features_count % 5 == 0:  # Show updates every 5 features
+                                console.print(f"[dim]Progress: {features_count} features discovered...[/dim]")
+
+                        plan_bundle = _analyze_codebase(
+                            repo,
+                            entry_point,
+                            bundle,
+                            confidence,
+                            key_format,
+                            routing_result,
+                            incremental_callback=on_incremental_update,
+                        )
                     if plan_bundle is None:
                         console.print("[bold red]✗ Failed to analyze codebase[/bold red]")
                         raise typer.Exit(1)
 
+                    # Phase 4.9: Show incremental results immediately (quick first value)
                     console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
                     console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
                     total_stories = sum(len(f.stories) for f in plan_bundle.features)
@@ -1546,7 +1642,8 @@ def from_code(
                 raise typer.Exit(1)
 
             # Add source tracking to features
-            _update_source_tracking(plan_bundle, repo)
+            with perf_monitor.track("update_source_tracking"):
+                _update_source_tracking(plan_bundle, repo)
 
             # Enhanced Analysis Phase: Extract relationships, contracts, and graph dependencies
             # Check if we need to regenerate these artifacts
@@ -1559,48 +1656,64 @@ def from_code(
                 "enrichment_context", True
             )
 
-            relationships, _graph_summary = _extract_relationships_and_graph(
-                repo,
-                entry_point,
-                bundle_dir,
-                incremental_changes,
-                plan_bundle,
-                should_regenerate_relationships,
-                should_regenerate_graph,
-                include_tests,
-            )
+            # Phase 4.10: Track relationship extraction performance
+            with perf_monitor.track("extract_relationships_and_graph"):
+                relationships, _graph_summary = _extract_relationships_and_graph(
+                    repo,
+                    entry_point,
+                    bundle_dir,
+                    incremental_changes,
+                    plan_bundle,
+                    should_regenerate_relationships,
+                    should_regenerate_graph,
+                    include_tests,
+                )
 
-            # Extract contracts
-            contracts_data = _extract_contracts(
-                repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
-            )
+            # Phase 4.10: Track contract extraction performance
+            with perf_monitor.track("extract_contracts"):
+                contracts_data = _extract_contracts(
+                    repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
+                )
 
-            # Build enrichment context
-            _build_enrichment_context(
-                bundle_dir, repo, plan_bundle, relationships, contracts_data, should_regenerate_enrichment, record_event
-            )
+            # Phase 4.10: Track enrichment context building performance
+            with perf_monitor.track("build_enrichment_context"):
+                _build_enrichment_context(
+                    bundle_dir,
+                    repo,
+                    plan_bundle,
+                    relationships,
+                    contracts_data,
+                    should_regenerate_enrichment,
+                    record_event,
+                )
 
             # Apply enrichment if provided
             if enrichment:
-                plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
+                with perf_monitor.track("apply_enrichment"):
+                    plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
 
             # Save bundle if needed
-            _save_bundle_if_needed(
-                plan_bundle,
-                bundle,
-                bundle_dir,
-                incremental_changes,
-                should_regenerate_relationships,
-                should_regenerate_graph,
-                should_regenerate_contracts,
-                should_regenerate_enrichment,
-            )
+            with perf_monitor.track("save_bundle"):
+                _save_bundle_if_needed(
+                    plan_bundle,
+                    bundle,
+                    bundle_dir,
+                    incremental_changes,
+                    should_regenerate_relationships,
+                    should_regenerate_graph,
+                    should_regenerate_contracts,
+                    should_regenerate_enrichment,
+                )
 
             console.print("\n[bold green]✓ Import complete![/bold green]")
             console.print(f"[dim]Project bundle written to: {bundle_dir}[/dim]")
 
             # Validate API specs (both repo-level and bundle contracts)
-            _validate_api_specs(repo, bundle_dir=bundle_dir, plan_bundle=plan_bundle)
+            with perf_monitor.track("validate_api_specs"):
+                _validate_api_specs(repo, bundle_dir=bundle_dir, plan_bundle=plan_bundle)
+
+            # Phase 4.9: Suggest next steps (Quick Start Optimization)
+            _suggest_next_steps(repo, bundle, plan_bundle)
 
             # Suggest constitution bootstrap
             _suggest_constitution_bootstrap(repo)
@@ -1618,6 +1731,12 @@ def from_code(
                 raise typer.Exit(1)
 
             _generate_report(repo, bundle_dir, plan_bundle, confidence, enrichment, report)
+
+            # Phase 4.10: Print performance report if slow operations detected
+            perf_report = perf_monitor.get_report()
+            if perf_report.slow_operations and not os.environ.get("CI"):
+                # Only show in non-CI mode (interactive)
+                perf_report.print_summary()
 
         except KeyboardInterrupt:
             # Re-raise KeyboardInterrupt immediately (don't catch it here)

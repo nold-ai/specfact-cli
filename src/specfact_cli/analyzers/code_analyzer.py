@@ -57,6 +57,7 @@ class CodeAnalyzer:
         key_format: str = "classname",
         plan_name: str | None = None,
         entry_point: Path | None = None,
+        incremental_callback: Any | None = None,
     ) -> None:
         """
         Initialize code analyzer.
@@ -67,11 +68,13 @@ class CodeAnalyzer:
             key_format: Feature key format ('classname' or 'sequential', default: 'classname')
             plan_name: Custom plan name (will be used for idea.title, optional)
             entry_point: Optional entry point path for partial analysis (relative to repo_path)
+            incremental_callback: Optional callback function(features_count, themes) for incremental results (Phase 4.9)
         """
         self.repo_path = Path(repo_path).resolve()
         self.confidence_threshold = confidence_threshold
         self.key_format = key_format
         self.plan_name = plan_name
+        self.incremental_callback = incremental_callback
         self.entry_point: Path | None = None
         if entry_point is not None:
             # Resolve entry point relative to repo_path
@@ -196,9 +199,15 @@ class CodeAnalyzer:
                     for file_path in files_to_analyze:
                         try:
                             results = analyze_file_safe(file_path)
+                            prev_features_count = len(self.features)
                             self._merge_analysis_results(results)
                             completed_count += 1
                             progress.update(task3, completed=completed_count)
+
+                            # Phase 4.9: Report incremental results for quick first value
+                            if self.incremental_callback and len(self.features) > prev_features_count:
+                                # Only call callback when new features are discovered
+                                self.incremental_callback(len(self.features), sorted(self.themes))
                         except Exception as e:
                             console.print(f"[dim]⚠ Warning: Failed to analyze {file_path}: {e}[/dim]")
                             completed_count += 1
@@ -218,9 +227,15 @@ class CodeAnalyzer:
                                 try:
                                     results = future.result()
                                     # Merge results into instance variables (sequential merge is fast)
+                                    prev_features_count = len(self.features)
                                     self._merge_analysis_results(results)
                                     completed_count += 1
                                     progress.update(task3, completed=completed_count)
+
+                                    # Phase 4.9: Report incremental results for quick first value
+                                    if self.incremental_callback and len(self.features) > prev_features_count:
+                                        # Only call callback when new features are discovered
+                                        self.incremental_callback(len(self.features), sorted(self.themes))
                                 except KeyboardInterrupt:
                                     # Cancel remaining tasks and break out of loop immediately
                                     interrupted = True
