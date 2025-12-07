@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -16,6 +17,7 @@ from specfact_cli.cli import app
 class TestImportCommandWithTestExamples:
     """Integration tests for import command with test example extraction."""
 
+    @pytest.mark.timeout(20)
     def test_import_from_code_with_test_examples(self, tmp_path: Path) -> None:
         """Test import command extracts test examples and adds them to OpenAPI contracts."""
         # Create a simple API with tests
@@ -98,6 +100,7 @@ def test_create_user():
                                             if "examples" in content_schema:
                                                 assert "test-example" in content_schema["examples"]
 
+    @pytest.mark.timeout(20)
     def test_import_from_code_minimal_acceptance_criteria(self, tmp_path: Path) -> None:
         """Test that import command generates minimal acceptance criteria when examples are in contracts."""
         # Create a simple class with tests
@@ -166,6 +169,7 @@ def test_create_user():
                             # Should not have very long GWT patterns (examples are in contracts)
                             assert len(acc) < 200 or "see contract examples" in acc.lower()
 
+    @pytest.mark.timeout(20)
     def test_import_skips_test_analysis_when_contract_has_good_structure(self, tmp_path: Path) -> None:
         """Test that import command skips test analysis when contract already has good structure."""
         # Create an API file with good structure
@@ -244,6 +248,7 @@ def test_create_user():
                     # (we can't directly verify skipping, but we can verify the contract is good)
                     assert has_schemas or has_request_body
 
+    @pytest.mark.timeout(20)
     def test_import_parallel_contract_extraction(self, tmp_path: Path) -> None:
         """Test that contract extraction uses parallel processing."""
         # Create multiple API files

@@ -19,6 +19,7 @@ runner = CliRunner()
 class TestContractExtractionE2E:
     """E2E tests for contract extraction."""
 
+    @pytest.mark.timeout(20)
     def test_contracts_extracted_in_plan_bundle(self):
         """Test that contracts are extracted and included in plan bundle."""
         code = dedent(
@@ -277,6 +278,7 @@ class TestContractExtractionE2E:
                             # Check for checked checkbox (markdown format: - [x])
                             assert "- [x] Contracts defined" in plan_content or "[x] Contracts defined" in plan_content
 
+    @pytest.mark.timeout(20)
     def test_contracts_with_complex_types_in_plan_md(self):
         """Test that contracts with complex types are properly formatted in plan bundle."""
         code = dedent(

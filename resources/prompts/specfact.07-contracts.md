@@ -47,17 +47,20 @@ specfact analyze contracts --repo <repo-path> --bundle <bundle-name>
 ```
 
 **Parse the output to identify:**
+
 - Files missing beartype (marked with ✗)
 - Files missing icontract (marked with ✗)
 - Files missing crosshair (marked with ✗ or dim ✗)
 - Files that need attention (prioritized in the table)
 
 **Extract file list:**
+
 - Focus on files marked with ✗ for beartype or icontract
 - Crosshair is optional (marked with dim ✗), but can be included if user requests
 - Filter out pure data model files (they use Pydantic validation)
 
 **Present summary:**
+
 - Total files analyzed
 - Files missing contracts (by type)
 - Files recommended for enhancement
@@ -71,12 +74,14 @@ specfact generate contracts-prompt <file-path> --apply <contract-types> --bundle
 ```
 
 **Important:**
+
 - Generate prompts for ALL files missing contracts (or based on --min-priority)
 - Prompts are saved to `.specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md`
 - If no bundle, prompts saved to `.specfact/prompts/`
 - Each prompt file contains instructions for the AI IDE to enhance the file
 
 **Present prompt generation summary:**
+
 - Number of prompts generated
 - Location of prompt files
 - List of files ready for enhancement
@@ -96,11 +101,13 @@ Select files to enhance (comma-separated numbers, 'all', or 'skip'):
 ```
 
 **Wait for user input:**
+
 - If user selects specific files, process only those
 - If user selects 'all', process all files sequentially
 - If user selects 'skip', move to next step or exit
 
 **In non-interactive mode:**
+
 - Process all files automatically (or based on --min-priority)
 - Still process sequentially (one at a time) for careful validation
 
@@ -108,27 +115,28 @@ Select files to enhance (comma-separated numbers, 'all', or 'skip'):
 
 **For each selected file, apply contracts one at a time:**
 
-**4.1: Read the prompt file**
+**4.1: Read the prompt file:**
 
 ```bash
 # Prompt file location: .specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md
 # Or: .specfact/prompts/enhance-<filename>-<contracts>.md
 ```
 
-**4.2: Enhance the code using AI IDE**
+**4.2: Enhance the code using AI IDE:**
 
 - Read the original file
 - Apply contracts according to the prompt instructions
 - Write enhanced code to temporary file: `enhanced_<filename>.py`
 - **DO NOT modify the original file directly**
 
-**4.3: Validate enhanced code**
+**4.3: Validate enhanced code:**
 
 ```bash
 specfact generate contracts-apply enhanced_<filename>.py --original <original-file-path>
 ```
 
 **Validation includes:**
+
 - File size check
 - Syntax validation
 - AST structure comparison
@@ -136,26 +144,31 @@ specfact generate contracts-apply enhanced_<filename>.py --original <original-fi
 - Code quality checks (ruff, pylint, basedpyright, mypy if available)
 - Test execution (scoped to relevant test files)
 
-**4.4: Handle validation results**
+**4.4: Handle validation results:**
 
 **If validation fails:**
+
 - Review error messages
 - Fix issues in enhanced code
 - Re-validate (up to 3 attempts)
 - If still failing after 3 attempts, skip this file and continue to next
 
 **If validation succeeds:**
+
 - Show diff preview (what will change)
 - If `--auto-apply` is False, ask for confirmation:
+
   ```text
   Validation passed. Apply changes to <original-file>? (y/n):
   ```
+
 - If confirmed (or `--auto-apply` is True), apply changes automatically
 - If not confirmed, skip this file and continue to next
 
-**4.5: Pause for review (if --batch-size > 1)**
+#### 4.5: Pause for review (if --batch-size > 1)
 
 After processing `--batch-size` files, pause and show summary:
+
 ```text
 Processed 3/10 files:
 ✓ src/auth/login.py - Contracts applied successfully
@@ -196,12 +209,54 @@ Next steps:
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
 **Rules:**
+
 - Execute CLI commands in sequence (analyze → generate → apply)
 - Never modify `.specfact/` directly
 - Always validate before applying changes
 - Process files sequentially for careful review
 - Use `--no-interactive` only in CI/CD environments
 - Use CLI output as grounding for all operations
+- Code generation requires LLM (only via AI IDE slash prompts, not CLI-only)
+
+## Dual-Stack Workflow (Copilot Mode)
+
+This command **already implements** the standard validation loop pattern (see [CLI Enforcement Rules](./shared/cli-enforcement.md#standard-validation-loop-pattern-for-llm-generated-code)):
+
+### Phase 1: CLI Prompt Generation (REQUIRED)
+
+```bash
+# CLI generates structured prompt
+specfact generate contracts-prompt <file-path> --apply <contract-types> --bundle <bundle-name>
+```
+
+**Result**: Prompt saved to `.specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md`
+
+### Phase 2: LLM Execution (REQUIRED - AI IDE Only)
+
+- LLM reads prompt → generates enhanced code → writes to TEMPORARY file (`enhanced_<filename>.py`)
+- **NEVER writes directly to original artifacts**
+
+### Phase 3: CLI Validation Loop (REQUIRED, up to 3 retries)
+
+```bash
+# CLI validates temp file with all relevant tools
+specfact generate contracts-apply enhanced_<filename>.py --original <original-file>
+```
+
+**Validation includes**:
+
+- Syntax validation (py_compile)
+- File size check (must be >= original)
+- AST structure comparison (preserve functions/classes)
+- Contract imports verification
+- Code quality checks (ruff, pylint, basedpyright, mypy)
+- Test execution (contract-test, pytest)
+
+**If validation fails**: CLI provides detailed error feedback → LLM fixes → Re-validate (max 3 attempts)
+
+**If validation succeeds**: CLI applies changes to original file → CLI removes temporary file → CLI updates metadata/telemetry
+
+**This is the standard pattern for all LLM-generated code** - see [CLI Enforcement Rules](./shared/cli-enforcement.md#standard-validation-loop-pattern-for-llm-generated-code) for details.
 
 ## Expected Output
 
@@ -307,4 +362,3 @@ Apply changes to src/auth/login.py? (y/n): y
 ## Context
 
 {ARGS}
-
