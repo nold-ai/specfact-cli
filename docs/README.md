@@ -115,6 +115,7 @@
 
 #### General Guides
 
+- [UX Features](guides/ux-features.md) - Progressive disclosure, context detection, intelligent suggestions, templates
 - [Workflows](guides/workflows.md) - Common daily workflows
 - [IDE Integration](guides/ide-integration.md) - Slash commands
 - [CoPilot Mode](guides/copilot-mode.md) - Enhanced prompts

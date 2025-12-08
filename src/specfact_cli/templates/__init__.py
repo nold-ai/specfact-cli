@@ -1,13 +1,8 @@
 """
-Template loading and generation modules.
+Template system for specification quality.
 
-This package provides template loading functionality, including bridge-based
-template resolution for dynamic template loading from bridge configuration.
+This module provides templates for feature specifications, implementation plans,
+and contract extraction to ensure high-quality, consistent artifacts.
 """
 
-from specfact_cli.templates.bridge_templates import BridgeTemplateLoader
-
-
-__all__ = [
-    "BridgeTemplateLoader",
-]
+from __future__ import annotations

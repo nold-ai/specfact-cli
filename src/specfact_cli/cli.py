@@ -72,6 +72,7 @@ from specfact_cli.commands import (
     sync,
 )
 from specfact_cli.modes import OperationalMode, detect_mode
+from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
 
 
@@ -120,7 +121,8 @@ app = typer.Typer(
     help="SpecFact CLI - Spec → Contract → Sentinel for Contract-Driven Development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
-    context_settings={"help_option_names": ["-h", "--help"]},  # Add -h as alias for --help
+    context_settings={"help_option_names": ["-h", "--help", "--help-advanced"]},  # Add -h as alias for --help
+    cls=ProgressiveDisclosureGroup,  # Use custom group for progressive disclosure
 )
 
 console = Console()
@@ -352,6 +354,11 @@ app.add_typer(
 
 def cli_main() -> None:
     """Entry point for the CLI application."""
+    # Intercept --help-advanced before Typer processes it
+    from specfact_cli.utils.progressive_disclosure import intercept_help_advanced
+
+    intercept_help_advanced()
+
     # Normalize shell names in argv for Typer's built-in completion commands
     normalize_shell_in_argv()
 

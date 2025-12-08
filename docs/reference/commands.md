@@ -93,6 +93,7 @@ specfact [OPTIONS] COMMAND [ARGS]...
 
 - `--version`, `-v` - Show version and exit
 - `--help`, `-h` - Show help message and exit
+- `--help-advanced` - Show all options including advanced configuration (progressive disclosure)
 - `--no-banner` - Hide ASCII art banner (useful for CI/CD)
 - `--verbose` - Enable verbose output
 - `--quiet` - Suppress non-error output
@@ -1731,9 +1732,12 @@ specfact sync bridge [OPTIONS]
 
 **Watch Mode Features:**
 
+- **Hash-based change detection**: Only processes files that actually changed (SHA256 hash verification)
 - **Real-time monitoring**: Automatically detects file changes in tool artifacts, SpecFact bundles, and repository code
+- **Dependency tracking**: Tracks file dependencies for incremental processing
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
 - **Change type detection**: Automatically detects whether changes are in tool artifacts, SpecFact bundles, or code
+- **LZ4 cache compression**: Faster cache I/O when LZ4 is available (optional)
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 - **Resource efficient**: Minimal CPU/memory usage
 
@@ -1806,10 +1810,13 @@ specfact sync repository [OPTIONS]
 
 **Watch Mode Features:**
 
+- **Hash-based change detection**: Only processes files that actually changed (SHA256 hash verification)
 - **Real-time monitoring**: Automatically detects code changes in repository
 - **Automatic sync**: Triggers sync when code changes are detected
 - **Deviation tracking**: Tracks deviations from manual plans as code changes
+- **Dependency tracking**: Tracks file dependencies for incremental processing
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
+- **LZ4 cache compression**: Faster cache I/O when LZ4 is available (optional)
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 
 **Example:**

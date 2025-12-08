@@ -1470,18 +1470,20 @@ def from_code(
         "--include-tests/--exclude-tests",
         help="Include/exclude test files in relationship mapping. Default: --include-tests (test files are included for comprehensive analysis). Use --exclude-tests to optimize speed.",
     ),
-    # Advanced/Configuration
+    # Advanced/Configuration (hidden by default, use --help-advanced to see)
     confidence: float = typer.Option(
         0.5,
         "--confidence",
         min=0.0,
         max=1.0,
         help="Minimum confidence score for features. Default: 0.5 (range: 0.0-1.0)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     key_format: str = typer.Option(
         "classname",
         "--key-format",
         help="Feature key format: 'classname' (FEATURE-CLASSNAME) or 'sequential' (FEATURE-001). Default: classname",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
