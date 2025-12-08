@@ -9,6 +9,70 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.14.1] - 2025-12-08
+
+### Added (0.14.1)
+
+- **Phase 4.1: Context Detection System**
+  - Auto-detection of project type, language, framework, existing specs, and configuration
+  - Smart defaults based on detected context
+  - Python framework detection (FastAPI, Django, Flask)
+  - OpenAPI/AsyncAPI spec detection
+  - Specmatic configuration detection
+  - Plan bundle detection
+
+- **Phase 4.2: Progressive Disclosure**
+  - Advanced options hidden by default for cleaner help output
+  - `--help-advanced` flag to reveal all options including advanced configuration
+  - Custom `ProgressiveDisclosureGroup` for Typer integration
+  - Environment variable support (`SPECFACT_SHOW_ADVANCED`)
+
+- **Phase 4.3: Intelligent Suggestions & Template-Driven Quality**
+  - Context-aware command suggestions (`suggest_next_steps()`)
+  - Error-specific fix suggestions (`suggest_fixes()`)
+  - Improvement recommendations (`suggest_improvements()`)
+  - Feature specification templates with uncertainty markers
+  - Implementation plan templates with structured checklists
+  - Contract extraction templates for legacy code
+
+- **Phase 4.4: Enhanced Watch Mode**
+  - Hash-based change detection (SHA256) - only processes files that actually changed
+  - Dependency tracking for incremental processing
+  - LZ4 cache compression (optional, faster I/O when available)
+  - Persistent hash cache across sessions
+  - `FileHashCache` class for efficient change detection
+
+- **Phase 4.5: Unified Progress Display**
+  - Verified consistent `n/m` format across all commands
+  - Rich Progress integration with timing information
+  - No "dark" periods - always know what's happening
+
+### Improved (0.14.1)
+
+- **User Experience**
+  - Cleaner help output with progressive disclosure
+  - Context-aware defaults based on project detection
+  - Intelligent suggestions guide users to next steps
+  - Enhanced watch mode performance with hash-based detection
+
+- **Documentation**
+  - New UX Features guide (`docs/guides/ux-features.md`)
+  - Updated command reference with `--help-advanced` flag
+  - Updated workflows guide with watch mode enhancements
+  - Updated first-steps guide with context detection information
+
+### Testing (0.14.1)
+
+- Added 8 unit tests for context detection (all passing)
+- Added 6 unit tests for progressive disclosure (all passing)
+- Added 10 unit tests for intelligent suggestions (all passing)
+- Added 9 unit tests for specification templates (all passing)
+- Added 9 unit tests for enhanced watch mode (all passing)
+- Added 14 E2E tests for natural UX flow (all passing)
+- Total: 61 new tests, all passing
+
+---
+
 ## [0.14.0] - 2025-12-02
 
 ### Added (0.14.0)
