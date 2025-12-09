@@ -35,6 +35,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 ### Guides
 
+- **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
 - **[IDE Integration](guides/ide-integration.md)** - Set up slash commands in your IDE
 - **[CoPilot Mode](guides/copilot-mode.md)** - Using `--mode copilot` on CLI

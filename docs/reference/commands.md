@@ -93,6 +93,7 @@ specfact [OPTIONS] COMMAND [ARGS]...
 
 - `--version`, `-v` - Show version and exit
 - `--help`, `-h` - Show help message and exit
+- `--help-advanced`, `-ha` - Show all options including advanced configuration (progressive disclosure)
 - `--no-banner` - Hide ASCII art banner (useful for CI/CD)
 - `--verbose` - Enable verbose output
 - `--quiet` - Suppress non-error output
@@ -163,12 +164,15 @@ specfact import from-bridge [OPTIONS]
 **Options:**
 
 - `--repo PATH` - Path to repository with external tool artifacts (required)
-- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
 - `--dry-run` - Preview changes without writing files
 - `--write` - Write converted files to repository
 - `--out-branch NAME` - Git branch for migration (default: `feat/specfact-migration`)
 - `--report PATH` - Write migration report to file
 - `--force` - Overwrite existing files
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
 
 **Example:**
 
@@ -212,9 +216,13 @@ specfact import from-code [OPTIONS]
 - `BUNDLE_NAME` - Project bundle name (positional argument, required)
 - `--repo PATH` - Path to repository to import (required)
 - `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
-- `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--shadow-only` - Observe without blocking
 - `--report PATH` - Write import report (default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
+- `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
 - `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
   - **Multi-project repositories (monorepos)**: Analyze one project at a time (e.g., `--entry-point projects/api-service`)
@@ -222,7 +230,6 @@ specfact import from-code [OPTIONS]
   - **Incremental modernization**: Modernize one part of the codebase at a time
   - Example: `--entry-point src/core` analyzes only `src/core/` and its subdirectories
 - `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)
-- `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
 
 **Note**: The bundle name (positional argument) will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. The bundle is created at `.specfact/projects/<bundle-name>/`.
 
@@ -649,14 +656,17 @@ specfact plan review [OPTIONS]
 **Options:**
 
 - `--bundle TEXT` - Project bundle name (required, e.g., `legacy-api`)
-- `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
-- `--category TEXT` - Focus on specific taxonomy category (optional)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
 - `--list-findings` - Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment
-- `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
-- `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
 - `--no-interactive` - Non-interactive mode (for CI/CD automation)
 - `--auto-enrich` - Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
+- `--category TEXT` - Focus on specific taxonomy category (optional)
+- `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
+- `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
 
 **Modes:**
 
@@ -974,7 +984,11 @@ specfact plan select [PLAN] [OPTIONS]
 
 **Options:**
 
+- `PLAN` - Plan name or number to select (optional, for interactive selection)
 - `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts. Requires exactly one plan to match filters.
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
 - `--current` - Show only the currently active plan (auto-selects in non-interactive mode)
 - `--stages STAGES` - Filter by stages (comma-separated: `draft,review,approved,released`)
 - `--last N` - Show last N plans by modification time (most recent first)
@@ -1394,10 +1408,13 @@ specfact repro [OPTIONS]
 **Options:**
 
 - `--verbose` - Show detailed output
-- `--budget INT` - Time budget in seconds (default: 120)
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
 - `--out PATH` - Output report path (default: `.specfact/reports/enforcement/report-<timestamp>.yaml`)
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--budget INT` - Time budget in seconds (default: 120)
 
 **Example:**
 
@@ -1603,6 +1620,10 @@ Creates structured prompt files that you can use with your AI IDE (Cursor, CoPil
 - `--apply CONTRACTS` - **Required**. Contracts to apply: `all-contracts`, `beartype`, `icontract`, `crosshair`, or comma-separated list (e.g., `beartype,icontract`)
 - `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts.
 
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--output PATH` - Output file path (currently unused, prompt saved to `.specfact/prompts/`)
+
 **Contract Types:**
 
 - `all-contracts` - Apply all available contract types (beartype, icontract, crosshair)
@@ -1731,9 +1752,12 @@ specfact sync bridge [OPTIONS]
 
 **Watch Mode Features:**
 
+- **Hash-based change detection**: Only processes files that actually changed (SHA256 hash verification)
 - **Real-time monitoring**: Automatically detects file changes in tool artifacts, SpecFact bundles, and repository code
+- **Dependency tracking**: Tracks file dependencies for incremental processing
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
 - **Change type detection**: Automatically detects whether changes are in tool artifacts, SpecFact bundles, or code
+- **LZ4 cache compression**: Faster cache I/O when LZ4 is available (optional)
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 - **Resource efficient**: Minimal CPU/memory usage
 
@@ -1800,16 +1824,21 @@ specfact sync repository [OPTIONS]
 - `--repo PATH` - Path to repository (default: `.`)
 - `--target PATH` - Target directory for artifacts (default: `.specfact`)
 - `--watch` - Watch mode for continuous sync (monitors code changes in real-time)
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
 - `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
 - `--confidence FLOAT` - Minimum confidence threshold for feature detection (default: 0.5, range: 0.0-1.0)
-- `--target PATH` - Target directory for artifacts (default: `.specfact`)
 
 **Watch Mode Features:**
 
+- **Hash-based change detection**: Only processes files that actually changed (SHA256 hash verification)
 - **Real-time monitoring**: Automatically detects code changes in repository
 - **Automatic sync**: Triggers sync when code changes are detected
 - **Deviation tracking**: Tracks deviations from manual plans as code changes
+- **Dependency tracking**: Tracks file dependencies for incremental processing
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
+- **LZ4 cache compression**: Faster cache I/O when LZ4 is available (optional)
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 
 **Example:**
@@ -2253,10 +2282,13 @@ specfact init [OPTIONS]
 
 **Options:**
 
-- `--ide TEXT` - IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q) (default: auto)
 - `--repo PATH` - Repository path (default: current directory)
 - `--force` - Overwrite existing files
 - `--install-deps` - Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) via pip
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--ide TEXT` - IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q) (default: auto)
 
 **Examples:**
 

@@ -85,6 +85,7 @@ def main(
         120,
         "--budget",
         help="Time budget in seconds (must be > 0)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """

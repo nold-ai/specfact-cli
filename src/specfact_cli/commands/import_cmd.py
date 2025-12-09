@@ -28,7 +28,10 @@ from specfact_cli.utils.performance import track_performance
 from specfact_cli.utils.progress import save_bundle_with_progress
 
 
-app = typer.Typer(help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format")
+app = typer.Typer(
+    help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format",
+    context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
+)
 console = Console()
 
 
@@ -1201,6 +1204,7 @@ def from_bridge(
         "speckit",
         "--adapter",
         help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -1437,11 +1441,13 @@ def from_code(
         None,
         "--entry-point",
         help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Default: None (analyze entire repo)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     enrichment: Path | None = typer.Option(
         None,
         "--enrichment",
         help="Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context). Default: None",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Output/Results
     report: Path | None = typer.Option(
@@ -1470,18 +1476,20 @@ def from_code(
         "--include-tests/--exclude-tests",
         help="Include/exclude test files in relationship mapping. Default: --include-tests (test files are included for comprehensive analysis). Use --exclude-tests to optimize speed.",
     ),
-    # Advanced/Configuration
+    # Advanced/Configuration (hidden by default, use --help-advanced to see)
     confidence: float = typer.Option(
         0.5,
         "--confidence",
         min=0.0,
         max=1.0,
         help="Minimum confidence score for features. Default: 0.5 (range: 0.0-1.0)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     key_format: str = typer.Option(
         "classname",
         "--key-format",
         help="Feature key format: 'classname' (FEATURE-CLASSNAME) or 'sequential' (FEATURE-001). Default: classname",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
