@@ -27,7 +27,7 @@ class TestProgressiveDisclosure:
             sys.argv = ["specfact", "--help-advanced"]
             assert is_advanced_help_requested() is True
 
-            sys.argv = ["specfact", "-h-advanced"]
+            sys.argv = ["specfact", "-ha"]
             assert is_advanced_help_requested() is True
 
             sys.argv = ["specfact", "--help"]

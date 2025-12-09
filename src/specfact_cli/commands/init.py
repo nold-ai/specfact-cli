@@ -67,6 +67,7 @@ def init(
         "auto",
         "--ide",
         help="IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """

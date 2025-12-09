@@ -121,7 +121,7 @@ app = typer.Typer(
     help="SpecFact CLI - Spec → Contract → Sentinel for Contract-Driven Development",
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
-    context_settings={"help_option_names": ["-h", "--help", "--help-advanced"]},  # Add -h as alias for --help
+    context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},  # Add aliases for help
     cls=ProgressiveDisclosureGroup,  # Use custom group for progressive disclosure
 )
 

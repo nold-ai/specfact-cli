@@ -321,6 +321,7 @@ def generate_contracts_prompt(
         None,
         "--output",
         help=("Output file path (currently unused, prompt saved to .specfact/prompts/)"),
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """

@@ -708,12 +708,14 @@ def sync_bridge(
         "speckit",
         "--adapter",
         help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     interval: int = typer.Option(
         5,
         "--interval",
         help="Watch interval in seconds (default: 5)",
         min=1,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -1022,6 +1024,7 @@ def sync_repository(
         "--interval",
         help="Watch interval in seconds (default: 5)",
         min=1,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     confidence: float = typer.Option(
         0.5,
@@ -1029,6 +1032,7 @@ def sync_repository(
         help="Minimum confidence threshold for feature detection (default: 0.5)",
         min=0.0,
         max=1.0,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """

@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.14.2] - 2025-12-09
+
+### Fixed (0.14.2)
+
+- **Phase 4.2: Progressive Disclosure** - Final implementation verification and documentation alignment
+  - Verified `--help-advanced` and `-ha` work correctly for both main commands and subcommands
+  - Updated implementation documentation with technical details (monkey-patching approach)
+  - Aligned all end-user documentation with actual CLI behavior
+
+### Improved (0.14.2)
+
+- **Internal Plan Documentation** - Enhanced readability and consistency
+  - Fixed status inconsistencies (4.1-4.5 vs 4.1-4.6)
+  - Added phase names to status section for better clarity
+  - Separated completed and pending phases for easier scanning
+
 ## [0.14.1] - 2025-12-08
 
 ### Added (0.14.1)

@@ -1848,11 +1848,13 @@ def select(
         None,
         "--name",
         help="Select bundle by exact bundle name (non-interactive, e.g., 'main')",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     plan_id: str | None = typer.Option(
         None,
         "--id",
         help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -3922,6 +3924,7 @@ def review(
         None,
         "--category",
         help="Focus on specific taxonomy category (optional). Default: None (all categories)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Output/Results
     list_questions: bool = typer.Option(
@@ -3939,6 +3942,7 @@ def review(
         "--findings-format",
         help="Output format for --list-findings: json, yaml, or table. Default: json for non-interactive, table for interactive",
         case_sensitive=False,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -3950,6 +3954,7 @@ def review(
         None,
         "--answers",
         help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file. Default: None",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     auto_enrich: bool = typer.Option(
         False,
@@ -3963,6 +3968,7 @@ def review(
         min=1,
         max=10,
         help="Maximum questions per session. Default: 5 (range: 1-10)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """

@@ -55,6 +55,8 @@ specfact init
 - Creates plan bundle with extracted specs
 - **Suggests next steps**: Provides actionable commands based on your project state
 
+**💡 Tip**: Use `--help` or `-h` for standard help, or `--help-advanced` (alias: `-ha`) to see all options including advanced configuration.
+
 **Example output** (Interactive mode - better results):
 
 ```bash

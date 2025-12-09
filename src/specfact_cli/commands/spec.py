@@ -61,6 +61,7 @@ def validate(
         "--previous",
         help="Path to previous version for backward compatibility check",
         exists=True,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(

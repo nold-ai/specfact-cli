@@ -4,7 +4,7 @@ This guide covers the user experience features that make SpecFact CLI intuitive 
 
 ## Progressive Disclosure
 
-SpecFact CLI uses progressive disclosure to show the most important options first, while keeping advanced options accessible when needed.
+SpecFact CLI uses progressive disclosure to show the most important options first, while keeping advanced options accessible when needed. This reduces cognitive load for new users while maintaining full functionality for power users.
 
 ### Regular Help
 
@@ -15,24 +15,78 @@ specfact import from-code --help
 ```
 
 This displays:
+
 - Required arguments
 - Common options (bundle, repo, output)
-- Behavior flags (interactive, verbose)
+- Behavior flags (interactive, verbose, dry-run, force)
+- Essential workflow options
 
 ### Advanced Help
 
-To see all options including advanced configuration, use `--help-advanced`:
+To see all options including advanced configuration, use `--help-advanced` (alias: `-ha`):
 
 ```bash
 specfact import from-code --help-advanced
 ```
 
 This reveals:
-- Advanced configuration options (confidence thresholds, key formats)
-- Specialized flags
-- Expert-level settings
 
-**Tip**: Advanced options are still functional even when hidden - you can use them directly without `--help-advanced`. The flag only affects what's shown in help text.
+- **Advanced configuration options**: Confidence thresholds, key formats, adapter types
+- **Fine-tuning parameters**: Watch intervals, time budgets, session limits
+- **Expert-level settings**: Taxonomy filtering, content hash matching, backward compatibility checks
+- **CI/CD automation options**: Non-interactive JSON inputs, exact name matching
+
+### Hidden Options Summary
+
+The following options are hidden by default across commands:
+
+**Import Commands:**
+
+- `--entry-point` - Partial analysis (subdirectory only)
+- `--enrichment` - LLM enrichment workflow
+- `--adapter` - Adapter type configuration (auto-detected)
+- `--confidence` - Feature detection threshold
+- `--key-format` - Feature key format (classname vs sequential)
+
+**Sync Commands:**
+
+- `--adapter` - Adapter type configuration (auto-detected)
+- `--interval` - Watch mode interval tuning
+- `--confidence` - Feature detection threshold
+
+**Plan Commands:**
+
+- `--max-questions` - Review session limit
+- `--category` - Taxonomy category filtering
+- `--findings-format` - Output format for findings
+- `--answers` - Non-interactive JSON input
+- `--stages` - Filter by promotion stages
+- `--last` - Show last N plans
+- `--current` - Show only active plan
+- `--name` - Exact bundle name matching
+- `--id` - Content hash ID matching
+
+**Spec Commands:**
+
+- `--previous` - Backward compatibility check
+
+**Other Commands:**
+
+- `repro --budget` - Time budget configuration
+- `generate contracts-prompt --output` - Custom output path
+- `init --ide` - IDE selection override (auto-detection works)
+
+**Tip**: Advanced options are still functional even when hidden - you can use them directly without `--help-advanced`/`-ha`. The flag only affects what's shown in help text.
+
+**Example:**
+
+```bash
+# This works even though --confidence is hidden in regular help:
+specfact import from-code my-bundle --confidence 0.7 --key-format sequential
+
+# To see all options in help:
+specfact import from-code --help-advanced  # or -ha
+```
 
 ## Context Detection
 
@@ -158,6 +212,7 @@ specfact sync intelligent --bundle my-bundle --watch
 ```
 
 **Features**:
+
 - SHA256 hash-based change detection
 - Only processes files with actual content changes
 - Skips unchanged files (even if modified timestamp changed)
@@ -187,11 +242,12 @@ All commands use consistent progress indicators.
 
 Progress displays use a consistent `n/m` format:
 
-```
+```bash
 Loading artifact 3/12: FEATURE-001.yaml
 ```
 
 This shows:
+
 - Current item number (3)
 - Total items (12)
 - Current artifact name (FEATURE-001.yaml)
@@ -200,6 +256,7 @@ This shows:
 ### Visibility
 
 Progress is shown for:
+
 - All bundle load/save operations
 - Long-running operations (>1 second)
 - File processing operations
@@ -212,7 +269,7 @@ Progress is shown for:
 ### Using Progressive Disclosure
 
 1. **Start with regular help** - Most users only need common options
-2. **Use `--help-advanced`** when you need fine-grained control
+2. **Use `--help-advanced` (`-ha`)** when you need fine-grained control
 3. **Advanced options work without help** - You can use them directly
 
 ### Leveraging Context Detection
@@ -236,7 +293,7 @@ Progress is shown for:
 ---
 
 **Related Documentation**:
+
 - [Command Reference](../reference/commands.md) - Complete command documentation
 - [Workflows](workflows.md) - Common daily workflows
 - [IDE Integration](ide-integration.md) - Enhanced IDE experience
-
