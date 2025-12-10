@@ -207,18 +207,11 @@ def _analyze_codebase(
     )
 
     # Phase 4.9: Create incremental callback for early feedback
-    first_value_shown = False
-
     def on_incremental_update(features_count: int, themes: list[str]) -> None:
         """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
-        nonlocal first_value_shown
-        if not first_value_shown and features_count >= 1:
-            # Show first value immediately when first feature is discovered (one-time message)
-            console.print(f"[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]")
-            if themes:
-                console.print(f"[dim]Themes detected: {', '.join(themes[:3])}{'...' if len(themes) > 3 else ''}[/dim]")
-            first_value_shown = True
-        # Note: Feature count updates are now shown in the progress bar description, not as separate lines
+        # Feature count updates are shown in the progress bar description, not as separate lines
+        # No intermediate messages needed - final summary provides all information
+        pass
 
     # Create analyzer with incremental callback
     analyzer = CodeAnalyzer(
@@ -1606,22 +1599,11 @@ def from_code(
                     # Phase 4.9 & 4.10: Track codebase analysis performance
                     with perf_monitor.track("analyze_codebase", {"files": python_file_count}):
                         # Phase 4.9: Create callback for incremental results
-                        first_value_shown = False
-
                         def on_incremental_update(features_count: int, themes: list[str]) -> None:
                             """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
-                            nonlocal first_value_shown
-                            if not first_value_shown and features_count >= 1:
-                                # Show first value immediately when first feature is discovered (one-time message)
-                                console.print(
-                                    f"[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]"
-                                )
-                                if themes:
-                                    console.print(
-                                        f"[dim]Themes detected: {', '.join(themes[:3])}{'...' if len(themes) > 3 else ''}[/dim]"
-                                    )
-                                first_value_shown = True
-                            # Note: Feature count updates are now shown in the progress bar description, not as separate lines
+                            # Feature count updates are shown in the progress bar description, not as separate lines
+                            # No intermediate messages needed - final summary provides all information
+                            pass
 
                         plan_bundle = _analyze_codebase(
                             repo,
@@ -1636,7 +1618,7 @@ def from_code(
                         console.print("[bold red]✗ Failed to analyze codebase[/bold red]")
                         raise typer.Exit(1)
 
-                    # Phase 4.9: Show incremental results immediately (quick first value)
+                    # Phase 4.9: Analysis complete (results shown in progress bar and final summary)
                     console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
                     console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
                     total_stories = sum(len(f.stories) for f in plan_bundle.features)
