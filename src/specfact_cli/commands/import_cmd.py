@@ -211,7 +211,6 @@ def _analyze_codebase(
         """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
         # Feature count updates are shown in the progress bar description, not as separate lines
         # No intermediate messages needed - final summary provides all information
-        pass
 
     # Create analyzer with incremental callback
     analyzer = CodeAnalyzer(
@@ -1603,7 +1602,6 @@ def from_code(
                             """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
                             # Feature count updates are shown in the progress bar description, not as separate lines
                             # No intermediate messages needed - final summary provides all information
-                            pass
 
                         plan_bundle = _analyze_codebase(
                             repo,
