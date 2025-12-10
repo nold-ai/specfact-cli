@@ -117,7 +117,7 @@ specfact plan compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/auto-derived \
   --output-format markdown \
-  --out .specfact/reports/comparison/deviation-report.md
+  --out .specfact/projects/<bundle-name>/reports/comparison/deviation-report.md
 ```
 
 **With CoPilot:**
@@ -506,7 +506,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: python -m specfact_cli.utils.github_annotations
         env:
-          SPECFACT_REPORT_PATH: .specfact/reports/enforcement/report-*.yaml
+          SPECFACT_REPORT_PATH: .specfact/projects/<bundle-name>/reports/enforcement/report-*.yaml
 ```
 
 **Features**:

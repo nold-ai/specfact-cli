@@ -126,7 +126,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: python -m specfact_cli.utils.github_annotations
         env:
-          SPECFACT_REPORT_PATH: .specfact/reports/enforcement/report-*.yaml
+          SPECFACT_REPORT_PATH: .specfact/projects/<bundle-name>/reports/enforcement/report-*.yaml
 ```
 
 ## First Steps

@@ -24,7 +24,7 @@ Run full validation suite for reproducibility and contract compliance. Executes 
 
 ### Output/Results
 
-- `--out PATH` - Output report path. Default: .specfact/reports/enforcement/report-<timestamp>.yaml
+- `--out PATH` - Output report path. Default: bundle-specific .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml (Phase 8.5), or global .specfact/reports/enforcement/ if no bundle context
 
 ### Behavior/Options
 
@@ -131,7 +131,7 @@ Check Summary:
   Property Tests        ✓ Passed
   Smoke Tests           ✓ Passed
 
-Report saved to: .specfact/reports/enforcement/report-2025-11-26T10-30-00.yaml
+Report saved to: .specfact/projects/<bundle-name>/reports/enforcement/report-2025-11-26T10-30-00.yaml
 ```
 
 ### Failure

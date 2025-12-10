@@ -1555,7 +1555,7 @@ def compare(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path (default: .specfact/reports/comparison/deviations-<timestamp>.md)",
+        help="Output file path (default: bundle-specific .specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md, or global .specfact/reports/comparison/ if no bundle context)",
     ),
     # Behavior/Options
     code_vs_plan: bool = typer.Option(
@@ -1648,7 +1648,30 @@ def compare(
         if out is None:
             # Use smart default: timestamped comparison report
             extension = {"markdown": "md", "json": "json", "yaml": "yaml"}[output_format.lower()]
-            out = SpecFactStructure.get_comparison_report_path(format=extension)
+            # Phase 8.5: Use bundle-specific path if bundle context available
+            # Try to infer bundle from manual plan path or use bundle parameter
+            bundle_name = None
+            if bundle is not None:
+                bundle_name = bundle
+            elif manual is not None:
+                # Try to extract bundle name from manual plan path
+                manual_str = str(manual)
+                if "/projects/" in manual_str:
+                    # Extract bundle name from path like .specfact/projects/<bundle-name>/...
+                    parts = manual_str.split("/projects/")
+                    if len(parts) > 1:
+                        bundle_part = parts[1].split("/")[0]
+                        if bundle_part:
+                            bundle_name = bundle_part
+
+            if bundle_name:
+                # Use bundle-specific comparison report path (Phase 8.5)
+                out = SpecFactStructure.get_bundle_comparison_report_path(
+                    bundle_name=bundle_name, base_path=Path("."), format=extension
+                )
+            else:
+                # Fallback to global path (backward compatibility during transition)
+                out = SpecFactStructure.get_comparison_report_path(format=extension)
             print_info(f"Writing comparison report to: {out}")
 
         print_section("SpecFact CLI - Plan Comparison")
@@ -4258,7 +4281,7 @@ def harden(
     sdd_path: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Output SDD manifest path. Default: .specfact/sdd/<bundle-name>.<format>",
+        help="Output SDD manifest path. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format> (Phase 8.5)",
     ),
     # Output/Results
     output_format: StructuredFormat | None = typer.Option(
@@ -4282,7 +4305,7 @@ def harden(
     contracts) with promotion status.
 
     **Important**: SDD manifests are linked to specific project bundles via hash.
-    Each project bundle has its own SDD manifest in `.specfact/sdd/<bundle-name>.yaml`.
+    Each project bundle has its own SDD manifest in `.specfact/projects/<bundle-name>/sdd.yaml` (Phase 8.5).
 
     **Parameter Groups:**
     - **Target/Input**: bundle (optional argument, defaults to active plan), --sdd
@@ -4346,7 +4369,7 @@ def harden(
                 print_error("Failed to compute project bundle hash")
                 raise typer.Exit(1)
 
-            # Determine SDD output path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
+            # Determine SDD output path (bundle-specific: .specfact/projects/<bundle-name>/sdd.yaml, Phase 8.5)
             from specfact_cli.utils.sdd_discovery import get_default_sdd_path_for_bundle
 
             if sdd_path is None:

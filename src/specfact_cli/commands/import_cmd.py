@@ -213,13 +213,12 @@ def _analyze_codebase(
         """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
         nonlocal first_value_shown
         if not first_value_shown and features_count >= 1:
-            # Show first value immediately when first feature is discovered
-            console.print(f"\n[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]")
+            # Show first value immediately when first feature is discovered (one-time message)
+            console.print(f"[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]")
             if themes:
                 console.print(f"[dim]Themes detected: {', '.join(themes[:3])}{'...' if len(themes) > 3 else ''}[/dim]")
             first_value_shown = True
-        elif features_count % 5 == 0:  # Show updates every 5 features
-            console.print(f"[dim]Progress: {features_count} features discovered...[/dim]")
+        # Note: Feature count updates are now shown in the progress bar description, not as separate lines
 
     # Create analyzer with incremental callback
     analyzer = CodeAnalyzer(
@@ -1028,15 +1027,23 @@ def _suggest_constitution_bootstrap(repo: Path) -> None:
 
 
 def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
-    """Enrich plan for Spec-Kit compliance."""
+    """
+    Enrich plan for Spec-Kit compliance using PlanEnricher.
+
+    This function uses PlanEnricher for consistent enrichment behavior with
+    the `plan review --auto-enrich` command. It also adds edge case stories
+    for features with only 1 story to ensure better tool compliance.
+    """
     console.print("\n[cyan]🔧 Enriching plan for tool compliance...[/cyan]")
     try:
-        from specfact_cli.analyzers.ambiguity_scanner import AmbiguityScanner
+        from specfact_cli.enrichers.plan_enricher import PlanEnricher
 
-        console.print("[dim]Running plan review to identify gaps...[/dim]")
-        scanner = AmbiguityScanner()
-        _ambiguity_report = scanner.scan(plan_bundle)
+        # Use PlanEnricher for consistent enrichment (same as plan review --auto-enrich)
+        console.print("[dim]Enhancing vague acceptance criteria, incomplete requirements, generic tasks...[/dim]")
+        enricher = PlanEnricher()
+        enrichment_summary = enricher.enrich_plan(plan_bundle)
 
+        # Add edge case stories for features with only 1 story (preserve existing behavior)
         features_with_one_story = [f for f in plan_bundle.features if len(f.stories) == 1]
         if features_with_one_story:
             console.print(f"[yellow]⚠ Found {len(features_with_one_story)} features with only 1 story[/yellow]")
@@ -1082,33 +1089,22 @@ def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
 
             console.print(f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]")
 
-        features_updated = 0
-        for feature in plan_bundle.features:
-            for story in feature.stories:
-                testable_count = sum(
-                    1
-                    for acc in story.acceptance
-                    if any(keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"])
+        # Display enrichment summary (consistent with plan review --auto-enrich)
+        if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
+            console.print(
+                f"[green]✓ Enhanced plan bundle: {enrichment_summary['features_updated']} features, "
+                f"{enrichment_summary['stories_updated']} stories updated[/green]"
+            )
+            if enrichment_summary["acceptance_criteria_enhanced"] > 0:
+                console.print(
+                    f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
                 )
-
-                if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
-                    enhanced_acceptance = []
-                    for acc in story.acceptance:
-                        if not any(
-                            keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]
-                        ):
-                            if acc.startswith(("User can", "System can")):
-                                enhanced_acceptance.append(f"Must verify {acc.lower()}")
-                            else:
-                                enhanced_acceptance.append(f"Must verify {acc}")
-                        else:
-                            enhanced_acceptance.append(acc)
-
-                    story.acceptance = enhanced_acceptance
-                    features_updated += 1
-
-        if features_updated > 0:
-            console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
+            if enrichment_summary["requirements_enhanced"] > 0:
+                console.print(f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]")
+            if enrichment_summary["tasks_enhanced"] > 0:
+                console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
+        else:
+            console.print("[green]✓ Plan bundle is already well-specified (no enrichments needed)[/green]")
 
         console.print("[green]✓ Tool enrichment complete[/green]")
 
@@ -1126,6 +1122,9 @@ def _generate_report(
     report: Path,
 ) -> None:
     """Generate import report."""
+    # Ensure report directory exists (Phase 8.5: bundle-specific reports)
+    report.parent.mkdir(parents=True, exist_ok=True)
+
     total_stories = sum(len(f.stories) for f in plan_bundle.features)
 
     report_content = f"""# Brownfield Import Report
@@ -1453,7 +1452,7 @@ def from_code(
     report: Path | None = typer.Option(
         None,
         "--report",
-        help="Path to write analysis report. Default: .specfact/reports/brownfield/analysis-<timestamp>.md",
+        help="Path to write analysis report. Default: bundle-specific .specfact/projects/<bundle-name>/reports/brownfield/analysis-<timestamp>.md (Phase 8.5)",
     ),
     # Behavior/Options
     shadow_only: bool = typer.Option(
@@ -1462,9 +1461,9 @@ def from_code(
         help="Shadow mode - observe without enforcing. Default: False",
     ),
     enrich_for_speckit: bool = typer.Option(
-        False,
-        "--enrich-for-speckit",
-        help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature). Default: False",
+        True,
+        "--enrich-for-speckit/--no-enrich-for-speckit",
+        help="Automatically enrich plan for Spec-Kit compliance (uses PlanEnricher to enhance vague acceptance criteria, incomplete requirements, generic tasks, and adds edge case stories for features with only 1 story). Default: True (enabled)",
     ),
     force: bool = typer.Option(
         False,
@@ -1551,7 +1550,8 @@ def from_code(
     SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle)
 
     if report is None:
-        report = SpecFactStructure.get_brownfield_analysis_path(repo)
+        # Use bundle-specific report path (Phase 8.5)
+        report = SpecFactStructure.get_bundle_brownfield_report_path(bundle_name=bundle, base_path=repo)
 
     console.print(f"[bold cyan]Importing repository:[/bold cyan] {repo}")
     console.print(f"[bold cyan]Project bundle:[/bold cyan] {bundle}")
@@ -1612,17 +1612,16 @@ def from_code(
                             """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
                             nonlocal first_value_shown
                             if not first_value_shown and features_count >= 1:
-                                # Show first value immediately when first feature is discovered
+                                # Show first value immediately when first feature is discovered (one-time message)
                                 console.print(
-                                    f"\n[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]"
+                                    f"[bold green]✓ First value: {features_count} feature(s) discovered![/bold green]"
                                 )
                                 if themes:
                                     console.print(
                                         f"[dim]Themes detected: {', '.join(themes[:3])}{'...' if len(themes) > 3 else ''}[/dim]"
                                     )
                                 first_value_shown = True
-                            elif features_count % 5 == 0:  # Show updates every 5 features
-                                console.print(f"[dim]Progress: {features_count} features discovered...[/dim]")
+                            # Note: Feature count updates are now shown in the progress bar description, not as separate lines
 
                         plan_bundle = _analyze_codebase(
                             repo,

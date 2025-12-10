@@ -20,7 +20,7 @@ Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contr
 
 **Target/Input**: `--bundle NAME` (optional, defaults to active plan), `--repo PATH`, `--entry-point PATH`, `--enrichment PATH`  
 **Output/Results**: `--report PATH`  
-**Behavior/Options**: `--shadow-only`, `--enrich-for-speckit`  
+**Behavior/Options**: `--shadow-only`, `--enrich-for-speckit/--no-enrich-for-speckit` (default: enabled, uses PlanEnricher for consistent enrichment)  
 **Advanced/Configuration**: `--confidence FLOAT` (0.0-1.0), `--key-format FORMAT` (classname|sequential)
 
 ## Workflow
@@ -28,12 +28,14 @@ Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contr
 1. **Execute CLI**: `specfact import from-code [<bundle>] --repo <path> [options]`
    - CLI extracts: routes (FastAPI/Flask/Django), schemas (Pydantic), relationships, contracts (OpenAPI scaffolds), source tracking
    - Uses active plan if bundle not specified
+   - **Auto-enrichment enabled by default**: Automatically enhances vague acceptance criteria, incomplete requirements, and generic tasks using PlanEnricher (same logic as `plan review --auto-enrich`)
+   - Use `--no-enrich-for-speckit` to disable auto-enrichment
 
 2. **LLM Enrichment** (if `--enrichment` provided):
    - Read `.specfact/projects/<bundle>/enrichment_context.md`
    - Enrich: business context, "why" reasoning, missing acceptance criteria
    - Validate: contracts vs code, feature/story alignment
-   - Save enrichment report to `.specfact/reports/enrichment/` (if created)
+   - Save enrichment report to `.specfact/projects/<bundle-name>/reports/enrichment/` (bundle-specific, Phase 8.5, if created)
 
 3. **Present**: Bundle location, report path, summary (features/stories/contracts/relationships)
 
@@ -86,7 +88,7 @@ specfact import from-code [<bundle>] --repo <path> --no-interactive
 - ❌ Write to `.specfact/` folder directly (always use CLI)
 - ❌ Use direct file manipulation tools for writing (use CLI commands)
 
-**Output**: Generate enrichment report (Markdown) saved to `.specfact/reports/enrichment/`
+**Output**: Generate enrichment report (Markdown) saved to `.specfact/projects/<bundle-name>/reports/enrichment/` (bundle-specific, Phase 8.5)
 
 ### Phase 3: CLI Artifact Creation (REQUIRED)
 
@@ -107,8 +109,9 @@ specfact import from-code [<bundle>] --repo <path> --enrichment <enrichment-repo
 ## Common Patterns
 
 ```bash
-/specfact.01-import --repo .                    # Uses active plan
-/specfact.01-import --bundle legacy-api --repo .
+/specfact.01-import --repo .                    # Uses active plan, auto-enrichment enabled by default
+/specfact.01-import --bundle legacy-api --repo . # Auto-enrichment enabled
+/specfact.01-import --repo . --no-enrich-for-speckit  # Disable auto-enrichment
 /specfact.01-import --repo . --entry-point src/auth/
 /specfact.01-import --repo . --enrichment report.md
 ```

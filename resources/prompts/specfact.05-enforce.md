@@ -25,12 +25,12 @@ Validate SDD manifest against project bundle and contracts. Checks hash matching
 ### Target/Input
 
 - `bundle NAME` (optional argument) - Project bundle name (e.g., legacy-api, auth-module). Default: active plan (set via `plan select`)
-- `--sdd PATH` - Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.<format>
+- `--sdd PATH` - Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format> (Phase 8.5), with fallback to legacy .specfact/sdd/<bundle-name>.<format>
 
 ### Output/Results
 
 - `--output-format FORMAT` - Output format (yaml, json, markdown). Default: yaml
-- `--out PATH` - Output file path. Default: .specfact/reports/sdd/validation-<timestamp>.<format>
+- `--out PATH` - Output file path. Default: bundle-specific .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.<format> (Phase 8.5)
 
 ### Behavior/Options
 
@@ -131,7 +131,7 @@ Total deviations: 0
   Medium: 0
   Low: 0
 
-Report saved to: .specfact/reports/sdd/validation-2025-11-26T10-30-00.yaml
+Report saved to: .specfact/projects/<bundle-name>/reports/enforcement/report-2025-11-26T10-30-00.yaml
 ```
 
 ### Failure (Hash Mismatch)

@@ -61,7 +61,7 @@ def main(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output report path (default: .specfact/reports/enforcement/report-<timestamp>.yaml)",
+        help="Output report path (default: bundle-specific .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml if bundle context available, else global .specfact/reports/enforcement/, Phase 8.5)",
     ),
     # Behavior/Options
     verbose: bool = typer.Option(
@@ -197,11 +197,17 @@ def main(
                     console.print(f"\n[bold red]{check.name} Output:[/bold red]")
                     console.print(f"[dim]{check.output[:500]}[/dim]")  # Limit output
 
-        # Write report if requested
+        # Write report if requested (Phase 8.5: try to use bundle-specific path)
         if out is None:
-            # Use default path
-            out = SpecFactStructure.get_timestamped_report_path("enforcement", repo, "yaml")
-            SpecFactStructure.ensure_structure(repo)
+            # Try to detect bundle from active plan
+            bundle_name = SpecFactStructure.get_active_bundle_name(repo)
+            if bundle_name:
+                # Use bundle-specific enforcement report path (Phase 8.5)
+                out = SpecFactStructure.get_bundle_enforcement_report_path(bundle_name=bundle_name, base_path=repo)
+            else:
+                # Fallback to global path (backward compatibility during transition)
+                out = SpecFactStructure.get_timestamped_report_path("enforcement", repo, "yaml")
+                SpecFactStructure.ensure_structure(repo)
 
         out.parent.mkdir(parents=True, exist_ok=True)
         dump_yaml(report.to_dict(), out)

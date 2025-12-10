@@ -144,6 +144,8 @@ class CodeAnalyzer:
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TextColumn("({task.completed}/{task.total})"),
             TimeElapsedColumn(),
             console=console,
         ) as progress:
@@ -202,7 +204,13 @@ class CodeAnalyzer:
                             prev_features_count = len(self.features)
                             self._merge_analysis_results(results)
                             completed_count += 1
-                            progress.update(task3, completed=completed_count)
+                            # Update progress with feature count in description
+                            features_count = len(self.features)
+                            progress.update(
+                                task3,
+                                completed=completed_count,
+                                description=f"[cyan]Phase 3: Analyzing files and extracting features... ({features_count} features discovered)",
+                            )
 
                             # Phase 4.9: Report incremental results for quick first value
                             if self.incremental_callback and len(self.features) > prev_features_count:
@@ -211,7 +219,12 @@ class CodeAnalyzer:
                         except Exception as e:
                             console.print(f"[dim]⚠ Warning: Failed to analyze {file_path}: {e}[/dim]")
                             completed_count += 1
-                            progress.update(task3, completed=completed_count)
+                            features_count = len(self.features)
+                            progress.update(
+                                task3,
+                                completed=completed_count,
+                                description=f"[cyan]Phase 3: Analyzing files and extracting features... ({features_count} features discovered)",
+                            )
                 else:
                     executor = ThreadPoolExecutor(max_workers=max_workers)
                     interrupted = False
@@ -230,7 +243,13 @@ class CodeAnalyzer:
                                     prev_features_count = len(self.features)
                                     self._merge_analysis_results(results)
                                     completed_count += 1
-                                    progress.update(task3, completed=completed_count)
+                                    # Update progress with feature count in description
+                                    features_count = len(self.features)
+                                    progress.update(
+                                        task3,
+                                        completed=completed_count,
+                                        description=f"[cyan]Phase 3: Analyzing files and extracting features... ({features_count} features discovered)",
+                                    )
 
                                     # Phase 4.9: Report incremental results for quick first value
                                     if self.incremental_callback and len(self.features) > prev_features_count:
@@ -248,7 +267,12 @@ class CodeAnalyzer:
                                     file_path = future_to_file[future]
                                     console.print(f"[dim]⚠ Warning: Failed to analyze {file_path}: {e}[/dim]")
                                     completed_count += 1
-                                    progress.update(task3, completed=completed_count)
+                                    features_count = len(self.features)
+                                    progress.update(
+                                        task3,
+                                        completed=completed_count,
+                                        description=f"[cyan]Phase 3: Analyzing files and extracting features... ({features_count} features discovered)",
+                                    )
                         except KeyboardInterrupt:
                             # Also catch KeyboardInterrupt from as_completed() itself
                             interrupted = True
@@ -278,7 +302,12 @@ class CodeAnalyzer:
             # Update progress for skipped files
             skipped_count = len(python_files) - len(files_to_analyze)
             if skipped_count > 0:
-                progress.update(task3, completed=len(python_files))
+                features_count = len(self.features)
+                progress.update(
+                    task3,
+                    completed=len(python_files),
+                    description=f"[cyan]Phase 3: Analyzing files and extracting features... ({features_count} features discovered)",
+                )
 
             progress.update(
                 task3,

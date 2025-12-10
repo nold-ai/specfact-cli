@@ -91,7 +91,7 @@ The validator checks:
     - [ ] Story format example provided in prompt
     - [ ] Explanation: Stories are required for promotion validation
   - [ ] Phase 3: CLI Artifact Creation documented
-  - [ ] Enrichment report location specified (`.specfact/reports/enrichment/`)
+  - [ ] Enrichment report location specified (`.specfact/projects/<bundle-name>/reports/enrichment/`, bundle-specific, Phase 8.5)
 - [ ] **Auto-enrichment workflow** (for `plan review`):
   - [ ] `--auto-enrich` flag documented with when to use it
   - [ ] LLM reasoning guidance for detecting when enrichment is needed
@@ -180,7 +180,7 @@ For each prompt, test the following scenarios:
    - ✅ Generates enrichment report (Phase 2)
      - ✅ **CRITICAL**: Each missing feature includes at least one story
      - ✅ Stories follow the format shown in prompt example
-   - ✅ Saves enrichment to `.specfact/reports/enrichment/` with correct naming
+   - ✅ Saves enrichment to `.specfact/projects/<bundle-name>/reports/enrichment/` with correct naming (bundle-specific, Phase 8.5)
    - ✅ Executes Phase 3: CLI Artifact Creation with `--enrichment` flag
    - ✅ Final artifacts are CLI-generated
    - ✅ Enriched plan can be promoted (features have stories)

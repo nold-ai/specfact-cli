@@ -33,7 +33,7 @@ Review project bundle to identify/resolve ambiguities and missing information. A
 
 - `--no-interactive` - Non-interactive mode (for CI/CD). Default: False (interactive mode)
 - `--answers JSON` - JSON object with question_id -> answer mappings. Default: None
-- `--auto-enrich` - Automatically enrich vague acceptance criteria. Default: False
+- `--auto-enrich` - Automatically enrich vague acceptance criteria using PlanEnricher (same enrichment logic as `import from-code`). Default: False (opt-in for review, but import has auto-enrichment enabled by default)
 
 ### Advanced/Configuration
 
@@ -256,16 +256,21 @@ Create one with: specfact plan init legacy-api
 
 ## Enrichment Workflow
 
+**Note**: Import command (`specfact import from-code`) has **auto-enrichment enabled by default** using PlanEnricher. Review command requires explicit `--auto-enrich` flag.
+
 **Typical workflow when enrichment is needed:**
 
 1. **Get findings**: `specfact plan review --list-findings --findings-format json`
 2. **Analyze findings**: Review missing information (target_users, value_hypothesis, etc.)
-3. **Create enrichment report**: Write Markdown file addressing findings
-4. **Apply enrichment**:
+3. **Apply automatic enrichment** (if needed):
+   - **During import**: Auto-enrichment happens automatically (enabled by default)
+   - **After import**: Use `specfact plan review --auto-enrich` to enhance vague criteria
+4. **Create enrichment report** (for business context, confidence adjustments, missing features): Write Markdown file addressing findings
+5. **Apply manual enrichment**:
    - **Preferred**: Use enrichment to create `--answers` JSON and run `plan review --answers`
    - **Alternative**: Use `plan update-idea` to update idea fields directly
    - **Last resort**: If bundle needs regeneration, use `import from-code --enrichment`
-5. **Verify**: Run `plan review` again to confirm improvements
+6. **Verify**: Run `plan review` again to confirm improvements
 
 ## Context
 

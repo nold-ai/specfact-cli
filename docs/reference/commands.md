@@ -217,8 +217,8 @@ specfact import from-code [OPTIONS]
 - `--repo PATH` - Path to repository to import (required)
 - `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
 - `--shadow-only` - Observe without blocking
-- `--report PATH` - Write import report (default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
-- `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
+- `--report PATH` - Write import report (default: bundle-specific `.specfact/projects/<bundle-name>/reports/brownfield/analysis-<timestamp>.md`, Phase 8.5)
+- `--enrich-for-speckit/--no-enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance using PlanEnricher (enhances vague acceptance criteria, incomplete requirements, generic tasks, and adds edge case stories for features with only 1 story). Default: enabled (same enrichment logic as `plan review --auto-enrich`)
 
 **Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
 
@@ -782,7 +782,7 @@ Answers are integrated into plan bundle sections based on category:
 
 **SDD Integration:**
 
-When an SDD manifest (`.specfact/sdd.yaml`) is present, `plan review` automatically:
+When an SDD manifest (`.specfact/projects/<bundle-name>/sdd.yaml`, Phase 8.5) is present, `plan review` automatically:
 
 - **Validates SDD manifest** against the plan bundle (hash match, coverage thresholds)
 - **Displays contract density metrics**:
@@ -824,7 +824,7 @@ specfact plan harden [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
-- `--sdd PATH` - Output SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--sdd PATH` - Output SDD manifest path (default: bundle-specific `.specfact/projects/<bundle-name>/sdd.<format>`, Phase 8.5)
 - `--output-format {yaml,json}` - SDD manifest format (defaults to global `--output-format`)
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
 - `--no-interactive` - Non-interactive mode (for CI/CD automation)
@@ -842,12 +842,12 @@ specfact plan harden [OPTIONS]
    - Enforcement budgets (shadow, warn, block time limits)
    - Promotion status (from plan bundle stage)
 4. **Saves plan bundle** with updated hash (ensures hash persists for subsequent commands)
-5. **Saves SDD manifest** to `.specfact/sdd.<format>`
+5. **Saves SDD manifest** to `.specfact/projects/<bundle-name>/sdd.<format>` (bundle-specific, Phase 8.5)
 
 **Important Notes:**
 
 - **SDD-Plan Linkage**: SDD manifests are linked to specific plan bundles via hash
-- **Multiple Plans**: If you have multiple plans, use `--sdd` to specify different paths (e.g., `--sdd .specfact/sdd.plan1.yaml`)
+- **Multiple Plans**: Each bundle has its own SDD manifest in `.specfact/projects/<bundle-name>/sdd.yaml` (Phase 8.5)
 - **Hash Persistence**: Plan bundle is automatically saved with updated hash to ensure consistency
 
 **Example:**
@@ -860,7 +860,7 @@ specfact plan harden --bundle legacy-api
 specfact plan harden --bundle legacy-api --no-interactive
 
 # Custom SDD path for multiple bundles
-specfact plan harden --bundle feature-auth --sdd .specfact/sdd.auth.yaml
+specfact plan harden --bundle feature-auth  # SDD saved to .specfact/projects/feature-auth/sdd.yaml
 ```
 
 **SDD Manifest Structure:**
@@ -1034,7 +1034,7 @@ specfact plan select --id abc123def456
 - Lists all available plan bundles in `.specfact/projects/` with metadata (features, stories, stage, modified date)
 - Displays numbered list with active plan indicator
 - Applies filters (current, stages, last N) before display/selection
-- Updates `.specfact/plans/config.yaml` to set the active plan
+- Updates `.specfact/config.yaml` to set the active bundle (Phase 8.5: migrated from `.specfact/plans/config.yaml`)
 - The active plan becomes the default for all commands with `--bundle` option:
   - **Plan management**: `plan compare`, `plan promote`, `plan add-feature`, `plan add-story`, `plan update-idea`, `plan update-feature`, `plan update-story`, `plan review`
   - **Analysis & generation**: `import from-code`, `generate contracts`, `analyze contracts`
@@ -1119,7 +1119,7 @@ specfact plan upgrade [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan upgrade my-project`)
-- `--all` - Upgrade all plan bundles in `.specfact/plans/`
+- `--all` - Upgrade all project bundles in `.specfact/projects/`
 - `--dry-run` - Show what would be upgraded without making changes
 
 **Example:**
@@ -1187,7 +1187,7 @@ specfact plan compare [OPTIONS]
 - `--auto PATH` - Auto-derived plan bundle directory (actual implementation - what's in your code from `import from-code`) (default: latest in `.specfact/projects/`)
 - `--code-vs-plan` - Convenience alias for `--manual <active-plan> --auto <latest-auto-plan>` (detects code vs plan drift)
 - `--output-format TEXT` - Output format (markdown, json, yaml) (default: markdown)
-- `--out PATH` - Output file (default: `.specfact/reports/comparison/report-*.md`)
+- `--out PATH` - Output file (default: bundle-specific `.specfact/projects/<bundle-name>/reports/comparison/report-*.md`, Phase 8.5, or global `.specfact/reports/comparison/` if no bundle context)
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
 
 **Code vs Plan Drift Detection:**
@@ -1207,7 +1207,7 @@ specfact plan compare \
   --manual .specfact/projects/main \
   --auto .specfact/projects/my-project-auto \
   --output-format markdown \
-  --out .specfact/reports/comparison/deviation.md
+  --out .specfact/projects/<bundle-name>/reports/comparison/deviation.md
 ```
 
 **Output includes:**
@@ -1237,7 +1237,7 @@ specfact enforce sdd [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
-- `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--sdd PATH` - SDD manifest path (default: bundle-specific `.specfact/projects/<bundle-name>/sdd.<format>`, Phase 8.5)
 - `--output-format {markdown,json,yaml}` - Output format (default: markdown)
 - `--out PATH` - Output report path (optional)
 
@@ -1265,7 +1265,7 @@ The command calculates and validates:
 specfact enforce sdd
 
 # Validate with specific bundle and SDD (bundle name as positional argument)
-specfact enforce sdd main --sdd .specfact/sdd.yaml
+specfact enforce sdd main  # Uses .specfact/projects/main/sdd.yaml (Phase 8.5)
 
 # Generate JSON report
 specfact enforce sdd --output-format json --out validation-report.json
@@ -1410,7 +1410,7 @@ specfact repro [OPTIONS]
 - `--verbose` - Show detailed output
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
-- `--out PATH` - Output report path (default: `.specfact/reports/enforcement/report-<timestamp>.yaml`)
+- `--out PATH` - Output report path (default: bundle-specific `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml`, Phase 8.5, or global `.specfact/reports/enforcement/` if no bundle context)
 
 **Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
 
@@ -1450,7 +1450,7 @@ When using `--fix`, Semgrep will automatically apply fixes for violations that h
 
 **Report Format:**
 
-Reports are written as YAML files to `.specfact/reports/enforcement/report-<timestamp>.yaml`. Each report includes:
+Reports are written as YAML files to `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml` (bundle-specific, Phase 8.5). Each report includes:
 
 **Summary Statistics:**
 
@@ -1537,7 +1537,7 @@ specfact generate contracts [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
-- `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--sdd PATH` - SDD manifest path (default: bundle-specific `.specfact/projects/<bundle-name>/sdd.<format>`, Phase 8.5)
 - `--out PATH` - Output directory (default: `.specfact/contracts/`)
 - `--output-format {yaml,json}` - SDD manifest format (default: auto-detect)
 
@@ -1564,7 +1564,7 @@ specfact generate contracts [OPTIONS]
 specfact generate contracts
 
 # Generate with specific bundle and SDD (bundle name as positional argument)
-specfact generate contracts main --sdd .specfact/sdd.yaml
+specfact generate contracts --bundle main  # Uses .specfact/projects/main/sdd.yaml (Phase 8.5)
 
 # Custom output directory
 specfact generate contracts --out src/contracts/

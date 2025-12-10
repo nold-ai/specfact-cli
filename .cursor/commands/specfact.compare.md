@@ -27,7 +27,7 @@ Compare two project bundles (or legacy plan bundles) to detect deviations, misma
 ### Output/Results
 
 - `--output-format FORMAT` - Output format (markdown, json, yaml). Default: markdown
-- `--out PATH` - Output file path. Default: .specfact/reports/comparison/deviations-<timestamp>.md
+- `--out PATH` - Output file path. Default: bundle-specific .specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md (Phase 8.5), or global .specfact/reports/comparison/ if no bundle context
 
 ### Behavior/Options
 
@@ -121,7 +121,7 @@ specfact plan compare [--bundle <name>] --no-interactive
 ```text
 ✓ Comparison complete
 
-Comparison Report: .specfact/reports/comparison/deviations-2025-11-26T10-30-00.md
+Comparison Report: .specfact/projects/<bundle-name>/reports/comparison/report-2025-11-26T10-30-00.md
 
 Deviations Summary:
   Total: 5

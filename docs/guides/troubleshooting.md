@@ -354,7 +354,7 @@ specfact plan select --last 5
 
    ```bash
    ls -la .specfact/projects/
-   ls -la .specfact/reports/brownfield/
+   ls -la .specfact/projects/<bundle-name>/reports/brownfield/
    ```
 
 2. **Use explicit paths** (bundle directory paths):

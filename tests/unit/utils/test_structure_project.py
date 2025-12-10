@@ -129,3 +129,78 @@ class TestDetectBundleFormat:
         format_type, error = SpecFactStructure.detect_bundle_format(plans_dir)
         assert format_type == BundleFormat.MONOLITHIC
         assert error is None
+
+
+class TestBundleSpecificPaths:
+    """Tests for bundle-specific artifact paths (Phase 8.5)."""
+
+    def test_get_bundle_reports_dir(self, tmp_path: Path):
+        """Test get_bundle_reports_dir returns correct path."""
+        reports_dir = SpecFactStructure.get_bundle_reports_dir("test-bundle", base_path=tmp_path)
+        assert reports_dir == tmp_path / ".specfact/projects/test-bundle/reports"
+
+    def test_get_bundle_brownfield_report_path(self, tmp_path: Path):
+        """Test get_bundle_brownfield_report_path creates timestamped path."""
+        report_path = SpecFactStructure.get_bundle_brownfield_report_path("test-bundle", base_path=tmp_path)
+        assert report_path.parent == tmp_path / ".specfact/projects/test-bundle/reports/brownfield"
+        assert report_path.name.startswith("analysis-")
+        assert report_path.suffix == ".md"
+
+    def test_get_bundle_comparison_report_path(self, tmp_path: Path):
+        """Test get_bundle_comparison_report_path creates timestamped path."""
+        report_path = SpecFactStructure.get_bundle_comparison_report_path(
+            "test-bundle", base_path=tmp_path, format="md"
+        )
+        assert report_path.parent == tmp_path / ".specfact/projects/test-bundle/reports/comparison"
+        assert report_path.name.startswith("report-")
+        assert report_path.suffix == ".md"
+
+    def test_get_bundle_enrichment_report_path(self, tmp_path: Path):
+        """Test get_bundle_enrichment_report_path creates timestamped path."""
+        report_path = SpecFactStructure.get_bundle_enrichment_report_path("test-bundle", base_path=tmp_path)
+        assert report_path.parent == tmp_path / ".specfact/projects/test-bundle/reports/enrichment"
+        assert "test-bundle" in report_path.name
+        assert report_path.name.endswith(".enrichment.md")
+
+    def test_get_bundle_enforcement_report_path(self, tmp_path: Path):
+        """Test get_bundle_enforcement_report_path creates timestamped path."""
+        report_path = SpecFactStructure.get_bundle_enforcement_report_path("test-bundle", base_path=tmp_path)
+        assert report_path.parent == tmp_path / ".specfact/projects/test-bundle/reports/enforcement"
+        assert report_path.name.startswith("report-")
+        assert report_path.suffix == ".yaml"
+
+    def test_get_bundle_sdd_path(self, tmp_path: Path):
+        """Test get_bundle_sdd_path returns correct path."""
+        from specfact_cli.utils.structured_io import StructuredFormat
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(
+            "test-bundle", base_path=tmp_path, format=StructuredFormat.YAML
+        )
+        assert sdd_path == tmp_path / ".specfact/projects/test-bundle/sdd.yaml"
+
+        sdd_path_json = SpecFactStructure.get_bundle_sdd_path(
+            "test-bundle", base_path=tmp_path, format=StructuredFormat.JSON
+        )
+        assert sdd_path_json == tmp_path / ".specfact/projects/test-bundle/sdd.json"
+
+    def test_get_bundle_tasks_path(self, tmp_path: Path):
+        """Test get_bundle_tasks_path returns correct path."""
+        tasks_path = SpecFactStructure.get_bundle_tasks_path("test-bundle", base_path=tmp_path)
+        assert tasks_path == tmp_path / ".specfact/projects/test-bundle/tasks.yaml"
+
+    def test_get_bundle_logs_dir(self, tmp_path: Path):
+        """Test get_bundle_logs_dir creates and returns correct path."""
+        logs_dir = SpecFactStructure.get_bundle_logs_dir("test-bundle", base_path=tmp_path)
+        assert logs_dir == tmp_path / ".specfact/projects/test-bundle/logs"
+        assert logs_dir.exists(), "Logs directory should be created"
+
+    def test_ensure_project_structure_creates_bundle_specific_dirs(self, tmp_path: Path):
+        """Test ensure_project_structure creates bundle-specific directories (Phase 8.5)."""
+        SpecFactStructure.ensure_project_structure(base_path=tmp_path, bundle_name="test-bundle")
+
+        project_dir = tmp_path / ".specfact/projects/test-bundle"
+        assert (project_dir / "reports" / "brownfield").exists()
+        assert (project_dir / "reports" / "comparison").exists()
+        assert (project_dir / "reports" / "enrichment").exists()
+        assert (project_dir / "reports" / "enforcement").exists()
+        assert (project_dir / "logs").exists()

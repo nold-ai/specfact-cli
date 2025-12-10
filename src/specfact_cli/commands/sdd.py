@@ -45,7 +45,8 @@ def sdd_list(
     """
     List all SDD manifests in the repository.
 
-    Shows all SDD manifests found in both multi-SDD layout (.specfact/sdd/*.yaml)
+    Shows all SDD manifests found in bundle-specific locations (.specfact/projects/<bundle-name>/sdd.yaml, Phase 8.5)
+    and legacy multi-SDD layout (.specfact/sdd/*.yaml)
     and legacy single-SDD layout (.specfact/sdd.yaml).
 
     **Parameter Groups:**
@@ -123,7 +124,9 @@ def sdd_list(
 
     if legacy_count > 0:
         console.print(f"[yellow]⚠ {legacy_count} legacy SDD manifest(s) found[/yellow]")
-        console.print("[dim]Consider migrating to multi-SDD layout: .specfact/sdd/<bundle-name>.yaml[/dim]")
+        console.print(
+            "[dim]Consider migrating to bundle-specific layout: .specfact/projects/<bundle-name>/sdd.yaml (Phase 8.5)[/dim]"
+        )
 
     if multi_count > 0:
         console.print(f"[green]✓ {multi_count} multi-SDD manifest(s) found[/green]")

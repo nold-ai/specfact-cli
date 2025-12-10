@@ -86,7 +86,7 @@ specfact plan harden customer-api
 ### Output
 
 ```text
-✅ SDD manifest created: .specfact/sdd.yaml
+✅ SDD manifest created: .specfact/projects/<bundle-name>/sdd.yaml
 
 📋 SDD Summary:
    WHY: Modernize legacy Flask API with zero downtime

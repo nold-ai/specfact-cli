@@ -53,7 +53,7 @@ class ControlFlowAnalyzer:
             method_name: Name of the method
 
         Returns:
-            Dictionary with scenario types as keys and lists of Given/When/Then scenarios as values
+            Dictionary with scenario types as keys and lists of scenario descriptions as values
         """
         scenarios: dict[str, list[str]] = {
             "primary": [],
@@ -67,9 +67,7 @@ class ControlFlowAnalyzer:
 
         # If no scenarios found, generate default primary scenario
         if not any(scenarios.values()):
-            scenarios["primary"].append(
-                f"Given {class_name} instance, When {method_name} is called, Then method executes successfully"
-            )
+            scenarios["primary"].append(f"{method_name} executes successfully")
 
         return scenarios
 
@@ -103,15 +101,13 @@ class ControlFlowAnalyzer:
         # Primary scenario: if branch (happy path)
         if if_node.body:
             primary_action = self._extract_action_from_body(if_node.body)
-            scenarios["primary"].append(
-                f"Given {class_name} instance, When {method_name} is called with {condition}, Then {primary_action}"
-            )
+            scenarios["primary"].append(f"{method_name} called with {condition}: {primary_action}")
 
         # Alternate scenario: else branch
         if if_node.orelse:
             alternate_action = self._extract_action_from_body(if_node.orelse)
             scenarios["alternate"].append(
-                f"Given {class_name} instance, When {method_name} is called with {self._negate_condition(condition)}, Then {alternate_action}"
+                f"{method_name} called with {self._negate_condition(condition)}: {alternate_action}"
             )
 
     @beartype
@@ -122,9 +118,7 @@ class ControlFlowAnalyzer:
         # Primary scenario: try block (happy path)
         if try_node.body:
             primary_action = self._extract_action_from_body(try_node.body)
-            scenarios["primary"].append(
-                f"Given {class_name} instance, When {method_name} is called, Then {primary_action}"
-            )
+            scenarios["primary"].append(f"{method_name} executes: {primary_action}")
 
         # Exception scenarios: except blocks
         for handler in try_node.handlers:
@@ -133,22 +127,16 @@ class ControlFlowAnalyzer:
                 exception_type = self._extract_exception_type(handler.type)
 
             exception_action = self._extract_action_from_body(handler.body) if handler.body else "error is handled"
-            scenarios["exception"].append(
-                f"Given {class_name} instance, When {method_name} is called and {exception_type} occurs, Then {exception_action}"
-            )
+            scenarios["exception"].append(f"{method_name} raises {exception_type}: {exception_action}")
 
             # Check for retry/recovery logic in exception handler
             if self._has_retry_logic(handler.body):
-                scenarios["recovery"].append(
-                    f"Given {class_name} instance, When {method_name} fails with {exception_type}, Then system retries and recovers"
-                )
+                scenarios["recovery"].append(f"{method_name} retries and recovers after {exception_type}")
 
         # Recovery scenario: finally block or retry logic
         if try_node.finalbody:
             recovery_action = self._extract_action_from_body(try_node.finalbody)
-            scenarios["recovery"].append(
-                f"Given {class_name} instance, When {method_name} completes or fails, Then {recovery_action}"
-            )
+            scenarios["recovery"].append(f"{method_name} cleanup: {recovery_action}")
 
     @beartype
     def _extract_loop_scenario(
@@ -157,9 +145,7 @@ class ControlFlowAnalyzer:
         """Extract scenario from loop (might indicate retry logic)."""
         # Check if loop contains retry/retry logic
         if self._has_retry_logic(loop_node.body):
-            scenarios["recovery"].append(
-                f"Given {class_name} instance, When {method_name} is called, Then system retries on failure until success"
-            )
+            scenarios["recovery"].append(f"{method_name} retries on failure until success")
 
     @beartype
     def _extract_condition(self, test_node: ast.AST) -> str:

@@ -129,7 +129,7 @@ def enforce_sdd(
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.<format>",
+        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format> (Phase 8.5), with fallback to legacy .specfact/sdd/<bundle-name>.<format>",
     ),
     # Output/Results
     output_format: str = typer.Option(
@@ -140,7 +140,7 @@ def enforce_sdd(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path. Default: .specfact/reports/sdd/validation-<timestamp>.<format>",
+        help="Output file path. Default: bundle-specific .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.<format> (Phase 8.5)",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -213,7 +213,8 @@ def enforce_sdd(
         discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
         if discovered_sdd is None:
             console.print("[bold red]✗[/bold red] SDD manifest not found")
-            console.print(f"[dim]Searched for: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
+            console.print(f"[dim]Searched for: .specfact/projects/{bundle}/sdd.yaml (bundle-specific, Phase 8.5)[/dim]")
+            console.print(f"[dim]Fallback: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
             console.print("[dim]Legacy fallback: .specfact/sdd.yaml or .specfact/sdd.json[/dim]")
             console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
             raise typer.Exit(1)
@@ -382,15 +383,15 @@ def enforce_sdd(
                 else:
                     console.print("[dim]No API contracts found in bundle[/dim]")
 
-            # Generate output report
+            # Generate output report (Phase 8.5: bundle-specific location)
             output_format_str = output_format.lower()
             if out is None:
-                SpecFactStructure.ensure_structure()
-                reports_dir = Path(".") / SpecFactStructure.ROOT / "reports" / "sdd"
-                reports_dir.mkdir(parents=True, exist_ok=True)
-                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                # Use bundle-specific enforcement report path
                 extension = "md" if output_format_str == "markdown" else output_format_str
-                out = reports_dir / f"validation-{timestamp}.{extension}"
+                out = SpecFactStructure.get_bundle_enforcement_report_path(bundle_name=bundle, base_path=base_path)
+                # Update extension if needed
+                if extension != "yaml" and out.suffix != f".{extension}":
+                    out = out.with_suffix(f".{extension}")
 
             # Save report
             if output_format_str == "markdown":

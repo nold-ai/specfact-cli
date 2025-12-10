@@ -83,7 +83,7 @@ specfact <command> [options] --no-interactive
 - ❌ Write to `.specfact/` folder directly (always use CLI)
 - ❌ Use direct file manipulation tools for writing (use CLI commands)
 
-**Output**: Generate enrichment report (Markdown) saved to `.specfact/reports/enrichment/`
+**Output**: Generate enrichment report (Markdown) saved to `.specfact/projects/<bundle-name>/reports/enrichment/` (bundle-specific, Phase 8.5)
 
 ### Phase 3: CLI Artifact Creation (REQUIRED)
 

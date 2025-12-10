@@ -21,6 +21,12 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 ```bash
 .specfact/
 ├── config.yaml              # SpecFact configuration (optional)
+├── config/                  # Global configuration (optional)
+│   ├── bridge.yaml          # Bridge configuration for external tools
+│   └── ...
+├── cache/                   # Shared cache (gitignored, global for performance)
+│   ├── dependency-graph.json
+│   └── commit-history.json
 ├── projects/                # Modular project bundles (versioned in git)
 │   ├── <bundle-name>/       # Project bundle directory
 │   │   ├── bundle.manifest.yaml  # Bundle metadata, versioning, and checksums
@@ -28,46 +34,49 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 │   │   ├── business.yaml         # Business context (optional)
 │   │   ├── product.yaml          # Releases, themes (required)
 │   │   ├── clarifications.yaml   # Clarification sessions (optional)
+│   │   ├── sdd.yaml              # SDD manifest (bundle-specific, Phase 8.5)
+│   │   ├── tasks.yaml            # Task breakdown (bundle-specific, Phase 8.5)
 │   │   ├── features/             # Individual feature files
 │   │   │   ├── FEATURE-001.yaml
 │   │   │   ├── FEATURE-002.yaml
 │   │   │   └── ...
+│   │   ├── contracts/            # OpenAPI contracts (bundle-specific)
+│   │   │   └── ...
+│   │   ├── protocols/            # FSM protocols (bundle-specific)
+│   │   │   └── ...
+│   │   ├── reports/              # Bundle-specific reports (gitignored, Phase 8.5)
+│   │   │   ├── brownfield/
+│   │   │   │   └── analysis-2025-10-31T14-30-00.md
+│   │   │   ├── comparison/
+│   │   │   │   └── report-2025-10-31T14-30-00.md
+│   │   │   ├── enrichment/
+│   │   │   │   └── <bundle-name>-2025-10-31T14-30-00.enrichment.md
+│   │   │   └── enforcement/
+│   │   │       └── report-2025-10-31T14-30-00.yaml
+│   │   ├── logs/                 # Bundle-specific logs (gitignored, Phase 8.5)
+│   │   │   └── 2025-10-31T14-30-00.log
 │   │   └── prompts/              # AI IDE contract enhancement prompts (optional)
 │   │       └── enhance-<filename>-<contracts>.md
 │   ├── legacy-api/         # Example: Brownfield-derived bundle
 │   │   ├── bundle.manifest.yaml
 │   │   ├── product.yaml
-│   │   └── features/
-│   │       └── ...
+│   │   ├── sdd.yaml
+│   │   ├── tasks.yaml
+│   │   ├── features/
+│   │   ├── reports/
+│   │   └── logs/
 │   └── my-project/          # Example: Main project bundle
 │       ├── bundle.manifest.yaml
 │       ├── idea.yaml
 │       ├── business.yaml
 │       ├── product.yaml
-│       └── features/
-│           └── ...
-├── protocols/               # FSM protocol definitions (versioned)
-│   ├── workflow.protocol.yaml
-│   └── deployment.protocol.yaml
-├── reports/                 # Analysis reports (gitignored)
-│   ├── brownfield/
-│   │   └── analysis-2025-10-31T14-30-00.md  # Analysis reports only (not plan bundles)
-│   ├── comparison/
-│   │   ├── report-2025-10-31T14-30-00.md
-│   │   └── report-2025-10-31T14-30-00.json
-│   ├── enforcement/
-│   │   └── gate-results-2025-10-31.json
-│   └── sync/
-│       ├── bridge-sync-2025-10-31.json
-│       └── repository-sync-2025-10-31.json
-├── gates/                   # Enforcement configuration and results
-│   ├── config.yaml          # Enforcement settings
-│   └── results/             # Historical gate results (gitignored)
-│       ├── pr-123.json
-│       └── pr-124.json
-└── cache/                   # Tool caches (gitignored)
-    ├── dependency-graph.json
-    └── commit-history.json
+│       ├── sdd.yaml
+│       ├── tasks.yaml
+│       ├── features/
+│       ├── reports/
+│       └── logs/
+└── gates/                   # Enforcement configuration (global)
+    └── config.yaml          # Enforcement settings (versioned)
 ```
 
 ## Directory Purposes
@@ -85,11 +94,18 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
   - `idea.yaml` - Product vision and intent (optional)
   - `business.yaml` - Business context and market segments (optional)
   - `clarifications.yaml` - Clarification sessions and Q&A (optional)
+  - `sdd.yaml` - SDD manifest (bundle-specific, Phase 8.5, versioned)
+  - `tasks.yaml` - Task breakdown (bundle-specific, Phase 8.5, versioned)
   - `features/` - Directory containing individual feature files:
     - `FEATURE-001.yaml` - Individual feature with stories
     - `FEATURE-002.yaml` - Individual feature with stories
     - Each feature file is self-contained with its stories, acceptance criteria, etc.
-- **Always committed to git** - these are the source of truth
+  - `contracts/` - OpenAPI contract files (bundle-specific, versioned)
+  - `protocols/` - FSM protocol definitions (bundle-specific, versioned)
+  - `reports/` - Bundle-specific analysis reports (gitignored, Phase 8.5)
+  - `logs/` - Bundle-specific execution logs (gitignored, Phase 8.5)
+- **Always committed to git** - these are the source of truth (except reports/ and logs/)
+- **Phase 8.5**: All bundle-specific artifacts are stored within bundle folders for better isolation
 - Use descriptive bundle names: `legacy-api`, `my-project`, `feature-auth`
 - Supports multiple bundles per repository for brownfield modernization, monorepos, or feature branches
 - Aspect files are YAML format (JSON support may be added in future)
@@ -205,49 +221,75 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 └── deployment-pipeline.protocol.yaml
 ```
 
-### `.specfact/reports/` (Gitignored)
+### Bundle-Specific Artifacts (Phase 8.5)
 
-**Purpose**: Ephemeral analysis and comparison reports.
+**Phase 8.5 Update**: All bundle-specific artifacts are now stored within `.specfact/projects/<bundle-name>/` folders for better isolation and organization.
 
-**Guidelines**:
+**Bundle-Specific Artifacts**:
 
-- **Gitignored** - regenerated on demand
-- Organized by report type (brownfield, comparison, enforcement)
-- Include timestamps in filenames for historical tracking
+- **Reports**: `.specfact/projects/<bundle-name>/reports/` (gitignored)
+  - `brownfield/` - Brownfield analysis reports
+  - `comparison/` - Plan comparison reports
+  - `enrichment/` - LLM enrichment reports
+  - `enforcement/` - SDD enforcement validation reports
+- **SDD Manifests**: `.specfact/projects/<bundle-name>/sdd.yaml` (versioned)
+- **Tasks**: `.specfact/projects/<bundle-name>/tasks.yaml` (versioned)
+- **Logs**: `.specfact/projects/<bundle-name>/logs/` (gitignored)
+
+**Migration**: Use `specfact migrate artifacts` to move existing artifacts from global locations to bundle-specific folders.
 
 **Example**:
 
 ```bash
-.specfact/reports/
-├── brownfield/
-│   ├── analysis-2025-10-31T14-30-00.md
-│   └── auto-derived-2025-10-31T14-30-00.bundle.<format>
-├── comparison/
-│   ├── report-2025-10-31T14-30-00.md
-│   └── report-2025-10-31T14-30-00.json
-└── sync/
-    ├── speckit-sync-2025-10-31.json
-    └── repository-sync-2025-10-31.json
+.specfact/projects/legacy-api/
+├── bundle.manifest.yaml
+├── product.yaml
+├── sdd.yaml                    # Bundle-specific SDD manifest
+├── tasks.yaml                  # Bundle-specific task breakdown
+├── reports/                    # Bundle-specific reports (gitignored)
+│   ├── brownfield/
+│   │   └── analysis-2025-10-31T14-30-00.md
+│   ├── comparison/
+│   │   └── report-2025-10-31T14-30-00.md
+│   ├── enrichment/
+│   │   └── legacy-api-2025-10-31T14-30-00.enrichment.md
+│   └── enforcement/
+│       └── report-2025-10-31T14-30-00.yaml
+└── logs/                       # Bundle-specific logs (gitignored)
+    └── 2025-10-31T14-30-00.log
 ```
 
-### `.specfact/gates/` (Mixed)
+### Legacy Global Locations (Removed)
 
-**Purpose**: Enforcement configuration and gate execution results.
+**Note**: The following global locations have been removed (Phase 8.5):
+
+- ❌ `.specfact/plans/` - Removed (active bundle config migrated to `.specfact/config.yaml`)
+- ❌ `.specfact/gates/results/` - Removed (enforcement reports are bundle-specific)
+- ❌ `.specfact/reports/` - Removed (reports are bundle-specific)
+- ❌ `.specfact/sdd/` - Removed (SDD manifests are bundle-specific)
+- ❌ `.specfact/tasks/` - Removed (task files are bundle-specific)
+
+**Migration**: Use `specfact migrate cleanup-legacy` to remove empty legacy directories, and `specfact migrate artifacts` to migrate existing artifacts to bundle-specific locations.
+
+### `.specfact/gates/` (Versioned)
+
+**Purpose**: Global enforcement configuration.
 
 **Guidelines**:
 
 - `config.yaml` is versioned (defines enforcement policy)
-- `results/` is gitignored (execution logs)
+- Enforcement reports are bundle-specific (stored in `.specfact/projects/<bundle-name>/reports/enforcement/`)
 
 **Example**:
 
 ```bash
 .specfact/gates/
-├── config.yaml              # Versioned: enforcement policy
-└── results/                 # Gitignored: execution logs
-    ├── pr-123.json
-    └── commit-abc123.json
+└── config.yaml              # Versioned: enforcement policy
 ```
+
+**Note**: Enforcement execution reports are stored in bundle-specific locations (Phase 8.5):
+
+- `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml`
 
 ### `.specfact/cache/` (Gitignored)
 
@@ -280,8 +322,8 @@ specfact import from-code <bundle-name> --repo . [OPTIONS]
     ├── FEATURE-002.yaml
     └── ...
 
-# Analysis report (gitignored)
-.specfact/reports/brownfield/analysis-<timestamp>.md
+# Analysis report (bundle-specific, gitignored, Phase 8.5)
+.specfact/projects/<bundle-name>/reports/brownfield/analysis-<timestamp>.md
 ```
 
 **Example (brownfield modernization)**:
@@ -518,13 +560,12 @@ Add to `.gitignore`:
 
 ```gitignore
 # SpecFact ephemeral artifacts
-.specfact/reports/
-.specfact/gates/results/
+.specfact/projects/*/reports/
+.specfact/projects/*/logs/
 .specfact/cache/
 
 # Keep these versioned
 !.specfact/projects/
-!.specfact/protocols/
 !.specfact/config.yaml
 !.specfact/gates/config.yaml
 
@@ -545,9 +586,9 @@ Add to `.gitignore`:
 If you have existing artifacts in other locations:
 
 ```bash
-# Old structure (monolithic bundles)
-contracts/plans/plan.bundle.<format>
-reports/analysis.md
+# Old structure (monolithic bundles, deprecated)
+.specfact/plans/<name>.bundle.<format>
+.specfact/reports/analysis.md
 
 # New structure (modular bundles)
 .specfact/projects/my-project/

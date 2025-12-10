@@ -59,7 +59,7 @@ def generate_contracts(
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.yaml if --bundle specified, else .specfact/sdd.yaml. Ignored if --bundle is specified.",
+        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.yaml if --bundle specified (Phase 8.5), else .specfact/sdd.yaml. Ignored if --bundle is specified.",
     ),
     plan: Path | None = typer.Option(
         None,
@@ -149,7 +149,7 @@ def generate_contracts(
                     # Detect bundle format to determine SDD path
                     format_type, _ = detect_bundle_format(plan_path)
                     if format_type == BundleFormat.MODULAR:
-                        # Modular bundle: SDD is at .specfact/sdd/<bundle-name>.yaml
+                        # Modular bundle: SDD is at .specfact/projects/<bundle-name>/sdd.yaml (Phase 8.5)
                         if plan_path.is_dir():
                             bundle_name = plan_path.name
                         else:
@@ -1361,7 +1361,7 @@ def generate_tasks(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path. Default: .specfact/tasks/<bundle-name>-<hash>.tasks.<format>",
+        help="Output file path. Default: bundle-specific .specfact/projects/<bundle-name>/tasks.yaml (Phase 8.5)",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -1453,17 +1453,20 @@ def generate_tasks(
             print_info("Generating task breakdown...")
             task_list = generate_tasks_func(project_bundle, sdd_manifest, bundle)
 
-            # Determine output path
+            # Determine output path (Phase 8.5: bundle-specific location)
             if out is None:
-                tasks_dir = base_path / SpecFactStructure.TASKS
-                tasks_dir.mkdir(parents=True, exist_ok=True)
+                # Use bundle-specific tasks path (Phase 8.5)
+                out = SpecFactStructure.get_bundle_tasks_path(bundle_name=bundle, base_path=base_path)
+                # Ensure parent directory exists
+                out.parent.mkdir(parents=True, exist_ok=True)
+                # Update extension if needed
                 format_ext = output_format.lower()
-                hash_short = (
-                    task_list.plan_bundle_hash[:16]
-                    if len(task_list.plan_bundle_hash) > 16
-                    else task_list.plan_bundle_hash
-                )
-                out = tasks_dir / f"{bundle}-{hash_short}.tasks.{format_ext}"
+                if format_ext == "yaml":
+                    out = out.with_suffix(".yaml")
+                elif format_ext == "json":
+                    out = out.with_suffix(".json")
+                else:
+                    out = out.with_suffix(".md")
             else:
                 # Ensure correct extension
                 if output_format.lower() == "yaml":

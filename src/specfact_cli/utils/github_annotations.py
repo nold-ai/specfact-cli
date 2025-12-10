@@ -357,22 +357,47 @@ def main() -> int:
         Exit code (0 = success/no failures, 1 = failures detected or error)
     """
     # Get report path from environment or use default
+    report_path: Path | None = None
     report_path_str = os.environ.get("SPECFACT_REPORT_PATH")
     if report_path_str:
         report_path = Path(report_path_str)
     else:
-        # Default: look for latest report in .specfact/reports/enforcement/
-        default_dir = Path(".specfact/reports/enforcement")
-        if default_dir.exists():
-            reports = sorted(default_dir.glob("report-*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if reports:
-                report_path = reports[0]
+        # Phase 8.5: Try bundle-specific location first, then fallback to global
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        # Try to find active bundle and check bundle-specific location
+        bundle_name = SpecFactStructure.get_active_bundle_name(Path("."))
+        if bundle_name:
+            bundle_reports_dir = SpecFactStructure.get_bundle_reports_dir(bundle_name, Path(".")) / "enforcement"
+            if bundle_reports_dir.exists():
+                reports = sorted(
+                    bundle_reports_dir.glob("report-*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True
+                )
+                if reports:
+                    report_path = reports[0]
+                else:
+                    print("No repro report found in bundle-specific location", file=sys.stderr)
+                    return 1
             else:
-                print("No repro report found", file=sys.stderr)
-                return 1
+                # Bundle-specific directory doesn't exist, try global fallback
+                pass
         else:
-            print("No repro report directory found", file=sys.stderr)
-            return 1
+            # No active bundle, try global fallback
+            pass
+
+        # Fallback: look for latest report in global .specfact/reports/enforcement/ (legacy)
+        if report_path is None:
+            default_dir = Path(".specfact/reports/enforcement")
+            if default_dir.exists():
+                reports = sorted(default_dir.glob("report-*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if reports:
+                    report_path = reports[0]
+                else:
+                    print("No repro report found", file=sys.stderr)
+                    return 1
+            else:
+                print("No repro report directory found", file=sys.stderr)
+                return 1
 
     if not report_path.exists():
         print(f"Report file not found: {report_path}", file=sys.stderr)

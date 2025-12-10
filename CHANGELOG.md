@@ -9,6 +9,50 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.15.0] - 2025-12-11
+
+### Added (0.15.0)
+
+- **Phase 8.5: Bundle-Specific Artifact Organization** - Complete architectural improvement
+  - All bundle-specific artifacts now stored in `.specfact/projects/<bundle-name>/` folders
+  - Bundle-specific reports directory: `.specfact/projects/<bundle-name>/reports/` (brownfield, comparison, enrichment, enforcement)
+  - Bundle-specific SDD manifests: `.specfact/projects/<bundle-name>/sdd.yaml`
+  - Bundle-specific task breakdowns: `.specfact/projects/<bundle-name>/tasks.yaml`
+  - Bundle-specific logs directory: `.specfact/projects/<bundle-name>/logs/`
+  - Migration tool: `specfact migrate artifacts` to move existing artifacts to bundle-specific locations
+  - Cleanup tool: `specfact migrate cleanup-legacy` to remove empty legacy directories
+
+### Changed (0.15.0)
+
+- **Directory Structure** - Improved bundle isolation and organization
+  - Active bundle configuration migrated from `.specfact/plans/config.yaml` to global `.specfact/config.yaml`
+  - Legacy top-level directories removed: `plans/`, `gates/results/` (no longer created by `ensure_structure()`)
+  - All commands now use bundle-specific paths for reports, SDD manifests, tasks, and logs
+  - Atomic bundle saves now preserve `reports/` and `logs/` directories during bundle operations
+
+### Fixed (0.15.0)
+
+- **Atomic Bundle Saves** - Preserve bundle-specific directories
+  - Fixed `save_project_bundle` to preserve `reports/` and `logs/` directories during atomic saves
+  - Ensures bundle-specific directories created by `ensure_project_structure()` are not lost during bundle saves
+
+- **ControlFlowAnalyzer** - Removed GWT patterns
+  - Eliminated all GWT (Given...When...Then) format patterns from scenario generation
+  - Added comprehensive unit tests for scenario extraction (19 tests covering primary, alternate, exception, and recovery scenarios)
+
+- **Integration Tests** - Updated for new directory structure
+  - Fixed all integration tests to reflect bundle-specific artifact locations
+  - Updated test assertions to verify bundle-specific directory creation
+  - Fixed progress bar UI in `import from-code` command
+
+### Improved (0.15.0)
+
+- **Documentation** - Comprehensive updates
+  - Updated end-user documentation to reflect bundle-specific artifact organization
+  - Updated internal implementation plans with Phase 8.5 completion status
+  - Removed references to deprecated legacy directories (`plans/`, `gates/results/`)
+  - Updated command documentation to use new bundle-specific paths
+
 ## [0.14.2] - 2025-12-09
 
 ### Fixed (0.14.2)

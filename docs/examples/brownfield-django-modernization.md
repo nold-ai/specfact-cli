@@ -91,7 +91,7 @@ specfact plan harden customer-portal
 ### Output
 
 ```text
-✅ SDD manifest created: .specfact/sdd.yaml
+✅ SDD manifest created: .specfact/projects/<bundle-name>/sdd.yaml
 
 📋 SDD Summary:
    WHY: Modernize legacy Django customer portal with zero downtime
@@ -104,12 +104,12 @@ specfact plan harden customer-portal
    - Invariants per feature: 2.0 (minimum)
    - Architecture facets: 3 (minimum)
 
-✅ SDD manifest saved to .specfact/sdd.yaml
+✅ SDD manifest saved to .specfact/projects/<bundle-name>/sdd.yaml
 ```
 
 ### What You Get
 
-**SDD manifest** (`.specfact/sdd.yaml`) captures:
+**SDD manifest** (`.specfact/projects/<bundle-name>/sdd.yaml`, Phase 8.5) captures:
 
 - **WHY**: Intent, constraints, target users, value hypothesis
 - **WHAT**: Capabilities, acceptance criteria, out-of-scope items
@@ -133,7 +133,7 @@ specfact enforce sdd customer-portal
 ### Output
 
 ```text
-✅ Loading SDD manifest: .specfact/sdd/customer-portal.yaml
+✅ Loading SDD manifest: .specfact/projects/customer-portal/sdd.yaml
 ✅ Loading project bundle: .specfact/projects/customer-portal/
 
 🔍 Validating hash match...
@@ -145,7 +145,7 @@ specfact enforce sdd customer-portal
 ✅ Architecture facets: 4 (threshold: 3) ✓
 
 ✅ SDD validation passed
-📄 Report saved to: .specfact/reports/sdd/validation-2025-01-23T10-30-45.yaml
+📄 Report saved to: .specfact/projects/<bundle-name>/reports/enforcement/report-2025-01-23T10-30-45.yaml
 ```
 
 **If validation fails**, you'll see specific deviations:

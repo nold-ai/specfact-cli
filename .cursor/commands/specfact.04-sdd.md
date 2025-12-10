@@ -21,7 +21,7 @@ Create/update SDD manifest from project bundle. Captures WHY (intent/constraints
 ### Target/Input
 
 - `bundle NAME` (optional argument) - Project bundle name (e.g., legacy-api, auth-module). Default: active plan (set via `plan select`)
-- `--sdd PATH` - Output SDD manifest path. Default: .specfact/sdd/<bundle-name>.<format>
+- `--sdd PATH` - Output SDD manifest path. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format> (Phase 8.5)
 
 ### Output/Results
 
@@ -115,12 +115,12 @@ specfact plan harden [<bundle-name>] --no-interactive
 ### Success
 
 ```text
-✓ SDD manifest created: .specfact/sdd/legacy-api.yaml
+✓ SDD manifest created: .specfact/projects/legacy-api/sdd.yaml
 
 SDD Manifest Summary:
 Project Bundle: .specfact/projects/legacy-api/
 Bundle Hash: abc123def456...
-SDD Path: .specfact/sdd/legacy-api.yaml
+SDD Path: .specfact/projects/legacy-api/sdd.yaml
 
 WHY (Intent):
   Build secure authentication system
@@ -147,7 +147,7 @@ Create one with: specfact plan init legacy-api
 /specfact.04-sdd                              # Uses active plan
 /specfact.04-sdd legacy-api                   # Specific bundle
 /specfact.04-sdd --output-format json         # JSON format
-/specfact.04-sdd --sdd .specfact/sdd/custom.yaml
+/specfact.04-sdd --sdd .specfact/projects/custom-bundle/sdd.yaml
 ```
 
 ## Context
