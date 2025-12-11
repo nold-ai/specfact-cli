@@ -9,6 +9,44 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.15.5] - 2025-12-11
+
+### Fixed (0.15.5)
+
+- **Review Command** - Fixed integration of answers for "Interaction & UX Flow" category
+  - Added `INTERACTION_UX` category to integration logic in `_integrate_clarification`
+  - Answers for error/empty state questions are now properly integrated into story acceptance criteria
+  - Findings now correctly resolve after answers are integrated and bundle is re-scanned
+
+### Improved (0.15.5)
+
+- **Review Command** - Enhanced coverage summary display
+  - Shows "143 Partial" instead of "143/143 Partial" when all findings are unclear (cleaner UX)
+  - Shows "5/143 Partial" when some findings are clarified (progress indicator)
+  - Fixed unclear findings count calculation to accurately reflect findings that can still generate questions
+  - Counts now correctly decrease as questions are answered and findings are resolved
+
+---
+
+## [0.15.3] - 2025-12-11
+
+### Added (0.15.3)
+
+- **Review Command** - Added `--output-findings PATH` option to save findings directly to file
+  - Saves clean JSON/YAML output without CLI banner (unlike redirecting stdout)
+  - Use with `--list-findings` to save findings to file instead of stdout
+  - Recommended for programmatic processing and batch updates
+  - Mirrors the existing `--output-questions` option for consistency
+
+### Improved (0.15.3)
+
+- **Review Command** - Enhanced findings output workflow
+  - Updated documentation to recommend `--output-findings` over stdout redirection
+  - Clean JSON output makes it easier to process findings programmatically
+  - Consistent API with `--output-questions` option
+
+---
+
 ## [0.15.2] - 2025-12-11
 
 ### Fixed (0.15.2)

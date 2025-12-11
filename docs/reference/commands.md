@@ -657,7 +657,9 @@ specfact plan review [OPTIONS]
 
 - `--bundle TEXT` - Project bundle name (required, e.g., `legacy-api`)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
+- `--output-questions PATH` - Save questions directly to file (JSON format). Use with `--list-questions` to save instead of stdout. Default: None
 - `--list-findings` - Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment
+- `--output-findings PATH` - Save findings directly to file (JSON/YAML format). Use with `--list-findings` to save instead of stdout. Default: None
 - `--no-interactive` - Non-interactive mode (for CI/CD automation)
 - `--auto-enrich` - Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching
 
@@ -690,11 +692,17 @@ specfact plan review --bundle legacy-api
 # Get all findings for bulk updates (preferred for Copilot mode)
 specfact plan review --bundle legacy-api --list-findings --findings-format json
 
+# Save findings directly to file (clean JSON, no CLI banner)
+specfact plan review --bundle legacy-api --list-findings --output-findings /tmp/findings.json
+
 # Get findings as table (interactive mode)
 specfact plan review --bundle legacy-api --list-findings --findings-format table
 
 # Get questions for question-based workflow
 specfact plan review --bundle legacy-api --list-questions --max-questions 5
+
+# Save questions directly to file (clean JSON, no CLI banner)
+specfact plan review --bundle legacy-api --list-questions --output-questions /tmp/questions.json
 
 # Feed answers back (question-based workflow)
 specfact plan review --bundle legacy-api --answers answers.json
@@ -732,7 +740,7 @@ The `--list-findings` option outputs all ambiguities and findings in a structure
 
 **Bulk Update Workflow (Recommended for Copilot Mode):**
 
-1. **List findings**: `specfact plan review --list-findings --findings-format json > findings.json`
+1. **List findings**: `specfact plan review --list-findings --output-findings /tmp/findings.json` (recommended - clean JSON) or `specfact plan review --list-findings --findings-format json > findings.json` (includes CLI banner)
 2. **LLM analyzes findings**: Generate batch update files based on findings
 3. **Apply feature updates**: `specfact plan update-feature --batch-updates feature_updates.json`
 4. **Apply story updates**: `specfact plan update-story --batch-updates story_updates.json`

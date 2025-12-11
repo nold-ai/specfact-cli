@@ -101,6 +101,7 @@ The recommendation helps less-experienced users make informed decisions.
 - `--list-questions` - Output questions in JSON format. Default: False
 - `--output-questions PATH` - Save questions directly to file (JSON format). Use with `--list-questions` to save instead of stdout. Default: None
 - `--list-findings` - Output all findings in structured format. Default: False
+- `--output-findings PATH` - Save findings directly to file (JSON/YAML format). Use with `--list-findings` to save instead of stdout. Default: None
 - `--findings-format FORMAT` - Output format: json, yaml, or table. Default: json for non-interactive, table for interactive
 
 ### Behavior/Options
@@ -150,7 +151,11 @@ specfact plan review [<bundle-name>] --list-questions --output-questions /tmp/qu
 ```bash
 # Get findings (saves to stdout - can redirect to /tmp/)
 # Use /tmp/ to avoid polluting the codebase
+# Option 1: Redirect output (includes CLI banner - not recommended)
 specfact plan review [<bundle-name>] --list-findings --findings-format json --no-interactive > /tmp/findings.json
+
+# Option 2: Save directly to file (recommended - clean JSON only)
+specfact plan review [<bundle-name>] --list-findings --output-findings /tmp/findings.json --no-interactive
 ```
 
 **Note**: The `--output-questions` option saves questions directly to a file, avoiding the need for complex JSON parsing. The ambiguity scanner now recognizes the simplified format (e.g., "Must verify X works correctly (see contract examples)") as valid and will not flag it as vague.
@@ -362,7 +367,8 @@ When in copilot mode, follow this three-phase workflow:
 
 ```bash
 # Option 1: Get findings (redirect to /tmp/ to avoid polluting codebase)
-specfact plan review [<bundle-name>] --list-findings --findings-format json --no-interactive > /tmp/findings.json
+# Option 1: Save findings directly to file (recommended - clean JSON only)
+specfact plan review [<bundle-name>] --list-findings --output-findings /tmp/findings.json --no-interactive
 
 # Option 2: Get questions and save directly to /tmp/ (recommended - avoids JSON parsing)
 specfact plan review [<bundle-name>] --list-questions --output-questions /tmp/questions.json --no-interactive
@@ -513,6 +519,7 @@ Create one with: specfact plan init legacy-api
 # Get findings first
 /specfact.03-review --list-findings                    # List all findings
 /specfact.03-review --list-findings --findings-format json  # JSON format for enrichment
+/specfact.03-review --list-findings --output-findings /tmp/findings.json  # Save findings to file (clean JSON)
 
 # Interactive review
 /specfact.03-review                                    # Uses active plan (default: 5 questions per session)
@@ -557,7 +564,7 @@ Create one with: specfact plan init legacy-api
 2. **Get findings** (optional, for comprehensive analysis - use `/tmp/`):
 
    ```bash
-   specfact plan review [<bundle-name>] --list-findings --findings-format json --no-interactive > /tmp/findings.json
+   specfact plan review [<bundle-name>] --list-findings --output-findings /tmp/findings.json --no-interactive
    ```
 
 3. **LLM reasoning and user selection** (REQUIRED for partial findings):

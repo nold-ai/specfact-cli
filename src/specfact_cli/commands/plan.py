@@ -2985,6 +2985,7 @@ def _output_findings(
     report: Any,  # AmbiguityReport (imported locally to avoid circular dependency)
     findings_format: str | None,
     is_non_interactive: bool,
+    output_path: Path | None = None,
 ) -> None:
     """
     Output findings in structured format or table.
@@ -2993,8 +2994,14 @@ def _output_findings(
         report: Ambiguity report
         findings_format: Output format (json, yaml, table)
         is_non_interactive: Whether in non-interactive mode
+        output_path: Optional file path to save findings. If None, outputs to stdout.
     """
+    from rich.console import Console
+    from rich.table import Table
+
     from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus
+
+    console = Console()
 
     # Determine output format
     output_format_str = findings_format
@@ -3038,12 +3045,47 @@ def _output_findings(
 
         # Also show coverage summary
         if report.coverage:
+            from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
             console.print("\n[bold]Coverage Summary:[/bold]")
+            # Count findings per category by status
+            total_findings_by_category: dict[TaxonomyCategory, int] = {}
+            clear_findings_by_category: dict[TaxonomyCategory, int] = {}
+            partial_findings_by_category: dict[TaxonomyCategory, int] = {}
+            for finding in findings_list:
+                cat = finding.category
+                total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+                # Count by finding status
+                if finding.status == AmbiguityStatus.CLEAR:
+                    clear_findings_by_category[cat] = clear_findings_by_category.get(cat, 0) + 1
+                elif finding.status == AmbiguityStatus.PARTIAL:
+                    partial_findings_by_category[cat] = partial_findings_by_category.get(cat, 0) + 1
+
             for cat, status in report.coverage.items():
                 status_icon = (
                     "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
-                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                total = total_findings_by_category.get(cat, 0)
+                clear_count = clear_findings_by_category.get(cat, 0)
+                partial_count = partial_findings_by_category.get(cat, 0)
+                # Show format based on status:
+                # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                # - Partial: Show partial_count/total (count of findings with PARTIAL status = unclear findings)
+                if status == AmbiguityStatus.CLEAR:
+                    if total == 0:
+                        # No findings - just show status without counts
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                elif status == AmbiguityStatus.PARTIAL:
+                    # Show count of partial (unclear) findings
+                    # If all are unclear, just show the count without the fraction
+                    if partial_count == total:
+                        console.print(f"  {status_icon} {cat.value}: {partial_count} {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {partial_count}/{total} {status.value}")
+                else:  # MISSING
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
 
     elif output_format_str in ("json", "yaml"):
         # Structured output (JSON or YAML)
@@ -3069,7 +3111,7 @@ def _output_findings(
         import sys
 
         if output_format_str == "json":
-            sys.stdout.write(json.dumps(findings_data, indent=2))
+            formatted_output = json.dumps(findings_data, indent=2) + "\n"
         else:  # yaml
             from ruamel.yaml import YAML
 
@@ -3080,9 +3122,20 @@ def _output_findings(
 
             output = StringIO()
             yaml.dump(findings_data, output)
-            sys.stdout.write(output.getvalue())
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+            formatted_output = output.getvalue()
+
+        if output_path:
+            # Save to file
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(formatted_output, encoding="utf-8")
+            from rich.console import Console
+
+            console = Console()
+            console.print(f"[green]✓[/green] Findings saved to: {output_path}")
+        else:
+            # Output to stdout
+            sys.stdout.write(formatted_output)
+            sys.stdout.flush()
     else:
         print_error(f"Invalid findings format: {findings_format}. Must be 'json', 'yaml', or 'table'")
         raise typer.Exit(1)
@@ -3607,6 +3660,13 @@ def _handle_no_questions_case(
             if category in critical_categories and status == AmbiguityStatus.MISSING:
                 missing_critical.append(category)
 
+    # Count total findings per category (shared for both branches)
+    total_findings_by_category: dict[TaxonomyCategory, int] = {}
+    if report.findings:
+        for finding in report.findings:
+            cat = finding.category
+            total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+
     if missing_critical:
         print_warning(
             f"Plan has {len(missing_critical)} critical category(ies) marked as Missing, but no high-priority questions remain"
@@ -3620,7 +3680,27 @@ def _handle_no_questions_case(
                 status_icon = (
                     "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
-                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                total = total_findings_by_category.get(cat, 0)
+                # Count findings by status
+                clear_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.CLEAR
+                )
+                partial_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.PARTIAL
+                )
+                # Show format based on status:
+                # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                # - Partial: Show partial_count/total (count of findings with PARTIAL status)
+                if status == AmbiguityStatus.CLEAR:
+                    if total == 0:
+                        # No findings - just show status without counts
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                elif status == AmbiguityStatus.PARTIAL:
+                    console.print(f"  {status_icon} {cat.value}: {partial_count}/{total} {status.value}")
+                else:  # MISSING
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
         console.print(
             "\n[bold]⚠️ Warning:[/bold] Plan may not be ready for promotion due to missing critical categories"
         )
@@ -3633,7 +3713,27 @@ def _handle_no_questions_case(
                 status_icon = (
                     "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
-                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                total = total_findings_by_category.get(cat, 0)
+                # Count findings by status
+                clear_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.CLEAR
+                )
+                partial_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.PARTIAL
+                )
+                # Show format based on status:
+                # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                # - Partial: Show partial_count/total (count of findings with PARTIAL status)
+                if status == AmbiguityStatus.CLEAR:
+                    if total == 0:
+                        # No findings - just show status without counts
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                elif status == AmbiguityStatus.PARTIAL:
+                    console.print(f"  {status_icon} {cat.value}: {partial_count}/{total} {status.value}")
+                else:  # MISSING
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
 
     return
 
@@ -3664,14 +3764,15 @@ def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]], output_
                 "related_sections": finding.related_sections or [],
             }
         )
-    
+
     json_output = json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2)
-    
+
     if output_path:
         # Save to file
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json_output + "\n", encoding="utf-8")
         from rich.console import Console
+
         console = Console()
         console.print(f"[green]✓[/green] Questions saved to: {output_path}")
     else:
@@ -3927,11 +4028,76 @@ def _display_review_summary(
     # Coverage summary (updated after questions)
     console.print("\n[bold]Updated Coverage Summary:[/bold]")
     if updated_report.coverage:
+        from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
+        # Count findings that can still generate questions (unclear findings)
+        # Use the same logic as _scan_and_prepare_questions to count unclear findings
+        existing_question_ids = set()
+        if plan_bundle.clarifications:
+            for session in plan_bundle.clarifications.sessions:
+                for q in session.questions:
+                    existing_question_ids.add(q.id)
+
+        # Prioritize findings by (Impact x Uncertainty) - same as _scan_and_prepare_questions
+        findings_list = updated_report.findings or []
+        prioritized_findings = sorted(
+            findings_list,
+            key=lambda f: f.impact * f.uncertainty,
+            reverse=True,
+        )
+
+        # Count total findings and unclear findings per category
+        # A finding is unclear if it can still generate a question (same logic as _scan_and_prepare_questions)
+        total_findings_by_category: dict[TaxonomyCategory, int] = {}
+        unclear_findings_by_category: dict[TaxonomyCategory, int] = {}
+        clear_findings_by_category: dict[TaxonomyCategory, int] = {}
+
+        question_counter = 1
+        for finding in prioritized_findings:
+            cat = finding.category
+            total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+
+            # Count by finding status
+            if finding.status == AmbiguityStatus.CLEAR:
+                clear_findings_by_category[cat] = clear_findings_by_category.get(cat, 0) + 1
+            elif finding.status == AmbiguityStatus.PARTIAL:
+                # A finding is unclear if it can generate a question (same logic as _scan_and_prepare_questions)
+                if finding.question:
+                    # Skip to next available question ID if current one is already used
+                    while f"Q{question_counter:03d}" in existing_question_ids:
+                        question_counter += 1
+                    # This finding can generate a question, so it's unclear
+                    unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+                    question_counter += 1
+                else:
+                    # Finding has no question, so it's unclear
+                    unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+
         for cat, status in updated_report.coverage.items():
             status_icon = (
                 "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
             )
-            console.print(f"  {status_icon} {cat.value}: {status.value}")
+            total = total_findings_by_category.get(cat, 0)
+            unclear = unclear_findings_by_category.get(cat, 0)
+            clear_count = clear_findings_by_category.get(cat, 0)
+            # Show format based on status:
+            # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+            # - Partial: Show unclear_count/total (how many findings are still unclear)
+            if status == AmbiguityStatus.CLEAR:
+                if total == 0:
+                    # No findings - just show status without counts
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
+                else:
+                    console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+            elif status == AmbiguityStatus.PARTIAL:
+                # Show how many findings are still unclear
+                # If all are unclear, just show the count without the fraction
+                if unclear == total:
+                    console.print(f"  {status_icon} {cat.value}: {unclear} {status.value}")
+                else:
+                    console.print(f"  {status_icon} {cat.value}: {unclear}/{total} {status.value}")
+            else:  # MISSING
+                console.print(f"  {status_icon} {cat.value}: {status.value}")
 
     # Next steps
     console.print("\n[bold]Next Steps:[/bold]")
@@ -3987,6 +4153,11 @@ def review(
         case_sensitive=False,
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
+    output_findings: Path | None = typer.Option(
+        None,
+        "--output-findings",
+        help="Save findings to file (JSON/YAML format). If --list-findings is also set, findings are saved to file instead of stdout. Default: None",
+    ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
         False,
@@ -4031,7 +4202,9 @@ def review(
         specfact plan review legacy-api
         specfact plan review auth-module --max-questions 3 --category "Functional Scope"
         specfact plan review legacy-api --list-questions  # Output questions as JSON
+        specfact plan review legacy-api --list-questions --output-questions /tmp/questions.json  # Save questions to file
         specfact plan review legacy-api --list-findings --findings-format json  # Output all findings as JSON
+        specfact plan review legacy-api --list-findings --output-findings /tmp/findings.json  # Save findings to file
         specfact plan review legacy-api --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
     """
     from rich.console import Console
@@ -4095,7 +4268,7 @@ def review(
 
             # Handle --list-findings mode
             if list_findings:
-                _output_findings(report, findings_format, is_non_interactive)
+                _output_findings(report, findings_format, is_non_interactive, output_findings)
                 raise typer.Exit(0)
 
             # Show initial coverage summary BEFORE questions (so user knows what's missing)
@@ -4104,6 +4277,51 @@ def review(
 
                 console.print("\n[bold]Initial Coverage Summary:[/bold]")
                 if report.coverage:
+                    from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
+                    # Count findings that can still generate questions (unclear findings)
+                    # Use the same logic as _scan_and_prepare_questions to count unclear findings
+                    existing_question_ids = set()
+                    if plan_bundle.clarifications:
+                        for session in plan_bundle.clarifications.sessions:
+                            for q in session.questions:
+                                existing_question_ids.add(q.id)
+
+                    # Prioritize findings by (Impact x Uncertainty) - same as _scan_and_prepare_questions
+                    findings_list = report.findings or []
+                    prioritized_findings = sorted(
+                        findings_list,
+                        key=lambda f: f.impact * f.uncertainty,
+                        reverse=True,
+                    )
+
+                    # Count total findings and unclear findings per category
+                    # A finding is unclear if it can still generate a question (same logic as _scan_and_prepare_questions)
+                    total_findings_by_category: dict[TaxonomyCategory, int] = {}
+                    unclear_findings_by_category: dict[TaxonomyCategory, int] = {}
+                    clear_findings_by_category: dict[TaxonomyCategory, int] = {}
+
+                    question_counter = 1
+                    for finding in prioritized_findings:
+                        cat = finding.category
+                        total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+
+                        # Count by finding status
+                        if finding.status == AmbiguityStatus.CLEAR:
+                            clear_findings_by_category[cat] = clear_findings_by_category.get(cat, 0) + 1
+                        elif finding.status == AmbiguityStatus.PARTIAL:
+                            # A finding is unclear if it can generate a question (same logic as _scan_and_prepare_questions)
+                            if finding.question:
+                                # Skip to next available question ID if current one is already used
+                                while f"Q{question_counter:03d}" in existing_question_ids:
+                                    question_counter += 1
+                                # This finding can generate a question, so it's unclear
+                                unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+                                question_counter += 1
+                            else:
+                                # Finding has no question, so it's unclear
+                                unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+
                     for cat, status in report.coverage.items():
                         status_icon = (
                             "✅"
@@ -4112,7 +4330,27 @@ def review(
                             if status == AmbiguityStatus.PARTIAL
                             else "❌"
                         )
-                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                        total = total_findings_by_category.get(cat, 0)
+                        unclear = unclear_findings_by_category.get(cat, 0)
+                        clear_count = clear_findings_by_category.get(cat, 0)
+                        # Show format based on status:
+                        # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                        # - Partial: Show unclear_count/total (how many findings are still unclear)
+                        if status == AmbiguityStatus.CLEAR:
+                            if total == 0:
+                                # No findings - just show status without counts
+                                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                            else:
+                                console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                        elif status == AmbiguityStatus.PARTIAL:
+                            # Show how many findings are still unclear
+                            # If all are unclear, just show the count without the fraction
+                            if unclear == total:
+                                console.print(f"  {status_icon} {cat.value}: {unclear} {status.value}")
+                            else:
+                                console.print(f"  {status_icon} {cat.value}: {unclear}/{total} {status.value}")
+                        else:  # MISSING
+                            console.print(f"  {status_icon} {cat.value}: {status.value}")
                 console.print(f"\n[dim]Found {len(questions_to_ask)} question(s) to resolve[/dim]\n")
 
             # Handle --list-questions mode (must be before no-questions check)
@@ -4724,52 +4962,51 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
 def _extract_specific_criteria_from_answer(answer: str) -> list[str]:
     """
     Extract specific testable criteria from answer that contains replacement instructions.
-    
+
     When answer contains "Replace generic 'works correctly' with testable criteria:",
     extracts the specific criteria (items in single quotes) and returns them as a list.
-    
+
     Args:
         answer: Answer text that may contain replacement instructions
-        
+
     Returns:
         List of specific criteria strings, or empty list if no extraction possible
     """
     import re
-    
+
     # Check if answer contains replacement instructions
     if "testable criteria:" not in answer.lower() and "replace generic" not in answer.lower():
         # Answer doesn't contain replacement format, return as single item
         return [answer] if answer.strip() else []
-    
+
     # Find the position after "testable criteria:" to only extract criteria from that point
     # This avoids extracting "works correctly" from the instruction text itself
     testable_criteria_marker = "testable criteria:"
     marker_pos = answer.lower().find(testable_criteria_marker)
-    
+
     if marker_pos == -1:
         # Fallback: try "with testable criteria:"
         marker_pos = answer.lower().find("with testable criteria:")
         if marker_pos != -1:
             marker_pos += len("with testable criteria:")
-    
+
     if marker_pos != -1:
         # Only search for criteria after the marker
-        criteria_section = answer[marker_pos + len(testable_criteria_marker):]
+        criteria_section = answer[marker_pos + len(testable_criteria_marker) :]
         # Extract criteria (items in single quotes)
         criteria_pattern = r"'([^']+)'"
         matches = re.findall(criteria_pattern, criteria_section)
-        
+
         if matches:
             # Filter out "works correctly" if it appears (it's part of instruction, not a criterion)
             filtered = [
                 criterion.strip()
                 for criterion in matches
-                if criterion.strip()
-                and criterion.strip().lower() not in ("works correctly", "works as expected")
+                if criterion.strip() and criterion.strip().lower() not in ("works correctly", "works as expected")
             ]
             if filtered:
                 return filtered
-    
+
     # Fallback: if no quoted criteria found, return original answer
     return [answer] if answer.strip() else []
 
@@ -4784,11 +5021,11 @@ def _identify_vague_criteria_to_remove(
 ) -> list[str]:
     """
     Identify vague acceptance criteria that should be removed when replacing with specific criteria.
-    
+
     Args:
         acceptance_list: Current list of acceptance criteria
         finding: Ambiguity finding that triggered the question
-        
+
     Returns:
         List of vague criteria strings to remove
     """
@@ -4796,9 +5033,9 @@ def _identify_vague_criteria_to_remove(
         is_code_specific_criteria,
         is_simplified_format_criteria,
     )
-    
+
     vague_to_remove: list[str] = []
-    
+
     # Patterns that indicate vague criteria (from ambiguity scanner)
     vague_patterns = [
         "is implemented",
@@ -4808,22 +5045,18 @@ def _identify_vague_criteria_to_remove(
         "is complete",
         "is ready",
     ]
-    
-    # Also check for criteria that match the finding description
-    # (e.g., criteria containing the same vague suggestions mentioned in finding)
-    finding_description_lower = finding.description.lower() if finding.description else ""
-    
+
     for acc in acceptance_list:
         acc_lower = acc.lower()
-        
+
         # Skip code-specific criteria (should not be removed)
         if is_code_specific_criteria(acc):
             continue
-        
+
         # Skip simplified format criteria (valid format)
         if is_simplified_format_criteria(acc):
             continue
-        
+
         # ALWAYS remove replacement instruction text (from previous answers)
         # These are meta-instructions, not actual acceptance criteria
         contains_replacement_instruction = (
@@ -4831,11 +5064,11 @@ def _identify_vague_criteria_to_remove(
             or ("should be more specific" in acc_lower and "testable criteria:" in acc_lower)
             or ("yes, these should be more specific" in acc_lower)
         )
-        
+
         if contains_replacement_instruction:
             vague_to_remove.append(acc)
             continue
-        
+
         # Check for vague patterns (but be more selective)
         # Only flag as vague if it contains "works correctly" without "see contract examples"
         # or other vague patterns in a standalone context
@@ -4847,14 +5080,13 @@ def _identify_vague_criteria_to_remove(
         else:
             # Check other vague patterns
             is_vague = any(
-                pattern in acc_lower
-                and len(acc.split()) < 10  # Only flag short, vague statements
+                pattern in acc_lower and len(acc.split()) < 10  # Only flag short, vague statements
                 for pattern in vague_patterns
             )
-        
+
         if is_vague:
             vague_to_remove.append(acc)
-    
+
     return vague_to_remove
 
 
@@ -4935,8 +5167,12 @@ def _integrate_clarification(
                     bundle.idea.constraints.append(answer)
                     integration_points.append(section)
 
-    # Edge Cases, Completion Signals → features[].acceptance, stories[].acceptance
-    elif category in (TaxonomyCategory.EDGE_CASES, TaxonomyCategory.COMPLETION_SIGNALS):
+    # Edge Cases, Completion Signals, Interaction & UX Flow → features[].acceptance, stories[].acceptance
+    elif category in (
+        TaxonomyCategory.EDGE_CASES,
+        TaxonomyCategory.COMPLETION_SIGNALS,
+        TaxonomyCategory.INTERACTION_UX,
+    ):
         related_sections = finding.related_sections or []
         for section in related_sections:
             if section.startswith("features."):
@@ -4971,7 +5207,9 @@ def _integrate_clarification(
                                             # Extract specific criteria from answer
                                             specific_criteria = _extract_specific_criteria_from_answer(answer)
                                             # Identify and remove vague criteria
-                                            vague_to_remove = _identify_vague_criteria_to_remove(story.acceptance, finding)
+                                            vague_to_remove = _identify_vague_criteria_to_remove(
+                                                story.acceptance, finding
+                                            )
                                             # Remove vague criteria
                                             for vague in vague_to_remove:
                                                 if vague in story.acceptance:
