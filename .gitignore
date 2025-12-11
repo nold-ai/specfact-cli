@@ -117,4 +117,4 @@ reports/
 
 # Jekyll bundle
 vendor/
-_site/
+_site/findings.json
