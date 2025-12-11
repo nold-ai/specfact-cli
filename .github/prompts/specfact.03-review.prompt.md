@@ -1,7 +1,3 @@
----
-description: Review project bundle to identify ambiguities, resolve gaps, and prepare for promotion.
----
-
 # SpecFact Review Command
 
 ## User Input

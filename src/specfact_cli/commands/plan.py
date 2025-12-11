@@ -3638,12 +3638,13 @@ def _handle_no_questions_case(
 @beartype
 @require(lambda questions_to_ask: isinstance(questions_to_ask, list), "Questions must be list")
 @ensure(lambda result: result is None, "Must return None")
-def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None:
+def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]], output_path: Path | None = None) -> None:
     """
     Handle --list-questions mode by outputting questions as JSON.
 
     Args:
         questions_to_ask: List of (finding, question_id) tuples
+        output_path: Optional file path to save questions. If None, outputs to stdout.
     """
     import json
     import sys
@@ -3660,10 +3661,21 @@ def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None
                 "related_sections": finding.related_sections or [],
             }
         )
-    # Output JSON to stdout (for Copilot mode parsing)
-    sys.stdout.write(json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2))
-    sys.stdout.write("\n")
-    sys.stdout.flush()
+    
+    json_output = json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2)
+    
+    if output_path:
+        # Save to file
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json_output + "\n", encoding="utf-8")
+        from rich.console import Console
+        console = Console()
+        console.print(f"[green]✓[/green] Questions saved to: {output_path}")
+    else:
+        # Output JSON to stdout (for Copilot mode parsing)
+        sys.stdout.write(json_output)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
 
     return
 
@@ -3955,6 +3967,11 @@ def review(
         "--list-questions",
         help="Output questions in JSON format without asking (for Copilot mode). Default: False",
     ),
+    output_questions: Path | None = typer.Option(
+        None,
+        "--output-questions",
+        help="Save questions to file (JSON format). If --list-questions is also set, questions are saved to file instead of stdout. Default: None",
+    ),
     list_findings: bool = typer.Option(
         False,
         "--list-findings",
@@ -3976,7 +3993,7 @@ def review(
     answers: str | None = typer.Option(
         None,
         "--answers",
-        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file. Default: None",
+        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file. Use with --output-questions to save questions, then edit and provide answers. Default: None",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     auto_enrich: bool = typer.Option(
@@ -4095,13 +4112,13 @@ def review(
                         console.print(f"  {status_icon} {cat.value}: {status.value}")
                 console.print(f"\n[dim]Found {len(questions_to_ask)} question(s) to resolve[/dim]\n")
 
-            if not questions_to_ask:
-                _handle_no_questions_case(questions_to_ask, report)
+            # Handle --list-questions mode (must be before no-questions check)
+            if list_questions:
+                _handle_list_questions_mode(questions_to_ask, output_questions)
                 raise typer.Exit(0)
 
-            # Handle --list-questions mode
-            if list_questions:
-                _handle_list_questions_mode(questions_to_ask)
+            if not questions_to_ask:
+                _handle_no_questions_case(questions_to_ask, report)
                 raise typer.Exit(0)
 
             # Parse answers if provided

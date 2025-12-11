@@ -9,6 +9,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.15.1] - 2025-12-11
+
+### Fixed (0.15.1)
+
+- **Ambiguity Scanner** - Recognize simplified acceptance criteria format
+  - Updated scanner to recognize new simplified format (e.g., "Must verify X works correctly (see contract examples)") as valid
+  - Added `is_simplified_format_criteria()` function to detect simplified format patterns
+  - Prevents false positives for acceptance criteria that reference contract examples in OpenAPI files
+  - Fixes issue where post-GWT refactoring acceptance criteria were incorrectly flagged as vague
+
+### Added (0.15.1)
+
+- **Review Command** - Enhanced question output options
+  - Added `--output-questions PATH` option to save questions directly to file (JSON format)
+  - Avoids need for complex on-the-fly Python code to extract JSON from CLI output
+  - Improved workflow: save questions to file, edit, then use with `--answers` option
+  - Updated prompt documentation with clearer guidance on file-based workflows
+
+### Improved (0.15.1)
+
+- **Documentation** - Enhanced CLI enforcement warnings
+  - Added explicit warnings against modifying `.specfact/` artifacts directly
+  - Clarified that CLI commands should be used even when files don't exist yet
+  - Updated prompt file with comprehensive "What NOT to do" guidance
+  - Emphasized use of `plan update-idea`, `plan update-feature`, etc. instead of direct file edits
+
 ## [0.15.0] - 2025-12-11
 
 ### Added (0.15.0)

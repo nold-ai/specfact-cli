@@ -16,6 +16,46 @@ from icontract import ensure, require
 @beartype
 @require(lambda acceptance: isinstance(acceptance, str), "Acceptance must be string")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
+def is_simplified_format_criteria(acceptance: str) -> bool:
+    """
+    Check if acceptance criteria use the new simplified format (post-GWT refactoring).
+    
+    The new simplified format patterns include:
+    - "Must verify X works correctly (see contract examples)"
+    - "Must verify X works correctly"
+    - Similar patterns with "verify", "validate", "check" + "works correctly" + optional "(see contract examples)"
+    
+    These are VALID and should NOT be flagged as vague, as they reference contract examples
+    in OpenAPI files for detailed test cases.
+    
+    Args:
+        acceptance: Acceptance criteria text to check
+        
+    Returns:
+        True if criteria use the simplified format, False otherwise
+    """
+    acceptance_lower = acceptance.lower()
+    
+    # Pattern: "Must verify ... works correctly (see contract examples)"
+    # or "Must verify ... works correctly"
+    simplified_patterns = [
+        r"must\s+verify.*works\s+correctly.*\(see\s+contract",
+        r"must\s+verify.*works\s+correctly",
+        r"verify.*works\s+correctly.*\(see\s+contract",
+        r"validate.*works\s+correctly.*\(see\s+contract",
+        r"check.*works\s+correctly.*\(see\s+contract",
+    ]
+    
+    for pattern in simplified_patterns:
+        if re.search(pattern, acceptance_lower):
+            return True
+    
+    return False
+
+
+@beartype
+@require(lambda acceptance: isinstance(acceptance, str), "Acceptance must be string")
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
 def is_code_specific_criteria(acceptance: str) -> bool:
     """
     Check if acceptance criteria are already code-specific (should not be replaced).
