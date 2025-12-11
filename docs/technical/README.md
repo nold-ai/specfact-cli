@@ -7,6 +7,15 @@ Technical documentation for contributors and developers working on SpecFact CLI.
 - **[Code2Spec Analysis Logic](code2spec-analysis-logic.md)** - AI-first approach for code analysis
 - **[Testing Procedures](testing.md)** - Comprehensive testing guide for contributors
 
+## Developer Tools
+
+### Maintenance Scripts
+
+For maintenance scripts and developer utilities, see the [Contributing Guide](../../CONTRIBUTING.md#developer-tools) section on Developer Tools. This includes:
+
+- **Cleanup Acceptance Criteria Script** - Removes duplicate replacement instruction text from acceptance criteria
+- Other maintenance and development utilities in the `scripts/` directory
+
 ## Overview
 
 This section contains deep technical documentation for:

@@ -3559,10 +3559,13 @@ def _scan_and_prepare_questions(
     question_counter = 1
     candidate_questions: list[tuple[Any, str]] = []
     for finding in prioritized_findings:
-        if finding.question and (question_id := f"Q{question_counter:03d}") not in existing_question_ids:
+        if finding.question:
+            # Skip to next available question ID if current one is already used
+            while (question_id := f"Q{question_counter:03d}") in existing_question_ids:
+                question_counter += 1
             # Generate question ID and add if not already answered
-            question_counter += 1
             candidate_questions.append((finding, question_id))
+            question_counter += 1
 
     # Limit to max_questions
     questions_to_ask = candidate_questions[:max_questions]
@@ -4716,6 +4719,146 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
 
 
 @beartype
+@require(lambda answer: isinstance(answer, str), "Answer must be string")
+@ensure(lambda result: isinstance(result, list), "Must return list of criteria strings")
+def _extract_specific_criteria_from_answer(answer: str) -> list[str]:
+    """
+    Extract specific testable criteria from answer that contains replacement instructions.
+    
+    When answer contains "Replace generic 'works correctly' with testable criteria:",
+    extracts the specific criteria (items in single quotes) and returns them as a list.
+    
+    Args:
+        answer: Answer text that may contain replacement instructions
+        
+    Returns:
+        List of specific criteria strings, or empty list if no extraction possible
+    """
+    import re
+    
+    # Check if answer contains replacement instructions
+    if "testable criteria:" not in answer.lower() and "replace generic" not in answer.lower():
+        # Answer doesn't contain replacement format, return as single item
+        return [answer] if answer.strip() else []
+    
+    # Find the position after "testable criteria:" to only extract criteria from that point
+    # This avoids extracting "works correctly" from the instruction text itself
+    testable_criteria_marker = "testable criteria:"
+    marker_pos = answer.lower().find(testable_criteria_marker)
+    
+    if marker_pos == -1:
+        # Fallback: try "with testable criteria:"
+        marker_pos = answer.lower().find("with testable criteria:")
+        if marker_pos != -1:
+            marker_pos += len("with testable criteria:")
+    
+    if marker_pos != -1:
+        # Only search for criteria after the marker
+        criteria_section = answer[marker_pos + len(testable_criteria_marker):]
+        # Extract criteria (items in single quotes)
+        criteria_pattern = r"'([^']+)'"
+        matches = re.findall(criteria_pattern, criteria_section)
+        
+        if matches:
+            # Filter out "works correctly" if it appears (it's part of instruction, not a criterion)
+            filtered = [
+                criterion.strip()
+                for criterion in matches
+                if criterion.strip()
+                and criterion.strip().lower() not in ("works correctly", "works as expected")
+            ]
+            if filtered:
+                return filtered
+    
+    # Fallback: if no quoted criteria found, return original answer
+    return [answer] if answer.strip() else []
+
+
+@beartype
+@require(lambda acceptance_list: isinstance(acceptance_list, list), "Acceptance list must be list")
+@require(lambda finding: finding is not None, "Finding must not be None")
+@ensure(lambda result: isinstance(result, list), "Must return list of acceptance strings")
+def _identify_vague_criteria_to_remove(
+    acceptance_list: list[str],
+    finding: Any,  # AmbiguityFinding
+) -> list[str]:
+    """
+    Identify vague acceptance criteria that should be removed when replacing with specific criteria.
+    
+    Args:
+        acceptance_list: Current list of acceptance criteria
+        finding: Ambiguity finding that triggered the question
+        
+    Returns:
+        List of vague criteria strings to remove
+    """
+    from specfact_cli.utils.acceptance_criteria import (
+        is_code_specific_criteria,
+        is_simplified_format_criteria,
+    )
+    
+    vague_to_remove: list[str] = []
+    
+    # Patterns that indicate vague criteria (from ambiguity scanner)
+    vague_patterns = [
+        "is implemented",
+        "is functional",
+        "works",
+        "is done",
+        "is complete",
+        "is ready",
+    ]
+    
+    # Also check for criteria that match the finding description
+    # (e.g., criteria containing the same vague suggestions mentioned in finding)
+    finding_description_lower = finding.description.lower() if finding.description else ""
+    
+    for acc in acceptance_list:
+        acc_lower = acc.lower()
+        
+        # Skip code-specific criteria (should not be removed)
+        if is_code_specific_criteria(acc):
+            continue
+        
+        # Skip simplified format criteria (valid format)
+        if is_simplified_format_criteria(acc):
+            continue
+        
+        # ALWAYS remove replacement instruction text (from previous answers)
+        # These are meta-instructions, not actual acceptance criteria
+        contains_replacement_instruction = (
+            "replace generic" in acc_lower
+            or ("should be more specific" in acc_lower and "testable criteria:" in acc_lower)
+            or ("yes, these should be more specific" in acc_lower)
+        )
+        
+        if contains_replacement_instruction:
+            vague_to_remove.append(acc)
+            continue
+        
+        # Check for vague patterns (but be more selective)
+        # Only flag as vague if it contains "works correctly" without "see contract examples"
+        # or other vague patterns in a standalone context
+        is_vague = False
+        if "works correctly" in acc_lower:
+            # Only remove if it doesn't have "see contract examples" (simplified format is valid)
+            if "see contract" not in acc_lower and "contract examples" not in acc_lower:
+                is_vague = True
+        else:
+            # Check other vague patterns
+            is_vague = any(
+                pattern in acc_lower
+                and len(acc.split()) < 10  # Only flag short, vague statements
+                for pattern in vague_patterns
+            )
+        
+        if is_vague:
+            vague_to_remove.append(acc)
+    
+    return vague_to_remove
+
+
+@beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
 @require(lambda answer: isinstance(answer, str) and bool(answer.strip()), "Answer must be non-empty string")
 @ensure(lambda result: isinstance(result, list), "Must return list of integration points")
@@ -4803,8 +4946,19 @@ def _integrate_clarification(
                     if parts[2] == "acceptance":
                         for feature in bundle.features:
                             if feature.key == feature_key:
-                                if answer not in feature.acceptance:
-                                    feature.acceptance.append(answer)
+                                # Extract specific criteria from answer
+                                specific_criteria = _extract_specific_criteria_from_answer(answer)
+                                # Identify and remove vague criteria
+                                vague_to_remove = _identify_vague_criteria_to_remove(feature.acceptance, finding)
+                                # Remove vague criteria
+                                for vague in vague_to_remove:
+                                    if vague in feature.acceptance:
+                                        feature.acceptance.remove(vague)
+                                # Add new specific criteria
+                                for criterion in specific_criteria:
+                                    if criterion not in feature.acceptance:
+                                        feature.acceptance.append(criterion)
+                                if specific_criteria:
                                     integration_points.append(section)
                                 break
                     elif parts[2] == "stories" and len(parts) >= 5:
@@ -4814,8 +4968,19 @@ def _integrate_clarification(
                                 if feature.key == feature_key:
                                     for story in feature.stories:
                                         if story.key == story_key:
-                                            if answer not in story.acceptance:
-                                                story.acceptance.append(answer)
+                                            # Extract specific criteria from answer
+                                            specific_criteria = _extract_specific_criteria_from_answer(answer)
+                                            # Identify and remove vague criteria
+                                            vague_to_remove = _identify_vague_criteria_to_remove(story.acceptance, finding)
+                                            # Remove vague criteria
+                                            for vague in vague_to_remove:
+                                                if vague in story.acceptance:
+                                                    story.acceptance.remove(vague)
+                                            # Add new specific criteria
+                                            for criterion in specific_criteria:
+                                                if criterion not in story.acceptance:
+                                                    story.acceptance.append(criterion)
+                                            if specific_criteria:
                                                 integration_points.append(section)
                                             break
                                     break

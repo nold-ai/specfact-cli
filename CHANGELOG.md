@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.15.2] - 2025-12-11
+
+### Fixed (0.15.2)
+
+- **Review Command** - Fixed issue where `--max-questions` parameter was not limiting the number of questions per session
+  - Added explicit warning in prompt documentation about the limitation of `--max-questions` parameter
+  - Updated prompt documentation with clearer guidance on the use of `--max-questions` parameter
+
+### Improved (0.15.2)
+
+- **Documentation** - Enhanced documentation on the use of `--max-questions` parameter
+  - Added explicit warning in prompt documentation about the limitation of `--max-questions` parameter
+  - Updated prompt documentation with clearer guidance on the use of `--max-questions` parameter
+
+---
+
 ## [0.15.1] - 2025-12-11
 
 ### Fixed (0.15.1)
