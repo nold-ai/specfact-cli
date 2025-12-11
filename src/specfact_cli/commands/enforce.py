@@ -129,7 +129,7 @@ def enforce_sdd(
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format> (Phase 8.5), with fallback to legacy .specfact/sdd/<bundle-name>.<format>",
+        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format>. No legacy root-level fallback.",
     ),
     # Output/Results
     output_format: str = typer.Option(
@@ -200,7 +200,8 @@ def enforce_sdd(
         console.print("=" * 60)
 
         # Find bundle directory
-        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        base_path = Path(".")
+        bundle_dir = SpecFactStructure.project_dir(base_path=base_path, bundle_name=bundle)
         if not bundle_dir.exists():
             console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
             console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
@@ -213,9 +214,7 @@ def enforce_sdd(
         discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
         if discovered_sdd is None:
             console.print("[bold red]✗[/bold red] SDD manifest not found")
-            console.print(f"[dim]Searched for: .specfact/projects/{bundle}/sdd.yaml (bundle-specific, Phase 8.5)[/dim]")
-            console.print(f"[dim]Fallback: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
-            console.print("[dim]Legacy fallback: .specfact/sdd.yaml or .specfact/sdd.json[/dim]")
+            console.print(f"[dim]Searched for: .specfact/projects/{bundle}/sdd.yaml (bundle-specific)[/dim]")
             console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
             raise typer.Exit(1)
 
@@ -311,6 +310,16 @@ def enforce_sdd(
             else:
                 console.print(
                     f"[bold green]✓[/bold green] Architecture facets: {metrics.architecture_facets} (threshold: {thresholds.architecture_facets})"
+                )
+
+            # OpenAPI contract coverage
+            if metrics.openapi_coverage_percent < thresholds.openapi_coverage_percent:
+                console.print(
+                    f"[bold yellow]⚠[/bold yellow] OpenAPI coverage: {metrics.openapi_coverage_percent:.1f}% (threshold: {thresholds.openapi_coverage_percent}%)"
+                )
+            else:
+                console.print(
+                    f"[bold green]✓[/bold green] OpenAPI coverage: {metrics.openapi_coverage_percent:.1f}% (threshold: {thresholds.openapi_coverage_percent}%)"
                 )
 
             # 3. Validate frozen sections (placeholder - hash comparison would require storing section hashes)

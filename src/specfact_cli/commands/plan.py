@@ -878,7 +878,6 @@ def update_feature(
         specfact plan update-feature --batch-updates updates.json --bundle legacy-api
     """
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.utils.structured_io import load_structured_file
 
     # Validate that either key or batch_updates is provided
     if not key and not batch_updates:
@@ -1212,7 +1211,6 @@ def update_story(
         specfact plan update-story --batch-updates updates.json --bundle legacy-api
     """
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.utils.structured_io import load_structured_file
 
     # Validate that either (feature and key) or batch_updates is provided
     if not (feature and key) and not batch_updates:
@@ -1539,12 +1537,12 @@ def compare(
     manual: Path | None = typer.Option(
         None,
         "--manual",
-        help="Manual plan bundle path (default: active plan in .specfact/plans using current format). Ignored if --bundle is specified.",
+        help="Manual plan bundle path (bundle directory: .specfact/projects/<bundle>/). Ignored if --bundle is specified.",
     ),
     auto: Path | None = typer.Option(
         None,
         "--auto",
-        help="Auto-derived plan bundle path (default: latest in .specfact/plans/). Ignored if --bundle is specified.",
+        help="Auto-derived plan bundle path (bundle directory: .specfact/projects/<bundle>/). Ignored if --bundle is specified.",
     ),
     # Output/Results
     output_format: str = typer.Option(
@@ -1555,7 +1553,7 @@ def compare(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path (default: bundle-specific .specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md, or global .specfact/reports/comparison/ if no bundle context)",
+        help="Output file path (default: .specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md when --bundle is provided).",
     ),
     # Behavior/Options
     code_vs_plan: bool = typer.Option(
@@ -1580,8 +1578,8 @@ def compare(
     - **Behavior/Options**: --code-vs-plan
 
     **Examples:**
-        specfact plan compare --manual .specfact/plans/main.bundle.<format> --auto .specfact/plans/auto-derived-<timestamp>.bundle.<format>
-        specfact plan compare --code-vs-plan  # Convenience alias
+        specfact plan compare --manual .specfact/projects/manual-bundle --auto .specfact/projects/auto-bundle
+        specfact plan compare --code-vs-plan  # Convenience alias (requires bundle-based paths)
         specfact plan compare --bundle legacy-api --output-format json
     """
     from specfact_cli.utils.structure import SpecFactStructure
@@ -1602,21 +1600,21 @@ def compare(
                 manual = SpecFactStructure.get_default_plan_path()
                 if not manual.exists():
                     print_error(
-                        f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive"
+                        "Default manual bundle not found.\nCreate one with: specfact plan init <bundle-name> --interactive"
                     )
                     raise typer.Exit(1)
-                print_info(f"Using default manual plan: {manual}")
+                print_info(f"Using default manual bundle: {manual}")
 
             # Auto-detect latest code-derived plan
             if auto is None:
                 auto = SpecFactStructure.get_latest_brownfield_report()
                 if auto is None:
-                    plans_dir = Path(SpecFactStructure.PLANS)
                     print_error(
-                        f"No code-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                        "No code-derived bundles found in .specfact/projects/*/reports/brownfield/.\n"
+                        "Generate one with: specfact import from-code <bundle-name> --repo ."
                     )
                     raise typer.Exit(1)
-                print_info(f"Using latest code-derived plan: {auto}")
+                print_info(f"Using latest code-derived bundle report: {auto}")
 
             # Override help text to emphasize code vs plan drift
             print_section("Code vs Plan Drift Detection")
@@ -1629,21 +1627,21 @@ def compare(
             manual = SpecFactStructure.get_default_plan_path()
             if not manual.exists():
                 print_error(
-                    f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive"
+                    "Default manual bundle not found.\nCreate one with: specfact plan init <bundle-name> --interactive"
                 )
                 raise typer.Exit(1)
-            print_info(f"Using default manual plan: {manual}")
+            print_info(f"Using default manual bundle: {manual}")
 
         if auto is None:
             # Use smart default: find latest auto-derived plan
             auto = SpecFactStructure.get_latest_brownfield_report()
             if auto is None:
-                plans_dir = Path(SpecFactStructure.PLANS)
                 print_error(
-                    f"No auto-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                    "No auto-derived bundles found in .specfact/projects/*/reports/brownfield/.\n"
+                    "Generate one with: specfact import from-code <bundle-name> --repo ."
                 )
                 raise typer.Exit(1)
-            print_info(f"Using latest auto-derived plan: {auto}")
+            print_info(f"Using latest auto-derived bundle: {auto}")
 
         if out is None:
             # Use smart default: timestamped comparison report
@@ -1907,7 +1905,7 @@ def select(
     Select active project bundle from available bundles.
 
     Displays a numbered list of available project bundles and allows selection by number or name.
-    The selected bundle becomes the active bundle tracked in `.specfact/plans/config.yaml`.
+    The selected bundle becomes the active bundle tracked in `.specfact/config.yaml`.
 
     Filter Options:
         --current          Show only the currently active bundle (non-interactive, auto-selects)
@@ -2045,27 +2043,13 @@ def select(
         # Handle --id flag (non-interactive selection by content hash)
         if plan_id is not None:
             no_interactive = True  # Force non-interactive when --id is used
-            # Need to load plan bundles to get content_hash from summary
-            from pathlib import Path
-
+            # Match by content hash (from bundle manifest summary)
             selected_plan = None
-            plans_dir = Path(".specfact/plans")
-
             for p in plans:
-                plan_file = plans_dir / str(p["name"])
-                if plan_file.exists():
-                    try:
-                        plan_data = load_structured_file(plan_file)
-                        metadata = plan_data.get("metadata", {}) or {}
-                        summary = metadata.get("summary", {}) or {}
-                        content_hash = summary.get("content_hash")
-
-                        # Match by full hash or first 8 chars (short ID)
-                        if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
-                            selected_plan = p
-                            break
-                    except Exception:
-                        continue
+                content_hash = p.get("content_hash")
+                if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
+                    selected_plan = p
+                    break
 
             if selected_plan is None:
                 print_error(f"Plan not found with ID: {plan_id}")
@@ -3255,7 +3239,6 @@ def _validate_sdd_for_bundle(
     """
     from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
     from specfact_cli.models.sdd import SDDManifest
-    from specfact_cli.utils.structured_io import load_structured_file
 
     report = ValidationReport()
     # Find SDD using discovery utility
@@ -3344,14 +3327,21 @@ def _validate_sdd_for_plan(
     from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.utils.structured_io import load_structured_file
 
     report = ValidationReport()
-    # Construct SDD path (try YAML first, then JSON)
+    # Construct bundle-specific SDD path (Phase 8.5+)
     base_path = Path.cwd()
-    sdd_path = base_path / SpecFactStructure.ROOT / "sdd.yaml"
+    if not plan_path.is_dir():
+        print_error(
+            "Legacy monolithic plan detected. Please migrate to bundle directories via 'specfact migrate artifacts --repo .'."
+        )
+        raise typer.Exit(1)
+    bundle_name = plan_path.name
+    from specfact_cli.utils.structured_io import StructuredFormat
+
+    sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, StructuredFormat.YAML)
     if not sdd_path.exists():
-        sdd_path = base_path / SpecFactStructure.ROOT / "sdd.json"
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, StructuredFormat.JSON)
 
     # Check if SDD manifest exists
     if not sdd_path.exists():
@@ -3360,7 +3350,7 @@ def _validate_sdd_for_plan(
                 type=DeviationType.COVERAGE_THRESHOLD,
                 severity=DeviationSeverity.HIGH,
                 description="SDD manifest is required for plan promotion but not found",
-                location=".specfact/sdd.yaml",
+                location=".specfact/projects/<bundle>/sdd.yaml",
                 fix_hint="Run 'specfact plan harden' to create SDD manifest",
             )
             report.add_deviation(deviation)
@@ -3403,7 +3393,7 @@ def _validate_sdd_for_plan(
             type=DeviationType.HASH_MISMATCH,
             severity=DeviationSeverity.HIGH,
             description=f"SDD plan bundle hash mismatch: expected {plan_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
-            location=".specfact/sdd.yaml",
+            location=".specfact/projects/<bundle>/sdd.yaml",
             fix_hint="Run 'specfact plan harden' to update SDD manifest with current plan hash",
         )
         report.add_deviation(deviation)
@@ -4677,19 +4667,21 @@ def harden(
                         # Extract from bundle, using existing SDD as fallback
                         why = _extract_sdd_why(plan_bundle, is_non_interactive, existing_sdd.why)
                         what = _extract_sdd_what(plan_bundle, is_non_interactive, existing_sdd.what)
-                        how = _extract_sdd_how(plan_bundle, is_non_interactive, existing_sdd.how)
+                        how = _extract_sdd_how(
+                            plan_bundle, is_non_interactive, existing_sdd.how, project_bundle, bundle_dir
+                        )
                 except Exception:
                     # If we can't read/validate existing SDD, just proceed (might be corrupted)
                     existing_sdd = None
                     # Extract from bundle without fallback
                     why = _extract_sdd_why(plan_bundle, is_non_interactive, None)
                     what = _extract_sdd_what(plan_bundle, is_non_interactive, None)
-                    how = _extract_sdd_how(plan_bundle, is_non_interactive, None)
+                    how = _extract_sdd_how(plan_bundle, is_non_interactive, None, project_bundle, bundle_dir)
             else:
                 # No existing SDD found, extract from bundle
                 why = _extract_sdd_why(plan_bundle, is_non_interactive, None)
                 what = _extract_sdd_what(plan_bundle, is_non_interactive, None)
-                how = _extract_sdd_how(plan_bundle, is_non_interactive, None)
+                how = _extract_sdd_how(plan_bundle, is_non_interactive, None, project_bundle, bundle_dir)
 
             # Type assertion: these variables are always set in valid code paths
             # (typer.Exit exits the function, so those paths don't need these variables)
@@ -4708,6 +4700,7 @@ def harden(
                     contracts_per_story=1.0,
                     invariants_per_feature=1.0,
                     architecture_facets=3,
+                    openapi_coverage_percent=80.0,
                 ),
                 enforcement_budget=SDDEnforcementBudget(
                     shadow_budget_seconds=300,
@@ -4745,6 +4738,7 @@ def harden(
                 console.print(f"  {how.architecture[:100]}...")
             console.print(f"[bold]Invariants:[/bold] {len(how.invariants)}")
             console.print(f"[bold]Contracts:[/bold] {len(how.contracts)}")
+            console.print(f"[bold]OpenAPI Contracts:[/bold] {len(how.openapi_contracts)}")
 
             record(
                 {
@@ -4876,18 +4870,28 @@ def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool, fallback: SD
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
 @require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
-def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDDHow | None = None) -> SDDHow:
+def _extract_sdd_how(
+    bundle: PlanBundle,
+    is_non_interactive: bool,
+    fallback: SDDHow | None = None,
+    project_bundle: ProjectBundle | None = None,
+    bundle_dir: Path | None = None,
+) -> SDDHow:
     """
     Extract HOW section from plan bundle.
 
     Args:
         bundle: Plan bundle to extract from
         is_non_interactive: Whether in non-interactive mode
+        fallback: Optional fallback SDDHow to reuse values from
+        project_bundle: Optional ProjectBundle to extract OpenAPI contract references
+        bundle_dir: Optional bundle directory path for contract file validation
 
     Returns:
         SDDHow instance
     """
-    from specfact_cli.models.sdd import SDDHow
+    from specfact_cli.models.contract import count_endpoints, load_openapi_contract, validate_openapi_schema
+    from specfact_cli.models.sdd import OpenAPIContractReference, SDDHow
 
     architecture: str | None = None
     invariants: list[str] = []
@@ -4920,6 +4924,46 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
     # Extract module boundaries from feature keys (as a simple heuristic)
     module_boundaries = [f.key for f in bundle.features[:10]]  # Limit to first 10
 
+    # Extract OpenAPI contract references from project bundle if available
+    openapi_contracts: list[OpenAPIContractReference] = []
+    if project_bundle and bundle_dir:
+        for feature_index in project_bundle.manifest.features:
+            if feature_index.contract:
+                contract_path = bundle_dir / feature_index.contract
+                if contract_path.exists():
+                    try:
+                        contract_data = load_openapi_contract(contract_path)
+                        if validate_openapi_schema(contract_data):
+                            endpoints_count = count_endpoints(contract_data)
+                            openapi_contracts.append(
+                                OpenAPIContractReference(
+                                    feature_key=feature_index.key,
+                                    contract_file=feature_index.contract,
+                                    endpoints_count=endpoints_count,
+                                    status="validated",
+                                )
+                            )
+                        else:
+                            # Contract exists but is invalid
+                            openapi_contracts.append(
+                                OpenAPIContractReference(
+                                    feature_key=feature_index.key,
+                                    contract_file=feature_index.contract,
+                                    endpoints_count=0,
+                                    status="draft",
+                                )
+                            )
+                    except Exception:
+                        # Contract file exists but couldn't be loaded
+                        openapi_contracts.append(
+                            OpenAPIContractReference(
+                                feature_key=feature_index.key,
+                                contract_file=feature_index.contract,
+                                endpoints_count=0,
+                                status="draft",
+                            )
+                        )
+
     # Use fallback from existing SDD if available
     if fallback:
         if not architecture:
@@ -4930,6 +4974,8 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
             contracts = fallback.contracts or []
         if not module_boundaries:
             module_boundaries = fallback.module_boundaries or []
+        if not openapi_contracts:
+            openapi_contracts = fallback.openapi_contracts or []
 
     # If no architecture, prompt or use default
     if not architecture and not is_non_interactive:
@@ -4952,6 +4998,7 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
         architecture=architecture,
         invariants=invariants[:10],  # Limit to first 10
         contracts=contracts[:10],  # Limit to first 10
+        openapi_contracts=openapi_contracts,
         module_boundaries=module_boundaries,
     )
 

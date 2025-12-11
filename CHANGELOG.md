@@ -9,6 +9,47 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.16.0] - 2025-12-11
+
+### Added (0.16.0)
+
+- **Project Command** - Added `--list-personas` flag to `project export` command
+  - Lists all available personas (both in bundle and default personas)
+  - Shows ownership patterns for each persona
+  - Provides instructions on how to add personas
+  - Automatically displays when `--persona` is missing
+
+### Fixed (0.16.0)
+
+- **Generate Command** - Fixed contract generation path resolution
+  - Contracts are now correctly written to bundle-specific `contracts/` directory when `--plan` is a bundle directory
+  - Fixed `sdd_path` possibly unbound errors in contract generation
+  - Improved bundle directory detection for modular project bundles
+
+- **Project Command** - Improved error handling for invalid personas
+  - Enhanced error messages to always show available personas in bundle
+  - Shows default personas with checkmarks indicating which are already added
+  - Provides clear instructions on how to add personas using `init-personas` command
+
+- **Contract Generator** - Fixed logic error in contract file generation
+  - Moved counting logic to correct code block
+  - Ensures contract files are generated when SDD has contracts/invariants
+  - Improved fallback logic for bundle-level contract stubs
+
+- **SDD Discovery** - Fixed incorrect legacy SDD detection
+  - Bundle-specific SDDs (`.specfact/projects/<bundle-name>/sdd.yaml`) are now correctly identified
+  - No longer incorrectly labels new bundle-specific SDDs as "legacy"
+  - Improved search path prioritization for bundle-specific locations
+
+### Improved (0.16.0)
+
+- **Project Command** - Enhanced persona workflow UX
+  - `--persona` option is now optional (shows available personas when missing)
+  - Better error messages guide users to available personas
+  - Consistent persona listing format across all error scenarios
+
+---
+
 ## [0.15.5] - 2025-12-11
 
 ### Fixed (0.15.5)

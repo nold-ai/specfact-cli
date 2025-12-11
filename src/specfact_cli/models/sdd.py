@@ -33,12 +33,26 @@ class SDDWhat(BaseModel):
     out_of_scope: list[str] = Field(default_factory=list, description="Explicitly out of scope")
 
 
+class OpenAPIContractReference(BaseModel):
+    """OpenAPI contract reference in SDD manifest."""
+
+    feature_key: str = Field(..., description="Feature key (e.g., FEATURE-001)")
+    contract_file: str = Field(
+        ..., description="Contract file path relative to bundle (e.g., contracts/FEATURE-001.openapi.yaml)"
+    )
+    endpoints_count: int = Field(0, description="Number of API endpoints in contract")
+    status: str = Field("draft", description="Contract status (draft, validated, tested, deployed)")
+
+
 class SDDHow(BaseModel):
     """HOW section: High-level architecture, invariants, contracts."""
 
     architecture: str | None = Field(None, description="High-level architecture description")
     invariants: list[str] = Field(default_factory=list, description="System invariants")
-    contracts: list[str] = Field(default_factory=list, description="Contract requirements")
+    contracts: list[str] = Field(default_factory=list, description="Contract requirements (legacy text descriptions)")
+    openapi_contracts: list[OpenAPIContractReference] = Field(
+        default_factory=list, description="OpenAPI contract references linked to features"
+    )
     module_boundaries: list[str] = Field(default_factory=list, description="Module/component boundaries")
 
 
@@ -48,6 +62,9 @@ class SDDCoverageThresholds(BaseModel):
     contracts_per_story: float = Field(1.0, ge=0.0, description="Minimum contracts per story")
     invariants_per_feature: float = Field(1.0, ge=0.0, description="Minimum invariants per feature")
     architecture_facets: int = Field(3, ge=0, description="Minimum architecture facets (modules, boundaries, etc.)")
+    openapi_coverage_percent: float = Field(
+        80.0, ge=0.0, le=100.0, description="Minimum percentage of features with OpenAPI contracts (0-100)"
+    )
 
 
 class SDDEnforcementBudget(BaseModel):
@@ -76,6 +93,7 @@ class SDDManifest(BaseModel):
             contracts_per_story=1.0,
             invariants_per_feature=1.0,
             architecture_facets=3,
+            openapi_coverage_percent=80.0,
         ),
         description="Coverage thresholds for validation",
     )

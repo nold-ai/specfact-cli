@@ -1033,8 +1033,11 @@ class TestPlanHarden:
         assert harden_result.exit_code == 0
         assert "SDD manifest" in harden_result.stdout.lower() or "created" in harden_result.stdout.lower()
 
-        # Verify SDD manifest was created (one per bundle)
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        # Verify SDD manifest was created (bundle-specific location)
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
         assert sdd_path.exists()
 
         # Verify SDD manifest content
@@ -1099,8 +1102,11 @@ class TestPlanHarden:
         )
         assert harden_result.exit_code == 0
 
-        # Verify JSON SDD was created (one per bundle)
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.json"
+        # Verify JSON SDD was created (bundle-specific location)
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.JSON)
         assert sdd_path.exists()
 
         # Verify it's valid JSON
@@ -1134,10 +1140,12 @@ class TestPlanHarden:
         harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
         assert harden_result.exit_code == 0
 
-        # Verify SDD manifest hash matches project hash
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        # Verify SDD manifest hash matches project hash (bundle-specific location)
         from specfact_cli.models.sdd import SDDManifest
-        from specfact_cli.utils.structured_io import load_structured_file
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
 
         sdd_data = load_structured_file(sdd_path)
         sdd_manifest = SDDManifest.model_validate(sdd_data)
@@ -1157,10 +1165,12 @@ class TestPlanHarden:
         harden_result = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
         assert harden_result.exit_code == 0
 
-        # Load SDD manifest to get the hash
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        # Load SDD manifest to get the hash (bundle-specific location)
         from specfact_cli.models.sdd import SDDManifest
-        from specfact_cli.utils.structured_io import load_structured_file
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
 
         sdd_data = load_structured_file(sdd_path)
         sdd_manifest = SDDManifest.model_validate(sdd_data)
@@ -1202,10 +1212,12 @@ class TestPlanHarden:
         # Harden the plan
         runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
-        # Verify WHY section was extracted
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        # Verify WHY section was extracted (bundle-specific location)
         from specfact_cli.models.sdd import SDDManifest
-        from specfact_cli.utils.structured_io import load_structured_file
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
 
         sdd_data = load_structured_file(sdd_path)
         sdd_manifest = SDDManifest.model_validate(sdd_data)
@@ -1257,10 +1269,12 @@ class TestPlanHarden:
         # Harden the plan
         runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
-        # Verify WHAT section was extracted
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        # Verify WHAT section was extracted (bundle-specific location)
         from specfact_cli.models.sdd import SDDManifest
-        from specfact_cli.utils.structured_io import load_structured_file
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
 
         sdd_data = load_structured_file(sdd_path)
         sdd_manifest = SDDManifest.model_validate(sdd_data)
@@ -1371,9 +1385,12 @@ class TestPlanReviewSddValidation:
         runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the SDD manifest to create a hash mismatch (safer than modifying plan YAML)
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
         import yaml
 
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
         sdd_data = yaml.safe_load(sdd_path.read_text())
         sdd_data["plan_bundle_hash"] = "invalid_hash_1234567890"
         sdd_path.write_text(yaml.dump(sdd_data))
@@ -1570,9 +1587,12 @@ class TestPlanPromoteSddValidation:
         runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the SDD manifest to create a hash mismatch (safer than modifying plan YAML)
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
         import yaml
 
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
         sdd_data = yaml.safe_load(sdd_path.read_text())
         sdd_data["plan_bundle_hash"] = "invalid_hash_1234567890"
         sdd_path.write_text(yaml.dump(sdd_data))

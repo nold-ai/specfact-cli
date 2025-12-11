@@ -43,7 +43,7 @@ def sample_sdd_manifest() -> SDDManifest:
         what=SDDWhat(capabilities=["Capability 1"], acceptance_criteria=["AC 1"]),
         how=SDDHow(architecture="Test architecture", invariants=["Invariant 1"], contracts=["Contract 1"]),
         coverage_thresholds=SDDCoverageThresholds(
-            contracts_per_story=1.0, invariants_per_feature=1.0, architecture_facets=3
+            contracts_per_story=1.0, invariants_per_feature=1.0, architecture_facets=3, openapi_coverage_percent=0.0
         ),
         enforcement_budget=SDDEnforcementBudget(
             shadow_budget_seconds=300, warn_budget_seconds=180, block_budget_seconds=90
@@ -180,15 +180,23 @@ def test_get_sdd_by_hash_not_found(temp_repo: Path, sample_sdd_manifest: SDDMani
 
 def test_get_default_sdd_path_for_bundle_yaml(temp_repo: Path) -> None:
     """Test getting default SDD path for bundle (YAML)."""
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import StructuredFormat
+
     bundle_name = "test-bundle"
     result = get_default_sdd_path_for_bundle(bundle_name, temp_repo, "yaml")
-    expected = temp_repo / ".specfact" / "sdd" / "test-bundle.yaml"
+    # Phase 8.5: Uses bundle-specific location
+    expected = SpecFactStructure.get_bundle_sdd_path(bundle_name, temp_repo, StructuredFormat.YAML)
     assert result == expected
 
 
 def test_get_default_sdd_path_for_bundle_json(temp_repo: Path) -> None:
     """Test getting default SDD path for bundle (JSON)."""
+    from specfact_cli.utils.structure import SpecFactStructure
+    from specfact_cli.utils.structured_io import StructuredFormat
+
     bundle_name = "test-bundle"
     result = get_default_sdd_path_for_bundle(bundle_name, temp_repo, "json")
-    expected = temp_repo / ".specfact" / "sdd" / "test-bundle.json"
+    # Phase 8.5: Uses bundle-specific location
+    expected = SpecFactStructure.get_bundle_sdd_path(bundle_name, temp_repo, StructuredFormat.JSON)
     assert result == expected

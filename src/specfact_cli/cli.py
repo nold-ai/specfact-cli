@@ -57,6 +57,7 @@ from specfact_cli import __version__, runtime
 from specfact_cli.commands import (
     analyze,
     bridge,
+    contract_cmd,
     drift,
     enforce,
     generate,
@@ -65,6 +66,7 @@ from specfact_cli.commands import (
     init,
     migrate,
     plan,
+    project_cmd,
     repro,
     run,
     sdd,
@@ -314,6 +316,9 @@ app.add_typer(migrate.app, name="migrate", help="Migrate project bundles between
 # 3. Planning
 app.add_typer(plan.app, name="plan", help="Manage development plans")
 
+# 3.5. Project Bundle Management
+app.add_typer(project_cmd.app, name="project", help="Manage project bundles with persona workflows")
+
 # 4. Code Generation
 app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
 
@@ -334,6 +339,9 @@ app.add_typer(sdd.app, name="sdd", help="Manage SDD (Spec-Driven Development) ma
 
 # 10. API Contract Testing
 app.add_typer(spec.app, name="spec", help="Specmatic integration for API contract testing")
+
+# 10.5. OpenAPI Contract Management
+app.add_typer(contract_cmd.app, name="contract", help="Manage OpenAPI contracts for project bundles")
 
 # 11. Synchronization
 app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")

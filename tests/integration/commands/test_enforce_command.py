@@ -234,10 +234,12 @@ class TestEnforceSddCommand:
         assert "Hash match verified" in result.stdout or "validation" in result.stdout.lower()
         assert "SDD validation passed" in result.stdout or "validation" in result.stdout.lower()
 
-        # Verify report was created
-        reports_dir = tmp_path / ".specfact" / "reports" / "sdd"
+        # Verify report was created (bundle-specific location)
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        reports_dir = SpecFactStructure.get_bundle_reports_dir(bundle_name, tmp_path) / "enforcement"
         assert reports_dir.exists()
-        report_files = list(reports_dir.glob("validation-*.yaml"))
+        report_files = list(reports_dir.glob("report-*.yaml"))
         assert len(report_files) > 0
 
     def test_enforce_sdd_detects_hash_mismatch(self, tmp_path, monkeypatch):
@@ -251,8 +253,10 @@ class TestEnforceSddCommand:
 
         # Modify the plan bundle hash in the SDD manifest directly to simulate a mismatch
         # This is more reliable than modifying the plan YAML, which might not change the hash
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        from specfact_cli.utils.structure import SpecFactStructure
         from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
 
         sdd_data = load_structured_file(sdd_path)
         # Change the hash to a different value to simulate mismatch
@@ -446,8 +450,10 @@ class TestEnforceSddCommand:
         assert result.exit_code == 0
 
         # Verify markdown report was created
-        reports_dir = tmp_path / ".specfact" / "reports" / "sdd"
-        report_files = list(reports_dir.glob("validation-*.md"))
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        reports_dir = SpecFactStructure.get_bundle_reports_dir(bundle_name, tmp_path) / "enforcement"
+        report_files = list(reports_dir.glob("report-*.md"))
         assert len(report_files) > 0
 
         # Verify report content
@@ -480,8 +486,10 @@ class TestEnforceSddCommand:
         assert result.exit_code == 0
 
         # Verify JSON report was created
-        reports_dir = tmp_path / ".specfact" / "reports" / "sdd"
-        report_files = list(reports_dir.glob("validation-*.json"))
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        reports_dir = SpecFactStructure.get_bundle_reports_dir(bundle_name, tmp_path) / "enforcement"
+        report_files = list(reports_dir.glob("report-*.json"))
         assert len(report_files) > 0
 
         # Verify report is valid JSON

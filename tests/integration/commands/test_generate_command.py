@@ -1,5 +1,6 @@
 """Integration tests for generate command."""
 
+import pytest
 import yaml
 from typer.testing import CliRunner
 
@@ -77,8 +78,10 @@ class TestGenerateContractsCommand:
             or "Generated" in result.stdout
         )
 
-        # Verify contracts directory exists
-        contracts_dir = tmp_path / ".specfact" / "contracts"
+        # Verify contracts directory exists (bundle-specific location)
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        contracts_dir = tmp_path / ".specfact" / "projects" / bundle_name / "contracts"
         assert contracts_dir.exists(), f"Contracts directory not found at {contracts_dir}"
 
         # Verify at least one contract file was created (if contracts exist in SDD)
@@ -86,18 +89,30 @@ class TestGenerateContractsCommand:
         # Note: If SDD has no contracts/invariants, no files will be generated (this is expected)
         # But with our test plan that has contracts, files should be generated
         if len(contract_files) == 0:
-            # Check if SDD actually has contracts
-            sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+            # Check if SDD actually has contracts (bundle-specific location)
+            from specfact_cli.utils.structured_io import StructuredFormat
+
+            sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
             if sdd_path.exists():
                 with open(sdd_path) as f:
                     sdd_data = yaml.safe_load(f)
-                    has_contracts = bool(sdd_data.get("how", {}).get("contracts"))
-                    has_invariants = bool(sdd_data.get("how", {}).get("invariants"))
+                    how_section = sdd_data.get("how", {})
+                    has_contracts = bool(how_section.get("contracts"))
+                    has_invariants = bool(how_section.get("invariants"))
+                    # Debug output
+                    print(f"SDD contracts: {how_section.get('contracts')}")
+                    print(f"SDD invariants: {how_section.get('invariants')}")
                     if not has_contracts and not has_invariants:
                         # This is expected - no contracts/invariants means no files generated
-                        return
+                        # But our test story has contracts, so this indicates extraction failed
+                        pytest.skip(
+                            "SDD has no contracts/invariants to generate. "
+                            "This may indicate that story contracts are not being extracted correctly."
+                        )
 
-        assert len(contract_files) > 0, f"No Python files found in {contracts_dir}"
+        assert len(contract_files) > 0, (
+            f"No Python files found in {contracts_dir}. SDD may not have contracts/invariants."
+        )
 
     def test_generate_contracts_with_missing_sdd(self, tmp_path, monkeypatch):
         """Test generate contracts fails when SDD is missing."""
@@ -124,9 +139,12 @@ class TestGenerateContractsCommand:
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
         runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
-        # Generate contracts with explicit SDD path
+        # Generate contracts with explicit SDD path (bundle-specific location)
+        from specfact_cli.utils.structure import SpecFactStructure
+        from specfact_cli.utils.structured_io import StructuredFormat
+
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
         result = runner.invoke(
             app,
             [
@@ -178,8 +196,10 @@ class TestGenerateContractsCommand:
         runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the project bundle hash in the SDD manifest to simulate a mismatch
-        sdd_path = tmp_path / ".specfact" / "sdd" / f"{bundle_name}.yaml"
+        from specfact_cli.utils.structure import SpecFactStructure
         from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
+
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, tmp_path, StructuredFormat.YAML)
 
         sdd_data = load_structured_file(sdd_path)
         original_hash = sdd_data.get("project_hash") or sdd_data.get("plan_bundle_hash", "")
@@ -291,8 +311,8 @@ class TestGenerateContractsCommand:
         result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
         assert result.exit_code == 0
 
-        # Check that Python files were created (if contracts exist in SDD)
-        contracts_dir = tmp_path / ".specfact" / "contracts"
+        # Check that Python files were created (if contracts exist in SDD) - bundle-specific location
+        contracts_dir = tmp_path / ".specfact" / "projects" / bundle_name / "contracts"
         python_files = []
         if contracts_dir.exists():
             python_files = list(contracts_dir.glob("*.py"))
@@ -324,8 +344,8 @@ class TestGenerateContractsCommand:
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
         runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
-        # Check that files include metadata
-        contracts_dir = tmp_path / ".specfact" / "contracts"
+        # Check that files include metadata (bundle-specific location)
+        contracts_dir = tmp_path / ".specfact" / "projects" / bundle_name / "contracts"
         python_files = list(contracts_dir.glob("*.py"))
 
         if python_files:

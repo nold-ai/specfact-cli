@@ -454,7 +454,7 @@ class ProjectBundle(BaseModel):
                                         stories_count=len(feature.stories),
                                         created_at=now,  # TODO: Preserve original created_at if exists
                                         updated_at=now,
-                                        contract=None,  # Contract will be linked separately if needed
+                                        contract=feature.contract,  # Link contract from feature
                                         checksum=checksum,
                                     )
                                     feature_indices.append(feature_index)

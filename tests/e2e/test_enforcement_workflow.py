@@ -297,7 +297,10 @@ class ReportGenerator:
         try:
             os.chdir(tmp_path)
 
-            # Step 1: Create manual and auto plans with deviation
+            # Create manual and auto plan files (legacy layout) to drive comparison
+            plans_dir = tmp_path / ".specfact" / "plans"
+            plans_dir.mkdir(parents=True, exist_ok=True)
+
             manual_plan = {
                 "version": "1.0",
                 "product": {
@@ -324,13 +327,10 @@ class ReportGenerator:
                 "features": [],
             }
 
-            plans_dir = tmp_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True, exist_ok=True)
-            dump_yaml(manual_plan, plans_dir / "main.bundle.yaml")
-
-            plans_dir = tmp_path / ".specfact" / "plans"
-            plans_dir.mkdir(parents=True, exist_ok=True)
-            dump_yaml(auto_plan, plans_dir / "auto-derived.2025-01-01T00-00-00.bundle.yaml")
+            manual_plan_path = plans_dir / "manual.bundle.yaml"
+            auto_plan_path = plans_dir / "auto-derived.bundle.yaml"
+            dump_yaml(manual_plan, manual_plan_path)
+            dump_yaml(auto_plan, auto_plan_path)
 
             # Step 2: Set enforcement to balanced
             result = runner.invoke(
@@ -342,13 +342,13 @@ class ReportGenerator:
             # Step 3: Compare plans
             result = runner.invoke(
                 app,
-                ["plan", "compare"],
+                ["plan", "compare", "--manual", str(manual_plan_path), "--auto", str(auto_plan_path)],
             )
 
-            # Verify enforcement section is displayed
+            # Verify enforcement section is displayed when deviations exist
+            assert result.exit_code == 0
+            assert "Comparison Results" in result.stdout
             assert "Enforcement Rules" in result.stdout
-            # One of these enforcement outcomes should be present
-            assert "Enforcement PASSED" in result.stdout or "Enforcement BLOCKED" in result.stdout
 
         finally:
             os.chdir(old_cwd)

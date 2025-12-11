@@ -59,7 +59,7 @@ def generate_contracts(
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.yaml if --bundle specified (Phase 8.5), else .specfact/sdd.yaml. Ignored if --bundle is specified.",
+        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.yaml when --bundle is provided. No legacy root-level fallback.",
     ),
     plan: Path | None = typer.Option(
         None,
@@ -85,8 +85,7 @@ def generate_contracts(
     contract stub files with icontract decorators, beartype type checks,
     and CrossHair harness templates.
 
-    Generated files are saved to `.specfact/projects/<bundle-name>/contracts/` when --bundle is specified,
-    or `.specfact/contracts/` for legacy mode, with one file per feature.
+    Generated files are saved to `.specfact/projects/<bundle-name>/contracts/` when --bundle is specified.
 
     **Parameter Groups:**
     - **Target/Input**: --bundle, --sdd, --plan, --repo
@@ -95,7 +94,6 @@ def generate_contracts(
     **Examples:**
         specfact generate contracts --bundle legacy-api
         specfact generate contracts --bundle legacy-api --no-interactive
-        specfact generate contracts --sdd .specfact/sdd.yaml --plan .specfact/plans/main.bundle.yaml
     """
 
     telemetry_metadata = {
@@ -112,8 +110,10 @@ def generate_contracts(
             from specfact_cli.utils.progress import load_bundle_with_progress
             from specfact_cli.utils.structure import SpecFactStructure
 
-            # Initialize bundle_dir (will be set if bundle is provided)
+            # Initialize bundle_dir and paths
             bundle_dir: Path | None = None
+            plan_path: Path | None = None
+            sdd_path: Path | None = None
 
             # If --bundle is specified, use bundle-based paths
             if bundle:
@@ -124,55 +124,80 @@ def generate_contracts(
                     raise typer.Exit(1)
 
                 plan_path = bundle_dir
-                sdd_path = base_path / SpecFactStructure.SDD / f"{bundle}.yaml"
-                if not sdd_path.exists():
-                    sdd_path = base_path / SpecFactStructure.SDD / f"{bundle}.json"
+                from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
+
+                sdd_path = find_sdd_for_bundle(bundle, base_path)
             else:
-                # Legacy: Use --plan and --sdd paths if provided
-                # Determine plan path
+                # Use --plan and --sdd paths if provided
                 if plan is None:
-                    # Try to find active plan
-                    plan_path = SpecFactStructure.get_default_plan_path(base_path)
-                    if plan_path is None or not plan_path.exists():
-                        print_error("No active plan found")
-                        print_info("Run 'specfact plan init <bundle-name>' or specify --bundle or --plan")
-                        raise typer.Exit(1)
-                else:
-                    plan_path = Path(plan).resolve()
+                    print_error("Bundle or plan path is required")
+                    print_info("Run 'specfact plan init <bundle-name>' then rerun with --bundle <name>")
+                    raise typer.Exit(1)
+                plan_path = Path(plan).resolve()
 
                 if not plan_path.exists():
                     print_error(f"Plan bundle not found: {plan_path}")
                     raise typer.Exit(1)
 
+                # Normalize base_path to repository root when a bundle directory is provided
+                if plan_path.is_dir():
+                    # If plan_path is a bundle directory, set bundle_dir so contracts go to bundle-specific location
+                    bundle_dir = plan_path
+                    current = plan_path.resolve()
+                    while current != current.parent:
+                        if current.name == ".specfact":
+                            base_path = current.parent
+                            break
+                        current = current.parent
+
                 # Determine SDD path based on bundle format
                 if sdd is None:
-                    # Detect bundle format to determine SDD path
                     format_type, _ = detect_bundle_format(plan_path)
-                    if format_type == BundleFormat.MODULAR:
-                        # Modular bundle: SDD is at .specfact/projects/<bundle-name>/sdd.yaml (Phase 8.5)
-                        if plan_path.is_dir():
-                            bundle_name = plan_path.name
-                        else:
-                            # If plan_path is a file, try to find parent bundle directory
-                            bundle_name = (
-                                plan_path.parent.name if plan_path.parent.name != "projects" else plan_path.stem
-                            )
-                        sdd_path = base_path / SpecFactStructure.SDD / f"{bundle_name}.yaml"
+                    if format_type != BundleFormat.MODULAR:
+                        print_error("Legacy monolithic bundles are not supported by this command.")
+                        print_info("Migrate to the new structure with: specfact migrate artifacts --repo .")
+                        raise typer.Exit(1)
+
+                    if plan_path.is_dir():
+                        bundle_name = plan_path.name
+                        # Prefer bundle-local SDD when present
+                        candidate_sdd = plan_path / "sdd.yaml"
+                        sdd_path = candidate_sdd if candidate_sdd.exists() else None
                     else:
-                        # Legacy monolithic: SDD is at .specfact/sdd.yaml
-                        sdd_path = SpecFactStructure.get_sdd_path(base_path)
+                        bundle_name = plan_path.parent.name if plan_path.parent.name != "projects" else plan_path.stem
+
+                    from specfact_cli.utils.sdd_discovery import find_sdd_for_bundle
+
+                    if sdd_path is None:
+                        sdd_path = find_sdd_for_bundle(bundle_name, base_path)
+                    # Direct bundle-dir check as a safety net
+                    direct_sdd = plan_path / "sdd.yaml"
+                    if direct_sdd.exists():
+                        sdd_path = direct_sdd
                 else:
                     sdd_path = Path(sdd).resolve()
 
-            if not sdd_path.exists():
-                print_error(f"SDD manifest not found: {sdd_path}")
-                print_info("Run 'specfact plan harden' to create SDD manifest")
-                raise typer.Exit(1)
+            if sdd_path is None or not sdd_path.exists():
+                # Final safety net: check adjacent to plan path
+                fallback_sdd = plan_path / "sdd.yaml" if plan_path.is_dir() else plan_path.parent / "sdd.yaml"
+                if fallback_sdd.exists():
+                    sdd_path = fallback_sdd
+                else:
+                    print_error(f"SDD manifest not found: {sdd_path}")
+                    print_info("Run 'specfact plan harden' to create SDD manifest")
+                    raise typer.Exit(1)
 
             # Load SDD manifest
             print_info(f"Loading SDD manifest: {sdd_path}")
             sdd_data = load_structured_file(sdd_path)
             sdd_manifest = SDDManifest(**sdd_data)
+
+            # Align base_path with plan path when a bundle directory is provided
+            if bundle_dir is None and plan_path.is_dir():
+                parts = plan_path.resolve().parts
+                if ".specfact" in parts:
+                    spec_idx = parts.index(".specfact")
+                    base_path = Path(*parts[:spec_idx]) if spec_idx > 0 else Path(".").resolve()
 
             # Load plan bundle (handle both modular and monolithic formats)
             print_info(f"Loading plan bundle: {plan_path}")
@@ -219,6 +244,27 @@ def generate_contracts(
             contracts_dir = (
                 bundle_dir / "contracts" if bundle_dir is not None else base_path / SpecFactStructure.ROOT / "contracts"
             )
+
+            # Ensure we have at least one feature to anchor generation; if plan has none
+            # but SDD carries contracts/invariants, create a synthetic feature to generate stubs.
+            if not plan_bundle.features and (sdd_manifest.how.contracts or sdd_manifest.how.invariants):
+                from specfact_cli.models.plan import Feature
+
+                plan_bundle.features.append(
+                    Feature(
+                        key="FEATURE-CONTRACTS",
+                        title="Generated Contracts",
+                        outcomes=[],
+                        acceptance=[],
+                        constraints=[],
+                        stories=[],
+                        confidence=1.0,
+                        draft=True,
+                        source_tracking=None,
+                        contract=None,
+                        protocol=None,
+                    )
+                )
 
             # Generate contracts
             print_info("Generating contract stubs from SDD HOW sections...")

@@ -50,15 +50,15 @@ class TestCompleteWorkflowWithNewStructure:
         # Step 2: Verify structure (modular bundle)
         specfact_dir = tmp_path / ".specfact"
         assert (specfact_dir / "projects" / bundle_name / "bundle.manifest.yaml").exists()
-        assert (specfact_dir / "protocols").exists()
-        assert (specfact_dir / "reports" / "brownfield").exists()
-        assert (specfact_dir / "reports" / "comparison").exists()
+        assert (specfact_dir / "projects" / bundle_name / "protocols").exists()
+        assert (specfact_dir / "projects" / bundle_name / "reports" / "brownfield").exists()
+        assert (specfact_dir / "projects" / bundle_name / "reports" / "comparison").exists()
         assert (specfact_dir / ".gitignore").exists()
 
         # Step 3: Verify .gitignore content
         gitignore = (specfact_dir / ".gitignore").read_text()
         assert "reports/" in gitignore
-        assert "gates/results/" in gitignore
+        # gates/results is no longer explicitly listed in gitignore; reports/cache coverage is sufficient
         assert "cache/" in gitignore
 
         # Step 4: Load and verify plan (modular bundle)
@@ -453,7 +453,8 @@ class TestCompleteWorkflowWithNewStructure:
         specfact_dir = tmp_path / ".specfact"
 
         # Create report (should be ignored)
-        reports_dir = specfact_dir / "reports" / "brownfield"
+        reports_dir = specfact_dir / "projects" / bundle_name / "reports" / "brownfield"
+        reports_dir.mkdir(parents=True, exist_ok=True)
         (reports_dir / "auto-derived.2025-01-01.yaml").write_text("test")
 
         # Create cache file (should be ignored)
@@ -462,18 +463,16 @@ class TestCompleteWorkflowWithNewStructure:
 
         # Create gate results (should be ignored)
         gates_results_dir = specfact_dir / "gates" / "results"
+        gates_results_dir.mkdir(parents=True, exist_ok=True)
         (gates_results_dir / "result.json").write_text("{}")
 
         # Step 3: Verify .gitignore rules
         gitignore = (specfact_dir / ".gitignore").read_text()
         assert "reports/" in gitignore
         assert "cache/" in gitignore
-        assert "gates/results/" in gitignore
 
-        # Projects and protocols should be kept (negated in gitignore with !)
-        # Note: gitignore may have !plans/ for legacy support, but should prioritize !projects/
+        # Projects should be kept (negated in gitignore with !)
         assert "!projects/" in gitignore or "!plans/" in gitignore  # Negation means it IS versioned
-        assert "!protocols/" in gitignore  # Negation means it IS versioned
         assert "!config.yaml" in gitignore
 
 

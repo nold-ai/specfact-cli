@@ -169,7 +169,10 @@ class SpecKitConverter:
 
         # Write to file if output path provided
         if output_path:
-            output_path = output_path.with_name(SpecFactStructure.ensure_plan_filename(output_path.name))
+            if output_path.is_dir():
+                output_path = output_path / SpecFactStructure.ensure_plan_filename(output_path.name)
+            else:
+                output_path = output_path.with_name(SpecFactStructure.ensure_plan_filename(output_path.name))
             SpecFactStructure.ensure_structure(output_path.parent)
             self.plan_generator.generate(plan_bundle, output_path)
         else:
@@ -177,7 +180,9 @@ class SpecKitConverter:
             output_path = SpecFactStructure.get_default_plan_path(
                 base_path=self.repo_path, preferred_format=runtime.get_output_format()
             )
-            SpecFactStructure.ensure_structure(self.repo_path)
+            if output_path.is_dir():
+                output_path = output_path / SpecFactStructure.ensure_plan_filename(output_path.name)
+            SpecFactStructure.ensure_structure(output_path.parent)
             self.plan_generator.generate(plan_bundle, output_path)
 
         return plan_bundle
