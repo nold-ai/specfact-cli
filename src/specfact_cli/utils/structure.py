@@ -235,30 +235,15 @@ class SpecFactStructure:
                 # Fallback if config read fails
                 pass
 
-        # Fallback: Try legacy plans/config.yaml (for backward compatibility)
+        # Legacy config present: instruct migration instead of fallback
         legacy_config_path = base_path / cls.PLANS_CONFIG
         if legacy_config_path.exists():
-            try:
-                import yaml
+            raise FileNotFoundError(
+                "Legacy plan configuration detected at .specfact/plans/config.yaml. "
+                "Please migrate to the new bundle structure using 'specfact migrate artifacts --repo .'."
+            )
 
-                with legacy_config_path.open() as f:
-                    config = yaml.safe_load(f) or {}
-                active_plan = config.get("active_plan")
-                if active_plan:
-                    # Check if it's a bundle name (new format)
-                    bundle_dir = base_path / cls.PROJECTS / active_plan
-                    if bundle_dir.exists() and (bundle_dir / "bundle.manifest.yaml").exists():
-                        return bundle_dir
-                    # Check if it's a legacy plan file (old format)
-                    plan_path = base_path / cls.PLANS / active_plan
-                    if plan_path.exists():
-                        return plan_path
-            except Exception:
-                # Fallback if config read fails
-                pass
-
-        # No active bundle/plan found - return default bundle directory path (may not exist)
-        # This maintains backward compatibility with callers expecting a Path
+        # No active bundle found - return default bundle directory path (may not exist)
         return base_path / cls.PROJECTS / cls.DEFAULT_PLAN_NAME
 
     @classmethod
@@ -299,21 +284,6 @@ class SpecFactStructure:
                 # Fallback if config read fails
                 pass
 
-        # Fallback: Try legacy plans/config.yaml (for backward compatibility)
-        legacy_config_path = base_path / cls.PLANS_CONFIG
-        if legacy_config_path.exists():
-            try:
-                import yaml
-
-                with legacy_config_path.open() as f:
-                    config = yaml.safe_load(f) or {}
-                active_plan = config.get("active_plan")
-                if active_plan:
-                    return active_plan
-            except Exception:
-                # Fallback if config read fails
-                pass
-
         return None
 
     @classmethod
@@ -349,7 +319,7 @@ class SpecFactStructure:
         if not bundle_dir.exists() or not (bundle_dir / "bundle.manifest.yaml").exists():
             raise FileNotFoundError(f"Project bundle not found: {bundle_dir}")
 
-        # Write to global config.yaml (new location)
+        # Write to global config.yaml (new location, only)
         config_path = base_path / cls.CONFIG_YAML
 
         # Read existing config or create new
@@ -368,20 +338,6 @@ class SpecFactStructure:
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with config_path.open("w") as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-
-        # Also migrate legacy plans/config.yaml if it exists (for backward compatibility)
-        legacy_config_path = base_path / cls.PLANS_CONFIG
-        if legacy_config_path.exists():
-            try:
-                legacy_config = {}
-                with legacy_config_path.open() as f:
-                    legacy_config = yaml.safe_load(f) or {}
-                legacy_config["active_plan"] = plan_name
-                with legacy_config_path.open("w") as f:
-                    yaml.dump(legacy_config, f, default_flow_style=False, sort_keys=False)
-            except Exception:
-                # Ignore errors when updating legacy config
-                pass
 
     @classmethod
     @beartype
@@ -422,9 +378,9 @@ class SpecFactStructure:
         plans = []
         active_plan = None
 
-        # Get active bundle from config (try new location first, then legacy)
-        active_plan = None
+        # Get active bundle from config (new location only)
         config_path = base_path / cls.CONFIG_YAML
+        active_plan = None
         if config_path.exists():
             try:
                 with config_path.open() as f:
@@ -432,17 +388,6 @@ class SpecFactStructure:
                 active_plan = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
             except Exception:
                 pass
-
-        # Fallback to legacy plans/config.yaml
-        if active_plan is None:
-            legacy_config_path = base_path / cls.PLANS_CONFIG
-            if legacy_config_path.exists():
-                try:
-                    with legacy_config_path.open() as f:
-                        config = yaml.safe_load(f) or {}
-                    active_plan = config.get("active_plan")
-                except Exception:
-                    pass
 
         # Find all project bundle directories
         bundle_dirs = [d for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
@@ -898,7 +843,7 @@ class SpecFactStructure:
     @ensure(lambda result: result is None or isinstance(result, Path), "Must return None or Path")
     def get_latest_brownfield_report(cls, base_path: Path | None = None) -> Path | None:
         """
-        Get the latest brownfield report from the plans directory.
+        Get the latest brownfield report from bundle-specific directories.
 
         Args:
             base_path: Base directory (default: current directory)
@@ -909,18 +854,34 @@ class SpecFactStructure:
         if base_path is None:
             base_path = Path(".")
 
-        plans_dir = base_path / cls.PLANS
-        if not plans_dir.exists():
+        projects_dir = base_path / cls.PROJECTS
+        if not projects_dir.exists():
             return None
 
-        # Find all auto-derived reports
-        reports = [
-            p
-            for p in plans_dir.glob("auto-derived.*.bundle.*")
-            if any(str(p).endswith(suffix) for suffix in cls.PLAN_SUFFIXES)
-        ]
+        # Search bundle-specific brownfield reports
+        reports: list[Path] = []
+        for bundle_dir in projects_dir.glob("*"):
+            brownfield_dir = bundle_dir / "reports" / "brownfield"
+            if not brownfield_dir.exists():
+                continue
+            reports.extend(sorted(brownfield_dir.glob("analysis-*.md"), key=lambda p: (p.stat().st_mtime, p.name)))
+
         reports = sorted(reports, key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
-        return reports[0] if reports else None
+        if reports:
+            return reports[0]
+
+        # Legacy fallback: .specfact/plans/*.bundle.yaml
+        legacy_plans_dir = base_path / cls.PLANS
+        if legacy_plans_dir.exists():
+            legacy_reports = sorted(
+                legacy_plans_dir.glob("*.bundle.yaml"),
+                key=lambda p: (p.stat().st_mtime, p.name),
+                reverse=True,
+            )
+            if legacy_reports:
+                return legacy_reports[0]
+
+        return None
 
     @classmethod
     def create_gitignore(cls, base_path: Path | None = None) -> None:

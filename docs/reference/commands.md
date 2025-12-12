@@ -50,6 +50,11 @@ specfact repro --verbose
 - `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
 
+**Project Bundle Management:**
+
+- `project export --bundle <bundle-name> --persona <persona>` - Export persona-specific Markdown artifacts
+- `project import --bundle <bundle-name> --persona <persona> --source <file>` - Import persona edits from Markdown
+
 **Enforcement:**
 
 - `enforce stage` - Configure quality gates
@@ -1227,6 +1232,125 @@ specfact plan compare \
 - Deviation severity
 
 **How it differs from Spec-Kit**: Spec-Kit's `/speckit.analyze` only checks artifact consistency between markdown files; SpecFact CLI detects actual code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from code analysis).
+
+---
+
+### `project` - Project Bundle Management
+
+Manage project bundles with persona-based workflows for agile/scrum teams.
+
+#### `project export`
+
+Export persona-specific sections from project bundle to Markdown for editing.
+
+```bash
+specfact project export [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--persona PERSONA` - Persona name: `product-owner`, `developer`, or `architect` (required)
+- `--output PATH` - Output file path (default: `docs/project-plans/<bundle>/<persona>.md`)
+- `--output-dir PATH` - Output directory (default: `docs/project-plans/<bundle>`)
+- `--stdout` - Output to stdout instead of file
+- `--template TEMPLATE` - Custom template name (default: uses persona-specific template)
+- `--list-personas` - List all available personas and exit
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Export Product Owner view
+specfact project export --bundle my-project --persona product-owner
+
+# Export Developer view
+specfact project export --bundle my-project --persona developer
+
+# Export Architect view
+specfact project export --bundle my-project --persona architect
+
+# Export to custom location
+specfact project export --bundle my-project --persona product-owner --output docs/backlog.md
+
+# Output to stdout (for piping/CI)
+specfact project export --bundle my-project --persona product-owner --stdout
+```
+
+**What it exports:**
+
+**Product Owner Export:**
+
+- Definition of Ready (DoR) checklist for each story
+- Prioritization data (priority, rank, business value scores)
+- Dependencies (story-to-story, feature-to-feature)
+- Business value descriptions and metrics
+- Sprint planning data (target dates, sprints, releases)
+
+**Developer Export:**
+
+- Acceptance criteria for features and stories
+- User stories with detailed context
+- Implementation tasks with file paths
+- API contracts and test scenarios
+- Code mappings (source and test functions)
+- Sprint context (story points, priority, dependencies)
+- Definition of Done checklist
+
+**Architect Export:**
+
+- Technical constraints per feature
+- Architectural decisions (technology choices, patterns)
+- Non-functional requirements (performance, scalability, security)
+- Protocols & state machines (complete definitions)
+- Contracts (OpenAPI/AsyncAPI details)
+- Risk assessment and mitigation strategies
+- Deployment architecture
+
+**See**: [Agile/Scrum Workflows Guide](../guides/agile-scrum-workflows.md) for detailed persona workflow documentation.
+
+#### `project import`
+
+Import persona edits from Markdown back into project bundle.
+
+```bash
+specfact project import [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--persona PERSONA` - Persona name: `product-owner`, `developer`, or `architect` (required)
+- `--source PATH` - Source Markdown file (required)
+- `--dry-run` - Validate without applying changes
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Import Product Owner edits
+specfact project import --bundle my-project --persona product-owner --source docs/backlog.md
+
+# Import Developer edits
+specfact project import --bundle my-project --persona developer --source docs/developer.md
+
+# Import Architect edits
+specfact project import --bundle my-project --persona architect --source docs/architect.md
+
+# Dry-run to validate without applying
+specfact project import --bundle my-project --persona product-owner --source docs/backlog.md --dry-run
+```
+
+**What it validates:**
+
+- **Template Structure**: Required sections present
+- **DoR Completeness**: All Definition of Ready criteria met
+- **Dependency Integrity**: No circular dependencies, all references exist
+- **Priority Consistency**: Valid priority formats (P0-P3, MoSCoW)
+- **Date Formats**: ISO 8601 date validation
+- **Story Point Ranges**: Valid Fibonacci-like values
+
+**See**: [Agile/Scrum Workflows Guide](../guides/agile-scrum-workflows.md) for detailed validation rules and examples.
 
 ---
 

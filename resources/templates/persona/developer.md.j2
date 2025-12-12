@@ -1,0 +1,240 @@
+# Project Plan: {{ bundle_name }} - Developer View
+
+**Persona**: Developer  
+**Bundle**: `{{ bundle_name }}`  
+**Created**: {{ created_at }}  
+**Status**: {{ status }}  
+**Last Updated**: {{ updated_at }}
+
+{% if features %}
+## Acceptance Criteria & Implementation Details *(mandatory)*
+
+{%- for feature_key, feature in features.items() -%}
+### {{ feature.key }}: {{ feature.title }}
+
+{% if feature.acceptance %}
+#### Acceptance Criteria - {{ feature.key }}
+
+{%- for criterion in feature.acceptance %}
+{% set criterion_clean = criterion.replace('\r\n', '\n').replace('\r', '\n').strip() %}
+{% if '\n' in criterion_clean %}
+{% set criterion_lines = criterion_clean.split('\n') %}
+{% for line in criterion_lines %}
+{% if line.strip() %}
+- [ ] {{ line.strip() }}
+{% endif %}
+{% endfor %}
+{% else %}
+- [ ] {{ criterion_clean }}
+{%- endif -%}
+{%- endfor -%}
+{% else %}
+*[ACTION REQUIRED: Define acceptance criteria for this feature]*
+{%- endif %}
+{% if feature.stories %}
+#### User Stories
+
+{% for story in feature.stories %}
+**{{ story.key }}**: {{ story.title }}
+
+{% if story.story_points or story.value_points or story.priority or story.target_sprint or story.target_release or story.depends_on_stories or story.blocks_stories %}
+**Sprint Context**:
+
+{% if story.story_points %}
+- **Story Points**: {{ story.story_points }} (complexity)
+{% endif %}
+{% if story.value_points %}
+- **Value Points**: {{ story.value_points }} (business value)
+{% endif %}
+{% if story.priority %}
+- **Priority**: {{ story.priority }}
+{% endif %}
+{% if story.rank %}
+- **Backlog Rank**: {{ story.rank }} (1 = highest priority)
+{% endif %}
+{% if story.target_sprint %}
+- **Target Sprint**: {{ story.target_sprint }}
+{% endif %}
+{% if story.target_release %}
+- **Target Release**: {{ story.target_release }}
+{% endif %}
+{% if story.due_date %}
+- **Due Date**: {{ story.due_date }}
+{% endif %}
+{% if story.depends_on_stories %}
+- **Depends On**: {{ story.depends_on_stories | join(', ') }}
+{% endif %}
+{% if story.blocks_stories %}
+- **Blocks**: {{ story.blocks_stories | join(', ') }}
+{%- endif %}
+{%- endif %}
+{% if story.acceptance %}
+**Acceptance Criteria**:
+
+{% for criterion in story.acceptance %}
+{% set criterion_clean = criterion.replace('\r\n', '\n').replace('\r', '\n').strip() %}
+{% if '\n' in criterion_clean %}
+{% set criterion_lines = criterion_clean.split('\n') %}
+{% for line in criterion_lines %}
+{% if line.strip() %}
+- [ ] {{ line.strip() }}
+{% endif %}
+{% endfor %}
+{% else %}
+- [ ] {{ criterion_clean }}
+{% endif %}
+{% endfor %}
+{%- endif %}
+{% if story.tasks %}
+**Implementation Tasks**:
+
+{% for task in story.tasks %}
+- [ ] {{ task }}
+{% endfor %}
+{%- endif %}
+{% if story.contracts %}
+**API Contracts**:
+
+{% for contract_type, contract_data in story.contracts.items() %}
+**{{ contract_type }}**:
+
+{% if contract_data is mapping %}
+{% if contract_data.parameters %}
+**Parameters**:
+{% for param_name, param_info in contract_data.parameters.items() %}
+- `{{ param_name }}`: {{ param_info.type if param_info.type else 'Any' }}{% if param_info.description %} - {{ param_info.description }}{% endif %}
+{% endfor %}
+{% endif %}
+{% if contract_data.return_type %}
+**Return Type**: `{{ contract_data.return_type }}`
+{% endif %}
+{% if contract_data.preconditions %}
+**Preconditions**:
+{% for precondition in contract_data.preconditions %}
+- {{ precondition }}
+{% endfor %}
+{% endif %}
+{% if contract_data.postconditions %}
+**Postconditions**:
+{% for postcondition in contract_data.postconditions %}
+- {{ postcondition }}
+{% endfor %}
+{% endif %}
+{% if contract_data.error_contracts %}
+**Error Contracts**:
+{% for error_type, error_info in contract_data.error_contracts.items() %}
+- `{{ error_type }}`: {{ error_info.description if error_info.description else error_info }}
+{% endfor %}
+{% endif %}
+{% else %}
+```python
+{{ contract_data }}
+```
+{% endif %}
+{% endfor %}
+{%- endif %}
+{% if story.scenarios %}
+**Test Scenarios**:
+
+{% if story.scenarios.primary %}
+**Primary**:
+{% for scenario in story.scenarios.primary %}
+- {{ scenario }}
+{% endfor %}
+{% endif %}
+{% if story.scenarios.alternate %}
+**Alternate**:
+{% for scenario in story.scenarios.alternate %}
+- {{ scenario }}
+{% endfor %}
+{% endif %}
+{% if story.scenarios.exception %}
+**Exception**:
+{% for scenario in story.scenarios.exception %}
+- {{ scenario }}
+{% endfor %}
+{% endif %}
+{% if story.scenarios.recovery %}
+**Recovery**:
+{% for scenario in story.scenarios.recovery %}
+- {{ scenario }}
+{% endfor %}
+{%- endif %}
+{%- endif %}
+{% if story.source_functions or story.test_functions %}
+**Code Mappings**:
+
+{% if story.source_functions %}
+**Source Functions**:
+{% for func in story.source_functions %}
+- `{{ func }}`
+{% endfor %}
+{% endif %}
+{% if story.test_functions %}
+**Test Functions**:
+{% for func in story.test_functions %}
+- `{{ func }}`
+{% endfor %}
+{%- endif %}
+{%- endif %}
+{% if story.definition_of_ready %}
+**Definition of Ready Status**:
+
+{% for item, status in story.definition_of_ready.items() %}
+- [{% if status %}x{% else %} {% endif %}] {{ item.replace('_', ' ').title() }}
+{% endfor %}
+{%- endif %}
+
+**Definition of Done**:
+
+- [ ] Code implemented and reviewed
+- [ ] Unit tests written (100% coverage for critical paths)
+- [ ] Integration tests passing
+- [ ] API documentation updated
+- [ ] Performance requirements met
+- [ ] Security requirements met
+
+---
+
+{% endfor %}
+{%- endif %}
+{% if feature.implementation %}
+#### Implementation Notes
+
+{{ feature.implementation }}
+{%- endif -%}
+{%- endfor -%}
+{% else %}
+## Acceptance Criteria & Implementation Details *(mandatory)*
+
+*[ACTION REQUIRED: Define acceptance criteria and implementation details for features]*
+{%- endif -%}
+
+## Ownership & Locks
+
+{% if locks %}
+**Locked Sections**:
+
+{% for lock in locks %}
+- `{{ lock.section }}` - Locked by {{ lock.owner }} ({{ lock.locked_at }})
+{% endfor %}
+{% else %}
+No sections currently locked
+{% endif %}
+
+## Validation Checklist
+
+- [ ] All features have acceptance criteria defined
+- [ ] Acceptance criteria are testable
+- [ ] Implementation tasks are documented
+- [ ] API contracts are defined
+- [ ] Test scenarios are documented
+- [ ] Code mappings are complete
+- [ ] Edge cases are considered
+- [ ] Testing strategy is defined
+- [ ] Definition of Done criteria are met
+
+## Notes
+
+*Use this section for implementation questions, technical notes, or development clarifications.*
+

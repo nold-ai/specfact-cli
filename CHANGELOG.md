@@ -9,6 +9,84 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.16.1] - 2025-12-12
+
+### Added (0.16.1)
+
+- **Persona Templates** - Enhanced Developer and Architect persona templates with real-world implementation details
+  - **Developer Template**: Added task breakdown, technical design (API contracts, test scenarios), code mappings (source/test functions), sprint context, and Definition of Done sections
+  - **Architect Template**: Added architectural decisions, non-functional requirements, protocols & state machines (loaded from bundle), contracts (OpenAPI/AsyncAPI), risk assessment, and deployment architecture sections
+  - Templates now provide actionable, implementation-focused content aligned with real-world agile/scrum expectations
+
+- **Documentation** - Comprehensive documentation updates for persona workflows
+  - Added `project export` and `project import` command documentation to command reference
+  - Enhanced Agile/Scrum Workflows guide with Developer and Architect persona details
+  - Documented what each persona export includes and validation rules for imports
+
+### Fixed (0.16.1)
+
+- **Persona Templates** - Fixed Markdown linting issues in generated persona exports
+  - Resolved MD012 (multiple consecutive blank lines) errors in architect and developer templates
+  - Fixed MD024 (duplicate headings) by adding feature keys to section headings
+  - Fixed MD036 (emphasis used instead of heading) in ownership sections
+  - Applied extensive Jinja2 whitespace control to ensure clean Markdown output
+
+- **Persona Exporter** - Fixed data model alignment issues
+  - Corrected `feature.constraints` handling (now correctly treats as `list[str]` instead of objects)
+  - Enhanced context preparation to include protocols and contracts from bundle directory
+  - Added support for story tasks, scenarios, contracts, source/test functions, and Definition of Ready in developer context
+
+### Improved (0.16.1)
+
+- **Persona Workflows** - Completed Phase 5.1.6 (Developer & Architect Template Enhancements)
+  - All three persona templates (Product Owner, Developer, Architect) are now production-ready
+  - Templates align with real-world agile/scrum practices and expectations
+  - Enhanced exporter context preparation for all personas
+  - Improved template structure and formatting for better readability
+
+---
+
+## [0.16.0] - 2025-12-11
+
+### Added (0.16.0)
+
+- **Project Command** - Added `--list-personas` flag to `project export` command
+  - Lists all available personas (both in bundle and default personas)
+  - Shows ownership patterns for each persona
+  - Provides instructions on how to add personas
+  - Automatically displays when `--persona` is missing
+
+### Fixed (0.16.0)
+
+- **Generate Command** - Fixed contract generation path resolution
+  - Contracts are now correctly written to bundle-specific `contracts/` directory when `--plan` is a bundle directory
+  - Fixed `sdd_path` possibly unbound errors in contract generation
+  - Improved bundle directory detection for modular project bundles
+
+- **Project Command** - Improved error handling for invalid personas
+  - Enhanced error messages to always show available personas in bundle
+  - Shows default personas with checkmarks indicating which are already added
+  - Provides clear instructions on how to add personas using `init-personas` command
+
+- **Contract Generator** - Fixed logic error in contract file generation
+  - Moved counting logic to correct code block
+  - Ensures contract files are generated when SDD has contracts/invariants
+  - Improved fallback logic for bundle-level contract stubs
+
+- **SDD Discovery** - Fixed incorrect legacy SDD detection
+  - Bundle-specific SDDs (`.specfact/projects/<bundle-name>/sdd.yaml`) are now correctly identified
+  - No longer incorrectly labels new bundle-specific SDDs as "legacy"
+  - Improved search path prioritization for bundle-specific locations
+
+### Improved (0.16.0)
+
+- **Project Command** - Enhanced persona workflow UX
+  - `--persona` option is now optional (shows available personas when missing)
+  - Better error messages guide users to available personas
+  - Consistent persona listing format across all error scenarios
+
+---
+
 ## [0.15.5] - 2025-12-11
 
 ### Fixed (0.15.5)

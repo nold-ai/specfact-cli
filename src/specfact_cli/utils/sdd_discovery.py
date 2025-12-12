@@ -90,8 +90,9 @@ def list_all_sdds(base_path: Path) -> list[tuple[Path, SDDManifest]]:
     """
     List all SDD manifests in the repository.
 
-    Searches both multi-SDD directory (.specfact/sdd/*.yaml) and legacy
-    single-SDD file (.specfact/sdd.yaml).
+    Searches bundle-specific locations first (.specfact/projects/<bundle>/sdd.{yaml,json}),
+    then legacy multi-SDD directory (.specfact/sdd/*.yaml),
+    and legacy single-SDD file (.specfact/sdd.yaml).
 
     Args:
         base_path: Base repository path
@@ -101,47 +102,47 @@ def list_all_sdds(base_path: Path) -> list[tuple[Path, SDDManifest]]:
     """
     results: list[tuple[Path, SDDManifest]] = []
 
-    # Multi-SDD directory layout
+    # Bundle-specific (preferred)
+    projects_dir = base_path / SpecFactStructure.PROJECTS
+    if projects_dir.exists() and projects_dir.is_dir():
+        for bundle_dir in projects_dir.iterdir():
+            if not bundle_dir.is_dir():
+                continue
+            sdd_yaml = bundle_dir / "sdd.yaml"
+            sdd_json = bundle_dir / "sdd.json"
+            for candidate in (sdd_yaml, sdd_json):
+                if not candidate.exists():
+                    continue
+                try:
+                    sdd_data = load_structured_file(candidate)
+                    manifest = SDDManifest(**sdd_data)
+                    results.append((candidate.resolve(), manifest))
+                except Exception:
+                    continue
+
+    # Legacy multi-SDD directory layout
     sdd_dir = base_path / SpecFactStructure.SDD
     if sdd_dir.exists() and sdd_dir.is_dir():
-        for sdd_file in sdd_dir.glob("*.yaml"):
+        for sdd_file in list(sdd_dir.glob("*.yaml")) + list(sdd_dir.glob("*.json")):
             try:
                 sdd_data = load_structured_file(sdd_file)
                 manifest = SDDManifest(**sdd_data)
                 results.append((sdd_file.resolve(), manifest))
             except Exception:
-                # Skip invalid SDD files
-                continue
-
-        for sdd_file in sdd_dir.glob("*.json"):
-            try:
-                sdd_data = load_structured_file(sdd_file)
-                manifest = SDDManifest(**sdd_data)
-                results.append((sdd_file.resolve(), manifest))
-            except Exception:
-                # Skip invalid SDD files
                 continue
 
     # Legacy single-SDD layout
-    legacy_sdd_yaml = base_path / SpecFactStructure.ROOT / "sdd.yaml"
-    if legacy_sdd_yaml.exists():
-        try:
-            sdd_data = load_structured_file(legacy_sdd_yaml)
-            manifest = SDDManifest(**sdd_data)
-            results.append((legacy_sdd_yaml.resolve(), manifest))
-        except Exception:
-            # Skip invalid SDD file
-            pass
-
-    legacy_sdd_json = base_path / SpecFactStructure.ROOT / "sdd.json"
-    if legacy_sdd_json.exists():
-        try:
-            sdd_data = load_structured_file(legacy_sdd_json)
-            manifest = SDDManifest(**sdd_data)
-            results.append((legacy_sdd_json.resolve(), manifest))
-        except Exception:
-            # Skip invalid SDD file
-            pass
+    for legacy_file in (
+        base_path / SpecFactStructure.ROOT / "sdd.yaml",
+        base_path / SpecFactStructure.ROOT / "sdd.json",
+    ):
+        if legacy_file.exists():
+            try:
+                sdd_data = load_structured_file(legacy_file)
+                manifest = SDDManifest(**sdd_data)
+                results.append((legacy_file.resolve(), manifest))
+            except Exception:
+                continue
 
     return results
 

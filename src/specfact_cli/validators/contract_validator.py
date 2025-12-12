@@ -26,6 +26,9 @@ class ContractDensityMetrics:
         total_invariants: int,
         total_stories: int,
         total_features: int,
+        openapi_coverage_percent: float = 0.0,
+        features_with_openapi: int = 0,
+        total_openapi_contracts: int = 0,
     ) -> None:
         """Initialize contract density metrics.
 
@@ -37,6 +40,9 @@ class ContractDensityMetrics:
             total_invariants: Total number of invariants
             total_stories: Total number of stories
             total_features: Total number of features
+            openapi_coverage_percent: Percentage of features with OpenAPI contracts
+            features_with_openapi: Number of features with OpenAPI contracts
+            total_openapi_contracts: Total number of OpenAPI contracts
         """
         self.contracts_per_story = contracts_per_story
         self.invariants_per_feature = invariants_per_feature
@@ -45,6 +51,9 @@ class ContractDensityMetrics:
         self.total_invariants = total_invariants
         self.total_stories = total_stories
         self.total_features = total_features
+        self.openapi_coverage_percent = openapi_coverage_percent
+        self.features_with_openapi = features_with_openapi
+        self.total_openapi_contracts = total_openapi_contracts
 
     def to_dict(self) -> dict[str, float | int]:
         """Convert metrics to dictionary."""
@@ -56,6 +65,9 @@ class ContractDensityMetrics:
             "total_invariants": self.total_invariants,
             "total_stories": self.total_stories,
             "total_features": self.total_features,
+            "openapi_coverage_percent": self.openapi_coverage_percent,
+            "features_with_openapi": self.features_with_openapi,
+            "total_openapi_contracts": self.total_openapi_contracts,
         }
 
 
@@ -82,6 +94,11 @@ def calculate_contract_density(sdd: SDDManifest, plan: PlanBundle) -> ContractDe
     total_contracts = len(sdd.how.contracts)
     total_invariants = len(sdd.how.invariants)
 
+    # Count OpenAPI contracts from SDD HOW section
+    total_openapi_contracts = len(sdd.how.openapi_contracts)
+    features_with_openapi = len(sdd.how.openapi_contracts)
+    openapi_coverage_percent = (features_with_openapi / total_features * 100.0) if total_features > 0 else 0.0
+
     # Calculate averages
     contracts_per_story = total_contracts / total_stories if total_stories > 0 else 0.0
     invariants_per_feature = total_invariants / total_features if total_features > 0 else 0.0
@@ -100,6 +117,9 @@ def calculate_contract_density(sdd: SDDManifest, plan: PlanBundle) -> ContractDe
         total_invariants=total_invariants,
         total_stories=total_stories,
         total_features=total_features,
+        openapi_coverage_percent=openapi_coverage_percent,
+        features_with_openapi=features_with_openapi,
+        total_openapi_contracts=total_openapi_contracts,
     )
 
 
@@ -129,7 +149,7 @@ def validate_contract_density(sdd: SDDManifest, plan: PlanBundle, metrics: Contr
             type=DeviationType.COVERAGE_THRESHOLD,
             severity=DeviationSeverity.MEDIUM,
             description=f"Contracts per story below threshold: {metrics.contracts_per_story:.2f} < {thresholds.contracts_per_story}",
-            location=".specfact/sdd.yaml",
+            location=".specfact/projects/<bundle>/sdd.yaml",
             fix_hint=f"Add {thresholds.contracts_per_story - metrics.contracts_per_story:.1f} more contract(s) or update threshold",
         )
         deviations.append(deviation)
@@ -140,7 +160,7 @@ def validate_contract_density(sdd: SDDManifest, plan: PlanBundle, metrics: Contr
             type=DeviationType.COVERAGE_THRESHOLD,
             severity=DeviationSeverity.MEDIUM,
             description=f"Invariants per feature below threshold: {metrics.invariants_per_feature:.2f} < {thresholds.invariants_per_feature}",
-            location=".specfact/sdd.yaml",
+            location=".specfact/projects/<bundle>/sdd.yaml",
             fix_hint=f"Add {thresholds.invariants_per_feature - metrics.invariants_per_feature:.1f} more invariant(s) or update threshold",
         )
         deviations.append(deviation)
@@ -151,8 +171,19 @@ def validate_contract_density(sdd: SDDManifest, plan: PlanBundle, metrics: Contr
             type=DeviationType.COVERAGE_THRESHOLD,
             severity=DeviationSeverity.LOW,
             description=f"Architecture facets below threshold: {metrics.architecture_facets} < {thresholds.architecture_facets}",
-            location=".specfact/sdd.yaml",
+            location=".specfact/projects/<bundle>/sdd.yaml",
             fix_hint=f"Add {thresholds.architecture_facets - metrics.architecture_facets} more architecture facet(s) or update threshold",
+        )
+        deviations.append(deviation)
+
+    # Validate OpenAPI contract coverage
+    if metrics.openapi_coverage_percent < thresholds.openapi_coverage_percent:
+        deviation = Deviation(
+            type=DeviationType.COVERAGE_THRESHOLD,
+            severity=DeviationSeverity.MEDIUM,
+            description=f"OpenAPI contract coverage below threshold: {metrics.openapi_coverage_percent:.1f}% < {thresholds.openapi_coverage_percent}%",
+            location=".specfact/projects/<bundle>/sdd.yaml",
+            fix_hint=f"Add OpenAPI contracts for {int((thresholds.openapi_coverage_percent / 100.0 * metrics.total_features) - metrics.features_with_openapi)} more feature(s) or update threshold. Use 'specfact contract init --feature <key>' to create contracts.",
         )
         deviations.append(deviation)
 

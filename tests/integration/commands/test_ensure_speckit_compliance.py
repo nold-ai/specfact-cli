@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 
 from typer.testing import CliRunner
 
@@ -30,45 +29,59 @@ class TestEnsureSpeckitComplianceFlag:
                 specify_dir.mkdir(parents=True)
                 (specify_dir / "constitution.md").write_text("# Constitution\n")
 
-                # Create SpecFact structure with plan bundle
-                plans_dir = repo_path / ".specfact" / "plans"
-                plans_dir.mkdir(parents=True)
+                # Create SpecFact structure with modular project bundle
+                from specfact_cli.models.plan import Feature, Product, Story
+                from specfact_cli.models.project import BundleManifest, ProjectBundle
+                from specfact_cli.utils.bundle_loader import save_project_bundle
 
-                # Create plan bundle with technology stack in constraints
-                plan_content = dedent(
-                    """
-                    version: '1.0'
-                    idea:
-                      title: Test Project
-                      narrative: Test project description
-                      constraints:
-                        - Python 3.11+
-                        - FastAPI framework
-                        - PostgreSQL database
-                    product:
-                      themes: []
-                      releases: []
-                    features:
-                      - key: FEATURE-001
-                        title: Test Feature
-                        outcomes: []
-                        acceptance:
-                          - Must verify feature works correctly
-                        constraints: []
-                        stories:
-                          - key: STORY-001
-                            title: As a user, I can use the feature
-                            acceptance:
-                              - Must verify feature works
-                              - Must validate input
-                            story_points: 5
-                        confidence: 0.9
-                        draft: false
-                    metadata:
-                      stage: draft
-                    """
+                projects_dir = repo_path / ".specfact" / "projects"
+                projects_dir.mkdir(parents=True)
+                bundle_dir = projects_dir / "main"
+                bundle_dir.mkdir()
+
+                # Create modular project bundle with technology stack in constraints
+                manifest = BundleManifest(
+                    schema_metadata=None,
+                    project_metadata=None,
+                    personas={},
                 )
-                (plans_dir / "main.bundle.yaml").write_text(plan_content)
+                product = Product(themes=[], releases=[])
+                bundle = ProjectBundle(manifest=manifest, bundle_name="main", product=product)
+
+                # Add idea with constraints
+                from specfact_cli.models.plan import Idea
+
+                bundle.idea = Idea(
+                    title="Test Project",
+                    narrative="Test project description",
+                    constraints=["Python 3.11+", "FastAPI framework", "PostgreSQL database"],
+                    metrics=None,
+                )
+
+                # Add feature
+                feature = Feature(
+                    key="FEATURE-001",
+                    title="Test Feature",
+                    outcomes=[],
+                    acceptance=["Must verify feature works correctly"],
+                    constraints=[],
+                    stories=[
+                        Story(
+                            key="STORY-001",
+                            title="As a user, I can use the feature",
+                            acceptance=["Must verify feature works", "Must validate input"],
+                            story_points=5,
+                            value_points=None,
+                            scenarios=None,
+                            contracts=None,
+                        )
+                    ],
+                    source_tracking=None,
+                    contract=None,
+                    protocol=None,
+                )
+                bundle.add_feature(feature)
+                save_project_bundle(bundle, bundle_dir, atomic=True)
 
                 # Sync with compliance flag
                 result = runner.invoke(

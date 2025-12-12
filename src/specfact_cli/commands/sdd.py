@@ -64,9 +64,12 @@ def sdd_list(
 
     if not all_sdds:
         console.print("[yellow]No SDD manifests found[/yellow]")
-        console.print(f"[dim]Searched in: {base_path / SpecFactStructure.SDD}[/dim]")
-        console.print(f"[dim]Legacy location: {base_path / SpecFactStructure.ROOT / 'sdd.yaml'}[/dim]")
+        console.print(f"[dim]Searched in: {base_path / SpecFactStructure.PROJECTS}/*/sdd.yaml[/dim]")
+        console.print(
+            f"[dim]Legacy fallback: {base_path / SpecFactStructure.SDD}/* and {base_path / SpecFactStructure.ROOT / 'sdd.yaml'}[/dim]"
+        )
         console.print("\n[dim]Create SDD manifests with: specfact plan harden <bundle-name>[/dim]")
+        console.print("[dim]If you have legacy bundles, migrate with: specfact migrate artifacts --repo .[/dim]")
         raise typer.Exit(0)
 
     # Create table
@@ -78,9 +81,13 @@ def sdd_list(
     table.add_column("Coverage", style="yellow")
 
     for sdd_path, manifest in all_sdds:
-        # Determine if this is legacy or multi-SDD layout
-        is_legacy = sdd_path.name == "sdd.yaml" or sdd_path.name == "sdd.json"
-        layout_type = "[dim]legacy[/dim]" if is_legacy else "[green]multi-SDD[/green]"
+        # Determine if this is legacy or bundle-specific layout
+        # Bundle-specific (new format): .specfact/projects/<bundle-name>/sdd.yaml
+        # Legacy single-SDD: .specfact/sdd.yaml (root level)
+        # Legacy multi-SDD: .specfact/sdd/<bundle-name>.yaml
+        sdd_path_str = str(sdd_path)
+        is_bundle_specific = "/projects/" in sdd_path_str or "\\projects\\" in sdd_path_str
+        layout_type = "[green]bundle-specific[/green]" if is_bundle_specific else "[dim]legacy[/dim]"
 
         # Format path (relative to base_path)
         try:
@@ -119,14 +126,14 @@ def sdd_list(
     console.print(f"\n[dim]Total SDD manifests: {len(all_sdds)}[/dim]")
 
     # Show layout information
-    legacy_count = sum(1 for path, _ in all_sdds if path.name == "sdd.yaml" or path.name == "sdd.json")
-    multi_count = len(all_sdds) - legacy_count
+    bundle_specific_count = sum(1 for path, _ in all_sdds if "/projects/" in str(path) or "\\projects\\" in str(path))
+    legacy_count = len(all_sdds) - bundle_specific_count
+
+    if bundle_specific_count > 0:
+        console.print(f"[green]✓ {bundle_specific_count} bundle-specific SDD manifest(s) found[/green]")
 
     if legacy_count > 0:
         console.print(f"[yellow]⚠ {legacy_count} legacy SDD manifest(s) found[/yellow]")
         console.print(
             "[dim]Consider migrating to bundle-specific layout: .specfact/projects/<bundle-name>/sdd.yaml (Phase 8.5)[/dim]"
         )
-
-    if multi_count > 0:
-        console.print(f"[green]✓ {multi_count} multi-SDD manifest(s) found[/green]")

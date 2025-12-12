@@ -117,4 +117,10 @@ reports/
 
 # Jekyll bundle
 vendor/
-_site/findings.json
+_site/
+
+# specfact-cli artifacts (note: these should be generated in /tmp/)
+findings.json
+answers.json
+questions.json
+docs/project-plans/

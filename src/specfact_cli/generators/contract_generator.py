@@ -97,6 +97,35 @@ class ContractGenerator:
             except Exception as e:
                 errors.append(f"Error generating contracts for {feature.key}: {e}")
 
+        # Fallback: if SDD has contracts/invariants but no feature-specific files were generated,
+        # create a generic bundle-level stub so users still get actionable output.
+        # Also handle case where plan has no features but SDD has contracts/invariants
+        # IMPORTANT: Always generate at least one file if SDD has contracts/invariants
+        has_contracts = bool(sdd.how.contracts)
+        has_invariants = bool(sdd.how.invariants)
+        has_contracts_or_invariants = has_contracts or has_invariants
+
+        if not generated_files and has_contracts_or_invariants:
+            generic_file = contracts_dir / "bundle_contracts.py"
+            # Ensure directory exists
+            generic_file.parent.mkdir(parents=True, exist_ok=True)
+            lines = [
+                '"""Contract stubs generated from SDD HOW section (bundle-level fallback)."""',
+                "from beartype import beartype",
+                "from icontract import ensure, invariant, require",
+                "",
+                "# TODO: Map these contracts/invariants to specific features and stories",
+            ]
+            if has_contracts:
+                for idx, contract in enumerate(sdd.how.contracts, 1):
+                    lines.append(f"# Contract {idx}: {contract}")
+            if has_invariants:
+                for idx, invariant in enumerate(sdd.how.invariants, 1):
+                    lines.append(f"# Invariant {idx}: {invariant}")
+            lines.append("")
+            generic_file.write_text("\n".join(lines), encoding="utf-8")
+            generated_files.append(generic_file)
+
         return {
             "generated_files": [str(f) for f in generated_files],
             "contracts_per_story": contracts_per_story,

@@ -57,6 +57,16 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 
 **For teams that can't afford production bugs during migration.**
 
+### 🎯 Built for Real-World Agile Teams
+
+SpecFact isn't just a technical tool—it's designed for **real-world agile/scrum teams** with role-based workflows:
+
+- 👤 **Product Owners** → Export backlog with DoR checklists, prioritization, dependencies, and sprint planning
+- 🏗️ **Architects** → Export technical constraints, protocols, contracts, architectural decisions, and risk assessments
+- 💻 **Developers** → Export implementation tasks, code mappings, test scenarios, and Definition of Done criteria
+
+**Each role works in their own Markdown files** (no YAML editing), and SpecFact syncs everything together automatically. Perfect for teams using agile/scrum practices with clear role separation.
+
 ---
 
 ## Why SpecFact?
@@ -85,12 +95,55 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 
 ## 💡 Key Capabilities
 
+### Technical Capabilities
+
 - ✅ **Reverse engineer legacy code** → Extract specs automatically from existing code
 - ✅ **Runtime contract enforcement** → Prevent regressions during modernization
 - ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
 - ✅ **API contract testing** → Validate OpenAPI/AsyncAPI specs with Specmatic integration
 - ✅ **Works offline** → No cloud required, fully local
 - ✅ **CLI integrations** → Works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow
+
+### Team Collaboration Capabilities
+
+- ✅ **Persona-based workflows** → Product Owners, Architects, and Developers work in parallel on their own sections
+- ✅ **Agile/scrum alignment** → Definition of Ready (DoR), story points, dependencies, prioritization, sprint planning
+- ✅ **Role-specific exports** → Each persona gets a tailored Markdown view with only what they need
+- ✅ **Git-native collaboration** → Conflicts resolved in human-readable Markdown, not brittle YAML
+- ✅ **Real-world templates** → Templates designed by agile coaches to match actual team expectations
+
+---
+
+## 👥 Team Collaboration: Persona-Based Workflows
+
+SpecFact enables **real-world agile/scrum teams** to work together seamlessly with role-based workflows:
+
+```bash
+# Product Owner: Export backlog for sprint planning
+specfact project export --bundle legacy-api --persona product-owner
+# → Exports: DoR checklists, prioritization, dependencies, business value, sprint planning
+
+# Architect: Export technical design
+specfact project export --bundle legacy-api --persona architect
+# → Exports: Technical constraints, protocols, contracts, architectural decisions, NFRs
+
+# Developer: Export implementation details
+specfact project export --bundle legacy-api --persona developer
+# → Exports: Tasks, code mappings, test scenarios, Definition of Done
+
+# Each role edits their Markdown, then imports back
+specfact project import --bundle legacy-api --persona product-owner --source backlog.md
+```
+
+**Why this matters:**
+
+- ✅ **No YAML editing** → Everyone works in familiar Markdown
+- ✅ **Parallel workflows** → Product Owners, Architects, and Developers work simultaneously
+- ✅ **Git-native** → Conflicts resolved in Markdown (human-readable), not YAML
+- ✅ **Agile/scrum ready** → Built-in DoR validation, dependency tracking, sprint planning
+- ✅ **Real-world templates** → Designed by agile coaches to match actual team expectations
+
+👉 **[Agile/Scrum Workflows Guide](docs/guides/agile-scrum-workflows.md)** - Complete guide to persona-based team collaboration
 
 ---
 
@@ -127,6 +180,8 @@ We ran SpecFact CLI **on itself** to prove it works with legacy code:
 ## Documentation
 
 **New to SpecFact?** Start with the [Getting Started Guide](docs/getting-started/README.md)
+
+**Working with a team?** See [Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md) - Persona-based team collaboration with Product Owners, Architects, and Developers
 
 **Want to see integrations?** Check out [Integration Showcases](docs/examples/integration-showcases/) - Real bugs fixed via VS Code, Cursor, GitHub Actions
 
