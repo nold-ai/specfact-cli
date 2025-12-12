@@ -139,6 +139,7 @@ def sample_sdd_manifest() -> SDDManifest:
             contracts_per_story=1.0,
             invariants_per_feature=1.0,
             architecture_facets=3,
+            openapi_coverage_percent=0.0,  # Disable OpenAPI coverage validation for unit tests
         ),
         enforcement_budget=SDDEnforcementBudget(
             shadow_budget_seconds=300,
@@ -227,6 +228,7 @@ class TestCalculateContractDensity:
                 contracts_per_story=1.0,
                 invariants_per_feature=1.0,
                 architecture_facets=3,
+                openapi_coverage_percent=0.0,  # Disable OpenAPI coverage validation for unit tests
             ),
             enforcement_budget=SDDEnforcementBudget(
                 shadow_budget_seconds=300,
@@ -306,6 +308,7 @@ class TestValidateContractDensity:
                 contracts_per_story=1.0,
                 invariants_per_feature=1.0,
                 architecture_facets=3,
+                openapi_coverage_percent=0.0,  # Disable OpenAPI coverage validation for unit tests
             ),
             enforcement_budget=SDDEnforcementBudget(
                 shadow_budget_seconds=300,
@@ -341,6 +344,7 @@ class TestValidateContractDensity:
                 contracts_per_story=1.0,
                 invariants_per_feature=1.0,
                 architecture_facets=3,
+                openapi_coverage_percent=0.0,  # Disable OpenAPI coverage validation for unit tests
             ),
             enforcement_budget=SDDEnforcementBudget(
                 shadow_budget_seconds=300,
@@ -376,6 +380,7 @@ class TestValidateContractDensity:
                 contracts_per_story=1.0,
                 invariants_per_feature=1.0,
                 architecture_facets=3,
+                openapi_coverage_percent=0.0,  # Disable OpenAPI coverage validation for unit tests
             ),
             enforcement_budget=SDDEnforcementBudget(
                 shadow_budget_seconds=300,
@@ -411,6 +416,7 @@ class TestValidateContractDensity:
                 contracts_per_story=1.0,
                 invariants_per_feature=1.0,
                 architecture_facets=3,
+                openapi_coverage_percent=0.0,  # Disable OpenAPI coverage validation for unit tests
             ),
             enforcement_budget=SDDEnforcementBudget(
                 shadow_budget_seconds=300,

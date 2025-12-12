@@ -9,6 +9,7 @@ SpecFact contract-driven format using the bridge architecture.
 from __future__ import annotations
 
 import multiprocessing
+import os
 from pathlib import Path
 from typing import Any
 
@@ -23,10 +24,14 @@ from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.performance import track_performance
 from specfact_cli.utils.progress import save_bundle_with_progress
 
 
-app = typer.Typer(help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format")
+app = typer.Typer(
+    help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format",
+    context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
+)
 console = Console()
 
 
@@ -172,6 +177,7 @@ def _analyze_codebase(
     confidence: float,
     key_format: str,
     routing_result: Any,
+    incremental_callback: Any | None = None,
 ) -> PlanBundle:
     """Analyze codebase using AI agent or AST fallback."""
     from specfact_cli.agents.analyze_agent import AnalyzeAgent
@@ -200,13 +206,20 @@ def _analyze_codebase(
         "\n[yellow]⏱️  Note: This analysis typically takes 2-5 minutes for large codebases (optimized for speed)[/yellow]"
     )
 
-    # Create analyzer to check plugin status
+    # Phase 4.9: Create incremental callback for early feedback
+    def on_incremental_update(features_count: int, themes: list[str]) -> None:
+        """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
+        # Feature count updates are shown in the progress bar description, not as separate lines
+        # No intermediate messages needed - final summary provides all information
+
+    # Create analyzer with incremental callback
     analyzer = CodeAnalyzer(
         repo,
         confidence_threshold=confidence,
         key_format=key_format,
         plan_name=bundle,
         entry_point=entry_point,
+        incremental_callback=incremental_callback or on_incremental_update,
     )
 
     # Display plugin status
@@ -793,8 +806,82 @@ def _save_bundle_if_needed(
         console.print("\n[dim]⏭ Skipping bundle save (no changes detected)[/dim]")
 
 
-def _validate_api_specs(repo: Path) -> None:
-    """Validate OpenAPI/AsyncAPI specs with Specmatic if available."""
+def _validate_bundle_contracts(bundle_dir: Path, plan_bundle: PlanBundle) -> tuple[int, int]:
+    """
+    Validate OpenAPI/AsyncAPI contracts in bundle with Specmatic if available.
+
+    Args:
+        bundle_dir: Path to bundle directory
+        plan_bundle: Plan bundle containing features with contract references
+
+    Returns:
+        Tuple of (validated_count, failed_count)
+    """
+    import asyncio
+
+    from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
+
+    # Skip validation in test mode to avoid long-running subprocess calls
+    if os.environ.get("TEST_MODE") == "true":
+        return 0, 0
+
+    is_available, _error_msg = check_specmatic_available()
+    if not is_available:
+        return 0, 0
+
+    validated_count = 0
+    failed_count = 0
+    contract_files = []
+
+    # Collect contract files from features
+    # PlanBundle.features is a list, not a dict
+    features_iter = plan_bundle.features.values() if isinstance(plan_bundle.features, dict) else plan_bundle.features
+    for feature in features_iter:
+        if feature.contract:
+            contract_path = bundle_dir / feature.contract
+            if contract_path.exists():
+                contract_files.append((contract_path, feature.key))
+
+    if not contract_files:
+        return 0, 0
+
+    console.print(f"\n[cyan]🔍 Validating {len(contract_files)} contract(s) in bundle with Specmatic...[/cyan]")
+    for contract_path, feature_key in contract_files[:5]:  # Validate up to 5 contracts
+        console.print(f"[dim]Validating {contract_path.relative_to(bundle_dir)} (from {feature_key})...[/dim]")
+        try:
+            result = asyncio.run(validate_spec_with_specmatic(contract_path))
+            if result.is_valid:
+                console.print(f"  [green]✓[/green] {contract_path.name} is valid")
+                validated_count += 1
+            else:
+                console.print(f"  [yellow]⚠[/yellow] {contract_path.name} has validation issues")
+                if result.errors:
+                    for error in result.errors[:2]:
+                        console.print(f"    - {error}")
+                failed_count += 1
+        except Exception as e:
+            console.print(f"  [yellow]⚠[/yellow] Validation error: {e!s}")
+            failed_count += 1
+
+    if len(contract_files) > 5:
+        console.print(
+            f"[dim]... and {len(contract_files) - 5} more contract(s) (run 'specfact spec validate' to validate all)[/dim]"
+        )
+
+    return validated_count, failed_count
+
+
+def _validate_api_specs(repo: Path, bundle_dir: Path | None = None, plan_bundle: PlanBundle | None = None) -> None:
+    """
+    Validate OpenAPI/AsyncAPI specs with Specmatic if available.
+
+    Validates both repo-level spec files and bundle contracts if provided.
+
+    Args:
+        repo: Repository path
+        bundle_dir: Optional bundle directory path
+        plan_bundle: Optional plan bundle for contract validation
+    """
     import asyncio
 
     spec_files = []
@@ -808,8 +895,16 @@ def _validate_api_specs(repo: Path) -> None:
     ]:
         spec_files.extend(repo.glob(pattern))
 
+    validated_contracts = 0
+    failed_contracts = 0
+
+    # Validate bundle contracts if provided
+    if bundle_dir and plan_bundle:
+        validated_contracts, failed_contracts = _validate_bundle_contracts(bundle_dir, plan_bundle)
+
+    # Validate repo-level spec files
     if spec_files:
-        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s)[/cyan]")
+        console.print(f"\n[cyan]🔍 Found {len(spec_files)} API specification file(s) in repository[/cyan]")
         from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
 
         is_available, error_msg = check_specmatic_available()
@@ -834,6 +929,52 @@ def _validate_api_specs(repo: Path) -> None:
             console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
         else:
             console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
+    elif validated_contracts > 0 or failed_contracts > 0:
+        # Only show mock server tip if we validated contracts
+        console.print("[dim]💡 Tip: Run 'specfact spec mock' to start a mock server for development[/dim]")
+
+
+def _suggest_next_steps(repo: Path, bundle: str, plan_bundle: PlanBundle | None) -> None:
+    """
+    Suggest next steps after first import (Phase 4.9: Quick Start Optimization).
+
+    Args:
+        repo: Repository path
+        bundle: Bundle name
+        plan_bundle: Generated plan bundle
+    """
+    if plan_bundle is None:
+        return
+
+    console.print("\n[bold cyan]📋 Next Steps:[/bold cyan]")
+    console.print("[dim]Here are some commands you might want to run next:[/dim]\n")
+
+    # Check if this is a first run (no existing bundle)
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
+    is_first_run = not (bundle_dir / "bundle.manifest.yaml").exists()
+
+    if is_first_run:
+        console.print("  [yellow]→[/yellow] [bold]Review your plan:[/bold]")
+        console.print(f"     specfact plan review {bundle}")
+        console.print("     [dim]Review and refine the generated plan bundle[/dim]\n")
+
+        console.print("  [yellow]→[/yellow] [bold]Compare with code:[/bold]")
+        console.print(f"     specfact plan compare --bundle {bundle}")
+        console.print("     [dim]Detect deviations between plan and code[/dim]\n")
+
+        console.print("  [yellow]→[/yellow] [bold]Validate SDD:[/bold]")
+        console.print(f"     specfact enforce sdd {bundle}")
+        console.print("     [dim]Check for violations and coverage thresholds[/dim]\n")
+    else:
+        console.print("  [yellow]→[/yellow] [bold]Review changes:[/bold]")
+        console.print(f"     specfact plan review {bundle}")
+        console.print("     [dim]Review updates to your plan bundle[/dim]\n")
+
+        console.print("  [yellow]→[/yellow] [bold]Check deviations:[/bold]")
+        console.print(f"     specfact plan compare --bundle {bundle}")
+        console.print("     [dim]See what changed since last import[/dim]\n")
 
 
 def _suggest_constitution_bootstrap(repo: Path) -> None:
@@ -882,15 +1023,23 @@ def _suggest_constitution_bootstrap(repo: Path) -> None:
 
 
 def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
-    """Enrich plan for Spec-Kit compliance."""
+    """
+    Enrich plan for Spec-Kit compliance using PlanEnricher.
+
+    This function uses PlanEnricher for consistent enrichment behavior with
+    the `plan review --auto-enrich` command. It also adds edge case stories
+    for features with only 1 story to ensure better tool compliance.
+    """
     console.print("\n[cyan]🔧 Enriching plan for tool compliance...[/cyan]")
     try:
-        from specfact_cli.analyzers.ambiguity_scanner import AmbiguityScanner
+        from specfact_cli.enrichers.plan_enricher import PlanEnricher
 
-        console.print("[dim]Running plan review to identify gaps...[/dim]")
-        scanner = AmbiguityScanner()
-        _ambiguity_report = scanner.scan(plan_bundle)
+        # Use PlanEnricher for consistent enrichment (same as plan review --auto-enrich)
+        console.print("[dim]Enhancing vague acceptance criteria, incomplete requirements, generic tasks...[/dim]")
+        enricher = PlanEnricher()
+        enrichment_summary = enricher.enrich_plan(plan_bundle)
 
+        # Add edge case stories for features with only 1 story (preserve existing behavior)
         features_with_one_story = [f for f in plan_bundle.features if len(f.stories) == 1]
         if features_with_one_story:
             console.print(f"[yellow]⚠ Found {len(features_with_one_story)} features with only 1 story[/yellow]")
@@ -936,33 +1085,22 @@ def _enrich_for_speckit_compliance(plan_bundle: PlanBundle) -> None:
 
             console.print(f"[green]✓ Added edge case stories to {len(features_with_one_story)} features[/green]")
 
-        features_updated = 0
-        for feature in plan_bundle.features:
-            for story in feature.stories:
-                testable_count = sum(
-                    1
-                    for acc in story.acceptance
-                    if any(keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"])
+        # Display enrichment summary (consistent with plan review --auto-enrich)
+        if enrichment_summary["features_updated"] > 0 or enrichment_summary["stories_updated"] > 0:
+            console.print(
+                f"[green]✓ Enhanced plan bundle: {enrichment_summary['features_updated']} features, "
+                f"{enrichment_summary['stories_updated']} stories updated[/green]"
+            )
+            if enrichment_summary["acceptance_criteria_enhanced"] > 0:
+                console.print(
+                    f"[dim]  - Enhanced {enrichment_summary['acceptance_criteria_enhanced']} acceptance criteria[/dim]"
                 )
-
-                if testable_count < len(story.acceptance) and len(story.acceptance) > 0:
-                    enhanced_acceptance = []
-                    for acc in story.acceptance:
-                        if not any(
-                            keyword in acc.lower() for keyword in ["must", "should", "verify", "validate", "ensure"]
-                        ):
-                            if acc.startswith(("User can", "System can")):
-                                enhanced_acceptance.append(f"Must verify {acc.lower()}")
-                            else:
-                                enhanced_acceptance.append(f"Must verify {acc}")
-                        else:
-                            enhanced_acceptance.append(acc)
-
-                    story.acceptance = enhanced_acceptance
-                    features_updated += 1
-
-        if features_updated > 0:
-            console.print(f"[green]✓ Enhanced acceptance criteria for {features_updated} stories[/green]")
+            if enrichment_summary["requirements_enhanced"] > 0:
+                console.print(f"[dim]  - Enhanced {enrichment_summary['requirements_enhanced']} requirements[/dim]")
+            if enrichment_summary["tasks_enhanced"] > 0:
+                console.print(f"[dim]  - Enhanced {enrichment_summary['tasks_enhanced']} tasks[/dim]")
+        else:
+            console.print("[green]✓ Plan bundle is already well-specified (no enrichments needed)[/green]")
 
         console.print("[green]✓ Tool enrichment complete[/green]")
 
@@ -980,6 +1118,9 @@ def _generate_report(
     report: Path,
 ) -> None:
     """Generate import report."""
+    # Ensure report directory exists (Phase 8.5: bundle-specific reports)
+    report.parent.mkdir(parents=True, exist_ok=True)
+
     total_stories = sum(len(f.stories) for f in plan_bundle.features)
 
     report_content = f"""# Brownfield Import Report
@@ -1058,6 +1199,7 @@ def from_bridge(
         "speckit",
         "--adapter",
         help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -1208,8 +1350,42 @@ def from_bridge(
                 _workflow_path = converter.generate_github_action(repo_name=repo_name)  # Not used yet
                 progress.update(task, description="✓ GitHub Action workflow generated")
 
+            except (FileExistsError, IsADirectoryError) as e:
+                from specfact_cli.migrations.plan_migrator import get_current_schema_version
+                from specfact_cli.models.plan import PlanBundle, Product
+
+                # Allow reruns without forcing callers to pass --force
+                # Also handle case where path is a directory instead of a file
+                console.print(
+                    f"[yellow]⚠ Files already exist or path conflict; reusing existing generated artifacts ({e})[/yellow]"
+                )
+                if plan_bundle is None:
+                    plan_bundle = PlanBundle(
+                        version=get_current_schema_version(),
+                        idea=None,
+                        business=None,
+                        product=Product(themes=[], releases=[]),
+                        features=[],
+                        clarifications=None,
+                        metadata=None,
+                    )
+                if protocol is None:
+                    # Try to load existing protocol if available
+                    protocol_path = repo / ".specfact" / "protocols" / "workflow.protocol.yaml"
+                    if protocol_path.exists():
+                        from specfact_cli.models.protocol import Protocol
+                        from specfact_cli.utils.yaml_utils import load_yaml
+
+                        try:
+                            protocol_data = load_yaml(protocol_path)
+                            protocol = Protocol(**protocol_data)
+                        except Exception:
+                            pass
             except Exception as e:
                 console.print(f"[bold red]✗[/bold red] Conversion failed: {e}")
+                import traceback
+
+                console.print(f"[dim]{traceback.format_exc()}[/dim]")
                 raise typer.Exit(1) from e
 
         # Generate report
@@ -1294,17 +1470,19 @@ def from_code(
         None,
         "--entry-point",
         help="Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Default: None (analyze entire repo)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     enrichment: Path | None = typer.Option(
         None,
         "--enrichment",
         help="Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context). Default: None",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Output/Results
     report: Path | None = typer.Option(
         None,
         "--report",
-        help="Path to write analysis report. Default: .specfact/reports/brownfield/analysis-<timestamp>.md",
+        help="Path to write analysis report. Default: bundle-specific .specfact/projects/<bundle-name>/reports/brownfield/analysis-<timestamp>.md (Phase 8.5)",
     ),
     # Behavior/Options
     shadow_only: bool = typer.Option(
@@ -1313,9 +1491,9 @@ def from_code(
         help="Shadow mode - observe without enforcing. Default: False",
     ),
     enrich_for_speckit: bool = typer.Option(
-        False,
-        "--enrich-for-speckit",
-        help="Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature). Default: False",
+        True,
+        "--enrich-for-speckit/--no-enrich-for-speckit",
+        help="Automatically enrich plan for Spec-Kit compliance (uses PlanEnricher to enhance vague acceptance criteria, incomplete requirements, generic tasks, and adds edge case stories for features with only 1 story). Default: True (enabled)",
     ),
     force: bool = typer.Option(
         False,
@@ -1327,18 +1505,20 @@ def from_code(
         "--include-tests/--exclude-tests",
         help="Include/exclude test files in relationship mapping. Default: --include-tests (test files are included for comprehensive analysis). Use --exclude-tests to optimize speed.",
     ),
-    # Advanced/Configuration
+    # Advanced/Configuration (hidden by default, use --help-advanced to see)
     confidence: float = typer.Option(
         0.5,
         "--confidence",
         min=0.0,
         max=1.0,
         help="Minimum confidence score for features. Default: 0.5 (range: 0.0-1.0)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     key_format: str = typer.Option(
         "classname",
         "--key-format",
         help="Feature key format: 'classname' (FEATURE-CLASSNAME) or 'sequential' (FEATURE-001). Default: classname",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -1400,7 +1580,8 @@ def from_code(
     SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle)
 
     if report is None:
-        report = SpecFactStructure.get_brownfield_analysis_path(repo)
+        # Use bundle-specific report path (Phase 8.5)
+        report = SpecFactStructure.get_bundle_brownfield_report_path(bundle_name=bundle, base_path=repo)
 
     console.print(f"[bold cyan]Importing repository:[/bold cyan] {repo}")
     console.print(f"[bold cyan]Project bundle:[/bold cyan] {bundle}")
@@ -1417,7 +1598,11 @@ def from_code(
         "shadow_mode": shadow_only,
     }
 
-    with telemetry.track_command("import.from_code", telemetry_metadata) as record_event:
+    # Phase 4.10: CI Performance Optimization - Track performance
+    with (
+        track_performance("import.from_code", threshold=5.0) as perf_monitor,
+        telemetry.track_command("import.from_code", telemetry_metadata) as record_event,
+    ):
         try:
             # If enrichment is provided, try to load existing bundle
             # Note: For now, enrichment workflow needs to be updated for modular bundles
@@ -1448,11 +1633,28 @@ def from_code(
                     plan_bundle = _load_existing_bundle(bundle_dir)
 
                 if plan_bundle is None:
-                    plan_bundle = _analyze_codebase(repo, entry_point, bundle, confidence, key_format, routing_result)
+                    # Phase 4.9 & 4.10: Track codebase analysis performance
+                    with perf_monitor.track("analyze_codebase", {"files": python_file_count}):
+                        # Phase 4.9: Create callback for incremental results
+                        def on_incremental_update(features_count: int, themes: list[str]) -> None:
+                            """Callback for incremental results (Phase 4.9: Quick Start Optimization)."""
+                            # Feature count updates are shown in the progress bar description, not as separate lines
+                            # No intermediate messages needed - final summary provides all information
+
+                        plan_bundle = _analyze_codebase(
+                            repo,
+                            entry_point,
+                            bundle,
+                            confidence,
+                            key_format,
+                            routing_result,
+                            incremental_callback=on_incremental_update,
+                        )
                     if plan_bundle is None:
                         console.print("[bold red]✗ Failed to analyze codebase[/bold red]")
                         raise typer.Exit(1)
 
+                    # Phase 4.9: Analysis complete (results shown in progress bar and final summary)
                     console.print(f"[green]✓[/green] Found {len(plan_bundle.features)} features")
                     console.print(f"[green]✓[/green] Detected themes: {', '.join(plan_bundle.product.themes)}")
                     total_stories = sum(len(f.stories) for f in plan_bundle.features)
@@ -1465,7 +1667,8 @@ def from_code(
                 raise typer.Exit(1)
 
             # Add source tracking to features
-            _update_source_tracking(plan_bundle, repo)
+            with perf_monitor.track("update_source_tracking"):
+                _update_source_tracking(plan_bundle, repo)
 
             # Enhanced Analysis Phase: Extract relationships, contracts, and graph dependencies
             # Check if we need to regenerate these artifacts
@@ -1478,48 +1681,64 @@ def from_code(
                 "enrichment_context", True
             )
 
-            relationships, _graph_summary = _extract_relationships_and_graph(
-                repo,
-                entry_point,
-                bundle_dir,
-                incremental_changes,
-                plan_bundle,
-                should_regenerate_relationships,
-                should_regenerate_graph,
-                include_tests,
-            )
+            # Phase 4.10: Track relationship extraction performance
+            with perf_monitor.track("extract_relationships_and_graph"):
+                relationships, _graph_summary = _extract_relationships_and_graph(
+                    repo,
+                    entry_point,
+                    bundle_dir,
+                    incremental_changes,
+                    plan_bundle,
+                    should_regenerate_relationships,
+                    should_regenerate_graph,
+                    include_tests,
+                )
 
-            # Extract contracts
-            contracts_data = _extract_contracts(
-                repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
-            )
+            # Phase 4.10: Track contract extraction performance
+            with perf_monitor.track("extract_contracts"):
+                contracts_data = _extract_contracts(
+                    repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
+                )
 
-            # Build enrichment context
-            _build_enrichment_context(
-                bundle_dir, repo, plan_bundle, relationships, contracts_data, should_regenerate_enrichment, record_event
-            )
+            # Phase 4.10: Track enrichment context building performance
+            with perf_monitor.track("build_enrichment_context"):
+                _build_enrichment_context(
+                    bundle_dir,
+                    repo,
+                    plan_bundle,
+                    relationships,
+                    contracts_data,
+                    should_regenerate_enrichment,
+                    record_event,
+                )
 
             # Apply enrichment if provided
             if enrichment:
-                plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
+                with perf_monitor.track("apply_enrichment"):
+                    plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
 
             # Save bundle if needed
-            _save_bundle_if_needed(
-                plan_bundle,
-                bundle,
-                bundle_dir,
-                incremental_changes,
-                should_regenerate_relationships,
-                should_regenerate_graph,
-                should_regenerate_contracts,
-                should_regenerate_enrichment,
-            )
+            with perf_monitor.track("save_bundle"):
+                _save_bundle_if_needed(
+                    plan_bundle,
+                    bundle,
+                    bundle_dir,
+                    incremental_changes,
+                    should_regenerate_relationships,
+                    should_regenerate_graph,
+                    should_regenerate_contracts,
+                    should_regenerate_enrichment,
+                )
 
             console.print("\n[bold green]✓ Import complete![/bold green]")
             console.print(f"[dim]Project bundle written to: {bundle_dir}[/dim]")
 
-            # Validate API specs
-            _validate_api_specs(repo)
+            # Validate API specs (both repo-level and bundle contracts)
+            with perf_monitor.track("validate_api_specs"):
+                _validate_api_specs(repo, bundle_dir=bundle_dir, plan_bundle=plan_bundle)
+
+            # Phase 4.9: Suggest next steps (Quick Start Optimization)
+            _suggest_next_steps(repo, bundle, plan_bundle)
 
             # Suggest constitution bootstrap
             _suggest_constitution_bootstrap(repo)
@@ -1537,6 +1756,12 @@ def from_code(
                 raise typer.Exit(1)
 
             _generate_report(repo, bundle_dir, plan_bundle, confidence, enrichment, report)
+
+            # Phase 4.10: Print performance report if slow operations detected
+            perf_report = perf_monitor.get_report()
+            if perf_report.slow_operations and not os.environ.get("CI"):
+                # Only show in non-CI mode (interactive)
+                perf_report.print_summary()
 
         except KeyboardInterrupt:
             # Re-raise KeyboardInterrupt immediately (don't catch it here)

@@ -8,6 +8,7 @@ during plan review to improve plan quality without manual intervention.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from beartype import beartype
@@ -183,7 +184,7 @@ class PlanEnricher:
     @ensure(lambda result: len(result) > 0, "Result must be non-empty")
     def _enhance_vague_acceptance_criteria(self, acceptance: str, story_title: str, feature_title: str) -> str:
         """
-        Enhance vague acceptance criteria (e.g., "is implemented" → "Given [state], When [action], Then [outcome]").
+        Enhance vague acceptance criteria using simple text format (not GWT format).
 
         This method only enhances vague/generic criteria. Code-specific criteria (containing method names,
         class names, file paths, type hints) are preserved unchanged.
@@ -194,48 +195,76 @@ class PlanEnricher:
             feature_title: Feature title for context
 
         Returns:
-            Enhanced acceptance criteria in Given/When/Then format, or original if already code-specific
+            Enhanced acceptance criteria in simple text format, or original if already code-specific
         """
+        acceptance_lower = acceptance.lower()
+
+        # FIRST: Check if it's already in Given/When/Then format and convert it
+        # This must happen before code-specific check, as GWT format might be misidentified as code-specific
+        has_gwt_format = (
+            re.search(r"\bgiven\b", acceptance_lower, re.IGNORECASE)
+            and re.search(r"\bwhen\b", acceptance_lower, re.IGNORECASE)
+            and re.search(r"\bthen\b", acceptance_lower, re.IGNORECASE)
+        )
+        if has_gwt_format:
+            # Extract the "Then" part as the core requirement
+            # Split by "then" (case-insensitive) and take the last part
+            parts = re.split(r"\bthen\b", acceptance_lower, flags=re.IGNORECASE)
+            if len(parts) > 1:
+                then_part = parts[-1].strip()
+                # Remove common trailing phrases and clean up
+                then_part = re.sub(r"\bsuccessfully\b", "", then_part).strip()
+                then_part = re.sub(r"\s+", " ", then_part)  # Normalize whitespace
+                if then_part:
+                    # Capitalize first letter and create simple format
+                    then_capitalized = then_part[0].upper() + then_part[1:] if len(then_part) > 1 else then_part.upper()
+                    return f"Must verify {then_capitalized}"
+            return acceptance
+
         # Skip enrichment if criteria are already code-specific
         if self._is_code_specific_criteria(acceptance):
             return acceptance
 
-        acceptance_lower = acceptance.lower()
         vague_patterns = [
             (
                 "is implemented",
-                "Given a developer wants to use {story}, When they interact with the system, Then {story} is functional and verified",
+                "Must verify {story} is functional",
             ),
             (
                 "is functional",
-                "Given a user wants to use {story}, When they perform the action, Then {story} works as expected",
+                "Must verify {story} functions correctly",
             ),
             (
                 "works",
-                "Given a user wants to use {story}, When they interact with the system, Then {story} works correctly",
+                "Must verify {story} functions correctly",
             ),
             (
                 "is done",
-                "Given a user wants to complete {story}, When they perform the action, Then {story} is completed successfully",
+                "Must verify {story} is completed successfully",
             ),
             (
                 "is complete",
-                "Given a user wants to complete {story}, When they perform the action, Then {story} is completed successfully",
+                "Must verify {story} is completed successfully",
             ),
             (
                 "is ready",
-                "Given a user wants to use {story}, When they access the system, Then {story} is ready and available",
+                "Must verify {story} is available",
             ),
         ]
 
         for pattern, template in vague_patterns:
-            if pattern in acceptance_lower:
-                # Replace placeholder with story title
-                return template.format(story=story_title.lower())
-
-        # If no vague pattern found, check if it's already in Given/When/Then format
-        if "given" in acceptance_lower and "when" in acceptance_lower and "then" in acceptance_lower:
-            return acceptance
+            # Only match if acceptance is exactly the pattern or starts with it (simple statement)
+            # Use word boundaries to avoid partial matches
+            pattern_re = re.compile(rf"\b{re.escape(pattern)}\b")
+            if pattern_re.search(acceptance_lower):
+                # Only enhance if the entire acceptance is just the vague pattern
+                # or if it's a very simple statement (1-2 words) without code-specific details
+                acceptance_stripped = acceptance_lower.strip()
+                if acceptance_stripped == pattern or (
+                    len(acceptance_stripped.split()) <= 2 and not self._is_code_specific_criteria(acceptance)
+                ):
+                    # Replace placeholder with story title
+                    return template.format(story=story_title)
 
         # If it's a simple statement without testable keywords, enhance it
         testable_keywords = ["must", "should", "will", "verify", "validate", "check", "ensure"]
@@ -243,8 +272,8 @@ class PlanEnricher:
             # Convert to testable format
             if acceptance_lower.startswith(("user can", "system can")):
                 return f"Must verify {acceptance.lower()}"
-            # Generate Given/When/Then from simple statement
-            return f"Given a user wants to use {story_title.lower()}, When they perform the action, Then {acceptance}"
+            # Generate simple text format from simple statement
+            return f"Must verify {acceptance}"
 
         return acceptance
 

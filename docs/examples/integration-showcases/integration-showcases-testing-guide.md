@@ -166,7 +166,7 @@ def process_payment(request):
       - Mode detected (CI/CD or Copilot)
       - Features/stories found (may be 0 for minimal test cases)
       - Project bundle location: `.specfact/projects/<name>/` (modular structure)
-      - Analysis report location: `.specfact/reports/brownfield/report-<timestamp>.md`
+      - Analysis report location: `.specfact/projects/<name>/reports/brownfield/analysis-<timestamp>.md` (bundle-specific, Phase 8.5)
    5. **Next Steps**: The AI will offer options:
       - **LLM Enrichment** (optional in CI/CD mode, required in Copilot mode): Add semantic understanding to detect features/stories that AST analysis missed
         - Reply: "Please enrich" or "apply enrichment"
@@ -180,16 +180,15 @@ def process_payment(request):
 
    1. **AI Reads Artifacts**: The AI will read:
       - The CLI-generated project bundle (`.specfact/projects/<name>/` - modular structure)
-      - The analysis report (`.specfact/reports/brownfield/report-<timestamp>.md`)
+      - The analysis report (`.specfact/projects/<name>/reports/brownfield/analysis-<timestamp>.md`)
       - Your source code files (e.g., `views.py`)
    2. **Enrichment Report Creation**: The AI will:
-      - Create `.specfact/reports/enrichment/` directory if it doesn't exist
-      - Draft an enrichment markdown file: `<name>-<timestamp>.enrichment.md`
+      - Draft an enrichment markdown file: `<name>-<timestamp>.enrichment.md` (saved to `.specfact/projects/<name>/reports/enrichment/`, Phase 8.5)
       - Include missing features, stories, confidence adjustments, and business context
    3. **Apply Enrichment**: The AI will run:
 
       ```bash
-      specfact import from-code <name> --repo <workspace> --enrichment .specfact/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
+      specfact import from-code <name> --repo <workspace> --enrichment .specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
       ```
 
    4. **Enriched Project Bundle**: The CLI will update:
@@ -276,11 +275,11 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
   - AI presents CLI output summary with mode, features/stories found, and artifact locations
   - AI offers next steps: LLM enrichment or rerun with different confidence
   - **Project bundle**: `.specfact/projects/<name>/` (modular structure)
-  - **Analysis report**: `.specfact/reports/brownfield/report-<timestamp>.md`
+  - **Analysis report**: `.specfact/projects/<name>/reports/brownfield/analysis-<timestamp>.md` (bundle-specific, Phase 8.5)
   - **After enrichment** (if requested):
-    - Enrichment report: `.specfact/reports/enrichment/<name>-<timestamp>.enrichment.md`
+    - Enrichment report: `.specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md` (bundle-specific, Phase 8.5)
     - Project bundle updated: `.specfact/projects/<name>/` (enriched)
-    - New analysis report: `.specfact/reports/brownfield/report-<enrichment-timestamp>.md`
+    - New analysis report: `.specfact/projects/<name>/reports/brownfield/analysis-<enrichment-timestamp>.md` (bundle-specific, Phase 8.5)
     - Features and stories added (e.g., 1 feature with 4 stories)
     - Business context and confidence adjustments included
 - **CLI-only mode**: Plan bundle created (may show 0 features for minimal cases)
@@ -769,7 +768,7 @@ specfact --no-banner plan compare \
 
 ```text
 ℹ️  Writing comparison report to: 
-.specfact/reports/comparison/report-<timestamp>.md
+.specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md
 
 ============================================================
 SpecFact CLI - Plan Comparison
@@ -821,7 +820,7 @@ Fix the blocking deviations or adjust enforcement config
 - ✅ Deviations detected (enriched plan has features that original plan doesn't)
 - ✅ HIGH severity deviation triggers BLOCK action
 - ✅ Enforcement blocks the comparison (exit code: 1)
-- ✅ Comparison report generated at `.specfact/reports/comparison/report-<timestamp>.md`
+- ✅ Comparison report generated at `.specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md`
 
 **Note**: This demonstrates that plan comparison works and enforcement blocks HIGH severity violations. The deviation is expected because the enriched plan has additional features/stories that the original AST-derived plan doesn't have.
 
@@ -910,7 +909,7 @@ mv src/pipeline_original.py src/pipeline.py
 - ✅ Enforcement configuration: Successfully configured with BALANCED preset
 - ✅ Plan comparison: Successfully detects deviations (1 HIGH severity deviation found)
 - ✅ Enforcement blocking: HIGH severity violations are blocked (exit code: 1)
-- ✅ Comparison report: Generated at `.specfact/reports/comparison/report-<timestamp>.md`
+- ✅ Comparison report: Generated at `.specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md`
 
 **What This Demonstrates**:
 
@@ -1016,7 +1015,7 @@ Summary:
   Failed: 3
   Total duration: 1.73s
 
-Report written to: .specfact/reports/enforcement/report-<timestamp>.yaml
+Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml
 
 ✗ Some validations failed
 ```
@@ -1026,7 +1025,7 @@ Report written to: .specfact/reports/enforcement/report-<timestamp>.yaml
 - ✅ Validation suite runs successfully
 - ✅ Check summary table shows status of each check
 - ✅ Type checking detects type mismatches (if basedpyright is available)
-- ✅ Report generated at `.specfact/reports/enforcement/report-<timestamp>.yaml`
+- ✅ Report generated at `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml` (bundle-specific, Phase 8.5)
 - ✅ Exit code 1 if violations found (blocks PR merge in GitHub Actions)
 
 **Note**: The `repro` command runs validation checks conditionally:
@@ -1412,7 +1411,7 @@ For each example, please provide:
 - [ ] **Full output**: Complete stdout and stderr
 - [ ] **Exit code**: `echo $?` after command
 - [ ] **Files created**: List of test files
-- [ ] **Plan bundle**: Location of `.specfact/plans/` if created
+- [ ] **Project bundle**: Location of `.specfact/projects/<bundle-name>/` if created
 - [ ] **Issues found**: Any problems or unexpected behavior
 - [ ] **Expected vs Actual**: Compare expected output with actual
 
@@ -1600,7 +1599,7 @@ rm -rf specfact-integration-tests
 - Plan bundle: ✅ 1 feature (`FEATURE-DATAPROCESSOR`), 4 stories (including STORY-001: Process Data with None Handling)
 - Enforcement: ✅ Configured with BALANCED preset (HIGH → BLOCK, MEDIUM → WARN, LOW → LOG)
 - Plan comparison: ✅ Detects deviations and blocks HIGH severity violations
-- Comparison reports: ✅ Generated at `.specfact/reports/comparison/report-<timestamp>.md`
+- Comparison reports: ✅ Generated at `.specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md`
 
 **Conclusion**: Example 2 is **fully validated**. The regression prevention workflow works end-to-end. Plan comparison successfully detects deviations between enriched and original plans, and enforcement blocks HIGH severity violations as expected. The workflow demonstrates how SpecFact prevents regressions by detecting when code changes violate plan contracts.
 

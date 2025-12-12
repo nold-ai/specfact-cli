@@ -1,11 +1,49 @@
 # SpecFact CLI
 
-> **Understand and Modernize Legacy Code with Confidence**  
-> Automatically extract specs from existing Python code, then enforce them as contracts
+> **Stop vibe coding. Start shipping quality code with contracts.**  
+> Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts
 
+[![PyPI version](https://img.shields.io/pypi/v/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
+[![Python versions](https://img.shields.io/pypi/pyversions/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE.md)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Status](https://img.shields.io/badge/status-beta-orange.svg)](https://github.com/nold-ai/specfact-cli)
+
+<div align="center">
+
+**[🌐 Learn More at noldai.com](https://noldai.com)** • **[📚 Documentation](https://nold-ai.github.io/specfact-cli)** • **[💬 Support](mailto:hello@noldai.com)**
+
+</div>
+
+---
+
+## 🚀 Quick Start in 60 Seconds
+
+### Install in 10 seconds
+
+```bash
+# Zero-install (recommended)
+uvx --from specfact-cli specfact
+
+# Or install with pip
+pip install specfact-cli
+```
+
+### Your first command (< 60 seconds)
+
+```bash
+# Modernizing legacy code? (Recommended)
+specfact import from-code legacy-api --repo .
+
+# Starting a new project?
+specfact plan init legacy-api --interactive
+
+# Using GitHub Spec-Kit or other tools?
+specfact import from-bridge --repo . --adapter speckit --write
+```
+
+That's it! 🎉
+
+> **Need machine-readable artifacts?** Use `specfact --output-format json …` (or the per-command `--output-format` flag) to emit plan bundles and reports as JSON instead of YAML.
 
 ---
 
@@ -13,11 +51,21 @@
 
 A brownfield-first CLI that **reverse engineers your legacy code** into documented specs, then prevents regressions with runtime contract enforcement.
 
-**Stop guessing what your legacy code does.** SpecFact automatically extracts specs from existing code, then enforces them as you modernize.
+**Stop vibe coding. Start shipping quality code with contracts.** SpecFact automatically extracts specs from existing code, then enforces them as you modernize—preventing bugs before they reach production.
 
 **Perfect for:** Teams modernizing legacy Python systems, data pipelines, DevOps scripts
 
 **For teams that can't afford production bugs during migration.**
+
+### 🎯 Built for Real-World Agile Teams
+
+SpecFact isn't just a technical tool—it's designed for **real-world agile/scrum teams** with role-based workflows:
+
+- 👤 **Product Owners** → Export backlog with DoR checklists, prioritization, dependencies, and sprint planning
+- 🏗️ **Architects** → Export technical constraints, protocols, contracts, architectural decisions, and risk assessments
+- 💻 **Developers** → Export implementation tasks, code mappings, test scenarios, and Definition of Done criteria
+
+**Each role works in their own Markdown files** (no YAML editing), and SpecFact syncs everything together automatically. Perfect for teams using agile/scrum practices with clear role separation.
 
 ---
 
@@ -47,12 +95,55 @@ A brownfield-first CLI that **reverse engineers your legacy code** into document
 
 ## 💡 Key Capabilities
 
+### Technical Capabilities
+
 - ✅ **Reverse engineer legacy code** → Extract specs automatically from existing code
 - ✅ **Runtime contract enforcement** → Prevent regressions during modernization
 - ✅ **Symbolic execution** → Discover hidden edge cases with CrossHair
 - ✅ **API contract testing** → Validate OpenAPI/AsyncAPI specs with Specmatic integration
 - ✅ **Works offline** → No cloud required, fully local
 - ✅ **CLI integrations** → Works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow
+
+### Team Collaboration Capabilities
+
+- ✅ **Persona-based workflows** → Product Owners, Architects, and Developers work in parallel on their own sections
+- ✅ **Agile/scrum alignment** → Definition of Ready (DoR), story points, dependencies, prioritization, sprint planning
+- ✅ **Role-specific exports** → Each persona gets a tailored Markdown view with only what they need
+- ✅ **Git-native collaboration** → Conflicts resolved in human-readable Markdown, not brittle YAML
+- ✅ **Real-world templates** → Templates designed by agile coaches to match actual team expectations
+
+---
+
+## 👥 Team Collaboration: Persona-Based Workflows
+
+SpecFact enables **real-world agile/scrum teams** to work together seamlessly with role-based workflows:
+
+```bash
+# Product Owner: Export backlog for sprint planning
+specfact project export --bundle legacy-api --persona product-owner
+# → Exports: DoR checklists, prioritization, dependencies, business value, sprint planning
+
+# Architect: Export technical design
+specfact project export --bundle legacy-api --persona architect
+# → Exports: Technical constraints, protocols, contracts, architectural decisions, NFRs
+
+# Developer: Export implementation details
+specfact project export --bundle legacy-api --persona developer
+# → Exports: Tasks, code mappings, test scenarios, Definition of Done
+
+# Each role edits their Markdown, then imports back
+specfact project import --bundle legacy-api --persona product-owner --source backlog.md
+```
+
+**Why this matters:**
+
+- ✅ **No YAML editing** → Everyone works in familiar Markdown
+- ✅ **Parallel workflows** → Product Owners, Architects, and Developers work simultaneously
+- ✅ **Git-native** → Conflicts resolved in Markdown (human-readable), not YAML
+- ✅ **Agile/scrum ready** → Built-in DoR validation, dependency tracking, sprint planning
+- ✅ **Real-world templates** → Designed by agile coaches to match actual team expectations
+
+👉 **[Agile/Scrum Workflows Guide](docs/guides/agile-scrum-workflows.md)** - Complete guide to persona-based team collaboration
 
 ---
 
@@ -69,37 +160,6 @@ SpecFact CLI works with your existing tools—no new platform to learn. See real
 👉 **[Integration Showcases](docs/examples/integration-showcases/)** - Real examples of bugs fixed via CLI integrations
 
 **Core USP**: Pure CLI-first approach—works offline, no account required, zero vendor lock-in. Regularly showcases successful integrations that fix bugs not detected by other tools.
-
----
-
-## Quick Start
-
-### Install in 10 seconds
-
-```bash
-# Zero-install (just run it)
-uvx specfact-cli@latest
-
-# Or install with pip
-pip install specfact-cli
-```
-
-### Your first command (< 60 seconds)
-
-```bash
-# Modernizing legacy code? (Recommended)
-specfact import from-code legacy-api --repo .
-
-# Starting a new project?
-specfact plan init legacy-api --interactive
-
-# Using GitHub Spec-Kit or other tools?
-specfact import from-bridge --repo . --adapter speckit --write
-```
-
-That's it! 🎉
-
-> Need machine-readable artifacts? Use `specfact --output-format json …` (or the per-command `--output-format` flag) to emit plan bundles and reports as JSON instead of YAML.
 
 ---
 
@@ -120,6 +180,8 @@ We ran SpecFact CLI **on itself** to prove it works with legacy code:
 ## Documentation
 
 **New to SpecFact?** Start with the [Getting Started Guide](docs/getting-started/README.md)
+
+**Working with a team?** See [Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md) - Persona-based team collaboration with Product Owners, Architects, and Developers
 
 **Want to see integrations?** Check out [Integration Showcases](docs/examples/integration-showcases/) - Real bugs fixed via VS Code, Cursor, GitHub Actions
 
@@ -202,11 +264,16 @@ SpecFact CLI is licensed under the Apache License 2.0, which means:
 - 💬 **Questions?** [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
 - 🐛 **Found a bug?** [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
 - 📧 **Need help?** [hello@noldai.com](mailto:hello@noldai.com)
+- 🌐 **Learn more:** [noldai.com](https://noldai.com)
 
 ---
 
-> **Built with ❤️ by [NOLD AI](https://noldai.com)**
+<div align="center">
+
+**Built with ❤️ by [NOLD AI](https://noldai.com)**
 
 Copyright © 2025 Nold AI (Owner: Dominikus Nold)
 
 **Trademarks**: NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All other trademarks mentioned in this project are the property of their respective owners. See [TRADEMARKS.md](TRADEMARKS.md) for more information.
+
+</div>

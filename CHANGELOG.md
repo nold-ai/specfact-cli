@@ -9,6 +9,458 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.16.1] - 2025-12-12
+
+### Added (0.16.1)
+
+- **Persona Templates** - Enhanced Developer and Architect persona templates with real-world implementation details
+  - **Developer Template**: Added task breakdown, technical design (API contracts, test scenarios), code mappings (source/test functions), sprint context, and Definition of Done sections
+  - **Architect Template**: Added architectural decisions, non-functional requirements, protocols & state machines (loaded from bundle), contracts (OpenAPI/AsyncAPI), risk assessment, and deployment architecture sections
+  - Templates now provide actionable, implementation-focused content aligned with real-world agile/scrum expectations
+
+- **Documentation** - Comprehensive documentation updates for persona workflows
+  - Added `project export` and `project import` command documentation to command reference
+  - Enhanced Agile/Scrum Workflows guide with Developer and Architect persona details
+  - Documented what each persona export includes and validation rules for imports
+
+### Fixed (0.16.1)
+
+- **Persona Templates** - Fixed Markdown linting issues in generated persona exports
+  - Resolved MD012 (multiple consecutive blank lines) errors in architect and developer templates
+  - Fixed MD024 (duplicate headings) by adding feature keys to section headings
+  - Fixed MD036 (emphasis used instead of heading) in ownership sections
+  - Applied extensive Jinja2 whitespace control to ensure clean Markdown output
+
+- **Persona Exporter** - Fixed data model alignment issues
+  - Corrected `feature.constraints` handling (now correctly treats as `list[str]` instead of objects)
+  - Enhanced context preparation to include protocols and contracts from bundle directory
+  - Added support for story tasks, scenarios, contracts, source/test functions, and Definition of Ready in developer context
+
+### Improved (0.16.1)
+
+- **Persona Workflows** - Completed Phase 5.1.6 (Developer & Architect Template Enhancements)
+  - All three persona templates (Product Owner, Developer, Architect) are now production-ready
+  - Templates align with real-world agile/scrum practices and expectations
+  - Enhanced exporter context preparation for all personas
+  - Improved template structure and formatting for better readability
+
+---
+
+## [0.16.0] - 2025-12-11
+
+### Added (0.16.0)
+
+- **Project Command** - Added `--list-personas` flag to `project export` command
+  - Lists all available personas (both in bundle and default personas)
+  - Shows ownership patterns for each persona
+  - Provides instructions on how to add personas
+  - Automatically displays when `--persona` is missing
+
+### Fixed (0.16.0)
+
+- **Generate Command** - Fixed contract generation path resolution
+  - Contracts are now correctly written to bundle-specific `contracts/` directory when `--plan` is a bundle directory
+  - Fixed `sdd_path` possibly unbound errors in contract generation
+  - Improved bundle directory detection for modular project bundles
+
+- **Project Command** - Improved error handling for invalid personas
+  - Enhanced error messages to always show available personas in bundle
+  - Shows default personas with checkmarks indicating which are already added
+  - Provides clear instructions on how to add personas using `init-personas` command
+
+- **Contract Generator** - Fixed logic error in contract file generation
+  - Moved counting logic to correct code block
+  - Ensures contract files are generated when SDD has contracts/invariants
+  - Improved fallback logic for bundle-level contract stubs
+
+- **SDD Discovery** - Fixed incorrect legacy SDD detection
+  - Bundle-specific SDDs (`.specfact/projects/<bundle-name>/sdd.yaml`) are now correctly identified
+  - No longer incorrectly labels new bundle-specific SDDs as "legacy"
+  - Improved search path prioritization for bundle-specific locations
+
+### Improved (0.16.0)
+
+- **Project Command** - Enhanced persona workflow UX
+  - `--persona` option is now optional (shows available personas when missing)
+  - Better error messages guide users to available personas
+  - Consistent persona listing format across all error scenarios
+
+---
+
+## [0.15.5] - 2025-12-11
+
+### Fixed (0.15.5)
+
+- **Review Command** - Fixed integration of answers for "Interaction & UX Flow" category
+  - Added `INTERACTION_UX` category to integration logic in `_integrate_clarification`
+  - Answers for error/empty state questions are now properly integrated into story acceptance criteria
+  - Findings now correctly resolve after answers are integrated and bundle is re-scanned
+
+### Improved (0.15.5)
+
+- **Review Command** - Enhanced coverage summary display
+  - Shows "143 Partial" instead of "143/143 Partial" when all findings are unclear (cleaner UX)
+  - Shows "5/143 Partial" when some findings are clarified (progress indicator)
+  - Fixed unclear findings count calculation to accurately reflect findings that can still generate questions
+  - Counts now correctly decrease as questions are answered and findings are resolved
+
+---
+
+## [0.15.3] - 2025-12-11
+
+### Added (0.15.3)
+
+- **Review Command** - Added `--output-findings PATH` option to save findings directly to file
+  - Saves clean JSON/YAML output without CLI banner (unlike redirecting stdout)
+  - Use with `--list-findings` to save findings to file instead of stdout
+  - Recommended for programmatic processing and batch updates
+  - Mirrors the existing `--output-questions` option for consistency
+
+### Improved (0.15.3)
+
+- **Review Command** - Enhanced findings output workflow
+  - Updated documentation to recommend `--output-findings` over stdout redirection
+  - Clean JSON output makes it easier to process findings programmatically
+  - Consistent API with `--output-questions` option
+
+---
+
+## [0.15.2] - 2025-12-11
+
+### Fixed (0.15.2)
+
+- **Review Command** - Fixed issue where `--max-questions` parameter was not limiting the number of questions per session
+  - Added explicit warning in prompt documentation about the limitation of `--max-questions` parameter
+  - Updated prompt documentation with clearer guidance on the use of `--max-questions` parameter
+
+### Improved (0.15.2)
+
+- **Documentation** - Enhanced documentation on the use of `--max-questions` parameter
+  - Added explicit warning in prompt documentation about the limitation of `--max-questions` parameter
+  - Updated prompt documentation with clearer guidance on the use of `--max-questions` parameter
+
+---
+
+## [0.15.1] - 2025-12-11
+
+### Fixed (0.15.1)
+
+- **Ambiguity Scanner** - Recognize simplified acceptance criteria format
+  - Updated scanner to recognize new simplified format (e.g., "Must verify X works correctly (see contract examples)") as valid
+  - Added `is_simplified_format_criteria()` function to detect simplified format patterns
+  - Prevents false positives for acceptance criteria that reference contract examples in OpenAPI files
+  - Fixes issue where post-GWT refactoring acceptance criteria were incorrectly flagged as vague
+
+### Added (0.15.1)
+
+- **Review Command** - Enhanced question output options
+  - Added `--output-questions PATH` option to save questions directly to file (JSON format)
+  - Avoids need for complex on-the-fly Python code to extract JSON from CLI output
+  - Improved workflow: save questions to file, edit, then use with `--answers` option
+  - Updated prompt documentation with clearer guidance on file-based workflows
+
+### Improved (0.15.1)
+
+- **Documentation** - Enhanced CLI enforcement warnings
+  - Added explicit warnings against modifying `.specfact/` artifacts directly
+  - Clarified that CLI commands should be used even when files don't exist yet
+  - Updated prompt file with comprehensive "What NOT to do" guidance
+  - Emphasized use of `plan update-idea`, `plan update-feature`, etc. instead of direct file edits
+
+## [0.15.0] - 2025-12-11
+
+### Added (0.15.0)
+
+- **Phase 8.5: Bundle-Specific Artifact Organization** - Complete architectural improvement
+  - All bundle-specific artifacts now stored in `.specfact/projects/<bundle-name>/` folders
+  - Bundle-specific reports directory: `.specfact/projects/<bundle-name>/reports/` (brownfield, comparison, enrichment, enforcement)
+  - Bundle-specific SDD manifests: `.specfact/projects/<bundle-name>/sdd.yaml`
+  - Bundle-specific task breakdowns: `.specfact/projects/<bundle-name>/tasks.yaml`
+  - Bundle-specific logs directory: `.specfact/projects/<bundle-name>/logs/`
+  - Migration tool: `specfact migrate artifacts` to move existing artifacts to bundle-specific locations
+  - Cleanup tool: `specfact migrate cleanup-legacy` to remove empty legacy directories
+
+### Changed (0.15.0)
+
+- **Directory Structure** - Improved bundle isolation and organization
+  - Active bundle configuration migrated from `.specfact/plans/config.yaml` to global `.specfact/config.yaml`
+  - Legacy top-level directories removed: `plans/`, `gates/results/` (no longer created by `ensure_structure()`)
+  - All commands now use bundle-specific paths for reports, SDD manifests, tasks, and logs
+  - Atomic bundle saves now preserve `reports/` and `logs/` directories during bundle operations
+
+### Fixed (0.15.0)
+
+- **Atomic Bundle Saves** - Preserve bundle-specific directories
+  - Fixed `save_project_bundle` to preserve `reports/` and `logs/` directories during atomic saves
+  - Ensures bundle-specific directories created by `ensure_project_structure()` are not lost during bundle saves
+
+- **ControlFlowAnalyzer** - Removed GWT patterns
+  - Eliminated all GWT (Given...When...Then) format patterns from scenario generation
+  - Added comprehensive unit tests for scenario extraction (19 tests covering primary, alternate, exception, and recovery scenarios)
+
+- **Integration Tests** - Updated for new directory structure
+  - Fixed all integration tests to reflect bundle-specific artifact locations
+  - Updated test assertions to verify bundle-specific directory creation
+  - Fixed progress bar UI in `import from-code` command
+
+### Improved (0.15.0)
+
+- **Documentation** - Comprehensive updates
+  - Updated end-user documentation to reflect bundle-specific artifact organization
+  - Updated internal implementation plans with Phase 8.5 completion status
+  - Removed references to deprecated legacy directories (`plans/`, `gates/results/`)
+  - Updated command documentation to use new bundle-specific paths
+
+## [0.14.2] - 2025-12-09
+
+### Fixed (0.14.2)
+
+- **Phase 4.2: Progressive Disclosure** - Final implementation verification and documentation alignment
+  - Verified `--help-advanced` and `-ha` work correctly for both main commands and subcommands
+  - Updated implementation documentation with technical details (monkey-patching approach)
+  - Aligned all end-user documentation with actual CLI behavior
+
+### Improved (0.14.2)
+
+- **Internal Plan Documentation** - Enhanced readability and consistency
+  - Fixed status inconsistencies (4.1-4.5 vs 4.1-4.6)
+  - Added phase names to status section for better clarity
+  - Separated completed and pending phases for easier scanning
+
+## [0.14.1] - 2025-12-08
+
+### Added (0.14.1)
+
+- **Phase 4.1: Context Detection System**
+  - Auto-detection of project type, language, framework, existing specs, and configuration
+  - Smart defaults based on detected context
+  - Python framework detection (FastAPI, Django, Flask)
+  - OpenAPI/AsyncAPI spec detection
+  - Specmatic configuration detection
+  - Plan bundle detection
+
+- **Phase 4.2: Progressive Disclosure**
+  - Advanced options hidden by default for cleaner help output
+  - `--help-advanced` flag to reveal all options including advanced configuration
+  - Custom `ProgressiveDisclosureGroup` for Typer integration
+  - Environment variable support (`SPECFACT_SHOW_ADVANCED`)
+
+- **Phase 4.3: Intelligent Suggestions & Template-Driven Quality**
+  - Context-aware command suggestions (`suggest_next_steps()`)
+  - Error-specific fix suggestions (`suggest_fixes()`)
+  - Improvement recommendations (`suggest_improvements()`)
+  - Feature specification templates with uncertainty markers
+  - Implementation plan templates with structured checklists
+  - Contract extraction templates for legacy code
+
+- **Phase 4.4: Enhanced Watch Mode**
+  - Hash-based change detection (SHA256) - only processes files that actually changed
+  - Dependency tracking for incremental processing
+  - LZ4 cache compression (optional, faster I/O when available)
+  - Persistent hash cache across sessions
+  - `FileHashCache` class for efficient change detection
+
+- **Phase 4.5: Unified Progress Display**
+  - Verified consistent `n/m` format across all commands
+  - Rich Progress integration with timing information
+  - No "dark" periods - always know what's happening
+
+### Improved (0.14.1)
+
+- **User Experience**
+  - Cleaner help output with progressive disclosure
+  - Context-aware defaults based on project detection
+  - Intelligent suggestions guide users to next steps
+  - Enhanced watch mode performance with hash-based detection
+
+- **Documentation**
+  - New UX Features guide (`docs/guides/ux-features.md`)
+  - Updated command reference with `--help-advanced` flag
+  - Updated workflows guide with watch mode enhancements
+  - Updated first-steps guide with context detection information
+
+### Testing (0.14.1)
+
+- Added 8 unit tests for context detection (all passing)
+- Added 6 unit tests for progressive disclosure (all passing)
+- Added 10 unit tests for intelligent suggestions (all passing)
+- Added 9 unit tests for specification templates (all passing)
+- Added 9 unit tests for enhanced watch mode (all passing)
+- Added 14 E2E tests for natural UX flow (all passing)
+- Total: 61 new tests, all passing
+
+---
+
+## [0.14.0] - 2025-12-02
+
+### Added (0.14.0)
+
+- **Phase 4.9: Quick Start Optimization**
+  - Incremental results display - shows features as they're discovered during analysis
+  - Early feedback mechanism - first value shown within < 60 seconds
+  - Next steps suggestions - contextual commands displayed after first import
+  - Enhanced progress indicators - incremental updates every 5 features
+  - `_suggest_next_steps()` function providing actionable next commands
+
+- **Phase 4.10: CI Performance Optimization**
+  - Performance monitoring utility (`src/specfact_cli/utils/performance.py`)
+  - Threshold-based slow operation detection (> 5 seconds)
+  - Performance report display in interactive mode (suppressed in CI)
+  - Operation tracking for all major import steps:
+    - `analyze_codebase`, `extract_relationships_and_graph`, `extract_contracts`
+    - `build_enrichment_context`, `apply_enrichment`, `save_bundle`, `validate_api_specs`
+
+### Improved (0.14.0)
+
+- **Import Command Enhancements**
+  - Real-time feature discovery with incremental callback mechanism
+  - Performance tracking integrated into import workflow
+  - Better user experience with immediate feedback and actionable suggestions
+
+### Testing (0.14.0)
+
+- Added 8 unit tests for performance monitoring utility (all passing)
+- Added 6 e2e tests for quick start and performance optimization (all passing)
+
+---
+
+## [0.13.3] - 2025-12-06
+
+### Fixed (0.13.3)
+
+- **Contract Analysis**: Improved data model detection to avoid false positives
+  - Pure Pydantic/dataclass files are now correctly identified and marked as having contracts (Pydantic validation)
+  - Fixed detection logic to properly distinguish between class methods and module-level functions
+  - Files like `models/plan.py` and `models/protocol.py` are no longer flagged as needing contracts
+  - Added support for common helper methods (`compute_summary`, `update_summary`, etc.) on data models
+
+### Changed (0.13.3)
+
+- **Test Timeouts**: Increased timeout for slow E2E tests from 5s to 20s
+  - `test_complete_brownfield_to_speckit_workflow`
+  - `test_contracts_included_in_speckit_plan_md`
+  - `test_article_ix_checkbox_checked_when_contracts_exist`
+
+---
+
+## [0.13.2] - 2025-12-06
+
+### Added (0.13.2)
+
+- **Streamlined Setup Option**
+  - `specfact init --install-deps` option to automatically install required packages for contract enhancement
+  - Installs: `beartype>=0.22.4`, `icontract>=2.7.1`, `crosshair-tool>=0.0.97`, `pytest>=8.4.2`
+  - Non-intrusive: only installs when explicitly requested (opt-in)
+  - Provides helpful error messages and manual installation instructions if pip fails
+  - Telemetry tracking for installation attempts
+
+### Improved (0.13.2)
+
+- **Documentation Updates**
+  - Updated command reference with `--install-deps` option and examples
+  - Updated IDE integration guide with dependency installation workflow
+  - Updated installation guide with streamlined setup option
+  - Updated internal plans with recent contract enhancement improvements
+
+---
+
+## [0.13.1] - 2025-12-06
+
+### Added (0.13.1)
+
+- **Automatic Code Quality Validation**
+  - `generate contracts-apply` now automatically detects and runs available linting/formatting tools
+  - Supports: `ruff`, `pylint`, `basedpyright`, `mypy` (runs if installed, skips if not)
+  - Non-blocking validation: issues are reported as warnings but don't prevent application
+  - Provides summary of code quality checks (X/Y tools passed)
+  - Added as Step 5 in validation workflow (between contract imports and tests)
+
+### Improved (0.13.1)
+
+- **Contract Enhancement Prompts**
+  - Enhanced prompt instructions with **CRITICAL REQUIREMENT** to add contracts to ALL eligible functions
+  - Explicit prohibition against asking user whether to add contracts (must add automatically)
+  - Detailed contract-specific requirements for beartype, icontract, and crosshair
+  - Added code quality guidance: follow project formatting rules, avoid common issues (e.g., `dict.keys()`)
+  - Note that SpecFact CLI will automatically run available linting tools during validation
+
+- **Test Execution Optimization**
+  - Optimized test execution in `generate contracts-apply` for single-file enhancements
+  - Changed from full repository validation (`specfact repro`) to scoped `pytest` runs on relevant test files
+  - Automatically discovers test files matching the enhanced source file pattern
+  - Falls back to import validation if no specific test file is found
+  - Significantly faster validation (seconds instead of minutes for single-file enhancements)
+  - Tests always run for validation, even in `--dry-run` mode
+
+- **Validation Workflow**
+  - Updated step numbering: now 7 steps total (was 6)
+  - Step 5: Code quality checks (new, optional tools)
+  - Step 6: Test execution (optimized, scoped)
+  - Step 7: Diff preview
+
+### Fixed (0.13.1)
+
+- Fixed linting issue in enhanced code: changed `result.keys()` to `result` (SIM118 rule compliance)
+- Improved code quality guidance in prompts to prevent common linting issues
+
+---
+
+## [0.13.0] - 2025-12-06
+
+### Added (0.13.0)
+
+- **AI IDE Contract Enhancement Workflow**
+  - `generate contracts-prompt` command for generating structured prompts for AI IDEs (Cursor, CoPilot, etc.)
+  - Support for `all-contracts`, `beartype`, `icontract`, `crosshair` contract types
+  - Bundle-specific prompt storage (`.specfact/projects/<bundle-name>/prompts/`) to avoid conflicts between multiple bundles
+  - Fallback to `.specfact/prompts/` when no bundle is identified
+  - Improved error messages for missing/invalid `--apply` parameter with examples and available options
+
+- **Comprehensive Contract Validation**
+  - `generate contracts-apply` command with rigorous 6-step validation:
+    - File size check (enhanced file must not be smaller than original)
+    - Python syntax validation (`python -m py_compile`)
+    - AST structure comparison (ensures no functions/classes removed)
+    - Contract imports verification (checks for required imports)
+    - Test execution (`specfact repro` or `pytest` fallback)
+    - Diff preview before applying changes
+  - Iterative validation workflow (up to 3 attempts with LLM feedback)
+  - Only applies changes if all validation steps pass
+
+- **Documentation Updates**
+  - Added `generate contracts-prompt` command documentation to reference guide
+  - Updated directory structure documentation to include bundle-specific `prompts/` directory
+  - Updated IDE integration guide with new contract enhancement workflow
+  - Updated internal implementation plans with Phase 4.1 completion status
+
+### Fixed (0.13.0)
+
+- **Critical Bug Fixes**
+  - Fixed `AttributeError: 'list' object has no attribute 'values'` in `sync.py`, `import_cmd.py`, and `enforce.py`
+  - Root cause: `PlanBundle.features` is a `list`, while `ProjectBundle.features` is a `dict`
+  - Added type checking to handle both `PlanBundle` and `ProjectBundle` types correctly
+  - Resolved 71 test failures related to this issue
+
+- **Command Improvements**
+  - Renamed `--apply all` to `--apply all-contracts` for clarity (avoids confusion with "all files")
+  - Enhanced error messages for missing `--apply` parameter with helpful examples
+  - Improved prompt file naming (contract types sorted alphabetically for consistency)
+
+### Changed (0.13.0)
+
+- **Contract Enhancement Workflow**
+  - Prompts now instruct LLM to read files from paths (not embedded) to avoid token limits
+  - Added "Step 0: Verify SpecFact CLI" to generated prompts (checks version, availability, and upgrade instructions)
+  - Prompt structure reordered: Instructions first, then file path (not content)
+  - Enhanced validation feedback provides clear, actionable error messages for LLM iteration
+
+- **Project Bundle Structure**
+  - Contract enhancement prompts stored in bundle-specific directories (`.specfact/projects/<bundle-name>/prompts/`)
+  - Prevents conflicts when multiple bundles exist in the same repository
+  - Maintains separation of concerns per project bundle
+
+---
+
 ## [0.12.1] - 2025-12-05
 
 ### Added (0.12.1)

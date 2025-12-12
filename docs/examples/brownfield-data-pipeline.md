@@ -87,7 +87,7 @@ specfact plan harden customer-etl
 ### Output
 
 ```text
-✅ SDD manifest created: .specfact/sdd.yaml
+✅ SDD manifest created: .specfact/projects/<bundle-name>/sdd.yaml
 
 📋 SDD Summary:
    WHY: Modernize legacy ETL pipeline with zero data corruption

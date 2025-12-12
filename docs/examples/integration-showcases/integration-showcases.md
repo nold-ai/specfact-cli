@@ -260,7 +260,7 @@ Summary:
   Failed: 3
   Total duration: 1.73s
 
-Report written to: .specfact/reports/enforcement/report-<timestamp>.yaml
+Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml
 
 ✗ Some validations failed
 ```

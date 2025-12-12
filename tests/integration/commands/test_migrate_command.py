@@ -529,3 +529,143 @@ class TestMigrateToContractsCommand:
         # Verify bundle was not modified
         updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
         assert updated_bundle.features["FEATURE-001"].contract is None
+
+
+class TestMigrateArtifactsCommand:
+    """Test suite for migrate artifacts command (Phase 8.5)."""
+
+    def test_migrate_artifacts_single_bundle(self, tmp_path, monkeypatch):
+        """Test migrate artifacts moves artifacts for a single bundle."""
+        monkeypatch.chdir(tmp_path)
+
+        bundle_name = "test-bundle"
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        bundle_dir.mkdir(parents=True)
+        (bundle_dir / "bundle.manifest.yaml").write_text("bundle: {name: test-bundle}")
+
+        # Create legacy artifacts
+        legacy_reports = tmp_path / ".specfact" / "reports" / "brownfield"
+        legacy_reports.mkdir(parents=True)
+        legacy_report = legacy_reports / f"{bundle_name}-analysis-2025-01-01T10-00-00.md"
+        legacy_report.write_text("# Analysis Report")
+
+        legacy_sdd_dir = tmp_path / ".specfact" / "sdd"
+        legacy_sdd_dir.mkdir(parents=True)
+        legacy_sdd = legacy_sdd_dir / f"{bundle_name}.yaml"
+        legacy_sdd.write_text("sdd: manifest")
+
+        # Run migration
+        result = runner.invoke(
+            app,
+            [
+                "migrate",
+                "artifacts",
+                bundle_name,
+                "--repo",
+                str(tmp_path),
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        # Verify artifacts moved to bundle-specific locations
+        bundle_reports = bundle_dir / "reports" / "brownfield"
+        assert bundle_reports.exists()
+        moved_reports = list(bundle_reports.glob("*.md"))
+        assert len(moved_reports) > 0
+
+        bundle_sdd = bundle_dir / "sdd.yaml"
+        assert bundle_sdd.exists()
+
+    def test_migrate_artifacts_dry_run(self, tmp_path, monkeypatch):
+        """Test migrate artifacts dry-run mode doesn't move files."""
+        monkeypatch.chdir(tmp_path)
+
+        bundle_name = "test-bundle"
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        bundle_dir.mkdir(parents=True)
+        (bundle_dir / "bundle.manifest.yaml").write_text("bundle: {name: test-bundle}")
+
+        # Create legacy artifacts
+        legacy_reports = tmp_path / ".specfact" / "reports" / "brownfield"
+        legacy_reports.mkdir(parents=True)
+        legacy_report = legacy_reports / f"{bundle_name}-analysis-2025-01-01T10-00-00.md"
+        legacy_report.write_text("# Analysis Report")
+
+        # Run migration in dry-run mode
+        result = runner.invoke(
+            app,
+            [
+                "migrate",
+                "artifacts",
+                bundle_name,
+                "--repo",
+                str(tmp_path),
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.stdout or "dry run" in result.stdout.lower()
+
+        # Verify artifacts NOT moved
+        bundle_reports = bundle_dir / "reports" / "brownfield"
+        if bundle_reports.exists():
+            assert len(list(bundle_reports.glob("*.md"))) == 0
+
+        # Verify legacy artifacts still exist
+        assert legacy_report.exists()
+
+    def test_migrate_artifacts_all_bundles(self, tmp_path, monkeypatch):
+        """Test migrate artifacts migrates all bundles when no bundle specified."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create multiple bundles
+        for bundle_name in ["bundle-1", "bundle-2"]:
+            bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+            bundle_dir.mkdir(parents=True)
+            (bundle_dir / "bundle.manifest.yaml").write_text(f"bundle: {{name: {bundle_name}}}")
+
+        # Create legacy artifacts
+        legacy_sdd_dir = tmp_path / ".specfact" / "sdd"
+        legacy_sdd_dir.mkdir(parents=True)
+        for bundle_name in ["bundle-1", "bundle-2"]:
+            legacy_sdd = legacy_sdd_dir / f"{bundle_name}.yaml"
+            legacy_sdd.write_text("sdd: manifest")
+
+        # Run migration for all bundles
+        result = runner.invoke(
+            app,
+            [
+                "migrate",
+                "artifacts",
+                "--repo",
+                str(tmp_path),
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        # Verify artifacts moved for both bundles
+        for bundle_name in ["bundle-1", "bundle-2"]:
+            bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+            bundle_sdd = bundle_dir / "sdd.yaml"
+            assert bundle_sdd.exists(), f"SDD not migrated for {bundle_name}"
+
+    def test_migrate_artifacts_missing_bundle(self, tmp_path, monkeypatch):
+        """Test migrate artifacts fails when bundle doesn't exist."""
+        monkeypatch.chdir(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "migrate",
+                "artifacts",
+                "non-existent-bundle",
+                "--repo",
+                str(tmp_path),
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "not found" in result.stdout.lower() or "skipping" in result.stdout.lower()

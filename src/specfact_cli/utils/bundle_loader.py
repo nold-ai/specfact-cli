@@ -269,11 +269,12 @@ def save_project_bundle(
     try:
         if atomic:
             # Atomic write: write to temp directory, then rename
-            # IMPORTANT: Preserve non-bundle directories (contracts, protocols, etc.)
+            # IMPORTANT: Preserve non-bundle directories (contracts, protocols, reports, logs, etc.)
             import shutil
 
             # Directories/files to preserve during atomic save
-            preserve_items = ["contracts", "protocols", "enrichment_context.md"]
+            # Phase 8.5: Include bundle-specific reports and logs directories
+            preserve_items = ["contracts", "protocols", "reports", "logs", "enrichment_context.md"]
 
             # Backup directories/files to preserve (use separate temp dir that persists)
             preserved_data: dict[str, Path] = {}

@@ -48,11 +48,12 @@ class SpecFactStructure:
     GATES_CONFIG = f"{ROOT}/gates/config.yaml"
     ENFORCEMENT_CONFIG = f"{ROOT}/gates/config/enforcement.yaml"
 
-    # Default plan names
+    # Default plan names (legacy, kept for backward compatibility)
     DEFAULT_PLAN_NAME = "main"
-    DEFAULT_PLAN = f"{ROOT}/plans/{DEFAULT_PLAN_NAME}.bundle.yaml"
-    BROWNFIELD_PLAN = f"{ROOT}/plans/auto-derived.yaml"
-    PLANS_CONFIG = f"{ROOT}/plans/config.yaml"
+    DEFAULT_PLAN = f"{ROOT}/plans/{DEFAULT_PLAN_NAME}.bundle.yaml"  # Legacy, not used
+    BROWNFIELD_PLAN = f"{ROOT}/plans/auto-derived.yaml"  # Legacy, not used
+    PLANS_CONFIG = f"{ROOT}/plans/config.yaml"  # Legacy, migrated to CONFIG_YAML
+    ACTIVE_BUNDLE_CONFIG_KEY = "active_bundle"  # Key in config.yaml for active bundle name
     PLAN_SUFFIX_MAP = {
         StructuredFormat.YAML: ".bundle.yaml",
         StructuredFormat.JSON: ".bundle.json",
@@ -113,22 +114,23 @@ class SpecFactStructure:
                 specfact_idx = parts.index(".specfact")
                 base_path = Path(*parts[:specfact_idx])
 
-        # Create versioned directories
-        (base_path / cls.PLANS).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.PROJECTS).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.PROTOCOLS).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.CONTRACTS).mkdir(parents=True, exist_ok=True)
-        (base_path / f"{cls.ROOT}/gates/config").mkdir(parents=True, exist_ok=True)
-        (base_path / cls.SDD).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.CONFIG).mkdir(parents=True, exist_ok=True)
+        # Create global directories only (Phase 8.5: bundle-specific artifacts moved to projects/<bundle-name>/)
+        (base_path / cls.PROJECTS).mkdir(parents=True, exist_ok=True)  # Project bundles container
+        (base_path / f"{cls.ROOT}/gates/config").mkdir(
+            parents=True, exist_ok=True
+        )  # Global enforcement gates config (default policy)
+        (base_path / cls.CONFIG).mkdir(parents=True, exist_ok=True)  # Global configuration (bridge.yaml, etc.)
+        (base_path / cls.CACHE).mkdir(parents=True, exist_ok=True)  # Shared cache
 
-        # Create ephemeral directories
-        (base_path / cls.REPORTS_BROWNFIELD).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.REPORTS_COMPARISON).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.REPORTS_ENFORCEMENT).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.REPORTS_ENRICHMENT).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.GATES_RESULTS).mkdir(parents=True, exist_ok=True)
-        (base_path / cls.CACHE).mkdir(parents=True, exist_ok=True)
+        # Note: The following directories are NO LONGER created at top level (Phase 8.5):
+        # - PLANS: Deprecated (no monolithic bundles, active bundle config moved to config.yaml)
+        # - PROTOCOLS: Now bundle-specific (.specfact/projects/<bundle-name>/protocols/)
+        # - CONTRACTS: Now bundle-specific (.specfact/projects/<bundle-name>/contracts/)
+        # - SDD: Now bundle-specific (.specfact/projects/<bundle-name>/sdd.yaml)
+        # - REPORTS: Now bundle-specific (.specfact/projects/<bundle-name>/reports/)
+        # - TASKS: Now bundle-specific (.specfact/projects/<bundle-name>/tasks.yaml)
+        # - GATES_RESULTS: Removed (gate results not used; enforcement reports are bundle-specific in reports/enforcement/)
+        # Use ensure_project_structure() to create bundle-specific directories.
 
     @classmethod
     @beartype
@@ -216,38 +218,33 @@ class SpecFactStructure:
                 specfact_idx = parts.index(".specfact")
                 base_path = Path(*parts[:specfact_idx])
 
-        # Try to read active plan from config
-        config_path = base_path / cls.PLANS_CONFIG
+        # Try to read active bundle from global config.yaml (new location)
+        config_path = base_path / cls.CONFIG_YAML
         if config_path.exists():
             try:
                 import yaml
 
                 with config_path.open() as f:
                     config = yaml.safe_load(f) or {}
-                active_plan = config.get("active_plan")
-                if active_plan:
-                    plan_path = base_path / cls.PLANS / active_plan
-                    if plan_path.exists():
-                        return plan_path
+                active_bundle = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
+                if active_bundle:
+                    bundle_dir = base_path / cls.PROJECTS / active_bundle
+                    if bundle_dir.exists() and (bundle_dir / "bundle.manifest.yaml").exists():
+                        return bundle_dir
             except Exception:
-                # Fallback to default if config read fails
+                # Fallback if config read fails
                 pass
 
-        # Fallback to default plan
-        format_hint = preferred_format or runtime.get_output_format()
-        plans_dir = base_path / cls.PLANS
-        default_name = cls.default_plan_filename(format_hint)
-        default_path = plans_dir / default_name
+        # Legacy config present: instruct migration instead of fallback
+        legacy_config_path = base_path / cls.PLANS_CONFIG
+        if legacy_config_path.exists():
+            raise FileNotFoundError(
+                "Legacy plan configuration detected at .specfact/plans/config.yaml. "
+                "Please migrate to the new bundle structure using 'specfact migrate artifacts --repo .'."
+            )
 
-        if default_path.exists():
-            return default_path
-
-        # Fallback to YAML for backwards compatibility
-        legacy_path = plans_dir / cls.default_plan_filename(StructuredFormat.YAML)
-        if legacy_path.exists():
-            return legacy_path
-
-        return default_path
+        # No active bundle found - return default bundle directory path (may not exist)
+        return base_path / cls.PROJECTS / cls.DEFAULT_PLAN_NAME
 
     @classmethod
     @beartype
@@ -272,19 +269,19 @@ class SpecFactStructure:
                 specfact_idx = parts.index(".specfact")
                 base_path = Path(*parts[:specfact_idx])
 
-        config_path = base_path / cls.PLANS_CONFIG
+        # Try to read active bundle from global config.yaml (new location)
+        config_path = base_path / cls.CONFIG_YAML
         if config_path.exists():
             try:
                 import yaml
 
                 with config_path.open() as f:
                     config = yaml.safe_load(f) or {}
-                active_plan = config.get("active_plan")
-                if active_plan:
-                    # Active plan is stored as bundle name (not plan filename)
-                    return active_plan
+                active_bundle = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
+                if active_bundle:
+                    return active_bundle
             except Exception:
-                # Fallback to None if config read fails
+                # Fallback if config read fails
                 pass
 
         return None
@@ -312,7 +309,6 @@ class SpecFactStructure:
 
         import yaml
 
-        config_path = base_path / cls.PLANS_CONFIG
         projects_dir = base_path / cls.PROJECTS
 
         # Ensure projects directory exists
@@ -323,6 +319,9 @@ class SpecFactStructure:
         if not bundle_dir.exists() or not (bundle_dir / "bundle.manifest.yaml").exists():
             raise FileNotFoundError(f"Project bundle not found: {bundle_dir}")
 
+        # Write to global config.yaml (new location, only)
+        config_path = base_path / cls.CONFIG_YAML
+
         # Read existing config or create new
         config = {}
         if config_path.exists():
@@ -332,10 +331,11 @@ class SpecFactStructure:
             except Exception:
                 config = {}
 
-        # Update active plan (bundle name)
-        config["active_plan"] = plan_name
+        # Update active bundle (bundle name)
+        config[cls.ACTIVE_BUNDLE_CONFIG_KEY] = plan_name
 
         # Write config
+        config_path.parent.mkdir(parents=True, exist_ok=True)
         with config_path.open("w") as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
@@ -378,13 +378,14 @@ class SpecFactStructure:
         plans = []
         active_plan = None
 
-        # Get active plan from config
-        config_path = base_path / cls.PLANS_CONFIG
+        # Get active bundle from config (new location only)
+        config_path = base_path / cls.CONFIG_YAML
+        active_plan = None
         if config_path.exists():
             try:
                 with config_path.open() as f:
                     config = yaml.safe_load(f) or {}
-                active_plan = config.get("active_plan")
+                active_plan = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
             except Exception:
                 pass
 
@@ -842,7 +843,7 @@ class SpecFactStructure:
     @ensure(lambda result: result is None or isinstance(result, Path), "Must return None or Path")
     def get_latest_brownfield_report(cls, base_path: Path | None = None) -> Path | None:
         """
-        Get the latest brownfield report from the plans directory.
+        Get the latest brownfield report from bundle-specific directories.
 
         Args:
             base_path: Base directory (default: current directory)
@@ -853,18 +854,34 @@ class SpecFactStructure:
         if base_path is None:
             base_path = Path(".")
 
-        plans_dir = base_path / cls.PLANS
-        if not plans_dir.exists():
+        projects_dir = base_path / cls.PROJECTS
+        if not projects_dir.exists():
             return None
 
-        # Find all auto-derived reports
-        reports = [
-            p
-            for p in plans_dir.glob("auto-derived.*.bundle.*")
-            if any(str(p).endswith(suffix) for suffix in cls.PLAN_SUFFIXES)
-        ]
+        # Search bundle-specific brownfield reports
+        reports: list[Path] = []
+        for bundle_dir in projects_dir.glob("*"):
+            brownfield_dir = bundle_dir / "reports" / "brownfield"
+            if not brownfield_dir.exists():
+                continue
+            reports.extend(sorted(brownfield_dir.glob("analysis-*.md"), key=lambda p: (p.stat().st_mtime, p.name)))
+
         reports = sorted(reports, key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
-        return reports[0] if reports else None
+        if reports:
+            return reports[0]
+
+        # Legacy fallback: .specfact/plans/*.bundle.yaml
+        legacy_plans_dir = base_path / cls.PLANS
+        if legacy_plans_dir.exists():
+            legacy_reports = sorted(
+                legacy_plans_dir.glob("*.bundle.yaml"),
+                key=lambda p: (p.stat().st_mtime, p.name),
+                reverse=True,
+            )
+            if legacy_reports:
+                return legacy_reports[0]
+
+        return None
 
     @classmethod
     def create_gitignore(cls, base_path: Path | None = None) -> None:
@@ -880,12 +897,10 @@ class SpecFactStructure:
         gitignore_path = base_path / cls.ROOT / ".gitignore"
         gitignore_content = """# SpecFact ephemeral artifacts (not versioned)
 reports/
-gates/results/
 cache/
 
 # Keep these versioned
-!plans/
-!protocols/
+!projects/
 !config.yaml
 !gates/config.yaml
 """
@@ -1001,6 +1016,8 @@ specfact import from-code --repo .
         - .specfact/projects/<bundle-name>/features/
         - .specfact/projects/<bundle-name>/protocols/
         - .specfact/projects/<bundle-name>/contracts/
+        - .specfact/projects/<bundle-name>/reports/ (bundle-specific reports)
+        - .specfact/projects/<bundle-name>/logs/ (bundle-specific logs)
 
         Args:
             base_path: Base directory (default: current directory)
@@ -1014,6 +1031,13 @@ specfact import from-code --repo .
         (project_dir / "features").mkdir(parents=True, exist_ok=True)
         (project_dir / "protocols").mkdir(parents=True, exist_ok=True)
         (project_dir / "contracts").mkdir(parents=True, exist_ok=True)
+        # Bundle-specific reports directories
+        (project_dir / "reports" / "brownfield").mkdir(parents=True, exist_ok=True)
+        (project_dir / "reports" / "comparison").mkdir(parents=True, exist_ok=True)
+        (project_dir / "reports" / "enrichment").mkdir(parents=True, exist_ok=True)
+        (project_dir / "reports" / "enforcement").mkdir(parents=True, exist_ok=True)
+        # Bundle-specific logs directory
+        (project_dir / "logs").mkdir(parents=True, exist_ok=True)
 
     @classmethod
     @beartype
@@ -1063,3 +1087,224 @@ specfact import from-code --repo .
                 return BundleFormat.MONOLITHIC, None
 
         return BundleFormat.UNKNOWN, "Could not determine bundle format"
+
+    # Phase 8.5: Bundle-Specific Artifact Organization
+    # New methods for bundle-specific artifact paths
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_reports_dir(cls, bundle_name: str, base_path: Path | None = None) -> Path:
+        """
+        Get bundle-specific reports directory.
+
+        Args:
+            bundle_name: Project bundle name (e.g., 'legacy-api', 'auth-module')
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to bundle reports directory (e.g., `.specfact/projects/legacy-api/reports/`)
+
+        Examples:
+            >>> SpecFactStructure.get_bundle_reports_dir("legacy-api")
+            Path('.specfact/projects/legacy-api/reports')
+        """
+        project_dir = cls.project_dir(base_path, bundle_name)
+        return project_dir / "reports"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(lambda extension: isinstance(extension, str) and len(extension) > 0, "Extension must be non-empty string")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_brownfield_report_path(
+        cls, bundle_name: str, base_path: Path | None = None, extension: str = "md"
+    ) -> Path:
+        """
+        Get bundle-specific brownfield report path.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+            extension: File extension (default: md)
+
+        Returns:
+            Path to timestamped brownfield report in bundle folder
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        reports_dir = cls.get_bundle_reports_dir(bundle_name, base_path) / "brownfield"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir / f"analysis-{timestamp}.{extension}"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(lambda format: isinstance(format, str) and format in ("md", "json", "yaml"), "Format must be md/json/yaml")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_comparison_report_path(
+        cls, bundle_name: str, base_path: Path | None = None, format: str = "md"
+    ) -> Path:
+        """
+        Get bundle-specific comparison report path.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+            format: Report format (default: md)
+
+        Returns:
+            Path to timestamped comparison report in bundle folder
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        reports_dir = cls.get_bundle_reports_dir(bundle_name, base_path) / "comparison"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir / f"report-{timestamp}.{format}"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_enrichment_report_path(cls, bundle_name: str, base_path: Path | None = None) -> Path:
+        """
+        Get bundle-specific enrichment report path.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to timestamped enrichment report in bundle folder
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        reports_dir = cls.get_bundle_reports_dir(bundle_name, base_path) / "enrichment"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir / f"{bundle_name}-{timestamp}.enrichment.md"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_enforcement_report_path(cls, bundle_name: str, base_path: Path | None = None) -> Path:
+        """
+        Get bundle-specific enforcement report path.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to timestamped enforcement report in bundle folder
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        reports_dir = cls.get_bundle_reports_dir(bundle_name, base_path) / "enforcement"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir / f"report-{timestamp}.yaml"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @require(
+        lambda format: format is None or isinstance(format, StructuredFormat), "Format must be None or StructuredFormat"
+    )
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_sdd_path(
+        cls, bundle_name: str, base_path: Path | None = None, format: StructuredFormat | None = None
+    ) -> Path:
+        """
+        Get bundle-specific SDD manifest path.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+            format: Preferred structured format (defaults to runtime output format)
+
+        Returns:
+            Path to SDD manifest in bundle folder (e.g., `.specfact/projects/legacy-api/sdd.yaml`)
+
+        Examples:
+            >>> SpecFactStructure.get_bundle_sdd_path("legacy-api")
+            Path('.specfact/projects/legacy-api/sdd.yaml')
+        """
+        project_dir = cls.project_dir(base_path, bundle_name)
+        format_hint = format or runtime.get_output_format()
+        suffix = ".yaml" if format_hint == StructuredFormat.YAML else ".json"
+        return project_dir / f"sdd{suffix}"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_tasks_path(cls, bundle_name: str, base_path: Path | None = None) -> Path:
+        """
+        Get bundle-specific tasks file path.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to tasks file in bundle folder (e.g., `.specfact/projects/legacy-api/tasks.yaml`)
+
+        Examples:
+            >>> SpecFactStructure.get_bundle_tasks_path("legacy-api")
+            Path('.specfact/projects/legacy-api/tasks.yaml')
+        """
+        project_dir = cls.project_dir(base_path, bundle_name)
+        return project_dir / "tasks.yaml"
+
+    @classmethod
+    @beartype
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0,
+        "Bundle name must be non-empty string",
+    )
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def get_bundle_logs_dir(cls, bundle_name: str, base_path: Path | None = None) -> Path:
+        """
+        Get bundle-specific logs directory.
+
+        Args:
+            bundle_name: Project bundle name
+            base_path: Base directory (default: current directory)
+
+        Returns:
+            Path to logs directory in bundle folder (e.g., `.specfact/projects/legacy-api/logs/`)
+
+        Examples:
+            >>> SpecFactStructure.get_bundle_logs_dir("legacy-api")
+            Path('.specfact/projects/legacy-api/logs')
+        """
+        project_dir = cls.project_dir(base_path, bundle_name)
+        logs_dir = project_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        return logs_dir

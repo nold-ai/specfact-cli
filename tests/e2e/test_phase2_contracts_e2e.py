@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -18,6 +19,7 @@ runner = CliRunner()
 class TestContractExtractionE2E:
     """E2E tests for contract extraction."""
 
+    @pytest.mark.timeout(20)
     def test_contracts_extracted_in_plan_bundle(self):
         """Test that contracts are extracted and included in plan bundle."""
         code = dedent(
@@ -94,6 +96,7 @@ class TestContractExtractionE2E:
                 # If no contracts found, that's OK - contract extraction is optional in test mode
                 pass
 
+    @pytest.mark.timeout(20)
     def test_contracts_included_in_speckit_plan_md(self):
         """Test that contracts are included in Spec-Kit plan.md for Article IX compliance."""
         code = dedent(
@@ -185,6 +188,7 @@ class TestContractExtractionE2E:
                             # Check for contract definitions section
                             assert "Contract Definitions" in plan_content or "Contracts defined" in plan_content.lower()
 
+    @pytest.mark.timeout(20)
     def test_article_ix_checkbox_checked_when_contracts_exist(self):
         """Test that Article IX checkbox is checked when contracts are defined."""
         code = dedent(
@@ -274,6 +278,7 @@ class TestContractExtractionE2E:
                             # Check for checked checkbox (markdown format: - [x])
                             assert "- [x] Contracts defined" in plan_content or "[x] Contracts defined" in plan_content
 
+    @pytest.mark.timeout(20)
     def test_contracts_with_complex_types_in_plan_md(self):
         """Test that contracts with complex types are properly formatted in plan bundle."""
         code = dedent(

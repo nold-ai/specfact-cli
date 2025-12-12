@@ -49,6 +49,12 @@ specfact init
 # Or specify IDE explicitly
 specfact init --ide cursor
 specfact init --ide vscode
+
+# Install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize for specific IDE and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 **Note**: Interactive mode requires Python 3.11+ and automatically uses your IDE workspace (no `--repo .` needed in slash commands).
@@ -120,7 +126,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: python -m specfact_cli.utils.github_annotations
         env:
-          SPECFACT_REPORT_PATH: .specfact/reports/enforcement/report-*.yaml
+          SPECFACT_REPORT_PATH: .specfact/projects/<bundle-name>/reports/enforcement/report-*.yaml
 ```
 
 ## First Steps

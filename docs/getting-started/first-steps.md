@@ -48,10 +48,14 @@ specfact init
 
 **What happens**:
 
+- **Auto-detects project context**: Language, framework, existing specs, and configuration
 - Analyzes all Python files in your repository
 - Extracts features, user stories, and business logic from code
 - Generates dependency graphs
 - Creates plan bundle with extracted specs
+- **Suggests next steps**: Provides actionable commands based on your project state
+
+**💡 Tip**: Use `--help` or `-h` for standard help, or `--help-advanced` (alias: `-ha`) to see all options including advanced configuration.
 
 **Example output** (Interactive mode - better results):
 

@@ -289,7 +289,7 @@ def test_brownfield_analysis_workflow(tmp_path):
     2. Verify project bundle generated in .specfact/projects/<bundle-name>/
     3. Create manual plan in .specfact/projects/<bundle-name>/
     4. Compare plans
-    5. Verify comparison report in .specfact/reports/comparison/
+    5. Verify comparison report in .specfact/projects/<bundle-name>/reports/comparison/ (bundle-specific, Phase 8.5)
     """
     runner = CliRunner()
     

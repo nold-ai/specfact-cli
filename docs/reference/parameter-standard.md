@@ -48,7 +48,7 @@ Parameters must be organized into logical groups in the following order:
 - `--bundle NAME` - Project bundle name (required for modular structure)
 - `--repo PATH` - Repository path (default: ".")
 - `--plan PATH` - Plan bundle path (default: active plan for bundle)
-- `--sdd PATH` - SDD manifest path (default: .specfact/sdd/<bundle-name>.yaml)
+- `--sdd PATH` - SDD manifest path (default: bundle-specific .specfact/projects/<bundle-name>/sdd.yaml, Phase 8.5, with fallback to legacy .specfact/sdd/<bundle-name>.yaml)
 - `--constitution PATH` - Constitution path (default: .specify/memory/constitution.md)
 
 **Help Text Format**:

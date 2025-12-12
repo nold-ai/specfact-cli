@@ -129,7 +129,7 @@ def enforce_sdd(
     sdd: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Path to SDD manifest. Default: .specfact/sdd/<bundle-name>.<format>",
+        help="Path to SDD manifest. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format>. No legacy root-level fallback.",
     ),
     # Output/Results
     output_format: str = typer.Option(
@@ -140,7 +140,7 @@ def enforce_sdd(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path. Default: .specfact/reports/sdd/validation-<timestamp>.<format>",
+        help="Output file path. Default: bundle-specific .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.<format> (Phase 8.5)",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -200,7 +200,8 @@ def enforce_sdd(
         console.print("=" * 60)
 
         # Find bundle directory
-        bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
+        base_path = Path(".")
+        bundle_dir = SpecFactStructure.project_dir(base_path=base_path, bundle_name=bundle)
         if not bundle_dir.exists():
             console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
             console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
@@ -213,8 +214,7 @@ def enforce_sdd(
         discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
         if discovered_sdd is None:
             console.print("[bold red]✗[/bold red] SDD manifest not found")
-            console.print(f"[dim]Searched for: .specfact/sdd/{bundle}.yaml or .specfact/sdd/{bundle}.json[/dim]")
-            console.print("[dim]Legacy fallback: .specfact/sdd.yaml or .specfact/sdd.json[/dim]")
+            console.print(f"[dim]Searched for: .specfact/projects/{bundle}/sdd.yaml (bundle-specific)[/dim]")
             console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
             raise typer.Exit(1)
 
@@ -312,70 +312,95 @@ def enforce_sdd(
                     f"[bold green]✓[/bold green] Architecture facets: {metrics.architecture_facets} (threshold: {thresholds.architecture_facets})"
                 )
 
+            # OpenAPI contract coverage
+            if metrics.openapi_coverage_percent < thresholds.openapi_coverage_percent:
+                console.print(
+                    f"[bold yellow]⚠[/bold yellow] OpenAPI coverage: {metrics.openapi_coverage_percent:.1f}% (threshold: {thresholds.openapi_coverage_percent}%)"
+                )
+            else:
+                console.print(
+                    f"[bold green]✓[/bold green] OpenAPI coverage: {metrics.openapi_coverage_percent:.1f}% (threshold: {thresholds.openapi_coverage_percent}%)"
+                )
+
             # 3. Validate frozen sections (placeholder - hash comparison would require storing section hashes)
             if sdd_manifest.frozen_sections:
                 console.print("\n[cyan]Checking frozen sections...[/cyan]")
                 console.print(f"[dim]Frozen sections: {len(sdd_manifest.frozen_sections)}[/dim]")
                 # TODO: Implement hash-based frozen section validation in Phase 6
 
-            # 4. Validate OpenAPI/AsyncAPI specs with Specmatic (if found)
-            console.print("\n[cyan]Validating API specifications...[/cyan]")
+            # 4. Validate OpenAPI/AsyncAPI contracts referenced in bundle with Specmatic
+            console.print("\n[cyan]Validating API contracts with Specmatic...[/cyan]")
             import asyncio
 
             from specfact_cli.integrations.specmatic import check_specmatic_available, validate_spec_with_specmatic
 
-            base_path = Path(".")
-            spec_files = []
-            for pattern in [
-                "**/openapi.yaml",
-                "**/openapi.yml",
-                "**/openapi.json",
-                "**/asyncapi.yaml",
-                "**/asyncapi.yml",
-                "**/asyncapi.json",
-            ]:
-                spec_files.extend(base_path.glob(pattern))
+            is_available, error_msg = check_specmatic_available()
+            if not is_available:
+                console.print(f"[dim]💡 Tip: Install Specmatic to validate API contracts: {error_msg}[/dim]")
+            else:
+                # Validate contracts referenced in bundle features
+                # PlanBundle.features is a list, not a dict
+                contract_files = []
+                features_iter = (
+                    plan_bundle.features.values() if isinstance(plan_bundle.features, dict) else plan_bundle.features
+                )
+                for feature in features_iter:
+                    if feature.contract:
+                        contract_path = bundle_dir / feature.contract
+                        if contract_path.exists():
+                            contract_files.append((contract_path, feature.key))
 
-            if spec_files:
-                console.print(f"[dim]Found {len(spec_files)} API specification file(s)[/dim]")
-                is_available, error_msg = check_specmatic_available()
-                if is_available:
-                    for spec_file in spec_files[:5]:  # Validate up to 5 specs
-                        console.print(f"[dim]Validating {spec_file.relative_to(base_path)} with Specmatic...[/dim]")
+                if contract_files:
+                    console.print(f"[dim]Found {len(contract_files)} contract(s) referenced in bundle[/dim]")
+                    for contract_path, feature_key in contract_files[:5]:  # Validate up to 5 contracts
+                        console.print(
+                            f"[dim]Validating {contract_path.relative_to(bundle_dir)} (from {feature_key})...[/dim]"
+                        )
                         try:
-                            result = asyncio.run(validate_spec_with_specmatic(spec_file))
+                            result = asyncio.run(validate_spec_with_specmatic(contract_path))
                             if not result.is_valid:
                                 deviation = Deviation(
                                     type=DeviationType.CONTRACT_VIOLATION,
                                     severity=DeviationSeverity.MEDIUM,
-                                    description=f"API specification validation failed: {spec_file.name}",
-                                    location=str(spec_file),
-                                    fix_hint=f"Run 'specfact spec validate {spec_file}' to see detailed errors",
+                                    description=f"API contract validation failed: {contract_path.name} (feature: {feature_key})",
+                                    location=str(contract_path),
+                                    fix_hint=f"Run 'specfact spec validate {contract_path}' to see detailed errors",
                                 )
                                 report.add_deviation(deviation)
-                                console.print(f"  [bold yellow]⚠[/bold yellow] {spec_file.name} has validation issues")
+                                console.print(
+                                    f"  [bold yellow]⚠[/bold yellow] {contract_path.name} has validation issues"
+                                )
+                                if result.errors:
+                                    for error in result.errors[:2]:
+                                        console.print(f"    - {error}")
                             else:
-                                console.print(f"  [bold green]✓[/bold green] {spec_file.name} is valid")
+                                console.print(f"  [bold green]✓[/bold green] {contract_path.name} is valid")
                         except Exception as e:
                             console.print(f"  [bold yellow]⚠[/bold yellow] Validation error: {e!s}")
-                    if len(spec_files) > 5:
+                            deviation = Deviation(
+                                type=DeviationType.CONTRACT_VIOLATION,
+                                severity=DeviationSeverity.LOW,
+                                description=f"API contract validation error: {contract_path.name} - {e!s}",
+                                location=str(contract_path),
+                                fix_hint=f"Run 'specfact spec validate {contract_path}' to diagnose",
+                            )
+                            report.add_deviation(deviation)
+                    if len(contract_files) > 5:
                         console.print(
-                            f"[dim]... and {len(spec_files) - 5} more spec file(s) (run 'specfact spec validate' to validate all)[/dim]"
+                            f"[dim]... and {len(contract_files) - 5} more contract(s) (run 'specfact spec validate' to validate all)[/dim]"
                         )
                 else:
-                    console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
-            else:
-                console.print("[dim]No API specification files found[/dim]")
+                    console.print("[dim]No API contracts found in bundle[/dim]")
 
-            # Generate output report
+            # Generate output report (Phase 8.5: bundle-specific location)
             output_format_str = output_format.lower()
             if out is None:
-                SpecFactStructure.ensure_structure()
-                reports_dir = Path(".") / SpecFactStructure.ROOT / "reports" / "sdd"
-                reports_dir.mkdir(parents=True, exist_ok=True)
-                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                # Use bundle-specific enforcement report path
                 extension = "md" if output_format_str == "markdown" else output_format_str
-                out = reports_dir / f"validation-{timestamp}.{extension}"
+                out = SpecFactStructure.get_bundle_enforcement_report_path(bundle_name=bundle, base_path=base_path)
+                # Update extension if needed
+                if extension != "yaml" and out.suffix != f".{extension}":
+                    out = out.with_suffix(f".{extension}")
 
             # Save report
             if output_format_str == "markdown":

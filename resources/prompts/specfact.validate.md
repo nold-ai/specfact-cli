@@ -28,7 +28,7 @@ Run full validation suite for reproducibility and contract compliance. Executes 
 
 ### Output/Results
 
-- `--out PATH` - Output report path. Default: .specfact/reports/enforcement/report-<timestamp>.yaml
+- `--out PATH` - Output report path. Default: bundle-specific .specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml (Phase 8.5), or global .specfact/reports/enforcement/ if no bundle context
 
 ### Behavior/Options
 
@@ -64,6 +64,62 @@ specfact repro --repo <path> [--verbose] [--fail-fast] [--fix] [--budget <second
 
 **CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
 
+**Rules:**
+
+- Execute CLI first - never create artifacts directly
+- Use `--no-interactive` flag in CI/CD environments
+- Never modify `.specfact/` directly
+- Use CLI output as grounding for validation results
+- Code generation requires LLM (only via AI IDE slash prompts, not CLI-only)
+
+## Dual-Stack Workflow (Copilot Mode)
+
+When in copilot mode, follow this three-phase workflow:
+
+### Phase 1: CLI Grounding (REQUIRED)
+
+```bash
+# Execute CLI to get structured output
+specfact repro --repo <path> [options] --no-interactive
+```
+
+**Capture**:
+
+- CLI-generated validation report
+- Check results (pass/fail/timeout)
+- Exit code
+
+### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+
+**Purpose**: Add semantic understanding to validation results
+
+**What to do**:
+
+- Read CLI-generated validation report (use file reading tools for display only)
+- Research codebase for context on failures
+- Suggest fixes for validation failures
+
+**What NOT to do**:
+
+- ❌ Create YAML/JSON artifacts directly
+- ❌ Modify CLI artifacts directly (use CLI commands to update)
+- ❌ Bypass CLI validation
+- ❌ Write to `.specfact/` folder directly (always use CLI)
+
+**Output**: Generate fix suggestions report (Markdown)
+
+### Phase 3: CLI Artifact Creation (REQUIRED)
+
+```bash
+# Apply fixes via CLI commands, then re-validate
+specfact plan update-feature [--bundle <name>] [options] --no-interactive
+specfact repro --repo <path> --no-interactive
+```
+
+**Result**: Final artifacts are CLI-generated with validated fixes
+
+**Note**: If code generation is needed, use the validation loop pattern (see [CLI Enforcement Rules](./shared/cli-enforcement.md#standard-validation-loop-pattern-for-llm-generated-code))
+
 ## Expected Output
 
 ### Success
@@ -79,7 +135,7 @@ Check Summary:
   Property Tests        ✓ Passed
   Smoke Tests           ✓ Passed
 
-Report saved to: .specfact/reports/enforcement/report-2025-11-26T10-30-00.yaml
+Report saved to: .specfact/projects/<bundle-name>/reports/enforcement/report-2025-11-26T10-30-00.yaml
 ```
 
 ### Failure

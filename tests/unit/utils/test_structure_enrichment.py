@@ -12,13 +12,14 @@ class TestEnrichmentReportPath:
     """Test enrichment report path generation."""
 
     def test_get_enrichment_report_path_basic(self, tmp_path: Path):
-        """Test basic enrichment report path generation."""
+        """Test basic enrichment report path generation (legacy method still works)."""
         plan_bundle = tmp_path / ".specfact" / "plans" / "test-plan.2025-11-17T10-00-00.bundle.yaml"
         plan_bundle.parent.mkdir(parents=True, exist_ok=True)
         plan_bundle.touch()
 
         enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
 
+        # Legacy method still returns global location for backward compatibility
         assert enrichment_path.parent == tmp_path / ".specfact" / "reports" / "enrichment"
         assert enrichment_path.name == "test-plan.2025-11-17T10-00-00.enrichment.md"
         assert enrichment_path.exists() is False  # Directory created, file not created
@@ -67,6 +68,7 @@ class TestEnrichmentReportPath:
 
             enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
 
+            # Legacy method still returns global location
             assert ".specfact/reports/enrichment" in str(enrichment_path)
             assert enrichment_path.name == "test.2025-11-17T10-00-00.enrichment.md"
         finally:

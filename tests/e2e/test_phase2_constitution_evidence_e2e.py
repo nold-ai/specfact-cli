@@ -103,6 +103,7 @@ class TestPhase2ConstitutionEvidenceE2E:
         # Should detect contract decorators
         assert article_ix["contract_decorators"] > 0
 
+    @pytest.mark.timeout(20)
     def test_constitution_check_in_generated_plan_md(self, real_codebase_repo: Path) -> None:
         """Test that constitution check is included in generated plan.md files."""
         # Analyze code to create plan bundle

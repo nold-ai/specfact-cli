@@ -233,27 +233,39 @@ def _perform_sync_operation(
                 if plan_path and plan_path.exists():
                     # Show progress while loading plan bundle
                     progress.update(task, description="[cyan]Parsing plan bundle YAML...[/cyan]")
-                    validation_result = validate_plan_bundle(plan_path)
-                    if isinstance(validation_result, tuple):
-                        is_valid, _error, loaded_plan_bundle = validation_result
-                        if is_valid and loaded_plan_bundle:
-                            # Show progress during validation (Pydantic validation can be slow for large bundles)
-                            progress.update(
-                                task,
-                                description=f"[cyan]Validating {len(loaded_plan_bundle.features)} features...[/cyan]",
-                            )
-                            merged_bundle = loaded_plan_bundle
-                            progress.update(
-                                task,
-                                description=f"[green]✓[/green] Loaded plan bundle ({len(loaded_plan_bundle.features)} features)",
-                            )
-                        else:
-                            # Fallback: create minimal bundle via converter (but skip expensive parsing)
-                            progress.update(
-                                task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
-                            )
-                            merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
+                    # Check if path is a directory (modular bundle) - load it first
+                    if plan_path.is_dir():
+                        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                        from specfact_cli.utils.progress import load_bundle_with_progress
+
+                        project_bundle = load_bundle_with_progress(
+                            plan_path,
+                            validate_hashes=False,
+                            console_instance=progress.console if hasattr(progress, "console") else None,
+                        )
+                        loaded_plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                        is_valid = True
                     else:
+                        # It's a file (legacy monolithic bundle) - validate directly
+                        validation_result = validate_plan_bundle(plan_path)
+                        if isinstance(validation_result, tuple):
+                            is_valid, _error, loaded_plan_bundle = validation_result
+                        else:
+                            is_valid = False
+                            loaded_plan_bundle = None
+                    if is_valid and loaded_plan_bundle:
+                        # Show progress during validation (Pydantic validation can be slow for large bundles)
+                        progress.update(
+                            task,
+                            description=f"[cyan]Validating {len(loaded_plan_bundle.features)} features...[/cyan]",
+                        )
+                        merged_bundle = loaded_plan_bundle
+                        progress.update(
+                            task,
+                            description=f"[green]✓[/green] Loaded plan bundle ({len(loaded_plan_bundle.features)} features)",
+                        )
+                    else:
+                        # Fallback: create minimal bundle via converter (but skip expensive parsing)
                         progress.update(
                             task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
                         )
@@ -319,11 +331,28 @@ def _perform_sync_operation(
                         plan_path = SpecFactStructure.get_default_plan_path(repo)
                     if plan_path and plan_path.exists():
                         progress.update(task, description="[cyan]Loading plan bundle...[/cyan]")
-                        validation_result = validate_plan_bundle(plan_path)
-                        if isinstance(validation_result, tuple):
-                            is_valid, _error, plan_bundle = validation_result
-                            if is_valid and plan_bundle and len(plan_bundle.features) > 0:
-                                plan_bundle_to_convert = plan_bundle
+                        # Check if path is a directory (modular bundle) - load it first
+                        if plan_path.is_dir():
+                            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                            from specfact_cli.utils.progress import load_bundle_with_progress
+
+                            project_bundle = load_bundle_with_progress(
+                                plan_path,
+                                validate_hashes=False,
+                                console_instance=progress.console if hasattr(progress, "console") else None,
+                            )
+                            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                            is_valid = True
+                        else:
+                            # It's a file (legacy monolithic bundle) - validate directly
+                            validation_result = validate_plan_bundle(plan_path)
+                            if isinstance(validation_result, tuple):
+                                is_valid, _error, plan_bundle = validation_result
+                            else:
+                                is_valid = False
+                                plan_bundle = None
+                        if is_valid and plan_bundle and len(plan_bundle.features) > 0:
+                            plan_bundle_to_convert = plan_bundle
 
             # Convert if we have a plan bundle with features
             if plan_bundle_to_convert and len(plan_bundle_to_convert.features) > 0:
@@ -525,49 +554,75 @@ def _sync_speckit_to_specfact(
 
     plan_path = SpecFactStructure.get_default_plan_path(repo)
     existing_bundle: PlanBundle | None = None
+    # Check if plan_path is a modular bundle directory (even if it doesn't exist yet)
+    is_modular_bundle = (plan_path.exists() and plan_path.is_dir()) or (
+        not plan_path.exists() and plan_path.parent.name == "projects"
+    )
 
     if plan_path.exists():
         if task is not None:
             progress.update(task, description="[cyan]Validating existing plan bundle...[/cyan]")
-        validation_result = validate_plan_bundle(plan_path)
-        if isinstance(validation_result, tuple):
-            is_valid, _error, bundle = validation_result
-            if is_valid and bundle:
-                existing_bundle = bundle
-                # Deduplicate existing features by normalized key (clean up duplicates from previous syncs)
-                from specfact_cli.utils.feature_keys import normalize_feature_key
+        # Check if path is a directory (modular bundle) - load it first
+        if plan_path.is_dir():
+            is_modular_bundle = True
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.utils.progress import load_bundle_with_progress
 
-                seen_normalized_keys: set[str] = set()
-                deduplicated_features: list[Feature] = []
-                for existing_feature in existing_bundle.features:
-                    normalized_key = normalize_feature_key(existing_feature.key)
-                    if normalized_key not in seen_normalized_keys:
-                        seen_normalized_keys.add(normalized_key)
-                        deduplicated_features.append(existing_feature)
+            project_bundle = load_bundle_with_progress(
+                plan_path,
+                validate_hashes=False,
+                console_instance=progress.console if hasattr(progress, "console") else None,
+            )
+            bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            is_valid = True
+        else:
+            # It's a file (legacy monolithic bundle) - validate directly
+            validation_result = validate_plan_bundle(plan_path)
+            if isinstance(validation_result, tuple):
+                is_valid, _error, bundle = validation_result
+            else:
+                is_valid = False
+                bundle = None
+        if is_valid and bundle:
+            existing_bundle = bundle
+            # Deduplicate existing features by normalized key (clean up duplicates from previous syncs)
+            from specfact_cli.utils.feature_keys import normalize_feature_key
 
-                duplicates_removed = len(existing_bundle.features) - len(deduplicated_features)
-                if duplicates_removed > 0:
-                    existing_bundle.features = deduplicated_features
-                    # Write back deduplicated bundle immediately to clean up the plan file
-                    from specfact_cli.generators.plan_generator import PlanGenerator
+            seen_normalized_keys: set[str] = set()
+            deduplicated_features: list[Feature] = []
+            for existing_feature in existing_bundle.features:
+                normalized_key = normalize_feature_key(existing_feature.key)
+                if normalized_key not in seen_normalized_keys:
+                    seen_normalized_keys.add(normalized_key)
+                    deduplicated_features.append(existing_feature)
 
-                    if task is not None:
-                        progress.update(
-                            task,
-                            description=f"[cyan]Deduplicating {duplicates_removed} duplicate features and writing cleaned plan...[/cyan]",
-                        )
+            duplicates_removed = len(existing_bundle.features) - len(deduplicated_features)
+            if duplicates_removed > 0:
+                existing_bundle.features = deduplicated_features
+                # Write back deduplicated bundle immediately to clean up the plan file
+                from specfact_cli.generators.plan_generator import PlanGenerator
+
+                if task is not None:
+                    progress.update(
+                        task,
+                        description=f"[cyan]Deduplicating {duplicates_removed} duplicate features and writing cleaned plan...[/cyan]",
+                    )
+                # Skip writing if plan_path is a modular bundle directory (already saved as ProjectBundle)
+                if not is_modular_bundle:
                     generator = PlanGenerator()
                     generator.generate(existing_bundle, plan_path)
-                    if task is not None:
-                        progress.update(
-                            task,
-                            description=f"[green]✓[/green] Removed {duplicates_removed} duplicates, cleaned plan saved",
-                        )
+                if task is not None:
+                    progress.update(
+                        task,
+                        description=f"[green]✓[/green] Removed {duplicates_removed} duplicates, cleaned plan saved",
+                    )
 
     # Convert tool artifacts to SpecFact
     if task is not None:
         progress.update(task, description="[cyan]Converting tool artifacts to SpecFact format...[/cyan]")
-    converted_bundle = converter.convert_plan(None if not existing_bundle else plan_path)
+    # Don't write plan file during sync - it's already saved as ProjectBundle
+    # convert_plan will skip writing if path is a modular bundle directory
+    converted_bundle = converter.convert_plan(None)
 
     # Merge with existing plan if it exists
     features_updated = 0
@@ -654,15 +709,18 @@ def _sync_speckit_to_specfact(
         themes_new = set(converted_bundle.product.themes)
         existing_bundle.product.themes = list(themes_existing | themes_new)
 
-        # Write merged bundle
-        if task is not None:
-            progress.update(task, description="[cyan]Writing plan bundle to disk...[/cyan]")
-        generator = PlanGenerator()
-        generator.generate(existing_bundle, plan_path)
+        # Write merged bundle (skip if modular bundle - already saved as ProjectBundle)
+        if not is_modular_bundle:
+            if task is not None:
+                progress.update(task, description="[cyan]Writing plan bundle to disk...[/cyan]")
+            generator = PlanGenerator()
+            generator.generate(existing_bundle, plan_path)
         return existing_bundle, features_updated, features_added
-    # Write new bundle
-    generator = PlanGenerator()
-    generator.generate(converted_bundle, plan_path)
+    # Write new bundle (skip if plan_path is a modular bundle directory)
+    if not is_modular_bundle:
+        # Legacy monolithic file - write it
+        generator = PlanGenerator()
+        generator.generate(converted_bundle, plan_path)
     return converted_bundle, 0, len(converted_bundle.features)
 
 
@@ -708,12 +766,14 @@ def sync_bridge(
         "speckit",
         "--adapter",
         help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     interval: int = typer.Option(
         5,
         "--interval",
         help="Watch interval in seconds (default: 5)",
         min=1,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -798,10 +858,23 @@ def sync_bridge(
                 if hasattr(SpecFactStructure, "get_default_plan_path"):
                     plan_path = SpecFactStructure.get_default_plan_path(repo)
                     if plan_path and plan_path.exists():
-                        validation_result = validate_plan_bundle(plan_path)
-                        if isinstance(validation_result, tuple):
-                            is_valid, _error, plan_bundle = validation_result
-                            if not is_valid:
+                        # Check if path is a directory (modular bundle) - load it first
+                        if plan_path.is_dir():
+                            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                            from specfact_cli.utils.progress import load_bundle_with_progress
+
+                            project_bundle = load_bundle_with_progress(
+                                plan_path, validate_hashes=False, console_instance=console
+                            )
+                            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                        else:
+                            # It's a file (legacy monolithic bundle) - validate directly
+                            validation_result = validate_plan_bundle(plan_path)
+                            if isinstance(validation_result, tuple):
+                                is_valid, _error, plan_bundle = validation_result
+                                if not is_valid:
+                                    plan_bundle = None
+                            else:
                                 plan_bundle = None
 
             if plan_bundle:
@@ -916,6 +989,75 @@ def sync_bridge(
             record({"watch_mode": True})
             return
 
+        # Validate OpenAPI specs before sync (if bundle provided)
+        if bundle:
+            import asyncio
+
+            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.utils.progress import load_bundle_with_progress
+            from specfact_cli.utils.structure import SpecFactStructure
+
+            bundle_dir = SpecFactStructure.project_dir(base_path=resolved_repo, bundle_name=bundle)
+            if bundle_dir.exists():
+                console.print("\n[cyan]🔍 Validating OpenAPI contracts before sync...[/cyan]")
+                project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
+                plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+
+                from specfact_cli.integrations.specmatic import (
+                    check_specmatic_available,
+                    validate_spec_with_specmatic,
+                )
+
+                is_available, error_msg = check_specmatic_available()
+                if is_available:
+                    # Validate contracts referenced in bundle
+                    contract_files = []
+                    for feature in plan_bundle.features:
+                        if feature.contract:
+                            contract_path = bundle_dir / feature.contract
+                            if contract_path.exists():
+                                contract_files.append(contract_path)
+
+                    if contract_files:
+                        console.print(f"[dim]Validating {len(contract_files)} contract(s)...[/dim]")
+                        validation_failed = False
+                        for contract_path in contract_files[:5]:  # Validate up to 5 contracts
+                            console.print(f"[dim]Validating {contract_path.relative_to(bundle_dir)}...[/dim]")
+                            try:
+                                result = asyncio.run(validate_spec_with_specmatic(contract_path))
+                                if not result.is_valid:
+                                    console.print(
+                                        f"  [bold yellow]⚠[/bold yellow] {contract_path.name} has validation issues"
+                                    )
+                                    if result.errors:
+                                        for error in result.errors[:2]:
+                                            console.print(f"    - {error}")
+                                    validation_failed = True
+                                else:
+                                    console.print(f"  [bold green]✓[/bold green] {contract_path.name} is valid")
+                            except Exception as e:
+                                console.print(f"  [bold yellow]⚠[/bold yellow] Validation error: {e!s}")
+                                validation_failed = True
+
+                        if validation_failed:
+                            console.print(
+                                "[yellow]⚠[/yellow] Some contracts have validation issues. Sync will continue, but consider fixing them."
+                            )
+                        else:
+                            console.print("[green]✓[/green] All contracts validated successfully")
+
+                        # Check backward compatibility if previous version exists (for bidirectional sync)
+                        if bidirectional and len(contract_files) > 0:
+                            # TODO: Implement backward compatibility check by comparing with previous version
+                            # This would require storing previous contract versions
+                            console.print(
+                                "[dim]Backward compatibility check skipped (previous versions not stored)[/dim]"
+                            )
+                    else:
+                        console.print("[dim]No contracts found in bundle[/dim]")
+                else:
+                    console.print(f"[dim]💡 Tip: Install Specmatic to validate contracts: {error_msg}[/dim]")
+
         # Perform sync operation (extracted to avoid recursion in watch mode)
         # Use resolved_repo (already resolved and validated above)
         _perform_sync_operation(
@@ -953,6 +1095,7 @@ def sync_repository(
         "--interval",
         help="Watch interval in seconds (default: 5)",
         min=1,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     confidence: float = typer.Option(
         0.5,
@@ -960,6 +1103,7 @@ def sync_repository(
         help="Minimum confidence threshold for feature detection (default: 0.5)",
         min=0.0,
         max=1.0,
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """

@@ -146,6 +146,17 @@ def validate_plan_bundle(
 
     # Otherwise treat as path
     path = plan_or_path
+    # Check if path exists and is a directory (modular bundle) - not supported for direct validation
+    if path.exists() and path.is_dir():
+        return False, f"Path is a directory, not a file: {path}. Use load_project_bundle() for modular bundles.", None
+    # Also check if path doesn't exist but parent suggests it might be a directory (to avoid IsADirectoryError)
+    if not path.exists() and path.parent.exists() and path.parent.is_dir():
+        # This might be a bundle directory path
+        return (
+            False,
+            f"Path does not exist: {path}. If this is a bundle directory, use load_project_bundle() instead.",
+            None,
+        )
     fmt = StructuredFormat.from_path(path)
     try:
         data = load_structured_file(path, fmt)

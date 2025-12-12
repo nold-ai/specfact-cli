@@ -108,7 +108,7 @@ SpecFact helps you identify which functions are critical (high risk, high busine
 
 ```bash
 # Review extracted plan to identify critical paths
-cat contracts/plans/plan.bundle.yaml
+cat .specfact/projects/<bundle-name>/bundle.manifest.yaml
 ```
 
 ### Add Runtime Contracts

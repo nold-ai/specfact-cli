@@ -70,9 +70,9 @@ def implement_tasks(
     - **Behavior/Options**: --dry-run, --skip-validation, --no-interactive
 
     **Examples:**
-        specfact implement tasks .specfact/tasks/bundle-abc123.tasks.yaml
-        specfact implement tasks .specfact/tasks/bundle-abc123.tasks.yaml --phase setup
-        specfact implement tasks .specfact/tasks/bundle-abc123.tasks.yaml --task TASK-001 --dry-run
+        specfact implement tasks .specfact/projects/bundle-name/tasks.yaml
+        specfact implement tasks .specfact/projects/bundle-name/tasks.yaml --phase setup
+        specfact implement tasks .specfact/projects/bundle-name/tasks.yaml --task TASK-001 --dry-run
     """
     from specfact_cli.telemetry import telemetry
 

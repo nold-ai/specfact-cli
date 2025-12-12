@@ -878,7 +878,6 @@ def update_feature(
         specfact plan update-feature --batch-updates updates.json --bundle legacy-api
     """
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.utils.structured_io import load_structured_file
 
     # Validate that either key or batch_updates is provided
     if not key and not batch_updates:
@@ -1212,7 +1211,6 @@ def update_story(
         specfact plan update-story --batch-updates updates.json --bundle legacy-api
     """
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.utils.structured_io import load_structured_file
 
     # Validate that either (feature and key) or batch_updates is provided
     if not (feature and key) and not batch_updates:
@@ -1539,12 +1537,12 @@ def compare(
     manual: Path | None = typer.Option(
         None,
         "--manual",
-        help="Manual plan bundle path (default: active plan in .specfact/plans using current format). Ignored if --bundle is specified.",
+        help="Manual plan bundle path (bundle directory: .specfact/projects/<bundle>/). Ignored if --bundle is specified.",
     ),
     auto: Path | None = typer.Option(
         None,
         "--auto",
-        help="Auto-derived plan bundle path (default: latest in .specfact/plans/). Ignored if --bundle is specified.",
+        help="Auto-derived plan bundle path (bundle directory: .specfact/projects/<bundle>/). Ignored if --bundle is specified.",
     ),
     # Output/Results
     output_format: str = typer.Option(
@@ -1555,7 +1553,7 @@ def compare(
     out: Path | None = typer.Option(
         None,
         "--out",
-        help="Output file path (default: .specfact/reports/comparison/deviations-<timestamp>.md)",
+        help="Output file path (default: .specfact/projects/<bundle-name>/reports/comparison/report-<timestamp>.md when --bundle is provided).",
     ),
     # Behavior/Options
     code_vs_plan: bool = typer.Option(
@@ -1580,8 +1578,8 @@ def compare(
     - **Behavior/Options**: --code-vs-plan
 
     **Examples:**
-        specfact plan compare --manual .specfact/plans/main.bundle.<format> --auto .specfact/plans/auto-derived-<timestamp>.bundle.<format>
-        specfact plan compare --code-vs-plan  # Convenience alias
+        specfact plan compare --manual .specfact/projects/manual-bundle --auto .specfact/projects/auto-bundle
+        specfact plan compare --code-vs-plan  # Convenience alias (requires bundle-based paths)
         specfact plan compare --bundle legacy-api --output-format json
     """
     from specfact_cli.utils.structure import SpecFactStructure
@@ -1602,21 +1600,21 @@ def compare(
                 manual = SpecFactStructure.get_default_plan_path()
                 if not manual.exists():
                     print_error(
-                        f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive"
+                        "Default manual bundle not found.\nCreate one with: specfact plan init <bundle-name> --interactive"
                     )
                     raise typer.Exit(1)
-                print_info(f"Using default manual plan: {manual}")
+                print_info(f"Using default manual bundle: {manual}")
 
             # Auto-detect latest code-derived plan
             if auto is None:
                 auto = SpecFactStructure.get_latest_brownfield_report()
                 if auto is None:
-                    plans_dir = Path(SpecFactStructure.PLANS)
                     print_error(
-                        f"No code-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                        "No code-derived bundles found in .specfact/projects/*/reports/brownfield/.\n"
+                        "Generate one with: specfact import from-code <bundle-name> --repo ."
                     )
                     raise typer.Exit(1)
-                print_info(f"Using latest code-derived plan: {auto}")
+                print_info(f"Using latest code-derived bundle report: {auto}")
 
             # Override help text to emphasize code vs plan drift
             print_section("Code vs Plan Drift Detection")
@@ -1629,26 +1627,49 @@ def compare(
             manual = SpecFactStructure.get_default_plan_path()
             if not manual.exists():
                 print_error(
-                    f"Default manual plan not found: {manual}\nCreate one with: specfact plan init --interactive"
+                    "Default manual bundle not found.\nCreate one with: specfact plan init <bundle-name> --interactive"
                 )
                 raise typer.Exit(1)
-            print_info(f"Using default manual plan: {manual}")
+            print_info(f"Using default manual bundle: {manual}")
 
         if auto is None:
             # Use smart default: find latest auto-derived plan
             auto = SpecFactStructure.get_latest_brownfield_report()
             if auto is None:
-                plans_dir = Path(SpecFactStructure.PLANS)
                 print_error(
-                    f"No auto-derived plans found in {plans_dir}\nGenerate one with: specfact import from-code --repo ."
+                    "No auto-derived bundles found in .specfact/projects/*/reports/brownfield/.\n"
+                    "Generate one with: specfact import from-code <bundle-name> --repo ."
                 )
                 raise typer.Exit(1)
-            print_info(f"Using latest auto-derived plan: {auto}")
+            print_info(f"Using latest auto-derived bundle: {auto}")
 
         if out is None:
             # Use smart default: timestamped comparison report
             extension = {"markdown": "md", "json": "json", "yaml": "yaml"}[output_format.lower()]
-            out = SpecFactStructure.get_comparison_report_path(format=extension)
+            # Phase 8.5: Use bundle-specific path if bundle context available
+            # Try to infer bundle from manual plan path or use bundle parameter
+            bundle_name = None
+            if bundle is not None:
+                bundle_name = bundle
+            elif manual is not None:
+                # Try to extract bundle name from manual plan path
+                manual_str = str(manual)
+                if "/projects/" in manual_str:
+                    # Extract bundle name from path like .specfact/projects/<bundle-name>/...
+                    parts = manual_str.split("/projects/")
+                    if len(parts) > 1:
+                        bundle_part = parts[1].split("/")[0]
+                        if bundle_part:
+                            bundle_name = bundle_part
+
+            if bundle_name:
+                # Use bundle-specific comparison report path (Phase 8.5)
+                out = SpecFactStructure.get_bundle_comparison_report_path(
+                    bundle_name=bundle_name, base_path=Path("."), format=extension
+                )
+            else:
+                # Fallback to global path (backward compatibility during transition)
+                out = SpecFactStructure.get_comparison_report_path(format=extension)
             print_info(f"Writing comparison report to: {out}")
 
         print_section("SpecFact CLI - Plan Comparison")
@@ -1848,11 +1869,13 @@ def select(
         None,
         "--name",
         help="Select bundle by exact bundle name (non-interactive, e.g., 'main')",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     plan_id: str | None = typer.Option(
         None,
         "--id",
         help="Select plan by content hash ID (non-interactive, from metadata.summary.content_hash)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -1882,7 +1905,7 @@ def select(
     Select active project bundle from available bundles.
 
     Displays a numbered list of available project bundles and allows selection by number or name.
-    The selected bundle becomes the active bundle tracked in `.specfact/plans/config.yaml`.
+    The selected bundle becomes the active bundle tracked in `.specfact/config.yaml`.
 
     Filter Options:
         --current          Show only the currently active bundle (non-interactive, auto-selects)
@@ -2020,27 +2043,13 @@ def select(
         # Handle --id flag (non-interactive selection by content hash)
         if plan_id is not None:
             no_interactive = True  # Force non-interactive when --id is used
-            # Need to load plan bundles to get content_hash from summary
-            from pathlib import Path
-
+            # Match by content hash (from bundle manifest summary)
             selected_plan = None
-            plans_dir = Path(".specfact/plans")
-
             for p in plans:
-                plan_file = plans_dir / str(p["name"])
-                if plan_file.exists():
-                    try:
-                        plan_data = load_structured_file(plan_file)
-                        metadata = plan_data.get("metadata", {}) or {}
-                        summary = metadata.get("summary", {}) or {}
-                        content_hash = summary.get("content_hash")
-
-                        # Match by full hash or first 8 chars (short ID)
-                        if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
-                            selected_plan = p
-                            break
-                    except Exception:
-                        continue
+                content_hash = p.get("content_hash")
+                if content_hash and (content_hash == plan_id or content_hash.startswith(plan_id)):
+                    selected_plan = p
+                    break
 
             if selected_plan is None:
                 print_error(f"Plan not found with ID: {plan_id}")
@@ -2960,6 +2969,7 @@ def _output_findings(
     report: Any,  # AmbiguityReport (imported locally to avoid circular dependency)
     findings_format: str | None,
     is_non_interactive: bool,
+    output_path: Path | None = None,
 ) -> None:
     """
     Output findings in structured format or table.
@@ -2968,8 +2978,14 @@ def _output_findings(
         report: Ambiguity report
         findings_format: Output format (json, yaml, table)
         is_non_interactive: Whether in non-interactive mode
+        output_path: Optional file path to save findings. If None, outputs to stdout.
     """
+    from rich.console import Console
+    from rich.table import Table
+
     from specfact_cli.analyzers.ambiguity_scanner import AmbiguityStatus
+
+    console = Console()
 
     # Determine output format
     output_format_str = findings_format
@@ -3013,12 +3029,47 @@ def _output_findings(
 
         # Also show coverage summary
         if report.coverage:
+            from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
             console.print("\n[bold]Coverage Summary:[/bold]")
+            # Count findings per category by status
+            total_findings_by_category: dict[TaxonomyCategory, int] = {}
+            clear_findings_by_category: dict[TaxonomyCategory, int] = {}
+            partial_findings_by_category: dict[TaxonomyCategory, int] = {}
+            for finding in findings_list:
+                cat = finding.category
+                total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+                # Count by finding status
+                if finding.status == AmbiguityStatus.CLEAR:
+                    clear_findings_by_category[cat] = clear_findings_by_category.get(cat, 0) + 1
+                elif finding.status == AmbiguityStatus.PARTIAL:
+                    partial_findings_by_category[cat] = partial_findings_by_category.get(cat, 0) + 1
+
             for cat, status in report.coverage.items():
                 status_icon = (
                     "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
-                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                total = total_findings_by_category.get(cat, 0)
+                clear_count = clear_findings_by_category.get(cat, 0)
+                partial_count = partial_findings_by_category.get(cat, 0)
+                # Show format based on status:
+                # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                # - Partial: Show partial_count/total (count of findings with PARTIAL status = unclear findings)
+                if status == AmbiguityStatus.CLEAR:
+                    if total == 0:
+                        # No findings - just show status without counts
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                elif status == AmbiguityStatus.PARTIAL:
+                    # Show count of partial (unclear) findings
+                    # If all are unclear, just show the count without the fraction
+                    if partial_count == total:
+                        console.print(f"  {status_icon} {cat.value}: {partial_count} {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {partial_count}/{total} {status.value}")
+                else:  # MISSING
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
 
     elif output_format_str in ("json", "yaml"):
         # Structured output (JSON or YAML)
@@ -3044,7 +3095,7 @@ def _output_findings(
         import sys
 
         if output_format_str == "json":
-            sys.stdout.write(json.dumps(findings_data, indent=2))
+            formatted_output = json.dumps(findings_data, indent=2) + "\n"
         else:  # yaml
             from ruamel.yaml import YAML
 
@@ -3055,9 +3106,20 @@ def _output_findings(
 
             output = StringIO()
             yaml.dump(findings_data, output)
-            sys.stdout.write(output.getvalue())
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+            formatted_output = output.getvalue()
+
+        if output_path:
+            # Save to file
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(formatted_output, encoding="utf-8")
+            from rich.console import Console
+
+            console = Console()
+            console.print(f"[green]✓[/green] Findings saved to: {output_path}")
+        else:
+            # Output to stdout
+            sys.stdout.write(formatted_output)
+            sys.stdout.flush()
     else:
         print_error(f"Invalid findings format: {findings_format}. Must be 'json', 'yaml', or 'table'")
         raise typer.Exit(1)
@@ -3177,7 +3239,6 @@ def _validate_sdd_for_bundle(
     """
     from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
     from specfact_cli.models.sdd import SDDManifest
-    from specfact_cli.utils.structured_io import load_structured_file
 
     report = ValidationReport()
     # Find SDD using discovery utility
@@ -3266,14 +3327,21 @@ def _validate_sdd_for_plan(
     from specfact_cli.models.deviation import Deviation, DeviationSeverity, ValidationReport
     from specfact_cli.models.sdd import SDDManifest
     from specfact_cli.utils.structure import SpecFactStructure
-    from specfact_cli.utils.structured_io import load_structured_file
 
     report = ValidationReport()
-    # Construct SDD path (try YAML first, then JSON)
+    # Construct bundle-specific SDD path (Phase 8.5+)
     base_path = Path.cwd()
-    sdd_path = base_path / SpecFactStructure.ROOT / "sdd.yaml"
+    if not plan_path.is_dir():
+        print_error(
+            "Legacy monolithic plan detected. Please migrate to bundle directories via 'specfact migrate artifacts --repo .'."
+        )
+        raise typer.Exit(1)
+    bundle_name = plan_path.name
+    from specfact_cli.utils.structured_io import StructuredFormat
+
+    sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, StructuredFormat.YAML)
     if not sdd_path.exists():
-        sdd_path = base_path / SpecFactStructure.ROOT / "sdd.json"
+        sdd_path = SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, StructuredFormat.JSON)
 
     # Check if SDD manifest exists
     if not sdd_path.exists():
@@ -3282,7 +3350,7 @@ def _validate_sdd_for_plan(
                 type=DeviationType.COVERAGE_THRESHOLD,
                 severity=DeviationSeverity.HIGH,
                 description="SDD manifest is required for plan promotion but not found",
-                location=".specfact/sdd.yaml",
+                location=".specfact/projects/<bundle>/sdd.yaml",
                 fix_hint="Run 'specfact plan harden' to create SDD manifest",
             )
             report.add_deviation(deviation)
@@ -3325,7 +3393,7 @@ def _validate_sdd_for_plan(
             type=DeviationType.HASH_MISMATCH,
             severity=DeviationSeverity.HIGH,
             description=f"SDD plan bundle hash mismatch: expected {plan_hash[:16]}..., got {sdd_manifest.plan_bundle_hash[:16]}...",
-            location=".specfact/sdd.yaml",
+            location=".specfact/projects/<bundle>/sdd.yaml",
             fix_hint="Run 'specfact plan harden' to update SDD manifest with current plan hash",
         )
         report.add_deviation(deviation)
@@ -3534,10 +3602,13 @@ def _scan_and_prepare_questions(
     question_counter = 1
     candidate_questions: list[tuple[Any, str]] = []
     for finding in prioritized_findings:
-        if finding.question and (question_id := f"Q{question_counter:03d}") not in existing_question_ids:
+        if finding.question:
+            # Skip to next available question ID if current one is already used
+            while (question_id := f"Q{question_counter:03d}") in existing_question_ids:
+                question_counter += 1
             # Generate question ID and add if not already answered
-            question_counter += 1
             candidate_questions.append((finding, question_id))
+            question_counter += 1
 
     # Limit to max_questions
     questions_to_ask = candidate_questions[:max_questions]
@@ -3579,6 +3650,13 @@ def _handle_no_questions_case(
             if category in critical_categories and status == AmbiguityStatus.MISSING:
                 missing_critical.append(category)
 
+    # Count total findings per category (shared for both branches)
+    total_findings_by_category: dict[TaxonomyCategory, int] = {}
+    if report.findings:
+        for finding in report.findings:
+            cat = finding.category
+            total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+
     if missing_critical:
         print_warning(
             f"Plan has {len(missing_critical)} critical category(ies) marked as Missing, but no high-priority questions remain"
@@ -3592,7 +3670,27 @@ def _handle_no_questions_case(
                 status_icon = (
                     "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
-                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                total = total_findings_by_category.get(cat, 0)
+                # Count findings by status
+                clear_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.CLEAR
+                )
+                partial_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.PARTIAL
+                )
+                # Show format based on status:
+                # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                # - Partial: Show partial_count/total (count of findings with PARTIAL status)
+                if status == AmbiguityStatus.CLEAR:
+                    if total == 0:
+                        # No findings - just show status without counts
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                elif status == AmbiguityStatus.PARTIAL:
+                    console.print(f"  {status_icon} {cat.value}: {partial_count}/{total} {status.value}")
+                else:  # MISSING
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
         console.print(
             "\n[bold]⚠️ Warning:[/bold] Plan may not be ready for promotion due to missing critical categories"
         )
@@ -3605,7 +3703,27 @@ def _handle_no_questions_case(
                 status_icon = (
                     "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
                 )
-                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                total = total_findings_by_category.get(cat, 0)
+                # Count findings by status
+                clear_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.CLEAR
+                )
+                partial_count = sum(
+                    1 for f in (report.findings or []) if f.category == cat and f.status == AmbiguityStatus.PARTIAL
+                )
+                # Show format based on status:
+                # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                # - Partial: Show partial_count/total (count of findings with PARTIAL status)
+                if status == AmbiguityStatus.CLEAR:
+                    if total == 0:
+                        # No findings - just show status without counts
+                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                    else:
+                        console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                elif status == AmbiguityStatus.PARTIAL:
+                    console.print(f"  {status_icon} {cat.value}: {partial_count}/{total} {status.value}")
+                else:  # MISSING
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
 
     return
 
@@ -3613,12 +3731,13 @@ def _handle_no_questions_case(
 @beartype
 @require(lambda questions_to_ask: isinstance(questions_to_ask, list), "Questions must be list")
 @ensure(lambda result: result is None, "Must return None")
-def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None:
+def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]], output_path: Path | None = None) -> None:
     """
     Handle --list-questions mode by outputting questions as JSON.
 
     Args:
         questions_to_ask: List of (finding, question_id) tuples
+        output_path: Optional file path to save questions. If None, outputs to stdout.
     """
     import json
     import sys
@@ -3635,10 +3754,22 @@ def _handle_list_questions_mode(questions_to_ask: list[tuple[Any, str]]) -> None
                 "related_sections": finding.related_sections or [],
             }
         )
-    # Output JSON to stdout (for Copilot mode parsing)
-    sys.stdout.write(json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2))
-    sys.stdout.write("\n")
-    sys.stdout.flush()
+
+    json_output = json.dumps({"questions": questions_json, "total": len(questions_json)}, indent=2)
+
+    if output_path:
+        # Save to file
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json_output + "\n", encoding="utf-8")
+        from rich.console import Console
+
+        console = Console()
+        console.print(f"[green]✓[/green] Questions saved to: {output_path}")
+    else:
+        # Output JSON to stdout (for Copilot mode parsing)
+        sys.stdout.write(json_output)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
 
     return
 
@@ -3887,11 +4018,76 @@ def _display_review_summary(
     # Coverage summary (updated after questions)
     console.print("\n[bold]Updated Coverage Summary:[/bold]")
     if updated_report.coverage:
+        from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
+        # Count findings that can still generate questions (unclear findings)
+        # Use the same logic as _scan_and_prepare_questions to count unclear findings
+        existing_question_ids = set()
+        if plan_bundle.clarifications:
+            for session in plan_bundle.clarifications.sessions:
+                for q in session.questions:
+                    existing_question_ids.add(q.id)
+
+        # Prioritize findings by (Impact x Uncertainty) - same as _scan_and_prepare_questions
+        findings_list = updated_report.findings or []
+        prioritized_findings = sorted(
+            findings_list,
+            key=lambda f: f.impact * f.uncertainty,
+            reverse=True,
+        )
+
+        # Count total findings and unclear findings per category
+        # A finding is unclear if it can still generate a question (same logic as _scan_and_prepare_questions)
+        total_findings_by_category: dict[TaxonomyCategory, int] = {}
+        unclear_findings_by_category: dict[TaxonomyCategory, int] = {}
+        clear_findings_by_category: dict[TaxonomyCategory, int] = {}
+
+        question_counter = 1
+        for finding in prioritized_findings:
+            cat = finding.category
+            total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+
+            # Count by finding status
+            if finding.status == AmbiguityStatus.CLEAR:
+                clear_findings_by_category[cat] = clear_findings_by_category.get(cat, 0) + 1
+            elif finding.status == AmbiguityStatus.PARTIAL:
+                # A finding is unclear if it can generate a question (same logic as _scan_and_prepare_questions)
+                if finding.question:
+                    # Skip to next available question ID if current one is already used
+                    while f"Q{question_counter:03d}" in existing_question_ids:
+                        question_counter += 1
+                    # This finding can generate a question, so it's unclear
+                    unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+                    question_counter += 1
+                else:
+                    # Finding has no question, so it's unclear
+                    unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+
         for cat, status in updated_report.coverage.items():
             status_icon = (
                 "✅" if status == AmbiguityStatus.CLEAR else "⚠️" if status == AmbiguityStatus.PARTIAL else "❌"
             )
-            console.print(f"  {status_icon} {cat.value}: {status.value}")
+            total = total_findings_by_category.get(cat, 0)
+            unclear = unclear_findings_by_category.get(cat, 0)
+            clear_count = clear_findings_by_category.get(cat, 0)
+            # Show format based on status:
+            # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+            # - Partial: Show unclear_count/total (how many findings are still unclear)
+            if status == AmbiguityStatus.CLEAR:
+                if total == 0:
+                    # No findings - just show status without counts
+                    console.print(f"  {status_icon} {cat.value}: {status.value}")
+                else:
+                    console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+            elif status == AmbiguityStatus.PARTIAL:
+                # Show how many findings are still unclear
+                # If all are unclear, just show the count without the fraction
+                if unclear == total:
+                    console.print(f"  {status_icon} {cat.value}: {unclear} {status.value}")
+                else:
+                    console.print(f"  {status_icon} {cat.value}: {unclear}/{total} {status.value}")
+            else:  # MISSING
+                console.print(f"  {status_icon} {cat.value}: {status.value}")
 
     # Next steps
     console.print("\n[bold]Next Steps:[/bold]")
@@ -3922,12 +4118,18 @@ def review(
         None,
         "--category",
         help="Focus on specific taxonomy category (optional). Default: None (all categories)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     # Output/Results
     list_questions: bool = typer.Option(
         False,
         "--list-questions",
         help="Output questions in JSON format without asking (for Copilot mode). Default: False",
+    ),
+    output_questions: Path | None = typer.Option(
+        None,
+        "--output-questions",
+        help="Save questions to file (JSON format). If --list-questions is also set, questions are saved to file instead of stdout. Default: None",
     ),
     list_findings: bool = typer.Option(
         False,
@@ -3939,6 +4141,12 @@ def review(
         "--findings-format",
         help="Output format for --list-findings: json, yaml, or table. Default: json for non-interactive, table for interactive",
         case_sensitive=False,
+        hidden=True,  # Hidden by default, shown with --help-advanced
+    ),
+    output_findings: Path | None = typer.Option(
+        None,
+        "--output-findings",
+        help="Save findings to file (JSON/YAML format). If --list-findings is also set, findings are saved to file instead of stdout. Default: None",
     ),
     # Behavior/Options
     no_interactive: bool = typer.Option(
@@ -3949,7 +4157,8 @@ def review(
     answers: str | None = typer.Option(
         None,
         "--answers",
-        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file. Default: None",
+        help="JSON object with question_id -> answer mappings (for non-interactive mode). Can be JSON string or path to JSON file. Use with --output-questions to save questions, then edit and provide answers. Default: None",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     auto_enrich: bool = typer.Option(
         False,
@@ -3963,6 +4172,7 @@ def review(
         min=1,
         max=10,
         help="Maximum questions per session. Default: 5 (range: 1-10)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -3982,7 +4192,9 @@ def review(
         specfact plan review legacy-api
         specfact plan review auth-module --max-questions 3 --category "Functional Scope"
         specfact plan review legacy-api --list-questions  # Output questions as JSON
+        specfact plan review legacy-api --list-questions --output-questions /tmp/questions.json  # Save questions to file
         specfact plan review legacy-api --list-findings --findings-format json  # Output all findings as JSON
+        specfact plan review legacy-api --list-findings --output-findings /tmp/findings.json  # Save findings to file
         specfact plan review legacy-api --answers '{"Q001": "answer1", "Q002": "answer2"}'  # Non-interactive
     """
     from rich.console import Console
@@ -4046,7 +4258,7 @@ def review(
 
             # Handle --list-findings mode
             if list_findings:
-                _output_findings(report, findings_format, is_non_interactive)
+                _output_findings(report, findings_format, is_non_interactive, output_findings)
                 raise typer.Exit(0)
 
             # Show initial coverage summary BEFORE questions (so user knows what's missing)
@@ -4055,6 +4267,51 @@ def review(
 
                 console.print("\n[bold]Initial Coverage Summary:[/bold]")
                 if report.coverage:
+                    from specfact_cli.analyzers.ambiguity_scanner import TaxonomyCategory
+
+                    # Count findings that can still generate questions (unclear findings)
+                    # Use the same logic as _scan_and_prepare_questions to count unclear findings
+                    existing_question_ids = set()
+                    if plan_bundle.clarifications:
+                        for session in plan_bundle.clarifications.sessions:
+                            for q in session.questions:
+                                existing_question_ids.add(q.id)
+
+                    # Prioritize findings by (Impact x Uncertainty) - same as _scan_and_prepare_questions
+                    findings_list = report.findings or []
+                    prioritized_findings = sorted(
+                        findings_list,
+                        key=lambda f: f.impact * f.uncertainty,
+                        reverse=True,
+                    )
+
+                    # Count total findings and unclear findings per category
+                    # A finding is unclear if it can still generate a question (same logic as _scan_and_prepare_questions)
+                    total_findings_by_category: dict[TaxonomyCategory, int] = {}
+                    unclear_findings_by_category: dict[TaxonomyCategory, int] = {}
+                    clear_findings_by_category: dict[TaxonomyCategory, int] = {}
+
+                    question_counter = 1
+                    for finding in prioritized_findings:
+                        cat = finding.category
+                        total_findings_by_category[cat] = total_findings_by_category.get(cat, 0) + 1
+
+                        # Count by finding status
+                        if finding.status == AmbiguityStatus.CLEAR:
+                            clear_findings_by_category[cat] = clear_findings_by_category.get(cat, 0) + 1
+                        elif finding.status == AmbiguityStatus.PARTIAL:
+                            # A finding is unclear if it can generate a question (same logic as _scan_and_prepare_questions)
+                            if finding.question:
+                                # Skip to next available question ID if current one is already used
+                                while f"Q{question_counter:03d}" in existing_question_ids:
+                                    question_counter += 1
+                                # This finding can generate a question, so it's unclear
+                                unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+                                question_counter += 1
+                            else:
+                                # Finding has no question, so it's unclear
+                                unclear_findings_by_category[cat] = unclear_findings_by_category.get(cat, 0) + 1
+
                     for cat, status in report.coverage.items():
                         status_icon = (
                             "✅"
@@ -4063,16 +4320,36 @@ def review(
                             if status == AmbiguityStatus.PARTIAL
                             else "❌"
                         )
-                        console.print(f"  {status_icon} {cat.value}: {status.value}")
+                        total = total_findings_by_category.get(cat, 0)
+                        unclear = unclear_findings_by_category.get(cat, 0)
+                        clear_count = clear_findings_by_category.get(cat, 0)
+                        # Show format based on status:
+                        # - Clear: If no findings (total=0), just show status. Otherwise show clear_count/total
+                        # - Partial: Show unclear_count/total (how many findings are still unclear)
+                        if status == AmbiguityStatus.CLEAR:
+                            if total == 0:
+                                # No findings - just show status without counts
+                                console.print(f"  {status_icon} {cat.value}: {status.value}")
+                            else:
+                                console.print(f"  {status_icon} {cat.value}: {clear_count}/{total} {status.value}")
+                        elif status == AmbiguityStatus.PARTIAL:
+                            # Show how many findings are still unclear
+                            # If all are unclear, just show the count without the fraction
+                            if unclear == total:
+                                console.print(f"  {status_icon} {cat.value}: {unclear} {status.value}")
+                            else:
+                                console.print(f"  {status_icon} {cat.value}: {unclear}/{total} {status.value}")
+                        else:  # MISSING
+                            console.print(f"  {status_icon} {cat.value}: {status.value}")
                 console.print(f"\n[dim]Found {len(questions_to_ask)} question(s) to resolve[/dim]\n")
+
+            # Handle --list-questions mode (must be before no-questions check)
+            if list_questions:
+                _handle_list_questions_mode(questions_to_ask, output_questions)
+                raise typer.Exit(0)
 
             if not questions_to_ask:
                 _handle_no_questions_case(questions_to_ask, report)
-                raise typer.Exit(0)
-
-            # Handle --list-questions mode
-            if list_questions:
-                _handle_list_questions_mode(questions_to_ask)
                 raise typer.Exit(0)
 
             # Parse answers if provided
@@ -4252,7 +4529,7 @@ def harden(
     sdd_path: Path | None = typer.Option(
         None,
         "--sdd",
-        help="Output SDD manifest path. Default: .specfact/sdd/<bundle-name>.<format>",
+        help="Output SDD manifest path. Default: bundle-specific .specfact/projects/<bundle-name>/sdd.<format> (Phase 8.5)",
     ),
     # Output/Results
     output_format: StructuredFormat | None = typer.Option(
@@ -4276,7 +4553,7 @@ def harden(
     contracts) with promotion status.
 
     **Important**: SDD manifests are linked to specific project bundles via hash.
-    Each project bundle has its own SDD manifest in `.specfact/sdd/<bundle-name>.yaml`.
+    Each project bundle has its own SDD manifest in `.specfact/projects/<bundle-name>/sdd.yaml` (Phase 8.5).
 
     **Parameter Groups:**
     - **Target/Input**: bundle (optional argument, defaults to active plan), --sdd
@@ -4340,7 +4617,7 @@ def harden(
                 print_error("Failed to compute project bundle hash")
                 raise typer.Exit(1)
 
-            # Determine SDD output path (one per bundle: .specfact/sdd/<bundle-name>.yaml)
+            # Determine SDD output path (bundle-specific: .specfact/projects/<bundle-name>/sdd.yaml, Phase 8.5)
             from specfact_cli.utils.sdd_discovery import get_default_sdd_path_for_bundle
 
             if sdd_path is None:
@@ -4390,19 +4667,21 @@ def harden(
                         # Extract from bundle, using existing SDD as fallback
                         why = _extract_sdd_why(plan_bundle, is_non_interactive, existing_sdd.why)
                         what = _extract_sdd_what(plan_bundle, is_non_interactive, existing_sdd.what)
-                        how = _extract_sdd_how(plan_bundle, is_non_interactive, existing_sdd.how)
+                        how = _extract_sdd_how(
+                            plan_bundle, is_non_interactive, existing_sdd.how, project_bundle, bundle_dir
+                        )
                 except Exception:
                     # If we can't read/validate existing SDD, just proceed (might be corrupted)
                     existing_sdd = None
                     # Extract from bundle without fallback
                     why = _extract_sdd_why(plan_bundle, is_non_interactive, None)
                     what = _extract_sdd_what(plan_bundle, is_non_interactive, None)
-                    how = _extract_sdd_how(plan_bundle, is_non_interactive, None)
+                    how = _extract_sdd_how(plan_bundle, is_non_interactive, None, project_bundle, bundle_dir)
             else:
                 # No existing SDD found, extract from bundle
                 why = _extract_sdd_why(plan_bundle, is_non_interactive, None)
                 what = _extract_sdd_what(plan_bundle, is_non_interactive, None)
-                how = _extract_sdd_how(plan_bundle, is_non_interactive, None)
+                how = _extract_sdd_how(plan_bundle, is_non_interactive, None, project_bundle, bundle_dir)
 
             # Type assertion: these variables are always set in valid code paths
             # (typer.Exit exits the function, so those paths don't need these variables)
@@ -4421,6 +4700,7 @@ def harden(
                     contracts_per_story=1.0,
                     invariants_per_feature=1.0,
                     architecture_facets=3,
+                    openapi_coverage_percent=80.0,
                 ),
                 enforcement_budget=SDDEnforcementBudget(
                     shadow_budget_seconds=300,
@@ -4458,6 +4738,7 @@ def harden(
                 console.print(f"  {how.architecture[:100]}...")
             console.print(f"[bold]Invariants:[/bold] {len(how.invariants)}")
             console.print(f"[bold]Contracts:[/bold] {len(how.contracts)}")
+            console.print(f"[bold]OpenAPI Contracts:[/bold] {len(how.openapi_contracts)}")
 
             record(
                 {
@@ -4589,18 +4870,28 @@ def _extract_sdd_what(bundle: PlanBundle, is_non_interactive: bool, fallback: SD
 @beartype
 @require(lambda bundle: isinstance(bundle, PlanBundle), "Bundle must be PlanBundle")
 @require(lambda is_non_interactive: isinstance(is_non_interactive, bool), "Is non-interactive must be bool")
-def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDDHow | None = None) -> SDDHow:
+def _extract_sdd_how(
+    bundle: PlanBundle,
+    is_non_interactive: bool,
+    fallback: SDDHow | None = None,
+    project_bundle: ProjectBundle | None = None,
+    bundle_dir: Path | None = None,
+) -> SDDHow:
     """
     Extract HOW section from plan bundle.
 
     Args:
         bundle: Plan bundle to extract from
         is_non_interactive: Whether in non-interactive mode
+        fallback: Optional fallback SDDHow to reuse values from
+        project_bundle: Optional ProjectBundle to extract OpenAPI contract references
+        bundle_dir: Optional bundle directory path for contract file validation
 
     Returns:
         SDDHow instance
     """
-    from specfact_cli.models.sdd import SDDHow
+    from specfact_cli.models.contract import count_endpoints, load_openapi_contract, validate_openapi_schema
+    from specfact_cli.models.sdd import OpenAPIContractReference, SDDHow
 
     architecture: str | None = None
     invariants: list[str] = []
@@ -4633,6 +4924,46 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
     # Extract module boundaries from feature keys (as a simple heuristic)
     module_boundaries = [f.key for f in bundle.features[:10]]  # Limit to first 10
 
+    # Extract OpenAPI contract references from project bundle if available
+    openapi_contracts: list[OpenAPIContractReference] = []
+    if project_bundle and bundle_dir:
+        for feature_index in project_bundle.manifest.features:
+            if feature_index.contract:
+                contract_path = bundle_dir / feature_index.contract
+                if contract_path.exists():
+                    try:
+                        contract_data = load_openapi_contract(contract_path)
+                        if validate_openapi_schema(contract_data):
+                            endpoints_count = count_endpoints(contract_data)
+                            openapi_contracts.append(
+                                OpenAPIContractReference(
+                                    feature_key=feature_index.key,
+                                    contract_file=feature_index.contract,
+                                    endpoints_count=endpoints_count,
+                                    status="validated",
+                                )
+                            )
+                        else:
+                            # Contract exists but is invalid
+                            openapi_contracts.append(
+                                OpenAPIContractReference(
+                                    feature_key=feature_index.key,
+                                    contract_file=feature_index.contract,
+                                    endpoints_count=0,
+                                    status="draft",
+                                )
+                            )
+                    except Exception:
+                        # Contract file exists but couldn't be loaded
+                        openapi_contracts.append(
+                            OpenAPIContractReference(
+                                feature_key=feature_index.key,
+                                contract_file=feature_index.contract,
+                                endpoints_count=0,
+                                status="draft",
+                            )
+                        )
+
     # Use fallback from existing SDD if available
     if fallback:
         if not architecture:
@@ -4643,6 +4974,8 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
             contracts = fallback.contracts or []
         if not module_boundaries:
             module_boundaries = fallback.module_boundaries or []
+        if not openapi_contracts:
+            openapi_contracts = fallback.openapi_contracts or []
 
     # If no architecture, prompt or use default
     if not architecture and not is_non_interactive:
@@ -4665,8 +4998,143 @@ def _extract_sdd_how(bundle: PlanBundle, is_non_interactive: bool, fallback: SDD
         architecture=architecture,
         invariants=invariants[:10],  # Limit to first 10
         contracts=contracts[:10],  # Limit to first 10
+        openapi_contracts=openapi_contracts,
         module_boundaries=module_boundaries,
     )
+
+
+@beartype
+@require(lambda answer: isinstance(answer, str), "Answer must be string")
+@ensure(lambda result: isinstance(result, list), "Must return list of criteria strings")
+def _extract_specific_criteria_from_answer(answer: str) -> list[str]:
+    """
+    Extract specific testable criteria from answer that contains replacement instructions.
+
+    When answer contains "Replace generic 'works correctly' with testable criteria:",
+    extracts the specific criteria (items in single quotes) and returns them as a list.
+
+    Args:
+        answer: Answer text that may contain replacement instructions
+
+    Returns:
+        List of specific criteria strings, or empty list if no extraction possible
+    """
+    import re
+
+    # Check if answer contains replacement instructions
+    if "testable criteria:" not in answer.lower() and "replace generic" not in answer.lower():
+        # Answer doesn't contain replacement format, return as single item
+        return [answer] if answer.strip() else []
+
+    # Find the position after "testable criteria:" to only extract criteria from that point
+    # This avoids extracting "works correctly" from the instruction text itself
+    testable_criteria_marker = "testable criteria:"
+    marker_pos = answer.lower().find(testable_criteria_marker)
+
+    if marker_pos == -1:
+        # Fallback: try "with testable criteria:"
+        marker_pos = answer.lower().find("with testable criteria:")
+        if marker_pos != -1:
+            marker_pos += len("with testable criteria:")
+
+    if marker_pos != -1:
+        # Only search for criteria after the marker
+        criteria_section = answer[marker_pos + len(testable_criteria_marker) :]
+        # Extract criteria (items in single quotes)
+        criteria_pattern = r"'([^']+)'"
+        matches = re.findall(criteria_pattern, criteria_section)
+
+        if matches:
+            # Filter out "works correctly" if it appears (it's part of instruction, not a criterion)
+            filtered = [
+                criterion.strip()
+                for criterion in matches
+                if criterion.strip() and criterion.strip().lower() not in ("works correctly", "works as expected")
+            ]
+            if filtered:
+                return filtered
+
+    # Fallback: if no quoted criteria found, return original answer
+    return [answer] if answer.strip() else []
+
+
+@beartype
+@require(lambda acceptance_list: isinstance(acceptance_list, list), "Acceptance list must be list")
+@require(lambda finding: finding is not None, "Finding must not be None")
+@ensure(lambda result: isinstance(result, list), "Must return list of acceptance strings")
+def _identify_vague_criteria_to_remove(
+    acceptance_list: list[str],
+    finding: Any,  # AmbiguityFinding
+) -> list[str]:
+    """
+    Identify vague acceptance criteria that should be removed when replacing with specific criteria.
+
+    Args:
+        acceptance_list: Current list of acceptance criteria
+        finding: Ambiguity finding that triggered the question
+
+    Returns:
+        List of vague criteria strings to remove
+    """
+    from specfact_cli.utils.acceptance_criteria import (
+        is_code_specific_criteria,
+        is_simplified_format_criteria,
+    )
+
+    vague_to_remove: list[str] = []
+
+    # Patterns that indicate vague criteria (from ambiguity scanner)
+    vague_patterns = [
+        "is implemented",
+        "is functional",
+        "works",
+        "is done",
+        "is complete",
+        "is ready",
+    ]
+
+    for acc in acceptance_list:
+        acc_lower = acc.lower()
+
+        # Skip code-specific criteria (should not be removed)
+        if is_code_specific_criteria(acc):
+            continue
+
+        # Skip simplified format criteria (valid format)
+        if is_simplified_format_criteria(acc):
+            continue
+
+        # ALWAYS remove replacement instruction text (from previous answers)
+        # These are meta-instructions, not actual acceptance criteria
+        contains_replacement_instruction = (
+            "replace generic" in acc_lower
+            or ("should be more specific" in acc_lower and "testable criteria:" in acc_lower)
+            or ("yes, these should be more specific" in acc_lower)
+        )
+
+        if contains_replacement_instruction:
+            vague_to_remove.append(acc)
+            continue
+
+        # Check for vague patterns (but be more selective)
+        # Only flag as vague if it contains "works correctly" without "see contract examples"
+        # or other vague patterns in a standalone context
+        is_vague = False
+        if "works correctly" in acc_lower:
+            # Only remove if it doesn't have "see contract examples" (simplified format is valid)
+            if "see contract" not in acc_lower and "contract examples" not in acc_lower:
+                is_vague = True
+        else:
+            # Check other vague patterns
+            is_vague = any(
+                pattern in acc_lower and len(acc.split()) < 10  # Only flag short, vague statements
+                for pattern in vague_patterns
+            )
+
+        if is_vague:
+            vague_to_remove.append(acc)
+
+    return vague_to_remove
 
 
 @beartype
@@ -4746,8 +5214,12 @@ def _integrate_clarification(
                     bundle.idea.constraints.append(answer)
                     integration_points.append(section)
 
-    # Edge Cases, Completion Signals → features[].acceptance, stories[].acceptance
-    elif category in (TaxonomyCategory.EDGE_CASES, TaxonomyCategory.COMPLETION_SIGNALS):
+    # Edge Cases, Completion Signals, Interaction & UX Flow → features[].acceptance, stories[].acceptance
+    elif category in (
+        TaxonomyCategory.EDGE_CASES,
+        TaxonomyCategory.COMPLETION_SIGNALS,
+        TaxonomyCategory.INTERACTION_UX,
+    ):
         related_sections = finding.related_sections or []
         for section in related_sections:
             if section.startswith("features."):
@@ -4757,8 +5229,19 @@ def _integrate_clarification(
                     if parts[2] == "acceptance":
                         for feature in bundle.features:
                             if feature.key == feature_key:
-                                if answer not in feature.acceptance:
-                                    feature.acceptance.append(answer)
+                                # Extract specific criteria from answer
+                                specific_criteria = _extract_specific_criteria_from_answer(answer)
+                                # Identify and remove vague criteria
+                                vague_to_remove = _identify_vague_criteria_to_remove(feature.acceptance, finding)
+                                # Remove vague criteria
+                                for vague in vague_to_remove:
+                                    if vague in feature.acceptance:
+                                        feature.acceptance.remove(vague)
+                                # Add new specific criteria
+                                for criterion in specific_criteria:
+                                    if criterion not in feature.acceptance:
+                                        feature.acceptance.append(criterion)
+                                if specific_criteria:
                                     integration_points.append(section)
                                 break
                     elif parts[2] == "stories" and len(parts) >= 5:
@@ -4768,8 +5251,21 @@ def _integrate_clarification(
                                 if feature.key == feature_key:
                                     for story in feature.stories:
                                         if story.key == story_key:
-                                            if answer not in story.acceptance:
-                                                story.acceptance.append(answer)
+                                            # Extract specific criteria from answer
+                                            specific_criteria = _extract_specific_criteria_from_answer(answer)
+                                            # Identify and remove vague criteria
+                                            vague_to_remove = _identify_vague_criteria_to_remove(
+                                                story.acceptance, finding
+                                            )
+                                            # Remove vague criteria
+                                            for vague in vague_to_remove:
+                                                if vague in story.acceptance:
+                                                    story.acceptance.remove(vague)
+                                            # Add new specific criteria
+                                            for criterion in specific_criteria:
+                                                if criterion not in story.acceptance:
+                                                    story.acceptance.append(criterion)
+                                            if specific_criteria:
                                                 integration_points.append(section)
                                             break
                                     break

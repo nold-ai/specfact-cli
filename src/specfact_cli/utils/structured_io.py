@@ -99,6 +99,9 @@ def load_structured_file(file_path: Path | str, format: StructuredFormat | None 
         format: Optional explicit format. Auto-detected from suffix when omitted.
     """
     path = Path(file_path)
+    # Check if path is a directory (should not happen, but handle gracefully)
+    if path.exists() and path.is_dir():
+        raise IsADirectoryError(f"Cannot load structured file: path is a directory: {path}")
     fmt = format or StructuredFormat.from_path(path)
 
     if fmt == StructuredFormat.JSON:

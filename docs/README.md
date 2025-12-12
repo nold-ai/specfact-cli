@@ -6,6 +6,20 @@
 
 ## Why SpecFact?
 
+### **Built for Real-World Agile Teams**
+
+SpecFact isn't just a technical tool—it's designed for **real-world agile/scrum teams** with role-based workflows:
+
+- 👤 **Product Owners** → Work with backlog, DoR checklists, prioritization, dependencies, and sprint planning
+- 🏗️ **Architects** → Work with technical constraints, protocols, contracts, architectural decisions, and risk assessments
+- 💻 **Developers** → Work with implementation tasks, code mappings, test scenarios, and Definition of Done criteria
+
+**Each role works in their own Markdown files** (no YAML editing), and SpecFact syncs everything together automatically. Perfect for teams using agile/scrum practices with clear role separation.
+
+👉 **[Agile/Scrum Workflows Guide](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Complete guide to persona-based team collaboration
+
+---
+
 ### **Love GitHub Spec-Kit? SpecFact Adds What's Missing**
 
 **Use both together:** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
@@ -15,6 +29,7 @@
 - ✅ **Runtime contract enforcement** → Spec-Kit generates docs; SpecFact prevents regressions with executable contracts
 - ✅ **Brownfield-first** → Spec-Kit excels at new features; SpecFact understands existing code
 - ✅ **Formal verification** → Spec-Kit uses LLM suggestions; SpecFact uses mathematical proof (CrossHair)
+- ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
 - ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
 
 **Perfect together:**
@@ -22,8 +37,9 @@
 - ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
 - ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
 - ✅ **Bidirectional sync** → Keep both tools in sync automatically
+- ✅ **Team workflows** → SpecFact adds persona-based collaboration for agile/scrum teams
 
-**Bottom line:** Use Spec-Kit for documenting new features. Use SpecFact for modernizing legacy code safely. Use both together for the best of both worlds.
+**Bottom line:** Use Spec-Kit for documenting new features. Use SpecFact for modernizing legacy code safely and enabling team collaboration. Use both together for the best of both worlds.
 
 👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)**
 
@@ -42,6 +58,19 @@
 5. **[Use Cases](guides/use-cases.md)** - Common scenarios
 
 **Time**: < 10 minutes | **Result**: Running your first brownfield analysis
+
+---
+
+### Working with an Agile/Scrum Team?
+
+**Primary Goal**: Enable team collaboration with role-based workflows
+
+1. **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Persona-based team collaboration
+2. **[Command Reference - Project Commands](reference/commands.md#project---project-bundle-management)** - `project export` and `project import` commands
+3. **[Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows)** - How Product Owners, Architects, and Developers work together
+4. **[Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor)** - DoR validation and sprint planning
+
+**Time**: 15-30 minutes | **Result**: Understanding how your team can collaborate with SpecFact
 
 ---
 
@@ -113,8 +142,16 @@
 - [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
 
+#### Team Collaboration & Agile/Scrum
+
+- [Agile/Scrum Workflows](guides/agile-scrum-workflows.md) ⭐ **NEW** - Persona-based team collaboration with Product Owners, Architects, and Developers
+- [Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows) - Role-based workflows for agile teams
+- [Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor) - DoR validation and sprint planning
+- [Dependency Management](guides/agile-scrum-workflows.md#dependency-management) - Track story and feature dependencies
+
 #### General Guides
 
+- [UX Features](guides/ux-features.md) - Progressive disclosure, context detection, intelligent suggestions, templates
 - [Workflows](guides/workflows.md) - Common daily workflows
 - [IDE Integration](guides/ide-integration.md) - Slash commands
 - [CoPilot Mode](guides/copilot-mode.md) - Enhanced prompts

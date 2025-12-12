@@ -7,6 +7,7 @@ Complete technical reference for SpecFact CLI.
 - **[Commands](commands.md)** - Complete command reference with all options
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
 - **[Operational Modes](modes.md)** - CI/CD vs CoPilot modes
+- **[Specmatic API](specmatic.md)** - Specmatic integration API reference (functions, classes, integration points)
 - **[Telemetry](telemetry.md)** - Opt-in analytics and privacy guarantees
 - **[Feature Keys](feature-keys.md)** - Key normalization and formats
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
@@ -22,6 +23,9 @@ Complete technical reference for SpecFact CLI.
 - `specfact enforce stage` - Configure quality gates
 - `specfact repro` - Run full validation suite
 - `specfact sync bridge --adapter <adapter> --bundle <bundle-name>` - Sync with external tools via bridge adapter
+- `specfact spec validate [--bundle <name>]` - Validate OpenAPI/AsyncAPI specifications
+- `specfact spec generate-tests [--bundle <name>]` - Generate contract tests from specifications
+- `specfact spec mock [--bundle <name>]` - Launch mock server for development
 - `specfact init` - Initialize IDE integration
 
 ### Modes

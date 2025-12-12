@@ -15,7 +15,7 @@ from icontract import ensure, require
 
 from specfact_cli.models.sdd import SDDManifest
 from specfact_cli.utils.structure import SpecFactStructure
-from specfact_cli.utils.structured_io import load_structured_file
+from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
 
 
 @beartype
@@ -30,12 +30,14 @@ def find_sdd_for_bundle(bundle_name: str, base_path: Path, sdd_path: Path | None
     """
     Find SDD manifest for a project bundle.
 
-    Discovery order:
+    Discovery order (Phase 8.5: Bundle-Specific Artifact Organization):
     1. If --sdd is provided, use that path
-    2. Search for .specfact/sdd/<bundle-name>.yaml (multi-SDD layout)
-    3. Search for .specfact/sdd/<bundle-name>.json (multi-SDD layout)
-    4. Fallback to .specfact/sdd.yaml (legacy single-SDD layout)
-    5. Fallback to .specfact/sdd.json (legacy single-SDD layout)
+    2. Search for .specfact/projects/<bundle-name>/sdd.yaml (bundle-specific, Phase 8.5)
+    3. Search for .specfact/projects/<bundle-name>/sdd.json (bundle-specific, Phase 8.5)
+    4. Fallback to .specfact/sdd/<bundle-name>.yaml (legacy multi-SDD layout)
+    5. Fallback to .specfact/sdd/<bundle-name>.json (legacy multi-SDD layout)
+    6. Fallback to .specfact/sdd.yaml (legacy single-SDD layout)
+    7. Fallback to .specfact/sdd.json (legacy single-SDD layout)
 
     Args:
         bundle_name: Project bundle name (e.g., "legacy-api")
@@ -50,15 +52,24 @@ def find_sdd_for_bundle(bundle_name: str, base_path: Path, sdd_path: Path | None
             return sdd_path.resolve()
         return None
 
-    # Multi-SDD layout: .specfact/sdd/<bundle-name>.yaml
-    sdd_dir = base_path / SpecFactStructure.SDD
-    bundle_sdd_yaml = sdd_dir / f"{bundle_name}.yaml"
+    # Phase 8.5: Bundle-specific SDD location (NEW - preferred)
+    bundle_sdd_yaml = SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, StructuredFormat.YAML)
     if bundle_sdd_yaml.exists():
         return bundle_sdd_yaml.resolve()
 
-    bundle_sdd_json = sdd_dir / f"{bundle_name}.json"
+    bundle_sdd_json = SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, StructuredFormat.JSON)
     if bundle_sdd_json.exists():
         return bundle_sdd_json.resolve()
+
+    # Legacy multi-SDD layout: .specfact/sdd/<bundle-name>.yaml
+    sdd_dir = base_path / SpecFactStructure.SDD
+    legacy_bundle_sdd_yaml = sdd_dir / f"{bundle_name}.yaml"
+    if legacy_bundle_sdd_yaml.exists():
+        return legacy_bundle_sdd_yaml.resolve()
+
+    legacy_bundle_sdd_json = sdd_dir / f"{bundle_name}.json"
+    if legacy_bundle_sdd_json.exists():
+        return legacy_bundle_sdd_json.resolve()
 
     # Legacy single-SDD layout: .specfact/sdd.yaml
     legacy_sdd_yaml = base_path / SpecFactStructure.ROOT / "sdd.yaml"
@@ -79,8 +90,9 @@ def list_all_sdds(base_path: Path) -> list[tuple[Path, SDDManifest]]:
     """
     List all SDD manifests in the repository.
 
-    Searches both multi-SDD directory (.specfact/sdd/*.yaml) and legacy
-    single-SDD file (.specfact/sdd.yaml).
+    Searches bundle-specific locations first (.specfact/projects/<bundle>/sdd.{yaml,json}),
+    then legacy multi-SDD directory (.specfact/sdd/*.yaml),
+    and legacy single-SDD file (.specfact/sdd.yaml).
 
     Args:
         base_path: Base repository path
@@ -90,47 +102,47 @@ def list_all_sdds(base_path: Path) -> list[tuple[Path, SDDManifest]]:
     """
     results: list[tuple[Path, SDDManifest]] = []
 
-    # Multi-SDD directory layout
+    # Bundle-specific (preferred)
+    projects_dir = base_path / SpecFactStructure.PROJECTS
+    if projects_dir.exists() and projects_dir.is_dir():
+        for bundle_dir in projects_dir.iterdir():
+            if not bundle_dir.is_dir():
+                continue
+            sdd_yaml = bundle_dir / "sdd.yaml"
+            sdd_json = bundle_dir / "sdd.json"
+            for candidate in (sdd_yaml, sdd_json):
+                if not candidate.exists():
+                    continue
+                try:
+                    sdd_data = load_structured_file(candidate)
+                    manifest = SDDManifest(**sdd_data)
+                    results.append((candidate.resolve(), manifest))
+                except Exception:
+                    continue
+
+    # Legacy multi-SDD directory layout
     sdd_dir = base_path / SpecFactStructure.SDD
     if sdd_dir.exists() and sdd_dir.is_dir():
-        for sdd_file in sdd_dir.glob("*.yaml"):
+        for sdd_file in list(sdd_dir.glob("*.yaml")) + list(sdd_dir.glob("*.json")):
             try:
                 sdd_data = load_structured_file(sdd_file)
                 manifest = SDDManifest(**sdd_data)
                 results.append((sdd_file.resolve(), manifest))
             except Exception:
-                # Skip invalid SDD files
-                continue
-
-        for sdd_file in sdd_dir.glob("*.json"):
-            try:
-                sdd_data = load_structured_file(sdd_file)
-                manifest = SDDManifest(**sdd_data)
-                results.append((sdd_file.resolve(), manifest))
-            except Exception:
-                # Skip invalid SDD files
                 continue
 
     # Legacy single-SDD layout
-    legacy_sdd_yaml = base_path / SpecFactStructure.ROOT / "sdd.yaml"
-    if legacy_sdd_yaml.exists():
-        try:
-            sdd_data = load_structured_file(legacy_sdd_yaml)
-            manifest = SDDManifest(**sdd_data)
-            results.append((legacy_sdd_yaml.resolve(), manifest))
-        except Exception:
-            # Skip invalid SDD file
-            pass
-
-    legacy_sdd_json = base_path / SpecFactStructure.ROOT / "sdd.json"
-    if legacy_sdd_json.exists():
-        try:
-            sdd_data = load_structured_file(legacy_sdd_json)
-            manifest = SDDManifest(**sdd_data)
-            results.append((legacy_sdd_json.resolve(), manifest))
-        except Exception:
-            # Skip invalid SDD file
-            pass
+    for legacy_file in (
+        base_path / SpecFactStructure.ROOT / "sdd.yaml",
+        base_path / SpecFactStructure.ROOT / "sdd.json",
+    ):
+        if legacy_file.exists():
+            try:
+                sdd_data = load_structured_file(legacy_file)
+                manifest = SDDManifest(**sdd_data)
+                results.append((legacy_file.resolve(), manifest))
+            except Exception:
+                continue
 
     return results
 
@@ -170,7 +182,7 @@ def get_default_sdd_path_for_bundle(bundle_name: str, base_path: Path, format: s
     """
     Get default SDD path for a project bundle (for creation).
 
-    Uses multi-SDD layout: .specfact/sdd/<bundle-name>.yaml
+    Phase 8.5: Uses bundle-specific location: .specfact/projects/<bundle-name>/sdd.yaml
 
     Args:
         bundle_name: Project bundle name
@@ -178,8 +190,9 @@ def get_default_sdd_path_for_bundle(bundle_name: str, base_path: Path, format: s
         format: File format ("yaml" or "json")
 
     Returns:
-        Path where SDD should be created
+        Path where SDD should be created (bundle-specific location)
     """
-    sdd_dir = base_path / SpecFactStructure.SDD
-    extension = "yaml" if format.lower() == "yaml" else "json"
-    return sdd_dir / f"{bundle_name}.{extension}"
+    from specfact_cli.utils.structured_io import StructuredFormat
+
+    structured_format = StructuredFormat.YAML if format.lower() == "yaml" else StructuredFormat.JSON
+    return SpecFactStructure.get_bundle_sdd_path(bundle_name, base_path, structured_format)

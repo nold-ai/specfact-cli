@@ -22,6 +22,7 @@ Practical guides for using SpecFact CLI effectively.
 - **[Workflows](workflows.md)** - Common daily workflows
 - **[IDE Integration](ide-integration.md)** - Set up slash commands in your IDE
 - **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` on CLI commands
+- **[Specmatic Integration](specmatic-integration.md)** - API contract testing with Specmatic (validate specs, generate tests, mock servers)
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
 - **[Competitive Analysis](competitive-analysis.md)** - How SpecFact compares to other tools
 - **[Operational Modes](../reference/modes.md)** - CI/CD vs CoPilot modes (reference)
@@ -44,6 +45,7 @@ Practical guides for using SpecFact CLI effectively.
 
 1. **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` for enhanced prompts
 2. **[Operational Modes](../reference/modes.md)** - Understanding CI/CD vs CoPilot modes
+3. **[Specmatic Integration](specmatic-integration.md)** - API contract testing workflow
 
 ### For Spec-Kit Users (Secondary)
 

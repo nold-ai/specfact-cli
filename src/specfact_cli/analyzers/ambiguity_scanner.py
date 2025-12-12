@@ -521,7 +521,11 @@ class AmbiguityScanner:
                 else:
                     # Check for vague acceptance criteria patterns
                     # BUT: Skip if criteria are already code-specific (preserve code-specific criteria from code2spec)
-                    from specfact_cli.utils.acceptance_criteria import is_code_specific_criteria
+                    # AND: Skip if criteria use the new simplified format (post-GWT refactoring)
+                    from specfact_cli.utils.acceptance_criteria import (
+                        is_code_specific_criteria,
+                        is_simplified_format_criteria,
+                    )
 
                     vague_patterns = [
                         "is implemented",
@@ -532,10 +536,16 @@ class AmbiguityScanner:
                         "is ready",
                     ]
 
-                    # Only check criteria that are NOT code-specific
+                    # Only check criteria that are NOT code-specific AND NOT using simplified format
                     # Note: Acceptance criteria are simple text descriptions (not OpenAPI format)
                     # Detailed testable examples are stored in OpenAPI contract files (.openapi.yaml)
-                    non_code_specific_criteria = [acc for acc in story.acceptance if not is_code_specific_criteria(acc)]
+                    # The new simplified format (e.g., "Must verify X works correctly (see contract examples)")
+                    # is VALID and should not be flagged as vague
+                    non_code_specific_criteria = [
+                        acc
+                        for acc in story.acceptance
+                        if not is_code_specific_criteria(acc) and not is_simplified_format_criteria(acc)
+                    ]
 
                     vague_criteria = [
                         acc

@@ -76,16 +76,16 @@ class GitOperations:
 
     @beartype
     @require(
-        lambda branch_name: isinstance(branch_name, str) and len(branch_name) > 0,
-        "Branch name must be non-empty string",
+        lambda ref: isinstance(ref, str) and len(ref) > 0,
+        "Ref must be non-empty string",
     )
     @require(lambda self: self.repo is not None, "Git repository must be initialized")
-    def checkout(self, branch_name: str) -> None:
+    def checkout(self, ref: str) -> None:
         """
-        Checkout an existing branch.
+        Checkout a branch or commit.
 
         Args:
-            branch_name: Name of the branch to checkout
+            ref: Branch name or commit SHA to checkout
 
         Raises:
             ValueError: If repository is not initialized
@@ -93,7 +93,16 @@ class GitOperations:
         if self.repo is None:
             raise ValueError("Git repository not initialized")
 
-        self.repo.heads[branch_name].checkout()
+        # Try as branch first, then as commit
+        try:
+            self.repo.heads[ref].checkout()
+        except (IndexError, KeyError):
+            # Not a branch, try as commit
+            try:
+                commit = self.repo.commit(ref)
+                self.repo.git.checkout(commit.hexsha)
+            except Exception as e:
+                raise ValueError(f"Invalid branch or commit reference: {ref}") from e
 
     @beartype
     @require(lambda files: isinstance(files, (list, Path, str)), "Files must be list, Path, or str")

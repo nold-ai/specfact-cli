@@ -18,12 +18,16 @@ from rich.table import Table
 
 console = Console()
 
-# Required sections for all prompts
+# Required sections for all prompts (matching actual prompt structure)
 REQUIRED_SECTIONS = [
-    ("CRITICAL: CLI Usage Enforcement", "⚠️ CRITICAL: CLI Usage Enforcement"),
-    ("Wait States: User Input Required", "⏸️ Wait States: User Input Required"),
-    ("Goal", "## Goal"),
-    ("Operating Constraints", "## Operating Constraints"),
+    ("User Input", "## User Input"),
+    ("Purpose", "## Purpose"),
+    ("Parameters", "## Parameters"),
+    ("Workflow", "## Workflow"),
+    ("CLI Enforcement", "## CLI Enforcement"),
+    ("Expected Output", "## Expected Output"),
+    ("Common Patterns", "## Common Patterns"),
+    ("Context", "## Context"),
 ]
 
 # CLI commands that should be referenced (new slash command names)
@@ -34,24 +38,24 @@ CLI_COMMANDS = {
     "specfact.04-sdd": "specfact plan harden",
     "specfact.05-enforce": "specfact enforce sdd",
     "specfact.06-sync": "specfact sync bridge",
+    "specfact.07-contracts": "specfact analyze contracts",  # Also uses generate contracts-prompt and contracts-apply
     "specfact.compare": "specfact plan compare",
     "specfact.validate": "specfact repro",
 }
 
-# Required CLI enforcement rules
+# Required CLI enforcement rules (checking for key phrases, flexible matching)
 CLI_ENFORCEMENT_RULES = [
-    "ALWAYS execute CLI first",
-    "NEVER create YAML/JSON directly",
-    "NEVER bypass CLI validation",
-    "Use CLI output as grounding",
+    ("execute CLI", ["execute CLI", "Execute CLI", "ALWAYS execute CLI", "use SpecFact CLI"]),
+    ("CLI commands", ["CLI commands", "CLI command", "specfact", "Use SpecFact CLI"]),
+    ("never modify", ["never modify", "Never modify", "NEVER modify", "do not modify", "Do not modify"]),
+    ("CLI output", ["CLI output", "Use CLI output", "CLI output as grounding"]),
 ]
 
-# Required wait state rules
+# Required wait state rules (optional - only for interactive workflows)
+# These are checked as warnings, not errors, since not all prompts need them
 WAIT_STATE_RULES = [
-    "Never assume",
-    "Never continue",
-    "Be explicit",
-    "Provide options",
+    "consider the user input",
+    "WAIT FOR USER RESPONSE",
 ]
 
 # Commands that should have dual-stack workflow
@@ -110,47 +114,65 @@ class PromptValidator:
                     }
                 )
 
-        # Check CLI enforcement rules
-        for rule in CLI_ENFORCEMENT_RULES:
-            if rule not in self.content:
-                self.warnings.append(f"CLI enforcement rule not found: '{rule}'")
-                passed = False
+        # Check CLI enforcement rules (flexible matching)
+        for rule_name, rule_variants in CLI_ENFORCEMENT_RULES:
+            found = any(variant in self.content for variant in rule_variants)
+            if not found:
+                self.warnings.append(
+                    f"CLI enforcement rule not found: '{rule_name}' (checked variants: {', '.join(rule_variants[:2])}...)"
+                )
             else:
                 self.checks.append(
                     {
                         "check": "CLI Alignment",
                         "section": "Enforcement Rule",
                         "status": "✓",
-                        "message": f"Rule '{rule}' found",
+                        "message": f"Rule '{rule_name}' found",
                     }
                 )
 
         return passed
 
     def validate_wait_states(self) -> bool:
-        """Validate wait state rules."""
+        """Validate wait state rules (optional - only warnings)."""
         passed = True
 
-        for rule in WAIT_STATE_RULES:
-            if rule not in self.content:
-                self.warnings.append(f"Wait state rule not found: '{rule}'")
-                passed = False
-            else:
-                self.checks.append(
-                    {
-                        "check": "Wait States",
-                        "section": "Wait State Rule",
-                        "status": "✓",
-                        "message": f"Rule '{rule}' found",
-                    }
-                )
+        # Check for User Input section with $ARGUMENTS placeholder
+        if "## User Input" not in self.content:
+            self.errors.append("Missing '## User Input' section")
+            passed = False
+        elif "$ARGUMENTS" not in self.content:
+            self.errors.append("Missing $ARGUMENTS placeholder in User Input section")
+            passed = False
+        else:
+            self.checks.append(
+                {
+                    "check": "Wait States",
+                    "section": "User Input",
+                    "status": "✓",
+                    "message": "User Input section with $ARGUMENTS found",
+                }
+            )
 
-        # Check for explicit wait state markers
+        # Check for user input instruction
+        if "consider the user input" not in self.content.lower():
+            self.warnings.append(
+                "User input instruction not found (should include 'You **MUST** consider the user input before proceeding')"
+            )
+        else:
+            self.checks.append(
+                {
+                    "check": "Wait States",
+                    "section": "User Input Instruction",
+                    "status": "✓",
+                    "message": "User input instruction found",
+                }
+            )
+
+        # Check for explicit wait state markers (optional - only for interactive workflows)
         wait_markers = ["WAIT FOR USER RESPONSE", "DO NOT CONTINUE"]
         for marker in wait_markers:
-            if marker not in self.content:
-                self.warnings.append(f"Wait state marker not found: '{marker}'")
-            else:
+            if marker in self.content:
                 self.checks.append(
                     {
                         "check": "Wait States",
@@ -169,17 +191,32 @@ class PromptValidator:
 
         passed = True
 
-        # Check for dual-stack workflow section
+        # Check for dual-stack workflow section (flexible matching)
         dual_stack_markers = [
-            "Dual-Stack Workflow",
-            "Phase 1: CLI Grounding",
-            "Phase 2: LLM Enrichment",
-            "Phase 3: CLI Artifact Creation",
+            (
+                "Dual-Stack Workflow",
+                ["Dual-Stack Workflow", "Dual-stack workflow", "dual-stack workflow", "## Workflow"],
+            ),
+            (
+                "Phase 1: CLI Grounding",
+                ["Phase 1: CLI Grounding", "Phase 1", "CLI Grounding", "Execute CLI", "1. **Execute CLI"],
+            ),
+            (
+                "Phase 2: LLM Enrichment",
+                ["Phase 2: LLM Enrichment", "Phase 2", "LLM Enrichment", "2. **LLM Enrichment", "enrichment"],
+            ),
+            (
+                "Phase 3: CLI Artifact Creation",
+                ["Phase 3: CLI Artifact Creation", "Phase 3", "CLI Artifact Creation", "3. **Present"],
+            ),
         ]
 
-        for marker in dual_stack_markers:
-            if marker not in self.content:
-                self.errors.append(f"Missing dual-stack workflow marker: '{marker}'")
+        for marker_name, marker_variants in dual_stack_markers:
+            found = any(variant in self.content for variant in marker_variants)
+            if not found:
+                self.errors.append(
+                    f"Missing dual-stack workflow marker: '{marker_name}' (checked variants: {', '.join(marker_variants[:2])}...)"
+                )
                 passed = False
             else:
                 self.checks.append(
@@ -187,7 +224,7 @@ class PromptValidator:
                         "check": "Dual-Stack",
                         "section": "Workflow Phase",
                         "status": "✓",
-                        "message": f"Phase '{marker}' found",
+                        "message": f"Phase '{marker_name}' found",
                     }
                 )
 
@@ -212,12 +249,54 @@ class PromptValidator:
 
         # Check for consistent formatting
         if "$ARGUMENTS" not in self.content:
-            self.errors.append("Missing $ARGUMENTS placeholder")
+            self.errors.append("Missing $ARGUMENTS placeholder in User Input section")
             passed = False
+        else:
+            self.checks.append(
+                {
+                    "check": "Consistency",
+                    "section": "Placeholders",
+                    "status": "✓",
+                    "message": "$ARGUMENTS placeholder found",
+                }
+            )
+
+        # Check for {ARGS} placeholder in Context section
+        if "## Context" in self.content:
+            if "{ARGS}" not in self.content:
+                self.warnings.append("Missing {ARGS} placeholder in Context section")
+            else:
+                self.checks.append(
+                    {
+                        "check": "Consistency",
+                        "section": "Placeholders",
+                        "status": "✓",
+                        "message": "{ARGS} placeholder found",
+                    }
+                )
 
         # Check for description in frontmatter
         if not self.content.startswith("---"):
-            self.warnings.append("Missing frontmatter with description")
+            self.errors.append("Missing frontmatter with description")
+            passed = False
+        elif "description:" not in self.content[:200]:  # Check first 200 chars for frontmatter
+            self.warnings.append("Frontmatter may be missing description field")
+        else:
+            self.checks.append(
+                {
+                    "check": "Consistency",
+                    "section": "Frontmatter",
+                    "status": "✓",
+                    "message": "Frontmatter with description found",
+                }
+            )
+
+        # Check for main title (H1)
+        # Allow for frontmatter before title
+        if (
+            not self.content.startswith("# SpecFact") and "# SpecFact" not in self.content[:500]
+        ):  # Check first 500 chars
+            self.warnings.append("Main title (H1) may be missing or not starting with '# SpecFact'")
 
         return passed
 

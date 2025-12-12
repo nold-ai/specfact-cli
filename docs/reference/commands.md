@@ -50,6 +50,11 @@ specfact repro --verbose
 - `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
 
+**Project Bundle Management:**
+
+- `project export --bundle <bundle-name> --persona <persona>` - Export persona-specific Markdown artifacts
+- `project import --bundle <bundle-name> --persona <persona> --source <file>` - Import persona edits from Markdown
+
 **Enforcement:**
 
 - `enforce stage` - Configure quality gates
@@ -93,6 +98,7 @@ specfact [OPTIONS] COMMAND [ARGS]...
 
 - `--version`, `-v` - Show version and exit
 - `--help`, `-h` - Show help message and exit
+- `--help-advanced`, `-ha` - Show all options including advanced configuration (progressive disclosure)
 - `--no-banner` - Hide ASCII art banner (useful for CI/CD)
 - `--verbose` - Enable verbose output
 - `--quiet` - Suppress non-error output
@@ -163,12 +169,15 @@ specfact import from-bridge [OPTIONS]
 **Options:**
 
 - `--repo PATH` - Path to repository with external tool artifacts (required)
-- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
 - `--dry-run` - Preview changes without writing files
 - `--write` - Write converted files to repository
 - `--out-branch NAME` - Git branch for migration (default: `feat/specfact-migration`)
 - `--report PATH` - Write migration report to file
 - `--force` - Overwrite existing files
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
 
 **Example:**
 
@@ -212,9 +221,13 @@ specfact import from-code [OPTIONS]
 - `BUNDLE_NAME` - Project bundle name (positional argument, required)
 - `--repo PATH` - Path to repository to import (required)
 - `--output-format {yaml,json}` - Override global output format for this command only (defaults to global flag)
-- `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--shadow-only` - Observe without blocking
-- `--report PATH` - Write import report (default: `.specfact/reports/brownfield/analysis-<timestamp>.md`)
+- `--report PATH` - Write import report (default: bundle-specific `.specfact/projects/<bundle-name>/reports/brownfield/analysis-<timestamp>.md`, Phase 8.5)
+- `--enrich-for-speckit/--no-enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance using PlanEnricher (enhances vague acceptance criteria, incomplete requirements, generic tasks, and adds edge case stories for features with only 1 story). Default: enabled (same enrichment logic as `plan review --auto-enrich`)
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--confidence FLOAT` - Minimum confidence score (0.0-1.0, default: 0.5)
 - `--key-format {classname|sequential}` - Feature key format (default: `classname`)
 - `--entry-point PATH` - Subdirectory path for partial analysis (relative to repo root). Analyzes only files within this directory and subdirectories. Useful for:
   - **Multi-project repositories (monorepos)**: Analyze one project at a time (e.g., `--entry-point projects/api-service`)
@@ -222,7 +235,6 @@ specfact import from-code [OPTIONS]
   - **Incremental modernization**: Modernize one part of the codebase at a time
   - Example: `--entry-point src/core` analyzes only `src/core/` and its subdirectories
 - `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)
-- `--enrich-for-speckit` - Automatically enrich plan for Spec-Kit compliance (runs plan review, adds testable acceptance criteria, ensures ≥2 stories per feature)
 
 **Note**: The bundle name (positional argument) will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. The bundle is created at `.specfact/projects/<bundle-name>/`.
 
@@ -649,14 +661,19 @@ specfact plan review [OPTIONS]
 **Options:**
 
 - `--bundle TEXT` - Project bundle name (required, e.g., `legacy-api`)
-- `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
-- `--category TEXT` - Focus on specific taxonomy category (optional)
 - `--list-questions` - Output questions in JSON format without asking (for Copilot mode)
+- `--output-questions PATH` - Save questions directly to file (JSON format). Use with `--list-questions` to save instead of stdout. Default: None
 - `--list-findings` - Output all findings in structured format (JSON/YAML) or as table (interactive mode). Preferred for bulk updates via Copilot LLM enrichment
-- `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
-- `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
+- `--output-findings PATH` - Save findings directly to file (JSON/YAML format). Use with `--list-findings` to save instead of stdout. Default: None
 - `--no-interactive` - Non-interactive mode (for CI/CD automation)
 - `--auto-enrich` - Automatically enrich vague acceptance criteria, incomplete requirements, and generic tasks using LLM-enhanced pattern matching
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--max-questions INT` - Maximum questions per session (default: 5, max: 10)
+- `--category TEXT` - Focus on specific taxonomy category (optional)
+- `--findings-format {json,yaml,table}` - Output format for `--list-findings` (default: json for non-interactive, table for interactive)
+- `--answers PATH|JSON` - JSON file path or JSON string with question_id -> answer mappings (for non-interactive mode)
 
 **Modes:**
 
@@ -680,11 +697,17 @@ specfact plan review --bundle legacy-api
 # Get all findings for bulk updates (preferred for Copilot mode)
 specfact plan review --bundle legacy-api --list-findings --findings-format json
 
+# Save findings directly to file (clean JSON, no CLI banner)
+specfact plan review --bundle legacy-api --list-findings --output-findings /tmp/findings.json
+
 # Get findings as table (interactive mode)
 specfact plan review --bundle legacy-api --list-findings --findings-format table
 
 # Get questions for question-based workflow
 specfact plan review --bundle legacy-api --list-questions --max-questions 5
+
+# Save questions directly to file (clean JSON, no CLI banner)
+specfact plan review --bundle legacy-api --list-questions --output-questions /tmp/questions.json
 
 # Feed answers back (question-based workflow)
 specfact plan review --bundle legacy-api --answers answers.json
@@ -722,7 +745,7 @@ The `--list-findings` option outputs all ambiguities and findings in a structure
 
 **Bulk Update Workflow (Recommended for Copilot Mode):**
 
-1. **List findings**: `specfact plan review --list-findings --findings-format json > findings.json`
+1. **List findings**: `specfact plan review --list-findings --output-findings /tmp/findings.json` (recommended - clean JSON) or `specfact plan review --list-findings --findings-format json > findings.json` (includes CLI banner)
 2. **LLM analyzes findings**: Generate batch update files based on findings
 3. **Apply feature updates**: `specfact plan update-feature --batch-updates feature_updates.json`
 4. **Apply story updates**: `specfact plan update-story --batch-updates story_updates.json`
@@ -772,7 +795,7 @@ Answers are integrated into plan bundle sections based on category:
 
 **SDD Integration:**
 
-When an SDD manifest (`.specfact/sdd.yaml`) is present, `plan review` automatically:
+When an SDD manifest (`.specfact/projects/<bundle-name>/sdd.yaml`, Phase 8.5) is present, `plan review` automatically:
 
 - **Validates SDD manifest** against the plan bundle (hash match, coverage thresholds)
 - **Displays contract density metrics**:
@@ -814,7 +837,7 @@ specfact plan harden [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
-- `--sdd PATH` - Output SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--sdd PATH` - Output SDD manifest path (default: bundle-specific `.specfact/projects/<bundle-name>/sdd.<format>`, Phase 8.5)
 - `--output-format {yaml,json}` - SDD manifest format (defaults to global `--output-format`)
 - `--interactive/--no-interactive` - Interactive mode with prompts (default: interactive)
 - `--no-interactive` - Non-interactive mode (for CI/CD automation)
@@ -832,12 +855,12 @@ specfact plan harden [OPTIONS]
    - Enforcement budgets (shadow, warn, block time limits)
    - Promotion status (from plan bundle stage)
 4. **Saves plan bundle** with updated hash (ensures hash persists for subsequent commands)
-5. **Saves SDD manifest** to `.specfact/sdd.<format>`
+5. **Saves SDD manifest** to `.specfact/projects/<bundle-name>/sdd.<format>` (bundle-specific, Phase 8.5)
 
 **Important Notes:**
 
 - **SDD-Plan Linkage**: SDD manifests are linked to specific plan bundles via hash
-- **Multiple Plans**: If you have multiple plans, use `--sdd` to specify different paths (e.g., `--sdd .specfact/sdd.plan1.yaml`)
+- **Multiple Plans**: Each bundle has its own SDD manifest in `.specfact/projects/<bundle-name>/sdd.yaml` (Phase 8.5)
 - **Hash Persistence**: Plan bundle is automatically saved with updated hash to ensure consistency
 
 **Example:**
@@ -850,7 +873,7 @@ specfact plan harden --bundle legacy-api
 specfact plan harden --bundle legacy-api --no-interactive
 
 # Custom SDD path for multiple bundles
-specfact plan harden --bundle feature-auth --sdd .specfact/sdd.auth.yaml
+specfact plan harden --bundle feature-auth  # SDD saved to .specfact/projects/feature-auth/sdd.yaml
 ```
 
 **SDD Manifest Structure:**
@@ -974,7 +997,11 @@ specfact plan select [PLAN] [OPTIONS]
 
 **Options:**
 
+- `PLAN` - Plan name or number to select (optional, for interactive selection)
 - `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts. Requires exactly one plan to match filters.
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
 - `--current` - Show only the currently active plan (auto-selects in non-interactive mode)
 - `--stages STAGES` - Filter by stages (comma-separated: `draft,review,approved,released`)
 - `--last N` - Show last N plans by modification time (most recent first)
@@ -1020,7 +1047,7 @@ specfact plan select --id abc123def456
 - Lists all available plan bundles in `.specfact/projects/` with metadata (features, stories, stage, modified date)
 - Displays numbered list with active plan indicator
 - Applies filters (current, stages, last N) before display/selection
-- Updates `.specfact/plans/config.yaml` to set the active plan
+- Updates `.specfact/config.yaml` to set the active bundle (Phase 8.5: migrated from `.specfact/plans/config.yaml`)
 - The active plan becomes the default for all commands with `--bundle` option:
   - **Plan management**: `plan compare`, `plan promote`, `plan add-feature`, `plan add-story`, `plan update-idea`, `plan update-feature`, `plan update-story`, `plan review`
   - **Analysis & generation**: `import from-code`, `generate contracts`, `analyze contracts`
@@ -1105,7 +1132,7 @@ specfact plan upgrade [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan upgrade my-project`)
-- `--all` - Upgrade all plan bundles in `.specfact/plans/`
+- `--all` - Upgrade all project bundles in `.specfact/projects/`
 - `--dry-run` - Show what would be upgraded without making changes
 
 **Example:**
@@ -1173,7 +1200,7 @@ specfact plan compare [OPTIONS]
 - `--auto PATH` - Auto-derived plan bundle directory (actual implementation - what's in your code from `import from-code`) (default: latest in `.specfact/projects/`)
 - `--code-vs-plan` - Convenience alias for `--manual <active-plan> --auto <latest-auto-plan>` (detects code vs plan drift)
 - `--output-format TEXT` - Output format (markdown, json, yaml) (default: markdown)
-- `--out PATH` - Output file (default: `.specfact/reports/comparison/report-*.md`)
+- `--out PATH` - Output file (default: bundle-specific `.specfact/projects/<bundle-name>/reports/comparison/report-*.md`, Phase 8.5, or global `.specfact/reports/comparison/` if no bundle context)
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)
 
 **Code vs Plan Drift Detection:**
@@ -1193,7 +1220,7 @@ specfact plan compare \
   --manual .specfact/projects/main \
   --auto .specfact/projects/my-project-auto \
   --output-format markdown \
-  --out .specfact/reports/comparison/deviation.md
+  --out .specfact/projects/<bundle-name>/reports/comparison/deviation.md
 ```
 
 **Output includes:**
@@ -1205,6 +1232,125 @@ specfact plan compare \
 - Deviation severity
 
 **How it differs from Spec-Kit**: Spec-Kit's `/speckit.analyze` only checks artifact consistency between markdown files; SpecFact CLI detects actual code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from code analysis).
+
+---
+
+### `project` - Project Bundle Management
+
+Manage project bundles with persona-based workflows for agile/scrum teams.
+
+#### `project export`
+
+Export persona-specific sections from project bundle to Markdown for editing.
+
+```bash
+specfact project export [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--persona PERSONA` - Persona name: `product-owner`, `developer`, or `architect` (required)
+- `--output PATH` - Output file path (default: `docs/project-plans/<bundle>/<persona>.md`)
+- `--output-dir PATH` - Output directory (default: `docs/project-plans/<bundle>`)
+- `--stdout` - Output to stdout instead of file
+- `--template TEMPLATE` - Custom template name (default: uses persona-specific template)
+- `--list-personas` - List all available personas and exit
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Export Product Owner view
+specfact project export --bundle my-project --persona product-owner
+
+# Export Developer view
+specfact project export --bundle my-project --persona developer
+
+# Export Architect view
+specfact project export --bundle my-project --persona architect
+
+# Export to custom location
+specfact project export --bundle my-project --persona product-owner --output docs/backlog.md
+
+# Output to stdout (for piping/CI)
+specfact project export --bundle my-project --persona product-owner --stdout
+```
+
+**What it exports:**
+
+**Product Owner Export:**
+
+- Definition of Ready (DoR) checklist for each story
+- Prioritization data (priority, rank, business value scores)
+- Dependencies (story-to-story, feature-to-feature)
+- Business value descriptions and metrics
+- Sprint planning data (target dates, sprints, releases)
+
+**Developer Export:**
+
+- Acceptance criteria for features and stories
+- User stories with detailed context
+- Implementation tasks with file paths
+- API contracts and test scenarios
+- Code mappings (source and test functions)
+- Sprint context (story points, priority, dependencies)
+- Definition of Done checklist
+
+**Architect Export:**
+
+- Technical constraints per feature
+- Architectural decisions (technology choices, patterns)
+- Non-functional requirements (performance, scalability, security)
+- Protocols & state machines (complete definitions)
+- Contracts (OpenAPI/AsyncAPI details)
+- Risk assessment and mitigation strategies
+- Deployment architecture
+
+**See**: [Agile/Scrum Workflows Guide](../guides/agile-scrum-workflows.md) for detailed persona workflow documentation.
+
+#### `project import`
+
+Import persona edits from Markdown back into project bundle.
+
+```bash
+specfact project import [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--persona PERSONA` - Persona name: `product-owner`, `developer`, or `architect` (required)
+- `--source PATH` - Source Markdown file (required)
+- `--dry-run` - Validate without applying changes
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Import Product Owner edits
+specfact project import --bundle my-project --persona product-owner --source docs/backlog.md
+
+# Import Developer edits
+specfact project import --bundle my-project --persona developer --source docs/developer.md
+
+# Import Architect edits
+specfact project import --bundle my-project --persona architect --source docs/architect.md
+
+# Dry-run to validate without applying
+specfact project import --bundle my-project --persona product-owner --source docs/backlog.md --dry-run
+```
+
+**What it validates:**
+
+- **Template Structure**: Required sections present
+- **DoR Completeness**: All Definition of Ready criteria met
+- **Dependency Integrity**: No circular dependencies, all references exist
+- **Priority Consistency**: Valid priority formats (P0-P3, MoSCoW)
+- **Date Formats**: ISO 8601 date validation
+- **Story Point Ranges**: Valid Fibonacci-like values
+
+**See**: [Agile/Scrum Workflows Guide](../guides/agile-scrum-workflows.md) for detailed validation rules and examples.
 
 ---
 
@@ -1223,7 +1369,7 @@ specfact enforce sdd [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
-- `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--sdd PATH` - SDD manifest path (default: bundle-specific `.specfact/projects/<bundle-name>/sdd.<format>`, Phase 8.5)
 - `--output-format {markdown,json,yaml}` - Output format (default: markdown)
 - `--out PATH` - Output report path (optional)
 
@@ -1251,7 +1397,7 @@ The command calculates and validates:
 specfact enforce sdd
 
 # Validate with specific bundle and SDD (bundle name as positional argument)
-specfact enforce sdd main --sdd .specfact/sdd.yaml
+specfact enforce sdd main  # Uses .specfact/projects/main/sdd.yaml (Phase 8.5)
 
 # Generate JSON report
 specfact enforce sdd --output-format json --out validation-report.json
@@ -1394,10 +1540,13 @@ specfact repro [OPTIONS]
 **Options:**
 
 - `--verbose` - Show detailed output
-- `--budget INT` - Time budget in seconds (default: 120)
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
-- `--out PATH` - Output report path (default: `.specfact/reports/enforcement/report-<timestamp>.yaml`)
+- `--out PATH` - Output report path (default: bundle-specific `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml`, Phase 8.5, or global `.specfact/reports/enforcement/` if no bundle context)
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--budget INT` - Time budget in seconds (default: 120)
 
 **Example:**
 
@@ -1433,7 +1582,7 @@ When using `--fix`, Semgrep will automatically apply fixes for violations that h
 
 **Report Format:**
 
-Reports are written as YAML files to `.specfact/reports/enforcement/report-<timestamp>.yaml`. Each report includes:
+Reports are written as YAML files to `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml` (bundle-specific, Phase 8.5). Each report includes:
 
 **Summary Statistics:**
 
@@ -1520,7 +1669,7 @@ specfact generate contracts [OPTIONS]
 **Options:**
 
 - Bundle name is provided as a positional argument (e.g., `plan harden my-project`)
-- `--sdd PATH` - SDD manifest path (default: `.specfact/sdd.<format>`)
+- `--sdd PATH` - SDD manifest path (default: bundle-specific `.specfact/projects/<bundle-name>/sdd.<format>`, Phase 8.5)
 - `--out PATH` - Output directory (default: `.specfact/contracts/`)
 - `--output-format {yaml,json}` - SDD manifest format (default: auto-detect)
 
@@ -1547,7 +1696,7 @@ specfact generate contracts [OPTIONS]
 specfact generate contracts
 
 # Generate with specific bundle and SDD (bundle name as positional argument)
-specfact generate contracts main --sdd .specfact/sdd.yaml
+specfact generate contracts --bundle main  # Uses .specfact/projects/main/sdd.yaml (Phase 8.5)
 
 # Custom output directory
 specfact generate contracts --out src/contracts/
@@ -1584,6 +1733,132 @@ Each file includes:
 
 ---
 
+#### `generate contracts-prompt`
+
+Generate AI IDE prompts for adding contracts to existing code files:
+
+```bash
+specfact generate contracts-prompt [FILE] [OPTIONS]
+```
+
+**Purpose:**
+
+Creates structured prompt files that you can use with your AI IDE (Cursor, CoPilot, etc.) to add beartype, icontract, or CrossHair contracts to existing Python code. The CLI generates the prompt, your AI IDE's LLM applies the contracts.
+
+**Options:**
+
+- `FILE` - Path to file to enhance (optional if `--bundle` provided)
+- `--bundle BUNDLE_NAME` - Project bundle name. If provided, selects files from bundle. Default: active plan from `specfact plan select`
+- `--apply CONTRACTS` - **Required**. Contracts to apply: `all-contracts`, `beartype`, `icontract`, `crosshair`, or comma-separated list (e.g., `beartype,icontract`)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts.
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--output PATH` - Output file path (currently unused, prompt saved to `.specfact/prompts/`)
+
+**Contract Types:**
+
+- `all-contracts` - Apply all available contract types (beartype, icontract, crosshair)
+- `beartype` - Type checking decorators (`@beartype`)
+- `icontract` - Pre/post condition decorators (`@require`, `@ensure`, `@invariant`)
+- `crosshair` - Property-based test functions
+
+**Examples:**
+
+```bash
+# Apply all contract types to a specific file
+specfact generate contracts-prompt src/auth/login.py --apply all-contracts
+
+# Apply specific contract types
+specfact generate contracts-prompt src/auth/login.py --apply beartype,icontract
+
+# Apply to all files in a bundle (interactive selection)
+specfact generate contracts-prompt --bundle legacy-api --apply all-contracts
+
+# Apply to all files in a bundle (non-interactive)
+specfact generate contracts-prompt --bundle legacy-api --apply all-contracts --no-interactive
+```
+
+**How It Works:**
+
+1. **CLI generates prompt**: Reads the file and creates a structured prompt
+2. **Prompt saved**: Saved to `.specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md` (or `.specfact/prompts/` if no bundle)
+3. **You copy prompt**: Copy the prompt to your AI IDE (Cursor, CoPilot, etc.)
+4. **AI IDE enhances code**: AI IDE reads the file and provides enhanced code (does NOT modify file directly)
+5. **AI IDE writes to temp file**: Enhanced code written to `enhanced_<filename>.py`
+6. **Validate with CLI**: AI IDE runs `specfact generate contracts-apply enhanced_<filename>.py --original <original-file>`
+7. **Iterative validation**: If validation fails, AI IDE fixes issues and re-validates (up to 3 attempts)
+8. **Apply changes**: If validation succeeds, CLI applies changes automatically
+9. **Verify and test**: Run `specfact analyze contracts --bundle <bundle>` and your test suite
+
+**Prompt File Location:**
+
+- **With bundle**: `.specfact/projects/<bundle-name>/prompts/enhance-<filename>-<contracts>.md`
+- **Without bundle**: `.specfact/prompts/enhance-<filename>-<contracts>.md`
+
+**Why This Approach:**
+
+- Uses your existing AI IDE infrastructure (no separate LLM API setup)
+- No additional API costs (leverages IDE's native LLM)
+- You maintain control (review before committing)
+- Works with any AI IDE (Cursor, CoPilot, Claude, etc.)
+- Iterative validation ensures code quality before applying changes
+
+**Complete Workflow:**
+
+```bash
+# 1. Generate prompt
+specfact generate contracts-prompt src/auth/login.py --apply all-contracts
+
+# 2. Open prompt file
+cat .specfact/projects/my-bundle/prompts/enhance-login-beartype-icontract-crosshair.md
+
+# 3. Copy prompt to your AI IDE (Cursor, CoPilot, etc.)
+
+# 4. AI IDE reads the file and provides enhanced code (does NOT modify file directly)
+
+# 5. AI IDE writes enhanced code to temporary file: enhanced_login.py
+
+# 6. AI IDE runs validation
+specfact generate contracts-apply enhanced_login.py --original src/auth/login.py
+
+# 7. If validation fails, AI IDE fixes issues and re-validates (up to 3 attempts)
+
+# 8. If validation succeeds, CLI applies changes automatically
+
+# 9. Verify contract coverage
+specfact analyze contracts --bundle my-bundle
+
+# 10. Run your test suite
+pytest
+
+# 11. Commit the enhanced code
+git add src/auth/login.py && git commit -m "feat: add contracts to login module"
+```
+
+**Validation Steps (performed by `contracts-apply`):**
+
+The `contracts-apply` command performs rigorous validation before applying changes:
+
+1. **File size check**: Enhanced file must not be smaller than original
+2. **Python syntax validation**: Uses `python -m py_compile`
+3. **AST structure comparison**: Ensures no functions or classes are accidentally removed
+4. **Contract imports verification**: Checks for required imports (`beartype`, `icontract`)
+5. **Test execution**: Runs `specfact repro` or `pytest` to ensure code functions correctly
+6. **Diff preview**: Displays changes before applying
+
+Only if all validation steps pass are changes applied to the original file.
+
+**Error Messages:**
+
+If `--apply` is missing or invalid, the CLI shows helpful error messages with:
+
+- Available contract types and descriptions
+- Usage examples
+- Link to full documentation
+
+---
+
 ### `sync` - Synchronize Changes
 
 Bidirectional synchronization for consistent change management.
@@ -1609,9 +1884,12 @@ specfact sync bridge [OPTIONS]
 
 **Watch Mode Features:**
 
+- **Hash-based change detection**: Only processes files that actually changed (SHA256 hash verification)
 - **Real-time monitoring**: Automatically detects file changes in tool artifacts, SpecFact bundles, and repository code
+- **Dependency tracking**: Tracks file dependencies for incremental processing
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
 - **Change type detection**: Automatically detects whether changes are in tool artifacts, SpecFact bundles, or code
+- **LZ4 cache compression**: Faster cache I/O when LZ4 is available (optional)
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 - **Resource efficient**: Minimal CPU/memory usage
 
@@ -1678,16 +1956,21 @@ specfact sync repository [OPTIONS]
 - `--repo PATH` - Path to repository (default: `.`)
 - `--target PATH` - Target directory for artifacts (default: `.specfact`)
 - `--watch` - Watch mode for continuous sync (monitors code changes in real-time)
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
 - `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
 - `--confidence FLOAT` - Minimum confidence threshold for feature detection (default: 0.5, range: 0.0-1.0)
-- `--target PATH` - Target directory for artifacts (default: `.specfact`)
 
 **Watch Mode Features:**
 
+- **Hash-based change detection**: Only processes files that actually changed (SHA256 hash verification)
 - **Real-time monitoring**: Automatically detects code changes in repository
 - **Automatic sync**: Triggers sync when code changes are detected
 - **Deviation tracking**: Tracks deviations from manual plans as code changes
+- **Dependency tracking**: Tracks file dependencies for incremental processing
 - **Debouncing**: Prevents rapid file change events (500ms debounce interval)
+- **LZ4 cache compression**: Faster cache I/O when LZ4 is available (optional)
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 
 **Example:**
@@ -1719,29 +2002,42 @@ Manage API specifications with Specmatic for OpenAPI/AsyncAPI validation, backwa
 
 #### `spec validate`
 
-Validate OpenAPI/AsyncAPI specification using Specmatic.
+Validate OpenAPI/AsyncAPI specification using Specmatic. Can validate a single file or all contracts in a project bundle.
 
 ```bash
-specfact spec validate <spec-path> [OPTIONS]
+specfact spec validate [<spec-path>] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<spec-path>` - Path to OpenAPI/AsyncAPI specification file (required)
+- `<spec-path>` - Path to OpenAPI/AsyncAPI specification file (optional if --bundle provided)
 
 **Options:**
 
+- `--bundle NAME` - Project bundle name (e.g., legacy-api). If provided, validates all contracts in bundle. Default: active plan from 'specfact plan select'
 - `--previous PATH` - Path to previous version for backward compatibility check
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Disables interactive prompts.
 
 **Examples:**
 
 ```bash
-# Basic validation
+# Validate a single spec file
 specfact spec validate api/openapi.yaml
 
 # With backward compatibility check
 specfact spec validate api/openapi.yaml --previous api/openapi.v1.yaml
+
+# Validate all contracts in active bundle (interactive selection)
+specfact spec validate
+
+# Validate all contracts in specific bundle
+specfact spec validate --bundle legacy-api
+
+# Non-interactive: validate all contracts
+specfact spec validate --bundle legacy-api --no-interactive
 ```
+
+**CLI-First Pattern**: Uses active plan (from `specfact plan select`) as default, or specify `--bundle`. Never requires direct `.specfact` paths - always use the CLI interface. When multiple contracts are available, shows interactive list for selection.
 
 **What it checks:**
 
@@ -1754,6 +2050,7 @@ specfact spec validate api/openapi.yaml --previous api/openapi.v1.yaml
 - Validation results table with status for each check
 - ✓ PASS or ✗ FAIL for each validation step
 - Detailed errors if validation fails
+- Summary when validating multiple contracts
 
 #### `spec backward-compat`
 
@@ -1781,38 +2078,96 @@ specfact spec backward-compat api/openapi.v1.yaml api/openapi.v2.yaml
 
 #### `spec generate-tests`
 
-Generate Specmatic test suite from specification.
+Generate Specmatic test suite from specification. Can generate for a single file or all contracts in a bundle.
 
 ```bash
-specfact spec generate-tests <spec-path> [OPTIONS]
+specfact spec generate-tests [<spec-path>] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<spec-path>` - Path to OpenAPI/AsyncAPI specification (required)
+- `<spec-path>` - Path to OpenAPI/AsyncAPI specification (optional if --bundle provided)
 
 **Options:**
 
+- `--bundle NAME` - Project bundle name (e.g., legacy-api). If provided, generates tests for all contracts in bundle. Default: active plan from 'specfact plan select'
 - `--out PATH` - Output directory for generated tests (default: `.specfact/specmatic-tests/`)
 
-**Example:**
+**Examples:**
 
 ```bash
-# Generate to default location
+# Generate for a single spec file
 specfact spec generate-tests api/openapi.yaml
 
 # Generate to custom location
 specfact spec generate-tests api/openapi.yaml --out tests/specmatic/
+
+# Generate tests for all contracts in active bundle
+specfact spec generate-tests --bundle legacy-api
+
+# Generate tests for all contracts in specific bundle
+specfact spec generate-tests --bundle legacy-api --out tests/contract/
 ```
+
+**CLI-First Pattern**: Uses active plan as default, or specify `--bundle`. Never requires direct `.specfact` paths.
+
+**Caching:**
+Test generation results are cached in `.specfact/cache/specmatic-tests.json` based on file content hashes. Unchanged contracts are automatically skipped on subsequent runs. Use `--force` to bypass cache.
 
 **Output:**
 
 - ✓ Test suite generated with path to output directory
 - Instructions to run the generated tests
+- Summary when generating tests for multiple contracts
+
+**What to Do With Generated Tests:**
+
+The generated tests are executable contract tests that validate your API implementation against the OpenAPI/AsyncAPI specification. Here's how to use them:
+
+1. **Generate tests** (you just did this):
+
+   ```bash
+   specfact spec generate-tests --bundle my-api --output tests/contract/
+   ```
+
+2. **Start your API server**:
+
+   ```bash
+   python -m uvicorn main:app --port 8000
+   ```
+
+3. **Run tests against your API**:
+
+   ```bash
+   specmatic test \
+     --spec .specfact/projects/my-api/contracts/api.openapi.yaml \
+     --host http://localhost:8000
+   ```
+
+4. **Tests validate**:
+   - Request format matches spec (headers, body, query params)
+   - Response format matches spec (status codes, headers, body schema)
+   - All endpoints are implemented
+   - Data types and constraints are respected
+
+**CI/CD Integration:**
+
+```yaml
+- name: Generate contract tests
+  run: specfact spec generate-tests --bundle my-api --output tests/contract/
+
+- name: Start API server
+  run: python -m uvicorn main:app --port 8000 &
+
+- name: Run contract tests
+  run: specmatic test --spec ... --host http://localhost:8000
+```
+
+See [Specmatic Integration Guide](../guides/specmatic-integration.md#what-can-you-do-with-generated-tests) for complete walkthrough.
 
 #### `spec mock`
 
-Launch Specmatic mock server from specification.
+Launch Specmatic mock server from specification. Can use a single spec file or select from bundle contracts.
 
 ```bash
 specfact spec mock [OPTIONS]
@@ -1821,13 +2176,15 @@ specfact spec mock [OPTIONS]
 **Options:**
 
 - `--spec PATH` - Path to OpenAPI/AsyncAPI specification (default: auto-detect from current directory)
+- `--bundle NAME` - Project bundle name (e.g., legacy-api). If provided, selects contract from bundle. Default: active plan from 'specfact plan select'
 - `--port INT` - Port number for mock server (default: 9000)
 - `--strict/--examples` - Use strict validation mode or examples mode (default: strict)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation). Uses first contract if multiple available.
 
-**Example:**
+**Examples:**
 
 ```bash
-# Auto-detect spec file
+# Auto-detect spec file from current directory
 specfact spec mock
 
 # Specify spec file and port
@@ -1835,7 +2192,15 @@ specfact spec mock --spec api/openapi.yaml --port 9000
 
 # Use examples mode (less strict)
 specfact spec mock --spec api/openapi.yaml --examples
+
+# Select contract from active bundle (interactive)
+specfact spec mock --bundle legacy-api
+
+# Use specific bundle (non-interactive, uses first contract)
+specfact spec mock --bundle legacy-api --no-interactive
 ```
+
+**CLI-First Pattern**: Uses active plan as default, or specify `--bundle`. Interactive selection when multiple contracts available.
 
 **Features:**
 
@@ -2049,9 +2414,13 @@ specfact init [OPTIONS]
 
 **Options:**
 
-- `--ide TEXT` - IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q) (default: auto)
 - `--repo PATH` - Repository path (default: current directory)
 - `--force` - Overwrite existing files
+- `--install-deps` - Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) via pip
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--ide TEXT` - IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q) (default: auto)
 
 **Examples:**
 
@@ -2066,6 +2435,12 @@ specfact init --ide copilot
 
 # Force overwrite existing files
 specfact init --ide cursor --force
+
+# Install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize IDE integration and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 **What it does:**
@@ -2074,6 +2449,11 @@ specfact init --ide cursor --force
 2. Copies prompt templates from `resources/prompts/` to IDE-specific location **at the repository root level**
 3. Creates/updates VS Code settings.json if needed (for VS Code/Copilot)
 4. Makes slash commands available in your IDE
+5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
+   - `beartype>=0.22.4` - Runtime type checking
+   - `icontract>=2.7.1` - Design-by-contract decorators
+   - `crosshair-tool>=0.0.97` - Contract exploration
+   - `pytest>=8.4.2` - Testing framework
 
 **Important:** Templates are always copied to the repository root level (where `.github/`, `.cursor/`, etc. directories must reside for IDE recognition). The `--repo` parameter specifies the repository root path. For multi-project codebases, run `specfact init` from the repository root to ensure IDE integration works correctly.
 
@@ -2106,11 +2486,13 @@ Slash commands provide an intuitive interface for IDE integration (VS Code, Curs
 4. `/specfact.04-sdd [args]` - Create SDD manifest (new, based on `plan harden`)
 5. `/specfact.05-enforce [args]` - SDD enforcement (replaces `specfact-enforce`)
 6. `/specfact.06-sync [args]` - Sync operations (replaces `specfact-sync`)
+7. `/specfact.07-contracts [args]` - Contract enhancement workflow: analyze → generate prompts → apply contracts sequentially
 
 **Advanced Commands** (no numbering):
 
 - `/specfact.compare [args]` - Compare plans (replaces `specfact-plan-compare`)
 - `/specfact.validate [args]` - Validation suite (replaces `specfact-repro`)
+- `/specfact.generate-contracts-prompt [args]` - Generate AI IDE prompt for adding contracts (see `generate contracts-prompt`)
 
 ### Setup
 
@@ -2120,6 +2502,12 @@ specfact init --ide cursor
 
 # Or auto-detect IDE
 specfact init
+
+# Initialize and install required packages for contract enhancement
+specfact init --install-deps
+
+# Initialize for specific IDE and install dependencies
+specfact init --ide cursor --install-deps
 ```
 
 ### Usage
@@ -2136,6 +2524,7 @@ After initialization, use slash commands directly in your IDE's AI chat:
 /specfact.04-sdd legacy-api
 /specfact.05-enforce legacy-api
 /specfact.06-sync --repo . --adapter speckit
+/specfact.07-contracts legacy-api --apply all-contracts  # Analyze, generate prompts, apply contracts sequentially
 
 # Advanced commands
 /specfact.compare --bundle legacy-api

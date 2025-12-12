@@ -14,6 +14,7 @@ from specfact_cli.models.bridge import (
 )
 from specfact_cli.models.deviation import Deviation, DeviationReport, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementAction, EnforcementConfig, EnforcementPreset
+from specfact_cli.models.persona_template import PersonaTemplate, SectionType, SectionValidation, TemplateSection
 from specfact_cli.models.plan import Business, Feature, Idea, Metadata, PlanBundle, PlanSummary, Product, Release, Story
 from specfact_cli.models.project import (
     BundleChecksums,
@@ -62,6 +63,7 @@ __all__ = [
     "Idea",
     "Metadata",
     "PersonaMapping",
+    "PersonaTemplate",
     "PlanBundle",
     "PlanSummary",
     "Product",
@@ -78,9 +80,12 @@ __all__ = [
     "SDDWhy",
     "SchemaMetadata",
     "SectionLock",
+    "SectionType",
+    "SectionValidation",
     "SourceTracking",
     "Story",
     "TemplateMapping",
+    "TemplateSection",
     "Transition",
     "ValidationReport",
 ]

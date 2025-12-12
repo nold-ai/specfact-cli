@@ -7,6 +7,7 @@ to IDE-specific locations for slash command integration.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -56,11 +57,17 @@ def init(
         "--force",
         help="Overwrite existing files",
     ),
+    install_deps: bool = typer.Option(
+        False,
+        "--install-deps",
+        help="Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) via pip",
+    ),
     # Advanced/Configuration
     ide: str = typer.Option(
         "auto",
         "--ide",
         help="IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q)",
+        hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
     """
@@ -75,10 +82,12 @@ def init(
         specfact init --ide cursor       # Initialize for Cursor
         specfact init --ide vscode --force  # Overwrite existing files
         specfact init --repo /path/to/repo --ide copilot
+        specfact init --install-deps     # Install required packages for contract enhancement
     """
     telemetry_metadata = {
         "ide": ide,
         "force": force,
+        "install_deps": install_deps,
     }
 
     with telemetry.track_command("init", telemetry_metadata) as record:
@@ -95,6 +104,58 @@ def init(
         console.print(f"[cyan]Repository:[/cyan] {repo_path}")
         console.print(f"[cyan]IDE:[/cyan] {ide_name} ({detected_ide})")
         console.print()
+
+        # Install dependencies if requested
+        if install_deps:
+            console.print()
+            console.print(Panel("[bold cyan]Installing Required Packages[/bold cyan]", border_style="cyan"))
+            required_packages = [
+                "beartype>=0.22.4",
+                "icontract>=2.7.1",
+                "crosshair-tool>=0.0.97",
+                "pytest>=8.4.2",
+            ]
+            console.print("[dim]Installing packages for contract enhancement:[/dim]")
+            for package in required_packages:
+                console.print(f"  - {package}")
+
+            try:
+                # Use pip to install packages
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-U", *required_packages],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+
+                if result.returncode == 0:
+                    console.print()
+                    console.print("[green]✓[/green] All required packages installed successfully")
+                    record({"deps_installed": True, "packages_count": len(required_packages)})
+                else:
+                    console.print()
+                    console.print("[yellow]⚠[/yellow] Some packages failed to install")
+                    console.print("[dim]Output:[/dim]")
+                    if result.stdout:
+                        console.print(result.stdout)
+                    if result.stderr:
+                        console.print(result.stderr)
+                    console.print()
+                    console.print("[yellow]You may need to install packages manually:[/yellow]")
+                    console.print(f"  pip install {' '.join(required_packages)}")
+                    record({"deps_installed": False, "error": result.stderr[:200]})
+            except FileNotFoundError:
+                console.print()
+                console.print("[red]Error:[/red] pip not found. Please install packages manually:")
+                console.print(f"  pip install {' '.join(required_packages)}")
+                record({"deps_installed": False, "error": "pip not found"})
+            except Exception as e:
+                console.print()
+                console.print(f"[red]Error:[/red] Failed to install packages: {e}")
+                console.print("[yellow]You may need to install packages manually:[/yellow]")
+                console.print(f"  pip install {' '.join(required_packages)}")
+                record({"deps_installed": False, "error": str(e)})
+            console.print()
 
         # Find templates directory
         # Priority order:

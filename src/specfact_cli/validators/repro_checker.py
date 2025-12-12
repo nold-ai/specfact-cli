@@ -696,19 +696,35 @@ class ReproChecker:
         # Add CrossHair only if src/ exists
         # Exclude common/logger_setup.py from CrossHair analysis due to known signature analysis issues
         # CrossHair doesn't support --exclude, so we exclude the common directory and add other directories
+        # Use hatch run to ensure CrossHair runs in the correct Python environment with dependencies
         if src_dir.exists():
             # Get all subdirectories except common
             specfact_dirs = [d for d in src_dir.iterdir() if d.is_dir() and d.name != "common"]
             crosshair_targets = ["src/" + d.name for d in specfact_dirs] + ["tools/"]
-            checks.append(
-                (
-                    "Contract exploration (CrossHair)",
-                    "crosshair",
-                    ["crosshair", "check", *crosshair_targets],
-                    60,
-                    True,
+            # Check if hatch is available, otherwise fall back to direct crosshair command
+            hatch_available = shutil.which("hatch") is not None
+            if hatch_available:
+                # Use hatch run to ensure correct Python environment
+                checks.append(
+                    (
+                        "Contract exploration (CrossHair)",
+                        "crosshair",
+                        ["hatch", "run", "python", "-m", "crosshair", "check", *crosshair_targets],
+                        60,
+                        True,
+                    )
                 )
-            )
+            else:
+                # Fall back to direct crosshair command (may fail if wrong Python environment)
+                checks.append(
+                    (
+                        "Contract exploration (CrossHair)",
+                        "crosshair",
+                        ["crosshair", "check", *crosshair_targets],
+                        60,
+                        True,
+                    )
+                )
 
         # Add property tests only if directory exists
         if contracts_tests.exists():
