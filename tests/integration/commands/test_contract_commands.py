@@ -101,6 +101,15 @@ class TestContractInit:
         assert contract_data["info"]["title"] == "Test API"
         assert contract_data["info"]["version"] == "1.0.0"
 
+        # Verify contract index in manifest
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle = load_project_bundle(bundle_dir)
+        contract_indices = [c for c in bundle.manifest.contracts if c.feature_key == "FEATURE-001"]
+        assert len(contract_indices) > 0
+        assert contract_indices[0].contract_file == "contracts/FEATURE-001.openapi.yaml"
+
 
 class TestContractValidate:
     """Test suite for contract validate command."""
@@ -235,3 +244,121 @@ class TestContractCoverage:
 
         assert result.exit_code == 0
         assert "coverage" in result.stdout.lower() or "contract" in result.stdout.lower()
+
+
+class TestContractServe:
+    """Test suite for contract serve command."""
+
+    def test_serve_contract_feature_not_found(self, sample_bundle_with_contract: tuple[Path, str]) -> None:
+        """Test serve command with non-existent feature."""
+        repo_path, bundle_name = sample_bundle_with_contract
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "contract",
+                "serve",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--feature",
+                "FEATURE-999",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "not found" in result.stdout.lower() or "error" in result.stdout.lower()
+
+    def test_serve_contract_no_contract(self, sample_bundle_with_contract: tuple[Path, str]) -> None:
+        """Test serve command when feature has no contract."""
+        repo_path, bundle_name = sample_bundle_with_contract
+        os.environ["TEST_MODE"] = "true"
+
+        # Remove contract from feature
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle_name)
+        bundle = load_project_bundle(bundle_dir)
+        bundle.features["FEATURE-001"].contract = None
+        save_project_bundle(bundle, bundle_dir)
+
+        result = runner.invoke(
+            app,
+            [
+                "contract",
+                "serve",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--feature",
+                "FEATURE-001",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "no contract" in result.stdout.lower() or "error" in result.stdout.lower()
+
+
+class TestContractTest:
+    """Test suite for contract test command."""
+
+    def test_test_contract_feature_not_found(self, sample_bundle_with_contract: tuple[Path, str]) -> None:
+        """Test test command with non-existent feature."""
+        repo_path, bundle_name = sample_bundle_with_contract
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "contract",
+                "test",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--feature",
+                "FEATURE-999",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "not found" in result.stdout.lower() or "error" in result.stdout.lower()
+
+    def test_test_contract_no_contract(self, sample_bundle_with_contract: tuple[Path, str]) -> None:
+        """Test test command when feature has no contract."""
+        repo_path, bundle_name = sample_bundle_with_contract
+        os.environ["TEST_MODE"] = "true"
+
+        # Remove contract from feature
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle_name)
+        bundle = load_project_bundle(bundle_dir)
+        bundle.features["FEATURE-001"].contract = None
+        save_project_bundle(bundle, bundle_dir)
+
+        result = runner.invoke(
+            app,
+            [
+                "contract",
+                "test",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--feature",
+                "FEATURE-001",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "no contract" in result.stdout.lower() or "error" in result.stdout.lower()
