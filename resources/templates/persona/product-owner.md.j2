@@ -1,0 +1,233 @@
+# Project Plan: {{ bundle_name }} - Product Owner View
+
+**Persona**: Product Owner  
+**Bundle**: `{{ bundle_name }}`  
+**Created**: {{ created_at }}  
+**Status**: {{ status }}  
+**Last Updated**: {{ updated_at }}
+
+{% if idea or business %}
+## Idea & Business Context *(mandatory)*
+
+{% if idea %}
+### Problem Statement
+
+{{ idea.problem_statement | default('*[ACTION REQUIRED: Define the problem this project solves]*', true) }}
+
+### Solution Vision
+
+{{ idea.solution_vision | default('*[ACTION REQUIRED: Describe the envisioned solution]*', true) }}
+
+### Success Metrics
+
+{% if idea.success_metrics %}
+{% for metric in idea.success_metrics %}
+- **{{ metric.name }}**: {{ metric.target }} ({{ metric.measurement }})
+{% endfor %}
+{% else %}
+- *[ACTION REQUIRED: Define measurable success metrics]*
+{% endif %}
+{% endif %}
+{% if business %}
+### Business Value
+
+{{ business.value_proposition | default('*[ACTION REQUIRED: Describe business value]*', true) }}
+
+### Target Users
+
+{% if business.target_users %}
+{% for user in business.target_users %}
+- **{{ user.role }}**: {{ user.description }}
+{% endfor %}
+{% else %}
+- *[ACTION REQUIRED: Define target user personas]*
+{% endif %}
+
+### Business Constraints
+
+{% if business.constraints %}
+{% for constraint in business.constraints %}
+- **{{ constraint.type }}**: {{ constraint.description }}
+{% endfor %}
+{% else %}
+- *[ACTION REQUIRED: List business constraints (budget, timeline, compliance, etc.)]*
+{% endif %}
+{% endif %}
+{% else %}
+## Idea & Business Context *(mandatory)*
+
+*[ACTION REQUIRED: Define problem statement, solution vision, and business value]*
+{% endif %}
+
+{% if features %}
+## Features & User Stories *(mandatory)*
+
+{% for feature_key, feature in features.items() %}
+### {{ feature.key }}: {{ feature.title }}
+
+**Priority**: {{ feature.priority | default('*[Not Set]*') }} | **Rank**: {{ feature.rank | default('*[Not Set]*') }}  
+**Business Value Score**: {{ feature.business_value_score | default('*[Not Set]*') }}/100  
+**Target Release**: {{ feature.target_release | default('*[Not Set]*') }}  
+**Estimated Story Points**: {{ feature.estimated_story_points | default('*[Not Set]*') }}
+
+#### Business Value
+
+{{ feature.business_value_description | default('*[ACTION REQUIRED: Define business value proposition]*') }}
+
+**Target Users**: {% if feature.target_users %}{{ feature.target_users | join(', ') }}{% else %}*[ACTION REQUIRED: Define target users]*{% endif %}
+
+**Success Metrics**:
+
+{% if feature.success_metrics %}
+{% for metric in feature.success_metrics %}
+- {{ metric }}
+{% endfor %}
+{% else %}
+- *[ACTION REQUIRED: Define measurable success metrics]*
+{% endif %}
+
+#### Dependencies
+
+{% if feature.depends_on_features %}
+**Depends On Features**:
+
+{% for dep in feature.depends_on_features %}
+- {{ dep }}
+{% endfor %}
+{% else %}
+- No feature dependencies
+{% endif %}
+
+{% if feature.blocks_features %}
+**Blocks Features**:
+
+{% for blocked in feature.blocks_features %}
+- {{ blocked }}
+{% endfor %}
+{% endif %}
+{% if feature.stories %}
+#### User Stories
+
+{% for story in feature.stories %}
+{% if not loop.first %}
+{% endif %}
+**Story {{ loop.index }}**: {{ story.title }}
+
+**Definition of Ready**:
+
+- [{{ 'x' if story.story_points else ' ' }}] Story Points: {{ story.story_points | default('*[Not Set]*') }}
+- [{{ 'x' if story.value_points else ' ' }}] Value Points: {{ story.value_points | default('*[Not Set]*') }}
+- [{{ 'x' if story.priority else ' ' }}] Priority: {{ story.priority | default('*[Not Set]*') }}
+- [{{ 'x' if story.depends_on_stories|length > 0 or story.blocks_stories|length > 0 else ' ' }}] Dependencies: {{ (story.depends_on_stories|length + story.blocks_stories|length) }} identified
+- [{{ 'x' if story.business_value_description else ' ' }}] Business Value: {% if story.business_value_description %}✓{% else %}✗ Missing{% endif %}
+
+- [{{ 'x' if story.due_date else ' ' }}] Target Date: {{ story.due_date | default('*[Not Set]*') }}
+- [{{ 'x' if story.target_sprint else ' ' }}] Target Sprint: {{ story.target_sprint | default('*[Not Set]*') }}
+
+**Story Details**:
+
+- **Story Points**: {{ story.story_points | default('*[Not Set]*') }} (Complexity)
+- **Value Points**: {{ story.value_points | default('*[Not Set]*') }} (Business Value)
+- **Priority**: {{ story.priority | default('*[Not Set]*') }}
+- **Rank**: {{ story.rank | default('*[Not Set]*') }}
+- **Target Date**: {{ story.due_date | default('*[Not Set]*') }}
+- **Target Sprint**: {{ story.target_sprint | default('*[Not Set]*') }}
+- **Target Release**: {{ story.target_release | default('*[Not Set]*') }}
+
+**Business Value**:
+
+{{ story.business_value_description | default('*[ACTION REQUIRED: Define business value and user impact]*') }}
+
+**Business Metrics**:
+
+{% if story.business_metrics %}
+{% for metric in story.business_metrics %}
+- {{ metric }}
+{% endfor %}
+{% else %}
+- *[ACTION REQUIRED: Define measurable business outcomes]*
+{% endif %}
+
+**Dependencies**:
+
+{% if story.depends_on_stories %}
+**Depends On**:
+
+{% for dep in story.depends_on_stories %}
+- {{ dep }}
+{% endfor %}
+{% else %}
+- No story dependencies
+{% endif %}
+{% if story.blocks_stories %}
+**Blocks**:
+
+{% for blocked in story.blocks_stories %}
+- {{ blocked }}
+{% endfor %}
+{% endif %}
+
+**Acceptance Criteria** (User-Focused):
+
+{% if story.acceptance %}
+{% for criterion in story.acceptance %}
+{% set criterion_clean = criterion.replace('\r\n', '\n').replace('\r', '\n').strip() %}
+{% if '\n' in criterion_clean %}
+{% set criterion_lines = criterion_clean.split('\n') %}
+{% for line in criterion_lines %}
+{% if line.strip() %}
+- [ ] {{ line.strip() }}
+{% endif %}
+{% endfor %}
+{% else %}
+- [ ] {{ criterion_clean }}
+{% endif %}
+{% endfor %}
+{% else %}
+- *[ACTION REQUIRED: Define user-focused acceptance criteria]*
+{% endif %}
+
+---
+{% endfor %}
+{% else %}
+*[ACTION REQUIRED: Define user stories for this feature]*
+{% endif %}
+
+{% if feature.outcomes %}
+#### Feature Outcomes
+
+{% for outcome in feature.outcomes %}
+- {{ outcome }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% else %}
+## Features & User Stories *(mandatory)*
+
+*[ACTION REQUIRED: Define features and user stories]*
+{% endif %}
+
+## Ownership & Locks
+
+{% if locks %}
+**Locked Sections**:
+
+{% for lock in locks %}
+- `{{ lock.section }}` - Locked by {{ lock.owner }} ({{ lock.locked_at }})
+{% endfor %}
+{% else %}
+*No sections currently locked*
+{% endif %}
+
+## Validation Checklist
+
+- [ ] All user stories have clear acceptance criteria
+- [ ] Success metrics are measurable and defined
+- [ ] Target users are identified
+- [ ] Business constraints are documented
+- [ ] Feature priorities are established
+
+## Notes
+
+*Use this section for additional context, questions, or clarifications needed.*
+

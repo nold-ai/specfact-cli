@@ -294,11 +294,9 @@ Order management service for creating and fulfilling orders.
             manifest_path = bundle_dir / "bundle.manifest.yaml"
             assert manifest_path.exists()
 
-            # Protocol may be in bundle or separate location
-            protocol_path = bundle_dir / "protocols" / "workflow.protocol.yaml"
-            if not protocol_path.exists():
-                # Check legacy location
-                protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
+            # Protocol is in separate location (not in bundle)
+            protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
+            assert protocol_path.exists(), f"Protocol not found at {protocol_path}"
 
             # Verify protocol content
             protocol_data = load_yaml(protocol_path)
@@ -730,14 +728,16 @@ Full service with all features including state management.
 
             assert result.exit_code == 0
 
-            # Verify all artifacts
+            # Verify all artifacts (modular bundle structure)
             protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
-            plan_path = repo_path / ".specfact" / "plans" / "main.bundle.yaml"
+            bundle_dir = repo_path / ".specfact" / "projects" / "main"
+            manifest_path = bundle_dir / "bundle.manifest.yaml"
             semgrep_path = repo_path / ".semgrep" / "async-anti-patterns.yml"
             workflow_path = repo_path / ".github" / "workflows" / "specfact-gate.yml"
 
             assert protocol_path.exists()
-            assert plan_path.exists()
+            assert bundle_dir.exists()
+            assert manifest_path.exists()
             assert semgrep_path.exists()
             assert workflow_path.exists()
 
@@ -747,8 +747,40 @@ Full service with all features including state management.
             assert "INIT" in protocol_data["states"]
             assert "COMPLETE" in protocol_data["states"]
 
-            # Verify plan has feature with stories
-            plan_data = load_yaml(plan_path)
-            assert len(plan_data["features"]) >= 1
-            feature = plan_data["features"][0]
-            assert len(feature["stories"]) > 0
+            # Verify bundle manifest has features
+            manifest_data = load_yaml(manifest_path)
+            # Features may be in manifest or in features/ directory
+            if manifest_data.get("features"):
+                features_list = manifest_data["features"]
+                assert len(features_list) >= 1
+                # Features in manifest are FeatureIndex objects (dicts with 'key' field)
+                if isinstance(features_list, list) and len(features_list) > 0:
+                    # Extract key from FeatureIndex dict
+                    first_feature = features_list[0]
+                    if isinstance(first_feature, dict) and "key" in first_feature:
+                        feature_key = first_feature["key"]
+                    else:
+                        # Fallback: use first element as key if it's a string
+                        feature_key = str(first_feature) if isinstance(first_feature, str) else features_list[0]
+                else:
+                    # Features is a dict, get first key
+                    feature_key = next(iter(features_list.keys())) if isinstance(features_list, dict) else None
+            else:
+                # Check features directory
+                features_dir = bundle_dir / "features"
+                assert features_dir.exists()
+                feature_files = list(features_dir.glob("*.yaml"))
+                assert len(feature_files) >= 1
+                feature_key = feature_files[0].stem
+
+            # Ensure feature_key is a string
+            assert isinstance(feature_key, str), (
+                f"Expected feature_key to be string, got {type(feature_key)}: {feature_key}"
+            )
+
+            # Verify feature has stories
+            feature_path = bundle_dir / "features" / f"{feature_key}.yaml"
+            if feature_path.exists():
+                feature_data = load_yaml(feature_path)
+                assert "stories" in feature_data
+                assert len(feature_data["stories"]) > 0

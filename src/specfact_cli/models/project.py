@@ -395,7 +395,18 @@ class ProjectBundle(BaseModel):
         features_dir = bundle_dir / "features"
         features_dir.mkdir(parents=True, exist_ok=True)
 
+        # Ensure features is a dict with string keys and Feature values
+        if not isinstance(self.features, dict):
+            raise ValueError(f"Expected features to be dict, got {type(self.features)}")
+
         for key, feature in self.features.items():
+            # Ensure key is a string, not a FeatureIndex or other object
+            if not isinstance(key, str):
+                raise ValueError(f"Expected feature key to be string, got {type(key)}: {key}")
+            # Ensure feature is a Feature object, not a FeatureIndex
+            if not isinstance(feature, Feature):
+                raise ValueError(f"Expected feature to be Feature, got {type(feature)}: {feature}")
+
             feature_file = f"{key}.yaml"
             feature_path = features_dir / feature_file
             save_tasks.append((f"features/{feature_file}", feature_path, feature.model_dump()))

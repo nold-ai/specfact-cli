@@ -9,6 +9,43 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.16.1] - 2025-12-12
+
+### Added (0.16.1)
+
+- **Persona Templates** - Enhanced Developer and Architect persona templates with real-world implementation details
+  - **Developer Template**: Added task breakdown, technical design (API contracts, test scenarios), code mappings (source/test functions), sprint context, and Definition of Done sections
+  - **Architect Template**: Added architectural decisions, non-functional requirements, protocols & state machines (loaded from bundle), contracts (OpenAPI/AsyncAPI), risk assessment, and deployment architecture sections
+  - Templates now provide actionable, implementation-focused content aligned with real-world agile/scrum expectations
+
+- **Documentation** - Comprehensive documentation updates for persona workflows
+  - Added `project export` and `project import` command documentation to command reference
+  - Enhanced Agile/Scrum Workflows guide with Developer and Architect persona details
+  - Documented what each persona export includes and validation rules for imports
+
+### Fixed (0.16.1)
+
+- **Persona Templates** - Fixed Markdown linting issues in generated persona exports
+  - Resolved MD012 (multiple consecutive blank lines) errors in architect and developer templates
+  - Fixed MD024 (duplicate headings) by adding feature keys to section headings
+  - Fixed MD036 (emphasis used instead of heading) in ownership sections
+  - Applied extensive Jinja2 whitespace control to ensure clean Markdown output
+
+- **Persona Exporter** - Fixed data model alignment issues
+  - Corrected `feature.constraints` handling (now correctly treats as `list[str]` instead of objects)
+  - Enhanced context preparation to include protocols and contracts from bundle directory
+  - Added support for story tasks, scenarios, contracts, source/test functions, and Definition of Ready in developer context
+
+### Improved (0.16.1)
+
+- **Persona Workflows** - Completed Phase 5.1.6 (Developer & Architect Template Enhancements)
+  - All three persona templates (Product Owner, Developer, Architect) are now production-ready
+  - Templates align with real-world agile/scrum practices and expectations
+  - Enhanced exporter context preparation for all personas
+  - Improved template structure and formatting for better readability
+
+---
+
 ## [0.16.0] - 2025-12-11
 
 ### Added (0.16.0)

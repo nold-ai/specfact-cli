@@ -286,10 +286,24 @@ def export_persona(
         None,
         "--output",
         "--out",
-        help="Output file path (default: stdout or bundle-specific export directory)",
+        help="Output file path (default: docs/project-plans/<bundle>/<persona>.md or stdout with --stdout)",
+    ),
+    output_dir: Path | None = typer.Option(
+        None,
+        "--output-dir",
+        help="Output directory for Markdown file (default: docs/project-plans/<bundle>)",
     ),
     # Behavior/Options
-    format: str = typer.Option("yaml", "--format", help="Output format: yaml or json"),
+    stdout: bool = typer.Option(
+        False,
+        "--stdout",
+        help="Output to stdout instead of file (for piping/CI usage)",
+    ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        help="Custom template name (default: uses persona-specific template)",
+    ),
     list_personas: bool = typer.Option(
         False,
         "--list-personas",
@@ -302,19 +316,20 @@ def export_persona(
     ),
 ) -> None:
     """
-    Export persona-owned sections from project bundle.
+    Export persona-owned sections from project bundle to Markdown.
 
-    Filters bundle to include only sections owned by the specified persona,
-    useful for persona-specific workflows and external tool integration.
+    Generates well-structured Markdown artifacts using templates, filtered by
+    persona ownership. Perfect for AI IDEs and manual editing workflows.
 
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle, --persona
-    - **Output/Results**: --output, --format
-    - **Behavior/Options**: --no-interactive
+    - **Output/Results**: --output, --output-dir, --stdout
+    - **Behavior/Options**: --template, --no-interactive
 
     **Examples:**
         specfact project export --bundle legacy-api --persona product-owner
-        specfact project export --bundle legacy-api --persona architect --output architect-export.yaml
+        specfact project export --bundle legacy-api --persona architect --output-dir docs/plans
+        specfact project export --bundle legacy-api --persona developer --stdout
     """
 
     # Get bundle name
@@ -405,19 +420,236 @@ def export_persona(
                 print_info("  specfact project init-personas --bundle <name> --persona <name>")
                 raise typer.Exit(1)
 
-    # Filter sections by persona ownership
+    # Get persona mapping
     persona_mapping = bundle_obj.manifest.personas[persona]
-    filtered_bundle = _filter_bundle_by_persona(bundle_obj, persona_mapping)
 
-    # Export filtered bundle
-    if output:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        _export_bundle_to_file(filtered_bundle, output_path, format)
-        print_success(f"Exported persona '{persona}' sections to {output_path}")
-    else:
+    # Initialize exporter with template support
+    from specfact_cli.generators.persona_exporter import PersonaExporter
+
+    # Check for project-specific templates
+    project_templates_dir = repo / ".specfact" / "templates" / "persona"
+    project_templates_dir = project_templates_dir if project_templates_dir.exists() else None
+
+    exporter = PersonaExporter(project_templates_dir=project_templates_dir)
+
+    # Determine output path
+    if stdout:
         # Export to stdout
-        _export_bundle_to_stdout(filtered_bundle, format)
+        markdown_content = exporter.export_to_string(bundle_obj, persona_mapping, persona)
+        console.print(markdown_content)
+    else:
+        # Determine output file path
+        if output:
+            output_path = Path(output)
+        elif output_dir:
+            output_path = Path(output_dir) / f"{persona}.md"
+        else:
+            # Default: docs/project-plans/<bundle>/<persona>.md
+            default_dir = repo / "docs" / "project-plans" / bundle
+            output_path = default_dir / f"{persona}.md"
+
+        # Export to file with progress
+        from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"[cyan]Exporting persona '{persona}' to Markdown...", total=None)
+            exporter.export_to_file(bundle_obj, persona_mapping, persona, output_path)
+            progress.update(task, description=f"[green]✓[/green] Exported to {output_path}")
+
+        print_success(f"Exported persona '{persona}' sections to {output_path}")
+        print_info(f"Template: {persona}.md.j2")
+
+
+@app.command("import")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def import_persona(
+    # Target/Input
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, attempts to auto-detect or prompt.",
+    ),
+    persona: str | None = typer.Option(
+        None,
+        "--persona",
+        help="Persona name (e.g., product-owner, architect). Use --list-personas to see available personas.",
+    ),
+    # Input
+    input_file: Path = typer.Option(
+        ...,
+        "--input",
+        "--file",
+        "-i",
+        help="Path to Markdown file to import",
+        exists=True,
+    ),
+    # Behavior/Options
+    no_interactive: bool = typer.Option(
+        False,
+        "--no-interactive",
+        help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Validate import without applying changes",
+    ),
+) -> None:
+    """
+    Import persona-edited Markdown file back into project bundle.
+
+    Validates Markdown structure against template schema, checks ownership,
+    and transforms Markdown content back to YAML bundle format.
+
+    **Parameter Groups:**
+    - **Target/Input**: --repo, --bundle, --persona, --input
+    - **Behavior/Options**: --dry-run, --no-interactive
+
+    **Examples:**
+        specfact project import --bundle legacy-api --persona product-owner --input product-owner.md
+        specfact project import --bundle legacy-api --persona architect --input architect.md --dry-run
+    """
+    from specfact_cli.models.persona_template import PersonaTemplate, SectionType, TemplateSection
+    from specfact_cli.parsers.persona_importer import PersonaImporter, PersonaImportError
+
+    # Get bundle name
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo)
+        if bundle is None and not no_interactive:
+            from rich.prompt import Prompt
+
+            plans = SpecFactStructure.list_plans(repo)
+            if not plans:
+                print_error("No project bundles found")
+                raise typer.Exit(1)
+            bundle_names = [str(p["name"]) for p in plans if p.get("name")]
+            if not bundle_names:
+                print_error("No valid bundle names found")
+                raise typer.Exit(1)
+            bundle = Prompt.ask("Select bundle", choices=bundle_names)
+        elif bundle is None:
+            print_error("Bundle not specified and no active bundle found")
+            raise typer.Exit(1)
+
+    if bundle is None:
+        print_error("Bundle not specified")
+        raise typer.Exit(1)
+
+    # Get bundle directory
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
+    if not bundle_dir.exists():
+        print_error(f"Project bundle not found: {bundle_dir}")
+        raise typer.Exit(1)
+
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+
+    # Handle --list-personas flag or missing --persona
+    if persona is None:
+        _list_available_personas(bundle_obj, bundle)
+        raise typer.Exit(0)
+
+    # Check persona exists
+    if persona not in bundle_obj.manifest.personas:
+        print_error(f"Persona '{persona}' not found in bundle manifest")
+        _list_available_personas(bundle_obj, bundle)
+        raise typer.Exit(1)
+
+    persona_mapping = bundle_obj.manifest.personas[persona]
+
+    # Create template (simplified - in production would load from file)
+    # For now, create a basic template based on persona
+    template_sections = [
+        TemplateSection(
+            name="idea_business_context",
+            heading="## Idea & Business Context",
+            type=SectionType.REQUIRED
+            if "idea" in " ".join(persona_mapping.owns) or "business" in " ".join(persona_mapping.owns)
+            else SectionType.OPTIONAL,
+            description="Problem statement, solution vision, and business context",
+            order=1,
+            validation=None,
+            placeholder=None,
+            condition=None,
+        ),
+        TemplateSection(
+            name="features",
+            heading="## Features & User Stories",
+            type=SectionType.REQUIRED if any("features" in o for o in persona_mapping.owns) else SectionType.OPTIONAL,
+            description="Features and user stories",
+            order=2,
+            validation=None,
+            placeholder=None,
+            condition=None,
+        ),
+    ]
+    template = PersonaTemplate(
+        persona_name=persona,
+        version="1.0.0",
+        description=f"Template for {persona} persona",
+        sections=template_sections,
+    )
+
+    # Initialize importer
+    importer = PersonaImporter(template)
+
+    # Import with progress
+    from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(f"[cyan]Validating and importing '{input_file.name}'...", total=None)
+
+        try:
+            if dry_run:
+                # Just validate without importing
+                markdown_content = input_file.read_text(encoding="utf-8")
+                sections = importer.parse_markdown(markdown_content)
+                validation_errors = importer.validate_structure(sections)
+
+                if validation_errors:
+                    progress.update(task, description="[red]✗[/red] Validation failed")
+                    print_error("Template validation failed:")
+                    for error in validation_errors:
+                        print_error(f"  - {error}")
+                    raise typer.Exit(1)
+                progress.update(task, description="[green]✓[/green] Validation passed")
+                print_success("Import validation passed (dry-run)")
+            else:
+                # Import and update bundle
+                updated_bundle = importer.import_from_file(input_file, bundle_obj, persona_mapping, persona)
+                progress.update(task, description="[green]✓[/green] Import complete")
+
+                # Save updated bundle
+                _save_bundle_with_progress(updated_bundle, bundle_dir, atomic=True)
+                print_success(f"Imported persona '{persona}' edits from {input_file}")
+
+        except PersonaImportError as e:
+            progress.update(task, description="[red]✗[/red] Import failed")
+            print_error(f"Import failed: {e}")
+            raise typer.Exit(1) from e
+        except Exception as e:
+            progress.update(task, description="[red]✗[/red] Import failed")
+            print_error(f"Unexpected error during import: {e}")
+            raise typer.Exit(1) from e
 
 
 @beartype

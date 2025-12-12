@@ -554,12 +554,17 @@ def _sync_speckit_to_specfact(
 
     plan_path = SpecFactStructure.get_default_plan_path(repo)
     existing_bundle: PlanBundle | None = None
+    # Check if plan_path is a modular bundle directory (even if it doesn't exist yet)
+    is_modular_bundle = (plan_path.exists() and plan_path.is_dir()) or (
+        not plan_path.exists() and plan_path.parent.name == "projects"
+    )
 
     if plan_path.exists():
         if task is not None:
             progress.update(task, description="[cyan]Validating existing plan bundle...[/cyan]")
         # Check if path is a directory (modular bundle) - load it first
         if plan_path.is_dir():
+            is_modular_bundle = True
             from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.progress import load_bundle_with_progress
 
@@ -602,8 +607,10 @@ def _sync_speckit_to_specfact(
                         task,
                         description=f"[cyan]Deduplicating {duplicates_removed} duplicate features and writing cleaned plan...[/cyan]",
                     )
-                generator = PlanGenerator()
-                generator.generate(existing_bundle, plan_path)
+                # Skip writing if plan_path is a modular bundle directory (already saved as ProjectBundle)
+                if not is_modular_bundle:
+                    generator = PlanGenerator()
+                    generator.generate(existing_bundle, plan_path)
                 if task is not None:
                     progress.update(
                         task,
@@ -613,7 +620,9 @@ def _sync_speckit_to_specfact(
     # Convert tool artifacts to SpecFact
     if task is not None:
         progress.update(task, description="[cyan]Converting tool artifacts to SpecFact format...[/cyan]")
-    converted_bundle = converter.convert_plan(None if not existing_bundle else plan_path)
+    # Don't write plan file during sync - it's already saved as ProjectBundle
+    # convert_plan will skip writing if path is a modular bundle directory
+    converted_bundle = converter.convert_plan(None)
 
     # Merge with existing plan if it exists
     features_updated = 0
@@ -700,15 +709,18 @@ def _sync_speckit_to_specfact(
         themes_new = set(converted_bundle.product.themes)
         existing_bundle.product.themes = list(themes_existing | themes_new)
 
-        # Write merged bundle
-        if task is not None:
-            progress.update(task, description="[cyan]Writing plan bundle to disk...[/cyan]")
-        generator = PlanGenerator()
-        generator.generate(existing_bundle, plan_path)
+        # Write merged bundle (skip if modular bundle - already saved as ProjectBundle)
+        if not is_modular_bundle:
+            if task is not None:
+                progress.update(task, description="[cyan]Writing plan bundle to disk...[/cyan]")
+            generator = PlanGenerator()
+            generator.generate(existing_bundle, plan_path)
         return existing_bundle, features_updated, features_added
-    # Write new bundle
-    generator = PlanGenerator()
-    generator.generate(converted_bundle, plan_path)
+    # Write new bundle (skip if plan_path is a modular bundle directory)
+    if not is_modular_bundle:
+        # Legacy monolithic file - write it
+        generator = PlanGenerator()
+        generator.generate(converted_bundle, plan_path)
     return converted_bundle, 0, len(converted_bundle.features)
 
 

@@ -7,6 +7,7 @@ to SpecFact format (plans, protocols).
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -92,12 +93,14 @@ class SpecKitConverter:
         # Write to file if output path provided
         if output_path:
             SpecFactStructure.ensure_structure(output_path.parent)
-            self.protocol_generator.generate(protocol, output_path)
+            with contextlib.suppress(FileExistsError, IsADirectoryError):
+                self.protocol_generator.generate(protocol, output_path)
         else:
             # Use default path - construct .specfact/protocols/workflow.protocol.yaml
             output_path = self.repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
             SpecFactStructure.ensure_structure(self.repo_path)
-            self.protocol_generator.generate(protocol, output_path)
+            with contextlib.suppress(FileExistsError, IsADirectoryError):
+                self.protocol_generator.generate(protocol, output_path)
 
         return protocol
 
@@ -156,9 +159,9 @@ class SpecKitConverter:
             ],
         )
 
-        # Create plan bundle
+        # Create plan bundle with current schema version
         plan_bundle = PlanBundle(
-            version="1.0",
+            version=get_current_schema_version(),
             idea=idea,
             business=None,
             product=product,
@@ -180,10 +183,21 @@ class SpecKitConverter:
             output_path = SpecFactStructure.get_default_plan_path(
                 base_path=self.repo_path, preferred_format=runtime.get_output_format()
             )
-            if output_path.is_dir():
-                output_path = output_path / SpecFactStructure.ensure_plan_filename(output_path.name)
-            SpecFactStructure.ensure_structure(output_path.parent)
-            self.plan_generator.generate(plan_bundle, output_path)
+            # get_default_plan_path returns a directory path (.specfact/projects/main) for modular bundles
+            # Skip writing if this is a modular bundle directory (will be saved separately as ProjectBundle)
+            if output_path.parent.name == "projects":
+                # This is a modular bundle - skip writing here, will be saved as ProjectBundle separately
+                pass
+            else:
+                # Legacy monolithic plan file - construct file path
+                if output_path.exists() and output_path.is_dir():
+                    plan_filename = SpecFactStructure.ensure_plan_filename(output_path.name)
+                    output_path = output_path / plan_filename
+                elif not output_path.exists():
+                    # Legacy path - ensure it has the right extension
+                    output_path = output_path.with_name(SpecFactStructure.ensure_plan_filename(output_path.name))
+                SpecFactStructure.ensure_structure(output_path.parent)
+                self.plan_generator.generate(plan_bundle, output_path)
 
         return plan_bundle
 

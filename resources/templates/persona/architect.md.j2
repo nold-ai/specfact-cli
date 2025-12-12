@@ -1,0 +1,211 @@
+# Project Plan: {{ bundle_name }} - Architect View
+
+**Persona**: Architect  
+**Bundle**: `{{ bundle_name }}`  
+**Created**: {{ created_at }}  
+**Status**: {{ status }}  
+**Last Updated**: {{ updated_at }}
+
+{% if features %}
+## Technical Constraints & Requirements *(mandatory)*
+
+{% for feature_key, feature in features.items() %}
+### {{ feature.key }}: {{ feature.title }}
+
+{% if feature.constraints %}
+#### Technical Constraints - {{ feature.key }}
+
+{% for constraint in feature.constraints %}
+- {{ constraint }}
+{% endfor %}
+{% else %}
+*[ACTION REQUIRED: Define technical constraints for this feature]*
+{%- endif %}
+{% if feature.contract %}
+#### API Contract
+
+**Contract Path**: `{{ feature.contract }}`
+
+{% if contracts and feature.key in contracts %}
+**Contract Details**: See Contracts section below.
+{%- endif %}
+{%- endif %}
+{% if feature.protocol %}
+#### State Machine Protocol
+
+**Protocol Path**: `{{ feature.protocol }}`
+
+{% if protocols and feature.key in protocols %}
+**Protocol Details**: See Protocols & State Machines section below.
+{%- endif %}
+{%- endif %}
+{% if feature.priority or feature.rank or feature.business_value_score %}
+#### Feature Prioritization
+
+{% if feature.priority %}
+- **Priority**: {{ feature.priority }}
+{% endif %}
+{% if feature.rank %}
+- **Backlog Rank**: {{ feature.rank }} (1 = highest priority)
+{% endif %}
+{% if feature.business_value_score %}
+- **Business Value Score**: {{ feature.business_value_score }}/100
+{% endif %}
+{% if feature.target_release %}
+- **Target Release**: {{ feature.target_release }}
+{%- endif %}
+{%- endif %}
+{% if feature.depends_on_features or feature.blocks_features %}
+#### Feature Dependencies
+
+{% if feature.depends_on_features %}
+- **Depends On**: {{ feature.depends_on_features | join(', ') }}
+{% endif %}
+{% if feature.blocks_features %}
+- **Blocks**: {{ feature.blocks_features | join(', ') }}
+{%- endif %}
+{%- endif %}
+{% if feature.estimated_story_points %}
+#### Story Point Estimation
+
+- **Total Estimated Story Points**: {{ feature.estimated_story_points }}
+{%- endif %}
+
+{%- endfor %}
+{% else %}
+## Technical Constraints & Requirements *(mandatory)*
+
+*[ACTION REQUIRED: Define technical constraints and requirements for features]*
+{%- endif %}
+
+{% if protocols %}
+## Protocols & State Machines *(mandatory)*
+
+{% for protocol_name, protocol_data in protocols.items() %}
+### {{ protocol_name }}
+
+{% if protocol_data.states %}
+**States**: {{ protocol_data.states | join(', ') }}
+{%- endif %}
+
+{%- if protocol_data.transitions %}
+**Transitions**:
+
+{% for transition in protocol_data.transitions %}
+- `{{ transition.from_state }}` → `{{ transition.to_state }}`{% if transition.event %} (on: `{{ transition.event }}`){% endif %}
+{% endfor %}
+{%- endif %}
+
+{%- if protocol_data.initial_state %}
+**Initial State**: `{{ protocol_data.initial_state }}`
+{%- endif %}
+
+{%- if protocol_data.final_states %}
+**Final States**: {{ protocol_data.final_states | join(', ') }}
+{%- endif %}
+
+{%- if protocol_data.validation_rules %}
+**Validation Rules**:
+
+{% for rule in protocol_data.validation_rules %}
+- {{ rule }}
+{% endfor %}
+{%- endif %}
+
+---
+
+{% endfor %}
+{% else %}
+## Protocols & State Machines *(mandatory)*
+
+*[ACTION REQUIRED: Define protocols and state machines]*
+
+**Note**: Protocols should be defined in `.specfact/projects/{{ bundle_name }}/protocols/*.protocol.yaml` files.
+{% endif %}
+
+{% if contracts %}
+## Contracts *(mandatory)*
+
+{% for contract_name, contract_data in contracts.items() %}
+### {{ contract_name }}
+
+{% if contract_data.info %}
+**Info**:
+
+- **Title**: {{ contract_data.info.title if contract_data.info.title else 'N/A' }}
+- **Version**: {{ contract_data.info.version if contract_data.info.version else 'N/A' }}
+- **Description**: {{ contract_data.info.description if contract_data.info.description else 'N/A' }}
+{%- endif %}
+
+{%- if contract_data.openapi %}
+**OpenAPI Version**: {{ contract_data.openapi }}
+{%- endif %}
+
+{%- if contract_data.asyncapi %}
+**AsyncAPI Version**: {{ contract_data.asyncapi }}
+{%- endif %}
+
+{%- if contract_data.servers %}
+**Servers**:
+
+{% for server in contract_data.servers %}
+- {{ server.url }}{% if server.description %} - {{ server.description }}{% endif %}
+{% endfor %}
+{%- endif %}
+
+{%- if contract_data.paths %}
+**Endpoints**:
+
+{% for path, methods in contract_data.paths.items() %}
+- `{{ path }}`:
+{% for method, details in methods.items() %}
+  - `{{ method.upper() }}`: {{ details.summary if details.summary else 'N/A' }}
+{% endfor %}
+{% endfor %}
+{%- endif %}
+
+{%- if contract_data.components and contract_data.components.schemas %}
+**Schemas**:
+
+{% for schema_name, schema_def in contract_data.components.schemas.items() %}
+- `{{ schema_name }}`: {{ schema_def.type if schema_def.type else 'object' }}
+{% endfor %}
+{%- endif %}
+
+---
+
+{%- endfor %}
+{% else %}
+## Contracts *(mandatory)*
+
+*[ACTION REQUIRED: Define contracts (OpenAPI, AsyncAPI, etc.)]*
+
+**Note**: Contracts should be defined in `.specfact/projects/{{ bundle_name }}/contracts/*.openapi.yaml` or `*.asyncapi.yaml` files.
+{%- endif %}
+
+## Ownership & Locks
+
+{% if locks %}
+**Locked Sections**:
+
+{% for lock in locks %}
+- `{{ lock.section }}` - Locked by {{ lock.owner }} ({{ lock.locked_at }})
+{% endfor %}
+{% else %}
+No sections currently locked
+{% endif %}
+
+## Validation Checklist
+
+- [ ] All features have technical constraints defined
+- [ ] Protocols/state machines are documented
+- [ ] Contracts are defined and validated
+- [ ] Architecture decisions are documented
+- [ ] Non-functional requirements are specified
+- [ ] Risk assessment is complete
+- [ ] Deployment architecture is documented
+
+## Notes
+
+*Use this section for architectural decisions, trade-offs, or technical clarifications.*
+
