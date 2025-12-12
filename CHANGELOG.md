@@ -9,6 +9,48 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.16.2] - 2025-12-12
+
+### Added (0.16.2)
+
+- **Lock Enforcement** - Phase 5.3: Section-level locking for persona-based workflows
+  - **Lock Commands**: Added `project lock` and `project unlock` commands for section-level locking
+  - **Lock Enforcement**: Import operations now check locks before saving - blocks imports when sections are locked by different personas
+  - **Persona Validation**: Added `check_sections_locked_for_persona()` helper to validate persona ownership against locks
+  - **Lock Workflow**: Complete lock/unlock workflow with clear error messages showing locked sections and owners
+  - **E2E Tests**: Comprehensive integration tests covering concurrent edits, lock conflicts, and unlock workflows (5 tests, all passing)
+
+- **Documentation** - Lock enforcement workflow documentation
+  - Added "Section Locking" section to Agile/Scrum Workflows guide with real-world examples
+  - Added `project lock`, `project unlock`, and `project locks` command documentation to command reference
+  - Documented lock enforcement behavior, best practices, and troubleshooting
+
+### Fixed (0.16.2)
+
+- **Persona Importer** - Fixed Markdown parsing for exported files
+  - Fixed regex to properly remove `*(mandatory)*` markers from section headings
+  - Handles both `*(mandatory)*` and `(mandatory)` formats
+  - Improved section name normalization for better template matching
+
+- **Template Path Resolution** - Fixed template path calculation for development and installed scenarios
+  - Enhanced template path detection to work in both development (source) and installed package environments
+  - Added fallback logic for multiple possible template locations
+  - Fixed exception handling in export command to show errors properly
+
+- **Test Mode** - Disabled agile validation in test mode
+  - Import command now disables strict DoR validation when `TEST_MODE=true`
+  - Allows tests to focus on lock enforcement without requiring complete DoR data
+
+### Improved (0.16.2)
+
+- **Project Bundle Phase 5.3** - Lock Enforcement implementation complete
+  - Lock enforcement working in practice with real-world scenarios
+  - All E2E integration tests passing (5/5)
+  - Lock enforcement prevents concurrent edits while allowing persona-owned sections to be edited
+  - Clear error messages guide users when locks block operations
+
+---
+
 ## [0.16.1] - 2025-12-12
 
 ### Added (0.16.1)

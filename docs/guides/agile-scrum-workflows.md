@@ -11,6 +11,7 @@ SpecFact CLI supports real-world agile/scrum practices through:
 - **Prioritization**: Priority levels, ranking, and business value scoring
 - **Sprint Planning**: Target sprint/release assignment and story point tracking
 - **Business Value Focus**: User-focused value statements and measurable outcomes
+- **Conflict Resolution**: Persona-aware three-way merge with automatic conflict resolution based on section ownership
 
 ## Persona-Based Workflows
 
@@ -93,6 +94,374 @@ The import process validates:
 - **Priority Consistency**: Valid priority formats (P0-P3, MoSCoW)
 - **Date Formats**: ISO 8601 date validation
 - **Story Point Ranges**: Valid Fibonacci-like values
+
+## Section Locking
+
+SpecFact supports section-level locking to prevent concurrent edits and ensure data integrity when multiple personas work on the same project bundle.
+
+### Lock Workflow
+
+#### Step 1: Lock Section Before Editing
+
+Lock the sections you plan to edit to prevent conflicts:
+
+```bash
+# Product Owner locks idea section
+specfact project lock --bundle my-project --section idea --persona product-owner
+
+# Architect locks protocols section
+specfact project lock --bundle my-project --section protocols --persona architect
+```
+
+#### Step 2: Export and Edit
+
+Export your persona view, make edits, then import back:
+
+```bash
+# Export
+specfact project export --bundle my-project --persona product-owner
+
+# Edit the exported Markdown file
+# ... make your changes ...
+
+# Import (will be blocked if section is locked by another persona)
+specfact project import --bundle my-project --persona product-owner --input product-owner.md
+```
+
+#### Step 3: Unlock After Completing Edits
+
+Unlock the section when you're done:
+
+```bash
+# Unlock section
+specfact project unlock --bundle my-project --section idea
+```
+
+### Lock Enforcement
+
+The `project import` command automatically checks locks before saving:
+
+- **Allowed**: Import succeeds if you own the locked section
+- **Blocked**: Import fails if section is locked by another persona
+- **Blocked**: Import fails if section is locked and you don't own it
+
+#### Example: Lock Enforcement in Action
+
+```bash
+# Product Owner locks idea section
+specfact project lock --bundle my-project --section idea --persona product-owner
+
+# Product Owner imports (succeeds - owns the section)
+specfact project import --bundle my-project --persona product-owner --input backlog.md
+# ✓ Import successful
+
+# Architect tries to import (fails - section is locked)
+specfact project import --bundle my-project --persona architect --input architect.md
+# ✗ Error: Cannot import: Section(s) are locked
+#   - Section 'idea' is locked by 'product-owner' (locked at 2025-12-12T10:00:00Z)
+```
+
+### Real-World Workflow Example
+
+**Scenario**: Product Owner and Architect working in parallel
+
+```bash
+# Morning: Product Owner locks idea and business sections
+specfact project lock --bundle my-project --section idea --persona product-owner
+specfact project lock --bundle my-project --section business --persona product-owner
+
+# Product Owner exports and edits
+specfact project export --bundle my-project --persona product-owner
+# Edit docs/project-plans/my-project/product-owner.md
+
+# Product Owner imports (succeeds)
+specfact project import --bundle my-project --persona product-owner \
+  --input docs/project-plans/my-project/product-owner.md
+
+# Product Owner unlocks after completing edits
+specfact project unlock --bundle my-project --section idea
+specfact project unlock --bundle my-project --section business
+
+# Afternoon: Architect locks protocols section
+specfact project lock --bundle my-project --section protocols --persona architect
+
+# Architect exports and edits
+specfact project export --bundle my-project --persona architect
+# Edit docs/project-plans/my-project/architect.md
+
+# Architect imports (succeeds)
+specfact project import --bundle my-project --persona architect \
+  --input docs/project-plans/my-project/architect.md
+
+# Architect unlocks
+specfact project unlock --bundle my-project --section protocols
+```
+
+### Checking Locks
+
+List all current locks:
+
+```bash
+# List all locks
+specfact project locks --bundle my-project
+```
+
+**Output:**
+
+```text
+Section Locks
+┌─────────────────────┬──────────────────┬─────────────────────────┬──────────────────┐
+│ Section             │ Owner            │ Locked At               │ Locked By        │
+├─────────────────────┼──────────────────┼─────────────────────────┼──────────────────┤
+│ idea                │ product-owner    │ 2025-12-12T10:00:00Z    │ user@hostname    │
+│ protocols           │ architect        │ 2025-12-12T14:00:00Z    │ user@hostname    │
+└─────────────────────┴──────────────────┴─────────────────────────┴──────────────────┘
+```
+
+### Lock Best Practices
+
+1. **Lock Before Editing**: Always lock sections before exporting and editing
+2. **Unlock Promptly**: Unlock sections immediately after completing edits
+3. **Check Locks First**: Use `project locks` to see what's locked before starting work
+4. **Coordinate with Team**: Communicate lock usage to avoid blocking teammates
+5. **Use Granular Locks**: Lock only the sections you need, not entire bundles
+
+### Troubleshooting Locks
+
+**Issue**: Import fails with "Section(s) are locked"
+
+**Solution**: Check who locked the section and coordinate:
+
+```bash
+# Check locks
+specfact project locks --bundle my-project
+
+# Contact the lock owner or wait for them to unlock
+# Or ask them to unlock: specfact project unlock --section <section>
+```
+
+**Issue**: Can't lock section - "already locked"
+
+**Solution**: Someone else has locked it. Check locks and coordinate:
+
+```bash
+# See who locked it
+specfact project locks --bundle my-project
+
+# Wait for unlock or coordinate with lock owner
+```
+
+**Issue**: Locked section but forgot to unlock
+
+**Solution**: Unlock manually:
+
+```bash
+# Unlock the section
+specfact project unlock --bundle my-project --section <section>
+```
+
+## Conflict Resolution
+
+When multiple personas work on the same project bundle in parallel, conflicts can occur when merging changes. SpecFact provides persona-aware conflict resolution that automatically resolves conflicts based on section ownership.
+
+### How Persona-Based Conflict Resolution Works
+
+SpecFact uses a three-way merge algorithm that:
+
+1. **Detects conflicts**: Compares base (common ancestor), ours (current branch), and theirs (incoming branch) versions
+2. **Checks ownership**: Determines which persona owns each conflicting section based on bundle manifest
+3. **Auto-resolves**: Automatically resolves conflicts when ownership is clear:
+   - If only one persona owns the section → that persona's version wins
+   - If both personas own it and they're the same → current branch wins
+   - If both personas own it and they're different → requires manual resolution
+4. **Interactive resolution**: Prompts for manual resolution when ownership is ambiguous
+
+### Merge Workflow
+
+**Step 1: Export and Edit**
+
+Each persona exports their view, edits it, and imports back:
+
+```bash
+# Product Owner exports and edits
+specfact project export --bundle my-project --persona product-owner
+# Edit docs/project-plans/my-project/product-owner.md
+specfact project import --bundle my-project --persona product-owner --source docs/project-plans/my-project/product-owner.md
+
+# Architect exports and edits (in parallel)
+specfact project export --bundle my-project --persona architect
+# Edit docs/project-plans/my-project/architect.md
+specfact project import --bundle my-project --persona architect --source docs/project-plans/my-project/architect.md
+```
+
+**Step 2: Merge Changes**
+
+When merging branches, use `project merge` with persona information:
+
+```bash
+# Merge with automatic persona-based resolution
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours po-branch \
+  --theirs arch-branch \
+  --persona-ours product-owner \
+  --persona-theirs architect
+```
+
+**Step 3: Resolve Remaining Conflicts**
+
+If conflicts remain after automatic resolution, resolve them interactively:
+
+```bash
+# The merge command will prompt for each unresolved conflict:
+# Choose resolution: [ours/theirs/base/manual]
+```
+
+Or resolve individual conflicts manually:
+
+```bash
+# Resolve a specific conflict
+specfact project resolve-conflict \
+  --bundle my-project \
+  --path features.FEATURE-001.title \
+  --resolution ours
+```
+
+### Example: Resolving a Conflict
+
+**Scenario**: Product Owner and Architect both modified the same feature title.
+
+**Base version** (common ancestor):
+
+```yaml
+features:
+  FEATURE-001:
+    title: "User Authentication"
+```
+
+**Product Owner's version** (ours):
+
+```yaml
+features:
+  FEATURE-001:
+    title: "Secure User Authentication"
+```
+
+**Architect's version** (theirs):
+
+```yaml
+features:
+  FEATURE-001:
+    title: "OAuth2 User Authentication"
+```
+
+**Automatic Resolution**:
+
+1. SpecFact checks ownership: `features.FEATURE-001` is owned by `product-owner` (based on manifest)
+2. Since Product Owner owns this section, their version wins automatically
+3. Result: `"Secure User Authentication"` is kept
+
+**Manual Resolution** (if both personas own it):
+
+If both personas own the section, SpecFact prompts:
+
+```
+Resolving conflict: features.FEATURE-001.title
+Base: User Authentication
+Ours (product-owner): Secure User Authentication
+Theirs (architect): OAuth2 User Authentication
+
+Choose resolution [ours/theirs/base/manual]: manual
+Enter manual value: OAuth2 Secure User Authentication
+```
+
+### Conflict Resolution Strategies
+
+You can specify a merge strategy to override automatic resolution:
+
+- **`auto`** (default): Persona-based automatic resolution
+- **`ours`**: Always prefer our version
+- **`theirs`**: Always prefer their version
+- **`base`**: Always prefer base version
+- **`manual`**: Require manual resolution for all conflicts
+
+```bash
+# Use manual strategy for full control
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours po-branch \
+  --theirs arch-branch \
+  --persona-ours product-owner \
+  --persona-theirs architect \
+  --strategy manual
+```
+
+### CI/CD Integration
+
+For automated workflows, use `--no-interactive`:
+
+```bash
+# Non-interactive merge (fails if conflicts require manual resolution)
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours HEAD \
+  --theirs origin/feature \
+  --persona-ours product-owner \
+  --persona-theirs architect \
+  --no-interactive
+```
+
+**Note**: In non-interactive mode, the merge will fail if there are conflicts that require manual resolution. Use this in CI/CD pipelines only when you're confident conflicts will be auto-resolved.
+
+### Best Practices
+
+1. **Set Clear Ownership**: Ensure persona ownership is clearly defined in bundle manifest
+2. **Merge Frequently**: Merge branches frequently to reduce conflict scope
+3. **Review Auto-Resolutions**: Review automatically resolved conflicts before committing
+4. **Use Manual Strategy for Complex Conflicts**: When in doubt, use `--strategy manual` for full control
+5. **Document Resolution Decisions**: Add comments explaining why certain resolutions were chosen
+
+### Troubleshooting Conflicts
+
+**Issue**: Merge fails with "unresolved conflicts"
+
+**Solution**: Use interactive mode to resolve conflicts:
+
+```bash
+# Run merge in interactive mode
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours po-branch \
+  --theirs arch-branch \
+  --persona-ours product-owner \
+  --persona-theirs architect
+# Follow prompts to resolve each conflict
+```
+
+**Issue**: Auto-resolution chose wrong version
+
+**Solution**: Check persona ownership in manifest, or use manual strategy:
+
+```bash
+# Check ownership
+specfact project export --bundle my-project --list-personas
+
+# Use manual strategy
+specfact project merge --strategy manual ...
+```
+
+**Issue**: Conflict path not found
+
+**Solution**: Use correct conflict path format:
+
+- `idea.title` - Idea title
+- `business.value_proposition` - Business value proposition
+- `features.FEATURE-001.title` - Feature title
+- `features.FEATURE-001.stories.STORY-001.description` - Story description
 
 ## Definition of Ready (DoR)
 
@@ -469,6 +838,6 @@ If template rendering fails:
 
 ## Related Documentation
 
-- [Persona Workflows](../reference/persona-workflows.md) - Detailed persona workflow documentation
+- [Command Reference - Project Commands](../reference/commands.md#project---project-bundle-management) - Complete command documentation including `project merge` and `project resolve-conflict`
 - [Project Bundle Structure](../reference/directory-structure.md) - Project bundle organization
 - [Template Customization](../guides/template-customization.md) - Advanced template customization

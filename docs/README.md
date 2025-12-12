@@ -148,6 +148,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - [Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows) - Role-based workflows for agile teams
 - [Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor) - DoR validation and sprint planning
 - [Dependency Management](guides/agile-scrum-workflows.md#dependency-management) - Track story and feature dependencies
+- [Conflict Resolution](guides/agile-scrum-workflows.md#conflict-resolution) - Persona-aware merge conflict resolution
 
 #### General Guides
 
