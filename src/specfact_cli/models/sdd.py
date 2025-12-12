@@ -59,11 +59,13 @@ class SDDHow(BaseModel):
 class SDDCoverageThresholds(BaseModel):
     """Coverage thresholds for SDD validation."""
 
-    contracts_per_story: float = Field(1.0, ge=0.0, description="Minimum contracts per story")
-    invariants_per_feature: float = Field(1.0, ge=0.0, description="Minimum invariants per feature")
-    architecture_facets: int = Field(3, ge=0, description="Minimum architecture facets (modules, boundaries, etc.)")
+    contracts_per_story: float = Field(default=1.0, ge=0.0, description="Minimum contracts per story")
+    invariants_per_feature: float = Field(default=1.0, ge=0.0, description="Minimum invariants per feature")
+    architecture_facets: int = Field(
+        default=3, ge=0, description="Minimum architecture facets (modules, boundaries, etc.)"
+    )
     openapi_coverage_percent: float = Field(
-        80.0, ge=0.0, le=100.0, description="Minimum percentage of features with OpenAPI contracts (0-100)"
+        default=80.0, ge=0.0, le=100.0, description="Minimum percentage of features with OpenAPI contracts (0-100)"
     )
 
 

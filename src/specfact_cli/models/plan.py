@@ -46,13 +46,15 @@ class Story(BaseModel):
     )
     # NEW: Prioritization & Planning (Agile/Scrum alignment)
     priority: str | None = Field(
-        None,
+        default=None,
         description="Priority level (P0=Critical, P1=High, P2=Medium, P3=Low) or MoSCoW (Must/Should/Could/Won't)",
     )
-    rank: int | None = Field(None, description="Backlog rank (1 = highest priority, lower = lower priority)")
-    due_date: str | None = Field(None, description="Target completion date (ISO 8601 format, e.g., '2025-01-15')")
-    target_sprint: str | None = Field(None, description="Target sprint identifier (e.g., 'Sprint 2025-01')")
-    target_release: str | None = Field(None, description="Target release identifier (e.g., 'v2.1.0')")
+    rank: int | None = Field(default=None, description="Backlog rank (1 = highest priority, lower = lower priority)")
+    due_date: str | None = Field(
+        default=None, description="Target completion date (ISO 8601 format, e.g., '2025-01-15')"
+    )
+    target_sprint: str | None = Field(default=None, description="Target sprint identifier (e.g., 'Sprint 2025-01')")
+    target_release: str | None = Field(default=None, description="Target release identifier (e.g., 'v2.1.0')")
     # NEW: Dependencies
     depends_on_stories: list[str] = Field(
         default_factory=list,
@@ -64,7 +66,7 @@ class Story(BaseModel):
     )
     # NEW: Business Value
     business_value_description: str | None = Field(
-        None, description="Clear statement of business value and user impact"
+        default=None, description="Clear statement of business value and user impact"
     )
     business_metrics: list[str] = Field(
         default_factory=list,
@@ -89,20 +91,24 @@ class Feature(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
     draft: bool = Field(default=False, description="Whether this is a draft feature")
     source_tracking: SourceTracking | None = Field(
-        None, description="Source tracking information linking specs to code/tests"
+        default=None, description="Source tracking information linking specs to code/tests"
     )
-    contract: str | None = Field(None, description="Path to OpenAPI contract (e.g., 'contracts/auth-api.openapi.yaml')")
-    protocol: str | None = Field(None, description="Path to FSM protocol (e.g., 'protocols/auth-fsm.yaml')")
+    contract: str | None = Field(
+        default=None, description="Path to OpenAPI contract (e.g., 'contracts/auth-api.openapi.yaml')"
+    )
+    protocol: str | None = Field(default=None, description="Path to FSM protocol (e.g., 'protocols/auth-fsm.yaml')")
     # NEW: Prioritization (Agile/Scrum alignment)
-    priority: str | None = Field(None, description="Feature priority (P0-P3 or MoSCoW: Must/Should/Could/Won't)")
-    rank: int | None = Field(None, description="Feature rank in backlog (1 = highest priority)")
-    business_value_score: int | None = Field(None, ge=0, le=100, description="Business value score (0-100)")
+    priority: str | None = Field(
+        default=None, description="Feature priority (P0-P3 or MoSCoW: Must/Should/Could/Won't)"
+    )
+    rank: int | None = Field(default=None, description="Feature rank in backlog (1 = highest priority)")
+    business_value_score: int | None = Field(default=None, ge=0, le=100, description="Business value score (0-100)")
     # NEW: Dependencies
     depends_on_features: list[str] = Field(default_factory=list, description="Feature keys this feature depends on")
     blocks_features: list[str] = Field(default_factory=list, description="Feature keys this feature blocks")
     # NEW: Business Context
     business_value_description: str | None = Field(
-        None, description="Clear business value proposition for this feature"
+        default=None, description="Clear business value proposition for this feature"
     )
     target_users: list[str] = Field(
         default_factory=list, description="Target user personas (e.g., ['end-user', 'admin'])"
@@ -111,9 +117,9 @@ class Feature(BaseModel):
         default_factory=list, description="Success metrics (e.g., 'Reduce support tickets by 30%')"
     )
     # NEW: Planning
-    target_release: str | None = Field(None, description="Target release identifier (e.g., 'v2.1.0')")
+    target_release: str | None = Field(default=None, description="Target release identifier (e.g., 'v2.1.0')")
     estimated_story_points: int | None = Field(
-        None, description="Total estimated story points (sum of all stories, computed automatically)"
+        default=None, description="Total estimated story points (sum of all stories, computed automatically)"
     )
 
 
