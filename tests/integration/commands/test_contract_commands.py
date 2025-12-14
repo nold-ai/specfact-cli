@@ -434,6 +434,7 @@ class TestContractVerify:
     ) -> None:
         """Test verify command with --skip-mock (validation only)."""
         mock_check_specmatic.return_value = (True, None)  # Mock Specmatic as available
+
         # Mock example generation to return a directory
         async def mock_generate(*args, **kwargs):
             return Path("/tmp/mock-examples")
@@ -504,6 +505,7 @@ paths:
     ) -> None:
         """Test verify command for all contracts in bundle."""
         mock_check_specmatic.return_value = (True, None)  # Mock Specmatic as available
+
         # Mock example generation to return a directory
         async def mock_generate(*args, **kwargs):
             return Path("/tmp/mock-examples")
