@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -423,8 +424,21 @@ class TestContractVerify:
         assert result.exit_code == 1
         assert "no contract" in result.stdout.lower() or "not found" in result.stdout.lower()
 
-    def test_verify_contract_skip_mock(self, sample_bundle_with_contract: tuple[Path, str]) -> None:
+    @patch("specfact_cli.integrations.specmatic.check_specmatic_available")
+    @patch("specfact_cli.integrations.specmatic.generate_specmatic_examples")
+    def test_verify_contract_skip_mock(
+        self,
+        mock_generate_examples: MagicMock,
+        mock_check_specmatic: MagicMock,
+        sample_bundle_with_contract: tuple[Path, str],
+    ) -> None:
         """Test verify command with --skip-mock (validation only)."""
+        mock_check_specmatic.return_value = (True, None)  # Mock Specmatic as available
+        # Mock example generation to return a directory
+        async def mock_generate(*args, **kwargs):
+            return Path("/tmp/mock-examples")
+
+        mock_generate_examples.side_effect = mock_generate
         repo_path, bundle_name = sample_bundle_with_contract
         os.environ["TEST_MODE"] = "true"
 
@@ -480,8 +494,21 @@ paths:
         assert "Skipped" in result.stdout or "skip-mock" in result.stdout.lower()
         assert "Contract verification complete" in result.stdout
 
-    def test_verify_contract_all_contracts(self, sample_bundle_with_contract: tuple[Path, str]) -> None:
+    @patch("specfact_cli.integrations.specmatic.check_specmatic_available")
+    @patch("specfact_cli.integrations.specmatic.generate_specmatic_examples")
+    def test_verify_contract_all_contracts(
+        self,
+        mock_generate_examples: MagicMock,
+        mock_check_specmatic: MagicMock,
+        sample_bundle_with_contract: tuple[Path, str],
+    ) -> None:
         """Test verify command for all contracts in bundle."""
+        mock_check_specmatic.return_value = (True, None)  # Mock Specmatic as available
+        # Mock example generation to return a directory
+        async def mock_generate(*args, **kwargs):
+            return Path("/tmp/mock-examples")
+
+        mock_generate_examples.side_effect = mock_generate
         repo_path, bundle_name = sample_bundle_with_contract
         os.environ["TEST_MODE"] = "true"
 

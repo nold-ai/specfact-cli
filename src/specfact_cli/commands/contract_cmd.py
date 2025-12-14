@@ -1130,18 +1130,6 @@ def test_contract(
 
         bundle_obj = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
 
-        # Determine output directory
-        if output_dir is None:
-            output_dir = bundle_dir / "tests" / "contracts"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Check if Specmatic is available
-        is_available, error_msg = check_specmatic_available()
-        if not is_available:
-            print_error(f"Specmatic not available: {error_msg}")
-            print_info("Install Specmatic: npm install -g @specmatic/specmatic")
-            raise typer.Exit(1)
-
         # Determine which contracts to generate tests for
         contracts_to_test: list[tuple[str, Path]] = []
 
@@ -1170,6 +1158,13 @@ def test_contract(
         if not contracts_to_test:
             print_warning("No contracts found to generate tests for")
             raise typer.Exit(0)
+
+        # Check if Specmatic is available (after checking contracts exist)
+        is_available, error_msg = check_specmatic_available()
+        if not is_available:
+            print_error(f"Specmatic not available: {error_msg}")
+            print_info("Install Specmatic: npm install -g @specmatic/specmatic")
+            raise typer.Exit(1)
 
         # Generate tests using Specmatic
         console.print("[bold cyan]Generating contract tests...[/bold cyan]")
