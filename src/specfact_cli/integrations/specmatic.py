@@ -270,6 +270,61 @@ async def check_backward_compatibility(
 
 @beartype
 @require(lambda spec_path: spec_path.exists(), "Spec file must exist")
+async def generate_specmatic_examples(spec_path: Path, examples_dir: Path | None = None) -> Path:
+    """
+    Generate example JSON files from OpenAPI specification using Specmatic.
+
+    Specmatic can automatically generate example request/response files from
+    the OpenAPI schema, which are then used by mock servers and tests.
+
+    Args:
+        spec_path: Path to OpenAPI/AsyncAPI specification
+        examples_dir: Optional output directory for examples (default: same dir as spec with _examples suffix)
+
+    Returns:
+        Path to generated examples directory
+    """
+    if examples_dir is None:
+        # Default: create examples directory next to the spec file
+        examples_dir = spec_path.parent / f"{spec_path.stem}_examples"
+    examples_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get specmatic command (direct or npx)
+    specmatic_cmd = _get_specmatic_command()
+    if not specmatic_cmd:
+        _, error_msg = check_specmatic_available()
+        raise RuntimeError(f"Specmatic not available: {error_msg}")
+
+    try:
+        # Specmatic examples generate creates files in current directory by default
+        # We need to run it from the examples directory parent and let it create the directory
+        # Format: specmatic examples generate <spec_file>
+        # This generates example files based on the schema
+        result = await asyncio.to_thread(
+            subprocess.run,
+            [*specmatic_cmd, "examples", "generate", str(spec_path)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=str(examples_dir.parent),  # Run from parent directory
+        )
+        if result.returncode != 0:
+            # If generation failed, it might be because the directory structure is different
+            # Try creating a simple example file structure manually as fallback
+            console.print(f"[yellow]Warning: Specmatic example generation had issues: {result.stderr}[/yellow]")
+            console.print("[dim]Mock server will generate examples on-the-fly from schema[/dim]")
+        return examples_dir
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError("Example generation timed out") from e
+    except Exception as e:
+        # Don't fail completely - mock server can still work without pre-generated examples
+        console.print(f"[yellow]Warning: Example generation error: {e!s}[/yellow]")
+        console.print("[dim]Mock server will generate examples on-the-fly from schema[/dim]")
+        return examples_dir
+
+
+@beartype
+@require(lambda spec_path: spec_path.exists(), "Spec file must exist")
 async def generate_specmatic_tests(spec_path: Path, output_dir: Path | None = None) -> Path:
     """
     Generate Specmatic test suite from specification.
@@ -356,29 +411,100 @@ async def create_mock_server(
         _, error_msg = check_specmatic_available()
         raise RuntimeError(f"Specmatic not available: {error_msg}")
 
+    # Auto-detect examples directory if available
+    examples_dir = spec_path.parent / f"{spec_path.stem}_examples"
+    has_examples = examples_dir.exists() and any(examples_dir.iterdir())
+
     # Build command
     cmd = [*specmatic_cmd, "stub", str(spec_path), "--port", str(port)]
     if strict_mode:
+        # Strict mode: only accept requests that match exact examples
         cmd.append("--strict")
+        if has_examples:
+            # In strict mode, use pre-generated examples if available
+            cmd.extend(["--examples", str(examples_dir)])
     else:
-        cmd.append("--examples")
+        # Examples mode: Specmatic generates responses from schema automatically
+        # If we have pre-generated examples, use them; otherwise Specmatic generates on-the-fly
+        if has_examples:
+            # Use pre-generated examples directory
+            cmd.extend(["--examples", str(examples_dir)])
+        # If no examples directory, Specmatic will generate responses from schema automatically
+        # (no --examples flag needed - this is the default behavior when not in strict mode)
 
     try:
+        # For long-running server processes, don't capture stdout/stderr
+        # This prevents buffer blocking and allows the server to run properly
+        # Output will go to the terminal, which is fine for a server
         process = await asyncio.to_thread(
             subprocess.Popen,
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=None,  # Let output go to terminal
+            stderr=None,  # Let errors go to terminal
             text=True,
         )
 
-        # Wait a bit for server to start
-        await asyncio.sleep(1)
+        # Wait for server to start - Specmatic (Java) can take 3-5 seconds to fully start
+        # Poll the port to verify it's actually listening
+        max_wait = 10  # Maximum 10 seconds to wait
+        wait_interval = 0.5  # Check every 0.5 seconds
+        waited = 0
 
-        # Check if process is still running (started successfully)
+        while waited < max_wait:
+            # Check if process exited (error)
+            if process.poll() is not None:
+                raise RuntimeError(
+                    f"Mock server failed to start (exited with code {process.returncode}). "
+                    "Check that Specmatic is installed and the contract file is valid."
+                )
+
+            # Check if port is listening (server is ready)
+            try:
+                import socket
+
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.5)
+                result = sock.connect_ex(("localhost", port))
+                sock.close()
+                if result == 0:
+                    # Port is open - server is ready!
+                    break
+            except Exception:
+                # Socket check failed, continue waiting
+                # Don't log every attempt to avoid noise
+                pass
+
+            await asyncio.sleep(wait_interval)
+            waited += wait_interval
+
+        # Check if we successfully found the port (broke out of loop early)
+        port_ready = False
+        try:
+            import socket
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(("localhost", port))
+            sock.close()
+            port_ready = result == 0
+        except Exception:
+            port_ready = False
+
+        # Final check: process must still be running
         if process.poll() is not None:
-            stderr = process.stderr.read() if process.stderr else "Unknown error"
-            raise RuntimeError(f"Mock server failed to start: {stderr}")
+            raise RuntimeError(
+                f"Mock server process exited during startup (code {process.returncode}). "
+                "Check that Specmatic is installed and the contract file is valid."
+            )
+
+        # Verify port is accessible (final check)
+        if not port_ready:
+            # Port still not accessible after max wait
+            raise RuntimeError(
+                f"Mock server process is running but port {port} is not accessible after {max_wait}s. "
+                "The server may have failed to bind to the port or is still starting. "
+                "Check Specmatic output above for errors."
+            )
 
         return MockServer(port=port, process=process, spec_path=spec_path)
     except Exception as e:
