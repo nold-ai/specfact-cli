@@ -1166,6 +1166,11 @@ def test_contract(
             print_info("Install Specmatic: npm install -g @specmatic/specmatic")
             raise typer.Exit(1)
 
+        # Determine output directory (set default if not provided)
+        if output_dir is None:
+            output_dir = bundle_dir / "tests" / "contracts"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         # Generate tests using Specmatic
         console.print("[bold cyan]Generating contract tests...[/bold cyan]")
         # Resolve repo to absolute path for relative_to() to work
