@@ -1671,6 +1671,75 @@ specfact contract validate --bundle legacy-api
 
 **Note**: For comprehensive validation including Specmatic, use `specfact spec validate`.
 
+#### `contract verify`
+
+Verify OpenAPI contract - validate, generate examples, and test mock server. This is a convenience command that combines multiple steps into one.
+
+```bash
+specfact contract verify [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--feature FEATURE_KEY` - Feature key (optional, verifies all contracts if not specified)
+- `--port PORT` - Port number for mock server (default: `9000`)
+- `--skip-mock` - Skip mock server startup (only validate contract)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Verify a specific contract (validates, generates examples, starts mock server)
+specfact contract verify --bundle legacy-api --feature FEATURE-001
+
+# Verify all contracts in a bundle
+specfact contract verify --bundle legacy-api
+
+# Verify without starting mock server (CI/CD)
+specfact contract verify --bundle legacy-api --feature FEATURE-001 --skip-mock --no-interactive
+```
+
+**What it does:**
+
+1. **Step 1: Validates contracts** - Checks OpenAPI schema structure
+2. **Step 2: Generates examples** - Creates example JSON files from contract schema
+3. **Step 3: Starts mock server** - Launches Specmatic mock server (unless `--skip-mock`)
+4. **Step 4: Tests connectivity** - Verifies mock server is responding
+
+**Output:**
+
+```
+Step 1: Validating contracts...
+✓ FEATURE-001: Valid (13 endpoints)
+
+Step 2: Generating examples...
+✓ FEATURE-001: Examples generated
+
+Step 3: Starting mock server for FEATURE-001...
+✓ Mock server started at http://localhost:9000
+
+Step 4: Testing connectivity...
+✓ Health check passed: UP
+
+✓ Contract verification complete!
+
+Summary:
+  • Contracts validated: 1
+  • Examples generated: 1
+  • Mock server: http://localhost:9000
+```
+
+**When to use:**
+
+- **Quick verification** - One command to verify everything works
+- **Development** - Start mock server and verify contract is correct
+- **CI/CD** - Use `--skip-mock --no-interactive` for fast validation
+- **Multiple contracts** - Verify all contracts in a bundle at once
+
+**Note**: This is the recommended command for most use cases. It combines validation, example generation, and mock server testing into a single, simple workflow.
+
 #### `contract serve`
 
 Start mock server for OpenAPI contract.
