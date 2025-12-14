@@ -21,6 +21,7 @@ from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
+from specfact_cli.models.contract import ContractIndex
 from specfact_cli.models.plan import (
     Business,
     Clarifications,
@@ -135,6 +136,10 @@ class BundleManifest(BaseModel):
         default_factory=list, description="Feature index (key, title, file, contract, checksum)"
     )
     protocols: list[ProtocolIndex] = Field(default_factory=list, description="Protocol index (name, file, checksum)")
+    contracts: list[ContractIndex] = Field(
+        default_factory=list,
+        description="Contract index (feature_key, contract_file, status, checksum, endpoints_count, coverage)",
+    )
 
 
 class ProjectBundle(BaseModel):
@@ -507,7 +512,7 @@ class ProjectBundle(BaseModel):
         if progress_callback:
             progress_callback(total_artifacts, total_artifacts, "bundle.manifest.yaml")
         manifest_path = bundle_dir / "bundle.manifest.yaml"
-        dump_structured_file(self.manifest.model_dump(), manifest_path)
+        dump_structured_file(self.manifest.model_dump(mode="json"), manifest_path)
 
     @beartype
     @require(lambda self, key: isinstance(key, str) and len(key) > 0, "Feature key must be non-empty string")

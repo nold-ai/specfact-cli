@@ -1352,6 +1352,519 @@ specfact project import --bundle my-project --persona product-owner --source doc
 
 **See**: [Agile/Scrum Workflows Guide](../guides/agile-scrum-workflows.md) for detailed validation rules and examples.
 
+#### `project merge`
+
+Merge project bundles using three-way merge with persona-aware conflict resolution.
+
+```bash
+specfact project merge [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--base BRANCH_OR_COMMIT` - Base branch/commit (common ancestor, required)
+- `--ours BRANCH_OR_COMMIT` - Our branch/commit (current branch, required)
+- `--theirs BRANCH_OR_COMMIT` - Their branch/commit (incoming branch, required)
+- `--persona-ours PERSONA` - Persona who made our changes (e.g., `product-owner`, required)
+- `--persona-theirs PERSONA` - Persona who made their changes (e.g., `architect`, required)
+- `--output PATH` - Output directory for merged bundle (default: current bundle directory)
+- `--strategy STRATEGY` - Merge strategy: `auto` (persona-based), `ours`, `theirs`, `base`, `manual` (default: `auto`)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Merge with automatic persona-based resolution
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours po-branch \
+  --theirs arch-branch \
+  --persona-ours product-owner \
+  --persona-theirs architect
+
+# Merge with manual strategy
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours feature-1 \
+  --theirs feature-2 \
+  --persona-ours developer \
+  --persona-theirs developer \
+  --strategy manual
+
+# Non-interactive merge (for CI/CD)
+specfact project merge \
+  --bundle my-project \
+  --base main \
+  --ours HEAD \
+  --theirs origin/feature \
+  --persona-ours product-owner \
+  --persona-theirs architect \
+  --no-interactive
+```
+
+**How it works:**
+
+1. **Loads three versions**: Base (common ancestor), ours (current branch), and theirs (incoming branch)
+2. **Detects conflicts**: Compares all three versions to find conflicting changes
+3. **Resolves automatically**: Uses persona ownership rules to auto-resolve conflicts:
+   - If only one persona owns the conflicting section → that persona's version wins
+   - If both personas own it and they're the same → ours wins
+   - If both personas own it and they're different → requires manual resolution
+4. **Interactive resolution**: For unresolved conflicts, prompts you to choose:
+   - `ours` - Keep our version
+   - `theirs` - Keep their version
+   - `base` - Keep base version
+   - `manual` - Enter custom value
+5. **Saves merged bundle**: Writes the resolved bundle to the output directory
+
+**Merge Strategies:**
+
+- **`auto`** (default): Persona-based automatic resolution
+- **`ours`**: Always prefer our version for conflicts
+- **`theirs`**: Always prefer their version for conflicts
+- **`base`**: Always prefer base version for conflicts
+- **`manual`**: Require manual resolution for all conflicts
+
+**See**: [Conflict Resolution Workflows](../guides/agile-scrum-workflows.md#conflict-resolution) for detailed workflow examples.
+
+#### `project resolve-conflict`
+
+Resolve a specific conflict in a project bundle after a merge operation.
+
+```bash
+specfact project resolve-conflict [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--path CONFLICT_PATH` - Conflict path (e.g., `features.FEATURE-001.title`, required)
+- `--resolution RESOLUTION` - Resolution: `ours`, `theirs`, `base`, or manual value (required)
+- `--persona PERSONA` - Persona resolving the conflict (for ownership validation, optional)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Resolve conflict by keeping our version
+specfact project resolve-conflict \
+  --bundle my-project \
+  --path features.FEATURE-001.title \
+  --resolution ours
+
+# Resolve conflict by keeping their version
+specfact project resolve-conflict \
+  --bundle my-project \
+  --path idea.intent \
+  --resolution theirs \
+  --persona product-owner
+
+# Resolve conflict with manual value
+specfact project resolve-conflict \
+  --bundle my-project \
+  --path features.FEATURE-001.title \
+  --resolution "Custom Feature Title"
+```
+
+**Conflict Path Format:**
+
+- `idea.title` - Idea title
+- `idea.intent` - Idea intent
+- `business.value_proposition` - Business value proposition
+- `product.themes` - Product themes (list)
+- `features.FEATURE-001.title` - Feature title
+- `features.FEATURE-001.stories.STORY-001.description` - Story description
+
+**Note**: This command is a helper for resolving individual conflicts after a merge. For full merge operations, use `project merge`.
+
+**See**: [Conflict Resolution Workflows](../guides/agile-scrum-workflows.md#conflict-resolution) for detailed workflow examples.
+
+#### `project lock`
+
+Lock a section for a persona to prevent concurrent edits.
+
+```bash
+specfact project lock [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--section SECTION` - Section pattern to lock (e.g., `idea`, `features.*.stories`, required)
+- `--persona PERSONA` - Persona name (e.g., `product-owner`, `architect`, required)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Lock idea section for product owner
+specfact project lock --bundle my-project --section idea --persona product-owner
+
+# Lock all feature stories for product owner
+specfact project lock --bundle my-project --section "features.*.stories" --persona product-owner
+
+# Lock protocols for architect
+specfact project lock --bundle my-project --section protocols --persona architect
+```
+
+**How it works:**
+
+1. **Validates ownership**: Checks that the persona owns the section (based on manifest)
+2. **Checks existing locks**: Fails if section is already locked
+3. **Creates lock**: Adds lock to bundle manifest with timestamp and user info
+4. **Saves bundle**: Updates bundle manifest with lock information
+
+**Lock Enforcement**: Once locked, only the locking persona (or unlock command) can modify the section. Import operations will be blocked if attempting to edit a locked section owned by a different persona.
+
+**See**: [Section Locking](../guides/agile-scrum-workflows.md#section-locking) for detailed workflow examples.
+
+#### `project unlock`
+
+Unlock a section to allow edits by any persona that owns it.
+
+```bash
+specfact project unlock [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--section SECTION` - Section pattern to unlock (e.g., `idea`, `features.*.stories`, required)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Unlock idea section
+specfact project unlock --bundle my-project --section idea
+
+# Unlock all feature stories
+specfact project unlock --bundle my-project --section "features.*.stories"
+```
+
+**How it works:**
+
+1. **Finds lock**: Searches for matching lock in bundle manifest
+2. **Removes lock**: Removes lock from manifest
+3. **Saves bundle**: Updates bundle manifest
+
+**Note**: Unlock doesn't require a persona parameter - anyone can unlock a section (coordination is expected at team level).
+
+**See**: [Section Locking](../guides/agile-scrum-workflows.md#section-locking) for detailed workflow examples.
+
+#### `project locks`
+
+List all current section locks in a project bundle.
+
+```bash
+specfact project locks [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# List all locks
+specfact project locks --bundle my-project
+```
+
+**Output Format:**
+
+Displays a table with:
+
+- **Section**: Section pattern that's locked
+- **Owner**: Persona who locked the section
+- **Locked At**: ISO 8601 timestamp when lock was created
+- **Locked By**: User@hostname who created the lock
+
+**Use Cases:**
+
+- Check what's locked before starting work
+- Coordinate with team members about lock usage
+- Identify stale locks that need cleanup
+
+**See**: [Section Locking](../guides/agile-scrum-workflows.md#section-locking) for detailed workflow examples.
+
+---
+
+### `contract` - OpenAPI Contract Management
+
+Manage OpenAPI contracts for project bundles, including initialization, validation, mock server generation, and test generation.
+
+#### `contract init`
+
+Initialize OpenAPI contract for a feature.
+
+```bash
+specfact contract init [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--feature FEATURE_KEY` - Feature key (e.g., `FEATURE-001`, required)
+- `--title TITLE` - API title (default: feature title)
+- `--version VERSION` - API version (default: `1.0.0`)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Initialize contract for a feature
+specfact contract init --bundle legacy-api --feature FEATURE-001
+
+# Initialize with custom title and version
+specfact contract init --bundle legacy-api --feature FEATURE-001 --title "Authentication API" --version 1.0.0
+```
+
+**What it does:**
+
+1. Creates OpenAPI 3.0.3 contract stub in `contracts/FEATURE-001.openapi.yaml`
+2. Links contract to feature in bundle manifest
+3. Updates contract index in manifest for fast lookup
+
+**Note**: Defaults to OpenAPI 3.0.3 for Specmatic compatibility. Validation accepts both 3.0.x and 3.1.x for forward compatibility.
+
+#### `contract validate`
+
+Validate OpenAPI contract schema.
+
+```bash
+specfact contract validate [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--feature FEATURE_KEY` - Feature key (optional, validates all contracts if not specified)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Validate specific feature contract
+specfact contract validate --bundle legacy-api --feature FEATURE-001
+
+# Validate all contracts in bundle
+specfact contract validate --bundle legacy-api
+```
+
+**What it does:**
+
+1. Loads OpenAPI contract(s) from bundle
+2. Validates schema structure (supports both 3.0.x and 3.1.x)
+3. Reports validation results with endpoint counts
+
+**Note**: For comprehensive validation including Specmatic, use `specfact spec validate`.
+
+#### `contract verify`
+
+Verify OpenAPI contract - validate, generate examples, and test mock server. This is a convenience command that combines multiple steps into one.
+
+```bash
+specfact contract verify [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--feature FEATURE_KEY` - Feature key (optional, verifies all contracts if not specified)
+- `--port PORT` - Port number for mock server (default: `9000`)
+- `--skip-mock` - Skip mock server startup (only validate contract)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Verify a specific contract (validates, generates examples, starts mock server)
+specfact contract verify --bundle legacy-api --feature FEATURE-001
+
+# Verify all contracts in a bundle
+specfact contract verify --bundle legacy-api
+
+# Verify without starting mock server (CI/CD)
+specfact contract verify --bundle legacy-api --feature FEATURE-001 --skip-mock --no-interactive
+```
+
+**What it does:**
+
+1. **Step 1: Validates contracts** - Checks OpenAPI schema structure
+2. **Step 2: Generates examples** - Creates example JSON files from contract schema
+3. **Step 3: Starts mock server** - Launches Specmatic mock server (unless `--skip-mock`)
+4. **Step 4: Tests connectivity** - Verifies mock server is responding
+
+**Output:**
+
+```
+Step 1: Validating contracts...
+✓ FEATURE-001: Valid (13 endpoints)
+
+Step 2: Generating examples...
+✓ FEATURE-001: Examples generated
+
+Step 3: Starting mock server for FEATURE-001...
+✓ Mock server started at http://localhost:9000
+
+Step 4: Testing connectivity...
+✓ Health check passed: UP
+
+✓ Contract verification complete!
+
+Summary:
+  • Contracts validated: 1
+  • Examples generated: 1
+  • Mock server: http://localhost:9000
+```
+
+**When to use:**
+
+- **Quick verification** - One command to verify everything works
+- **Development** - Start mock server and verify contract is correct
+- **CI/CD** - Use `--skip-mock --no-interactive` for fast validation
+- **Multiple contracts** - Verify all contracts in a bundle at once
+
+**Note**: This is the recommended command for most use cases. It combines validation, example generation, and mock server testing into a single, simple workflow.
+
+#### `contract serve`
+
+Start mock server for OpenAPI contract.
+
+```bash
+specfact contract serve [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--feature FEATURE_KEY` - Feature key (optional, prompts for selection if multiple contracts)
+- `--port PORT` - Port number for mock server (default: `9000`)
+- `--strict/--examples` - Use strict validation mode or examples mode (default: `strict`)
+- `--no-interactive` - Non-interactive mode (uses first contract if multiple available)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Start mock server for specific feature contract
+specfact contract serve --bundle legacy-api --feature FEATURE-001
+
+# Start mock server on custom port with examples mode
+specfact contract serve --bundle legacy-api --feature FEATURE-001 --port 8080 --examples
+```
+
+**What it does:**
+
+1. Loads OpenAPI contract from bundle
+2. Launches Specmatic mock server
+3. Serves API endpoints based on contract
+4. Validates requests against spec
+5. Returns example responses
+
+**Requirements**: Specmatic must be installed (`npm install -g @specmatic/specmatic`)
+
+**Press Ctrl+C to stop the server**
+
+#### `contract test`
+
+Generate contract tests from OpenAPI contract.
+
+```bash
+specfact contract test [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--feature FEATURE_KEY` - Feature key (optional, generates tests for all contracts if not specified)
+- `--output PATH` - Output directory for generated tests (default: bundle-specific `.specfact/projects/<bundle-name>/tests/contracts/`)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Generate tests for specific feature contract
+specfact contract test --bundle legacy-api --feature FEATURE-001
+
+# Generate tests for all contracts in bundle
+specfact contract test --bundle legacy-api
+
+# Generate tests to custom output directory
+specfact contract test --bundle legacy-api --output tests/contracts/
+```
+
+**What it does:**
+
+1. Loads OpenAPI contract(s) from bundle
+2. Generates Specmatic test suite(s) using `specmatic generate-tests`
+3. Saves tests to bundle-specific or custom output directory
+4. Creates feature-specific test directories for organization
+
+**Requirements**: Specmatic must be installed (`npm install -g @specmatic/specmatic`)
+
+**Output Structure:**
+
+```
+.specfact/projects/<bundle-name>/tests/contracts/
+├── feature-001/
+│   └── [Specmatic-generated test files]
+├── feature-002/
+│   └── [Specmatic-generated test files]
+└── ...
+```
+
+#### `contract coverage`
+
+Calculate contract coverage for a project bundle.
+
+```bash
+specfact contract coverage [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Get coverage report for bundle
+specfact contract coverage --bundle legacy-api
+```
+
+**What it does:**
+
+1. Loads all features from bundle
+2. Checks which features have contracts
+3. Calculates coverage percentage (features with contracts / total features)
+4. Counts total API endpoints across all contracts
+5. Displays coverage table with status indicators
+
+**Output:**
+
+- Coverage table showing feature, contract file, endpoint count, and status
+- Coverage summary with percentage and total endpoints
+- Warning if coverage is below 100%
+
+**See**: [Specmatic Integration Guide](../guides/specmatic-integration.md) for detailed contract testing workflow.
+
 ---
 
 ### `enforce` - Configure Quality Gates

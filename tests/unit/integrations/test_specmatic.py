@@ -278,11 +278,14 @@ class TestCreateMockServer:
     """Test suite for create_mock_server function."""
 
     @pytest.mark.asyncio
+    @patch("builtins.__import__")
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     @patch("specfact_cli.integrations.specmatic.asyncio.sleep")
-    async def test_create_mock_server(self, mock_sleep, mock_to_thread, mock_get_cmd, tmp_path):
+    async def test_create_mock_server(self, mock_sleep, mock_to_thread, mock_get_cmd, mock_import, tmp_path):
         """Test mock server creation."""
+        import socket as real_socket
+
         mock_get_cmd.return_value = ["specmatic"]
         # Mock a running process
         mock_process = MagicMock()
@@ -291,6 +294,28 @@ class TestCreateMockServer:
         mock_process.stderr.read.return_value = ""
         mock_to_thread.return_value = mock_process
         mock_sleep.return_value = None
+
+        # Mock socket module when imported inside the function
+        # The socket module is imported inside create_mock_server, so we need to
+        # intercept the import to return our mock
+        mock_sock = MagicMock()
+        mock_sock.connect_ex.return_value = 0  # Port is accessible (0 = success)
+        mock_sock.settimeout.return_value = None
+        mock_sock.close.return_value = None
+        mock_socket_module = MagicMock()
+        mock_socket_module.socket.return_value = mock_sock
+        mock_socket_module.AF_INET = real_socket.AF_INET
+        mock_socket_module.SOCK_STREAM = real_socket.SOCK_STREAM
+
+        # Make __import__ return the mock socket module when socket is imported
+        real_import = __import__
+
+        def import_side_effect(name, *args, **kwargs):
+            if name == "socket":
+                return mock_socket_module
+            return real_import(name, *args, **kwargs)
+
+        mock_import.side_effect = import_side_effect
 
         spec_path = tmp_path / "openapi.yaml"
         spec_path.write_text("openapi: 3.0.0\n")

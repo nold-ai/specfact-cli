@@ -72,8 +72,13 @@ class PersonaImporter:
 
                 # Start new section
                 heading_text = heading_match.group(2).strip()
-                # Remove "(mandatory)" or other markers
-                heading_text = re.sub(r"\s*\([^)]+\)\s*$", "", heading_text)
+                # Remove markers like "*(mandatory)*" or "(mandatory)" - handle both formats
+                # First try to match the asterisk format: *(mandatory)*
+                heading_text = re.sub(r"\s*\*\([^)]+\)\*\s*", " ", heading_text)
+                # Then try regular format: (mandatory)
+                heading_text = re.sub(r"\s*\([^)]+\)\s*", " ", heading_text)
+                # Clean up any extra spaces
+                heading_text = re.sub(r"\s+", " ", heading_text).strip()
                 current_section = self._normalize_section_name(heading_text)
                 current_content = []
             elif current_section:

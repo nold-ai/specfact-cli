@@ -9,6 +9,97 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.16.3] - 2025-12-13
+
+### Added (0.16.3)
+
+- **Contract Verify Command** - Phase 6.4: All-in-one contract verification workflow
+  - **New Command**: `specfact contract verify` combines validation, example generation, mock server, and connectivity testing
+  - **Simplified Workflow**: Single command replaces multiple manual steps for contract verification
+  - **Step-by-Step Output**: Clear progress indicators showing validation, example generation, mock server startup, and connectivity testing
+  - **CI/CD Support**: `--skip-mock --no-interactive` flags for fast validation in pipelines
+  - **Multiple Contracts**: Supports verifying single contract or all contracts in bundle
+  - **Integration Tests**: Comprehensive test coverage (4 tests, all passing)
+
+- **Mock Server Improvements** - Enhanced process management and reliability
+  - **Improved Wait Logic**: Port polling with 10-second timeout ensures server is ready before returning
+  - **Better Error Handling**: Clear error messages when server fails to start or port is not accessible
+  - **Process Management**: Robust process handling with proper cleanup on errors
+  - **Example Auto-Detection**: Automatically detects and uses generated examples when available
+
+- **Documentation** - Simplified contract testing workflow guide
+  - **Quick Start Guide**: New `contract-testing-workflow.md` with simple, developer-friendly examples
+  - **Command Reference**: Complete documentation for `contract verify` command
+  - **Workflow Examples**: Clear examples for common use cases (development, CI/CD, multiple contracts)
+  - **Troubleshooting**: Added troubleshooting section with common issues and solutions
+
+### Improved (0.16.3)
+
+- **Contract Commands UX** - Consistent UI/UX across all contract commands
+  - All contract commands now use `load_bundle_with_progress` and `save_bundle_with_progress` for consistent progress indicators
+  - Standardized section headers and telemetry tracking across all commands
+  - Better error messages and user feedback
+
+- **Specmatic Integration** - Enhanced example generation and mock server reliability
+  - Automatic example generation from OpenAPI schema
+  - Improved mock server startup with port verification
+  - Better handling of Specmatic configuration warnings (non-blocking)
+
+### Fixed (0.16.3)
+
+- **Path Handling** - Fixed `relative_to()` errors in contract commands
+  - Resolves repository path to absolute before calling `relative_to()` for display paths
+  - Graceful fallback to absolute paths when relative path calculation fails
+  - Prevents errors when output directories are outside repository
+
+- **Exit Code Handling** - Fixed contract test command exit codes
+  - Corrected indentation to ensure `typer.Exit(1)` is properly executed on errors
+  - Integration tests now correctly validate error conditions
+
+---
+
+## [0.16.2] - 2025-12-12
+
+### Added (0.16.2)
+
+- **Lock Enforcement** - Phase 5.3: Section-level locking for persona-based workflows
+  - **Lock Commands**: Added `project lock` and `project unlock` commands for section-level locking
+  - **Lock Enforcement**: Import operations now check locks before saving - blocks imports when sections are locked by different personas
+  - **Persona Validation**: Added `check_sections_locked_for_persona()` helper to validate persona ownership against locks
+  - **Lock Workflow**: Complete lock/unlock workflow with clear error messages showing locked sections and owners
+  - **E2E Tests**: Comprehensive integration tests covering concurrent edits, lock conflicts, and unlock workflows (5 tests, all passing)
+
+- **Documentation** - Lock enforcement workflow documentation
+  - Added "Section Locking" section to Agile/Scrum Workflows guide with real-world examples
+  - Added `project lock`, `project unlock`, and `project locks` command documentation to command reference
+  - Documented lock enforcement behavior, best practices, and troubleshooting
+
+### Fixed (0.16.2)
+
+- **Persona Importer** - Fixed Markdown parsing for exported files
+  - Fixed regex to properly remove `*(mandatory)*` markers from section headings
+  - Handles both `*(mandatory)*` and `(mandatory)` formats
+  - Improved section name normalization for better template matching
+
+- **Template Path Resolution** - Fixed template path calculation for development and installed scenarios
+  - Enhanced template path detection to work in both development (source) and installed package environments
+  - Added fallback logic for multiple possible template locations
+  - Fixed exception handling in export command to show errors properly
+
+- **Test Mode** - Disabled agile validation in test mode
+  - Import command now disables strict DoR validation when `TEST_MODE=true`
+  - Allows tests to focus on lock enforcement without requiring complete DoR data
+
+### Improved (0.16.2)
+
+- **Project Bundle Phase 5.3** - Lock Enforcement implementation complete
+  - Lock enforcement working in practice with real-world scenarios
+  - All E2E integration tests passing (5/5)
+  - Lock enforcement prevents concurrent edits while allowing persona-owned sections to be edited
+  - Clear error messages guide users when locks block operations
+
+---
+
 ## [0.16.1] - 2025-12-12
 
 ### Added (0.16.1)

@@ -28,7 +28,8 @@ class PersonaExporter:
 
     @beartype
     @require(
-        lambda templates_dir: templates_dir is None or templates_dir.exists(), "Templates dir must exist if provided"
+        lambda templates_dir: templates_dir is None or (isinstance(templates_dir, Path) and templates_dir.exists()),
+        "Templates dir must exist if provided",
     )
     def __init__(self, templates_dir: Path | None = None, project_templates_dir: Path | None = None) -> None:
         """
@@ -39,8 +40,40 @@ class PersonaExporter:
             project_templates_dir: Directory containing project-specific template overrides (default: .specfact/templates/persona)
         """
         if templates_dir is None:
-            # Default to resources/templates/persona relative to project root
-            templates_dir = Path(__file__).parent.parent.parent.parent / "resources" / "templates" / "persona"
+            # Default to resources/templates/persona
+            # Try multiple locations to handle both development and installed scenarios
+            package_root = Path(__file__).parent.parent.parent  # specfact_cli/
+
+            # Possible template locations (in order of preference):
+            # 1. Installed package: specfact_cli/resources/templates/persona (when package data is included)
+            # 2. Development source: <project_root>/resources/templates/persona
+            # 3. Legacy path calculation
+            possible_paths = [
+                package_root
+                / "resources"
+                / "templates"
+                / "persona",  # Installed package (specfact_cli/resources/templates/persona)
+                package_root.parent.parent
+                / "resources"
+                / "templates"
+                / "persona",  # Development source (resources/templates/persona from src/)
+                Path(__file__).parent.parent.parent.parent
+                / "resources"
+                / "templates"
+                / "persona",  # Legacy path (from generators/)
+            ]
+
+            # Find first existing path with template files
+            templates_dir = None
+            for path in possible_paths:
+                path_obj = Path(path)
+                if path_obj.exists() and any(path_obj.glob("*.md.j2")):
+                    templates_dir = path_obj
+                    break
+
+            if templates_dir is None:
+                # Fallback to package location (will raise error if templates missing)
+                templates_dir = possible_paths[0]
 
         self.templates_dir = Path(templates_dir)
         self.project_templates_dir = project_templates_dir
@@ -192,12 +225,10 @@ class PersonaExporter:
 
             # Filter implementation if persona owns implementation
             # Note: Feature model doesn't have implementation field yet, but we check for it for future compatibility
-            if (
-                any(match_section_pattern(p, "features.*.implementation") for p in persona_mapping.owns)
-                and hasattr(feature, "implementation")
-                and feature.implementation
-            ):
-                feature_dict["implementation"] = feature.implementation
+            if any(match_section_pattern(p, "features.*.implementation") for p in persona_mapping.owns):
+                implementation = getattr(feature, "implementation", None)
+                if implementation:
+                    feature_dict["implementation"] = implementation
 
             if feature_dict:
                 filtered_features[feature_key] = feature_dict
