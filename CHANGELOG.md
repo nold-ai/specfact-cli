@@ -868,8 +868,7 @@ All notable changes to this project will be documented in this file.
   - Fixed YAML serialization error when generating task lists (enum values now properly serialized as strings)
   - Updated `generate tasks` command to use `model_dump(mode="json")` for proper enum serialization
 - **Bundle Name Validation**
-  - Fixed empty bundle name validation in `run idea-to-ship` command
-  - Added strict validation to ensure bundle names are always non-empty strings
+  - Removed `run idea-to-ship` command; bundle validation now handled in remaining project commands
   - Fixed projects directory path construction to avoid calling `SpecFactStructure.project_dir()` without bundle name
   - Enhanced bundle name auto-detection with proper filtering of empty directory names
 
