@@ -54,6 +54,10 @@ specfact repro --verbose
 
 - `project export --bundle <bundle-name> --persona <persona>` - Export persona-specific Markdown artifacts
 - `project import --bundle <bundle-name> --persona <persona> --source <file>` - Import persona edits from Markdown
+- `project version check --bundle <bundle-name>` - Recommend version bump (major/minor/patch/none)
+- `project version bump --bundle <bundle-name> --type <major|minor|patch>` - Apply SemVer bump and record history
+- `project version set --bundle <bundle-name> --version <semver>` - Set explicit project version and record history
+- CI template support: the provided GitHub Action template now runs a non-blocking `project version check` step after contract validation.
 
 **Enforcement:**
 

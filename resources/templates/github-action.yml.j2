@@ -77,6 +77,11 @@ jobs:
           specfact repro --verbose --budget {% raw %}${{ steps.validation.outputs.budget }}{% endraw %} || true
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
+      - name: Version check (recommendation only)
+        run: |
+          echo "📌 Checking bundle version recommendation..."
+          specfact project version check --repo . || true
+
       - name: Find latest repro report
         id: report
         if: always()
