@@ -9,6 +9,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.17.0] - 2025-12-15
+
+### Added (0.17.0)
+
+- Version management CLI: `project version check|bump|set` with consistent progress UI
+- ChangeAnalyzer for SemVer recommendations (breaking/additive/patch + content hash fallback)
+- CI template version check step with configurable modes (`info`/`warn` default/`block`)
+
+### Improved (0.17.0)
+
+- Version commands reuse shared bundle load/save progress and avoid double loads
+- Recorded version history and content hashes in bundle manifests for future comparisons
+
+### Docs (0.17.0)
+
+- Command reference updated with version commands and CI version check modes
+- Implementation plan Phase 7 marked completed (version management + CI integration)
+
+### Notes (0.17.0)
+
+- CI template defaults to `warn` mode; teams can opt into `block` for stricter enforcement
+
+---
+
 ## [0.16.3] - 2025-12-13
 
 ### Added (0.16.3)

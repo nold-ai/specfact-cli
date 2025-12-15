@@ -2,7 +2,7 @@ rules:
   # ============================================================================
   # API Endpoint Detection
   # ============================================================================
-  
+
   - id: fastapi-route-detection
     patterns:
       - pattern-either:
@@ -96,7 +96,7 @@ rules:
   # ============================================================================
   # Database Model Detection
   # ============================================================================
-  
+
   - id: sqlalchemy-model-detection
     patterns:
       - pattern: |
@@ -157,7 +157,7 @@ rules:
   # ============================================================================
   # Authentication/Authorization Patterns
   # ============================================================================
-  
+
   - id: auth-decorator-detection
     patterns:
       - pattern: |
@@ -209,7 +209,7 @@ rules:
   # ============================================================================
   # CRUD Operation Patterns
   # ============================================================================
-  
+
   - id: crud-create-operation
     patterns:
       - pattern-either:
@@ -299,7 +299,7 @@ rules:
   # ============================================================================
   # Note: More detailed test pattern extraction is in test-patterns.yml
   # This provides basic test detection for feature linking
-  
+
   - id: pytest-test-detection
     patterns:
       - pattern: |
@@ -337,7 +337,7 @@ rules:
   # ============================================================================
   # Service/Component Patterns
   # ============================================================================
-  
+
   - id: service-class-detection
     patterns:
       - pattern: |
@@ -377,7 +377,7 @@ rules:
   # ============================================================================
   # Middleware/Interceptor Patterns
   # ============================================================================
-  
+
   - id: middleware-detection
     patterns:
       - pattern: |
@@ -400,7 +400,7 @@ rules:
   # ============================================================================
   # Async/Await Patterns (Modern Python 2020-2025)
   # ============================================================================
-  
+
   - id: async-function-detection
     patterns:
       - pattern-either:
@@ -434,7 +434,7 @@ rules:
   # ============================================================================
   # Type Hints & Validation Patterns
   # ============================================================================
-  
+
   - id: type-annotations-detection
     patterns:
       - pattern-either:
@@ -525,7 +525,7 @@ rules:
   # ============================================================================
   # Context Manager Patterns
   # ============================================================================
-  
+
   - id: context-manager-class
     patterns:
       - pattern: |
@@ -563,7 +563,7 @@ rules:
   # ============================================================================
   # Logging Patterns
   # ============================================================================
-  
+
   - id: structlog-usage
     patterns:
       - pattern-either:
@@ -595,7 +595,7 @@ rules:
   # ============================================================================
   # Configuration Management Patterns
   # ============================================================================
-  
+
   - id: env-variable-access
     patterns:
       - pattern-either:
@@ -627,7 +627,7 @@ rules:
   # ============================================================================
   # Enhanced Testing Patterns
   # ============================================================================
-  
+
   - id: pytest-fixture-detection
     patterns:
       - pattern: |
@@ -682,7 +682,7 @@ rules:
   # ============================================================================
   # Additional ORM Patterns
   # ============================================================================
-  
+
   - id: tortoise-orm-model-detection
     patterns:
       - pattern: |
@@ -725,7 +725,7 @@ rules:
   # ============================================================================
   # Exception Handling Patterns
   # ============================================================================
-  
+
   - id: custom-exception-class
     patterns:
       - pattern: |
@@ -758,7 +758,7 @@ rules:
   # ============================================================================
   # Package Structure Patterns
   # ============================================================================
-  
+
   - id: __all__-declaration
     patterns:
       - pattern: __all__ = [...]
@@ -772,4 +772,3 @@ rules:
       category: feature-detection
       subcategory: [package-structure, api]
       confidence: HIGH
-
