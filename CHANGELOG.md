@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 - CI template defaults to `warn` mode; teams can opt into `block` for stricter enforcement
 - `specfact run idea-to-ship` removed in 0.x per Bridge Plan to avoid code-gen artifacts
+- Added integration coverage for version commands (check/bump/set)
 
 ---
 
