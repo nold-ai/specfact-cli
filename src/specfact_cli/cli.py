@@ -68,7 +68,6 @@ from specfact_cli.commands import (
     plan,
     project_cmd,
     repro,
-    run,
     sdd,
     spec,
     sync,
@@ -329,7 +328,6 @@ app.add_typer(implement.app, name="implement", help="Execute tasks and generate 
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
 
 # 7. Workflow Orchestration
-app.add_typer(run.app, name="run", help="Orchestrate end-to-end workflows")
 
 # 8. Validation
 app.add_typer(repro.app, name="repro", help="Run validation suite")
