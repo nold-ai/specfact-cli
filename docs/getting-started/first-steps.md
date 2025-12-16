@@ -97,11 +97,44 @@ Review the auto-generated plan to understand what SpecFact discovered about your
 specfact bridge constitution bootstrap --repo .
 ```
 
-### Step 3: Add Contracts to Critical Functions
+### Step 3: Find and Fix Gaps
+
+```bash
+# Analyze for missing tests, contracts, and documentation
+specfact analyze gaps --bundle my-project
+```
+
+**What happens**:
+
+- Scans codebase for quality gaps
+- Identifies missing tests, contracts, and docs
+- Generates gap report with severity levels
+
+### Step 4: Use AI to Fix Gaps (New in 0.17+)
+
+```bash
+# Generate AI-ready prompt to fix a specific gap
+specfact generate fix-prompt GAP-001 --bundle my-project
+
+# Generate AI-ready prompt to add tests
+specfact generate test-prompt src/auth/login.py
+```
+
+**What happens**:
+
+- Creates structured prompt file in `.specfact/prompts/`
+- Copy prompt to your AI IDE (Cursor, Copilot, Claude)
+- AI generates the fix
+- Validate with SpecFact enforcement
+
+### Step 5: Enforce Contracts
 
 ```bash
 # Start in shadow mode (observe only)
 specfact enforce stage --preset minimal
+
+# Validate the codebase
+specfact enforce sdd --bundle my-project
 ```
 
 See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete workflow.
