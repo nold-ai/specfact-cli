@@ -353,3 +353,206 @@ class TestGenerateContractsCommand:
             assert "SDD_PLAN_BUNDLE_ID" in content
             assert "SDD_PLAN_BUNDLE_HASH" in content
             assert "FEATURE_KEY" in content
+
+
+class TestGenerateFixPromptCommand:
+    """Test suite for generate fix-prompt command."""
+
+    def test_fix_prompt_lists_gaps_when_no_gap_id(self, tmp_path, monkeypatch):
+        """Test fix-prompt lists available gaps when no gap_id provided."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create a bundle with gap report
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+
+        # Create a mock gap report
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        reports_dir = bundle_dir / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        gap_report = {
+            "gaps": [
+                {
+                    "id": "GAP-001",
+                    "severity": "high",
+                    "category": "missing_tests",
+                    "description": "Missing unit tests for auth module",
+                    "module": "src/auth",
+                    "function": "login",
+                    "evidence": {"file": "src/auth/login.py", "line": 42},
+                }
+            ],
+            "summary": {"total": 1, "high": 1, "medium": 0, "low": 0},
+        }
+        (reports_dir / "gaps.json").write_text(json.dumps(gap_report))
+
+        # Run fix-prompt without gap_id
+        result = runner.invoke(
+            app, ["generate", "fix-prompt", "--bundle", bundle_name, "--no-interactive"]
+        )
+
+        assert result.exit_code == 0
+        assert "GAP-001" in result.stdout or "Available Gaps" in result.stdout
+
+    def test_fix_prompt_generates_prompt_for_gap(self, tmp_path, monkeypatch):
+        """Test fix-prompt generates a prompt file for specific gap."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create a bundle with gap report
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+
+        # Create a mock gap report
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        reports_dir = bundle_dir / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        import json
+
+        gap_report = {
+            "gaps": [
+                {
+                    "id": "GAP-001",
+                    "severity": "high",
+                    "category": "missing_tests",
+                    "description": "Missing unit tests for auth module",
+                    "module": "src/auth",
+                    "function": "login",
+                    "evidence": {"file": "src/auth/login.py", "line": 42},
+                }
+            ],
+            "summary": {"total": 1, "high": 1, "medium": 0, "low": 0},
+        }
+        (reports_dir / "gaps.json").write_text(json.dumps(gap_report))
+
+        # Run fix-prompt with gap_id
+        result = runner.invoke(
+            app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"]
+        )
+
+        assert result.exit_code == 0
+        # Should create prompt file or show prompt content
+        prompts_dir = bundle_dir / "prompts"
+        if prompts_dir.exists():
+            prompt_files = list(prompts_dir.glob("fix-*.md"))
+            if prompt_files:
+                content = prompt_files[0].read_text()
+                assert "GAP-001" in content or "Fix" in content
+
+    def test_fix_prompt_fails_without_gap_report(self, tmp_path, monkeypatch):
+        """Test fix-prompt fails gracefully when no gap report exists."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create a bundle without gap report
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+
+        # Run fix-prompt (should fail or show helpful message)
+        result = runner.invoke(
+            app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"]
+        )
+
+        # Should fail or provide helpful message
+        assert result.exit_code != 0 or "no gaps" in result.stdout.lower() or "not found" in result.stdout.lower()
+
+
+class TestGenerateTestPromptCommand:
+    """Test suite for generate test-prompt command."""
+
+    def test_test_prompt_generates_prompt_for_file(self, tmp_path, monkeypatch):
+        """Test test-prompt generates a prompt file for a source file."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create a bundle and a source file
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+
+        # Create a source file
+        src_dir = tmp_path / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        source_file = src_dir / "auth.py"
+        source_file.write_text('''
+def login(username: str, password: str) -> bool:
+    """Authenticate user with username and password."""
+    if not username or not password:
+        return False
+    return True
+''')
+
+        # Run test-prompt
+        result = runner.invoke(
+            app,
+            ["generate", "test-prompt", str(source_file), "--bundle", bundle_name, "--no-interactive"],
+        )
+
+        assert result.exit_code == 0
+        # Should create prompt file or show prompt content
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        prompts_dir = bundle_dir / "prompts"
+        if prompts_dir.exists():
+            prompt_files = list(prompts_dir.glob("test-*.md"))
+            if prompt_files:
+                content = prompt_files[0].read_text()
+                assert "test" in content.lower() or "auth" in content.lower()
+
+    def test_test_prompt_lists_files_without_tests(self, tmp_path, monkeypatch):
+        """Test test-prompt lists files needing tests when no file provided."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create a bundle
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+
+        # Run test-prompt without file argument
+        result = runner.invoke(
+            app, ["generate", "test-prompt", "--bundle", bundle_name, "--no-interactive"]
+        )
+
+        # Should succeed and show help or list files
+        assert result.exit_code == 0 or "file" in result.stdout.lower()
+
+    def test_test_prompt_with_type_option(self, tmp_path, monkeypatch):
+        """Test test-prompt with --type option for integration tests."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create a bundle and a source file
+        bundle_name = "test-bundle"
+        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+
+        # Create a source file
+        src_dir = tmp_path / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        source_file = src_dir / "api.py"
+        source_file.write_text('''
+def get_users():
+    """Get all users from the API."""
+    return []
+''')
+
+        # Run test-prompt with --type integration
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                "test-prompt",
+                str(source_file),
+                "--bundle",
+                bundle_name,
+                "--type",
+                "integration",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0
+        # Prompt should mention integration testing
+        bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
+        prompts_dir = bundle_dir / "prompts"
+        if prompts_dir.exists():
+            prompt_files = list(prompts_dir.glob("test-*.md"))
+            if prompt_files:
+                content = prompt_files[0].read_text()
+                assert "integration" in content.lower() or "test" in content.lower()

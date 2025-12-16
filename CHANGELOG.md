@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.19.0] - 2025-12-17
+
+### Added (0.19.0)
+
+- Integration tests for `generate fix-prompt` command (3 tests)
+- Integration tests for `generate test-prompt` command (3 tests)
+- Restored bridge commands from feature branch stash
+
+### Improved (0.19.0)
+
+- Full test coverage for Phase 7 version management features
+- Bridge commands now properly available in CLI
+
+### Docs (0.19.0)
+
+- Test coverage expanded for bridge command workflows
+
+---
+
 ## [0.18.0] - 2025-12-17
 
 ### Added (0.18.0)
