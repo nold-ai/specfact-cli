@@ -18,7 +18,6 @@ from specfact_cli.commands import (
     plan,
     project_cmd,
     repro,
-    run,
     sdd,
     spec,
     sync,

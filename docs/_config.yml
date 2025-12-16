@@ -4,8 +4,8 @@
 title: SpecFact CLI Documentation
 description: >-
   Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.
-baseurl: "/specfact-cli" # Project pages require baseurl
-url: "https://nold-ai.github.io" # GitHub Pages domain
+baseurl: "/specfact-cli"  # Project pages require baseurl
+url: "https://nold-ai.github.io"  # GitHub Pages domain
 
 # Build settings
 markdown: kramdown
@@ -80,7 +80,7 @@ minima:
   author:
     name: NOLD AI
     email: hello@noldai.com
-  skin: auto # auto, light, or dark - respects user preference
+  skin: auto  # auto, light, or dark - respects user preference
   show_excerpts: true
 
 # SASS configuration
@@ -92,4 +92,4 @@ sass:
 # Footer
 footer:
   copyright: "© 2025 Nold AI (Owner: Dominikus Nold)"
-  trademark: "NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). All other trademarks mentioned are the property of their respective owners."
+  trademark: >-

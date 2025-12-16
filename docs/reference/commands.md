@@ -54,6 +54,14 @@ specfact repro --verbose
 
 - `project export --bundle <bundle-name> --persona <persona>` - Export persona-specific Markdown artifacts
 - `project import --bundle <bundle-name> --persona <persona> --source <file>` - Import persona edits from Markdown
+- `project version check --bundle <bundle-name>` - Recommend version bump (major/minor/patch/none)
+- `project version bump --bundle <bundle-name> --type <major|minor|patch>` - Apply SemVer bump and record history
+- `project version set --bundle <bundle-name> --version <semver>` - Set explicit project version and record history
+- **CI/CD Integration**: The GitHub Action template includes a configurable version check step with three modes:
+  - `info`: Informational only, logs recommendations without failing CI
+  - `warn` (default): Logs warnings but continues CI execution
+  - `block`: Fails CI if version bump recommendation is not followed
+  Configure via `version_check_mode` input in workflow_dispatch or set `SPECFACT_VERSION_CHECK_MODE` environment variable.
 
 **Enforcement:**
 
@@ -1710,7 +1718,7 @@ specfact contract verify --bundle legacy-api --feature FEATURE-001 --skip-mock -
 
 **Output:**
 
-```
+```text
 Step 1: Validating contracts...
 ✓ FEATURE-001: Valid (13 endpoints)
 
@@ -1777,7 +1785,7 @@ specfact contract serve --bundle legacy-api --feature FEATURE-001 --port 8080 --
 
 **Requirements**: Specmatic must be installed (`npm install -g @specmatic/specmatic`)
 
-**Press Ctrl+C to stop the server**
+> **Press Ctrl+C to stop the server**
 
 #### `contract test`
 
@@ -1819,7 +1827,7 @@ specfact contract test --bundle legacy-api --output tests/contracts/
 
 **Output Structure:**
 
-```
+```text
 .specfact/projects/<bundle-name>/tests/contracts/
 ├── feature-001/
 │   └── [Specmatic-generated test files]

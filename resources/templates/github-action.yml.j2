@@ -31,6 +31,15 @@ on:
           - block
           - warn
           - log
+      version_check_mode:
+        description: "Version check mode (info, warn, block)"
+        required: false
+        default: "warn"
+        type: choice
+        options:
+          - info
+          - warn
+          - block
 
 jobs:
   specfact-validation:
@@ -65,10 +74,13 @@ jobs:
         run: |
           BUDGET="${INPUT_BUDGET:-{{ budget }}}"
           MODE="${INPUT_MODE:-block}"
+          VERSION_CHECK_MODE="${INPUT_VERSION_CHECK_MODE:-info}"
           echo "budget=$BUDGET" >> $GITHUB_OUTPUT
           echo "mode=$MODE" >> $GITHUB_OUTPUT
+          echo "version_check_mode=$VERSION_CHECK_MODE" >> $GITHUB_OUTPUT
           echo "SPECFACT_BUDGET=$BUDGET" >> $GITHUB_ENV
           echo "SPECFACT_MODE=$MODE" >> $GITHUB_ENV
+          echo "SPECFACT_VERSION_CHECK_MODE=$VERSION_CHECK_MODE" >> $GITHUB_ENV
 
       - name: Run Contract Validation
         id: repro
@@ -76,6 +88,26 @@ jobs:
         run: |
           specfact repro --verbose --budget {% raw %}${{ steps.validation.outputs.budget }}{% endraw %} || true
           echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Version check
+        id: version_check
+        continue-on-error: true
+        run: |
+          VERSION_CHECK_MODE="{% raw %}${{ steps.validation.outputs.version_check_mode }}{% endraw %}"
+          echo "📌 Checking bundle version recommendation (mode: $VERSION_CHECK_MODE)..."
+          if specfact project version check --repo .; then
+            echo "version_check_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "version_check_passed=false" >> $GITHUB_OUTPUT
+            if [ "$VERSION_CHECK_MODE" = "warn" ]; then
+              echo "⚠️ Version check recommendation not followed (warn mode - continuing)"
+            elif [ "$VERSION_CHECK_MODE" = "block" ]; then
+              echo "❌ Version check recommendation not followed (block mode - failing)"
+              exit 1
+            else
+              echo "ℹ️ Version check recommendation available (info mode - continuing)"
+            fi
+          fi
 
       - name: Find latest repro report
         id: report

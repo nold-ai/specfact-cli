@@ -9,6 +9,37 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.17.0] - 2025-12-15
+
+### Added (0.17.0)
+
+- Version management CLI: `project version check|bump|set` with consistent progress UI
+- ChangeAnalyzer for SemVer recommendations (breaking/additive/patch + content hash fallback)
+- CI template version check step with configurable modes (`info`/`warn` default/`block`)
+- Bridge commands: `generate fix-prompt` and `generate test-prompt` for AI IDE integration
+
+### Improved (0.17.0)
+
+- Version commands reuse shared bundle load/save progress and avoid double loads
+- Recorded version history and content hashes in bundle manifests for future comparisons
+
+### Deprecated (0.17.0)
+
+- `implement tasks` command deprecated in preparation for v1.0 AI-assisted code generation
+- `run idea-to-ship` removed per Bridge Plan to avoid code-gen artifacts in 0.x
+
+### Docs (0.17.0)
+
+- Command reference updated with version commands and CI version check modes
+- Implementation plan Phase 7 marked completed (version management + CI integration)
+
+### Notes (0.17.0)
+
+- CI template defaults to `warn` mode; teams can opt into `block` for stricter enforcement
+- Added integration coverage for version commands (check/bump/set)
+
+---
+
 ## [0.16.3] - 2025-12-13
 
 ### Added (0.16.3)
@@ -843,8 +874,7 @@ All notable changes to this project will be documented in this file.
   - Fixed YAML serialization error when generating task lists (enum values now properly serialized as strings)
   - Updated `generate tasks` command to use `model_dump(mode="json")` for proper enum serialization
 - **Bundle Name Validation**
-  - Fixed empty bundle name validation in `run idea-to-ship` command
-  - Added strict validation to ensure bundle names are always non-empty strings
+  - Removed `run idea-to-ship` command; bundle validation now handled in remaining project commands
   - Fixed projects directory path construction to avoid calling `SpecFactStructure.project_dir()` without bundle name
   - Enhanced bundle name auto-detection with proper filtering of empty directory names
 

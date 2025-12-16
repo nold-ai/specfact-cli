@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -712,3 +713,60 @@ class TestProjectImport:
             or "failed" in output
             or "error" in output
         )
+
+
+class TestProjectVersionCommands:
+    """Tests for version subcommands."""
+
+    def test_version_bump_updates_manifest(self, sample_bundle: tuple[Path, str]) -> None:
+        repo_path, bundle_name = sample_bundle
+        manifest_path = repo_path / ".specfact" / "projects" / bundle_name / "bundle.manifest.yaml"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "version",
+                "bump",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--type",
+                "minor",
+            ],
+        )
+
+        assert result.exit_code == 0
+        manifest_data = yaml.safe_load(manifest_path.read_text())
+        assert manifest_data["versions"]["project"] == "0.2.0"
+        history = manifest_data.get("project_metadata", {}).get("version_history", [])
+        assert history
+        assert history[-1]["to"] == "0.2.0"
+        assert manifest_data.get("bundle", {}).get("content_hash")
+
+    def test_version_set_assigns_explicit_value(self, sample_bundle: tuple[Path, str]) -> None:
+        repo_path, bundle_name = sample_bundle
+        manifest_path = repo_path / ".specfact" / "projects" / bundle_name / "bundle.manifest.yaml"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "version",
+                "set",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--version",
+                "1.2.3",
+            ],
+        )
+
+        assert result.exit_code == 0
+        manifest_data = yaml.safe_load(manifest_path.read_text())
+        assert manifest_data["versions"]["project"] == "1.2.3"
+        history = manifest_data.get("project_metadata", {}).get("version_history", [])
+        assert history
+        assert history[-1]["to"] == "1.2.3"

@@ -22,10 +22,10 @@
 
 ```bash
 # Zero-install (recommended)
-uvx --from specfact-cli specfact
+uvx specfact-cli
 
-# Or install with pip
-pip install specfact-cli
+# Or install with pip (upgrade if already installed)
+pip install -U specfact-cli
 ```
 
 ### Your first command (< 60 seconds)

@@ -66,17 +66,17 @@ jobs:
         run: |
           BUDGET="${INPUT_BUDGET:-90}"
           MODE="${INPUT_MODE:-block}"
-          echo "budget=$BUDGET" >> $GITHUB_OUTPUT
-          echo "mode=$MODE" >> $GITHUB_OUTPUT
-          echo "SPECFACT_BUDGET=$BUDGET" >> $GITHUB_ENV
-          echo "SPECFACT_MODE=$MODE" >> $GITHUB_ENV
+          echo "budget=$BUDGET" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "SPECFACT_BUDGET=$BUDGET" >> "$GITHUB_ENV"
+          echo "SPECFACT_MODE=$MODE" >> "$GITHUB_ENV"
 
       - name: Run Contract Validation
         id: repro
         continue-on-error: true
         run: |
           hatch run specfact repro --verbose --budget ${{ steps.validation.outputs.budget }} || true
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Find latest repro report
         id: report
@@ -86,8 +86,8 @@ jobs:
           if [ -d "$REPORT_DIR" ]; then
             LATEST_REPORT=$(find "$REPORT_DIR" -name "report-*.yaml" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
             if [ -n "$LATEST_REPORT" ]; then
-              echo "path=$LATEST_REPORT" >> $GITHUB_OUTPUT
-              echo "SPECFACT_REPORT_PATH=$LATEST_REPORT" >> $GITHUB_ENV
+              echo "path=$LATEST_REPORT" >> "$GITHUB_OUTPUT"
+              echo "SPECFACT_REPORT_PATH=$LATEST_REPORT" >> "$GITHUB_ENV"
             fi
           fi
 
@@ -103,7 +103,7 @@ jobs:
         run: |
           python -m specfact_cli.utils.github_annotations
           if [ -f ".specfact/pr-comment.md" ]; then
-            echo "comment_path=.specfact/pr-comment.md" >> $GITHUB_OUTPUT
+            echo "comment_path=.specfact/pr-comment.md" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Post PR comment
