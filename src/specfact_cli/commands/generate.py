@@ -1620,3 +1620,605 @@ def _format_task_list_as_markdown(task_list: TaskList) -> str:
             lines.append("")
 
     return "\n".join(lines)
+
+
+@app.command("fix-prompt")
+@beartype
+@require(lambda gap_id: gap_id is None or isinstance(gap_id, str), "Gap ID must be None or string")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
+@ensure(lambda result: result is None, "Must return None")
+def generate_fix_prompt(
+    # Target/Input
+    gap_id: str | None = typer.Argument(
+        None,
+        help="Gap ID to fix (e.g., GAP-001). If not provided, shows available gaps.",
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name. Default: active plan from 'specfact plan select'",
+    ),
+    # Output
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path for the prompt. Default: .specfact/prompts/fix-<gap-id>.md",
+    ),
+    # Behavior/Options
+    top: int = typer.Option(
+        5,
+        "--top",
+        help="Show top N gaps when listing. Default: 5",
+    ),
+    no_interactive: bool = typer.Option(
+        False,
+        "--no-interactive",
+        help="Non-interactive mode (for CI/CD automation).",
+    ),
+) -> None:
+    """
+    Generate AI IDE prompt for fixing a specific gap.
+
+    Creates a structured prompt file that you can use with your AI IDE (Cursor, Copilot, etc.)
+    to fix identified gaps in your codebase. This is the recommended workflow for v0.17+.
+
+    **Workflow:**
+    1. Run `specfact analyze gaps --bundle <bundle>` to identify gaps
+    2. Run `specfact generate fix-prompt GAP-001` to get a fix prompt
+    3. Copy the prompt to your AI IDE
+    4. AI IDE provides the fix
+    5. Validate with `specfact enforce sdd --bundle <bundle>`
+
+    **Parameter Groups:**
+    - **Target/Input**: gap_id (optional argument), --bundle
+    - **Output**: --output
+    - **Behavior/Options**: --top, --no-interactive
+
+    **Examples:**
+        specfact generate fix-prompt                     # List available gaps
+        specfact generate fix-prompt GAP-001             # Generate fix prompt for GAP-001
+        specfact generate fix-prompt --bundle legacy-api # List gaps for specific bundle
+        specfact generate fix-prompt GAP-001 --output fix.md  # Save to specific file
+    """
+    from rich.table import Table
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    repo_path = Path(".").resolve()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo_path)
+        if bundle:
+            console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
+    telemetry_metadata = {
+        "gap_id": gap_id,
+        "bundle": bundle,
+        "no_interactive": no_interactive,
+    }
+
+    with telemetry.track_command("generate.fix-prompt", telemetry_metadata) as record:
+        try:
+            # Determine bundle directory
+            bundle_dir: Path | None = None
+            if bundle:
+                bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
+                if not bundle_dir.exists():
+                    print_error(f"Project bundle not found: {bundle_dir}")
+                    print_info(f"Create one with: specfact plan init {bundle}")
+                    raise typer.Exit(1)
+
+            # Look for gap report
+            gap_report_path = (
+                bundle_dir / "reports" / "gaps.json"
+                if bundle_dir
+                else repo_path / ".specfact" / "reports" / "gaps.json"
+            )
+
+            if not gap_report_path.exists():
+                print_warning("No gap report found.")
+                console.print("\n[bold]To generate a gap report, run:[/bold]")
+                if bundle:
+                    console.print(f"  specfact analyze gaps --bundle {bundle} --output json")
+                else:
+                    console.print("  specfact analyze gaps --bundle <bundle-name> --output json")
+                raise typer.Exit(1)
+
+            # Load gap report
+            from specfact_cli.utils.structured_io import load_structured_file
+
+            gap_data = load_structured_file(gap_report_path)
+            gaps = gap_data.get("gaps", [])
+
+            if not gaps:
+                print_info("No gaps found in the report. Your codebase is looking good!")
+                raise typer.Exit(0)
+
+            # If no gap_id provided, list available gaps
+            if gap_id is None:
+                console.print(f"\n[bold cyan]Available Gaps ({len(gaps)} total):[/bold cyan]\n")
+
+                table = Table(show_header=True, header_style="bold cyan")
+                table.add_column("ID", style="bold yellow", width=12)
+                table.add_column("Severity", width=10)
+                table.add_column("Category", width=15)
+                table.add_column("Description", width=50)
+
+                severity_colors = {
+                    "critical": "red",
+                    "high": "yellow",
+                    "medium": "cyan",
+                    "low": "dim",
+                }
+
+                for gap in gaps[:top]:
+                    severity = gap.get("severity", "medium")
+                    color = severity_colors.get(severity, "white")
+                    table.add_row(
+                        gap.get("id", "N/A"),
+                        f"[{color}]{severity}[/{color}]",
+                        gap.get("category", "N/A"),
+                        gap.get("description", "N/A")[:50] + "..."
+                        if len(gap.get("description", "")) > 50
+                        else gap.get("description", "N/A"),
+                    )
+
+                console.print(table)
+
+                if len(gaps) > top:
+                    console.print(f"\n[dim]... and {len(gaps) - top} more gaps. Use --top to see more.[/dim]")
+
+                console.print("\n[bold]To generate a fix prompt:[/bold]")
+                console.print("  specfact generate fix-prompt <GAP-ID>")
+                console.print("\n[bold]Example:[/bold]")
+                if gaps:
+                    console.print(f"  specfact generate fix-prompt {gaps[0].get('id', 'GAP-001')}")
+
+                record({"action": "list_gaps", "gap_count": len(gaps)})
+                raise typer.Exit(0)
+
+            # Find the specific gap
+            target_gap = None
+            for gap in gaps:
+                if gap.get("id") == gap_id:
+                    target_gap = gap
+                    break
+
+            if target_gap is None:
+                print_error(f"Gap not found: {gap_id}")
+                console.print("\n[yellow]Available gap IDs:[/yellow]")
+                for gap in gaps[:10]:
+                    console.print(f"  - {gap.get('id')}")
+                if len(gaps) > 10:
+                    console.print(f"  ... and {len(gaps) - 10} more")
+                raise typer.Exit(1)
+
+            # Generate fix prompt
+            console.print(f"\n[bold cyan]Generating fix prompt for {gap_id}...[/bold cyan]\n")
+
+            prompt_parts = [
+                f"# Fix Request: {gap_id}",
+                "",
+                "## Gap Details",
+                "",
+                f"**ID:** {target_gap.get('id', 'N/A')}",
+                f"**Category:** {target_gap.get('category', 'N/A')}",
+                f"**Severity:** {target_gap.get('severity', 'N/A')}",
+                f"**Module:** {target_gap.get('module', 'N/A')}",
+                "",
+                f"**Description:** {target_gap.get('description', 'N/A')}",
+                "",
+            ]
+
+            # Add evidence if available
+            evidence = target_gap.get("evidence", {})
+            if evidence:
+                prompt_parts.extend(
+                    [
+                        "## Evidence",
+                        "",
+                    ]
+                )
+                if evidence.get("file"):
+                    prompt_parts.append(f"**File:** `{evidence.get('file')}`")
+                if evidence.get("line"):
+                    prompt_parts.append(f"**Line:** {evidence.get('line')}")
+                if evidence.get("code"):
+                    prompt_parts.extend(
+                        [
+                            "",
+                            "**Code:**",
+                            "```python",
+                            evidence.get("code", ""),
+                            "```",
+                        ]
+                    )
+                prompt_parts.append("")
+
+            # Add fix instructions
+            prompt_parts.extend(
+                [
+                    "## Fix Instructions",
+                    "",
+                    "Please fix this gap by:",
+                    "",
+                ]
+            )
+
+            category = target_gap.get("category", "").lower()
+            if "missing_tests" in category or "test" in category:
+                prompt_parts.extend(
+                    [
+                        "1. **Add Tests**: Write comprehensive tests for the identified code",
+                        "2. **Cover Edge Cases**: Include tests for edge cases and error conditions",
+                        "3. **Follow AAA Pattern**: Use Arrange-Act-Assert pattern",
+                        "4. **Run Tests**: Ensure all tests pass",
+                    ]
+                )
+            elif "missing_contracts" in category or "contract" in category:
+                prompt_parts.extend(
+                    [
+                        "1. **Add Contracts**: Add `@beartype` decorators for type checking",
+                        "2. **Add Preconditions**: Add `@require` decorators for input validation",
+                        "3. **Add Postconditions**: Add `@ensure` decorators for output guarantees",
+                        "4. **Verify Imports**: Ensure `from beartype import beartype` and `from icontract import require, ensure` are present",
+                    ]
+                )
+            elif "api_drift" in category or "drift" in category:
+                prompt_parts.extend(
+                    [
+                        "1. **Check OpenAPI Spec**: Review the OpenAPI contract",
+                        "2. **Update Implementation**: Align the code with the spec",
+                        "3. **Or Update Spec**: If the implementation is correct, update the spec",
+                        "4. **Run Drift Check**: Verify with `specfact analyze drift`",
+                    ]
+                )
+            else:
+                prompt_parts.extend(
+                    [
+                        "1. **Analyze the Gap**: Understand what's missing or incorrect",
+                        "2. **Implement Fix**: Apply the appropriate fix",
+                        "3. **Add Tests**: Ensure the fix is covered by tests",
+                        "4. **Validate**: Run `specfact enforce sdd` to verify",
+                    ]
+                )
+
+            prompt_parts.extend(
+                [
+                    "",
+                    "## Validation",
+                    "",
+                    "After applying the fix, validate with:",
+                    "",
+                    "```bash",
+                ]
+            )
+
+            if bundle:
+                prompt_parts.append(f"specfact enforce sdd --bundle {bundle}")
+            else:
+                prompt_parts.append("specfact enforce sdd --bundle <bundle-name>")
+
+            prompt_parts.extend(
+                [
+                    "```",
+                    "",
+                ]
+            )
+
+            prompt = "\n".join(prompt_parts)
+
+            # Save prompt to file
+            if output is None:
+                prompts_dir = bundle_dir / "prompts" if bundle_dir else repo_path / ".specfact" / "prompts"
+                prompts_dir.mkdir(parents=True, exist_ok=True)
+                output = prompts_dir / f"fix-{gap_id.lower()}.md"
+
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(prompt, encoding="utf-8")
+
+            print_success(f"Fix prompt generated: {output}")
+
+            console.print("\n[bold]Next Steps:[/bold]")
+            console.print("1. Open the prompt file in your AI IDE (Cursor, Copilot, etc.)")
+            console.print("2. Copy the prompt and ask your AI to implement the fix")
+            console.print("3. Review and apply the suggested changes")
+            console.print("4. Validate with `specfact enforce sdd`")
+
+            record({"action": "generate_prompt", "gap_id": gap_id, "output": str(output)})
+
+        except typer.Exit:
+            raise
+        except Exception as e:
+            print_error(f"Failed to generate fix prompt: {e}")
+            record({"error": str(e)})
+            raise typer.Exit(1) from e
+
+
+@app.command("test-prompt")
+@beartype
+@require(lambda file: file is None or isinstance(file, Path), "File must be None or Path")
+@require(lambda bundle: bundle is None or isinstance(bundle, str), "Bundle must be None or string")
+@ensure(lambda result: result is None, "Must return None")
+def generate_test_prompt(
+    # Target/Input
+    file: Path | None = typer.Argument(
+        None,
+        help="File to generate tests for. If not provided with --bundle, shows files without tests.",
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name. Default: active plan from 'specfact plan select'",
+    ),
+    # Output
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path for the prompt. Default: .specfact/prompts/test-<filename>.md",
+    ),
+    # Behavior/Options
+    coverage_type: str = typer.Option(
+        "unit",
+        "--type",
+        help="Test type: 'unit', 'integration', or 'both'. Default: unit",
+    ),
+    no_interactive: bool = typer.Option(
+        False,
+        "--no-interactive",
+        help="Non-interactive mode (for CI/CD automation).",
+    ),
+) -> None:
+    """
+    Generate AI IDE prompt for creating tests for a file.
+
+    Creates a structured prompt file that you can use with your AI IDE (Cursor, Copilot, etc.)
+    to generate comprehensive tests for your code. This is the recommended workflow for v0.17+.
+
+    **Workflow:**
+    1. Run `specfact generate test-prompt src/module.py` to get a test prompt
+    2. Copy the prompt to your AI IDE
+    3. AI IDE generates tests
+    4. Save tests to appropriate location
+    5. Run tests with `pytest`
+
+    **Parameter Groups:**
+    - **Target/Input**: file (optional argument), --bundle
+    - **Output**: --output
+    - **Behavior/Options**: --type, --no-interactive
+
+    **Examples:**
+        specfact generate test-prompt src/auth/login.py              # Generate test prompt
+        specfact generate test-prompt src/api.py --type integration  # Integration tests
+        specfact generate test-prompt --bundle legacy-api            # List files needing tests
+    """
+    from rich.table import Table
+
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    repo_path = Path(".").resolve()
+
+    # Use active plan as default if bundle not provided
+    if bundle is None:
+        bundle = SpecFactStructure.get_active_bundle_name(repo_path)
+        if bundle:
+            console.print(f"[dim]Using active plan: {bundle}[/dim]")
+
+    telemetry_metadata = {
+        "file": str(file) if file else None,
+        "bundle": bundle,
+        "coverage_type": coverage_type,
+        "no_interactive": no_interactive,
+    }
+
+    with telemetry.track_command("generate.test-prompt", telemetry_metadata) as record:
+        try:
+            # Determine bundle directory
+            bundle_dir: Path | None = None
+            if bundle:
+                bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
+                if not bundle_dir.exists():
+                    print_error(f"Project bundle not found: {bundle_dir}")
+                    print_info(f"Create one with: specfact plan init {bundle}")
+                    raise typer.Exit(1)
+
+            # If no file provided, show files that might need tests
+            if file is None:
+                console.print("\n[bold cyan]Files that may need tests:[/bold cyan]\n")
+
+                # Find Python files without corresponding test files
+                src_files: list[Path] = []
+                for src_dir in [repo_path / "src", repo_path]:
+                    if src_dir.exists():
+                        src_files.extend(src_dir.rglob("*.py"))
+
+                files_without_tests: list[tuple[Path, str]] = []
+                for src_file in src_files:
+                    if "__pycache__" in str(src_file) or "test_" in src_file.name or "_test.py" in src_file.name:
+                        continue
+                    if src_file.name.startswith("__"):
+                        continue
+
+                    # Check for corresponding test file
+                    test_patterns = [
+                        repo_path / "tests" / "unit" / f"test_{src_file.stem}.py",
+                        repo_path / "tests" / f"test_{src_file.stem}.py",
+                    ]
+                    has_test = any(tp.exists() for tp in test_patterns)
+                    if not has_test:
+                        rel_path = src_file.relative_to(repo_path) if src_file.is_relative_to(repo_path) else src_file
+                        files_without_tests.append((src_file, str(rel_path)))
+
+                if files_without_tests:
+                    table = Table(show_header=True, header_style="bold cyan")
+                    table.add_column("#", style="bold yellow", justify="right", width=4)
+                    table.add_column("File Path", style="dim")
+
+                    for i, (_, rel_path) in enumerate(files_without_tests[:15], 1):
+                        table.add_row(str(i), rel_path)
+
+                    console.print(table)
+
+                    if len(files_without_tests) > 15:
+                        console.print(f"\n[dim]... and {len(files_without_tests) - 15} more files[/dim]")
+
+                    console.print("\n[bold]To generate test prompt:[/bold]")
+                    console.print("  specfact generate test-prompt <file-path>")
+                    console.print("\n[bold]Example:[/bold]")
+                    console.print(f"  specfact generate test-prompt {files_without_tests[0][1]}")
+                else:
+                    print_success("All source files appear to have tests!")
+
+                record({"action": "list_files", "files_without_tests": len(files_without_tests)})
+                raise typer.Exit(0)
+
+            # Validate file exists
+            if not file.exists():
+                print_error(f"File not found: {file}")
+                raise typer.Exit(1)
+
+            # Read file content
+            file_content = file.read_text(encoding="utf-8")
+            file_rel = file.relative_to(repo_path) if file.is_relative_to(repo_path) else file
+
+            # Generate test prompt
+            console.print(f"\n[bold cyan]Generating test prompt for {file_rel}...[/bold cyan]\n")
+
+            prompt_parts = [
+                f"# Test Generation Request: {file_rel}",
+                "",
+                "## Target File",
+                "",
+                f"**File Path:** `{file_rel}`",
+                f"**Test Type:** {coverage_type}",
+                "",
+                "## File Content",
+                "",
+                "```python",
+                file_content,
+                "```",
+                "",
+                "## Instructions",
+                "",
+                "Generate comprehensive tests for this file following these guidelines:",
+                "",
+                "### Test Structure",
+                "",
+                "1. **Use pytest** as the testing framework",
+                "2. **Follow AAA pattern** (Arrange-Act-Assert)",
+                "3. **One test = one behavior** - Keep tests focused",
+                "4. **Use fixtures** for common setup",
+                "5. **Use parametrize** for testing multiple inputs",
+                "",
+                "### Coverage Requirements",
+                "",
+            ]
+
+            if coverage_type == "unit":
+                prompt_parts.extend(
+                    [
+                        "- Test each public function/method individually",
+                        "- Mock external dependencies",
+                        "- Test edge cases and error conditions",
+                        "- Target >80% line coverage",
+                    ]
+                )
+            elif coverage_type == "integration":
+                prompt_parts.extend(
+                    [
+                        "- Test interactions between components",
+                        "- Use real dependencies where feasible",
+                        "- Test complete workflows",
+                        "- Focus on critical paths",
+                    ]
+                )
+            else:  # both
+                prompt_parts.extend(
+                    [
+                        "- Create both unit and integration tests",
+                        "- Unit tests in `tests/unit/`",
+                        "- Integration tests in `tests/integration/`",
+                        "- Cover all critical code paths",
+                    ]
+                )
+
+            prompt_parts.extend(
+                [
+                    "",
+                    "### Test File Location",
+                    "",
+                    f"Save the tests to: `tests/unit/test_{file.stem}.py`",
+                    "",
+                    "### Example Test Structure",
+                    "",
+                    "```python",
+                    f'"""Tests for {file_rel}."""',
+                    "",
+                    "import pytest",
+                    "from unittest.mock import Mock, patch",
+                    "",
+                    f"from {str(file_rel).replace('/', '.').replace('.py', '')} import *",
+                    "",
+                    "",
+                    "class TestFunctionName:",
+                    '    """Tests for function_name."""',
+                    "",
+                    "    def test_success_case(self):",
+                    '        """Test successful execution."""',
+                    "        # Arrange",
+                    "        input_data = ...",
+                    "",
+                    "        # Act",
+                    "        result = function_name(input_data)",
+                    "",
+                    "        # Assert",
+                    "        assert result == expected_output",
+                    "",
+                    "    def test_error_case(self):",
+                    '        """Test error handling."""',
+                    "        with pytest.raises(ExpectedError):",
+                    "            function_name(invalid_input)",
+                    "```",
+                    "",
+                    "## Validation",
+                    "",
+                    "After generating tests, run:",
+                    "",
+                    "```bash",
+                    f"pytest tests/unit/test_{file.stem}.py -v",
+                    "```",
+                    "",
+                ]
+            )
+
+            prompt = "\n".join(prompt_parts)
+
+            # Save prompt to file
+            if output is None:
+                prompts_dir = bundle_dir / "prompts" if bundle_dir else repo_path / ".specfact" / "prompts"
+                prompts_dir.mkdir(parents=True, exist_ok=True)
+                output = prompts_dir / f"test-{file.stem}.md"
+
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(prompt, encoding="utf-8")
+
+            print_success(f"Test prompt generated: {output}")
+
+            console.print("\n[bold]Next Steps:[/bold]")
+            console.print("1. Open the prompt file in your AI IDE (Cursor, Copilot, etc.)")
+            console.print("2. Copy the prompt and ask your AI to generate tests")
+            console.print("3. Review the generated tests")
+            console.print(f"4. Save to `tests/unit/test_{file.stem}.py`")
+            console.print("5. Run tests with `pytest`")
+
+            record({"action": "generate_prompt", "file": str(file_rel), "output": str(output)})
+
+        except typer.Exit:
+            raise
+        except Exception as e:
+            print_error(f"Failed to generate test prompt: {e}")
+            record({"error": str(e)})
+            raise typer.Exit(1) from e
