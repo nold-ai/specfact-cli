@@ -167,4 +167,3 @@ Add version check to your GitHub Actions:
 - 💬 **Questions?** [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
 - 🐛 **Found a bug?** [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
 - 📧 **Need help?** [hello@noldai.com](mailto:hello@noldai.com)
-

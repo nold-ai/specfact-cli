@@ -390,9 +390,7 @@ class TestGenerateFixPromptCommand:
         (reports_dir / "gaps.json").write_text(json.dumps(gap_report))
 
         # Run fix-prompt without gap_id
-        result = runner.invoke(
-            app, ["generate", "fix-prompt", "--bundle", bundle_name, "--no-interactive"]
-        )
+        result = runner.invoke(app, ["generate", "fix-prompt", "--bundle", bundle_name, "--no-interactive"])
 
         assert result.exit_code == 0
         assert "GAP-001" in result.stdout or "Available Gaps" in result.stdout
@@ -429,9 +427,7 @@ class TestGenerateFixPromptCommand:
         (reports_dir / "gaps.json").write_text(json.dumps(gap_report))
 
         # Run fix-prompt with gap_id
-        result = runner.invoke(
-            app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"]
-        )
+        result = runner.invoke(app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"])
 
         assert result.exit_code == 0
         # Should create prompt file or show prompt content
@@ -451,9 +447,7 @@ class TestGenerateFixPromptCommand:
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
 
         # Run fix-prompt (should fail or show helpful message)
-        result = runner.invoke(
-            app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"]
-        )
+        result = runner.invoke(app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"])
 
         # Should fail or provide helpful message
         assert result.exit_code != 0 or "no gaps" in result.stdout.lower() or "not found" in result.stdout.lower()
@@ -507,9 +501,7 @@ def login(username: str, password: str) -> bool:
         runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
 
         # Run test-prompt without file argument
-        result = runner.invoke(
-            app, ["generate", "test-prompt", "--bundle", bundle_name, "--no-interactive"]
-        )
+        result = runner.invoke(app, ["generate", "test-prompt", "--bundle", bundle_name, "--no-interactive"])
 
         # Should succeed and show help or list files
         assert result.exit_code == 0 or "file" in result.stdout.lower()
