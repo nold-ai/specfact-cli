@@ -9,6 +9,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.18.0] - 2025-12-17
+
+### Added (0.18.0)
+
+- README "Current Version" section clarifying 0.x = analysis/enforcement positioning
+- AI IDE Bridge documentation with workflow examples
+- Bridge command examples in Quick Start section
+
+### Improved (0.18.0)
+
+- README messaging updated to emphasize analysis and enforcement capabilities
+- Clear distinction between stable features (analysis, enforcement) and deprecated (code generation)
+- Added AI IDE bridge workflow documentation showing Cursor/Copilot/Claude integration
+
+### Docs (0.18.0)
+
+- README updated with v0.17.x status table
+- Added `generate fix-prompt` and `generate test-prompt` examples
+- Improved positioning: "analyze → find gaps → enforce" messaging
+
+---
+
 ## [0.17.0] - 2025-12-15
 
 ### Added (0.17.0)
