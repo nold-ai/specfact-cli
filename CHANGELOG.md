@@ -9,6 +9,51 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.0] - 2025-12-17
+
+### 🎉 Long-Term Stable (LTS) Release
+
+**v0.20.0 is the Long-Term Stable (LTS) release for the 0.x series.** This release marks the stabilization of SpecFact CLI's core analysis and enforcement capabilities, positioning the tool for public promotion and early adopter usage.
+
+**0.x Positioning**: "Analyze your brownfield code, find gaps, enforce contracts"  
+**1.x Positioning**: "All of the above, PLUS AI-assisted code generation with validation"
+
+### Added (0.20.0)
+
+- **LTS Designation**: v0.20.0 marked as Long-Term Stable release
+- **Comprehensive Documentation**: Complete GitHub Pages integration with navigation and styling
+- **Migration Guide**: Updated migration guide from v0.16.x to v0.20.0 LTS
+
+### Improved (0.20.0)
+
+- **Documentation Site**: Enhanced Jekyll-based documentation with left-side navigation
+- **Code Block Styling**: Fixed syntax highlighting for better readability
+- **User Experience**: Improved documentation navigation and accessibility
+
+### Breaking Changes (0.20.0)
+
+**None** - v0.20.0 is fully backward compatible with v0.19.0.
+
+### Deprecated (0.20.0)
+
+- `implement tasks` command remains deprecated (removed in v1.0)
+- Use `generate fix-prompt` and `generate test-prompt` bridge commands instead
+
+### Docs (0.20.0)
+
+- **GitHub Pages**: Complete Jekyll integration with proper rendering
+- **Navigation**: Left-side navigation sidebar for better UX
+- **Styling**: Fixed CSS issues and improved code block readability
+- **Migration Guide**: Updated guide for v0.16.x → v0.20.0 LTS upgrade path
+
+### Notes (0.20.0)
+
+- **LTS Support**: v0.20.0 will receive bug fixes and security updates until v1.0 GA
+- **Next Steps**: v1.0 development begins after Phase B validation (Ultimate Vision track)
+- **Stability**: All core features (analysis, enforcement, gap detection) are stable and production-ready
+
+---
+
 ## [0.19.0] - 2025-12-17
 
 ### Added (0.19.0)

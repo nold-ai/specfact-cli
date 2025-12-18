@@ -1,10 +1,10 @@
-# Migration Guide: v0.16.x to v0.19.x
+# Migration Guide: v0.16.x to v0.20.0 LTS
 
-This guide helps you upgrade from SpecFact CLI v0.16.x to v0.19.x.
+This guide helps you upgrade from SpecFact CLI v0.16.x to v0.20.0 LTS (Long-Term Stable).
 
 ## Overview
 
-v0.17.0 - v0.19.0 are part of the **0.x stabilization track** leading to v0.20.0 LTS.
+v0.17.0 - v0.20.0 are part of the **0.x stabilization track** leading to v0.20.0 LTS.
 
 ### Key Changes
 
@@ -13,6 +13,7 @@ v0.17.0 - v0.19.0 are part of the **0.x stabilization track** leading to v0.20.0
 | **0.17.0** | Deprecated `implement` command, added bridge commands, version management |
 | **0.18.0** | Updated documentation positioning, AI IDE bridge workflow |
 | **0.19.0** | Full test coverage for Phase 7, migration guide |
+| **0.20.0 LTS** | Long-Term Stable release - production-ready analysis and enforcement |
 
 ---
 
@@ -154,7 +155,7 @@ Add version check to your GitHub Actions:
 
 ### Q: Can I still use v0.16.x?
 
-**A:** Yes, v0.16.x will continue to work. However, we recommend upgrading to v0.19.x for the latest fixes and features. v0.20.0 will be the Long-Term Stable (LTS) release.
+**A:** Yes, v0.16.x will continue to work. However, we recommend upgrading to v0.20.0 LTS for the latest fixes, features, and long-term stability. v0.20.0 is the Long-Term Stable (LTS) release and will receive bug fixes and security updates until v1.0 GA.
 
 ### Q: When will v1.0 be released?
 

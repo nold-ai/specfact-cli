@@ -16,9 +16,11 @@
 
 ---
 
-## 📋 Current Version: 0.17.x (Analysis & Enforcement)
+## 📋 Current Version: 0.20.0 LTS (Long-Term Stable)
 
-**SpecFact 0.x focuses on what it does best: analyzing legacy code and enforcing contracts.**
+**🎉 v0.20.0 is the Long-Term Stable (LTS) release!** This version marks the stabilization of SpecFact CLI's core analysis and enforcement capabilities.
+
+**SpecFact 0.20.0 LTS focuses on what it does best: analyzing legacy code and enforcing contracts.** This LTS release is production-ready and will receive bug fixes and security updates until v1.0 GA.
 
 | Capability | Status | Description |
 |------------|--------|-------------|
