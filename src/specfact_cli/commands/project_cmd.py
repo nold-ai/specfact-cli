@@ -20,13 +20,22 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
-from specfact_cli.models.project import BundleManifest, PersonaMapping, ProjectBundle, SectionLock
+from specfact_cli.models.project import (
+    BundleManifest,
+    PersonaMapping,
+    ProjectBundle,
+    ProjectMetadata,
+    SectionLock,
+)
 from specfact_cli.utils import print_error, print_info, print_section, print_success, print_warning
 from specfact_cli.utils.progress import load_bundle_with_progress, save_bundle_with_progress
 from specfact_cli.utils.structure import SpecFactStructure
+from specfact_cli.versioning import ChangeAnalyzer, bump_version, validate_semver
 
 
 app = typer.Typer(help="Manage project bundles with persona workflows")
+version_app = typer.Typer(help="Manage project bundle versions")
+app.add_typer(version_app, name="version")
 console = Console()
 
 
@@ -56,6 +65,36 @@ DEFAULT_PERSONAS: dict[str, PersonaMapping] = {
         exports_to="specs/*/tasks.md",
     ),
 }
+
+# Version bump severity ordering (for recommendations)
+BUMP_SEVERITY = {"none": 0, "patch": 1, "minor": 2, "major": 3}
+
+
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (bundle_name, bundle_dir)")
+def _resolve_bundle(repo: Path, bundle: str | None) -> tuple[str, Path]:
+    """
+    Resolve bundle name and directory, falling back to active bundle.
+
+    Args:
+        repo: Repository path
+        bundle: Optional bundle name
+
+    Returns:
+        Tuple of (bundle_name, bundle_dir)
+    """
+    bundle_name = bundle or SpecFactStructure.get_active_bundle_name(repo)
+    if bundle_name is None:
+        print_error("Bundle not specified and no active bundle found. Use --bundle or set active bundle in config.")
+        raise typer.Exit(1)
+
+    bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
+    if not bundle_dir.exists():
+        print_error(f"Project bundle not found: {bundle_dir}")
+        raise typer.Exit(1)
+
+    return bundle_name, bundle_dir
 
 
 @beartype
@@ -1586,3 +1625,165 @@ def resolve_conflict(
     # Save bundle
     _save_bundle_with_progress(bundle_obj, bundle_dir, atomic=True)
     print_success(f"Conflict resolved: {conflict_path} = {resolved_value}")
+
+
+# -----------------------------
+# Version management subcommands
+# -----------------------------
+
+
+@version_app.command("check")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def version_check(
+    # Target/Input
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses active bundle from config.",
+    ),
+) -> None:
+    """
+    Analyze bundle changes and recommend version bump (major/minor/patch/none).
+    """
+    bundle_name, bundle_dir = _resolve_bundle(repo, bundle)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+
+    analyzer = ChangeAnalyzer(repo_path=repo)
+    analysis = analyzer.analyze(bundle_dir, bundle=bundle_obj)
+
+    print_section(f"Version analysis for bundle '{bundle_name}'")
+    print_info(f"Recommended bump: {analysis.recommended_bump}")
+    print_info(f"Change type: {analysis.change_type.value}")
+
+    if analysis.changed_files:
+        table = Table(title="Bundle changes")
+        table.add_column("Path", style="cyan")
+        for path in sorted(set(analysis.changed_files)):
+            table.add_row(path)
+        console.print(table)
+    else:
+        print_info("No bundle file changes detected.")
+
+    if analysis.reasons:
+        print_section("Reasons")
+        for reason in analysis.reasons:
+            console.print(f"- {reason}")
+
+    if analysis.content_hash:
+        print_info(f"Current bundle hash: {analysis.content_hash[:8]}...")
+
+
+@version_app.command("bump")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@require(lambda bump_type: bump_type in {"major", "minor", "patch"}, "Bump type must be major|minor|patch")
+@ensure(lambda result: result is None, "Must return None")
+def version_bump(
+    # Target/Input
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses active bundle from config.",
+    ),
+    bump_type: str = typer.Option(
+        ...,
+        "--type",
+        help="Version bump type: major | minor | patch",
+        case_sensitive=False,
+    ),
+) -> None:
+    """
+    Bump project version in bundle manifest (SemVer).
+    """
+    bump_type = bump_type.lower()
+    bundle_name, bundle_dir = _resolve_bundle(repo, bundle)
+
+    analyzer = ChangeAnalyzer(repo_path=repo)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    analysis = analyzer.analyze(bundle_dir, bundle=bundle_obj)
+    current_version = bundle_obj.manifest.versions.project
+    new_version = bump_version(current_version, bump_type)
+
+    # Warn if selected bump is lower than recommended
+    if BUMP_SEVERITY.get(analysis.recommended_bump, 0) > BUMP_SEVERITY.get(bump_type, 0):
+        print_warning(
+            f"Recommended bump is '{analysis.recommended_bump}' based on detected changes, "
+            f"but '{bump_type}' was requested."
+        )
+
+    project_metadata = bundle_obj.manifest.project_metadata or ProjectMetadata(stability="alpha")
+    project_metadata.version_history.append(
+        ChangeAnalyzer.create_history_entry(current_version, new_version, bump_type)
+    )
+    bundle_obj.manifest.project_metadata = project_metadata
+    bundle_obj.manifest.versions.project = new_version
+
+    # Record current content hash to support future comparisons
+    summary = bundle_obj.compute_summary(include_hash=True)
+    if summary.content_hash:
+        bundle_obj.manifest.bundle["content_hash"] = summary.content_hash
+
+    _save_bundle_with_progress(bundle_obj, bundle_dir, atomic=True)
+    print_success(f"Bumped project version to {new_version} for bundle '{bundle_name}'")
+
+
+@version_app.command("set")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def version_set(
+    # Target/Input
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name (e.g., legacy-api). If not specified, uses active bundle from config.",
+    ),
+    version: str = typer.Option(..., "--version", help="Exact SemVer to set (e.g., 1.2.3)"),
+) -> None:
+    """
+    Set explicit project version in bundle manifest.
+    """
+    bundle_name, bundle_dir = _resolve_bundle(repo, bundle)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    current_version = bundle_obj.manifest.versions.project
+
+    # Validate version before loading full bundle again for save
+    validate_semver(version)
+
+    project_metadata = bundle_obj.manifest.project_metadata or ProjectMetadata(stability="alpha")
+    project_metadata.version_history.append(ChangeAnalyzer.create_history_entry(current_version, version, "set"))
+    bundle_obj.manifest.project_metadata = project_metadata
+    bundle_obj.manifest.versions.project = version
+
+    summary = bundle_obj.compute_summary(include_hash=True)
+    if summary.content_hash:
+        bundle_obj.manifest.bundle["content_hash"] = summary.content_hash
+
+    _save_bundle_with_progress(bundle_obj, bundle_dir, atomic=True)
+    print_success(f"Set project version to {version} for bundle '{bundle_name}'")

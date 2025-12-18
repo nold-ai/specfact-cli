@@ -1,7 +1,7 @@
 # SpecFact CLI
 
 > **Stop vibe coding. Start shipping quality code with contracts.**  
-> Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts
+> Brownfield-first CLI: Analyze legacy Python → find gaps → enforce contracts
 
 [![PyPI version](https://img.shields.io/pypi/v/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
 [![Python versions](https://img.shields.io/pypi/pyversions/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
@@ -16,16 +16,45 @@
 
 ---
 
+## 📋 Current Version: 0.20.0 LTS (Long-Term Stable)
+
+**🎉 v0.20.0 is the Long-Term Stable (LTS) release!** This version marks the stabilization of SpecFact CLI's core analysis and enforcement capabilities.
+
+**SpecFact 0.20.0 LTS focuses on what it does best: analyzing legacy code and enforcing contracts.** This LTS release is production-ready and will receive bug fixes and security updates until v1.0 GA.
+
+| Capability | Status | Description |
+|------------|--------|-------------|
+| **Code Analysis** | ✅ Stable | Reverse engineer legacy code into documented specs |
+| **Gap Detection** | ✅ Stable | Find missing tests, contracts, and documentation |
+| **Contract Enforcement** | ✅ Stable | Prevent regressions with runtime validation |
+| **API Contract Testing** | ✅ Stable | Validate OpenAPI specs with Specmatic |
+| **AI IDE Bridge** | ✅ New | Generate prompts for Cursor, Copilot, Claude |
+| **Code Generation** | ⚠️ Deprecated | Coming in v1.0 with AI-assisted workflow |
+
+**Need code generation?** Use the new bridge commands to get AI-ready prompts:
+
+```bash
+# Get AI prompt to fix a gap
+specfact generate fix-prompt GAP-001 --bundle legacy-api
+
+# Get AI prompt to generate tests
+specfact generate test-prompt src/auth/login.py
+```
+
+These prompts work with any AI IDE (Cursor, Copilot, Claude Code, etc.) - you control the code generation, SpecFact validates the results.
+
+---
+
 ## 🚀 Quick Start in 60 Seconds
 
 ### Install in 10 seconds
 
 ```bash
 # Zero-install (recommended)
-uvx --from specfact-cli specfact
+uvx specfact-cli
 
-# Or install with pip
-pip install specfact-cli
+# Or install with pip (upgrade if already installed)
+pip install -U specfact-cli
 ```
 
 ### Your first command (< 60 seconds)
@@ -49,9 +78,9 @@ That's it! 🎉
 
 ## What is SpecFact CLI?
 
-A brownfield-first CLI that **reverse engineers your legacy code** into documented specs, then prevents regressions with runtime contract enforcement.
+A brownfield-first CLI that **analyzes your legacy code** to find gaps, then **enforces contracts** to prevent regressions during modernization.
 
-**Stop vibe coding. Start shipping quality code with contracts.** SpecFact automatically extracts specs from existing code, then enforces them as you modernize—preventing bugs before they reach production.
+**Stop vibe coding. Start shipping quality code with contracts.** SpecFact automatically extracts specs from existing code, finds missing tests and contracts, then enforces them as you modernize—preventing bugs before they reach production.
 
 **Perfect for:** Teams modernizing legacy Python systems, data pipelines, DevOps scripts
 
@@ -160,6 +189,30 @@ SpecFact CLI works with your existing tools—no new platform to learn. See real
 👉 **[Integration Showcases](docs/examples/integration-showcases/)** - Real examples of bugs fixed via CLI integrations
 
 **Core USP**: Pure CLI-first approach—works offline, no account required, zero vendor lock-in. Regularly showcases successful integrations that fix bugs not detected by other tools.
+
+### 🤖 AI IDE Bridge (New in 0.17)
+
+SpecFact now generates prompts you can use with any AI IDE for code generation:
+
+```bash
+# 1. Analyze your code to find gaps
+specfact analyze gaps --bundle legacy-api
+
+# 2. Generate AI prompt to fix a specific gap
+specfact generate fix-prompt GAP-001
+
+# 3. Copy prompt to your AI IDE (Cursor, Copilot, Claude)
+# 4. AI generates the fix
+# 5. Validate with SpecFact
+specfact enforce sdd --bundle legacy-api
+```
+
+**Why this approach?**
+
+- ✅ **You control the AI** - Use your preferred AI IDE and model
+- ✅ **SpecFact validates** - Ensure AI-generated code meets contracts
+- ✅ **No lock-in** - Works with Cursor, Copilot, Claude Code, or any AI tool
+- ✅ **Quality gates** - Prevent AI hallucinations from reaching production
 
 ---
 

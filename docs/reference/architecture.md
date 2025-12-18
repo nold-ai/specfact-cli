@@ -1,3 +1,9 @@
+---
+layout: default
+title: Architecture
+permalink: /architecture/
+---
+
 # Architecture
 
 Technical architecture and design principles of SpecFact CLI.

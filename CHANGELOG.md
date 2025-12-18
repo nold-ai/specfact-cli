@@ -9,6 +9,123 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.0] - 2025-12-17
+
+### 🎉 Long-Term Stable (LTS) Release
+
+**v0.20.0 is the Long-Term Stable (LTS) release for the 0.x series.** This release marks the stabilization of SpecFact CLI's core analysis and enforcement capabilities, positioning the tool for public promotion and early adopter usage.
+
+**0.x Positioning**: "Analyze your brownfield code, find gaps, enforce contracts"  
+**1.x Positioning**: "All of the above, PLUS AI-assisted code generation with validation"
+
+### Added (0.20.0)
+
+- **LTS Designation**: v0.20.0 marked as Long-Term Stable release
+- **Comprehensive Documentation**: Complete GitHub Pages integration with navigation and styling
+- **Migration Guide**: Updated migration guide from v0.16.x to v0.20.0 LTS
+
+### Improved (0.20.0)
+
+- **Documentation Site**: Enhanced Jekyll-based documentation with left-side navigation
+- **Code Block Styling**: Fixed syntax highlighting for better readability
+- **User Experience**: Improved documentation navigation and accessibility
+
+### Breaking Changes (0.20.0)
+
+**None** - v0.20.0 is fully backward compatible with v0.19.0.
+
+### Deprecated (0.20.0)
+
+- `implement tasks` command remains deprecated (removed in v1.0)
+- Use `generate fix-prompt` and `generate test-prompt` bridge commands instead
+
+### Docs (0.20.0)
+
+- **GitHub Pages**: Complete Jekyll integration with proper rendering
+- **Navigation**: Left-side navigation sidebar for better UX
+- **Styling**: Fixed CSS issues and improved code block readability
+- **Migration Guide**: Updated guide for v0.16.x → v0.20.0 LTS upgrade path
+
+### Notes (0.20.0)
+
+- **LTS Support**: v0.20.0 will receive bug fixes and security updates until v1.0 GA
+- **Next Steps**: v1.0 development begins after Phase B validation (Ultimate Vision track)
+- **Stability**: All core features (analysis, enforcement, gap detection) are stable and production-ready
+
+---
+
+## [0.19.0] - 2025-12-17
+
+### Added (0.19.0)
+
+- Integration tests for `generate fix-prompt` command (3 tests)
+- Integration tests for `generate test-prompt` command (3 tests)
+- Restored bridge commands from feature branch stash
+
+### Improved (0.19.0)
+
+- Full test coverage for Phase 7 version management features
+- Bridge commands now properly available in CLI
+
+### Docs (0.19.0)
+
+- Test coverage expanded for bridge command workflows
+
+---
+
+## [0.18.0] - 2025-12-17
+
+### Added (0.18.0)
+
+- README "Current Version" section clarifying 0.x = analysis/enforcement positioning
+- AI IDE Bridge documentation with workflow examples
+- Bridge command examples in Quick Start section
+
+### Improved (0.18.0)
+
+- README messaging updated to emphasize analysis and enforcement capabilities
+- Clear distinction between stable features (analysis, enforcement) and deprecated (code generation)
+- Added AI IDE bridge workflow documentation showing Cursor/Copilot/Claude integration
+
+### Docs (0.18.0)
+
+- README updated with v0.17.x status table
+- Added `generate fix-prompt` and `generate test-prompt` examples
+- Improved positioning: "analyze → find gaps → enforce" messaging
+
+---
+
+## [0.17.0] - 2025-12-15
+
+### Added (0.17.0)
+
+- Version management CLI: `project version check|bump|set` with consistent progress UI
+- ChangeAnalyzer for SemVer recommendations (breaking/additive/patch + content hash fallback)
+- CI template version check step with configurable modes (`info`/`warn` default/`block`)
+- Bridge commands: `generate fix-prompt` and `generate test-prompt` for AI IDE integration
+
+### Improved (0.17.0)
+
+- Version commands reuse shared bundle load/save progress and avoid double loads
+- Recorded version history and content hashes in bundle manifests for future comparisons
+
+### Deprecated (0.17.0)
+
+- `implement tasks` command deprecated in preparation for v1.0 AI-assisted code generation
+- `run idea-to-ship` removed per Bridge Plan to avoid code-gen artifacts in 0.x
+
+### Docs (0.17.0)
+
+- Command reference updated with version commands and CI version check modes
+- Implementation plan Phase 7 marked completed (version management + CI integration)
+
+### Notes (0.17.0)
+
+- CI template defaults to `warn` mode; teams can opt into `block` for stricter enforcement
+- Added integration coverage for version commands (check/bump/set)
+
+---
+
 ## [0.16.3] - 2025-12-13
 
 ### Added (0.16.3)
@@ -843,8 +960,7 @@ All notable changes to this project will be documented in this file.
   - Fixed YAML serialization error when generating task lists (enum values now properly serialized as strings)
   - Updated `generate tasks` command to use `model_dump(mode="json")` for proper enum serialization
 - **Bundle Name Validation**
-  - Fixed empty bundle name validation in `run idea-to-ship` command
-  - Added strict validation to ensure bundle names are always non-empty strings
+  - Removed `run idea-to-ship` command; bundle validation now handled in remaining project commands
   - Fixed projects directory path construction to avoid calling `SpecFactStructure.project_dir()` without bundle name
   - Enhanced bundle name auto-detection with proper filtering of empty directory names
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Examples
+permalink: /examples/
+---
+
 # Examples
 
 Real-world examples of using SpecFact CLI.

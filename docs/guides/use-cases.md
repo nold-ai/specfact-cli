@@ -1,3 +1,9 @@
+---
+layout: default
+title: Use Cases
+permalink: /use-cases/
+---
+
 # Use Cases
 
 Detailed use cases and examples for SpecFact CLI.

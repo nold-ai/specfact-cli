@@ -1,3 +1,9 @@
+---
+layout: default
+title: UX Features Guide
+permalink: /ux-features/
+---
+
 # UX Features Guide
 
 This guide covers the user experience features that make SpecFact CLI intuitive and efficient.

@@ -1,3 +1,9 @@
+---
+layout: default
+title: SpecFact CLI Directory Structure
+permalink: /directory-structure/
+---
+
 # SpecFact CLI Directory Structure
 
 This document defines the canonical directory structure for SpecFact CLI artifacts.

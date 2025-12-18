@@ -1,3 +1,9 @@
+---
+layout: default
+title: Getting Started with SpecFact CLI
+permalink: /getting-started/installation/
+---
+
 # Getting Started with SpecFact CLI
 
 This guide will help you get started with SpecFact CLI in under 60 seconds.

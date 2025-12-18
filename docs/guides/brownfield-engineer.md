@@ -1,3 +1,9 @@
+---
+layout: default
+title: Modernizing Legacy Code (Brownfield Engineer Guide)
+permalink: /brownfield-engineer/
+---
+
 # Guide for Legacy Modernization Engineers
 
 > **Complete walkthrough for modernizing legacy Python code with SpecFact CLI**

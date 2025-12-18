@@ -1,3 +1,9 @@
+---
+layout: default
+title: IDE Integration with SpecFact CLI
+permalink: /ide-integration/
+---
+
 # IDE Integration with SpecFact CLI
 
 **Status**: ✅ **AVAILABLE** (v0.4.2+)  

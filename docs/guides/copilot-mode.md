@@ -1,3 +1,9 @@
+---
+layout: default
+title: Using CoPilot Mode
+permalink: /copilot-mode/
+---
+
 # Using CoPilot Mode
 
 **Status**: ✅ **AVAILABLE** (v0.4.2+)  

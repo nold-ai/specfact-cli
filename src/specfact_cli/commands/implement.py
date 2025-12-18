@@ -1,8 +1,15 @@
 """
-Implement command - Execute tasks and generate code.
+Implement command - DEPRECATED in v0.17.0.
 
-This module provides commands for executing task breakdowns and generating
-actual code files from tasks.
+This module is deprecated. Task implementation is being redesigned for v1.0
+with AI-assisted code generation.
+
+Use instead:
+- `specfact generate fix-prompt` - Get AI prompts for fixing gaps
+- `specfact generate test-prompt` - Get AI prompts for generating tests
+- `specfact generate contracts-prompt` - Get AI prompts for adding contracts
+
+See: https://github.com/nold-ai/specfact-cli/discussions for roadmap
 """
 
 from __future__ import annotations
@@ -19,7 +26,7 @@ from specfact_cli.utils import print_error, print_info, print_success, print_war
 from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
 
 
-app = typer.Typer(help="Execute tasks and generate code")
+app = typer.Typer(help="[DEPRECATED] Execute tasks and generate code - Use 'generate fix-prompt' instead")
 console = Console()
 
 
@@ -60,19 +67,20 @@ def implement_tasks(
     ),
 ) -> None:
     """
-    Execute tasks from task breakdown and generate code files.
+    [DEPRECATED] Execute tasks from task breakdown and generate code files.
 
-    Loads a task breakdown file and executes tasks phase-by-phase, generating
-    actual code files according to task descriptions and file paths.
+    ⚠️  This command is deprecated in v0.17.0 and will be removed in v1.0.
 
-    **Parameter Groups:**
-    - **Target/Input**: tasks_file (required argument), --phase, --task
-    - **Behavior/Options**: --dry-run, --skip-validation, --no-interactive
+    **Use instead:**
+    - `specfact generate fix-prompt` - Get AI prompts for fixing gaps
+    - `specfact generate test-prompt` - Get AI prompts for generating tests
+    - `specfact generate contracts-prompt` - Get AI prompts for adding contracts
 
-    **Examples:**
-        specfact implement tasks .specfact/projects/bundle-name/tasks.yaml
-        specfact implement tasks .specfact/projects/bundle-name/tasks.yaml --phase setup
-        specfact implement tasks .specfact/projects/bundle-name/tasks.yaml --task TASK-001 --dry-run
+    **Why deprecated:**
+    Task implementation is being redesigned for v1.0 with AI-assisted code generation
+    that follows the AI-consumer-first architecture pattern.
+
+    See: https://github.com/nold-ai/specfact-cli/discussions for roadmap
     """
     from specfact_cli.telemetry import telemetry
 

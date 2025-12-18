@@ -2,7 +2,7 @@ rules:
   # ============================================================================
   # Deprecated & Legacy Patterns (Critical for Legacy Code)
   # ============================================================================
-  
+
   - id: deprecated-imp-module
     patterns:
       - pattern-either:
@@ -52,7 +52,7 @@ rules:
   # ============================================================================
   # Security Vulnerabilities (OWASP Top 10 Coverage)
   # ============================================================================
-  
+
   - id: unsafe-eval-usage
     patterns:
       - pattern-either:
@@ -153,7 +153,7 @@ rules:
   # ============================================================================
   # Code Quality & Anti-Patterns
   # ============================================================================
-  
+
   - id: god-class-detection
     patterns:
       - pattern: |
@@ -236,7 +236,7 @@ rules:
   # ============================================================================
   # Performance Patterns (Informational)
   # ============================================================================
-  
+
   - id: list-comprehension-usage
     patterns:
       - pattern: $VAR = [$EXPR for $ITEM in $ITER]
@@ -258,4 +258,3 @@ rules:
       category: feature-detection
       subcategory: [performance, generators]
       confidence: HIGH
-

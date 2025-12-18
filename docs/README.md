@@ -49,7 +49,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 ### New to SpecFact?
 
-**Primary Goal**: Modernize legacy Python codebases in < 5 minutes
+**Primary Goal**: Analyze legacy Python → find gaps → enforce contracts
 
 1. **[Getting Started](getting-started/README.md)** - Install and run your first command
 2. **[Modernizing Legacy Code?](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
@@ -58,6 +58,32 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 5. **[Use Cases](guides/use-cases.md)** - Common scenarios
 
 **Time**: < 10 minutes | **Result**: Running your first brownfield analysis
+
+---
+
+### Using AI IDEs? (Cursor, Copilot, Claude) 🆕
+
+**Primary Goal**: Let SpecFact find gaps, use your AI IDE to fix them
+
+```bash
+# 1. Run brownfield analysis and validation
+specfact import from-code my-project --repo .
+specfact repro --verbose
+
+# 2. Generate AI-ready prompt for a specific gap
+specfact generate fix-prompt GAP-001 --bundle my-project
+
+# 3. Copy to AI IDE → AI generates fix → Validate with SpecFact
+specfact enforce sdd --bundle my-project
+```
+
+**Why this approach?**
+
+- ✅ **You control the AI** - Use your preferred AI model
+- ✅ **SpecFact validates** - Ensure AI-generated code meets contracts
+- ✅ **No lock-in** - Works with any AI IDE
+
+👉 **[Command Reference - Generate Commands](reference/commands.md#generate---generate-artifacts)** - `fix-prompt` and `test-prompt` commands
 
 ---
 

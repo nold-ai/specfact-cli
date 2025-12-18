@@ -93,4 +93,3 @@ rules:
       subcategory: [test-cases, unittest]
       confidence: HIGH
       test_name: $NAME
-
