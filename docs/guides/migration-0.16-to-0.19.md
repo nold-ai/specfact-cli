@@ -33,8 +33,8 @@ specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
 Use the new bridge commands instead:
 
 ```bash
-# Find gaps in your code
-specfact analyze gaps --bundle my-bundle
+# Analyze and validate your codebase
+specfact repro --verbose
 
 # Generate AI-ready prompt to fix a gap
 specfact generate fix-prompt GAP-001 --bundle my-bundle
@@ -121,11 +121,11 @@ specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
 **New workflow:**
 
 ```bash
-# 1. Analyze for gaps
-specfact analyze gaps --bundle my-bundle
+# 1. Analyze and validate your codebase
+specfact repro --verbose
 
 # 2. Generate AI prompts for each gap
-specfact generate fix-prompt GAP-001
+specfact generate fix-prompt GAP-001 --bundle my-bundle
 
 # 3. Copy prompt to AI IDE, get fix, apply
 

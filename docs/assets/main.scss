@@ -1,5 +1,5 @@
 ---
-# Only the main CSS file needs this front matter
+# Jekyll frontmatter required for SCSS processing
 # Explicit permalink to prevent Jekyll from applying default permalink pattern
 permalink: /assets/main.css
 ---
@@ -74,22 +74,30 @@ body {
   }
 }
 
-// Main content area
-.site-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-// Page content styling
+// Main content area - minima uses .page-content with .wrapper
 .page-content {
   padding: 2rem 0;
+  color: var(--text-color) !important;
+  background-color: var(--bg-color) !important;
+}
+
+// Ensure all text elements have proper color
+.page-content,
+.page-content * {
+  color: inherit;
+}
+
+// Page content styling (scoped to docs-content to avoid conflicts)
+.docs-content {
+  padding: 2rem 0;
+  color: var(--text-color) !important;
+  background-color: var(--bg-color) !important;
   
   h1 {
     font-size: 2.5rem;
     font-weight: 800;
     margin-bottom: 1rem;
-    color: var(--text-color);
+    color: var(--text-color) !important;
     border-bottom: 3px solid var(--primary-color);
     padding-bottom: 0.5rem;
   }
@@ -99,7 +107,7 @@ body {
     font-weight: 700;
     margin-top: 2rem;
     margin-bottom: 1rem;
-    color: var(--text-color);
+    color: var(--text-color) !important;
   }
   
   h3 {
@@ -107,7 +115,7 @@ body {
     font-weight: 600;
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
-    color: var(--text-color);
+    color: var(--text-color) !important;
   }
   
   h4 {
@@ -115,12 +123,17 @@ body {
     font-weight: 600;
     margin-top: 1rem;
     margin-bottom: 0.5rem;
-    color: var(--text-color);
+    color: var(--text-color) !important;
   }
   
   p {
     margin-bottom: 1rem;
-    color: var(--text-color);
+    color: var(--text-color) !important;
+  }
+  
+  // Ensure all text in docs-content is visible
+  * {
+    color: inherit;
   }
   
   // Links
@@ -140,43 +153,180 @@ body {
   ul, ol {
     margin-bottom: 1rem;
     padding-left: 2rem;
+    color: var(--text-color) !important;
     
     li {
       margin-bottom: 0.5rem;
-      color: var(--text-color);
+      color: var(--text-color) !important;
       
       a {
-        color: var(--link-color);
+        color: var(--link-color) !important;
         
         &:hover {
-          color: var(--link-hover);
+          color: var(--link-hover) !important;
         }
       }
     }
   }
   
-  // Code blocks
+  // Tables (common in command reference)
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    background-color: var(--bg-color) !important;
+    
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      color: var(--text-color) !important;
+    }
+    
+    th {
+      background-color: var(--bg-light) !important;
+      font-weight: 600;
+      color: var(--text-color) !important;
+    }
+    
+    tr {
+      background-color: var(--bg-color) !important;
+    }
+    
+    tr:nth-child(even) {
+      background-color: var(--bg-light) !important;
+    }
+  }
+  
+  // Code blocks - Rouge syntax highlighting
+  .highlighter-rouge {
+    background-color: var(--code-bg) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    
+    .highlight {
+      background-color: var(--code-bg) !important;
+      
+      pre {
+        background-color: var(--code-bg) !important;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        overflow-x: auto;
+        margin: 0;
+        color: var(--text-color) !important;
+        
+        code {
+          background-color: transparent !important;
+          padding: 0;
+          border: none;
+          color: var(--text-color) !important;
+        }
+      }
+    }
+  }
+  
+  // Code blocks (fallback for non-Rouge)
   pre {
-    background-color: var(--code-bg);
+    background-color: var(--code-bg) !important;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     padding: 1rem;
     overflow-x: auto;
     margin-bottom: 1rem;
+    color: var(--text-color) !important;
     
     code {
-      background-color: transparent;
+      background-color: transparent !important;
       padding: 0;
       border: none;
+      color: var(--text-color) !important;
     }
   }
   
+  // Inline code
   code {
-    background-color: var(--code-bg);
+    background-color: var(--code-bg) !important;
     padding: 0.2rem 0.4rem;
     border-radius: 0.25rem;
     font-size: 0.9em;
     border: 1px solid var(--border-color);
+    color: var(--text-color) !important;
+  }
+  
+  // Rouge syntax highlighting spans - ensure no dark backgrounds
+  .highlight {
+    span {
+      background-color: transparent !important;
+      color: var(--text-color) !important;
+    }
+    
+    // Syntax highlighting colors (light theme)
+    .c { color: #6a737d !important; } // Comments
+    .k { color: #d73a49 !important; } // Keywords
+    .l { color: #005cc5 !important; } // Literals
+    .n { color: var(--text-color) !important; } // Names
+    .o { color: #d73a49 !important; } // Operators
+    .p { color: var(--text-color) !important; } // Punctuation
+    .cm { color: #6a737d !important; } // Comment multiline
+    .cp { color: #6a737d !important; } // Comment preproc
+    .c1 { color: #6a737d !important; } // Comment single
+    .cs { color: #6a737d !important; } // Comment special
+    .gd { color: #d73a49 !important; } // Generic deleted
+    .ge { font-style: italic !important; } // Generic emph
+    .gr { color: #d73a49 !important; } // Generic error
+    .gh { color: var(--text-color) !important; font-weight: bold !important; } // Generic heading
+    .gi { color: #28a745 !important; } // Generic inserted
+    .go { color: #6a737d !important; } // Generic output
+    .gp { color: #6a737d !important; } // Generic prompt
+    .gs { font-weight: bold !important; } // Generic strong
+    .gu { color: var(--text-color) !important; font-weight: bold !important; } // Generic subheading
+    .gt { color: #d73a49 !important; } // Generic traceback
+    .kc { color: #005cc5 !important; } // Keyword constant
+    .kd { color: #d73a49 !important; } // Keyword declaration
+    .kn { color: #d73a49 !important; } // Keyword namespace
+    .kp { color: #d73a49 !important; } // Keyword pseudo
+    .kr { color: #d73a49 !important; } // Keyword reserved
+    .kt { color: #d73a49 !important; } // Keyword type
+    .ld { color: #032f62 !important; } // Literal date
+    .m { color: #005cc5 !important; } // Literal number
+    .s { color: #032f62 !important; } // Literal string
+    .na { color: #005cc5 !important; } // Name attribute
+    .nb { color: #005cc5 !important; } // Name builtin
+    .nc { color: #6f42c1 !important; } // Name class
+    .no { color: #005cc5 !important; } // Name constant
+    .nd { color: #6f42c1 !important; } // Name decorator
+    .ni { color: #800080 !important; } // Name entity
+    .ne { color: #990000 !important; font-weight: bold !important; } // Name exception
+    .nf { color: #6f42c1 !important; } // Name function
+    .nl { color: #005cc5 !important; } // Name label
+    .nn { color: var(--text-color) !important; } // Name namespace
+    .nx { color: var(--text-color) !important; } // Name other
+    .py { color: var(--text-color) !important; } // Name property
+    .nt { color: #22863a !important; } // Name tag
+    .nv { color: #e36209 !important; } // Name variable
+    .ow { color: #d73a49 !important; } // Operator word
+    .w { color: #bbbbbb !important; } // Text whitespace
+    .mf { color: #005cc5 !important; } // Literal number float
+    .mh { color: #005cc5 !important; } // Literal number hex
+    .mi { color: #005cc5 !important; } // Literal number integer
+    .mo { color: #005cc5 !important; } // Literal number oct
+    .sb { color: #032f62 !important; } // Literal string backtick
+    .sc { color: #032f62 !important; } // Literal string char
+    .sd { color: #6a737d !important; } // Literal string doc
+    .s2 { color: #032f62 !important; } // Literal string double
+    .se { color: #032f62 !important; } // Literal string escape
+    .sh { color: #032f62 !important; } // Literal string heredoc
+    .si { color: #032f62 !important; } // Literal string interpol
+    .sx { color: #032f62 !important; } // Literal string other
+    .sr { color: #032f62 !important; } // Literal string regex
+    .s1 { color: #032f62 !important; } // Literal string single
+    .ss { color: #032f62 !important; } // Literal string symbol
+    .bp { color: var(--text-color) !important; } // Name builtin pseudo
+    .vc { color: #e36209 !important; } // Name variable class
+    .vg { color: #e36209 !important; } // Name variable global
+    .vi { color: #e36209 !important; } // Name variable instance
+    .il { color: #005cc5 !important; } // Literal number integer long
   }
   
   // Blockquotes
@@ -208,6 +358,81 @@ body {
     margin: 1.5rem 0;
     border-radius: 0.25rem;
   }
+}
+
+// Docs layout with left navigation
+.wrapper.docs-layout {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.docs-sidebar {
+  flex: 0 0 260px;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--bg-light);
+  padding: 1.5rem 1rem;
+  position: sticky;
+  top: 4rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.docs-sidebar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+}
+
+.docs-sidebar-title a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.docs-sidebar-title a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+.docs-nav {
+  font-size: 0.95rem;
+}
+
+.docs-nav-section {
+  font-weight: 600;
+  margin: 1rem 0 0.5rem 0;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+}
+
+.docs-nav ul {
+  list-style: none;
+  margin: 0 0 0.5rem 0;
+  padding-left: 0;
+}
+
+.docs-nav li {
+  margin-bottom: 0.35rem;
+}
+
+.docs-nav a {
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.docs-nav a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.docs-content {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 // Footer styling
@@ -244,6 +469,19 @@ body {
 
 // Responsive design
 @media screen and (max-width: 768px) {
+  .docs-layout {
+    padding: 1.5rem 1rem;
+    flex-direction: column;
+  }
+
+  .docs-sidebar {
+    position: static;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+  }
+
   .site-header {
     .site-title {
       font-size: 1.25rem;

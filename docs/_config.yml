@@ -36,6 +36,7 @@ exclude:
   - scripts
   - specs
   - resources
+  - "*.css.map"  # Exclude source map files
 
 # Source and destination (Jekyll will look for files in docs/)
 # Note: For GitHub Pages, Jekyll typically expects source in root or docs/
@@ -88,6 +89,7 @@ minima:
 # sass_dir is only needed for custom SASS partials directory
 sass:
   style: compressed
+  sourcemap: never  # Disable source maps to avoid conflicts
 
 # Footer
 footer:

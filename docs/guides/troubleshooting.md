@@ -1,3 +1,9 @@
+---
+layout: default
+title: Troubleshooting
+permalink: /troubleshooting/
+---
+
 # Troubleshooting
 
 Common issues and solutions for SpecFact CLI.

@@ -66,11 +66,12 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 **Primary Goal**: Let SpecFact find gaps, use your AI IDE to fix them
 
 ```bash
-# 1. Find gaps in your code
-specfact analyze gaps --bundle my-project
+# 1. Run brownfield analysis and validation
+specfact import from-code my-project --repo .
+specfact repro --verbose
 
-# 2. Generate AI-ready prompt
-specfact generate fix-prompt GAP-001
+# 2. Generate AI-ready prompt for a specific gap
+specfact generate fix-prompt GAP-001 --bundle my-project
 
 # 3. Copy to AI IDE → AI generates fix → Validate with SpecFact
 specfact enforce sdd --bundle my-project

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Command Reference
+permalink: /commands/
+---
+
 # Command Reference
 
 Complete reference for all SpecFact CLI commands.
@@ -65,8 +71,18 @@ specfact repro --verbose
 
 **Enforcement:**
 
+- `enforce sdd` - Validate SDD manifest compliance
 - `enforce stage` - Configure quality gates
 - `repro` - Run validation suite
+- `drift detect` - Detect drift between code and specifications
+
+**AI IDE Bridge (v0.17+):**
+
+- `generate fix-prompt` ⭐ **NEW** - Generate AI IDE prompt to fix gaps
+- `generate test-prompt` ⭐ **NEW** - Generate AI IDE prompt to create tests
+- `generate tasks` - Generate task breakdown from plan bundle
+- `generate contracts` - Generate contract stubs from SDD
+- `generate contracts-prompt` - Generate AI IDE prompt for adding contracts
 
 **Synchronization:**
 
@@ -90,9 +106,20 @@ specfact repro --verbose
 
 **⚠️ Deprecation Notice**: The old `specfact constitution` command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
 
+**Migration & Utilities:**
+
+- `migrate cleanup-legacy` - Remove empty legacy directories
+- `migrate to-contracts` - Migrate bundles to contract-centric structure
+- `migrate artifacts` - Migrate artifacts between bundle versions
+- `sdd list` - List all SDD manifests in repository
+
 **Setup:**
 
 - `init` - Initialize IDE integration
+
+**⚠️ Deprecated (v0.17.0):**
+
+- `implement tasks` - Use `generate fix-prompt` / `generate test-prompt` instead
 
 ---
 
@@ -1607,6 +1634,159 @@ Displays a table with:
 
 ---
 
+#### `project init-personas`
+
+Initialize personas in project bundle manifest for persona-based workflows.
+
+```bash
+specfact project init-personas [OPTIONS]
+```
+
+**Purpose:**
+
+Adds default persona mappings to the bundle manifest if they are missing. Useful for migrating existing bundles to use persona workflows or setting up new bundles for team collaboration.
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name. If not specified, attempts to auto-detect or prompt.
+- `--persona PERSONA` - Specific persona(s) to initialize (can be repeated). If not specified, initializes all default personas.
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Default Personas:**
+
+When no specific personas are specified, the following default personas are initialized:
+
+- **product-owner**: Owns idea, features metadata, and stories acceptance criteria
+- **architect**: Owns contracts, protocols, and technical constraints
+- **developer**: Owns implementation details, file paths, and technical stories
+
+**Examples:**
+
+```bash
+# Initialize all default personas
+specfact project init-personas --bundle legacy-api
+
+# Initialize specific personas only
+specfact project init-personas --bundle legacy-api --persona product-owner --persona architect
+
+# Non-interactive mode for CI/CD
+specfact project init-personas --bundle legacy-api --no-interactive
+```
+
+**When to Use:**
+
+- After creating a new bundle with `plan init`
+- When migrating existing bundles to persona workflows
+- When adding new team members with specific roles
+- Before using `project export/import` persona commands
+
+---
+
+#### `project version check`
+
+Check if a version bump is recommended based on bundle changes.
+
+```bash
+specfact project version check [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Output:**
+
+Returns a recommendation (`major`, `minor`, `patch`, or `none`) based on:
+
+- **major**: Breaking changes detected (API contracts modified, features removed)
+- **minor**: New features added, stories added
+- **patch**: Bug fixes, documentation changes, story updates
+- **none**: No significant changes detected
+
+**Examples:**
+
+```bash
+# Check version bump recommendation
+specfact project version check --bundle legacy-api
+```
+
+**CI/CD Integration:**
+
+Configure behavior via `SPECFACT_VERSION_CHECK_MODE` environment variable:
+
+- `info`: Informational only, logs recommendations
+- `warn` (default): Logs warnings but continues
+- `block`: Fails CI if recommendation is not followed
+
+---
+
+#### `project version bump`
+
+Apply a SemVer version bump to the project bundle.
+
+```bash
+specfact project version bump [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--type TYPE` - Bump type: `major`, `minor`, `patch` (required)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Bump minor version (e.g., 1.0.0 → 1.1.0)
+specfact project version bump --bundle legacy-api --type minor
+
+# Bump patch version (e.g., 1.1.0 → 1.1.1)
+specfact project version bump --bundle legacy-api --type patch
+```
+
+**What it does:**
+
+1. Reads current version from bundle manifest
+2. Applies SemVer bump based on type
+3. Records version history with timestamp
+4. Updates bundle hash
+
+---
+
+#### `project version set`
+
+Set an explicit version for the project bundle.
+
+```bash
+specfact project version set [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (required, or auto-detect)
+- `--version VERSION` - SemVer version string (e.g., `2.0.0`, `1.5.0-beta.1`)
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# Set explicit version
+specfact project version set --bundle legacy-api --version 2.0.0
+
+# Set pre-release version
+specfact project version set --bundle legacy-api --version 1.5.0-beta.1
+```
+
+**Use Cases:**
+
+- Initial version setup for new bundles
+- Aligning with external version requirements
+- Setting pre-release or build metadata versions
+
+---
+
 ### `contract` - OpenAPI Contract Management
 
 Manage OpenAPI contracts for project bundles, including initialization, validation, mock server generation, and test generation.
@@ -2380,6 +2560,217 @@ If `--apply` is missing or invalid, the CLI shows helpful error messages with:
 
 ---
 
+#### `generate fix-prompt`
+
+Generate AI IDE prompt for fixing a specific gap identified by analysis:
+
+```bash
+specfact generate fix-prompt [GAP_ID] [OPTIONS]
+```
+
+**Purpose:**
+
+Creates a structured prompt file for your AI IDE (Cursor, Copilot, etc.) to fix identified gaps in your codebase. This is the **recommended workflow for v0.17+** and replaces direct code generation.
+
+**Arguments:**
+
+- `GAP_ID` - Gap ID to fix (e.g., `GAP-001`). If not provided, lists available gaps.
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name. Default: active plan from `specfact plan select`
+- `--output PATH`, `-o PATH` - Output file path. Default: `.specfact/prompts/fix-<gap-id>.md`
+- `--top N` - Show top N gaps when listing. Default: 5
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+
+**Workflow:**
+
+1. Run analysis to identify gaps (via `import from-code` + `repro`)
+2. Run `specfact generate fix-prompt` to list available gaps
+3. Run `specfact generate fix-prompt GAP-001` to generate fix prompt
+4. Copy the prompt to your AI IDE (Cursor, Copilot, Claude, etc.)
+5. AI IDE provides the fix
+6. Validate with `specfact enforce sdd --bundle <bundle>`
+
+**Examples:**
+
+```bash
+# List available gaps
+specfact generate fix-prompt
+
+# Generate fix prompt for specific gap
+specfact generate fix-prompt GAP-001
+
+# List gaps for specific bundle
+specfact generate fix-prompt --bundle legacy-api
+
+# Save to specific file
+specfact generate fix-prompt GAP-001 --output fix.md
+
+# Show more gaps in listing
+specfact generate fix-prompt --top 10
+```
+
+**Gap Report Location:**
+
+Gap reports are stored at `.specfact/projects/<bundle-name>/reports/gaps.json`. If no gap report exists, the command provides guidance on how to generate one.
+
+**Why This Approach:**
+
+- **AI IDE native**: Uses your existing AI infrastructure (no separate LLM API setup)
+- **No additional costs**: Leverages IDE's native LLM
+- **You maintain control**: Review fixes before committing
+- **Works with any AI IDE**: Cursor, Copilot, Claude, Windsurf, etc.
+
+---
+
+#### `generate test-prompt`
+
+Generate AI IDE prompt for creating tests for a file:
+
+```bash
+specfact generate test-prompt [FILE] [OPTIONS]
+```
+
+**Purpose:**
+
+Creates a structured prompt file for your AI IDE to generate comprehensive tests for your code. This is the **recommended workflow for v0.17+**.
+
+**Arguments:**
+
+- `FILE` - File to generate tests for. If not provided with `--bundle`, shows files without tests.
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name. Default: active plan from `specfact plan select`
+- `--output PATH`, `-o PATH` - Output file path. Default: `.specfact/prompts/test-<filename>.md`
+- `--type TYPE` - Test type: `unit`, `integration`, or `both`. Default: `unit`
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+
+**Workflow:**
+
+1. Run `specfact generate test-prompt src/module.py` to get a test prompt
+2. Copy the prompt to your AI IDE
+3. AI IDE generates tests
+4. Save tests to appropriate location (e.g., `tests/unit/test_module.py`)
+5. Run tests with `pytest`
+
+**Examples:**
+
+```bash
+# List files that may need tests
+specfact generate test-prompt --bundle legacy-api
+
+# Generate unit test prompt for specific file
+specfact generate test-prompt src/auth/login.py
+
+# Generate integration test prompt
+specfact generate test-prompt src/api.py --type integration
+
+# Generate both unit and integration test prompts
+specfact generate test-prompt src/core/engine.py --type both
+
+# Save to specific file
+specfact generate test-prompt src/utils.py --output tests-prompt.md
+```
+
+**Test Coverage Analysis:**
+
+When run without a file argument, the command analyzes the repository for Python files without corresponding test files and displays them in a table.
+
+**Generated Prompt Content:**
+
+The generated prompt includes:
+
+- File path and content
+- Test type requirements (unit/integration/both)
+- Testing framework guidance (pytest, fixtures, parametrize)
+- Coverage requirements based on test type
+- AAA pattern (Arrange-Act-Assert) guidelines
+
+---
+
+#### `generate tasks`
+
+Generate task breakdown from project bundle and SDD manifest:
+
+```bash
+specfact generate tasks [BUNDLE] [OPTIONS]
+```
+
+**Purpose:**
+
+Creates a dependency-ordered task list organized by development phase, linking tasks to user stories with acceptance criteria, file paths, dependencies, and parallelization markers.
+
+**Arguments:**
+
+- `BUNDLE` - Project bundle name (e.g., `legacy-api`). Default: active plan from `specfact plan select`
+
+**Options:**
+
+- `--sdd PATH` - Path to SDD manifest. Default: auto-discover from bundle name
+- `--output-format FORMAT` - Output format: `yaml`, `json`, `markdown`. Default: `yaml`
+- `--out PATH` - Output file path. Default: `.specfact/projects/<bundle-name>/tasks.yaml`
+- `--no-interactive` - Non-interactive mode (for CI/CD automation)
+
+**Task Phases:**
+
+Tasks are organized into four phases:
+
+1. **Setup**: Project structure, dependencies, configuration
+2. **Foundational**: Core models, base classes, contracts
+3. **User Stories**: Feature implementation tasks (linked to stories)
+4. **Polish**: Tests, documentation, optimization
+
+**Examples:**
+
+```bash
+# Generate tasks for active bundle
+specfact generate tasks
+
+# Generate tasks for specific bundle
+specfact generate tasks legacy-api
+
+# Output as JSON
+specfact generate tasks auth-module --output-format json
+
+# Output as Markdown (human-readable)
+specfact generate tasks legacy-api --output-format markdown
+
+# Custom output path
+specfact generate tasks legacy-api --out custom-tasks.yaml
+```
+
+**Output Structure (YAML):**
+
+```yaml
+version: "1.0"
+bundle: legacy-api
+phases:
+  - name: Setup
+    tasks:
+      - id: TASK-001
+        title: Initialize project structure
+        story_ref: null
+        dependencies: []
+        parallel: false
+        files: [pyproject.toml, src/__init__.py]
+  - name: User Stories
+    tasks:
+      - id: TASK-010
+        title: Implement user authentication
+        story_ref: STORY-001
+        acceptance_criteria:
+          - Users can log in with email/password
+        dependencies: [TASK-001, TASK-005]
+        parallel: true
+        files: [src/auth/login.py]
+```
+
+**Note:** An SDD manifest (from `plan harden`) is recommended but not required. Without an SDD, tasks are generated based on plan bundle features and stories only.
+
+---
+
 ### `sync` - Synchronize Changes
 
 Bidirectional synchronization for consistent change management.
@@ -2922,6 +3313,237 @@ specfact bridge constitution validate --constitution custom-constitution.md
 - `specfact constitution bootstrap` → `specfact bridge constitution bootstrap`
 - `specfact constitution enrich` → `specfact bridge constitution enrich`
 - `specfact constitution validate` → `specfact bridge constitution validate`
+
+---
+
+### `migrate` - Migration Helpers
+
+Helper commands for migrating legacy artifacts and cleaning up deprecated structures.
+
+#### `migrate cleanup-legacy`
+
+Remove empty legacy top-level directories (Phase 8.5 cleanup).
+
+```bash
+specfact migrate cleanup-legacy [OPTIONS]
+```
+
+**Purpose:**
+
+Removes legacy directories that are no longer created by newer SpecFact versions:
+
+- `.specfact/plans/` (deprecated: no monolithic bundles, active bundle config moved to `config.yaml`)
+- `.specfact/contracts/` (now bundle-specific: `.specfact/projects/<bundle-name>/contracts/`)
+- `.specfact/protocols/` (now bundle-specific: `.specfact/projects/<bundle-name>/protocols/`)
+
+**Options:**
+
+- `--repo PATH` - Path to repository (default: `.`)
+- `--dry-run` - Show what would be removed without actually removing
+- `--force` - Remove directories even if they contain files (default: only removes empty directories)
+
+**Examples:**
+
+```bash
+# Preview what would be removed
+specfact migrate cleanup-legacy --dry-run
+
+# Remove empty legacy directories
+specfact migrate cleanup-legacy
+
+# Force removal even if directories contain files
+specfact migrate cleanup-legacy --force
+```
+
+**Safety:**
+
+By default, the command only removes **empty** directories. Use `--force` to remove directories containing files (use with caution).
+
+---
+
+#### `migrate to-contracts`
+
+Migrate legacy bundles to contract-centric structure.
+
+```bash
+specfact migrate to-contracts [BUNDLE] [OPTIONS]
+```
+
+**Purpose:**
+
+Converts legacy plan bundles to the new contract-centric structure, extracting OpenAPI contracts from verbose acceptance criteria and validating with Specmatic.
+
+**Arguments:**
+
+- `BUNDLE` - Project bundle name. Default: active plan from `specfact plan select`
+
+**Options:**
+
+- `--repo PATH` - Path to repository (default: `.`)
+- `--extract-openapi/--no-extract-openapi` - Extract OpenAPI contracts from verbose acceptance criteria (default: enabled)
+- `--validate-with-specmatic/--no-validate-with-specmatic` - Validate generated contracts with Specmatic (default: enabled)
+- `--dry-run` - Preview changes without writing
+- `--no-interactive` - Non-interactive mode
+
+**Examples:**
+
+```bash
+# Migrate bundle to contract-centric structure
+specfact migrate to-contracts legacy-api
+
+# Preview migration without writing
+specfact migrate to-contracts legacy-api --dry-run
+
+# Skip OpenAPI extraction
+specfact migrate to-contracts legacy-api --no-extract-openapi
+```
+
+**What it does:**
+
+1. Scans acceptance criteria for API-related patterns
+2. Extracts OpenAPI contract definitions
+3. Creates contract files in bundle-specific location
+4. Validates contracts with Specmatic (if available)
+5. Updates bundle manifest with contract references
+
+---
+
+#### `migrate artifacts`
+
+Migrate artifacts between bundle versions or locations.
+
+```bash
+specfact migrate artifacts [BUNDLE] [OPTIONS]
+```
+
+**Purpose:**
+
+Migrates artifacts (reports, contracts, SDDs) from legacy locations to the current bundle-specific structure.
+
+**Arguments:**
+
+- `BUNDLE` - Project bundle name. If not specified, migrates artifacts for all bundles found in `.specfact/projects/`
+
+**Options:**
+
+- `--repo PATH` - Path to repository (default: `.`)
+- `--dry-run` - Show what would be migrated without actually migrating
+- `--backup/--no-backup` - Create backups of original files (default: enabled)
+
+**Examples:**
+
+```bash
+# Migrate artifacts for specific bundle
+specfact migrate artifacts legacy-api
+
+# Migrate artifacts for all bundles
+specfact migrate artifacts
+
+# Preview migration
+specfact migrate artifacts legacy-api --dry-run
+
+# Skip backups (faster, but no rollback)
+specfact migrate artifacts legacy-api --no-backup
+```
+
+**What it migrates:**
+
+- Reports from legacy locations to `.specfact/projects/<bundle>/reports/`
+- Contracts from root-level to bundle-specific locations
+- SDD manifests from legacy paths to bundle-specific paths
+
+---
+
+### `sdd` - SDD Manifest Utilities
+
+Utilities for working with SDD (Software Design Document) manifests.
+
+#### `sdd list`
+
+List all SDD manifests in the repository.
+
+```bash
+specfact sdd list [OPTIONS]
+```
+
+**Purpose:**
+
+Shows all SDD manifests found in the repository, including:
+
+- Bundle-specific locations (`.specfact/projects/<bundle-name>/sdd.yaml`, Phase 8.5)
+- Legacy multi-SDD layout (`.specfact/sdd/*.yaml`)
+- Legacy single-SDD layout (`.specfact/sdd.yaml`)
+
+**Options:**
+
+- `--repo PATH` - Path to repository (default: `.`)
+
+**Examples:**
+
+```bash
+# List all SDD manifests
+specfact sdd list
+
+# List SDDs in specific repository
+specfact sdd list --repo /path/to/repo
+```
+
+**Output:**
+
+Displays a table with:
+
+- **Path**: Location of the SDD manifest
+- **Bundle**: Associated bundle name (if applicable)
+- **Version**: SDD schema version
+- **Features**: Number of features defined
+
+**Use Cases:**
+
+- Discover existing SDD manifests in a repository
+- Verify SDD locations after migration
+- Debug SDD-related issues
+
+---
+
+### `implement` - Deprecated Task Execution
+
+> **⚠️ DEPRECATED in v0.17.0**: The `implement` command group is deprecated and will be removed in a future version. Use the AI IDE bridge commands instead.
+
+#### `implement tasks` (Deprecated)
+
+Direct task execution was deprecated in favor of AI IDE bridge workflows.
+
+```bash
+# DEPRECATED - Do not use for new projects
+specfact implement tasks [OPTIONS]
+```
+
+**Migration Guide:**
+
+Replace `implement tasks` with the new AI IDE bridge workflow:
+
+| Old Command | New Workflow |
+|-------------|--------------|
+| `specfact implement tasks` | 1. `specfact generate fix-prompt GAP-ID` |
+| | 2. Copy prompt to AI IDE |
+| | 3. AI IDE provides the implementation |
+| | 4. `specfact enforce sdd` to validate |
+
+**Why Deprecated:**
+
+- AI IDE integration provides better context awareness
+- Human-in-the-loop validation before code changes
+- Works with any AI IDE (Cursor, Copilot, Claude, etc.)
+- More reliable and controllable than direct code generation
+
+**Recommended Replacements:**
+
+- **Fix gaps**: `specfact generate fix-prompt`
+- **Add tests**: `specfact generate test-prompt`
+- **Add contracts**: `specfact generate contracts-prompt`
+- **Generate tasks**: `specfact generate tasks` (task breakdown only, no execution)
+
+**See**: [Migration Guide (0.16 to 0.19)](../guides/migration-0.16-to-0.19.md) for detailed migration instructions.
 
 ---
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Operational Modes
+permalink: /modes/
+---
+
 # Operational Modes
 
 Reference documentation for SpecFact CLI's operational modes: CI/CD and CoPilot.

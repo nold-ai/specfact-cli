@@ -1,3 +1,9 @@
+---
+layout: default
+title: Competitive Analysis
+permalink: /competitive-analysis/
+---
+
 # What You Gain with SpecFact CLI
 
 How SpecFact CLI complements and extends other development tools.

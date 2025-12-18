@@ -1,3 +1,9 @@
+---
+layout: default
+title: Quick Examples
+permalink: /quick-examples/
+---
+
 # Quick Examples
 
 Quick code snippets for common SpecFact CLI tasks.

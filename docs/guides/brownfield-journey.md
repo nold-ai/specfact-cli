@@ -1,3 +1,9 @@
+---
+layout: default
+title: Brownfield Modernization Journey
+permalink: /brownfield-journey/
+---
+
 # Brownfield Modernization Journey
 
 > **Complete step-by-step workflow for modernizing legacy Python code with SpecFact CLI**

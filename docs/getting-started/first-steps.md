@@ -1,3 +1,9 @@
+---
+layout: default
+title: Your First Steps with SpecFact CLI
+permalink: /getting-started/first-steps/
+---
+
 # Your First Steps with SpecFact CLI
 
 This guide walks you through your first commands with SpecFact CLI, with step-by-step explanations.
@@ -100,15 +106,15 @@ specfact bridge constitution bootstrap --repo .
 ### Step 3: Find and Fix Gaps
 
 ```bash
-# Analyze for missing tests, contracts, and documentation
-specfact analyze gaps --bundle my-project
+# Analyze and validate your codebase
+specfact repro --verbose
 ```
 
 **What happens**:
 
-- Scans codebase for quality gaps
-- Identifies missing tests, contracts, and docs
-- Generates gap report with severity levels
+- Runs the full validation suite (linting, type checking, contracts, tests)
+- Identifies gaps and issues in your codebase
+- Generates enforcement reports that downstream tools (like `generate fix-prompt`) can use
 
 ### Step 4: Use AI to Fix Gaps (New in 0.17+)
 
