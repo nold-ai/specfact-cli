@@ -125,6 +125,9 @@ jobs:
       - name: Install SpecFact CLI
         run: pip install specfact-cli
 
+      - name: Set up CrossHair Configuration
+        run: specfact repro setup
+
       - name: Run Contract Validation
         run: specfact repro --verbose --budget 90
 
@@ -321,6 +324,104 @@ specfact sync repository --repo . --watch
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
 - **Bidirectional sync**: Use `sync bridge --adapter <adapter>` or `sync repository` for ongoing change management
 - **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact repro`
+
+---
+
+## Supported Project Management Tools
+
+SpecFact CLI automatically detects and works with the following Python project management tools. **No configuration needed** - it detects your project's environment manager automatically!
+
+### Automatic Detection
+
+When you run SpecFact CLI commands on a repository, it automatically:
+
+1. **Detects the environment manager** by checking for configuration files
+2. **Detects source directories** (`src/`, `lib/`, or package name from `pyproject.toml`)
+3. **Builds appropriate commands** using the detected environment manager
+4. **Checks tool availability** and skips with clear messages if tools are missing
+
+### Supported Tools
+
+#### 1. **hatch** - Modern Python project manager
+
+- **Detection**: `[tool.hatch]` section in `pyproject.toml`
+- **Command prefix**: `hatch run`
+- **Example**: `hatch run pytest tests/`
+- **Use case**: Modern Python projects using hatch for build and dependency management
+
+#### 2. **poetry** - Dependency management and packaging
+
+- **Detection**: `[tool.poetry]` section in `pyproject.toml` or `poetry.lock` file
+- **Command prefix**: `poetry run`
+- **Example**: `poetry run pytest tests/`
+- **Use case**: Projects using Poetry for dependency management
+
+#### 3. **uv** - Fast Python package installer and resolver
+
+- **Detection**: `[tool.uv]` section in `pyproject.toml`, `uv.lock`, or `uv.toml` file
+- **Command prefix**: `uv run`
+- **Example**: `uv run pytest tests/`
+- **Use case**: Projects using uv for fast package management
+
+#### 4. **pip** - Standard Python package installer
+
+- **Detection**: `requirements.txt` or `setup.py` file
+- **Command prefix**: Direct tool invocation (no prefix)
+- **Example**: `pytest tests/`
+- **Use case**: Traditional Python projects using pip and virtual environments
+
+### Detection Priority
+
+SpecFact CLI checks in this order:
+
+1. `pyproject.toml` for tool sections (`[tool.hatch]`, `[tool.poetry]`, `[tool.uv]`)
+2. Lock files (`poetry.lock`, `uv.lock`, `uv.toml`)
+3. Fallback to `requirements.txt` or `setup.py` for pip-based projects
+
+### Source Directory Detection
+
+SpecFact CLI automatically detects source directories:
+
+- **Standard layouts**: `src/`, `lib/`
+- **Package name**: Extracted from `pyproject.toml` (e.g., `my-package` → `my_package/`)
+- **Root-level**: Falls back to root directory if no standard layout found
+
+### Example: Working with Different Projects
+
+```bash
+# Hatch project
+cd /path/to/hatch-project
+specfact repro --repo .  # Automatically uses "hatch run" for tools
+
+# Poetry project
+cd /path/to/poetry-project
+specfact repro --repo .  # Automatically uses "poetry run" for tools
+
+# UV project
+cd /path/to/uv-project
+specfact repro --repo .  # Automatically uses "uv run" for tools
+
+# Pip project
+cd /path/to/pip-project
+specfact repro --repo .  # Uses direct tool invocation
+```
+
+### External Repository Support
+
+SpecFact CLI works seamlessly on **external repositories** without requiring:
+
+- ❌ SpecFact CLI adoption
+- ❌ Specific project structures
+- ❌ Manual configuration
+- ❌ Tool installation in global environment
+
+**All commands automatically adapt to the target repository's environment and structure.**
+
+This makes SpecFact CLI ideal for:
+
+- **OSS validation workflows** - Validate external open-source projects
+- **Multi-project environments** - Work with different project structures
+- **CI/CD pipelines** - Validate any Python project without setup
 
 ## Common Commands
 

@@ -19,6 +19,12 @@ from specfact_cli.models.sdd import SDDManifest
 from specfact_cli.models.task import TaskList, TaskPhase
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
+from specfact_cli.utils.env_manager import (
+    build_tool_command,
+    detect_env_manager,
+    detect_source_directories,
+    find_test_files_for_source,
+)
 from specfact_cli.utils.optional_deps import check_cli_tool_available
 from specfact_cli.utils.structured_io import load_structured_file
 
@@ -931,12 +937,24 @@ def apply_enhanced_contracts(
             parts = enhanced_stem.split("-")
             if len(parts) >= 2:
                 original_name = parts[1]  # Get the original file name
-                # Try common locations
-                possible_paths = [
-                    repo_path / f"src/specfact_cli/{original_name}.py",
-                    repo_path / f"src/{original_name}.py",
-                    repo_path / f"{original_name}.py",
-                ]
+                # Detect source directories dynamically
+                source_dirs = detect_source_directories(repo_path)
+                # Build possible paths based on detected source directories
+                possible_paths: list[Path] = []
+                # Add root-level file
+                possible_paths.append(repo_path / f"{original_name}.py")
+                # Add paths based on detected source directories
+                for src_dir in source_dirs:
+                    # Remove trailing slash if present
+                    src_dir_clean = src_dir.rstrip("/")
+                    possible_paths.append(repo_path / src_dir_clean / f"{original_name}.py")
+                # Also try common patterns as fallback
+                possible_paths.extend(
+                    [
+                        repo_path / f"src/{original_name}.py",
+                        repo_path / f"lib/{original_name}.py",
+                    ]
+                )
                 for path in possible_paths:
                     if path.exists():
                         original_file = path
@@ -980,11 +998,16 @@ def apply_enhanced_contracts(
     console.print("\n[bold cyan]Step 2/6: Validating enhanced code syntax...[/bold cyan]")
     syntax_errors: list[str] = []
     try:
+        # Detect environment manager and build appropriate command
+        env_info = detect_env_manager(repo_path)
+        python_command = ["python", "-m", "py_compile", str(enhanced_file)]
+        compile_command = build_tool_command(env_info, python_command)
         result = subprocess.run(
-            ["python", "-m", "py_compile", str(enhanced_file)],
+            compile_command,
             capture_output=True,
             text=True,
             timeout=10,
+            cwd=str(repo_path),
         )
         if result.returncode != 0:
             error_output = result.stderr.strip()
@@ -1104,6 +1127,9 @@ def apply_enhanced_contracts(
     tools_checked = 0
     tools_passed = 0
 
+    # Detect environment manager for building commands
+    env_info = detect_env_manager(repo_path)
+
     # List of common linting/formatting tools to check
     linting_tools = [
         ("ruff", ["ruff", "check", str(enhanced_file)], "Ruff linting"),
@@ -1122,8 +1148,10 @@ def apply_enhanced_contracts(
         console.print(f"[dim]Running {description}...[/dim]")
 
         try:
+            # Build command with environment manager prefix if needed
+            command_full = build_tool_command(env_info, command)
             result = subprocess.run(
-                command,
+                command_full,
                 capture_output=True,
                 text=True,
                 timeout=30,  # 30 seconds per tool
@@ -1180,56 +1208,10 @@ def apply_enhanced_contracts(
         # Determine the source file we're testing (original or enhanced)
         source_file_rel = original_file_rel if original_file_rel else enhanced_file_rel
 
-        # Convert source file path to potential test file paths
-        # Pattern: src/specfact_cli/telemetry.py -> tests/unit/specfact_cli/test_telemetry.py
-        # or: src/common/logger.py -> tests/unit/common/test_logger.py
-        test_paths: list[Path] = []
-
-        # Remove 'src/' prefix if present
-        test_rel_path = str(source_file_rel)
-        if test_rel_path.startswith("src/"):
-            test_rel_path = test_rel_path[4:]  # Remove 'src/'
-        elif test_rel_path.startswith("tools/"):
-            test_rel_path = test_rel_path[6:]  # Remove 'tools/'
-
-        # Get directory and filename
-        test_file_dir = Path(test_rel_path).parent
-        test_file_name = Path(test_rel_path).stem  # e.g., "telemetry" from "telemetry.py"
-
-        # Try common test file patterns
-        test_file_patterns = [
-            f"test_{test_file_name}.py",
-            f"{test_file_name}_test.py",
-        ]
-
-        # Try common test directory structures
-        test_dirs = [
-            repo_path / "tests" / "unit" / test_file_dir,
-            repo_path / "tests" / test_file_dir,
-            repo_path / "tests" / "unit",
-            repo_path / "tests",
-        ]
-
-        # Build list of possible test file paths
-        for test_dir in test_dirs:
-            if test_dir.exists():
-                for pattern in test_file_patterns:
-                    test_path = test_dir / pattern
-                    if test_path.exists():
-                        test_paths.append(test_path)
-
-        # Also try E2E tests if unit tests not found
-        if not test_paths:
-            e2e_test_dirs = [
-                repo_path / "tests" / "e2e" / test_file_dir,
-                repo_path / "tests" / "e2e",
-            ]
-            for test_dir in e2e_test_dirs:
-                if test_dir.exists():
-                    for pattern in test_file_patterns:
-                        test_path = test_dir / pattern
-                        if test_path.exists():
-                            test_paths.append(test_path)
+        # Use utility function to find test files dynamically
+        test_paths = find_test_files_for_source(
+            repo_path, source_file_rel if source_file_rel.is_absolute() else repo_path / source_file_rel
+        )
 
         # If we found specific test files, run them
         if test_paths:
@@ -1238,8 +1220,13 @@ def apply_enhanced_contracts(
             console.print(f"[dim]Found test file: {test_path.relative_to(repo_path)}[/dim]")
             console.print("[dim]Running pytest on specific test file (fast, scoped validation)...[/dim]")
 
+            # Detect environment manager and build appropriate command
+            env_info = detect_env_manager(repo_path)
+            pytest_command = ["pytest", str(test_path), "-v", "--tb=short"]
+            pytest_command_full = build_tool_command(env_info, pytest_command)
+
             result = subprocess.run(
-                ["pytest", str(test_path), "-v", "--tb=short"],
+                pytest_command_full,
                 capture_output=True,
                 text=True,
                 timeout=60,  # 1 minute should be enough for a single test file
@@ -2030,10 +2017,21 @@ def generate_test_prompt(
                 console.print("\n[bold cyan]Files that may need tests:[/bold cyan]\n")
 
                 # Find Python files without corresponding test files
+                # Use dynamic source directory detection
+                source_dirs = detect_source_directories(repo_path)
                 src_files: list[Path] = []
-                for src_dir in [repo_path / "src", repo_path]:
-                    if src_dir.exists():
-                        src_files.extend(src_dir.rglob("*.py"))
+                # If no source dirs detected, check common patterns
+                if not source_dirs:
+                    for src_dir in [repo_path / "src", repo_path / "lib", repo_path]:
+                        if src_dir.exists():
+                            src_files.extend(src_dir.rglob("*.py"))
+                else:
+                    # Use detected source directories
+                    for src_dir_str in source_dirs:
+                        src_dir_clean = src_dir_str.rstrip("/")
+                        src_dir_path = repo_path / src_dir_clean
+                        if src_dir_path.exists():
+                            src_files.extend(src_dir_path.rglob("*.py"))
 
                 files_without_tests: list[tuple[Path, str]] = []
                 for src_file in src_files:
@@ -2042,12 +2040,9 @@ def generate_test_prompt(
                     if src_file.name.startswith("__"):
                         continue
 
-                    # Check for corresponding test file
-                    test_patterns = [
-                        repo_path / "tests" / "unit" / f"test_{src_file.stem}.py",
-                        repo_path / "tests" / f"test_{src_file.stem}.py",
-                    ]
-                    has_test = any(tp.exists() for tp in test_patterns)
+                    # Check for corresponding test file using dynamic detection
+                    test_files = find_test_files_for_source(repo_path, src_file)
+                    has_test = len(test_files) > 0
                     if not has_test:
                         rel_path = src_file.relative_to(repo_path) if src_file.is_relative_to(repo_path) else src_file
                         files_without_tests.append((src_file, str(rel_path)))

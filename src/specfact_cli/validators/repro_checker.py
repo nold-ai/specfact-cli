@@ -650,9 +650,37 @@ class ReproChecker:
         """
         Run all validation checks.
 
+        Detects the target repository's environment manager and builds appropriate
+        commands. Makes all tools optional with clear messaging when unavailable.
+
         Returns:
             ReproReport with aggregated results
         """
+        from specfact_cli.utils.env_manager import (
+            build_tool_command,
+            check_tool_in_env,
+            detect_env_manager,
+            detect_source_directories,
+        )
+
+        # Detect environment manager for the target repository
+        # Note: Environment detection message is printed in the command layer
+        # (repro.py) before the progress spinner starts to avoid formatting issues
+        env_info = detect_env_manager(self.repo_path)
+
+        # Detect source directories dynamically
+        source_dirs = detect_source_directories(self.repo_path)
+        # Fallback to common patterns if detection found nothing
+        if not source_dirs:
+            # Check for common patterns
+            if (self.repo_path / "src").exists():
+                source_dirs = ["src/"]
+            elif (self.repo_path / "lib").exists():
+                source_dirs = ["lib/"]
+            else:
+                # For external repos, try to find Python packages at root
+                source_dirs = ["."]
+
         # Check if semgrep config exists
         semgrep_config = self.repo_path / "tools" / "semgrep" / "async.yml"
         semgrep_enabled = semgrep_config.exists()
@@ -660,87 +688,147 @@ class ReproChecker:
         # Check if test directories exist
         contracts_tests = self.repo_path / "tests" / "contracts"
         smoke_tests = self.repo_path / "tests" / "smoke"
-        src_dir = self.repo_path / "src"
+        tests_dir = self.repo_path / "tests"
 
-        checks: list[tuple[str, str, list[str], int | None, bool]] = [
-            (
-                "Linting (ruff)",
-                "ruff",
-                ["ruff", "check", "--output-format=full", "src/", "tests/", "tools/"],
-                None,
-                True,
-            ),
-        ]
+        checks: list[tuple[str, str, list[str], int | None, bool]] = []
 
-        # Add semgrep only if config exists
-        if semgrep_enabled:
-            semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(self.repo_path)), "."]
-            if self.fix:
-                semgrep_command.append("--autofix")
+        # Linting (ruff) - optional
+        ruff_available, _ = check_tool_in_env(self.repo_path, "ruff", env_info)
+        if ruff_available:
+            ruff_command = ["ruff", "check", "--output-format=full", *source_dirs]
+            if tests_dir.exists():
+                ruff_command.append("tests/")
+            if (self.repo_path / "tools").exists():
+                ruff_command.append("tools/")
+            ruff_command = build_tool_command(env_info, ruff_command)
             checks.append(
                 (
-                    "Async patterns (semgrep)",
-                    "semgrep",
-                    semgrep_command,
-                    30,
+                    "Linting (ruff)",
+                    "ruff",
+                    ruff_command,
+                    None,
+                    True,
+                )
+            )
+        else:
+            # Add as skipped check with message
+            checks.append(
+                (
+                    "Linting (ruff)",
+                    "ruff",
+                    [],
+                    None,
                     True,
                 )
             )
 
-        checks.extend(
-            [
-                ("Type checking (basedpyright)", "basedpyright", ["basedpyright", "src/", "tools/"], None, True),
-            ]
-        )
+        # Semgrep - optional, only if config exists
+        if semgrep_enabled:
+            semgrep_available, _ = check_tool_in_env(self.repo_path, "semgrep", env_info)
+            if semgrep_available:
+                semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(self.repo_path)), "."]
+                if self.fix:
+                    semgrep_command.append("--autofix")
+                semgrep_command = build_tool_command(env_info, semgrep_command)
+                checks.append(
+                    (
+                        "Async patterns (semgrep)",
+                        "semgrep",
+                        semgrep_command,
+                        30,
+                        True,
+                    )
+                )
+            else:
+                checks.append(
+                    (
+                        "Async patterns (semgrep)",
+                        "semgrep",
+                        [],
+                        30,
+                        True,
+                    )
+                )
 
-        # Add CrossHair only if src/ exists
-        # Exclude common/logger_setup.py from CrossHair analysis due to known signature analysis issues
-        # CrossHair doesn't support --exclude, so we exclude the common directory and add other directories
-        # Use hatch run to ensure CrossHair runs in the correct Python environment with dependencies
-        if src_dir.exists():
-            # Get all subdirectories except common
-            specfact_dirs = [d for d in src_dir.iterdir() if d.is_dir() and d.name != "common"]
-            crosshair_targets = ["src/" + d.name for d in specfact_dirs] + ["tools/"]
-            # Check if hatch is available, otherwise fall back to direct crosshair command
-            hatch_available = shutil.which("hatch") is not None
-            if hatch_available:
-                # Use hatch run to ensure correct Python environment
+        # Type checking (basedpyright) - optional
+        basedpyright_available, _ = check_tool_in_env(self.repo_path, "basedpyright", env_info)
+        if basedpyright_available:
+            basedpyright_command = ["basedpyright", *source_dirs]
+            if (self.repo_path / "tools").exists():
+                basedpyright_command.append("tools/")
+            basedpyright_command = build_tool_command(env_info, basedpyright_command)
+            checks.append(("Type checking (basedpyright)", "basedpyright", basedpyright_command, None, True))
+        else:
+            checks.append(("Type checking (basedpyright)", "basedpyright", [], None, True))
+
+        # CrossHair - optional, only if source directories exist
+        if source_dirs:
+            crosshair_available, _ = check_tool_in_env(self.repo_path, "crosshair", env_info)
+            if crosshair_available:
+                # Build CrossHair command with detected source directories
+                # For external repos, use all detected source dirs
+                crosshair_targets = source_dirs.copy()
+                if (self.repo_path / "tools").exists():
+                    crosshair_targets.append("tools/")
+
+                # Build command: python -m crosshair check <targets>
+                crosshair_base = ["python", "-m", "crosshair", "check", *crosshair_targets]
+                crosshair_command = build_tool_command(env_info, crosshair_base)
                 checks.append(
                     (
                         "Contract exploration (CrossHair)",
                         "crosshair",
-                        ["hatch", "run", "python", "-m", "crosshair", "check", *crosshair_targets],
+                        crosshair_command,
                         60,
                         True,
                     )
                 )
             else:
-                # Fall back to direct crosshair command (may fail if wrong Python environment)
                 checks.append(
                     (
                         "Contract exploration (CrossHair)",
                         "crosshair",
-                        ["crosshair", "check", *crosshair_targets],
+                        [],
                         60,
                         True,
                     )
                 )
 
-        # Add property tests only if directory exists
+        # Property tests - optional, only if directory exists
         if contracts_tests.exists():
-            checks.append(
-                (
-                    "Property tests (pytest contracts)",
-                    "pytest",
-                    ["pytest", "tests/contracts/", "-v"],
-                    30,
-                    True,
+            pytest_available, _ = check_tool_in_env(self.repo_path, "pytest", env_info)
+            if pytest_available:
+                pytest_command = ["pytest", "tests/contracts/", "-v"]
+                pytest_command = build_tool_command(env_info, pytest_command)
+                checks.append(
+                    (
+                        "Property tests (pytest contracts)",
+                        "pytest",
+                        pytest_command,
+                        30,
+                        True,
+                    )
                 )
-            )
+            else:
+                checks.append(
+                    (
+                        "Property tests (pytest contracts)",
+                        "pytest",
+                        [],
+                        30,
+                        True,
+                    )
+                )
 
-        # Add smoke tests only if directory exists
+        # Smoke tests - optional, only if directory exists
         if smoke_tests.exists():
-            checks.append(("Smoke tests (pytest smoke)", "pytest", ["pytest", "tests/smoke/", "-v"], 30, True))
+            pytest_available, _ = check_tool_in_env(self.repo_path, "pytest", env_info)
+            if pytest_available:
+                pytest_command = ["pytest", "tests/smoke/", "-v"]
+                pytest_command = build_tool_command(env_info, pytest_command)
+                checks.append(("Smoke tests (pytest smoke)", "pytest", pytest_command, 30, True))
+            else:
+                checks.append(("Smoke tests (pytest smoke)", "pytest", [], 30, True))
 
         for check_args in checks:
             # Check budget before starting
@@ -748,6 +836,20 @@ class ReproChecker:
             if elapsed >= self.budget:
                 self.report.budget_exceeded = True
                 break
+
+            # Skip checks with empty commands (tool not available)
+            name, tool, command, _timeout, _skip_if_missing = check_args
+            if not command:
+                # Tool not available - create skipped result with helpful message
+                _tool_available, tool_message = check_tool_in_env(self.repo_path, tool, env_info)
+                result = CheckResult(
+                    name=name,
+                    tool=tool,
+                    status=CheckStatus.SKIPPED,
+                    error=tool_message or f"Tool '{tool}' not available",
+                )
+                self.report.add_check(result)
+                continue
 
             # Run check
             result = self.run_check(*check_args)

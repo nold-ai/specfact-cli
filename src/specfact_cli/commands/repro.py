@@ -11,18 +11,101 @@ from pathlib import Path
 
 import typer
 from beartype import beartype
-from icontract import ensure, require
+from click import Context as ClickContext
+from icontract import require
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.env_manager import check_tool_in_env, detect_env_manager, detect_source_directories
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.validators.repro_checker import ReproChecker
 
 
 app = typer.Typer(help="Run validation suite for reproducibility")
 console = Console()
+
+
+def _update_pyproject_crosshair_config(pyproject_path: Path, config: dict[str, int | float]) -> bool:
+    """
+    Update or create [tool.crosshair] section in pyproject.toml.
+
+    Args:
+        pyproject_path: Path to pyproject.toml
+        config: Dictionary with CrossHair configuration values
+
+    Returns:
+        True if config was updated/created, False otherwise
+    """
+    try:
+        # Try tomlkit for style-preserving updates (recommended)
+        try:
+            import tomlkit
+
+            # Read existing file to preserve style
+            if pyproject_path.exists():
+                with pyproject_path.open("r", encoding="utf-8") as f:
+                    doc = tomlkit.parse(f.read())
+            else:
+                doc = tomlkit.document()
+
+            # Update or create [tool.crosshair] section
+            if "tool" not in doc:
+                doc["tool"] = tomlkit.table()  # type: ignore[assignment]
+            if "crosshair" not in doc["tool"]:  # type: ignore[index]
+                doc["tool"]["crosshair"] = tomlkit.table()  # type: ignore[index,assignment]
+
+            for key, value in config.items():
+                doc["tool"]["crosshair"][key] = value  # type: ignore[index]
+
+            # Write back
+            with pyproject_path.open("w", encoding="utf-8") as f:
+                f.write(tomlkit.dumps(doc))  # type: ignore[arg-type]
+
+            return True
+
+        except ImportError:
+            # Fallback: use tomllib/tomli to read, then append section manually
+            try:
+                import tomllib
+            except ImportError:
+                try:
+                    import tomli as tomllib  # noqa: F401
+                except ImportError:
+                    console.print("[red]Error:[/red] No TOML library available (need tomlkit, tomllib, or tomli)")
+                    return False
+
+            # Read existing content
+            existing_content = ""
+            if pyproject_path.exists():
+                existing_content = pyproject_path.read_text(encoding="utf-8")
+
+            # Check if [tool.crosshair] already exists
+            if "[tool.crosshair]" in existing_content:
+                # Update existing section (simple regex replacement)
+                import re
+
+                pattern = r"\[tool\.crosshair\][^\[]*"
+                new_section = "[tool.crosshair]\n"
+                for key, value in config.items():
+                    new_section += f"{key} = {value}\n"
+
+                existing_content = re.sub(pattern, new_section.rstrip(), existing_content, flags=re.DOTALL)
+            else:
+                # Append new section
+                if existing_content and not existing_content.endswith("\n"):
+                    existing_content += "\n"
+                existing_content += "\n[tool.crosshair]\n"
+                for key, value in config.items():
+                    existing_content += f"{key} = {value}\n"
+
+            pyproject_path.write_text(existing_content, encoding="utf-8")
+            return True
+
+    except Exception as e:
+        console.print(f"[red]Error updating pyproject.toml:[/red] {e}")
+        return False
 
 
 def _is_valid_repo_path(path: Path) -> bool:
@@ -40,14 +123,11 @@ def _count_python_files(path: Path) -> int:
     return sum(1 for _ in path.rglob("*.py"))
 
 
-@app.callback(invoke_without_command=True)
-@beartype
-@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
-@require(lambda budget: budget > 0, "Budget must be positive")
-@ensure(lambda out: _is_valid_output_path(out), "Output path must exist if provided")
+@app.callback(invoke_without_command=True, no_args_is_help=False)
 # CrossHair: Skip analysis for Typer-decorated functions (signature analysis limitation)
 # type: ignore[crosshair]
 def main(
+    ctx: ClickContext,
     # Target/Input
     repo: Path = typer.Option(
         Path("."),
@@ -89,20 +169,39 @@ def main(
     ),
 ) -> None:
     """
-    Run full validation suite.
+    Run full validation suite for reproducibility.
+
+    Automatically detects the target repository's environment manager (hatch, poetry, uv, pip)
+    and adapts commands accordingly. All tools are optional and will be skipped with clear
+    messages if unavailable.
 
     Executes:
-    - Lint checks (ruff)
-    - Async patterns (semgrep)
-    - Type checking (basedpyright)
-    - Contract exploration (CrossHair)
-    - Property tests (pytest tests/contracts/)
-    - Smoke tests (pytest tests/smoke/)
+    - Lint checks (ruff) - optional
+    - Async patterns (semgrep) - optional, only if config exists
+    - Type checking (basedpyright) - optional
+    - Contract exploration (CrossHair) - optional
+    - Property tests (pytest tests/contracts/) - optional, only if directory exists
+    - Smoke tests (pytest tests/smoke/) - optional, only if directory exists
+
+    Works on external repositories without requiring SpecFact CLI adoption.
 
     Example:
         specfact repro --verbose --budget 120
+        specfact repro --repo /path/to/external/repo --verbose
         specfact repro --fix --budget 120
     """
+    # If a subcommand was invoked, don't run the main validation
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # Type checking for parameters (after subcommand check)
+    if not _is_valid_repo_path(repo):
+        raise typer.BadParameter("Repo path must exist and be directory")
+    if budget <= 0:
+        raise typer.BadParameter("Budget must be positive")
+    if not _is_valid_output_path(out):
+        raise typer.BadParameter("Output path must exist if provided")
+
     from specfact_cli.utils.yaml_utils import dump_yaml
 
     console.print("[bold cyan]Running validation suite...[/bold cyan]")
@@ -127,6 +226,13 @@ def main(
     with telemetry.track_command("repro.run", telemetry_metadata) as record_event:
         # Run all checks
         checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast, fix=fix)
+
+        # Detect and display environment manager before starting progress spinner
+        from specfact_cli.utils.env_manager import detect_env_manager
+
+        env_info = detect_env_manager(repo)
+        if env_info.message:
+            console.print(f"[dim]{env_info.message}[/dim]")
 
         with Progress(
             SpinnerColumn(),
@@ -224,3 +330,130 @@ def main(
         else:
             console.print("\n[yellow]⏱[/yellow] Budget exceeded")
             raise typer.Exit(2)
+
+
+@app.command("setup")
+@beartype
+@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
+def setup(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    install_crosshair: bool = typer.Option(
+        False,
+        "--install-crosshair",
+        help="Attempt to install crosshair-tool if not available",
+    ),
+) -> None:
+    """
+    Set up CrossHair configuration for contract exploration.
+
+    Automatically generates [tool.crosshair] configuration in pyproject.toml
+    to enable contract exploration with CrossHair during repro runs.
+
+    This command:
+    - Detects source directories in the repository
+    - Creates/updates pyproject.toml with CrossHair configuration
+    - Optionally checks if crosshair-tool is installed
+    - Provides guidance on next steps
+
+    Example:
+        specfact repro setup
+        specfact repro setup --repo /path/to/repo
+        specfact repro setup --install-crosshair
+    """
+    console.print("[bold cyan]Setting up CrossHair configuration...[/bold cyan]")
+    console.print(f"[dim]Repository: {repo}[/dim]\n")
+
+    # Detect environment manager
+    env_info = detect_env_manager(repo)
+    if env_info.message:
+        console.print(f"[dim]{env_info.message}[/dim]")
+
+    # Detect source directories
+    source_dirs = detect_source_directories(repo)
+    if not source_dirs:
+        # Fallback to common patterns
+        if (repo / "src").exists():
+            source_dirs = ["src/"]
+        elif (repo / "lib").exists():
+            source_dirs = ["lib/"]
+        else:
+            source_dirs = ["."]
+
+    console.print(f"[green]✓[/green] Detected source directories: {', '.join(source_dirs)}")
+
+    # Check if crosshair-tool is available
+    crosshair_available, crosshair_message = check_tool_in_env(repo, "crosshair", env_info)
+    if crosshair_available:
+        console.print("[green]✓[/green] crosshair-tool is available")
+    else:
+        console.print(f"[yellow]⚠[/yellow] crosshair-tool not available: {crosshair_message}")
+        if install_crosshair:
+            console.print("[dim]Attempting to install crosshair-tool...[/dim]")
+            import subprocess
+
+            # Build install command with environment manager
+            from specfact_cli.utils.env_manager import build_tool_command
+
+            install_cmd = ["pip", "install", "crosshair-tool>=0.0.97"]
+            install_cmd = build_tool_command(env_info, install_cmd)
+
+            try:
+                result = subprocess.run(install_cmd, capture_output=True, text=True, timeout=60, cwd=str(repo))
+                if result.returncode == 0:
+                    console.print("[green]✓[/green] crosshair-tool installed successfully")
+                    crosshair_available = True
+                else:
+                    console.print(f"[red]✗[/red] Failed to install crosshair-tool: {result.stderr}")
+            except subprocess.TimeoutExpired:
+                console.print("[red]✗[/red] Installation timed out")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Installation error: {e}")
+        else:
+            console.print(
+                "[dim]Tip: Install with --install-crosshair flag, or manually: "
+                f"{'hatch run pip install' if env_info.manager == 'hatch' else 'pip install'} crosshair-tool[/dim]"
+            )
+
+    # Create/update pyproject.toml with CrossHair config
+    pyproject_path = repo / "pyproject.toml"
+
+    # Default CrossHair configuration (matching our own pyproject.toml)
+    crosshair_config: dict[str, int | float] = {
+        "timeout": 60,
+        "per_condition_timeout": 10,
+        "per_path_timeout": 5,
+        "max_iterations": 1000,
+    }
+
+    if _update_pyproject_crosshair_config(pyproject_path, crosshair_config):
+        console.print(f"[green]✓[/green] Updated {pyproject_path.relative_to(repo)} with CrossHair configuration")
+        console.print("\n[bold]CrossHair Configuration:[/bold]")
+        for key, value in crosshair_config.items():
+            console.print(f"  {key} = {value}")
+    else:
+        console.print(f"[red]✗[/red] Failed to update {pyproject_path.relative_to(repo)}")
+        raise typer.Exit(1)
+
+    # Summary
+    console.print("\n[bold green]✓[/bold green] Setup complete!")
+    console.print("\n[bold]Next steps:[/bold]")
+    console.print("  1. Run [cyan]specfact repro[/cyan] to execute validation checks")
+    if not crosshair_available:
+        console.print("  2. Install crosshair-tool to enable contract exploration:")
+        if env_info.manager == "hatch":
+            console.print("     [dim]hatch run pip install crosshair-tool[/dim]")
+        elif env_info.manager == "poetry":
+            console.print("     [dim]poetry add --dev crosshair-tool[/dim]")
+        elif env_info.manager == "uv":
+            console.print("     [dim]uv pip install crosshair-tool[/dim]")
+        else:
+            console.print("     [dim]pip install crosshair-tool[/dim]")
+    console.print("  3. CrossHair will automatically explore contracts in your source code")
+    console.print("  4. Results will appear in the validation report")

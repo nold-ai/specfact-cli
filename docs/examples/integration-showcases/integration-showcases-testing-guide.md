@@ -1035,10 +1035,16 @@ Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<
   - Type checking (basedpyright) - type annotations and type safety
 
 - **Conditionally runs** (only if present):
-  - Contract exploration (CrossHair) - only if `src/` directory exists (symbolic execution to find counterexamples, not runtime contract validation)
+  - Contract exploration (CrossHair) - only if `[tool.crosshair]` config exists in `pyproject.toml` (use `specfact repro setup` to generate) and `src/` directory exists (symbolic execution to find counterexamples, not runtime contract validation)
   - Semgrep async patterns - only if `tools/semgrep/async.yml` exists (requires semgrep installed)
   - Property tests (pytest) - only if `tests/contracts/` directory exists
   - Smoke tests (pytest) - only if `tests/smoke/` directory exists
+
+**CrossHair Setup**: Before running `repro` for the first time, set up CrossHair configuration:
+```bash
+specfact repro setup
+```
+This automatically generates `[tool.crosshair]` configuration in `pyproject.toml` to enable contract exploration.
 
 **Important**: `repro` does **not** perform runtime contract validation (checking `@icontract` decorators at runtime). It runs static analysis (linting, type checking) and symbolic execution (CrossHair) for contract exploration. Type mismatches will be detected by the type checking tool (basedpyright) if available. The enforcement configuration determines whether failures block the workflow.
 

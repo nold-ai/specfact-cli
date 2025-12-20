@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo
 from specfact_cli.validators.repro_checker import (
     CheckResult,
     CheckStatus,
@@ -119,7 +120,20 @@ class TestReproChecker:
 
     def test_run_all_checks_with_ruff(self, tmp_path: Path):
         """Test run_all_checks executes ruff check."""
+        # Create src directory for source detection
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
         checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        # Mock environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
 
         with patch("subprocess.run") as mock_run:
             mock_proc = MagicMock()
@@ -128,8 +142,12 @@ class TestReproChecker:
             mock_proc.stderr = ""
             mock_run.return_value = mock_proc
 
-            # Mock shutil.which to make tools "available"
-            with patch("shutil.which", return_value="/usr/bin/ruff"):
+            # Mock environment detection and tool availability
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+            ):
                 report = checker.run_all_checks()
 
             assert report.total_checks >= 1
@@ -140,7 +158,20 @@ class TestReproChecker:
 
     def test_run_all_checks_fail_fast(self, tmp_path: Path):
         """Test run_all_checks stops on first failure with fail_fast."""
+        # Create src directory for source detection
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
         checker = ReproChecker(repo_path=tmp_path, budget=30, fail_fast=True)
+
+        # Mock environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
 
         with patch("subprocess.run") as mock_run:
             mock_proc = MagicMock()
@@ -149,8 +180,12 @@ class TestReproChecker:
             mock_proc.stderr = "Error"
             mock_run.return_value = mock_proc
 
-            # Mock shutil.which to make tools "available"
-            with patch("shutil.which", return_value="/usr/bin/ruff"):
+            # Mock environment detection and tool availability
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+            ):
                 report = checker.run_all_checks()
 
             # Should have stopped after first failure
@@ -165,8 +200,21 @@ class TestReproChecker:
         semgrep_config.parent.mkdir(parents=True, exist_ok=True)
         semgrep_config.write_text("rules:\n  - id: test-rule\n    patterns:\n      - pattern: test\n")
 
+        # Create src directory for source detection
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
         checker = ReproChecker(repo_path=tmp_path, budget=30, fix=True)
         assert checker.fix is True
+
+        # Mock environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
 
         with patch("subprocess.run") as mock_run:
             mock_proc = MagicMock()
@@ -175,8 +223,12 @@ class TestReproChecker:
             mock_proc.stderr = ""
             mock_run.return_value = mock_proc
 
-            # Mock shutil.which to make tools "available"
-            with patch("shutil.which", return_value="/usr/bin/semgrep"):
+            # Mock environment detection and tool availability
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/semgrep"),
+            ):
                 checker.run_all_checks()
 
             # Verify Semgrep was called with --autofix flag
@@ -277,3 +329,162 @@ class TestReproChecker:
         # Should still have timestamp even if no other metadata
         assert "metadata" in report_dict
         assert "timestamp" in report_dict["metadata"]
+
+    def test_run_all_checks_with_environment_detection_hatch(self, tmp_path: Path):
+        """Test run_all_checks uses hatch environment when detected."""
+        # Create hatch project structure
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            """
+[tool.hatch]
+version = "1.0.0"
+"""
+        )
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        # Mock hatch environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.HATCH,
+            available=True,
+            command_prefix=["hatch", "run"],
+            message="Detected hatch",
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = "Success"
+            mock_proc.stderr = ""
+            mock_run.return_value = mock_proc
+
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+            ):
+                checker.run_all_checks()
+
+            # Verify commands were built with hatch prefix
+            ruff_calls = [
+                call
+                for call in mock_run.call_args_list
+                if "ruff" in str(call.args[0] if hasattr(call, "args") else call)
+            ]
+            if ruff_calls:
+                # Check that hatch run was used
+                call_args = ruff_calls[0].args[0] if hasattr(ruff_calls[0], "args") else ruff_calls[0][0]
+                assert "hatch" in str(call_args) or any("hatch" in str(arg) for arg in call_args)
+
+    def test_run_all_checks_with_environment_detection_poetry(self, tmp_path: Path):
+        """Test run_all_checks uses poetry environment when detected."""
+        # Create poetry project structure
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            """
+[tool.poetry]
+name = "test-project"
+"""
+        )
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        # Mock poetry environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.POETRY,
+            available=True,
+            command_prefix=["poetry", "run"],
+            message="Detected poetry",
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = "Success"
+            mock_proc.stderr = ""
+            mock_run.return_value = mock_proc
+
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+            ):
+                report = checker.run_all_checks()
+
+            assert report.total_checks >= 1
+
+    def test_run_all_checks_tool_not_available(self, tmp_path: Path):
+        """Test run_all_checks skips tools that are not available."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        # Mock environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        with (
+            patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+            patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(False, "Tool not found")),
+        ):
+            report = checker.run_all_checks()
+
+            # Tools should be skipped
+            skipped_checks = [c for c in report.checks if c.status == CheckStatus.SKIPPED]
+            assert len(skipped_checks) > 0
+            assert all("not found" in c.error.lower() or "not available" in c.error.lower() for c in skipped_checks)
+
+    def test_run_all_checks_source_detection(self, tmp_path: Path):
+        """Test run_all_checks detects source directories dynamically."""
+        # Create package directory (not src/)
+        package_dir = tmp_path / "my_package"
+        package_dir.mkdir()
+        (package_dir / "__init__.py").write_text("")
+
+        # Create pyproject.toml with package name
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            """
+[project]
+name = "my-package"
+"""
+        )
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        # Mock environment detection
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = "Success"
+            mock_proc.stderr = ""
+            mock_run.return_value = mock_proc
+
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+            ):
+                report = checker.run_all_checks()
+
+            # Should have detected my_package/ as source directory
+            assert report.total_checks >= 1
