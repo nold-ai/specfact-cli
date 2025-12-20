@@ -9,6 +9,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.1] - 2025-12-20
+
+### Fixed (0.20.1)
+
+- **External Repository Support**: Fixed critical issue where `repro` command only worked on SpecFact CLI's own codebase
+  - Added automatic environment manager detection (hatch, poetry, uv, pip)
+  - Made all validation tools optional with clear messaging when unavailable
+  - Added dynamic source directory detection (src/, lib/, or package name from pyproject.toml)
+  - Commands now work on external repositories without requiring SpecFact CLI adoption
+  - Enables OSS validation plan execution as designed
+
+### Added (0.20.1)
+
+- **Environment Manager Detection**: New `env_manager` utility module for detecting and working with different Python environment managers
+- **Comprehensive Tests**: Added 25 new tests for environment detection and external repository support
+
+### Improved (0.20.1)
+
+- **Documentation**: Updated `repro` command documentation to clarify external repository support and environment requirements
+- **Error Messages**: Improved messaging when tools are unavailable, providing clear guidance on installation
+
+### Notes (0.20.1)
+
+This patch release fixes the critical design issue identified during OSS validation planning. The `repro` command can now be used to validate external repositories (Requests, Flask, FastAPI, etc.) without requiring those projects to adopt SpecFact CLI.
+
+**Reference**: [CRITICAL_DESIGN_ISSUE_EXTERNAL_REPO_SUPPORT.md](docs/internal/analysis/CRITICAL_DESIGN_ISSUE_EXTERNAL_REPO_SUPPORT.md)
+
+---
+
 ## [0.20.0] - 2025-12-17
 
 ### 🎉 Long-Term Stable (LTS) Release

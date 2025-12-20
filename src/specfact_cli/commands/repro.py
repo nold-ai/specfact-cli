@@ -89,18 +89,25 @@ def main(
     ),
 ) -> None:
     """
-    Run full validation suite.
+    Run full validation suite for reproducibility.
+
+    Automatically detects the target repository's environment manager (hatch, poetry, uv, pip)
+    and adapts commands accordingly. All tools are optional and will be skipped with clear
+    messages if unavailable.
 
     Executes:
-    - Lint checks (ruff)
-    - Async patterns (semgrep)
-    - Type checking (basedpyright)
-    - Contract exploration (CrossHair)
-    - Property tests (pytest tests/contracts/)
-    - Smoke tests (pytest tests/smoke/)
+    - Lint checks (ruff) - optional
+    - Async patterns (semgrep) - optional, only if config exists
+    - Type checking (basedpyright) - optional
+    - Contract exploration (CrossHair) - optional
+    - Property tests (pytest tests/contracts/) - optional, only if directory exists
+    - Smoke tests (pytest tests/smoke/) - optional, only if directory exists
+
+    Works on external repositories without requiring SpecFact CLI adoption.
 
     Example:
         specfact repro --verbose --budget 120
+        specfact repro --repo /path/to/external/repo --verbose
         specfact repro --fix --budget 120
     """
     from specfact_cli.utils.yaml_utils import dump_yaml

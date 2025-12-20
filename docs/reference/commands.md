@@ -2240,6 +2240,7 @@ specfact repro [OPTIONS]
 
 **Options:**
 
+- `--repo PATH` - Path to repository (default: current directory)
 - `--verbose` - Show detailed output
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
@@ -2252,8 +2253,11 @@ specfact repro [OPTIONS]
 **Example:**
 
 ```bash
-# Standard validation
+# Standard validation (current directory)
 specfact repro --verbose --budget 120
+
+# Validate external repository
+specfact repro --repo /path/to/external/repo --verbose
 
 # Apply auto-fixes for violations
 specfact repro --fix --budget 120
@@ -2270,6 +2274,32 @@ specfact repro --fail-fast
 4. **Property tests** - Hypothesis
 5. **Smoke tests** - Event loop lag, orphaned tasks
 6. **Plan validation** - Schema compliance
+
+**External Repository Support:**
+
+The `repro` command automatically detects the target repository's environment manager and adapts commands accordingly:
+
+- **Environment Detection**: Automatically detects hatch, poetry, uv, or pip-based projects
+- **Tool Availability**: All tools are optional - missing tools are skipped with clear messages
+- **Source Detection**: Automatically detects source directories (`src/`, `lib/`, or package name from `pyproject.toml`)
+- **Cross-Repository**: Works on external repositories without requiring SpecFact CLI adoption
+
+**Supported Environment Managers:**
+
+- **hatch** - Detected from `[tool.hatch]` in `pyproject.toml`
+- **poetry** - Detected from `[tool.poetry]` in `pyproject.toml` or `poetry.lock`
+- **uv** - Detected from `[tool.uv]` in `pyproject.toml`, `uv.lock`, or `uv.toml`
+- **pip** - Detected from `requirements.txt` or `setup.py` (uses direct tool invocation)
+
+**Tool Requirements:**
+
+Tools are checked for availability and skipped if not found:
+
+- **ruff** - Optional, for linting
+- **semgrep** - Optional, only runs if `tools/semgrep/async.yml` config exists
+- **basedpyright** - Optional, for type checking
+- **crosshair** - Optional, for contract exploration
+- **pytest** - Optional, only runs if `tests/contracts/` or `tests/smoke/` directories exist
 
 **Auto-fixes:**
 
