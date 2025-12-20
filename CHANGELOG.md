@@ -52,6 +52,12 @@ All notable changes to this project will be documented in this file.
 - **Error Messages**: Improved messaging when tools are unavailable, providing clear guidance on installation
 - **Code Quality**: All linting/formatting tools in `generate contracts-apply` now use environment detection
 - **Test Coverage**: Added comprehensive test suite for `repro setup` command (15 tests) and `init` command environment warning (5 tests)
+- **`init --install-deps` Command**: Now uses environment manager detection for package installation
+  - Automatically detects and uses hatch, poetry, uv, or pip based on project configuration
+  - Provides environment-specific installation commands and error guidance
+  - Shows detected environment manager and command being used
+  - Adds timeout handling and improved error messages
+  - Tracks environment manager in telemetry
 
 ### Notes (0.20.1)
 

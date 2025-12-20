@@ -18,7 +18,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from specfact_cli.telemetry import telemetry
-from specfact_cli.utils.env_manager import EnvManager, detect_env_manager
+from specfact_cli.utils.env_manager import EnvManager, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
     copy_templates_to_ide,
@@ -61,7 +61,7 @@ def init(
     install_deps: bool = typer.Option(
         False,
         "--install-deps",
-        help="Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) via pip",
+        help="Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) using detected environment manager",
     ),
     # Advanced/Configuration
     ide: str = typer.Option(
@@ -138,6 +138,9 @@ def init(
         if install_deps:
             console.print()
             console.print(Panel("[bold cyan]Installing Required Packages[/bold cyan]", border_style="cyan"))
+            if env_info.message:
+                console.print(f"[dim]{env_info.message}[/dim]")
+
             required_packages = [
                 "beartype>=0.22.4",
                 "icontract>=2.7.1",
@@ -148,19 +151,32 @@ def init(
             for package in required_packages:
                 console.print(f"  - {package}")
 
+            # Build install command using environment manager detection
+            install_cmd = ["pip", "install", "-U", *required_packages]
+            install_cmd = build_tool_command(env_info, install_cmd)
+
+            console.print(f"[dim]Using command: {' '.join(install_cmd)}[/dim]")
+
             try:
-                # Use pip to install packages
                 result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-U", *required_packages],
+                    install_cmd,
                     capture_output=True,
                     text=True,
                     check=False,
+                    cwd=str(repo_path),
+                    timeout=300,  # 5 minute timeout
                 )
 
                 if result.returncode == 0:
                     console.print()
                     console.print("[green]✓[/green] All required packages installed successfully")
-                    record({"deps_installed": True, "packages_count": len(required_packages)})
+                    record(
+                        {
+                            "deps_installed": True,
+                            "packages_count": len(required_packages),
+                            "env_manager": env_info.manager.value,
+                        }
+                    )
                 else:
                     console.print()
                     console.print("[yellow]⚠[/yellow] Some packages failed to install")
@@ -171,19 +187,60 @@ def init(
                         console.print(result.stderr)
                     console.print()
                     console.print("[yellow]You may need to install packages manually:[/yellow]")
+                    # Provide environment-specific guidance
+                    if env_info.manager == EnvManager.HATCH:
+                        console.print(f"  hatch run pip install {' '.join(required_packages)}")
+                    elif env_info.manager == EnvManager.POETRY:
+                        console.print(f"  poetry add --dev {' '.join(required_packages)}")
+                    elif env_info.manager == EnvManager.UV:
+                        console.print(f"  uv pip install {' '.join(required_packages)}")
+                    else:
+                        console.print(f"  pip install {' '.join(required_packages)}")
+                    record(
+                        {
+                            "deps_installed": False,
+                            "error": result.stderr[:200] if result.stderr else "Unknown error",
+                            "env_manager": env_info.manager.value,
+                        }
+                    )
+            except subprocess.TimeoutExpired:
+                console.print()
+                console.print("[red]Error:[/red] Installation timed out after 5 minutes")
+                console.print("[yellow]You may need to install packages manually:[/yellow]")
+                if env_info.manager == EnvManager.HATCH:
+                    console.print(f"  hatch run pip install {' '.join(required_packages)}")
+                elif env_info.manager == EnvManager.POETRY:
+                    console.print(f"  poetry add --dev {' '.join(required_packages)}")
+                elif env_info.manager == EnvManager.UV:
+                    console.print(f"  uv pip install {' '.join(required_packages)}")
+                else:
                     console.print(f"  pip install {' '.join(required_packages)}")
-                    record({"deps_installed": False, "error": result.stderr[:200]})
+                record({"deps_installed": False, "error": "timeout", "env_manager": env_info.manager.value})
             except FileNotFoundError:
                 console.print()
                 console.print("[red]Error:[/red] pip not found. Please install packages manually:")
-                console.print(f"  pip install {' '.join(required_packages)}")
-                record({"deps_installed": False, "error": "pip not found"})
+                if env_info.manager == EnvManager.HATCH:
+                    console.print(f"  hatch run pip install {' '.join(required_packages)}")
+                elif env_info.manager == EnvManager.POETRY:
+                    console.print(f"  poetry add --dev {' '.join(required_packages)}")
+                elif env_info.manager == EnvManager.UV:
+                    console.print(f"  uv pip install {' '.join(required_packages)}")
+                else:
+                    console.print(f"  pip install {' '.join(required_packages)}")
+                record({"deps_installed": False, "error": "pip not found", "env_manager": env_info.manager.value})
             except Exception as e:
                 console.print()
                 console.print(f"[red]Error:[/red] Failed to install packages: {e}")
                 console.print("[yellow]You may need to install packages manually:[/yellow]")
-                console.print(f"  pip install {' '.join(required_packages)}")
-                record({"deps_installed": False, "error": str(e)})
+                if env_info.manager == EnvManager.HATCH:
+                    console.print(f"  hatch run pip install {' '.join(required_packages)}")
+                elif env_info.manager == EnvManager.POETRY:
+                    console.print(f"  poetry add --dev {' '.join(required_packages)}")
+                elif env_info.manager == EnvManager.UV:
+                    console.print(f"  uv pip install {' '.join(required_packages)}")
+                else:
+                    console.print(f"  pip install {' '.join(required_packages)}")
+                record({"deps_installed": False, "error": str(e), "env_manager": env_info.manager.value})
             console.print()
 
         # Find templates directory
