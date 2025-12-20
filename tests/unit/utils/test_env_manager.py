@@ -15,6 +15,8 @@ from specfact_cli.utils.env_manager import (
     check_tool_in_env,
     detect_env_manager,
     detect_source_directories,
+    detect_test_directories,
+    find_test_files_for_source,
 )
 
 
@@ -379,3 +381,91 @@ name = "poetry-package"
 
         assert "src/" in result
         assert "lib/" in result
+
+
+class TestDetectTestDirectories:
+    """Test test directory detection."""
+
+    def test_detect_test_directories_from_src(self, tmp_path: Path):
+        """Test detection of test directories for src/ structure."""
+        src_file = tmp_path / "src" / "module" / "file.py"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("")
+
+        tests_unit = tmp_path / "tests" / "unit" / "module"
+        tests_unit.mkdir(parents=True)
+
+        result = detect_test_directories(tmp_path, src_file.relative_to(tmp_path))
+
+        assert len(result) > 0
+        assert any("tests/unit" in str(d) for d in result)
+
+    def test_detect_test_directories_from_root(self, tmp_path: Path):
+        """Test detection of test directories for root-level files."""
+        src_file = tmp_path / "file.py"
+        src_file.write_text("")
+
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+
+        result = detect_test_directories(tmp_path, src_file.relative_to(tmp_path))
+
+        assert len(result) > 0
+        assert any("tests" in str(d) for d in result)
+
+    def test_detect_test_directories_e2e(self, tmp_path: Path):
+        """Test detection of E2E test directories."""
+        src_file = tmp_path / "src" / "module" / "file.py"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("")
+
+        tests_e2e = tmp_path / "tests" / "e2e"
+        tests_e2e.mkdir(parents=True)
+
+        result = detect_test_directories(tmp_path, src_file.relative_to(tmp_path))
+
+        # Should include e2e directories if they exist
+        assert len(result) > 0
+
+
+class TestFindTestFilesForSource:
+    """Test finding test files for source files."""
+
+    def test_find_test_file_standard_structure(self, tmp_path: Path):
+        """Test finding test file in standard structure."""
+        src_file = tmp_path / "src" / "module.py"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("def func(): pass")
+
+        test_file = tmp_path / "tests" / "unit" / "test_module.py"
+        test_file.parent.mkdir(parents=True)
+        test_file.write_text("def test_func(): pass")
+
+        result = find_test_files_for_source(tmp_path, src_file)
+
+        assert len(result) > 0
+        assert any("test_module.py" in str(p) for p in result)
+
+    def test_find_test_file_alternative_naming(self, tmp_path: Path):
+        """Test finding test file with alternative naming."""
+        src_file = tmp_path / "src" / "module.py"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("def func(): pass")
+
+        test_file = tmp_path / "tests" / "module_test.py"
+        test_file.parent.mkdir(parents=True)
+        test_file.write_text("def test_func(): pass")
+
+        result = find_test_files_for_source(tmp_path, src_file)
+
+        assert len(result) > 0
+
+    def test_find_test_file_no_tests(self, tmp_path: Path):
+        """Test finding test file when none exist."""
+        src_file = tmp_path / "src" / "module.py"
+        src_file.parent.mkdir(parents=True)
+        src_file.write_text("def func(): pass")
+
+        result = find_test_files_for_source(tmp_path, src_file)
+
+        assert len(result) == 0

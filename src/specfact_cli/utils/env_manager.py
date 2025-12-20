@@ -332,3 +332,112 @@ def detect_source_directories(repo_path: Path) -> list[str]:
 
     # If no standard directories found, return empty list (caller should handle)
     return source_dirs
+
+
+@beartype
+@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(lambda source_file_rel: isinstance(source_file_rel, Path), "source_file_rel must be Path")
+@ensure(lambda result: isinstance(result, list), "Must return list")
+def detect_test_directories(repo_path: Path, source_file_rel: Path) -> list[Path]:
+    """
+    Detect potential test directories for a given source file.
+
+    Checks for common test directory patterns:
+    - tests/unit/<source_path>/
+    - tests/<source_path>/
+    - tests/unit/
+    - tests/
+    - tests/e2e/<source_path>/
+    - tests/e2e/
+
+    Args:
+        repo_path: Path to repository root
+        source_file_rel: Relative path to source file (e.g., Path("src/module/file.py"))
+
+    Returns:
+        List of potential test directory paths (relative to repo_path)
+    """
+    test_dirs: list[Path] = []
+
+    # Remove common source prefixes to get relative path
+    test_rel_path = str(source_file_rel)
+    if test_rel_path.startswith("src/"):
+        test_rel_path = test_rel_path[4:]  # Remove 'src/'
+    elif test_rel_path.startswith("lib/"):
+        test_rel_path = test_rel_path[4:]  # Remove 'lib/'
+    elif test_rel_path.startswith("tools/"):
+        test_rel_path = test_rel_path[6:]  # Remove 'tools/'
+
+    # Get directory structure from source file
+    test_file_dir = Path(test_rel_path).parent
+
+    # Try common test directory structures
+    potential_dirs = [
+        repo_path / "tests" / "unit" / test_file_dir,
+        repo_path / "tests" / test_file_dir,
+        repo_path / "tests" / "unit",
+        repo_path / "tests",
+    ]
+
+    # Add E2E test directories
+    potential_dirs.extend(
+        [
+            repo_path / "tests" / "e2e" / test_file_dir,
+            repo_path / "tests" / "e2e",
+        ]
+    )
+
+    # Return only directories that exist
+    for test_dir in potential_dirs:
+        if test_dir.exists() and test_dir.is_dir():
+            test_dirs.append(test_dir)
+
+    return test_dirs
+
+
+@beartype
+@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(lambda source_file: isinstance(source_file, Path), "source_file must be Path")
+@ensure(lambda result: isinstance(result, list), "Must return list")
+def find_test_files_for_source(repo_path: Path, source_file: Path) -> list[Path]:
+    """
+    Find test files for a given source file.
+
+    Checks multiple test directory patterns and file naming conventions.
+
+    Args:
+        repo_path: Path to repository root
+        source_file: Path to source file (absolute or relative to repo_path)
+
+    Returns:
+        List of matching test file paths
+    """
+    test_files: list[Path] = []
+
+    # Get relative path from repo root
+    try:
+        source_file_rel = source_file.relative_to(repo_path)
+    except ValueError:
+        # If not relative to repo_path, use as-is
+        source_file_rel = source_file
+
+    # Get test directories
+    test_dirs = detect_test_directories(repo_path, source_file_rel)
+
+    # Get source file name without extension
+    source_stem = source_file.stem
+
+    # Common test file patterns
+    test_file_patterns = [
+        f"test_{source_stem}.py",
+        f"{source_stem}_test.py",
+    ]
+
+    # Search in all test directories
+    for test_dir in test_dirs:
+        for pattern in test_file_patterns:
+            test_path = test_dir / pattern
+            if test_path.exists() and test_path.is_file():
+                test_files.append(test_path)
+
+    return test_files

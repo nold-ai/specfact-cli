@@ -19,16 +19,26 @@ All notable changes to this project will be documented in this file.
   - Added dynamic source directory detection (src/, lib/, or package name from pyproject.toml)
   - Commands now work on external repositories without requiring SpecFact CLI adoption
   - Enables OSS validation plan execution as designed
+- **`generate contracts-apply` Command**: Fixed hardcoded paths and environment assumptions
+  - Uses dynamic source directory detection instead of hardcoded `src/` paths
+  - Uses environment detection for Python/pytest invocations
+  - Dynamic test file detection (supports multiple test directory structures)
+  - Works on external repositories with different project structures
+- **`generate test-prompt` Command**: Fixed hardcoded source directory detection
+  - Uses dynamic source directory detection instead of hardcoded `src/`
+  - Dynamic test file detection for better external repository support
 
 ### Added (0.20.1)
 
 - **Environment Manager Detection**: New `env_manager` utility module for detecting and working with different Python environment managers
-- **Comprehensive Tests**: Added 25 new tests for environment detection and external repository support
+- **Test Directory Detection**: New utilities for detecting test directories and finding test files dynamically
+- **Comprehensive Tests**: Added 31 new tests for environment detection, test directory detection, and external repository support
 
 ### Improved (0.20.1)
 
 - **Documentation**: Updated `repro` command documentation to clarify external repository support and environment requirements
 - **Error Messages**: Improved messaging when tools are unavailable, providing clear guidance on installation
+- **Code Quality**: All linting/formatting tools in `generate contracts-apply` now use environment detection
 
 ### Notes (0.20.1)
 
