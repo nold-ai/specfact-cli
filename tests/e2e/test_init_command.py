@@ -324,3 +324,138 @@ class TestInitCommandE2E:
         claude_dir = tmp_path / ".claude" / "commands"
         assert claude_dir.exists()
         assert (claude_dir / "specfact.01-import.md").exists()
+
+    def test_init_warns_when_no_environment_manager(self, tmp_path, monkeypatch):
+        """Test init command shows warning when no environment manager is detected."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create empty directory (no pyproject.toml, no requirements.txt, no setup.py)
+        # This should trigger the warning
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+        # Should show warning about no environment manager
+        assert "No Compatible Environment Manager Detected" in result.stdout
+        assert "Supported tools:" in result.stdout
+        assert "hatch" in result.stdout.lower()
+        assert "poetry" in result.stdout.lower()
+        assert "uv" in result.stdout.lower()
+        assert "pip" in result.stdout.lower()
+
+    def test_init_no_warning_with_hatch_project(self, tmp_path, monkeypatch):
+        """Test init command does not show warning when hatch is detected."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create hatch project
+        pyproject_path = tmp_path / "pyproject.toml"
+        pyproject_path.write_text(
+            """[project]
+name = "test-package"
+version = "0.1.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/test_package"]
+"""
+        )
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+        # Should NOT show warning
+        assert "No Compatible Environment Manager Detected" not in result.stdout
+
+    def test_init_no_warning_with_poetry_project(self, tmp_path, monkeypatch):
+        """Test init command does not show warning when poetry is detected."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create poetry project
+        pyproject_path = tmp_path / "pyproject.toml"
+        pyproject_path.write_text(
+            """[tool.poetry]
+name = "test-package"
+version = "0.1.0"
+"""
+        )
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+        # Should NOT show warning
+        assert "No Compatible Environment Manager Detected" not in result.stdout
+
+    def test_init_no_warning_with_pip_project(self, tmp_path, monkeypatch):
+        """Test init command does not show warning when pip (requirements.txt) is detected."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create requirements.txt (pip project)
+        requirements_path = tmp_path / "requirements.txt"
+        requirements_path.write_text("requests>=2.0.0\n")
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+        # Should NOT show warning
+        assert "No Compatible Environment Manager Detected" not in result.stdout
+
+    def test_init_no_warning_with_uv_project(self, tmp_path, monkeypatch):
+        """Test init command does not show warning when uv is detected."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create uv project
+        pyproject_path = tmp_path / "pyproject.toml"
+        pyproject_path.write_text(
+            """[project]
+name = "test-package"
+version = "0.1.0"
+
+[tool.uv]
+dev-dependencies = []
+"""
+        )
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+        # Should NOT show warning
+        assert "No Compatible Environment Manager Detected" not in result.stdout

@@ -9,6 +9,64 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.1] - 2025-12-20
+
+### Fixed (0.20.1)
+
+- **External Repository Support**: Fixed critical issue where `repro` command only worked on SpecFact CLI's own codebase
+  - Added automatic environment manager detection (hatch, poetry, uv, pip)
+  - Made all validation tools optional with clear messaging when unavailable
+  - Added dynamic source directory detection (src/, lib/, or package name from pyproject.toml)
+  - Commands now work on external repositories without requiring SpecFact CLI adoption
+  - Enables OSS validation plan execution as designed
+- **`generate contracts-apply` Command**: Fixed hardcoded paths and environment assumptions
+  - Uses dynamic source directory detection instead of hardcoded `src/` paths
+  - Uses environment detection for Python/pytest invocations
+  - Dynamic test file detection (supports multiple test directory structures)
+  - Works on external repositories with different project structures
+- **`generate test-prompt` Command**: Fixed hardcoded source directory detection
+  - Uses dynamic source directory detection instead of hardcoded `src/`
+  - Dynamic test file detection for better external repository support
+
+### Added (0.20.1)
+
+- **Environment Manager Detection**: New `env_manager` utility module for detecting and working with different Python environment managers
+- **Test Directory Detection**: New utilities for detecting test directories and finding test files dynamically
+- **Comprehensive Tests**: Added 31 new tests for environment detection, test directory detection, and external repository support
+- **`repro setup` Command**: New subcommand to automatically configure CrossHair for contract exploration
+  - Automatically generates `[tool.crosshair]` configuration in `pyproject.toml`
+  - Detects source directories and environment managers
+  - Provides installation guidance for crosshair-tool
+  - Optional `--install-crosshair` flag to attempt automatic installation
+- **`init` Command Environment Warning**: Added warning when no compatible environment manager is detected
+  - Non-blocking warning that provides guidance on supported tools
+  - Helps users understand best practices for SpecFact CLI integration
+  - Lists supported environment managers (hatch, poetry, uv, pip) with detection criteria
+
+### Improved (0.20.1)
+
+- **Documentation**: Updated `repro` command documentation to clarify external repository support and environment requirements
+  - Added `repro setup` command documentation
+  - Updated all example flows to include CrossHair setup step
+  - Added "Supported Project Management Tools" section to installation guide
+- **Error Messages**: Improved messaging when tools are unavailable, providing clear guidance on installation
+- **Code Quality**: All linting/formatting tools in `generate contracts-apply` now use environment detection
+- **Test Coverage**: Added comprehensive test suite for `repro setup` command (15 tests) and `init` command environment warning (5 tests)
+- **`init --install-deps` Command**: Now uses environment manager detection for package installation
+  - Automatically detects and uses hatch, poetry, uv, or pip based on project configuration
+  - Provides environment-specific installation commands and error guidance
+  - Shows detected environment manager and command being used
+  - Adds timeout handling and improved error messages
+  - Tracks environment manager in telemetry
+
+### Notes (0.20.1)
+
+This patch release fixes the critical design issue identified during OSS validation planning. The `repro` command can now be used to validate external repositories (Requests, Flask, FastAPI, etc.) without requiring those projects to adopt SpecFact CLI.
+
+**Reference**: [CRITICAL_DESIGN_ISSUE_EXTERNAL_REPO_SUPPORT.md](docs/internal/analysis/CRITICAL_DESIGN_ISSUE_EXTERNAL_REPO_SUPPORT.md)
+
+---
+
 ## [0.20.0] - 2025-12-17
 
 ### 🎉 Long-Term Stable (LTS) Release

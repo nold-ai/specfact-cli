@@ -174,6 +174,9 @@ specfact enforce sdd
 ## Validation
 
 ```bash
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
 # Quick validation
 specfact repro
 

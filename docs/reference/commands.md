@@ -28,6 +28,9 @@ specfact plan compare --bundle legacy-api
 # Sync with external tools (bidirectional) - Secondary use case
 specfact sync bridge --adapter speckit --bundle legacy-api --bidirectional --watch
 
+# Set up CrossHair for contract exploration (one-time setup)
+specfact repro setup
+
 # Validate everything
 specfact repro --verbose
 ```
@@ -2240,6 +2243,7 @@ specfact repro [OPTIONS]
 
 **Options:**
 
+- `--repo PATH` - Path to repository (default: current directory)
 - `--verbose` - Show detailed output
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
@@ -2249,11 +2253,25 @@ specfact repro [OPTIONS]
 
 - `--budget INT` - Time budget in seconds (default: 120)
 
+**Subcommands:**
+
+- `repro setup` - Set up CrossHair configuration for contract exploration
+  - Automatically generates `[tool.crosshair]` configuration in `pyproject.toml`
+  - Detects source directories and environment manager
+  - Checks for crosshair-tool availability
+  - Provides installation guidance if needed
+
 **Example:**
 
 ```bash
-# Standard validation
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
+# Standard validation (current directory)
 specfact repro --verbose --budget 120
+
+# Validate external repository
+specfact repro --repo /path/to/external/repo --verbose
 
 # Apply auto-fixes for violations
 specfact repro --fix --budget 120
@@ -2270,6 +2288,56 @@ specfact repro --fail-fast
 4. **Property tests** - Hypothesis
 5. **Smoke tests** - Event loop lag, orphaned tasks
 6. **Plan validation** - Schema compliance
+
+**External Repository Support:**
+
+The `repro` command automatically detects the target repository's environment manager and adapts commands accordingly:
+
+- **Environment Detection**: Automatically detects hatch, poetry, uv, or pip-based projects
+- **Tool Availability**: All tools are optional - missing tools are skipped with clear messages
+- **Source Detection**: Automatically detects source directories (`src/`, `lib/`, or package name from `pyproject.toml`)
+- **Cross-Repository**: Works on external repositories without requiring SpecFact CLI adoption
+
+**Supported Environment Managers:**
+
+SpecFact CLI automatically detects and works with the following project management tools:
+
+- **hatch** - Detected from `[tool.hatch]` in `pyproject.toml`
+  - Commands prefixed with: `hatch run`
+  - Example: `hatch run pytest tests/`
+  
+- **poetry** - Detected from `[tool.poetry]` in `pyproject.toml` or `poetry.lock`
+  - Commands prefixed with: `poetry run`
+  - Example: `poetry run pytest tests/`
+  
+- **uv** - Detected from `[tool.uv]` in `pyproject.toml`, `uv.lock`, or `uv.toml`
+  - Commands prefixed with: `uv run`
+  - Example: `uv run pytest tests/`
+  
+- **pip** - Detected from `requirements.txt` or `setup.py` (uses direct tool invocation)
+  - Commands use: Direct tool invocation (no prefix)
+  - Example: `pytest tests/`
+
+**Detection Priority**:
+
+1. Checks `pyproject.toml` for tool sections (`[tool.hatch]`, `[tool.poetry]`, `[tool.uv]`)
+2. Checks for lock files (`poetry.lock`, `uv.lock`, `uv.toml`)
+3. Falls back to `requirements.txt` or `setup.py` for pip-based projects
+
+**Source Directory Detection**:
+
+- Automatically detects: `src/`, `lib/`, or package name from `pyproject.toml`
+- Works with any project structure without manual configuration
+
+**Tool Requirements:**
+
+Tools are checked for availability and skipped if not found:
+
+- **ruff** - Optional, for linting
+- **semgrep** - Optional, only runs if `tools/semgrep/async.yml` config exists
+- **basedpyright** - Optional, for type checking
+- **crosshair** - Optional, for contract exploration (requires `[tool.crosshair]` config in `pyproject.toml` - use `specfact repro setup` to generate)
+- **pytest** - Optional, only runs if `tests/contracts/` or `tests/smoke/` directories exist
 
 **Auto-fixes:**
 
