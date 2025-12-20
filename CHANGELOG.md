@@ -33,12 +33,25 @@ All notable changes to this project will be documented in this file.
 - **Environment Manager Detection**: New `env_manager` utility module for detecting and working with different Python environment managers
 - **Test Directory Detection**: New utilities for detecting test directories and finding test files dynamically
 - **Comprehensive Tests**: Added 31 new tests for environment detection, test directory detection, and external repository support
+- **`repro setup` Command**: New subcommand to automatically configure CrossHair for contract exploration
+  - Automatically generates `[tool.crosshair]` configuration in `pyproject.toml`
+  - Detects source directories and environment managers
+  - Provides installation guidance for crosshair-tool
+  - Optional `--install-crosshair` flag to attempt automatic installation
+- **`init` Command Environment Warning**: Added warning when no compatible environment manager is detected
+  - Non-blocking warning that provides guidance on supported tools
+  - Helps users understand best practices for SpecFact CLI integration
+  - Lists supported environment managers (hatch, poetry, uv, pip) with detection criteria
 
 ### Improved (0.20.1)
 
 - **Documentation**: Updated `repro` command documentation to clarify external repository support and environment requirements
+  - Added `repro setup` command documentation
+  - Updated all example flows to include CrossHair setup step
+  - Added "Supported Project Management Tools" section to installation guide
 - **Error Messages**: Improved messaging when tools are unavailable, providing clear guidance on installation
 - **Code Quality**: All linting/formatting tools in `generate contracts-apply` now use environment detection
+- **Test Coverage**: Added comprehensive test suite for `repro setup` command (15 tests) and `init` command environment warning (5 tests)
 
 ### Notes (0.20.1)
 

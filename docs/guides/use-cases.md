@@ -310,6 +310,10 @@ specfact enforce stage --preset strict
 #### 7. Validate
 
 ```bash
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
+# Run validation
 specfact repro --verbose
 ```
 
@@ -440,6 +444,9 @@ specfact enforce stage --preset strict
 #### 5. Validate Continuously
 
 ```bash
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
 # During development
 specfact repro
 
@@ -504,6 +511,9 @@ jobs:
 
       - name: Install SpecFact CLI
         run: pip install specfact-cli
+
+      - name: Set up CrossHair Configuration
+        run: specfact repro setup
 
       - name: Run Contract Validation
         run: specfact repro --verbose --budget 90
@@ -625,6 +635,9 @@ specfact plan compare \
 #### 4. Enforce Consistency
 
 ```bash
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
 # Add to CI
 specfact repro
 specfact plan compare --manual contracts/shared/plan.bundle.yaml --auto .

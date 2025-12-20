@@ -664,9 +664,9 @@ class ReproChecker:
         )
 
         # Detect environment manager for the target repository
+        # Note: Environment detection message is printed in the command layer
+        # (repro.py) before the progress spinner starts to avoid formatting issues
         env_info = detect_env_manager(self.repo_path)
-        if env_info.message:
-            console.print(f"[dim]{env_info.message}[/dim]")
 
         # Detect source directories dynamically
         source_dirs = detect_source_directories(self.repo_path)

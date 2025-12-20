@@ -34,6 +34,9 @@ specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
 Use the new bridge commands instead:
 
 ```bash
+# Set up CrossHair for contract exploration (one-time setup, only available since v0.20.1)
+specfact repro setup
+
 # Analyze and validate your codebase
 specfact repro --verbose
 

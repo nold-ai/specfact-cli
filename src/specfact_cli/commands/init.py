@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.env_manager import EnvManager, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
     copy_templates_to_ide,
@@ -104,6 +105,34 @@ def init(
         console.print(f"[cyan]Repository:[/cyan] {repo_path}")
         console.print(f"[cyan]IDE:[/cyan] {ide_name} ({detected_ide})")
         console.print()
+
+        # Check for environment manager
+        env_info = detect_env_manager(repo_path)
+        if env_info.manager == EnvManager.UNKNOWN:
+            console.print()
+            console.print(
+                Panel(
+                    "[bold yellow]⚠ No Compatible Environment Manager Detected[/bold yellow]",
+                    border_style="yellow",
+                )
+            )
+            console.print(
+                "[yellow]SpecFact CLI works best with projects using standard Python project management tools.[/yellow]"
+            )
+            console.print()
+            console.print("[dim]Supported tools:[/dim]")
+            console.print("  - hatch (detected from [tool.hatch] in pyproject.toml)")
+            console.print("  - poetry (detected from [tool.poetry] in pyproject.toml or poetry.lock)")
+            console.print("  - uv (detected from [tool.uv] in pyproject.toml, uv.lock, or uv.toml)")
+            console.print("  - pip (detected from requirements.txt or setup.py)")
+            console.print()
+            console.print(
+                "[dim]Note: SpecFact CLI will still work, but commands like 'specfact repro' may use direct tool invocation.[/dim]"
+            )
+            console.print(
+                "[dim]Consider adding a pyproject.toml with [tool.hatch], [tool.poetry], or [tool.uv] for better integration.[/dim]"
+            )
+            console.print()
 
         # Install dependencies if requested
         if install_deps:

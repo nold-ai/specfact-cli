@@ -254,6 +254,9 @@ specfact enforce stage --preset strict
 ### Running Validation
 
 ```bash
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
 # Quick validation
 specfact repro
 
@@ -266,7 +269,8 @@ specfact repro --fix --budget 120
 
 **What it does**:
 
-- Validates contracts
+- `repro setup` configures CrossHair for contract exploration (one-time setup)
+- `repro` validates contracts
 - Checks types
 - Detects async anti-patterns
 - Validates state machines

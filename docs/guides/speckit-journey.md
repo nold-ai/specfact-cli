@@ -252,6 +252,9 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 # Start in shadow mode (observe only)
 specfact enforce stage --preset minimal
 
+# Set up CrossHair for contract exploration
+specfact repro setup
+
 # Review what would be blocked
 specfact repro --verbose
 
@@ -285,6 +288,7 @@ specfact repro --fix  # Apply Semgrep auto-fixes, then validate
 specfact enforce stage --preset strict
 
 # Full automation (CI/CD, brownfield analysis, etc.)
+# (CrossHair setup already done in Week 3)
 specfact repro --budget 120 --verbose
 ```
 
@@ -411,6 +415,9 @@ specfact enforce stage --preset strict
 ### **Step 6: Validate**
 
 ```bash
+# Set up CrossHair for contract exploration (one-time setup)
+specfact repro setup
+
 # Run all checks
 specfact repro --verbose
 

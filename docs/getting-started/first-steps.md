@@ -106,13 +106,17 @@ specfact bridge constitution bootstrap --repo .
 ### Step 3: Find and Fix Gaps
 
 ```bash
+# First-time setup: Configure CrossHair for contract exploration
+specfact repro setup
+
 # Analyze and validate your codebase
 specfact repro --verbose
 ```
 
 **What happens**:
 
-- Runs the full validation suite (linting, type checking, contracts, tests)
+- `repro setup` configures CrossHair for contract exploration (one-time setup)
+- `repro` runs the full validation suite (linting, type checking, contracts, tests)
 - Identifies gaps and issues in your codebase
 - Generates enforcement reports that downstream tools (like `generate fix-prompt`) can use
 
