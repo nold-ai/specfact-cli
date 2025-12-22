@@ -93,6 +93,7 @@ specfact sync bridge --adapter <adapter> --repo <path> [options] --no-interactiv
 **What to do**:
 
 - Read CLI-generated sync results (use file reading tools for display only)
+- Treat CLI sync output as the source of truth; scan codebase only to explain conflicts
 - Research codebase for context on conflicts
 - Suggest resolution strategies
 

@@ -7,6 +7,7 @@ exploration, and test suites with time budgets and result aggregation.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -43,6 +44,108 @@ def _strip_ansi_codes(text: str) -> str:
     """Remove ANSI escape codes from text."""
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
+
+
+@beartype
+@require(lambda repo_path: isinstance(repo_path, Path), "repo_path must be Path")
+@require(lambda targets: isinstance(targets, list), "targets must be list")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "Must return (list, bool, list)")
+@ensure(
+    lambda result: isinstance(result[0], list) and isinstance(result[1], bool) and isinstance(result[2], list),
+    "Must return (list, bool, list)",
+)
+def _expand_crosshair_targets(repo_path: Path, targets: list[str]) -> tuple[list[str], bool, list[str]]:
+    """
+    Expand directory targets into module names and PYTHONPATH roots, excluding __main__.py.
+    """
+    expanded: list[str] = []
+    excluded_main = False
+    pythonpath_roots: list[str] = []
+    src_root = (repo_path / "src").resolve()
+    lib_root = (repo_path / "lib").resolve()
+
+    for target in targets:
+        target_path = repo_path / target
+        if not target_path.exists():
+            continue
+        if target_path.is_dir():
+            target_root = target_path.resolve()
+            if target_root in (src_root, lib_root):
+                module_root = target_root
+                pythonpath_root = target_root
+            else:
+                module_root = repo_path.resolve()
+                pythonpath_root = repo_path.resolve()
+            pythonpath_root_str = str(pythonpath_root)
+            if pythonpath_root_str not in pythonpath_roots:
+                pythonpath_roots.append(pythonpath_root_str)
+            for py_file in target_root.rglob("*.py"):
+                if py_file.name == "__main__.py":
+                    excluded_main = True
+                    continue
+                module_name = _module_name_from_path(module_root, py_file)
+                if module_name:
+                    expanded.append(module_name)
+        else:
+            if target_path.name == "__main__.py":
+                excluded_main = True
+                continue
+            if target_path.suffix == ".py":
+                file_path = target_path.resolve()
+                if file_path.is_relative_to(src_root):
+                    module_root = src_root
+                    pythonpath_root = src_root
+                elif file_path.is_relative_to(lib_root):
+                    module_root = lib_root
+                    pythonpath_root = lib_root
+                else:
+                    module_root = repo_path.resolve()
+                    pythonpath_root = repo_path.resolve()
+                pythonpath_root_str = str(pythonpath_root)
+                if pythonpath_root_str not in pythonpath_roots:
+                    pythonpath_roots.append(pythonpath_root_str)
+                module_name = _module_name_from_path(module_root, file_path)
+                if module_name:
+                    expanded.append(module_name)
+
+    expanded = sorted(set(expanded))
+    return expanded, excluded_main, pythonpath_roots
+
+
+@beartype
+@require(lambda root: isinstance(root, Path), "root must be Path")
+@require(lambda file_path: isinstance(file_path, Path), "file_path must be Path")
+@ensure(lambda result: result is None or isinstance(result, str), "Must return str or None")
+def _module_name_from_path(root: Path, file_path: Path) -> str | None:
+    """Convert a file path to a module name relative to the root."""
+    try:
+        rel_path = file_path.relative_to(root)
+    except ValueError:
+        return None
+    parts = list(rel_path.parts)
+    if not parts:
+        return None
+    if parts[-1] == "__init__.py":
+        parts = parts[:-1]
+    else:
+        parts[-1] = parts[-1].removesuffix(".py")
+    if not parts or any(part == "" for part in parts):
+        return None
+    return ".".join(parts)
+
+
+@beartype
+@require(lambda pythonpath_roots: isinstance(pythonpath_roots, list), "pythonpath_roots must be list")
+@ensure(lambda result: result is None or isinstance(result, dict), "Must return dict or None")
+def _build_crosshair_env(pythonpath_roots: list[str]) -> dict[str, str] | None:
+    """Build environment with PYTHONPATH for CrossHair module imports."""
+    if not pythonpath_roots:
+        return None
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH", "")
+    combined = os.pathsep.join(pythonpath_roots + ([existing] if existing else []))
+    env["PYTHONPATH"] = combined
+    return env
 
 
 @beartype
@@ -540,6 +643,7 @@ class ReproChecker:
     @require(lambda tool: isinstance(tool, str) and len(tool) > 0, "Tool must be non-empty string")
     @require(lambda command: isinstance(command, list) and len(command) > 0, "Command must be non-empty list")
     @require(lambda timeout: timeout is None or timeout > 0, "Timeout must be positive if provided")
+    @require(lambda env: env is None or isinstance(env, dict), "env must be dict or None")
     @ensure(lambda result: isinstance(result, CheckResult), "Must return CheckResult")
     @ensure(lambda result: result.duration is None or result.duration >= 0, "Duration must be non-negative")
     def run_check(
@@ -549,6 +653,7 @@ class ReproChecker:
         command: list[str],
         timeout: int | None = None,
         skip_if_missing: bool = True,
+        env: dict[str, str] | None = None,
     ) -> CheckResult:
         """
         Run a single validation check.
@@ -559,6 +664,7 @@ class ReproChecker:
             command: Command to execute
             timeout: Per-check timeout (default: budget / number of checks, must be > 0 if provided)
             skip_if_missing: Skip check if tool not found
+            env: Optional environment variables to pass to the subprocess
 
         Returns:
             CheckResult with status and output
@@ -598,6 +704,7 @@ class ReproChecker:
                 text=True,
                 timeout=check_timeout,
                 check=False,
+                env=env,
             )
 
             result.duration = time.time() - start
@@ -690,7 +797,7 @@ class ReproChecker:
         smoke_tests = self.repo_path / "tests" / "smoke"
         tests_dir = self.repo_path / "tests"
 
-        checks: list[tuple[str, str, list[str], int | None, bool]] = []
+        checks: list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]] = []
 
         # Linting (ruff) - optional
         ruff_available, _ = check_tool_in_env(self.repo_path, "ruff", env_info)
@@ -701,26 +808,10 @@ class ReproChecker:
             if (self.repo_path / "tools").exists():
                 ruff_command.append("tools/")
             ruff_command = build_tool_command(env_info, ruff_command)
-            checks.append(
-                (
-                    "Linting (ruff)",
-                    "ruff",
-                    ruff_command,
-                    None,
-                    True,
-                )
-            )
+            checks.append(("Linting (ruff)", "ruff", ruff_command, None, True, None))
         else:
             # Add as skipped check with message
-            checks.append(
-                (
-                    "Linting (ruff)",
-                    "ruff",
-                    [],
-                    None,
-                    True,
-                )
-            )
+            checks.append(("Linting (ruff)", "ruff", [], None, True, None))
 
         # Semgrep - optional, only if config exists
         if semgrep_enabled:
@@ -730,25 +821,9 @@ class ReproChecker:
                 if self.fix:
                     semgrep_command.append("--autofix")
                 semgrep_command = build_tool_command(env_info, semgrep_command)
-                checks.append(
-                    (
-                        "Async patterns (semgrep)",
-                        "semgrep",
-                        semgrep_command,
-                        30,
-                        True,
-                    )
-                )
+                checks.append(("Async patterns (semgrep)", "semgrep", semgrep_command, 30, True, None))
             else:
-                checks.append(
-                    (
-                        "Async patterns (semgrep)",
-                        "semgrep",
-                        [],
-                        30,
-                        True,
-                    )
-                )
+                checks.append(("Async patterns (semgrep)", "semgrep", [], 30, True, None))
 
         # Type checking (basedpyright) - optional
         basedpyright_available, _ = check_tool_in_env(self.repo_path, "basedpyright", env_info)
@@ -757,9 +832,9 @@ class ReproChecker:
             if (self.repo_path / "tools").exists():
                 basedpyright_command.append("tools/")
             basedpyright_command = build_tool_command(env_info, basedpyright_command)
-            checks.append(("Type checking (basedpyright)", "basedpyright", basedpyright_command, None, True))
+            checks.append(("Type checking (basedpyright)", "basedpyright", basedpyright_command, None, True, None))
         else:
-            checks.append(("Type checking (basedpyright)", "basedpyright", [], None, True))
+            checks.append(("Type checking (basedpyright)", "basedpyright", [], None, True, None))
 
         # CrossHair - optional, only if source directories exist
         if source_dirs:
@@ -771,28 +846,27 @@ class ReproChecker:
                 if (self.repo_path / "tools").exists():
                     crosshair_targets.append("tools/")
 
-                # Build command: python -m crosshair check <targets>
-                crosshair_base = ["python", "-m", "crosshair", "check", *crosshair_targets]
-                crosshair_command = build_tool_command(env_info, crosshair_base)
-                checks.append(
-                    (
-                        "Contract exploration (CrossHair)",
-                        "crosshair",
-                        crosshair_command,
-                        60,
-                        True,
-                    )
+                expanded_targets, _excluded_main, pythonpath_roots = _expand_crosshair_targets(
+                    self.repo_path, crosshair_targets
                 )
+                if expanded_targets:
+                    crosshair_base = ["python", "-m", "crosshair", "check", *expanded_targets]
+                    crosshair_command = build_tool_command(env_info, crosshair_base)
+                    crosshair_env = _build_crosshair_env(pythonpath_roots)
+                    checks.append(
+                        (
+                            "Contract exploration (CrossHair)",
+                            "crosshair",
+                            crosshair_command,
+                            60,
+                            True,
+                            crosshair_env,
+                        )
+                    )
+                else:
+                    checks.append(("Contract exploration (CrossHair)", "crosshair", [], 60, True, None))
             else:
-                checks.append(
-                    (
-                        "Contract exploration (CrossHair)",
-                        "crosshair",
-                        [],
-                        60,
-                        True,
-                    )
-                )
+                checks.append(("Contract exploration (CrossHair)", "crosshair", [], 60, True, None))
 
         # Property tests - optional, only if directory exists
         if contracts_tests.exists():
@@ -800,25 +874,9 @@ class ReproChecker:
             if pytest_available:
                 pytest_command = ["pytest", "tests/contracts/", "-v"]
                 pytest_command = build_tool_command(env_info, pytest_command)
-                checks.append(
-                    (
-                        "Property tests (pytest contracts)",
-                        "pytest",
-                        pytest_command,
-                        30,
-                        True,
-                    )
-                )
+                checks.append(("Property tests (pytest contracts)", "pytest", pytest_command, 30, True, None))
             else:
-                checks.append(
-                    (
-                        "Property tests (pytest contracts)",
-                        "pytest",
-                        [],
-                        30,
-                        True,
-                    )
-                )
+                checks.append(("Property tests (pytest contracts)", "pytest", [], 30, True, None))
 
         # Smoke tests - optional, only if directory exists
         if smoke_tests.exists():
@@ -826,9 +884,9 @@ class ReproChecker:
             if pytest_available:
                 pytest_command = ["pytest", "tests/smoke/", "-v"]
                 pytest_command = build_tool_command(env_info, pytest_command)
-                checks.append(("Smoke tests (pytest smoke)", "pytest", pytest_command, 30, True))
+                checks.append(("Smoke tests (pytest smoke)", "pytest", pytest_command, 30, True, None))
             else:
-                checks.append(("Smoke tests (pytest smoke)", "pytest", [], 30, True))
+                checks.append(("Smoke tests (pytest smoke)", "pytest", [], 30, True, None))
 
         for check_args in checks:
             # Check budget before starting
@@ -838,7 +896,7 @@ class ReproChecker:
                 break
 
             # Skip checks with empty commands (tool not available)
-            name, tool, command, _timeout, _skip_if_missing = check_args
+            name, tool, command, _timeout, _skip_if_missing, _env = check_args
             if not command:
                 # Tool not available - create skipped result with helpful message
                 _tool_available, tool_message = check_tool_in_env(self.repo_path, tool, env_info)

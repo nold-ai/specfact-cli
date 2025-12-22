@@ -131,6 +131,9 @@ For these cases, use the **export-to-file → LLM reasoning → import-from-file
 
 **CRITICAL**: Always use `/tmp/` for temporary artifacts to avoid polluting the codebase. Never create temporary files in the project root.
 
+**CRITICAL**: Question IDs are generated per run and can change if you re-run review.  
+**Do not** re-run `plan review` between exporting questions and applying answers. Always answer using the exact exported questions file for that session.
+
 **Note**: The `--max-questions` parameter (default: 5) limits the number of questions per session, not the total number of available questions. If there are more questions available, you may need to run the review multiple times to answer all questions. Each session will ask different questions (avoiding duplicates from previous sessions).
 
 **Export questions to file for LLM reasoning:**
@@ -392,6 +395,11 @@ specfact plan review [<bundle-name>] --list-questions --output-questions /tmp/qu
 - Business context questions requiring human judgment
 
 **What to do**:
+
+0. **Grounding rule**:
+   - Treat CLI-exported questions as the source of truth; consult codebase/docs only to answer them (do not invent new artifacts)
+   - **Feature/Story Completeness note**: Answers here are clarifications only. They do **NOT** create stories.  
+     For missing stories, use `specfact plan add-story` (or `plan update-story --batch-updates` if stories already exist).
 
 1. **Read exported questions file** (`/tmp/questions.json`):
    - Review all questions and their categories

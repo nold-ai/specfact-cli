@@ -92,6 +92,7 @@ specfact repro --repo <path> [options] --no-interactive
 **What to do**:
 
 - Read CLI-generated validation report (use file reading tools for display only)
+- Treat the validation report as the source of truth; scan codebase only to explain failures
 - Research codebase for context on failures
 - Suggest fixes for validation failures
 

@@ -9,6 +9,31 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.3] - 2025-12-22
+
+### Added (0.20.3)
+
+- **Sidecar Template Guidance (Phase B)**: Added refresh workflow guidance and recommended CrossHair defaults to sidecar templates for internal research validation.
+
+### Fixed (0.20.3)
+
+- **Sidecar Adapters**: Resolved registry adapter typing, callback closure binding, duplicate adapter definitions, and teardown return flow in sidecar templates.
+
+---
+
+## [0.20.2] - 2025-12-22
+
+### Fixed (0.20.2)
+
+- **`repro` CrossHair Execution**: Avoided import-time side effects by expanding directory targets into files and excluding `__main__.py`
+  - Prevents Flask-style CLI entrypoints from consuming CrossHair arguments
+  - Keeps contract exploration focused on analyzable code paths
+- **`repro` CrossHair Imports**: Use module targets with `PYTHONPATH` roots to support namespace packages
+  - Fixes relative-import failures for layouts like `flask/sansio` without `__init__.py`
+- **`repro` Success Messaging**: Clarified output when only CrossHair fails (advisory) instead of reporting full success
+
+---
+
 ## [0.20.1] - 2025-12-20
 
 ### Fixed (0.20.1)

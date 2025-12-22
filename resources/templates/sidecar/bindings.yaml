@@ -1,0 +1,26 @@
+bindings:
+  # Map operationId or function_name to a real code function.
+  # function is module_path:function_name.
+  # call_style: dict|kwargs|args|none
+  # args: list of request keys when call_style=args
+  # adapters: call_method_with_factory, call_constructor_then_method, call_classmethod,
+  #           call_with_context_manager, call_async, call_with_setup_teardown,
+  #           call_with_request_transform, call_generator, call_from_registry,
+  #           call_with_overrides, call_with_contextvars, call_with_session,
+  #           call_with_callbacks
+  #
+  # - operation_id: create_item
+  #   target: your_package.factory:ItemFactory
+  #   method: create
+  #   factory:
+  #     args: ["$request.item_type"]
+  #   call_style: kwargs
+  # - function_name: find_item_by_id
+  #   adapter: call_method_with_factory
+  #   target: your_package.repo:ItemRepository
+  #   method: find_by_id
+  #   factory:
+  #     args: []
+  #   call_style: args
+  #   args:
+  #     - item_id
