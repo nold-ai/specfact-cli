@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """Sidecar binding adapters."""
 
 from __future__ import annotations
@@ -6,6 +7,8 @@ import asyncio
 import contextvars
 import importlib
 import inspect
+import os
+import sys
 from collections.abc import Callable
 from typing import Any, Protocol, cast, runtime_checkable
 
@@ -502,3 +505,128 @@ def call_with_callbacks(
     args = binding.get("args", [])
     target = load_binding(target_name)
     return call_target(target, call_style, payload, args)
+
+
+def call_django_view(
+    binding: dict[str, Any],
+    request: Any,
+    load_binding: Callable[[str], Callable[..., Any]],
+    call_target: Callable[[Callable[..., Any], str, Any, list[str]], Any],
+    resolve_value: Callable[[Any, Any], Any],
+) -> Any:
+    """
+    Convert dict request to Django HttpRequest and call Django view.
+
+    This adapter:
+    1. Creates a Django HttpRequest object from the dict
+    2. Sets request.method, request.POST, request.GET, request.user
+    3. Extracts path parameters from the request dict
+    4. Calls the Django view function
+    """
+    target_name = binding.get("target") or binding.get("function")
+    if not target_name:
+        raise ValueError("Binding missing target")
+
+    # Import Django components (lazy import to avoid errors if Django not available)
+    # Type checker warnings are expected - Django is optional dependency
+    # Ensure repo path is in sys.path for Django imports
+    repo_path_str = os.environ.get("REPO_PATH")
+    if repo_path_str and repo_path_str not in sys.path:
+        sys.path.insert(0, repo_path_str)
+
+    # Initialize Django if not already initialized
+    django_settings = os.environ.get("DJANGO_SETTINGS_MODULE")
+    if django_settings:
+        try:
+            import django
+
+            if not django.apps.apps.ready:
+                django.setup()
+        except (ImportError, Exception):
+            pass  # Django not available or already configured
+
+    try:
+        from django.contrib.auth.models import AnonymousUser  # type: ignore[reportMissingImports]
+        from django.test import RequestFactory  # type: ignore[reportMissingImports]
+    except ImportError:
+        raise ImportError("Django adapter requires Django to be installed") from None
+
+    if not isinstance(request, dict):
+        raise ValueError("Django adapter expects dict request")
+
+    # Extract HTTP method (default to POST for form submissions)
+    method = request.get("_method", "POST").upper()
+
+    # Extract path parameters (e.g., pk, friend_pk)
+    path_params = {k: v for k, v in request.items() if k.startswith("_path_")}
+    path_params = {k.replace("_path_", ""): v for k, v in path_params.items()}
+
+    # Extract form data (POST body)
+    form_data = {k: v for k, v in request.items() if not k.startswith("_")}
+
+    # Create Django HttpRequest using RequestFactory
+    factory = RequestFactory()
+
+    # Build path with parameters
+    path = binding.get("path", "/")
+    for param_name, param_value in path_params.items():
+        path = path.replace(f"{{{param_name}}}", str(param_value))
+
+    # Create request based on method
+    if method == "GET":
+        django_request = factory.get(path, form_data)
+    elif method == "POST":
+        django_request = factory.post(path, form_data)
+    elif method == "PUT":
+        django_request = factory.put(path, form_data)
+    elif method == "PATCH":
+        django_request = factory.patch(path, form_data)
+    elif method == "DELETE":
+        django_request = factory.delete(path, form_data)
+    else:
+        django_request = factory.request(REQUEST_METHOD=method, path=path)
+
+    # Set user if provided
+    user_target = binding.get("user") or binding.get("user_factory")
+    if user_target:
+        user = load_binding(user_target)
+        if callable(user):
+            user = user()
+        django_request.user = user
+    else:
+        django_request.user = AnonymousUser()
+
+    # Load and call the Django view
+    view_func = load_binding(target_name)
+
+    # Django views typically take (request, *args, **kwargs)
+    # Extract args from path_params
+    view_args = []
+    view_kwargs = {}
+
+    # If path_params exist, they become kwargs
+    if path_params:
+        view_kwargs = path_params
+    else:
+        # Try to extract from binding args
+        args_list = binding.get("args", [])
+        for arg_name in args_list:
+            if arg_name in request:
+                view_args.append(request[arg_name])
+
+    # Call the view
+    try:
+        result = view_func(django_request, *view_args, **view_kwargs)
+        # Convert HttpResponse to dict for CrossHair
+        if hasattr(result, "status_code"):
+            return {
+                "status_code": result.status_code,
+                "content": getattr(result, "content", b"").decode("utf-8", errors="ignore"),
+            }
+        return result
+    except Exception as e:
+        # Return error info for CrossHair to analyze
+        return {
+            "error": type(e).__name__,
+            "message": str(e),
+        }

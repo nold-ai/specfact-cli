@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Determine sidecar directory (where this script is located)
+SIDECAR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 if [[ -f ".env" ]]; then
   set -a
   . ./.env
@@ -60,8 +63,53 @@ fi
 
 CONTRACTS_DIR="${REPO_PATH}/.specfact/projects/${BUNDLE_NAME}/contracts"
 export PYTHONPATH="${REPO_PYTHONPATH}:${PYTHONPATH:-}"
+# Export Django settings module if set (for framework detection)
+if [[ -n "${DJANGO_SETTINGS_MODULE:-}" ]]; then
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE}"
+fi
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 SIDECAR_APP_LOG="${SIDECAR_APP_LOG:-${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-app.log}"
+
+# Detect Python executable (prefer venv if available)
+PYTHON_CMD="${PYTHON_CMD:-python3}"
+if [[ -d "${REPO_PATH}/.venv" ]]; then
+  VENV_PYTHON="${REPO_PATH}/.venv/bin/python"
+  if [[ -f "${VENV_PYTHON}" ]]; then
+    PYTHON_CMD="${VENV_PYTHON}"
+    echo "[sidecar] using venv Python: ${PYTHON_CMD}"
+  fi
+elif [[ -d "${REPO_PATH}/venv" ]]; then
+  VENV_PYTHON="${REPO_PATH}/venv/bin/python"
+  if [[ -f "${VENV_PYTHON}" ]]; then
+    PYTHON_CMD="${VENV_PYTHON}"
+    echo "[sidecar] using venv Python: ${PYTHON_CMD}"
+  fi
+fi
+
+# Detect framework type for environment setup
+FRAMEWORK_TYPE="${FRAMEWORK_TYPE:-}"
+if [[ -z "${FRAMEWORK_TYPE}" ]]; then
+  # Django detection
+  if [[ -f "${REPO_PATH}/manage.py" ]] || find "${REPO_PATH}" -maxdepth 2 -name "urls.py" -type f 2>/dev/null | grep -q .; then
+    FRAMEWORK_TYPE="django"
+    echo "[sidecar] detected framework: Django"
+    # Set Django settings module if not already set
+    if [[ -z "${DJANGO_SETTINGS_MODULE:-}" ]]; then
+      # Try to detect Django settings module
+      if [[ -f "${REPO_PATH}/manage.py" ]]; then
+        SETTINGS_MODULE=$(grep -oP "DJANGO_SETTINGS_MODULE\s*=\s*['\"]([^'\"]+)['\"]" "${REPO_PATH}/manage.py" 2>/dev/null | head -1 | sed "s/.*['\"]\([^'\"]*\)['\"].*/\1/" || echo "")
+        if [[ -n "${SETTINGS_MODULE}" ]]; then
+          export DJANGO_SETTINGS_MODULE="${SETTINGS_MODULE}"
+          echo "[sidecar] auto-detected DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}"
+        fi
+      fi
+    else
+      export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE}"
+      echo "[sidecar] using DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}"
+    fi
+  # Add other framework detection here (Pyramid, etc.)
+  fi
+fi
 
 if [[ -z "${SIDECAR_SOURCE_DIRS}" ]]; then
   if [[ -d "${REPO_PATH}/src" ]]; then
@@ -150,6 +198,20 @@ echo "[sidecar] contracts: ${CONTRACTS_DIR}"
 echo "[sidecar] sources: ${SIDECAR_SOURCE_DIRS}"
 echo "[sidecar] reports: ${SIDECAR_REPORTS_DIR}"
 
+# Populate contracts with framework-specific patterns (Django, etc.)
+POPULATE_CONTRACTS="${POPULATE_CONTRACTS:-1}"
+if [[ "${POPULATE_CONTRACTS}" == "1" ]] && [[ -d "${CONTRACTS_DIR}" ]]; then
+  if [[ "${FRAMEWORK_TYPE}" == "django" ]]; then
+    echo "[sidecar] populate contracts (Django URL patterns)..."
+    run_and_log "${TIMEOUT_CROSSHAIR}" \
+      "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-populate-contracts.log" \
+      "${PYTHON_CMD}" populate_contracts.py \
+      --contracts "${CONTRACTS_DIR}" \
+      --repo "${REPO_PATH}" \
+      || echo "[sidecar] warning: contract population failed (continuing anyway)"
+  fi
+fi
+
 if [[ "${GENERATE_HARNESS}" == "1" ]]; then
   if [[ -d "${CONTRACTS_DIR}" ]]; then
     if [[ -z "${FEATURES_DIR}" ]]; then
@@ -158,7 +220,7 @@ if [[ "${GENERATE_HARNESS}" == "1" ]]; then
     echo "[sidecar] generate harness..."
     run_and_log "${TIMEOUT_CROSSHAIR}" \
       "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-harness.log" \
-      python generate_harness.py \
+      "${PYTHON_CMD}" generate_harness.py \
       --contracts "${CONTRACTS_DIR}" \
       --output "${HARNESS_PATH}" \
       --inputs "${INPUTS_PATH}" \
@@ -174,11 +236,18 @@ if [[ "${RUN_SEMGREP}" == "1" && -n "${SEMGREP_CONFIG}" && -f "${SEMGREP_CONFIG}
     semgrep --config "${SEMGREP_CONFIG}" ${SIDECAR_SOURCE_DIRS}
 fi
 
-if [[ "${RUN_BASEDPYRIGHT}" == "1" ]] && command -v basedpyright >/dev/null 2>&1; then
-  echo "[sidecar] basedpyright..."
-  run_and_log "${TIMEOUT_BASEDPYRIGHT}" \
-    "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-basedpyright.log" \
-    basedpyright ${SIDECAR_SOURCE_DIRS}
+if [[ "${RUN_BASEDPYRIGHT}" == "1" ]]; then
+  BASEDPYRIGHT_CMD="basedpyright"
+  if [[ -f "${PYTHON_CMD}" ]] && "${PYTHON_CMD}" -m basedpyright --version >/dev/null 2>&1; then
+    BASEDPYRIGHT_CMD="${PYTHON_CMD} -m basedpyright"
+  elif ! command -v basedpyright >/dev/null 2>&1; then
+    echo "[sidecar] basedpyright skipped (not available)"
+  else
+    echo "[sidecar] basedpyright..."
+    run_and_log "${TIMEOUT_BASEDPYRIGHT}" \
+      "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-basedpyright.log" \
+      ${BASEDPYRIGHT_CMD} ${SIDECAR_SOURCE_DIRS}
+  fi
 fi
 
 if [[ "${RUN_SPECMATIC}" == "1" && -d "${CONTRACTS_DIR}" ]]; then
@@ -282,8 +351,60 @@ if [[ "${RUN_CROSSHAIR}" == "1" ]] && command -v crosshair >/dev/null 2>&1; then
   if [[ -n "${CROSSHAIR_EXTRA_PLUGIN}" ]]; then
     CROSSHAIR_ARGS+=(--extra_plugin "${CROSSHAIR_EXTRA_PLUGIN}")
   fi
-  echo "[sidecar] crosshair (harness)..."
-  run_and_log "${TIMEOUT_CROSSHAIR}" \
-    "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair.log" \
-    python -m crosshair check "${CROSSHAIR_ARGS[@]}" "${HARNESS_PATH}"
+
+  # Case A: Analyze source code directly (for existing decorators: beartype, icontract, etc.)
+  # This catches contracts that are already in the source code (e.g., SpecFact CLI dogfooding)
+  # For Django projects, use the Django-aware wrapper to initialize the app registry first
+  echo "[sidecar] crosshair (source code - existing decorators)..."
+  if [[ "${FRAMEWORK_TYPE}" == "django" ]]; then
+    # Use Django-aware wrapper for source code analysis
+    CROSSHAIR_WRAPPER="${SIDECAR_DIR}/crosshair_django_wrapper.py"
+    if [[ -f "${CROSSHAIR_WRAPPER}" ]]; then
+      echo "[sidecar] using Django-aware CrossHair wrapper for source analysis"
+      # Export environment variables for Django initialization
+      CROSSHAIR_ENV=""
+      if [[ -n "${DJANGO_SETTINGS_MODULE:-}" ]]; then
+        CROSSHAIR_ENV="DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} "
+      fi
+      if [[ -n "${REPO_PATH:-}" ]]; then
+        CROSSHAIR_ENV="${CROSSHAIR_ENV}REPO_PATH=${REPO_PATH} "
+      fi
+      if [[ -n "${PYTHONPATH:-}" ]]; then
+        CROSSHAIR_ENV="${CROSSHAIR_ENV}PYTHONPATH=${PYTHONPATH} "
+      fi
+      run_and_log "${TIMEOUT_CROSSHAIR}" \
+        "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
+        env ${CROSSHAIR_ENV}"${PYTHON_CMD}" "${CROSSHAIR_WRAPPER}" check "${CROSSHAIR_ARGS[@]}" ${SIDECAR_SOURCE_DIRS}
+    else
+      echo "[sidecar] warning: Django wrapper not found, using standard CrossHair (may fail)"
+      run_and_log "${TIMEOUT_CROSSHAIR}" \
+        "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
+        "${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" ${SIDECAR_SOURCE_DIRS}
+    fi
+  else
+    # Standard CrossHair for non-Django projects
+    run_and_log "${TIMEOUT_CROSSHAIR}" \
+      "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
+      "${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" ${SIDECAR_SOURCE_DIRS}
+  fi
+
+  # Case B: Analyze harness (for contracts added via harness generation)
+  # This catches contracts added externally via harness_contracts.py for code without decorators
+  # This is the primary analysis method for frameworks without decorators (Django, etc.)
+  if [[ -f "${HARNESS_PATH}" ]]; then
+    echo "[sidecar] crosshair (harness - external contracts)..."
+    # Export environment variables for CrossHair subprocess
+    CROSSHAIR_ENV=""
+    if [[ -n "${DJANGO_SETTINGS_MODULE:-}" ]]; then
+      CROSSHAIR_ENV="DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} "
+    fi
+    if [[ -n "${PYTHONPATH:-}" ]]; then
+      CROSSHAIR_ENV="${CROSSHAIR_ENV}PYTHONPATH=${PYTHONPATH} "
+    fi
+    run_and_log "${TIMEOUT_CROSSHAIR}" \
+      "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-harness.log" \
+      env ${CROSSHAIR_ENV}"${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" "${HARNESS_PATH}"
+  else
+    echo "[sidecar] crosshair harness skipped (${HARNESS_PATH} not found)"
+  fi
 fi

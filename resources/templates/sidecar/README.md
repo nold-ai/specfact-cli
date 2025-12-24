@@ -22,6 +22,8 @@ export BUNDLE_NAME=bundle-name
 export SEMGREP_CONFIG=/path/to/semgrep.yml   # optional
 export REPO_PYTHONPATH="/path/to/target/repo/src:/path/to/target/repo"
 export SIDECAR_SOURCE_DIRS="/path/to/target/repo/src"  # optional (defaults to src/)
+export PYTHON_CMD=python3  # optional (auto-detects venv if .venv/ or venv/ exists)
+export DJANGO_SETTINGS_MODULE=project.settings  # optional (auto-detected for Django projects)
 export SPECMATIC_CMD=/path/to/specmatic  # optional (CLI binary, or: "npx --yes specmatic")
 export SPECMATIC_JAR=/path/to/specmatic.jar  # optional (java -jar fallback)
 export SPECMATIC_CONFIG=/path/to/specmatic.yaml  # optional config file
@@ -84,6 +86,16 @@ Notes:
 - CrossHair requires contracts (icontract/PEP316/deal) or registered contracts.
   Use `harness_contracts.py` or `crosshair_plugin.py` to attach contracts
   externally without touching production code.
+
+- **Dual CrossHair Analysis**: The sidecar runs CrossHair in two modes:
+  1. **Source code analysis**: Analyzes source directories directly to catch existing decorators
+     (beartype, icontract, PEP316, deal) already present in the codebase (e.g., SpecFact CLI dogfooding).
+  2. **Harness analysis**: Analyzes generated harness files to catch contracts added externally
+     for code without decorators (e.g., DjangoGoat, Flask, Requests).
+  
+  Both analyses are necessary for complete coverage:
+  - **Case A**: Code with existing decorators → CrossHair analyzes source directly
+  - **Case B**: Code without decorators → CrossHair analyzes harness with externally-added contracts
 - Specmatic contracts are expected in:
   `<REPO_PATH>/.specfact/projects/<BUNDLE_NAME>/contracts/`
 - If you only have the Python `specmatic` package installed, note it does not

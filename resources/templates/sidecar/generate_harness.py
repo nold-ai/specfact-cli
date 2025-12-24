@@ -151,8 +151,10 @@ def _sanitize_identifier(value: str) -> str:
 def _extract_request_schema(operation: dict[str, Any], doc: dict[str, Any]) -> dict[str, Any]:
     request_body = operation.get("requestBody", {})
     content = request_body.get("content", {})
+    # Try JSON first, then form-urlencoded (common for Django)
     json_content = content.get("application/json") or {}
-    schema = json_content.get("schema", {})
+    form_content = content.get("application/x-www-form-urlencoded") or {}
+    schema = json_content.get("schema") or form_content.get("schema") or {}
     if not schema:
         return {}
     return _normalize_schema(schema, doc)
@@ -286,6 +288,17 @@ def _render_harness(
     lines.append("import importlib")
     lines.append("import os")
     lines.append("import adapters as sidecar_adapters")
+    lines.append("")
+    lines.append("# Django initialization (if Django is available)")
+    lines.append("_django_initialized = False")
+    lines.append("try:")
+    lines.append("    django_settings = os.environ.get('DJANGO_SETTINGS_MODULE')")
+    lines.append("    if django_settings:")
+    lines.append("        import django")
+    lines.append("        django.setup()")
+    lines.append("        _django_initialized = True")
+    lines.append("except (ImportError, Exception):")
+    lines.append("    pass  # Django not available or already configured")
     lines.append("")
     lines.append("")
     lines.append("@lru_cache(maxsize=None)")
@@ -521,8 +534,8 @@ def main() -> int:
         raise SystemExit(f"Contracts directory not found: {contracts_dir}")
 
     operations = _collect_operations(contracts_dir)
-    features_dir = Path(args.features) if args.features else contracts_dir.parent / "features"
-    bindings_path = Path(args.bindings) if args.bindings else Path("bindings.yaml")
+    features_dir = Path(str(args.features)) if args.features else contracts_dir.parent / "features"
+    bindings_path = Path(str(args.bindings)) if args.bindings else Path("bindings.yaml")
     feature_contracts = _load_feature_contracts(features_dir)
     bindings = _load_bindings(bindings_path)
     inputs_payload = {
@@ -538,8 +551,8 @@ def main() -> int:
         ]
     }
 
-    Path(args.inputs).write_text(json.dumps(inputs_payload, sort_keys=True, indent=2), encoding="utf-8")
-    Path(args.output).write_text(_render_harness(operations, feature_contracts, bindings), encoding="utf-8")
+    Path(str(args.inputs)).write_text(json.dumps(inputs_payload, sort_keys=True, indent=2), encoding="utf-8")
+    Path(str(args.output)).write_text(_render_harness(operations, feature_contracts, bindings), encoding="utf-8")
 
     return 0
 

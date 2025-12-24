@@ -9,6 +9,21 @@ bindings:
   #           call_with_overrides, call_with_contextvars, call_with_session,
   #           call_with_callbacks, call_django_view
   #
+  # Django view bindings example:
+  # - operation_id: log_in
+  #   adapter: call_django_view
+  #   target: authentication.views:log_in
+  #   path: /login/
+  #   # Optional: user factory for authenticated requests
+  #   # user: authentication.factories:create_test_user
+  #
+  # - operation_id: profile
+  #   adapter: call_django_view
+  #   target: authentication.views:profile
+  #   path: /profile/{pk}/
+  #   # Path parameters are extracted from request dict with _path_ prefix
+  #   # e.g., request['_path_pk'] = 1
+  #
   # - operation_id: create_item
   #   target: your_package.factory:ItemFactory
   #   method: create
@@ -24,3 +39,4 @@ bindings:
   #   call_style: args
   #   args:
   #     - item_id
+
