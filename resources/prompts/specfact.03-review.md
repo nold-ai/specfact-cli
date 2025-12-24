@@ -135,6 +135,9 @@ For these cases, use the **export-to-file → LLM reasoning → import-from-file
 
 **CRITICAL**: Always use `/tmp/` for temporary artifacts to avoid polluting the codebase. Never create temporary files in the project root.
 
+**CRITICAL**: Question IDs are generated per run and can change if you re-run review.  
+**Do not** re-run `plan review` between exporting questions and applying answers. Always answer using the exact exported questions file for that session.
+
 **Note**: The `--max-questions` parameter (default: 5) limits the number of questions per session, not the total number of available questions. If there are more questions available, you may need to run the review multiple times to answer all questions. Each session will ask different questions (avoiding duplicates from previous sessions).
 
 **Export questions to file for LLM reasoning:**
@@ -397,6 +400,11 @@ specfact plan review [<bundle-name>] --list-questions --output-questions /tmp/qu
 
 **What to do**:
 
+0. **Grounding rule**:
+   - Treat CLI-exported questions as the source of truth; consult codebase/docs only to answer them (do not invent new artifacts)
+   - **Feature/Story Completeness note**: Answers here are clarifications only. They do **NOT** create stories.  
+     For missing stories, use `specfact plan add-story` (or `plan update-story --batch-updates` if stories already exist).
+
 1. **Read exported questions file** (`/tmp/questions.json`):
    - Review all questions and their categories
    - Identify questions requiring code/feature analysis
@@ -604,6 +612,102 @@ Create one with: specfact plan init legacy-api
 
 - Use `plan update-idea` to update idea fields directly
 - If bundle needs regeneration, use `import from-code --enrichment`
+
+**Note on OpenAPI Contracts:**
+
+After applying enrichment or review updates, check if features need OpenAPI contracts for sidecar validation:
+
+- Features added via enrichment typically don't have contracts (no `source_tracking`)
+- Django applications require manual contract generation (Django URL patterns not auto-detected)
+- Use `specfact contract init --bundle <bundle> --feature <FEATURE_KEY>` to generate contracts for features that need them
+
+**Enrichment Report Format** (for `import from-code --enrichment`):
+
+When generating enrichment reports for use with `import from-code --enrichment`, follow this exact format:
+
+```markdown
+# [Bundle Name] Enrichment Report
+
+**Date**: YYYY-MM-DDTHH:MM:SS  
+**Bundle**: <bundle-name>
+
+---
+
+## Missing Features
+
+1. **Feature Title** (Key: FEATURE-XXX)
+   - Confidence: 0.85
+   - Outcomes: outcome1, outcome2, outcome3
+   - Stories:
+     1. Story title here
+        - Acceptance: criterion1, criterion2, criterion3
+     2. Another story title
+        - Acceptance: criterion1, criterion2
+
+2. **Another Feature** (Key: FEATURE-YYY)
+   - Confidence: 0.80
+   - Outcomes: outcome1, outcome2
+   - Stories:
+     1. Story title
+        - Acceptance: criterion1, criterion2, criterion3
+
+## Confidence Adjustments
+
+- FEATURE-EXISTING-KEY: 0.90 (reason: improved understanding after code review)
+
+## Business Context
+
+- Priority: High priority feature for core functionality
+- Constraint: Must support both REST and GraphQL APIs
+- Risk: Potential performance issues with large datasets
+```
+
+**Format Requirements**:
+
+1. **Section Header**: Must use `## Missing Features` (case-insensitive, but prefer this exact format)
+2. **Feature Format**:
+   - Numbered list: `1. **Feature Title** (Key: FEATURE-XXX)`
+   - **Bold title** is required (use `**Title**`)
+   - **Key in parentheses**: `(Key: FEATURE-XXX)` - must be uppercase, alphanumeric with hyphens/underscores
+   - Fields on separate lines with `-` prefix:
+     - `- Confidence: 0.85` (float between 0.0-1.0)
+     - `- Outcomes: comma-separated or line-separated list`
+     - `- Stories:` (required - each feature must have at least one story)
+3. **Stories Format**:
+   - Numbered list under `Stories:` section: `1. Story title`
+   - **Indentation**: Stories must be indented (2-4 spaces) under the feature
+   - **Acceptance Criteria**: `- Acceptance: criterion1, criterion2, criterion3`
+     - Can be comma-separated on one line
+     - Or multi-line (each criterion on new line)
+     - Must start with `- Acceptance:`
+4. **Optional Sections**:
+   - `## Confidence Adjustments`: List existing features with confidence updates
+   - `## Business Context`: Priorities, constraints, risks (bullet points)
+5. **File Naming**: `<bundle-name>-<timestamp>.enrichment.md` (e.g., `djangogoat-2025-12-23T23-50-00.enrichment.md`)
+
+**Example** (working format):
+
+```markdown
+## Missing Features
+
+1. **User Authentication** (Key: FEATURE-USER-AUTHENTICATION)
+   - Confidence: 0.85
+   - Outcomes: User registration, login, profile management
+   - Stories:
+     1. User can sign up for new account
+        - Acceptance: sign_up view processes POST requests, creates User automatically, user is logged in after signup, redirects to profile page
+     2. User can log in with credentials
+        - Acceptance: log_in view authenticates username/password, on success user is logged in and redirected, on failure error message is displayed
+```
+
+**Common Mistakes to Avoid**:
+
+- ❌ Missing `(Key: FEATURE-XXX)` - parser needs this to identify features
+- ❌ Missing `Stories:` section - every feature must have at least one story
+- ❌ Stories not indented - parser expects indented numbered lists
+- ❌ Missing `- Acceptance:` prefix - acceptance criteria won't be parsed
+- ❌ Using bullet points (`-`) instead of numbers (`1.`) for stories
+- ❌ Feature title not in bold (`**Title**`) - parser may not extract title correctly
 
 ## Context
 

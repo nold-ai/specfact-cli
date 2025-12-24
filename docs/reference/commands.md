@@ -272,7 +272,11 @@ specfact import from-code [OPTIONS]
   - **Large codebases**: Focus on specific modules or subsystems for faster analysis
   - **Incremental modernization**: Modernize one part of the codebase at a time
   - Example: `--entry-point src/core` analyzes only `src/core/` and its subdirectories
-- `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context)
+- `--enrichment PATH` - Path to Markdown enrichment report from LLM (applies missing features, confidence adjustments, business context). The enrichment report must follow a specific format (see [Dual-Stack Enrichment Guide](../guides/dual-stack-enrichment.md) for format requirements). When applied:
+  - Missing features are added with their stories and acceptance criteria
+  - Existing features are updated (confidence, outcomes, title if empty)
+  - Stories are merged into existing features (new stories added, existing preserved)
+  - Business context is applied to the plan bundle
 
 **Note**: The bundle name (positional argument) will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. The bundle is created at `.specfact/projects/<bundle-name>/`.
 

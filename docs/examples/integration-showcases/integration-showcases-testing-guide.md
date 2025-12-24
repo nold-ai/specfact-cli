@@ -185,6 +185,11 @@ def process_payment(request):
    2. **Enrichment Report Creation**: The AI will:
       - Draft an enrichment markdown file: `<name>-<timestamp>.enrichment.md` (saved to `.specfact/projects/<name>/reports/enrichment/`, Phase 8.5)
       - Include missing features, stories, confidence adjustments, and business context
+      - **CRITICAL**: Follow the exact enrichment report format (see [Dual-Stack Enrichment Guide](../../guides/dual-stack-enrichment.md) for format requirements):
+        - Features must use numbered list: `1. **Feature Title** (Key: FEATURE-XXX)`
+        - Each feature must have a `Stories:` section with numbered stories
+        - Stories must have `- Acceptance:` criteria
+        - Stories must be indented under the feature
    3. **Apply Enrichment**: The AI will run:
 
       ```bash
@@ -1041,9 +1046,11 @@ Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<
   - Smoke tests (pytest) - only if `tests/smoke/` directory exists
 
 **CrossHair Setup**: Before running `repro` for the first time, set up CrossHair configuration:
+
 ```bash
 specfact repro setup
 ```
+
 This automatically generates `[tool.crosshair]` configuration in `pyproject.toml` to enable contract exploration.
 
 **Important**: `repro` does **not** perform runtime contract validation (checking `@icontract` decorators at runtime). It runs static analysis (linting, type checking) and symbolic execution (CrossHair) for contract exploration. Type mismatches will be detected by the type checking tool (basedpyright) if available. The enforcement configuration determines whether failures block the workflow.

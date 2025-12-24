@@ -24,6 +24,7 @@ Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contr
 1. **Execute CLI**: `specfact import from-code [<bundle>] --repo <path> [options]`
    - CLI extracts: routes (FastAPI/Flask/Django), schemas (Pydantic), relationships, contracts (OpenAPI scaffolds), source tracking
    - Uses active plan if bundle not specified
+   - Note: `--no-interactive` is a global option and must appear before the subcommand (e.g., `specfact --no-interactive import from-code ...`).
    - **Auto-enrichment enabled by default**: Automatically enhances vague acceptance criteria, incomplete requirements, and generic tasks using PlanEnricher (same logic as `plan review --auto-enrich`)
    - Use `--no-enrich-for-speckit` to disable auto-enrichment
 
@@ -42,7 +43,7 @@ Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contr
 **Rules:**
 
 - Execute CLI first - never create artifacts directly
-- Use `--no-interactive` flag in CI/CD environments
+- Use the global `--no-interactive` flag in CI/CD environments (must appear before the subcommand)
 - Never modify `.specfact/` directly
 - Use CLI output as grounding for validation
 - Code generation requires LLM (only via AI IDE slash prompts, not CLI-only)
@@ -55,7 +56,7 @@ When in copilot mode, follow this three-phase workflow:
 
 ```bash
 # Execute CLI to get structured output
-specfact import from-code [<bundle>] --repo <path> --no-interactive
+specfact --no-interactive import from-code [<bundle>] --repo <path>
 ```
 
 **Capture**:
@@ -90,7 +91,7 @@ specfact import from-code [<bundle>] --repo <path> --no-interactive
 
 ```bash
 # Use enrichment to update plan via CLI
-specfact import from-code [<bundle>] --repo <path> --enrichment <enrichment-report> --no-interactive
+specfact --no-interactive import from-code [<bundle>] --repo <path> --enrichment <enrichment-report>
 ```
 
 **Result**: Final artifacts are CLI-generated with validated enrichments

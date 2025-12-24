@@ -9,6 +9,60 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.5] - 2025-12-24
+
+### Fixed (0.20.5)
+
+- **Sidecar Template Code Quality**: Fixed formatting and linting issues in sidecar template files
+  - **`adapters.py`**: Removed whitespace from blank line, removed unused imports (`HttpRequest`, `QueryDict`), fixed exception chaining with `raise ... from None`
+  - **`crosshair_django_wrapper.py`**: Combined nested if statements to reduce complexity (SIM102)
+  - **`populate_contracts.py`**: Replaced for loop with `any()` expression for better Pythonic code (SIM110)
+  - **`django_form_extractor.py`**: Combined nested if statements, fixed indentation issues throughout the file
+  - **`django_url_extractor.py`**: Combined nested if statements, improved code formatting
+  - All files now pass `hatch run format` checks with no errors
+  - Improves code maintainability and follows Python best practices
+
+---
+
+## [0.20.4] - 2025-12-23
+
+### Fixed (0.20.4)
+
+- **Enrichment Parser Story Merging**: Fixed critical issue where stories from enrichment reports were not added when updating existing features
+  - Previously, stories were only added when creating new features, not when updating existing ones
+  - Now correctly merges stories from enrichment reports into existing features (adds new stories that don't already exist by key)
+  - Also updates feature title if it was empty
+  - Preserves existing stories while adding new ones from enrichment reports
+  - Enables full dual-stack enrichment workflow: CLI grounding → LLM enrichment → CLI artifact creation with complete story details
+  - Verified with DjangoGoat validation: 24 stories now correctly added across 8 features
+
+---
+
+## [0.20.3] - 2025-12-22
+
+### Added (0.20.3)
+
+- **Sidecar Template Guidance (Phase B)**: Added refresh workflow guidance and recommended CrossHair defaults to sidecar templates for internal research validation.
+
+### Fixed (0.20.3)
+
+- **Sidecar Adapters**: Resolved registry adapter typing, callback closure binding, duplicate adapter definitions, and teardown return flow in sidecar templates.
+
+---
+
+## [0.20.2] - 2025-12-22
+
+### Fixed (0.20.2)
+
+- **`repro` CrossHair Execution**: Avoided import-time side effects by expanding directory targets into files and excluding `__main__.py`
+  - Prevents Flask-style CLI entrypoints from consuming CrossHair arguments
+  - Keeps contract exploration focused on analyzable code paths
+- **`repro` CrossHair Imports**: Use module targets with `PYTHONPATH` roots to support namespace packages
+  - Fixes relative-import failures for layouts like `flask/sansio` without `__init__.py`
+- **`repro` Success Messaging**: Clarified output when only CrossHair fails (advisory) instead of reporting full success
+
+---
+
 ## [0.20.1] - 2025-12-20
 
 ### Fixed (0.20.1)

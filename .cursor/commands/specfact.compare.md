@@ -90,6 +90,7 @@ specfact plan compare [--bundle <name>] [options] --no-interactive
 **What to do**:
 
 - Read CLI-generated comparison report (use file reading tools for display only)
+- Treat the comparison report as the source of truth; scan codebase only to explain or confirm deviations
 - Research codebase for context on deviations
 - Suggest fixes for missing features or mismatches
 

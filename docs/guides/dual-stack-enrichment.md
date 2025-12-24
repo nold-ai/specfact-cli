@@ -1,7 +1,8 @@
 # Dual-Stack Enrichment Pattern
 
 **Status**: ✅ **AVAILABLE** (v0.13.0+)  
-**Last Updated**: 2025-12-02
+**Last Updated**: 2025-12-23  
+**Version**: v0.20.4 (enrichment parser improvements: story merging, format validation)
 
 ---
 
@@ -74,6 +75,7 @@ specfact <command> [options] --no-interactive
 - Identify missing features/stories
 - Suggest confidence adjustments
 - Extract business context
+- **CRITICAL**: Generate enrichment report in the exact format specified below (see "Enrichment Report Format" section)
 
 **What NOT to do**:
 
@@ -82,23 +84,126 @@ specfact <command> [options] --no-interactive
 - ❌ Bypass CLI validation
 - ❌ Write to `.specfact/` folder directly (always use CLI)
 - ❌ Use direct file manipulation tools for writing (use CLI commands)
+- ❌ Deviate from the enrichment report format (will cause parsing failures)
 
 **Output**: Generate enrichment report (Markdown) saved to `.specfact/projects/<bundle-name>/reports/enrichment/` (bundle-specific, Phase 8.5)
+
+**Enrichment Report Format** (REQUIRED for successful parsing):
+
+The enrichment parser expects a specific Markdown format. Follow this structure exactly:
+
+```markdown
+# [Bundle Name] Enrichment Report
+
+**Date**: YYYY-MM-DDTHH:MM:SS  
+**Bundle**: <bundle-name>
+
+---
+
+## Missing Features
+
+1. **Feature Title** (Key: FEATURE-XXX)
+   - Confidence: 0.85
+   - Outcomes: outcome1, outcome2, outcome3
+   - Stories:
+     1. Story title here
+        - Acceptance: criterion1, criterion2, criterion3
+     2. Another story title
+        - Acceptance: criterion1, criterion2
+
+2. **Another Feature** (Key: FEATURE-YYY)
+   - Confidence: 0.80
+   - Outcomes: outcome1, outcome2
+   - Stories:
+     1. Story title
+        - Acceptance: criterion1, criterion2, criterion3
+
+## Confidence Adjustments
+
+- FEATURE-EXISTING-KEY: 0.90 (reason: improved understanding after code review)
+
+## Business Context
+
+- Priority: High priority feature for core functionality
+- Constraint: Must support both REST and GraphQL APIs
+- Risk: Potential performance issues with large datasets
+```
+
+**Format Requirements**:
+
+1. **Section Header**: Must use `## Missing Features` (case-insensitive, but prefer this exact format)
+2. **Feature Format**:
+   - Numbered list: `1. **Feature Title** (Key: FEATURE-XXX)`
+   - **Bold title** is required (use `**Title**`)
+   - **Key in parentheses**: `(Key: FEATURE-XXX)` - must be uppercase, alphanumeric with hyphens/underscores
+   - Fields on separate lines with `-` prefix:
+     - `- Confidence: 0.85` (float between 0.0-1.0)
+     - `- Outcomes: comma-separated or line-separated list`
+     - `- Stories:` (required - each feature must have at least one story)
+3. **Stories Format**:
+   - Numbered list under `Stories:` section: `1. Story title`
+   - **Indentation**: Stories must be indented (2-4 spaces) under the feature
+   - **Acceptance Criteria**: `- Acceptance: criterion1, criterion2, criterion3`
+     - Can be comma-separated on one line
+     - Or multi-line (each criterion on new line)
+     - Must start with `- Acceptance:`
+4. **Optional Sections**:
+   - `## Confidence Adjustments`: List existing features with confidence updates
+   - `## Business Context`: Priorities, constraints, risks (bullet points)
+5. **File Naming**: `<bundle-name>-<timestamp>.enrichment.md` (e.g., `djangogoat-2025-12-23T23-50-00.enrichment.md`)
+
+**Example** (working format):
+
+```markdown
+## Missing Features
+
+1. **User Authentication** (Key: FEATURE-USER-AUTHENTICATION)
+   - Confidence: 0.85
+   - Outcomes: User registration, login, profile management
+   - Stories:
+     1. User can sign up for new account
+        - Acceptance: sign_up view processes POST requests, creates User automatically, user is logged in after signup, redirects to profile page
+     2. User can log in with credentials
+        - Acceptance: log_in view authenticates username/password, on success user is logged in and redirected, on failure error message is displayed
+```
+
+**Common Mistakes to Avoid**:
+
+- ❌ Missing `(Key: FEATURE-XXX)` - parser needs this to identify features
+- ❌ Missing `Stories:` section - every feature must have at least one story
+- ❌ Stories not indented - parser expects indented numbered lists
+- ❌ Missing `- Acceptance:` prefix - acceptance criteria won't be parsed
+- ❌ Using bullet points (`-`) instead of numbers (`1.`) for stories
+- ❌ Feature title not in bold (`**Title**`) - parser may not extract title correctly
+
+**Important Notes**:
+
+- **Stories are merged**: When updating existing features (not creating new ones), stories from the enrichment report are merged into the existing feature. New stories are added, existing stories are preserved.
+- **Feature titles updated**: If a feature exists but has an empty title, the enrichment report will update it.
+- **Validation**: The enrichment parser validates the format and will fail with clear error messages if the format is incorrect.
 
 ### Phase 3: CLI Artifact Creation (REQUIRED)
 
 ```bash
 # Use enrichment to update plan via CLI
-specfact plan update-feature [--bundle <name>] [options] --no-interactive
+specfact import from-code [<bundle-name>] --repo <path> --enrichment <enrichment-report> --no-interactive
 ```
 
 **Result**: Final artifacts are CLI-generated with validated enrichments
+
+**What happens during enrichment application**:
+
+- Missing features are added with their stories and acceptance criteria
+- Existing features are updated (confidence, outcomes, title if empty)
+- Stories are merged into existing features (new stories added, existing preserved)
+- Business context is applied to the plan bundle
+- All changes are validated and saved via CLI
 
 ## Standard Validation Loop Pattern (For LLM-Generated Code)
 
 When generating or enhancing code via LLM, **ALWAYS** follow this pattern:
 
-```
+```text
 1. CLI Prompt Generation (Required)
    ↓
    CLI generates structured prompt → saved to .specfact/prompts/

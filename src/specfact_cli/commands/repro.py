@@ -322,8 +322,17 @@ def main(
         # Exit with appropriate code
         exit_code = report.get_exit_code()
         if exit_code == 0:
-            console.print("\n[bold green]✓[/bold green] All validations passed!")
-            console.print("[dim]Reproducibility verified[/dim]")
+            crosshair_failed = any(
+                check.tool == "crosshair" and check.status.value == "failed" for check in report.checks
+            )
+            if crosshair_failed:
+                console.print(
+                    "\n[bold yellow]![/bold yellow] Required validations passed, but CrossHair failed (advisory)"
+                )
+                console.print("[dim]Reproducibility verified with advisory failures[/dim]")
+            else:
+                console.print("\n[bold green]✓[/bold green] All validations passed!")
+                console.print("[dim]Reproducibility verified[/dim]")
         elif exit_code == 1:
             console.print("\n[bold red]✗[/bold red] Some validations failed")
             raise typer.Exit(1)
