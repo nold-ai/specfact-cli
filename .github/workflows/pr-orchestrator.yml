@@ -294,6 +294,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package-validation]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+      version: ${{ steps.publish.outputs.version }}
     permissions:
       contents: read
     steps:
@@ -324,6 +327,7 @@ jobs:
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           ./.github/workflows/scripts/check-and-publish-pypi.sh
+          
 
       - name: Summary
         if: always()
@@ -343,4 +347,65 @@ jobs:
             else
               echo "| Status | ⏭️ Skipped (version not newer) |"
             fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish-pypi]
+    if: needs.publish-pypi.outputs.published == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Make scripts executable
+        run: |
+          chmod +x .github/workflows/scripts/generate-release-notes.sh
+          chmod +x .github/workflows/scripts/create-github-release.sh
+
+      - name: Get version from PyPI publish step
+        id: get_version
+        run: |
+          # Use version from publish-pypi job output
+          VERSION="${{ needs.publish-pypi.outputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          echo "🚀 Creating GitHub release for version $VERSION..."
+          ./.github/workflows/scripts/create-github-release.sh "$VERSION"
+
+      - name: Release Summary
+        if: always()
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          {
+            echo "## GitHub Release Summary"
+            echo "| Parameter | Value |"
+            echo "|-----------|--------|"
+            echo "| Version | $VERSION |"
+            echo "| Status | ✅ Release created |"
+            echo "| URL | https://github.com/${{ github.repository }}/releases/tag/v${VERSION} |"
           } >> "$GITHUB_STEP_SUMMARY"

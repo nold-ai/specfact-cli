@@ -37,6 +37,12 @@ These operations **require LLM** and are only available via AI IDE slash prompts
 **Access**: Only available via AI IDE slash prompts (Cursor, CoPilot, etc.)  
 **Pattern**: Slash prompt → LLM generates → CLI validates → Apply if valid
 
+## LLM Grounding Rules
+
+- Treat CLI artifacts as the source of truth for keys, structure, and metadata.
+- Scan the codebase only when asked to infer missing behavior/context or explain deviations; respect `--entry-point` scope when provided.
+- Use codebase findings to propose updates via CLI (enrichment report, plan update commands), never to rewrite artifacts directly.
+
 ## Rules
 
 1. **Execute CLI First**: Always run CLI commands before any analysis

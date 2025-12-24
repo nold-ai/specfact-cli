@@ -113,12 +113,18 @@ class AuthService:
 1. **API Gateway Feature** (Key: FEATURE-APIGATEWAY)
    - Confidence: 0.85
    - Outcomes: Provides API routing and gateway functionality
-   - Reason: AST missed because it's in a separate service module
+   - Stories:
+     1. API Gateway routes requests to appropriate services
+        - Acceptance: Gateway receives HTTP requests, routes to correct service endpoint, returns service response
+     2. API Gateway handles authentication
+        - Acceptance: Gateway validates API keys, forwards authenticated requests, rejects invalid requests
 
 2. **Database Manager** (Key: FEATURE-DATABASEMANAGER)
    - Confidence: 0.80
    - Outcomes: Handles database connections and queries
-   - Reason: Not detected in AST analysis
+   - Stories:
+     1. Database Manager establishes connections
+        - Acceptance: Manager creates database connection pool, manages connection lifecycle, handles connection errors
 
 ## Confidence Adjustments
 
