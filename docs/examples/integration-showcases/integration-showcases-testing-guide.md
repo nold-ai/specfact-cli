@@ -1050,7 +1050,6 @@ Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<
 ```bash
 specfact repro setup
 ```
-
 This automatically generates `[tool.crosshair]` configuration in `pyproject.toml` to enable contract exploration.
 
 **Important**: `repro` does **not** perform runtime contract validation (checking `@icontract` decorators at runtime). It runs static analysis (linting, type checking) and symbolic execution (CrossHair) for contract exploration. Type mismatches will be detected by the type checking tool (basedpyright) if available. The enforcement configuration determines whether failures block the workflow.
