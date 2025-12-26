@@ -155,6 +155,174 @@ def _create_openapi_operation(
     return operation  # type: ignore[return-value]
 
 
+def _get_common_schemas() -> dict[str, dict[str, object]]:
+    """
+    Get common schema definitions for OpenAPI contracts.
+
+    Returns:
+        Dictionary of schema name to schema definition
+    """
+    return {
+        "Path": {
+            "type": "string",
+            "description": "File system path",
+            "example": "/path/to/file.py",
+        },
+        "PlanBundle": {
+            "type": "object",
+            "description": "Plan bundle containing features, stories, and product definition",
+            "properties": {
+                "version": {"type": "string", "example": "1.0"},
+                "idea": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "narrative": {"type": "string"},
+                    },
+                },
+                "product": {
+                    "type": "object",
+                    "properties": {
+                        "themes": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "key": {"type": "string"},
+                            "title": {"type": "string"},
+                            "stories": {"type": "array", "items": {"type": "object"}},
+                        },
+                    },
+                },
+            },
+        },
+        "FileSystemEvent": {
+            "type": "object",
+            "description": "File system event (created, modified, deleted)",
+            "properties": {
+                "path": {"type": "string"},
+                "event_type": {"type": "string", "enum": ["created", "modified", "deleted"]},
+                "timestamp": {"type": "string", "format": "date-time"},
+            },
+        },
+        "SyncResult": {
+            "type": "object",
+            "description": "Synchronization result",
+            "properties": {
+                "success": {"type": "boolean"},
+                "message": {"type": "string"},
+                "changes": {"type": "array", "items": {"type": "object"}},
+            },
+        },
+        "RepositorySyncResult": {
+            "type": "object",
+            "description": "Repository synchronization result",
+            "properties": {
+                "success": {"type": "boolean"},
+                "synced_files": {"type": "array", "items": {"type": "string"}},
+                "conflicts": {"type": "array", "items": {"type": "object"}},
+            },
+        },
+    }
+
+
+def _resolve_schema_refs(contract: dict[str, object]) -> dict[str, object]:
+    """
+    Resolve schema references and add missing schema definitions.
+
+    Args:
+        contract: OpenAPI contract dictionary
+
+    Returns:
+        Updated contract with resolved schemas
+    """
+    # Get common schemas
+    common_schemas = _get_common_schemas()
+
+    # Ensure components.schemas exists
+    components = contract.get("components", {})
+    if not isinstance(components, dict):
+        components = {}
+        contract["components"] = components
+
+    schemas = components.get("schemas", {})
+    if not isinstance(schemas, dict):
+        schemas = {}
+        components["schemas"] = schemas
+
+    # Find all $ref references in the contract
+    def find_refs(obj: object, refs: set[str]) -> None:
+        """Recursively find all $ref references."""
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                ref = str(obj["$ref"])
+                if ref.startswith("#/components/schemas/"):
+                    schema_name = ref.split("/")[-1]
+                    refs.add(schema_name)
+            for value in obj.values():
+                find_refs(value, refs)
+        elif isinstance(obj, list):
+            for item in obj:
+                find_refs(item, refs)
+
+    refs: set[str] = set()
+    find_refs(contract, refs)
+
+    # Add missing schema definitions
+    for ref in refs:
+        if ref not in schemas and ref in common_schemas:
+            schemas[ref] = common_schemas[ref]
+        elif ref in schemas and ref in common_schemas:
+            # Fix incorrect schema definitions (hotpatch for PlanBundle schema bug)
+            # If schema exists but has incorrect structure, replace with correct one
+            existing_schema = schemas[ref]
+            correct_schema = common_schemas[ref]
+
+            # Special case: Fix PlanBundle.themes schema bug (array of objects -> array of strings)
+            if ref == "PlanBundle" and isinstance(existing_schema, dict) and isinstance(correct_schema, dict):
+                existing_props = existing_schema.get("properties", {})
+                if not isinstance(existing_props, dict):
+                    existing_props = {}
+                correct_props = correct_schema.get("properties", {})
+                if not isinstance(correct_props, dict):
+                    correct_props = {}
+
+                # Check if themes schema is incorrect
+                existing_product = existing_props.get("product", {})
+                if not isinstance(existing_product, dict):
+                    existing_product = {}
+                existing_product_props = existing_product.get("properties", {})
+                if not isinstance(existing_product_props, dict):
+                    existing_product_props = {}
+                existing_themes = existing_product_props.get("themes", {})
+
+                correct_product = correct_props.get("product", {})
+                if not isinstance(correct_product, dict):
+                    correct_product = {}
+                correct_product_props = correct_product.get("properties", {})
+                if not isinstance(correct_product_props, dict):
+                    correct_product_props = {}
+                correct_themes = correct_product_props.get("themes", {})
+
+                if (
+                    isinstance(existing_themes, dict)
+                    and isinstance(correct_themes, dict)
+                    and existing_themes.get("items", {}).get("type") == "object"
+                    and correct_themes.get("items", {}).get("type") == "string"
+                ):
+                    # Fix the themes schema
+                    if "product" not in existing_props:
+                        existing_props["product"] = {}
+                    if "properties" not in existing_props["product"]:
+                        existing_props["product"]["properties"] = {}
+                    existing_props["product"]["properties"]["themes"] = correct_themes
+
+    return contract
+
+
 def populate_contracts(
     contracts_dir: Path, repo_path: Path, urls_file: Path | None = None, extract_forms: bool = True
 ) -> dict[str, int]:
@@ -231,6 +399,9 @@ def populate_contracts(
                 if isinstance(paths_dict, dict) and isinstance(paths_dict.get(path), dict):
                     paths_dict[path][method] = operation  # type: ignore[assignment, index]
 
+            # Resolve schema references and add missing schemas
+            contract = _resolve_schema_refs(contract)
+
             # Save updated contract
             with contract_file.open("w", encoding="utf-8") as f:
                 yaml.dump(contract, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
@@ -244,32 +415,126 @@ def populate_contracts(
     return stats
 
 
+def resolve_schema_refs_in_contracts(contracts_dir: Path) -> dict[str, int]:
+    """
+    Resolve schema references in all OpenAPI contracts.
+
+    This function adds missing schema definitions for common types like Path, PlanBundle, etc.
+    It can be used for any project type (not just Django).
+
+    Args:
+        contracts_dir: Directory containing *.openapi.yaml files
+
+    Returns:
+        Dictionary with statistics (resolved, skipped, errors)
+    """
+    contract_files = list(contracts_dir.glob("*.openapi.yaml"))
+    stats = {"resolved": 0, "skipped": 0, "errors": 0}
+
+    for contract_file in contract_files:
+        try:
+            # Load contract
+            with contract_file.open("r", encoding="utf-8") as f:
+                contract_data = yaml.safe_load(f)  # type: ignore[assignment]
+                if not isinstance(contract_data, dict):
+                    contract_data = {}
+                contract = cast(dict[str, object], contract_data)
+
+            # Resolve schema references
+            # Get original schemas BEFORE resolving (make a copy since _resolve_schema_refs modifies in place)
+            import json
+
+            components = contract.get("components")
+            original_schemas: dict[str, object] = {}
+            original_schemas_str = ""
+            if isinstance(components, dict):
+                schemas = components.get("schemas")
+                if isinstance(schemas, dict):
+                    original_schemas = schemas.copy()  # Make a copy to avoid reference issues
+                    # Also serialize to string for comparison (to detect schema fixes, not just additions)
+                    original_schemas_str = json.dumps(original_schemas, sort_keys=True)
+
+            contract = _resolve_schema_refs(contract)
+
+            new_schemas: dict[str, object] = {}
+            components_after = contract.get("components")
+            if isinstance(components_after, dict):
+                schemas_after = components_after.get("schemas")
+                if isinstance(schemas_after, dict):
+                    new_schemas = schemas_after
+
+            # Check if schemas were added OR fixed (hotpatch for PlanBundle schema bug)
+            schemas_changed = False
+            if len(new_schemas) > len(original_schemas):
+                schemas_changed = True
+            elif len(new_schemas) == len(original_schemas) and len(original_schemas) > 0 and original_schemas_str:
+                # Check if any schemas were modified (e.g., PlanBundle.themes fix)
+                new_schemas_str = json.dumps(new_schemas, sort_keys=True)
+                if new_schemas_str != original_schemas_str:
+                    schemas_changed = True
+
+            if schemas_changed:
+                # Save updated contract
+                with contract_file.open("w", encoding="utf-8") as f:
+                    yaml.dump(contract, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+                stats["resolved"] += 1
+            else:
+                stats["skipped"] += 1
+
+        except Exception as e:
+            print(f"Error processing {contract_file}: {e}")
+            stats["errors"] += 1
+
+    return stats
+
+
 def main() -> int:
     """Main entry point for contract population."""
-    parser = argparse.ArgumentParser(description="Populate OpenAPI contracts with Django URL patterns.")
+    parser = argparse.ArgumentParser(
+        description="Populate OpenAPI contracts with Django URL patterns or resolve schema references."
+    )
     parser.add_argument("--contracts", required=True, help="Contracts directory containing *.openapi.yaml files")
-    parser.add_argument("--repo", required=True, help="Path to Django repository")
+    parser.add_argument("--repo", help="Path to Django repository (required for URL population)")
     parser.add_argument("--urls", help="Path to urls.py file (auto-detected if not provided)")
+    parser.add_argument(
+        "--resolve-schemas-only", action="store_true", help="Only resolve schema references, don't populate URLs"
+    )
     args = parser.parse_args()
 
     contracts_dir = Path(str(args.contracts)).resolve()  # type: ignore[arg-type]
-    repo_path = Path(str(args.repo)).resolve()  # type: ignore[arg-type]
-    urls_file = Path(str(args.urls)).resolve() if args.urls else None  # type: ignore[arg-type]
-
-    # Suppress unused result warnings for argparse (these are intentional)
-    _ = parser.add_argument  # type: ignore[assignment, unused-ignore]
 
     if not contracts_dir.exists():
         print(f"Error: Contracts directory not found: {contracts_dir}")
         return 1
 
+    # If --resolve-schemas-only, just resolve schema references
+    if args.resolve_schemas_only:
+        stats = resolve_schema_refs_in_contracts(contracts_dir)
+        print(f"Resolved: {stats['resolved']}, Skipped: {stats['skipped']}, Errors: {stats['errors']}")
+        return 0 if stats["errors"] == 0 else 1
+
+    # Otherwise, do Django URL population (requires --repo)
+    if not args.repo:
+        print("Error: --repo is required for URL population (or use --resolve-schemas-only)")
+        return 1
+
+    repo_path = Path(str(args.repo)).resolve()  # type: ignore[arg-type]
+    urls_file = Path(str(args.urls)).resolve() if args.urls else None  # type: ignore[arg-type]
+
     if not repo_path.exists():
         print(f"Error: Repository path not found: {repo_path}")
         return 1
 
+    # Populate URLs and resolve schemas
     stats = populate_contracts(contracts_dir, repo_path, urls_file)
 
-    print(f"Populated: {stats['populated']}, Skipped: {stats['skipped']}, Errors: {stats['errors']}")
+    # Also resolve schema references after population
+    schema_stats = resolve_schema_refs_in_contracts(contracts_dir)
+    stats["schema_resolved"] = schema_stats["resolved"]
+
+    print(
+        f"Populated: {stats['populated']}, Skipped: {stats['skipped']}, Errors: {stats['errors']}, Schemas resolved: {stats.get('schema_resolved', 0)}"
+    )
 
     return 0 if stats["errors"] == 0 else 1
 
