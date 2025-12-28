@@ -209,6 +209,15 @@ if [[ "${POPULATE_CONTRACTS}" == "1" ]] && [[ -d "${CONTRACTS_DIR}" ]]; then
       --contracts "${CONTRACTS_DIR}" \
       --repo "${REPO_PATH}" \
       || echo "[sidecar] warning: contract population failed (continuing anyway)"
+  else
+    # For non-Django projects, just resolve schema references
+    echo "[sidecar] resolve contract schema references..."
+    run_and_log "${TIMEOUT_CROSSHAIR}" \
+      "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-resolve-schemas.log" \
+      "${PYTHON_CMD}" populate_contracts.py \
+      --contracts "${CONTRACTS_DIR}" \
+      --resolve-schemas-only \
+      || echo "[sidecar] warning: schema resolution failed (continuing anyway)"
   fi
 fi
 
@@ -401,9 +410,13 @@ if [[ "${RUN_CROSSHAIR}" == "1" ]] && command -v crosshair >/dev/null 2>&1; then
     if [[ -n "${PYTHONPATH:-}" ]]; then
       CROSSHAIR_ENV="${CROSSHAIR_ENV}PYTHONPATH=${PYTHONPATH} "
     fi
+    # Change to harness directory to ensure valid module name (avoids hyphenated directory names in module path)
+    HARNESS_DIR="$(dirname "${HARNESS_PATH}")"
+    HARNESS_FILE="$(basename "${HARNESS_PATH}")"
+    HARNESS_MODULE="${HARNESS_FILE%.py}"  # Remove .py extension
     run_and_log "${TIMEOUT_CROSSHAIR}" \
       "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-harness.log" \
-      env ${CROSSHAIR_ENV}"${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" "${HARNESS_PATH}"
+      bash -c "cd '${HARNESS_DIR}' && env ${CROSSHAIR_ENV}${PYTHON_CMD} -m crosshair check ${CROSSHAIR_ARGS[*]} ${HARNESS_MODULE}"
   else
     echo "[sidecar] crosshair harness skipped (${HARNESS_PATH} not found)"
   fi

@@ -63,6 +63,11 @@ def init_contract(
         "--no-interactive",
         help="Non-interactive mode (for CI/CD automation). Default: False (interactive mode)",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite existing contract file without prompting (useful for updating contracts)",
+    ),
 ) -> None:
     """
     Initialize OpenAPI contract for a feature.
@@ -76,11 +81,12 @@ def init_contract(
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle, --feature
     - **Output/Results**: --title, --version
-    - **Behavior/Options**: --no-interactive
+    - **Behavior/Options**: --no-interactive, --force
 
     **Examples:**
         specfact contract init --bundle legacy-api --feature FEATURE-001
         specfact contract init --bundle legacy-api --feature FEATURE-001 --title "Authentication API" --version 1.0.0
+        specfact contract init --bundle legacy-api --feature FEATURE-001 --force --no-interactive
     """
     telemetry_metadata = {
         "bundle": bundle,
@@ -138,13 +144,17 @@ def init_contract(
         contract_file = contracts_dir / f"{feature}.openapi.yaml"
 
         if contract_file.exists():
-            print_warning(f"Contract file already exists: {contract_file}")
-            if not no_interactive:
-                overwrite = typer.confirm("Overwrite existing contract?")
-                if not overwrite:
-                    raise typer.Exit(0)
+            if force:
+                print_warning(f"Overwriting existing contract file: {contract_file}")
             else:
-                raise typer.Exit(1)
+                print_warning(f"Contract file already exists: {contract_file}")
+                if not no_interactive:
+                    overwrite = typer.confirm("Overwrite existing contract?")
+                    if not overwrite:
+                        raise typer.Exit(0)
+                else:
+                    print_error("Use --force to overwrite existing contract in non-interactive mode")
+                    raise typer.Exit(1)
 
         # Generate OpenAPI stub
         api_title = title or feature_obj.title

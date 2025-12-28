@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.20.6] - 2025-12-26
+
+### Fixed (0.20.6)
+
+- **PlanBundle Schema Hotpatch**: Automatic fix for incorrect schema definitions in OpenAPI contracts
+  - **Root cause**: Contract extraction/generation incorrectly inferred `Product.themes` as `array of objects` instead of `array of strings`
+  - **Hotpatch implementation**: Added automatic schema correction in `_resolve_schema_refs()` function
+  - **Detection**: Hotpatch detects and fixes incorrect PlanBundle schemas when `resolve_schema_refs_in_contracts()` is called
+  - **Schema change detection**: Enhanced `resolve_schema_refs_in_contracts()` to detect schema modifications (not just additions) and save fixed contracts
+  - **Type safety**: Fixed unbound variable error (`original_schemas_str`) with proper initialization and guards
+  - **Transparency**: Fix is automatic and transparent - no user action required when running sidecar workflow
+
+---
+
 ## [0.20.5] - 2025-12-24
 
 ### Fixed (0.20.5)
