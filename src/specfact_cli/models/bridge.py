@@ -24,6 +24,8 @@ class AdapterType(str, Enum):
 
     SPECKIT = "speckit"
     GENERIC_MARKDOWN = "generic-markdown"
+    GITHUB = "github"  # DevOps backlog tracking
+    ADO = "ado"  # Azure DevOps (future)
     LINEAR = "linear"  # Future
     JIRA = "jira"  # Future
     NOTION = "notion"  # Future
@@ -336,5 +338,37 @@ class BridgeConfig(BaseModel):
 
         return cls(
             adapter=AdapterType.GENERIC_MARKDOWN,
+            artifacts=artifacts,
+        )
+
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_github(cls) -> BridgeConfig:
+        """
+        Create GitHub bridge preset for DevOps backlog tracking.
+
+        GitHub-specific configuration (repo_owner, repo_name, api_token) should be
+        provided via environment variables (GITHUB_TOKEN) or CLI options, not stored
+        in bridge config for security reasons.
+
+        Returns:
+            BridgeConfig for GitHub adapter (export-only mode for change proposals)
+        """
+        artifacts = {
+            "change_proposal": ArtifactMapping(
+                path_pattern="api/repos/{repo_owner}/{repo_name}/issues",
+                format="api",
+                sync_target="github_issues",
+            ),
+            "change_status": ArtifactMapping(
+                path_pattern="api/repos/{repo_owner}/{repo_name}/issues/{issue_number}",
+                format="api",
+                sync_target="github_issues",
+            ),
+        }
+
+        return cls(
+            adapter=AdapterType.GITHUB,
             artifacts=artifacts,
         )

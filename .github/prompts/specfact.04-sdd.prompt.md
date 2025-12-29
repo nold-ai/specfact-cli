@@ -86,6 +86,7 @@ specfact plan harden [<bundle-name>] [--sdd <path>] --no-interactive
 **What to do**:
 
 - Read CLI-generated SDD (use file reading tools for display only)
+- Treat CLI SDD as the source of truth; scan codebase only to enrich WHY/WHAT/HOW context
 - Research codebase for additional context
 - Suggest improvements to WHY/WHAT/HOW sections
 

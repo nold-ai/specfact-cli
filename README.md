@@ -16,11 +16,11 @@
 
 ---
 
-## 📋 Current Version: 0.20.0 LTS (Long-Term Stable)
+## 📋 Current Version: 0.21.0
 
-**🎉 v0.20.0 is the Long-Term Stable (LTS) release!** This version marks the stabilization of SpecFact CLI's core analysis and enforcement capabilities.
+**🎉 v0.21.0** introduces DevOps backlog tracking integration and OpenSpec bridge adapter support, expanding SpecFact's capabilities for team collaboration and specification management.
 
-**SpecFact 0.20.0 LTS focuses on what it does best: analyzing legacy code and enforcing contracts.** This LTS release is production-ready and will receive bug fixes and security updates until v1.0 GA.
+**SpecFact 0.21.0 focuses on what it does best: analyzing legacy code, enforcing contracts, and integrating with modern DevOps workflows.** This release is production-ready and continues to receive regular updates.
 
 | Capability | Status | Description |
 |------------|--------|-------------|
@@ -28,7 +28,9 @@
 | **Gap Detection** | ✅ Stable | Find missing tests, contracts, and documentation |
 | **Contract Enforcement** | ✅ Stable | Prevent regressions with runtime validation |
 | **API Contract Testing** | ✅ Stable | Validate OpenAPI specs with Specmatic |
-| **AI IDE Bridge** | ✅ New | Generate prompts for Cursor, Copilot, Claude |
+| **AI IDE Bridge** | ✅ Stable | Generate prompts for Cursor, Copilot, Claude |
+| **DevOps Backlog Tracking** | ✅ New | Export OpenSpec change proposals to GitHub Issues, ADO, Linear, Jira |
+| **OpenSpec Integration** | ✅ New | Bridge adapter for OpenSpec change proposals and specifications |
 | **Code Generation** | ⚠️ Deprecated | Coming in v1.0 with AI-assisted workflow |
 
 **Need code generation?** Use the new bridge commands to get AI-ready prompts:
@@ -100,25 +102,27 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 ## Why SpecFact?
 
-### **Love GitHub Spec-Kit? SpecFact Adds What's Missing**
+### **Love GitHub Spec-Kit or OpenSpec? SpecFact Adds What's Missing**
 
-**Use both together:** Keep using Spec-Kit for new features, add SpecFact for legacy code modernization.
+**Use together:** Keep using Spec-Kit for new features, OpenSpec for change tracking, add SpecFact for legacy code modernization.
 
-| What You Need | Spec-Kit | SpecFact CLI |
-|---------------|----------|--------------|
+| What You Need | Spec-Kit / OpenSpec | SpecFact CLI |
+|---------------|---------------------|--------------|
 | **Work with existing code** | ⚠️ Designed for new features | ✅ **Reverse-engineer legacy code** |
 | **Prevent regressions** | ⚠️ Documentation only | ✅ **Runtime contract enforcement** |
 | **Find hidden bugs** | ⚠️ LLM suggestions (may miss) | ✅ **Symbolic execution** (CrossHair) |
 | **Automated safety net** | ⚠️ Manual code review | ✅ **CI/CD gates** (GitHub Actions) |
+| **DevOps integration** | ⚠️ Manual export | ✅ **Bridge adapters** (GitHub, ADO, Linear, Jira) |
 
 **Perfect together:**
 
 - ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
+- ✅ **OpenSpec** for change tracking → Specification anchoring and delta tracking
 - ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
-- ✅ **Bidirectional sync** → Keep both tools in sync automatically
+- ✅ **Bridge adapters** → Sync between all tools automatically (New in 0.21.0)
 - ✅ **GitHub Actions** → SpecFact integrates with your existing GitHub workflows
 
-**Bottom line:** Spec-Kit is great for documenting new features. SpecFact is essential for modernizing legacy code safely. Use both together for the best of both worlds.
+**Bottom line:** Spec-Kit is great for documenting new features. OpenSpec excels at change tracking. SpecFact is essential for modernizing legacy code safely. Use all three together for the best of all worlds.
 
 ---
 
@@ -189,6 +193,32 @@ SpecFact CLI works with your existing tools—no new platform to learn. See real
 👉 **[Integration Showcases](docs/examples/integration-showcases/)** - Real examples of bugs fixed via CLI integrations
 
 **Core USP**: Pure CLI-first approach—works offline, no account required, zero vendor lock-in. Regularly showcases successful integrations that fix bugs not detected by other tools.
+
+### 🔗 Bridge Adapter Integrations (New in 0.21.0)
+
+SpecFact now supports bridge adapters for seamless integration with external tools and specification frameworks:
+
+- ✅ **OpenSpec Integration** - Sync OpenSpec change proposals and specifications
+  - Export change proposals to DevOps tools (GitHub Issues, ADO, Linear, Jira)
+  - Read OpenSpec specifications for validation and alignment
+  - Bidirectional sync between OpenSpec and SpecFact project bundles
+  - Content sanitization for public repositories
+- ✅ **GitHub Spec-Kit** - Bidirectional sync with Spec-Kit projects
+- ✅ **Generic Markdown** - Import/export from any markdown-based specification format
+
+### Example: OpenSpec DevOps Backlog Tracking
+
+```bash
+# Export OpenSpec change proposals to GitHub Issues
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --sanitize --target-repo nold-ai/specfact-cli
+
+# Sync OpenSpec specifications (read-only)
+specfact sync bridge --adapter openspec --mode read-only --bundle legacy-api
+```
+
+👉 **[Command Reference - Sync Bridge](docs/reference/commands.md#sync-bridge)** - Complete bridge adapter documentation
 
 ### 🤖 AI IDE Bridge (New in 0.17)
 

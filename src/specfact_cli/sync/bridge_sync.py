@@ -9,6 +9,8 @@ to adapter-specific parsers/generators.
 
 from __future__ import annotations
 
+import hashlib
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -430,6 +432,1187 @@ class BridgeSync:
         # Basic markdown export (placeholder for future implementation)
         content = f"# {artifact_key}\n\nExported from SpecFact bundle: {project_bundle.bundle_name}\n"
         artifact_path.write_text(content, encoding="utf-8")
+
+    @beartype
+    @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
+    @require(
+        lambda adapter_type: isinstance(adapter_type, str) and adapter_type in ("github", "ado", "linear", "jira"),
+        "Adapter must be DevOps type",
+    )
+    @ensure(lambda result: isinstance(result, SyncResult), "Must return SyncResult")
+    def export_change_proposals_to_devops(
+        self,
+        adapter_type: str,
+        repo_owner: str | None = None,
+        repo_name: str | None = None,
+        api_token: str | None = None,
+        use_gh_cli: bool = True,
+        sanitize: bool | None = None,
+        target_repo: str | None = None,
+        interactive: bool = False,
+        change_ids: list[str] | None = None,
+        export_to_tmp: bool = False,
+        import_from_tmp: bool = False,
+        tmp_file: Path | None = None,
+        update_existing: bool = False,
+    ) -> SyncResult:
+        """
+        Export OpenSpec change proposals to DevOps tools (export-only mode).
+
+        This method reads OpenSpec change proposals and creates/updates DevOps issues
+        (GitHub Issues, ADO Work Items, etc.) via the appropriate adapter.
+
+        Args:
+            adapter_type: DevOps adapter type (github, ado, linear, jira)
+            repo_owner: Repository owner (for GitHub/ADO)
+            repo_name: Repository name (for GitHub/ADO)
+            api_token: API token (optional, uses env vars, gh CLI, or --github-token if not provided)
+            use_gh_cli: If True, try to get token from GitHub CLI (`gh auth token`) for GitHub adapter
+            sanitize: If True, sanitize content for public issues. If None, auto-detect based on repo setup.
+            target_repo: Target repository for issue creation (format: owner/repo). Default: same as code repo.
+            interactive: If True, use interactive mode for AI-assisted sanitization (requires slash command).
+            change_ids: Optional list of change proposal IDs to filter. If None, exports all active proposals.
+            export_to_tmp: If True, export proposal content to temporary file for LLM review.
+            import_from_tmp: If True, import sanitized content from temporary file after LLM review.
+            tmp_file: Optional custom temporary file path. Default: `/tmp/specfact-proposal-<change-id>.md`.
+
+        Returns:
+            SyncResult with operation details
+
+        Note:
+            Requires OpenSpec bridge adapter to be implemented (dependency).
+            For now, this is a placeholder that will be fully implemented once
+            the OpenSpec adapter is available.
+        """
+        from specfact_cli.adapters.registry import AdapterRegistry
+
+        operations: list[SyncOperation] = []
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        try:
+            # Get DevOps adapter from registry
+            # For GitHub adapter, pass use_gh_cli flag
+            adapter_kwargs: dict[str, Any] = {
+                "repo_owner": repo_owner,
+                "repo_name": repo_name,
+                "api_token": api_token,
+            }
+            if adapter_type == "github":
+                adapter_kwargs["use_gh_cli"] = use_gh_cli
+
+            adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)
+
+            # TODO: Read OpenSpec change proposals via OpenSpec adapter
+            # This requires the OpenSpec bridge adapter to be implemented first
+            # For now, this is a placeholder
+            try:
+                # Attempt to read OpenSpec change proposals
+                # This will fail gracefully if OpenSpec adapter is not available
+                change_proposals = self._read_openspec_change_proposals()
+            except Exception as e:
+                warnings.append(f"OpenSpec adapter not available: {e}. Skipping change proposal sync.")
+                return SyncResult(
+                    success=True,  # Not an error, just no proposals to sync
+                    operations=operations,
+                    errors=errors,
+                    warnings=warnings,
+                )
+
+            # Determine if sanitization is needed (to determine if this is a public repo)
+            from specfact_cli.utils.content_sanitizer import ContentSanitizer
+
+            sanitizer = ContentSanitizer()
+            # Detect sanitization need (check if code repo != planning repo)
+            # For now, we'll use the repo_path as code repo and check for external base path
+            planning_repo = self.repo_path
+            if self.bridge_config and hasattr(self.bridge_config, "external_base_path"):
+                external_path = getattr(self.bridge_config, "external_base_path", None)
+                if external_path:
+                    planning_repo = Path(external_path)
+
+            should_sanitize = sanitizer.detect_sanitization_need(
+                code_repo=self.repo_path,
+                planning_repo=planning_repo,
+                user_preference=sanitize,
+            )
+
+            # Derive target_repo from repo_owner and repo_name if not provided
+            if not target_repo and repo_owner and repo_name:
+                target_repo = f"{repo_owner}/{repo_name}"
+
+            # Filter proposals based on target repo type and source tracking:
+            # - For each proposal, check if it should be synced to the target repo
+            # - If proposal has source tracking entry for target repo: sync it (already synced before, needs update)
+            # - If proposal doesn't have entry:
+            #   - Public repos (sanitize=True): Only sync "applied" proposals (archived/completed)
+            #   - Internal repos (sanitize=False/None): Sync all statuses (proposed, in-progress, applied, etc.)
+            active_proposals: list[dict[str, Any]] = []
+            filtered_count = 0
+            for proposal in change_proposals:
+                proposal_status = proposal.get("status", "proposed")
+
+                # Check if proposal has source tracking entry for target repo
+                source_tracking_raw = proposal.get("source_tracking", {})
+                target_entry = self._find_source_tracking_entry(source_tracking_raw, target_repo)
+                has_target_entry = target_entry is not None
+
+                # Determine if proposal should be synced
+                should_sync = False
+
+                if should_sanitize:
+                    # Public repo: only sync applied proposals (archived changes)
+                    # Even if proposal has source tracking entry, filter out non-applied proposals
+                    should_sync = proposal_status == "applied"
+                else:
+                    # Internal repo: sync all active proposals
+                    if has_target_entry:
+                        # Proposal already has entry for this repo - sync it (for updates)
+                        should_sync = True
+                    else:
+                        # New proposal - sync if status is active
+                        should_sync = proposal_status in (
+                            "proposed",
+                            "in-progress",
+                            "applied",
+                            "deprecated",
+                            "discarded",
+                        )
+
+                if should_sync:
+                    active_proposals.append(proposal)
+                else:
+                    filtered_count += 1
+
+            if filtered_count > 0:
+                if should_sanitize:
+                    warnings.append(
+                        f"Filtered out {filtered_count} proposal(s) with non-applied status "
+                        f"(public repos only sync archived/completed proposals, regardless of source tracking). "
+                        f"Only {len(active_proposals)} applied proposal(s) will be synced."
+                    )
+                else:
+                    warnings.append(
+                        f"Filtered out {filtered_count} proposal(s) without source tracking entry for target repo "
+                        f"and inactive status. Only {len(active_proposals)} proposal(s) will be synced."
+                    )
+
+            # Filter by change_ids if specified
+            if change_ids:
+                # Validate change IDs exist
+                valid_change_ids = set(change_ids)
+                available_change_ids = {p.get("change_id") for p in active_proposals if p.get("change_id")}
+                # Filter out None values
+                available_change_ids = {cid for cid in available_change_ids if cid is not None}
+                invalid_change_ids = valid_change_ids - available_change_ids
+                if invalid_change_ids:
+                    errors.append(
+                        f"Invalid change IDs: {', '.join(sorted(invalid_change_ids))}. "
+                        f"Available: {', '.join(sorted(available_change_ids)) if available_change_ids else 'none'}"
+                    )
+                # Filter proposals by change_ids
+                active_proposals = [p for p in active_proposals if p.get("change_id") in valid_change_ids]
+
+            # Process each proposal
+            for proposal in active_proposals:
+                try:
+                    # proposal is a dict, access via .get()
+                    source_tracking_raw = proposal.get("source_tracking", {})
+                    # Find entry for target repository (pass original to preserve backward compatibility)
+                    # Always call _find_source_tracking_entry - it handles None target_repo for backward compatibility
+                    target_entry = self._find_source_tracking_entry(source_tracking_raw, target_repo)
+
+                    # Normalize to list for multi-repository support (after finding entry)
+                    source_tracking_list = self._normalize_source_tracking(source_tracking_raw)
+
+                    # Check if issue exists for target repository
+                    issue_number = target_entry.get("source_id") if target_entry else None
+
+                    if issue_number and target_entry:
+                        # Issue exists - check if status changed or metadata needs update
+                        source_metadata = target_entry.get("source_metadata", {})
+                        if not isinstance(source_metadata, dict):
+                            source_metadata = {}
+                        last_synced_status = source_metadata.get("last_synced_status")
+                        current_status = proposal.get("status")
+
+                        if last_synced_status != current_status:
+                            # Status changed - update issue
+                            result = adapter.export_artifact(
+                                artifact_key="change_status",
+                                artifact_data=proposal,
+                                bridge_config=self.bridge_config,
+                            )
+                            # Track status update operation
+                            operations.append(
+                                SyncOperation(
+                                    artifact_key="change_status",
+                                    feature_id=proposal.get("change_id", "unknown"),
+                                    direction="export",
+                                    bundle_name="openspec",
+                                )
+                            )
+
+                        # Always update metadata to ensure it reflects the current sync operation
+                        # (even if status hasn't changed, we want to update sanitized flag, etc.)
+                        source_metadata = target_entry.get("source_metadata", {})
+                        if not isinstance(source_metadata, dict):
+                            source_metadata = {}
+                        updated_entry = {
+                            **target_entry,
+                            "source_metadata": {
+                                **source_metadata,
+                                "last_synced_status": current_status,
+                                "sanitized": should_sanitize if should_sanitize is not None else False,
+                            },
+                        }
+
+                        # Always update source_tracking metadata to reflect current sync operation
+                        # This ensures sanitized flag and other metadata are always up-to-date
+                        if target_repo:
+                            source_tracking_list = self._update_source_tracking_entry(
+                                source_tracking_list, target_repo, updated_entry
+                            )
+                            proposal["source_tracking"] = source_tracking_list
+                        else:
+                            # Backward compatibility: update single dict entry directly
+                            # If original was a dict, keep it as a dict; otherwise use list
+                            if isinstance(source_tracking_raw, dict):
+                                # Single dict entry - update and keep as dict
+                                proposal["source_tracking"] = updated_entry
+                            else:
+                                # List of entries - update the matching entry
+                                for i, entry in enumerate(source_tracking_list):
+                                    if isinstance(entry, dict):
+                                        # Find entry matching this repository (by source_id or source_repo)
+                                        entry_id = entry.get("source_id")
+                                        entry_repo = entry.get("source_repo")
+                                        updated_id = updated_entry.get("source_id")
+                                        updated_repo = updated_entry.get("source_repo")
+
+                                        if (entry_id and entry_id == updated_id) or (
+                                            entry_repo and entry_repo == updated_repo
+                                        ):
+                                            # Update matching entry with new metadata
+                                            source_tracking_list[i] = updated_entry
+                                            break
+                                proposal["source_tracking"] = source_tracking_list
+
+                        # Track metadata update operation (even if status didn't change)
+                        # This ensures we record that a sync operation occurred
+                        if last_synced_status == current_status:
+                            # Status didn't change, but metadata was updated (sanitized flag, etc.)
+                            operations.append(
+                                SyncOperation(
+                                    artifact_key="change_proposal_metadata",
+                                    feature_id=proposal.get("change_id", "unknown"),
+                                    direction="export",
+                                    bundle_name="openspec",
+                                )
+                            )
+
+                        # Check if content changed (when update_existing is enabled)
+                        if update_existing:
+                            # Handle sanitized content updates (when import_from_tmp is used)
+                            if import_from_tmp:
+                                change_id = proposal.get("change_id", "unknown")
+                                sanitized_file = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+                                if sanitized_file.exists():
+                                    # Read sanitized content and use it for hash calculation
+                                    sanitized_content = sanitized_file.read_text(encoding="utf-8")
+                                    # Parse sanitized content to extract rationale and description
+                                    # For now, use the sanitized content directly as description
+                                    proposal_for_hash = {
+                                        "rationale": "",  # Sanitized content typically doesn't have separate rationale
+                                        "description": sanitized_content,
+                                    }
+                                    current_hash = self._calculate_content_hash(proposal_for_hash)
+                                else:
+                                    # Fallback to original proposal content
+                                    current_hash = self._calculate_content_hash(proposal)
+                            else:
+                                current_hash = self._calculate_content_hash(proposal)
+
+                            # Get stored hash from target repository entry
+                            stored_hash = None
+                            if target_entry:
+                                source_metadata = target_entry.get("source_metadata", {})
+                                if isinstance(source_metadata, dict):
+                                    stored_hash = source_metadata.get("content_hash")
+
+                            if stored_hash != current_hash:
+                                # Content changed - update issue body
+                                try:
+                                    # If using sanitized content, update proposal with sanitized content
+                                    if import_from_tmp:
+                                        change_id = proposal.get("change_id", "unknown")
+                                        sanitized_file = tmp_file or Path(
+                                            f"/tmp/specfact-proposal-{change_id}-sanitized.md"
+                                        )
+                                        if sanitized_file.exists():
+                                            sanitized_content = sanitized_file.read_text(encoding="utf-8")
+                                            # Update proposal with sanitized content for issue update
+                                            proposal_for_update = {
+                                                **proposal,
+                                                "description": sanitized_content,
+                                                "rationale": "",  # Sanitized content typically doesn't have separate rationale
+                                            }
+                                        else:
+                                            proposal_for_update = proposal
+                                    else:
+                                        proposal_for_update = proposal
+
+                                    result = adapter.export_artifact(
+                                        artifact_key="change_proposal_update",
+                                        artifact_data=proposal_for_update,
+                                        bridge_config=self.bridge_config,
+                                    )
+                                    # Update stored hash in target repository entry
+                                    if target_entry:
+                                        source_metadata = target_entry.get("source_metadata", {})
+                                        if not isinstance(source_metadata, dict):
+                                            source_metadata = {}
+                                        updated_entry = {
+                                            **target_entry,
+                                            "source_metadata": {
+                                                **source_metadata,
+                                                "content_hash": current_hash,
+                                            },
+                                        }
+                                        if target_repo:
+                                            source_tracking_list = self._update_source_tracking_entry(
+                                                source_tracking_list, target_repo, updated_entry
+                                            )
+                                            proposal["source_tracking"] = source_tracking_list
+                                    else:
+                                        # Create new entry for this repository
+                                        if target_repo:
+                                            new_entry = {
+                                                "source_repo": target_repo,
+                                                "source_metadata": {"content_hash": current_hash},
+                                            }
+                                            source_tracking_list = self._update_source_tracking_entry(
+                                                source_tracking_list, target_repo, new_entry
+                                            )
+                                            proposal["source_tracking"] = source_tracking_list
+                                    operations.append(
+                                        SyncOperation(
+                                            artifact_key="change_proposal_update",
+                                            feature_id=proposal.get("change_id", "unknown"),
+                                            direction="export",
+                                            bundle_name="openspec",
+                                        )
+                                    )
+                                except Exception as e:
+                                    # Log error but don't fail entire sync
+                                    errors.append(
+                                        f"Failed to update issue body for {proposal.get('change_id', 'unknown')}: {e}"
+                                    )
+                    else:
+                        # No issue exists - create one
+                        # Handle temporary file workflow if requested
+                        change_id = proposal.get("change_id", "unknown")
+                        if export_to_tmp:
+                            # Export proposal content to temporary file for LLM review
+                            tmp_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}.md")
+                            try:
+                                # Create markdown content from proposal
+                                proposal_content = self._format_proposal_for_export(proposal)
+                                tmp_file_path.parent.mkdir(parents=True, exist_ok=True)
+                                tmp_file_path.write_text(proposal_content, encoding="utf-8")
+                                warnings.append(f"Exported proposal '{change_id}' to {tmp_file_path} for LLM review")
+                                # Skip issue creation when exporting to tmp
+                                continue
+                            except Exception as e:
+                                errors.append(f"Failed to export proposal '{change_id}' to temporary file: {e}")
+                                continue
+
+                        if import_from_tmp:
+                            # Import sanitized content from temporary file
+                            sanitized_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+                            try:
+                                if not sanitized_file_path.exists():
+                                    errors.append(
+                                        f"Sanitized file not found: {sanitized_file_path}. "
+                                        f"Please run LLM sanitization first."
+                                    )
+                                    continue
+                                # Read sanitized content
+                                sanitized_content = sanitized_file_path.read_text(encoding="utf-8")
+                                # Parse sanitized content back into proposal structure
+                                proposal_to_export = self._parse_sanitized_proposal(sanitized_content, proposal)
+                                # Cleanup temporary files after import
+                                try:
+                                    original_tmp = Path(f"/tmp/specfact-proposal-{change_id}.md")
+                                    if original_tmp.exists():
+                                        original_tmp.unlink()
+                                    if sanitized_file_path.exists():
+                                        sanitized_file_path.unlink()
+                                except Exception as cleanup_error:
+                                    warnings.append(f"Failed to cleanup temporary files: {cleanup_error}")
+                            except Exception as e:
+                                errors.append(f"Failed to import sanitized content for '{change_id}': {e}")
+                                continue
+                        else:
+                            # Normal flow: use proposal as-is or sanitize if needed
+                            proposal_to_export = proposal.copy()
+                            if should_sanitize:
+                                # Sanitize description and rationale separately
+                                # (they're already extracted sections, sanitizer will remove unwanted patterns)
+                                original_description = proposal.get("description", "")
+                                original_rationale = proposal.get("rationale", "")
+
+                                # Combine into full markdown for sanitization
+                                combined_markdown = ""
+                                if original_rationale:
+                                    combined_markdown += f"## Why\n\n{original_rationale}\n\n"
+                                if original_description:
+                                    combined_markdown += f"## What Changes\n\n{original_description}\n\n"
+
+                                if combined_markdown:
+                                    sanitized_markdown = sanitizer.sanitize_proposal(combined_markdown)
+
+                                    # Parse sanitized content back into description/rationale
+                                    # Extract Why section
+                                    why_match = re.search(
+                                        r"##\s*Why\s*\n\n(.*?)(?=\n##|\Z)", sanitized_markdown, re.DOTALL
+                                    )
+                                    sanitized_rationale = why_match.group(1).strip() if why_match else ""
+
+                                    # Extract What Changes section
+                                    what_match = re.search(
+                                        r"##\s*What\s+Changes\s*\n\n(.*?)(?=\n##|\Z)", sanitized_markdown, re.DOTALL
+                                    )
+                                    sanitized_description = what_match.group(1).strip() if what_match else ""
+
+                                    # Update proposal with sanitized content
+                                    proposal_to_export["description"] = sanitized_description or original_description
+                                    proposal_to_export["rationale"] = sanitized_rationale or original_rationale
+
+                        result = adapter.export_artifact(
+                            artifact_key="change_proposal",
+                            artifact_data=proposal_to_export,
+                            bridge_config=self.bridge_config,
+                        )
+                        # Store issue info in source_tracking (proposal is a dict)
+                        if isinstance(proposal, dict) and isinstance(result, dict):
+                            # Normalize existing source_tracking to list
+                            source_tracking_list = self._normalize_source_tracking(proposal.get("source_tracking", {}))
+                            # Create new entry for this repository
+                            repo_identifier = target_repo or f"{repo_owner}/{repo_name}"
+                            new_entry = {
+                                "source_id": str(result.get("issue_number", "")),
+                                "source_url": str(result.get("issue_url", "")),
+                                "source_type": adapter_type,
+                                "source_repo": repo_identifier,
+                                "source_metadata": {
+                                    "last_synced_status": proposal.get("status"),
+                                    "sanitized": should_sanitize if should_sanitize is not None else False,
+                                },
+                            }
+                            source_tracking_list = self._update_source_tracking_entry(
+                                source_tracking_list, repo_identifier, new_entry
+                            )
+                            proposal["source_tracking"] = source_tracking_list
+                        operations.append(
+                            SyncOperation(
+                                artifact_key="change_proposal",
+                                feature_id=proposal.get("change_id", "unknown"),
+                                direction="export",
+                                bundle_name="openspec",
+                            )
+                        )
+
+                    # Save updated change proposals back to OpenSpec
+                    # Store issue IDs in proposal.md metadata section
+                    self._save_openspec_change_proposal(proposal)
+
+                except Exception as e:
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Failed to sync proposal {proposal.get('change_id', 'unknown')}: {e}", exc_info=True)
+                    errors.append(f"Failed to sync proposal {proposal.get('change_id', 'unknown')}: {e}")
+
+        except Exception as e:
+            errors.append(f"Export to DevOps failed: {e}")
+
+        return SyncResult(
+            success=len(errors) == 0,
+            operations=operations,
+            errors=errors,
+            warnings=warnings,
+        )
+
+    def _read_openspec_change_proposals(self) -> list[dict[str, Any]]:
+        """
+        Read OpenSpec change proposals from openspec/changes/ directory.
+
+        Returns:
+            List of change proposal dicts with keys: change_id, title, description, rationale, status, source_tracking
+
+        Note:
+            This is a basic implementation that reads OpenSpec proposal.md files directly.
+            Once the OpenSpec bridge adapter is implemented, this should delegate to it.
+        """
+        proposals: list[dict[str, Any]] = []
+
+        # Look for openspec/changes/ directory (could be in repo or external)
+        openspec_changes_dir = None
+
+        # Check if openspec/changes exists in repo
+        openspec_dir = self.repo_path / "openspec" / "changes"
+        if openspec_dir.exists() and openspec_dir.is_dir():
+            openspec_changes_dir = openspec_dir
+        else:
+            # Check for external base path in bridge config
+            if self.bridge_config and hasattr(self.bridge_config, "external_base_path"):
+                external_path = getattr(self.bridge_config, "external_base_path", None)
+                if external_path:
+                    openspec_changes_dir = Path(external_path) / "openspec" / "changes"
+                    if not openspec_changes_dir.exists():
+                        openspec_changes_dir = None
+
+        if not openspec_changes_dir or not openspec_changes_dir.exists():
+            return proposals  # No OpenSpec changes directory found
+
+        # Scan for change proposal directories (including archive subdirectories)
+        archive_dir = openspec_changes_dir / "archive"
+
+        # First, scan active changes
+        for change_dir in openspec_changes_dir.iterdir():
+            if not change_dir.is_dir() or change_dir.name == "archive":
+                continue
+
+            proposal_file = change_dir / "proposal.md"
+            if not proposal_file.exists():
+                continue
+
+            try:
+                # Parse proposal.md
+                proposal_content = proposal_file.read_text(encoding="utf-8")
+
+                # Extract title (first line after "# Change:")
+                title = ""
+                description = ""
+                rationale = ""
+                status = "proposed"  # Default status
+
+                lines = proposal_content.split("\n")
+                in_why = False
+                in_what = False
+                in_source_tracking = False
+
+                for line in lines:
+                    line_stripped = line.strip()
+                    if line_stripped.startswith("# Change:"):
+                        title = line_stripped.replace("# Change:", "").strip()
+                    elif line_stripped == "## Why":
+                        in_why = True
+                        in_what = False
+                        in_source_tracking = False
+                    elif line_stripped == "## What Changes":
+                        in_why = False
+                        in_what = True
+                        in_source_tracking = False
+                    elif line_stripped == "## Impact":
+                        # Skip Impact section (not used in current implementation)
+                        in_why = False
+                        in_what = False
+                        in_source_tracking = False
+                    elif line_stripped == "## Source Tracking":
+                        in_why = False
+                        in_what = False
+                        in_source_tracking = True
+                    elif in_source_tracking:
+                        # Skip source tracking section (we'll parse it separately)
+                        continue
+                    elif in_why and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                        # Preserve line breaks in rationale
+                        if rationale and not rationale.endswith("\n"):
+                            rationale += "\n"
+                        rationale += line + "\n"
+                    elif in_what and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                        # Preserve line breaks in description
+                        if description and not description.endswith("\n"):
+                            description += "\n"
+                        description += line + "\n"
+
+                # Check for existing source tracking in proposal.md
+                source_tracking_list: list[dict[str, Any]] = []
+                if "## Source Tracking" in proposal_content:
+                    # Parse existing source tracking (support multiple entries)
+                    source_tracking_match = re.search(
+                        r"## Source Tracking\s*\n(.*?)(?=\n## |\Z)", proposal_content, re.DOTALL
+                    )
+                    if source_tracking_match:
+                        tracking_content = source_tracking_match.group(1)
+                        # Split by repository sections (### Repository: ...)
+                        # Pattern: ### Repository: <repo> followed by entries until next ### or ---
+                        repo_sections = re.split(r"###\s+Repository:\s*([^\n]+)\s*\n", tracking_content)
+                        # repo_sections alternates: [content_before_first, repo1, content1, repo2, content2, ...]
+                        if len(repo_sections) > 1:
+                            # Multiple repository entries
+                            for i in range(1, len(repo_sections), 2):
+                                if i + 1 < len(repo_sections):
+                                    repo_name = repo_sections[i].strip()
+                                    entry_content = repo_sections[i + 1]
+                                    entry = self._parse_source_tracking_entry(entry_content, repo_name)
+                                    if entry:
+                                        source_tracking_list.append(entry)
+                        else:
+                            # Single entry (backward compatibility - no repository header)
+                            entry = self._parse_source_tracking_entry(tracking_content, None)
+                            if entry:
+                                source_tracking_list.append(entry)
+
+                # Check for status indicators in proposal content or directory name
+                # Status could be inferred from directory structure or metadata files
+                # For now, default to "proposed" - can be enhanced later
+
+                # Clean up description and rationale (remove extra newlines)
+                description_clean = description.strip() if description else ""
+                rationale_clean = rationale.strip() if rationale else ""
+
+                # Create proposal dict
+                # Convert source_tracking_list to single dict for backward compatibility if only one entry
+                # Otherwise keep as list
+                source_tracking_final: list[dict[str, Any]] | dict[str, Any] = (
+                    (source_tracking_list[0] if len(source_tracking_list) == 1 else source_tracking_list)
+                    if source_tracking_list
+                    else {}
+                )
+
+                proposal = {
+                    "change_id": change_dir.name,
+                    "title": title or change_dir.name,
+                    "description": description_clean or "No description provided.",
+                    "rationale": rationale_clean or "No rationale provided.",
+                    "status": status,
+                    "source_tracking": source_tracking_final,
+                }
+
+                proposals.append(proposal)
+
+            except Exception as e:
+                # Log error but continue processing other proposals
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to parse proposal from {proposal_file}: {e}")
+
+        # Also scan archived changes (treat as "applied" status for status updates)
+        archive_dir = openspec_changes_dir / "archive"
+        if archive_dir.exists() and archive_dir.is_dir():
+            for archive_subdir in archive_dir.iterdir():
+                if not archive_subdir.is_dir():
+                    continue
+
+                # Extract change ID from archive directory name (format: YYYY-MM-DD-<change-id>)
+                archive_name = archive_subdir.name
+                if "-" in archive_name:
+                    # Extract change_id from "2025-12-29-add-devops-backlog-tracking"
+                    parts = archive_name.split("-", 3)
+                    change_id = parts[3] if len(parts) >= 4 else archive_subdir.name
+                else:
+                    change_id = archive_subdir.name
+
+                proposal_file = archive_subdir / "proposal.md"
+                if not proposal_file.exists():
+                    continue
+
+                try:
+                    # Parse proposal.md (reuse same parsing logic)
+                    proposal_content = proposal_file.read_text(encoding="utf-8")
+
+                    # Extract title, description, rationale (same parsing logic)
+                    title = ""
+                    description = ""
+                    rationale = ""
+                    status = "applied"  # Archived changes are treated as "applied"
+
+                    lines = proposal_content.split("\n")
+                    in_why = False
+                    in_what = False
+                    in_source_tracking = False
+
+                    for line in lines:
+                        line_stripped = line.strip()
+                        if line_stripped.startswith("# Change:"):
+                            continue
+                        if line_stripped == "## Why":
+                            in_why = True
+                            in_what = False
+                            in_source_tracking = False
+                        elif line_stripped == "## What Changes":
+                            in_why = False
+                            in_what = True
+                            in_source_tracking = False
+                        elif line_stripped == "## Impact":
+                            in_why = False
+                            in_what = False
+                            in_source_tracking = False
+                        elif line_stripped == "## Source Tracking":
+                            in_why = False
+                            in_what = False
+                            in_source_tracking = True
+                        elif in_source_tracking:
+                            continue
+                        elif in_why and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                            if rationale and not rationale.endswith("\n"):
+                                rationale += "\n"
+                            rationale += line + "\n"
+                        elif in_what and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                            if description and not description.endswith("\n"):
+                                description += "\n"
+                            description += line + "\n"
+                        elif not title and line_stripped and not line_stripped.startswith("#"):
+                            title = line_stripped
+
+                    # Parse source tracking (same logic as active changes)
+                    archive_source_tracking_list: list[dict[str, Any]] = []
+                    if "## Source Tracking" in proposal_content:
+                        source_tracking_match = re.search(
+                            r"## Source Tracking\s*\n(.*?)(?=\n## |\Z)", proposal_content, re.DOTALL
+                        )
+                        if source_tracking_match:
+                            tracking_content = source_tracking_match.group(1)
+                            repo_sections = re.split(r"###\s+Repository:\s*([^\n]+)\s*\n", tracking_content)
+                            if len(repo_sections) > 1:
+                                for i in range(1, len(repo_sections), 2):
+                                    if i + 1 < len(repo_sections):
+                                        repo_name = repo_sections[i].strip()
+                                        entry_content = repo_sections[i + 1]
+                                        entry = self._parse_source_tracking_entry(entry_content, repo_name)
+                                        if entry:
+                                            archive_source_tracking_list.append(entry)
+                            else:
+                                entry = self._parse_source_tracking_entry(tracking_content, None)
+                                if entry:
+                                    archive_source_tracking_list.append(entry)
+
+                    # Convert to single dict for backward compatibility if only one entry
+                    archive_source_tracking_final: list[dict[str, Any]] | dict[str, Any] = (
+                        (
+                            archive_source_tracking_list[0]
+                            if len(archive_source_tracking_list) == 1
+                            else archive_source_tracking_list
+                        )
+                        if archive_source_tracking_list
+                        else {}
+                    )
+
+                    # Clean up description and rationale
+                    description_clean = description.strip() if description else ""
+                    rationale_clean = rationale.strip() if rationale else ""
+
+                    proposal = {
+                        "change_id": change_id,
+                        "title": title or change_id,
+                        "description": description_clean or "No description provided.",
+                        "rationale": rationale_clean or "No rationale provided.",
+                        "status": status,  # "applied" for archived changes
+                        "source_tracking": archive_source_tracking_final,
+                    }
+
+                    proposals.append(proposal)
+
+                except Exception as e:
+                    # Log error but continue processing other proposals
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Failed to parse archived proposal from {proposal_file}: {e}")
+
+        return proposals
+
+    def _find_source_tracking_entry(
+        self, source_tracking: list[dict[str, Any]] | dict[str, Any] | None, target_repo: str | None
+    ) -> dict[str, Any] | None:
+        """
+        Find source tracking entry for a specific repository.
+
+        Args:
+            source_tracking: Source tracking (list of entries or single dict for backward compatibility)
+            target_repo: Target repository identifier (e.g., "nold-ai/specfact-cli")
+
+        Returns:
+            Matching entry dict or None if not found
+        """
+        if not source_tracking:
+            return None
+
+        # Handle backward compatibility: single dict -> convert to list
+        if isinstance(source_tracking, dict):
+            # Check if it matches target_repo (extract from source_url if available)
+            if target_repo:
+                source_url = source_tracking.get("source_url", "")
+                if source_url:
+                    url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
+                    if url_repo_match:
+                        source_repo = url_repo_match.group(1)
+                        if source_repo == target_repo:
+                            return source_tracking
+            # If no target_repo specified or doesn't match, return the single entry
+            # (for backward compatibility when no target_repo is specified)
+            if not target_repo:
+                return source_tracking
+            return None
+
+        # Handle list of entries
+        if isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if isinstance(entry, dict):
+                    entry_repo = entry.get("source_repo")
+                    if entry_repo == target_repo:
+                        return entry
+                    # Backward compatibility: if no source_repo, try to extract from source_url
+                    if not entry_repo and target_repo:
+                        source_url = entry.get("source_url", "")
+                        if source_url:
+                            url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
+                            if url_repo_match:
+                                source_repo = url_repo_match.group(1)
+                                if source_repo == target_repo:
+                                    return entry
+
+        return None
+
+    def _normalize_source_tracking(
+        self, source_tracking: list[dict[str, Any]] | dict[str, Any] | None
+    ) -> list[dict[str, Any]]:
+        """
+        Normalize source_tracking to a list of entries (for backward compatibility).
+
+        Args:
+            source_tracking: Source tracking (list or single dict)
+
+        Returns:
+            List of source tracking entries
+        """
+        if not source_tracking:
+            return []
+        if isinstance(source_tracking, dict):
+            return [source_tracking]
+        if isinstance(source_tracking, list):
+            return source_tracking
+        return []
+
+    def _update_source_tracking_entry(
+        self,
+        source_tracking_list: list[dict[str, Any]],
+        target_repo: str,
+        entry_data: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Update or add source tracking entry for a specific repository.
+
+        Args:
+            source_tracking_list: List of source tracking entries
+            target_repo: Target repository identifier
+            entry_data: Entry data to update/add
+
+        Returns:
+            Updated list of source tracking entries
+        """
+        # Ensure source_repo is set
+        entry_data["source_repo"] = target_repo
+
+        # Find existing entry for this repo
+        for i, entry in enumerate(source_tracking_list):
+            if isinstance(entry, dict) and entry.get("source_repo") == target_repo:
+                # Update existing entry
+                source_tracking_list[i] = {**entry, **entry_data}
+                return source_tracking_list
+
+        # No existing entry found - add new one
+        source_tracking_list.append(entry_data)
+        return source_tracking_list
+
+    def _parse_source_tracking_entry(self, entry_content: str, repo_name: str | None) -> dict[str, Any] | None:
+        """
+        Parse a single source tracking entry from markdown content.
+
+        Args:
+            entry_content: Markdown content for this entry
+            repo_name: Repository name (if specified in header)
+
+        Returns:
+            Source tracking entry dict or None if no valid entry found
+        """
+        entry: dict[str, Any] = {}
+        if repo_name:
+            entry["source_repo"] = repo_name
+
+        # Extract GitHub issue number
+        issue_match = re.search(r"\*\*.*Issue\*\*:\s*#(\d+)", entry_content)
+        if issue_match:
+            entry["source_id"] = issue_match.group(1)
+
+        # Extract issue URL (handle angle brackets for MD034 compliance)
+        url_match = re.search(r"\*\*Issue URL\*\*:\s*<?(https://[^\s>]+)>?", entry_content)
+        if url_match:
+            entry["source_url"] = url_match.group(1)
+            # If no repo_name provided, try to extract from URL
+            if not repo_name:
+                url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", entry["source_url"])
+                if url_repo_match:
+                    entry["source_repo"] = url_repo_match.group(1)
+
+        # Extract source type
+        type_match = re.search(r"\*\*(\w+)\s+Issue\*\*:", entry_content)
+        if type_match:
+            entry["source_type"] = type_match.group(1).lower()
+
+        # Extract last synced status
+        status_match = re.search(r"\*\*Last Synced Status\*\*:\s*(\w+)", entry_content)
+        if status_match:
+            if "source_metadata" not in entry:
+                entry["source_metadata"] = {}
+            entry["source_metadata"]["last_synced_status"] = status_match.group(1)
+
+        # Extract sanitized flag
+        sanitized_match = re.search(r"\*\*Sanitized\*\*:\s*(true|false)", entry_content, re.IGNORECASE)
+        if sanitized_match:
+            if "source_metadata" not in entry:
+                entry["source_metadata"] = {}
+            entry["source_metadata"]["sanitized"] = sanitized_match.group(1).lower() == "true"
+
+        # Extract content_hash from HTML comment
+        hash_match = re.search(r"<!--\s*content_hash:\s*([a-f0-9]{16})\s*-->", entry_content)
+        if hash_match:
+            if "source_metadata" not in entry:
+                entry["source_metadata"] = {}
+            entry["source_metadata"]["content_hash"] = hash_match.group(1)
+
+        # Only return entry if it has at least source_id or source_url
+        if entry.get("source_id") or entry.get("source_url"):
+            return entry
+        return None
+
+    def _calculate_content_hash(self, proposal: dict[str, Any]) -> str:
+        """
+        Calculate content hash for change proposal (Why + What Changes sections).
+
+        Args:
+            proposal: Change proposal dict with description and rationale
+
+        Returns:
+            SHA-256 hash (first 16 characters) of proposal content
+        """
+        rationale = proposal.get("rationale", "")
+        description = proposal.get("description", "")
+        # Combine Why + What Changes sections for hash calculation
+        content = f"{rationale}\n{description}".strip()
+        hash_obj = hashlib.sha256(content.encode("utf-8"))
+        # Return first 16 chars for storage efficiency
+        return hash_obj.hexdigest()[:16]
+
+    def _save_openspec_change_proposal(self, proposal: dict[str, Any]) -> None:
+        """
+        Save updated change proposal back to OpenSpec proposal.md file.
+
+        Adds or updates a metadata section at the end of proposal.md with
+        source_tracking information (GitHub issue IDs, etc.).
+
+        Args:
+            proposal: Change proposal dict with updated source_tracking
+        """
+        change_id = proposal.get("change_id")
+        if not change_id:
+            return  # Cannot save without change ID
+
+        # Find openspec/changes directory
+        openspec_changes_dir = None
+        openspec_dir = self.repo_path / "openspec" / "changes"
+        if openspec_dir.exists() and openspec_dir.is_dir():
+            openspec_changes_dir = openspec_dir
+        else:
+            # Check for external base path in bridge config
+            if self.bridge_config and hasattr(self.bridge_config, "external_base_path"):
+                external_path = getattr(self.bridge_config, "external_base_path", None)
+                if external_path:
+                    openspec_changes_dir = Path(external_path) / "openspec" / "changes"
+                    if not openspec_changes_dir.exists():
+                        openspec_changes_dir = None
+
+        if not openspec_changes_dir or not openspec_changes_dir.exists():
+            return  # Cannot save without OpenSpec directory
+
+        # Try active changes directory first
+        proposal_file = openspec_changes_dir / change_id / "proposal.md"
+        if not proposal_file.exists():
+            # Try archive directory (format: YYYY-MM-DD-<change-id>)
+            archive_dir = openspec_changes_dir / "archive"
+            if archive_dir.exists() and archive_dir.is_dir():
+                for archive_subdir in archive_dir.iterdir():
+                    if archive_subdir.is_dir():
+                        archive_name = archive_subdir.name
+                        # Extract change_id from "2025-12-29-add-devops-backlog-tracking"
+                        if "-" in archive_name:
+                            parts = archive_name.split("-", 3)
+                            if len(parts) >= 4 and parts[3] == change_id:
+                                proposal_file = archive_subdir / "proposal.md"
+                                break
+
+        if not proposal_file.exists():
+            return  # Proposal file doesn't exist
+
+        try:
+            # Read existing content
+            content = proposal_file.read_text(encoding="utf-8")
+
+            # Extract source_tracking info (normalize to list)
+            source_tracking_raw = proposal.get("source_tracking", {})
+            source_tracking_list = self._normalize_source_tracking(source_tracking_raw)
+            if not source_tracking_list:
+                return  # No source tracking to save
+
+            # Map source types to proper capitalization (MD034 compliance for URLs)
+            source_type_capitalization = {
+                "github": "GitHub",
+                "ado": "ADO",
+                "linear": "Linear",
+                "jira": "Jira",
+                "unknown": "Unknown",
+            }
+
+            metadata_lines = [
+                "",
+                "---",
+                "",
+                "## Source Tracking",
+                "",
+            ]
+
+            # Write each entry (one per repository)
+            for i, entry in enumerate(source_tracking_list):
+                if not isinstance(entry, dict):
+                    continue
+
+                # Add repository header if multiple entries or if source_repo is present
+                source_repo = entry.get("source_repo")
+                if source_repo and (len(source_tracking_list) > 1 or i > 0):
+                    metadata_lines.append(f"### Repository: {source_repo}")
+                    metadata_lines.append("")
+
+                source_type_raw = entry.get("source_type", "unknown")
+                source_type_display = source_type_capitalization.get(source_type_raw.lower(), "Unknown")
+
+                source_id = entry.get("source_id")
+                source_url = entry.get("source_url")
+
+                if source_id:
+                    metadata_lines.append(f"- **{source_type_display} Issue**: #{source_id}")
+                if source_url:
+                    # Enclose URL in angle brackets for MD034 compliance
+                    metadata_lines.append(f"- **Issue URL**: <{source_url}>")
+
+                source_metadata = entry.get("source_metadata", {})
+                if isinstance(source_metadata, dict) and source_metadata:
+                    last_synced_status = source_metadata.get("last_synced_status")
+                    if last_synced_status:
+                        metadata_lines.append(f"- **Last Synced Status**: {last_synced_status}")
+                    sanitized = source_metadata.get("sanitized")
+                    if sanitized is not None:
+                        metadata_lines.append(f"- **Sanitized**: {str(sanitized).lower()}")
+                    # Save content_hash as a hidden HTML comment for persistence
+                    # Format: <!-- content_hash: <hash> -->
+                    content_hash = source_metadata.get("content_hash")
+                    if content_hash:
+                        metadata_lines.append(f"<!-- content_hash: {content_hash} -->")
+
+                # Add separator between entries (except for last one)
+                if i < len(source_tracking_list) - 1:
+                    metadata_lines.append("")
+                    metadata_lines.append("---")
+                    metadata_lines.append("")
+
+            metadata_lines.append("")
+            metadata_section = "\n".join(metadata_lines)
+
+            # Check if metadata section already exists
+            if "## Source Tracking" in content:
+                # Replace existing metadata section
+                # Pattern matches: optional --- separator, then ## Source Tracking and everything until next ## section or end
+                # The metadata_section already includes the --- separator, so we match and replace the entire block
+                # Try with --- separator first (most common case)
+                pattern_with_sep = r"\n---\n\n## Source Tracking.*?(?=\n## |\Z)"
+                if re.search(pattern_with_sep, content, flags=re.DOTALL):
+                    content = re.sub(pattern_with_sep, "\n" + metadata_section.rstrip(), content, flags=re.DOTALL)
+                else:
+                    # Fallback: no --- separator before section
+                    pattern_no_sep = r"\n## Source Tracking.*?(?=\n## |\Z)"
+                    content = re.sub(pattern_no_sep, "\n" + metadata_section.rstrip(), content, flags=re.DOTALL)
+            else:
+                # Append new metadata section
+                content = content.rstrip() + "\n" + metadata_section
+
+            # Write back to file
+            proposal_file.write_text(content, encoding="utf-8")
+
+        except Exception as e:
+            # Log error but don't fail the sync
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to save source tracking to {proposal_file}: {e}")
+
+    def _format_proposal_for_export(self, proposal: dict[str, Any]) -> str:
+        """
+        Format proposal as markdown for export to temporary file.
+
+        Args:
+            proposal: Change proposal dict
+
+        Returns:
+            Markdown-formatted proposal content
+        """
+        lines = []
+        lines.append(f"# Change: {proposal.get('title', 'Untitled')}")
+        lines.append("")
+
+        rationale = proposal.get("rationale", "")
+        if rationale:
+            lines.append("## Why")
+            lines.append("")
+            lines.append(rationale.strip())
+            lines.append("")
+
+        description = proposal.get("description", "")
+        if description:
+            lines.append("## What Changes")
+            lines.append("")
+            lines.append(description.strip())
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _parse_sanitized_proposal(self, sanitized_content: str, original_proposal: dict[str, Any]) -> dict[str, Any]:
+        """
+        Parse sanitized markdown content back into proposal structure.
+
+        Args:
+            sanitized_content: Sanitized markdown content from temporary file
+            original_proposal: Original proposal dict (for metadata)
+
+        Returns:
+            Updated proposal dict with sanitized content
+        """
+
+        proposal = original_proposal.copy()
+
+        # Extract Why section
+        why_match = re.search(r"##\s*Why\s*\n\n(.*?)(?=\n##|\Z)", sanitized_content, re.DOTALL)
+        if why_match:
+            proposal["rationale"] = why_match.group(1).strip()
+
+        # Extract What Changes section
+        what_match = re.search(r"##\s*What\s+Changes\s*\n\n(.*?)(?=\n##|\Z)", sanitized_content, re.DOTALL)
+        if what_match:
+            proposal["description"] = what_match.group(1).strip()
+
+        return proposal
 
     @beartype
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")

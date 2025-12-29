@@ -3,9 +3,12 @@
 Focus: Business logic and edge cases only (@beartype handles type validation).
 """
 
+import os
 import tempfile
 from pathlib import Path
 from textwrap import dedent
+
+import pytest
 
 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
@@ -133,8 +136,11 @@ class TestCodeAnalyzer:
         finally:
             temp_file.unlink()
 
+    @pytest.mark.timeout(20)
     def test_extract_simple_class_as_feature(self):
         """Test extracting a simple class as a feature."""
+        # Set TEST_MODE to skip Semgrep (test focuses on feature extraction, not Semgrep)
+        os.environ["TEST_MODE"] = "true"
         code = dedent(
             '''
             class UserManager:

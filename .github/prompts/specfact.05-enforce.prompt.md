@@ -90,6 +90,7 @@ specfact enforce sdd [<bundle-name>] [--sdd <path>] --no-interactive
 **What to do**:
 
 - Read CLI-generated validation report (use file reading tools for display only)
+- Treat the CLI report as the source of truth; scan codebase only to explain deviations or propose fixes
 - Research codebase for context on deviations
 - Suggest fixes for validation failures
 

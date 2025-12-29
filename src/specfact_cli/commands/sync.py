@@ -26,7 +26,9 @@ from specfact_cli.sync.speckit_sync import SpecKitSync
 from specfact_cli.telemetry import telemetry
 
 
-app = typer.Typer(help="Synchronize external tool artifacts and repository changes")
+app = typer.Typer(
+    help="Synchronize external tool artifacts and repository changes (Spec-Kit, GitHub, Linear, Jira, etc.)"
+)
 console = Console()
 
 
@@ -746,6 +748,11 @@ def sync_bridge(
         "--bidirectional",
         help="Enable bidirectional sync (tool ↔ SpecFact)",
     ),
+    mode: str = typer.Option(
+        None,
+        "--mode",
+        help="Sync mode: 'read-only' (OpenSpec → SpecFact), 'export-only' (OpenSpec → DevOps), 'import-annotation' (DevOps → SpecFact). Default: bidirectional if --bidirectional, else unidirectional",
+    ),
     overwrite: bool = typer.Option(
         False,
         "--overwrite",
@@ -765,8 +772,80 @@ def sync_bridge(
     adapter: str = typer.Option(
         "speckit",
         "--adapter",
-        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+        help="Adapter type: speckit, generic-markdown, github (available), ado, linear, jira, notion (future). Default: auto-detect",
         hidden=True,  # Hidden by default, shown with --help-advanced
+    ),
+    repo_owner: str = typer.Option(
+        None,
+        "--repo-owner",
+        help="GitHub repository owner (for GitHub adapter)",
+        hidden=True,
+    ),
+    repo_name: str = typer.Option(
+        None,
+        "--repo-name",
+        help="GitHub repository name (for GitHub adapter)",
+        hidden=True,
+    ),
+    github_token: str = typer.Option(
+        None,
+        "--github-token",
+        help="GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)",
+        hidden=True,
+    ),
+    use_gh_cli: bool = typer.Option(
+        True,
+        "--use-gh-cli/--no-gh-cli",
+        help="Use GitHub CLI (`gh auth token`) to get token automatically (default: True). Useful in enterprise environments where PAT creation is restricted.",
+        hidden=True,
+    ),
+    sanitize: bool | None = typer.Option(
+        None,
+        "--sanitize/--no-sanitize",
+        help="Sanitize proposal content for public issues (default: auto-detect based on repo setup). Removes competitive analysis, internal strategy, implementation details.",
+        hidden=True,
+    ),
+    target_repo: str = typer.Option(
+        None,
+        "--target-repo",
+        help="Target repository for issue creation (format: owner/repo). Default: same as code repository.",
+        hidden=True,
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Interactive mode for AI-assisted sanitization (requires slash command).",
+        hidden=True,
+    ),
+    change_ids: str = typer.Option(
+        None,
+        "--change-ids",
+        help="Comma-separated list of change proposal IDs to export (default: all active proposals). Example: 'add-feature-x,update-api'",
+        hidden=True,
+    ),
+    export_to_tmp: bool = typer.Option(
+        False,
+        "--export-to-tmp",
+        help="Export proposal content to temporary file for LLM review (default: /tmp/specfact-proposal-<change-id>.md).",
+        hidden=True,
+    ),
+    import_from_tmp: bool = typer.Option(
+        False,
+        "--import-from-tmp",
+        help="Import sanitized content from temporary file after LLM review (default: /tmp/specfact-proposal-<change-id>-sanitized.md).",
+        hidden=True,
+    ),
+    tmp_file: Path = typer.Option(
+        None,
+        "--tmp-file",
+        help="Custom temporary file path (default: /tmp/specfact-proposal-<change-id>.md).",
+        hidden=True,
+    ),
+    update_existing: bool = typer.Option(
+        False,
+        "--update-existing/--no-update-existing",
+        help="Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.",
+        hidden=True,
     ),
     interval: int = typer.Option(
         5,
@@ -779,22 +858,35 @@ def sync_bridge(
     """
     Sync changes between external tool artifacts and SpecFact using bridge architecture.
 
-    Synchronizes artifacts from external tools (e.g., Spec-Kit, Linear, Jira) with
+    Synchronizes artifacts from external tools (Spec-Kit, GitHub, ADO, Linear, Jira, etc.) with
     SpecFact project bundles using configurable bridge mappings.
 
     Supported adapters:
-    - speckit: Spec-Kit projects (specs/, .specify/)
-    - generic-markdown: Generic markdown-based specifications
+    - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
+    - generic-markdown: Generic markdown-based specifications - import & sync
+    - github: GitHub Issues (DevOps backlog tracking, export-only mode) - export-only sync
+    - ado: Azure DevOps Work Items (future) - planned
+    - linear: Linear Issues (future) - planned
+    - jira: Jira Issues (future) - planned
+    - notion: Notion pages (future) - planned
+
+    **Sync Modes:**
+    - read-only: OpenSpec → SpecFact (read specs, no writes)
+    - export-only: OpenSpec → DevOps (create/update issues, no import)
+    - import-annotation: DevOps → SpecFact (import issues, annotate with findings) - future
+    - bidirectional: Full two-way sync (tool ↔ SpecFact)
 
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle
-    - **Behavior/Options**: --bidirectional, --overwrite, --watch, --ensure-compliance
-    - **Advanced/Configuration**: --adapter, --interval
+    - **Behavior/Options**: --bidirectional, --mode, --overwrite, --watch, --ensure-compliance
+    - **Advanced/Configuration**: --adapter, --interval, --repo-owner, --repo-name, --github-token
 
     **Examples:**
         specfact sync bridge --adapter speckit --repo . --bidirectional
         specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
         specfact sync bridge --repo . --watch --interval 10
+        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo
+        specfact sync bridge --adapter github --mode export-only --update-existing  # Update existing issues when content changes
     """
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe
@@ -812,8 +904,39 @@ def sync_bridge(
         console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
         raise typer.Exit(1) from err
 
+    # Determine sync mode
+    # Auto-detect export-only mode for DevOps adapters when repo-owner/repo-name are provided
+    if mode is None:
+        devops_adapters = ("github", "ado", "linear", "jira")
+        if adapter_type.value in devops_adapters and (repo_owner or repo_name):
+            # DevOps adapter with repo info → export-only mode (OpenSpec → DevOps)
+            sync_mode = "export-only"
+        else:
+            sync_mode = "bidirectional" if bidirectional else "unidirectional"
+    else:
+        sync_mode = mode.lower()
+
+    # Validate export-only mode requires DevOps adapter
+    if sync_mode == "export-only":
+        devops_adapters = ("github", "ado", "linear", "jira")
+        if adapter_type.value not in devops_adapters:
+            console.print("[bold red]✗[/bold red] Export-only mode requires DevOps adapter (github, ado, linear, jira)")
+            console.print(f"[dim]Current adapter: {adapter_type.value}[/dim]")
+            raise typer.Exit(1)
+
+    # Validate temporary file workflow parameters
+    if export_to_tmp and import_from_tmp:
+        console.print("[bold red]✗[/bold red] --export-to-tmp and --import-from-tmp are mutually exclusive")
+        raise typer.Exit(1)
+
+    # Parse change_ids if provided
+    change_ids_list: list[str] | None = None
+    if change_ids:
+        change_ids_list = [cid.strip() for cid in change_ids.split(",") if cid.strip()]
+
     telemetry_metadata = {
         "adapter": adapter,
+        "mode": sync_mode,
         "bidirectional": bidirectional,
         "watch": watch,
         "overwrite": overwrite,
@@ -821,10 +944,68 @@ def sync_bridge(
     }
 
     with telemetry.track_command("sync.bridge", telemetry_metadata) as record:
+        # Handle export-only mode (OpenSpec → DevOps)
+        if sync_mode == "export-only":
+            from specfact_cli.sync.bridge_sync import BridgeSync
+
+            console.print(f"[bold cyan]Exporting OpenSpec change proposals to {adapter_type.value}...[/bold cyan]")
+
+            # Create bridge config
+            bridge_config = None
+            if adapter_type == AdapterType.GITHUB:
+                from specfact_cli.models.bridge import BridgeConfig
+
+                bridge_config = BridgeConfig.preset_github()
+
+            # Create bridge sync instance
+            bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
+
+            # Export change proposals
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("[cyan]Syncing change proposals to DevOps...[/cyan]", total=None)
+                result = bridge_sync.export_change_proposals_to_devops(
+                    adapter_type=adapter_type.value,
+                    repo_owner=repo_owner,
+                    repo_name=repo_name,
+                    api_token=github_token,
+                    use_gh_cli=use_gh_cli,
+                    sanitize=sanitize,
+                    target_repo=target_repo,
+                    interactive=interactive,
+                    change_ids=change_ids_list,
+                    export_to_tmp=export_to_tmp,
+                    import_from_tmp=import_from_tmp,
+                    tmp_file=tmp_file,
+                    update_existing=update_existing,
+                )
+                progress.update(task, description="[green]✓[/green] Sync complete")
+
+            # Report results
+            if result.success:
+                console.print(
+                    f"[bold green]✓[/bold green] Successfully synced {len(result.operations)} change proposals"
+                )
+                if result.warnings:
+                    for warning in result.warnings:
+                        console.print(f"[yellow]⚠[/yellow] {warning}")
+            else:
+                console.print(f"[bold red]✗[/bold red] Sync failed with {len(result.errors)} errors")
+                for error in result.errors:
+                    console.print(f"[red]  • {error}[/red]")
+                raise typer.Exit(1)
+
+            # Telemetry is automatically tracked via context manager
+            return
+
         console.print(f"[bold cyan]Syncing {adapter_type.value} artifacts from:[/bold cyan] {repo}")
 
         # For now, Spec-Kit adapter uses legacy sync (will be migrated to bridge)
-        if adapter_type != AdapterType.SPECKIT:
+        if adapter_type != AdapterType.SPECKIT and adapter_type != AdapterType.GITHUB:
             console.print(f"[yellow]⚠ Generic adapter ({adapter_type.value}) not yet fully implemented[/yellow]")
             console.print("[dim]Falling back to Spec-Kit adapter for now[/dim]")
             # TODO: Implement generic adapter sync via bridge

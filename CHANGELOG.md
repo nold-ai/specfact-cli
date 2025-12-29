@@ -9,6 +9,72 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.21.0] - 2025-12-29
+
+### Added (0.21.0)
+
+- **DevOps Backlog Tracking Integration**: Export OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Linear, Jira)
+  - **GitHub Adapter**: `GitHubAdapter` implements `BridgeAdapter` interface for creating/updating GitHub Issues from OpenSpec change proposals
+  - **Export-Only Sync Mode**: `specfact sync bridge --adapter github --mode export-only` command for syncing change proposals to DevOps tools
+  - **Status Synchronization**: Automatic issue status updates when change proposals are applied, deprecated, or discarded
+  - **Source Tracking**: Issue IDs automatically saved back to OpenSpec proposal files in "## Source Tracking" section
+  - **GitHub CLI Integration**: `--use-gh-cli` option to automatically derive GitHub token from `gh auth token` (useful in enterprise environments)
+  - **Content Sanitization**: `ContentSanitizer` utility to remove competitive analysis, internal strategy, and implementation details from proposals for public issues
+  - **Conditional Sanitization**: Auto-detection of sanitization need based on repository setup (different repos → sanitize, same repo → no sanitization)
+  - **Sanitization CLI Options**: `--sanitize/--no-sanitize`, `--target-repo`, `--interactive` options for content sanitization control
+  - **Slash Command**: `/specfact.sync-backlog` interactive command for AI-assisted backlog synchronization with content sanitization
+  - **Cross-Repository Support**: Full support for managing OpenSpec proposals in separate repository from codebase
+  - **Architecture**: Extensible bridge adapter pattern supports future tools (ADO, Linear, Jira) via same interface
+  - **Proposal Filtering**: Per-proposal filtering based on sanitization status (public repos only sync "applied" proposals, internal repos sync all active proposals)
+
+### Changed (0.21.0)
+
+- **Bridge Configuration**: Extended `BridgeConfig` with `preset_github()` for DevOps backlog tracking
+- **Adapter Registry**: Added `GitHubAdapter` to adapter registry for plugin-based DevOps tool integration
+- **Bridge Sync**: Extended `BridgeSync` with `export_change_proposals_to_devops()` method for export-only sync mode
+- **Proposal Filtering Logic**: Enhanced filtering to check each proposal individually based on sanitization status
+  - Per-proposal filtering ensures proposals are only synced when appropriate for target repository type
+  - Clear warning messages when proposals are filtered out (shows count and reason)
+  - Filtering happens before processing, improving performance and clarity
+- **Documentation Updates**: Updated command reference and slash command prompt to reflect new filtering behavior
+  - Added "Proposal Filtering (export-only mode)" section to `docs/reference/commands.md`
+  - Updated `resources/prompts/specfact.sync-backlog.md` with filtering behavior and warning examples
+  - Clarified that public repos only sync archived/completed proposals
+
+### Fixed (0.21.0)
+
+- **Proposal Filtering for Public Repositories**: Fixed issue where proposals with "proposed" status were being synced to public repositories
+  - **Public repos** (`--sanitize`): Now only syncs proposals with status `"applied"` (archived/completed), regardless of existing source tracking entries
+  - **Internal repos** (`--no-sanitize`): Syncs all active proposals (proposed, in-progress, applied, deprecated, discarded)
+  - Prevents premature exposure of work-in-progress proposals to public repositories
+  - Filtering warnings displayed when proposals are filtered out based on status
+
+- **Source Tracking Metadata Updates**: Fixed issue where `sanitized` flag wasn't updated when syncing to existing issues
+  - Source tracking metadata (including `sanitized` flag) now always updated during sync operations
+  - Metadata updates tracked as sync operations even when issue status hasn't changed
+  - Ensures accurate tracking of which issues were sanitized vs exported directly
+
+- **Duplicate Source Tracking Blocks**: Fixed regex pattern in `_save_openspec_change_proposal()` to prevent duplicate "Source Tracking" sections
+  - Updated regex to correctly match and replace entire "Source Tracking" section including `---` separator
+  - Prevents duplicate blocks when updating source tracking metadata
+
+- **Variable Redeclaration Errors**: Fixed `reportRedeclaration` errors in `bridge_sync.py`
+  - Renamed `source_tracking_list` to `archive_source_tracking_list` in archived changes processing block
+  - Renamed `source_tracking_final` to `archive_source_tracking_final` to avoid name conflicts
+
+- **GitHub Adapter Source Tracking Handling**: Fixed `'list' object has no attribute 'get'` error in `_update_issue_status()`
+  - Normalized `source_tracking` to list format before accessing dictionary methods
+  - Handles both single dict and list of dicts formats for backward compatibility
+
+### Improved (0.21.0)
+
+- **CLI Validation**: Added comprehensive validation of sync bridge command with `hatch run`
+  - Verified filtering works correctly for both public and internal repositories
+  - Confirmed warning messages display appropriately when proposals are filtered
+  - Validated that only "applied" proposals sync to public repos while all active proposals sync to internal repos
+
+---
+
 ## [0.20.6] - 2025-12-26
 
 ### Fixed (0.20.6)
