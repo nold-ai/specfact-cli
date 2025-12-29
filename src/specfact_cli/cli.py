@@ -306,7 +306,9 @@ app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integrati
 
 # 2. Import & Analysis
 app.add_typer(
-    import_cmd.app, name="import", help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira)"
+    import_cmd.app,
+    name="import",
+    help="Import codebases and external tool projects (e.g., Spec-Kit, GitHub, ADO, Linear, Jira)",
 )
 
 # 2.5. Migration
@@ -342,7 +344,11 @@ app.add_typer(spec.app, name="spec", help="Specmatic integration for API contrac
 app.add_typer(contract_cmd.app, name="contract", help="Manage OpenAPI contracts for project bundles")
 
 # 11. Synchronization
-app.add_typer(sync.app, name="sync", help="Synchronize Spec-Kit artifacts and repository changes")
+app.add_typer(
+    sync.app,
+    name="sync",
+    help="Synchronize external tool artifacts and repository changes (Spec-Kit, GitHub, ADO, Linear, Jira, etc.)",
+)
 
 # 11.5. Drift Detection
 app.add_typer(drift.app, name="drift", help="Detect drift between code and specifications")
@@ -354,7 +360,7 @@ app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract c
 app.add_typer(
     bridge.bridge_app,
     name="bridge",
-    help="Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.)",
+    help="Bridge adapters for external tool integration (Spec-Kit, GitHub, ADO, Linear, Jira, etc.)",
 )
 
 

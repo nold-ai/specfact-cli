@@ -1,7 +1,7 @@
 """
 Bridge command - Adapter commands for external tool integration.
 
-This module provides bridge adapters for external tools like Spec-Kit, Linear, Jira, etc.
+This module provides bridge adapters for external tools like Spec-Kit, GitHub, ADO, Linear, Jira, etc.
 These commands enable bidirectional sync and format conversion between SpecFact and external tools.
 """
 
@@ -19,7 +19,9 @@ from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 from specfact_cli.utils import print_error, print_info, print_success
 
 
-bridge_app = typer.Typer(help="Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.)")
+bridge_app = typer.Typer(
+    help="Bridge adapters for external tool integration (Spec-Kit, GitHub, ADO, Linear, Jira, etc.)"
+)
 console = Console()
 
 # Constitution subcommand group

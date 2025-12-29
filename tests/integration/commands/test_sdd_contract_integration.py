@@ -151,6 +151,7 @@ class TestSDDContractTracking:
         # Contract should be validated if schema is valid
         assert contract_ref.status == "validated"
 
+    @pytest.mark.timeout(30)
     def test_enforce_sdd_validates_contract_coverage(
         self, sample_bundle_with_contract: tuple[Path, str], monkeypatch: pytest.MonkeyPatch
     ) -> None:

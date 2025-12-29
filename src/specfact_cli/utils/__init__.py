@@ -6,6 +6,7 @@ YAML processing, console output, and interactive prompts.
 """
 
 from specfact_cli.utils.console import console, print_validation_report
+from specfact_cli.utils.content_sanitizer import ContentSanitizer
 from specfact_cli.utils.feature_keys import (
     convert_feature_keys,
     find_feature_by_normalized_key,
@@ -44,6 +45,7 @@ from specfact_cli.utils.yaml_utils import YAMLUtils, dump_yaml, load_yaml, strin
 
 
 __all__ = [
+    "ContentSanitizer",
     "GitOperations",
     "StructuredFormat",
     "YAMLUtils",
