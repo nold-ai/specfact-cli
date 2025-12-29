@@ -1198,7 +1198,7 @@ def from_bridge(
     adapter: str = typer.Option(
         "speckit",
         "--adapter",
-        help="Adapter type (speckit, generic-markdown). Default: auto-detect",
+        help="Adapter type: speckit, generic-markdown (available), github, ado, linear, jira, notion (future). Default: auto-detect",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
@@ -1210,8 +1210,13 @@ def from_bridge(
     SpecFact contracts, protocols, and plans.
 
     Supported adapters:
-    - speckit: Spec-Kit projects (specs/, .specify/)
-    - generic-markdown: Generic markdown-based specifications
+    - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
+    - generic-markdown: Generic markdown-based specifications - import & sync
+    - github: GitHub Issues (export-only, no import) - DevOps backlog tracking only
+    - ado: Azure DevOps Work Items (future) - planned
+    - linear: Linear Issues (future) - planned
+    - jira: Jira Issues (future) - planned
+    - notion: Notion pages (future) - planned
 
     **Parameter Groups:**
     - **Target/Input**: --repo

@@ -103,7 +103,9 @@ specfact plan <operation> [--bundle <name>] [options] --no-interactive
 **What to do**:
 
 - Read CLI-generated artifacts (use file reading tools for display only)
-- Research codebase for additional context
+- Use CLI artifacts as the source of truth for keys/structure/metadata
+- Scan codebase only if asked to align the plan with implementation or to add missing features
+- When scanning, compare findings against CLI artifacts and propose updates via CLI commands
 - Identify missing features/stories
 - Suggest confidence adjustments
 - Extract business context

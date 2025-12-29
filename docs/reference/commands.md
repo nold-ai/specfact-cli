@@ -2858,13 +2858,34 @@ specfact sync bridge [OPTIONS]
 **Options:**
 
 - `--repo PATH` - Path to repository (default: `.`)
-- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
+- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown`, `github`, `ado`, `linear`, `jira`, `notion` (default: auto-detect)
 - `--bundle BUNDLE_NAME` - Project bundle name for SpecFact → tool conversion (default: auto-detect)
+- `--mode MODE` - Sync mode: `read-only` (OpenSpec → SpecFact), `export-only` (OpenSpec → DevOps), `import-annotation` (DevOps → SpecFact). Default: bidirectional if `--bidirectional`, else unidirectional
 - `--bidirectional` - Enable bidirectional sync (default: one-way import)
 - `--overwrite` - Overwrite existing tool artifacts (delete all existing before sync)
 - `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
 - `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
 - `--ensure-compliance` - Validate and auto-enrich plan bundle for tool compliance before sync
+
+**DevOps Backlog Tracking (export-only mode):**
+
+When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira), the command exports OpenSpec change proposals to DevOps backlog tools:
+
+- `--adapter github` - GitHub Issues adapter (requires GitHub API token)
+- `--repo-owner OWNER` - GitHub repository owner (optional, can use bridge config)
+- `--repo-name NAME` - GitHub repository name (optional, can use bridge config)
+- `--github-token TOKEN` - GitHub API token (optional, uses `GITHUB_TOKEN` env var or `gh` CLI if not provided)
+- `--use-gh-cli/--no-gh-cli` - Use GitHub CLI (`gh auth token`) to get token automatically (default: True). Useful in enterprise environments where PAT creation is restricted
+- `--sanitize/--no-sanitize` - Sanitize proposal content for public issues (default: auto-detect based on repo setup)
+  - Auto-detection: If code repo != planning repo → sanitize, if same repo → no sanitization
+  - `--sanitize`: Force sanitization (removes competitive analysis, internal strategy, implementation details)
+  - `--no-sanitize`: Skip sanitization (use full proposal content)
+- `--target-repo OWNER/REPO` - Target repository for issue creation (format: owner/repo). Default: same as code repository
+- `--interactive` - Interactive mode for AI-assisted sanitization (requires slash command)
+
+**Environment Variables:**
+
+- `GITHUB_TOKEN` - GitHub API token (used if `--github-token` not provided and `--use-gh-cli` is False)
 
 **Watch Mode Features:**
 
@@ -2877,7 +2898,7 @@ specfact sync bridge [OPTIONS]
 - **Graceful shutdown**: Press Ctrl+C to stop watch mode cleanly
 - **Resource efficient**: Minimal CPU/memory usage
 
-**Example:**
+**Examples:**
 
 ```bash
 # One-time bidirectional sync with Spec-Kit
@@ -2891,6 +2912,23 @@ specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectio
 
 # Continuous watch mode
 specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectional --watch --interval 5
+
+# Export OpenSpec change proposals to GitHub issues (auto-detect sanitization)
+specfact sync bridge --adapter github --mode export-only
+
+# Export with explicit repository and sanitization
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo \
+  --sanitize \
+  --target-repo public-owner/public-repo
+
+# Export without sanitization (use full proposal content)
+specfact sync bridge --adapter github --mode export-only \
+  --no-sanitize
+
+# Export using GitHub CLI for token (enterprise-friendly)
+specfact sync bridge --adapter github --mode export-only \
+  --use-gh-cli
 ```
 
 **What it syncs (Spec-Kit adapter):**
@@ -2910,6 +2948,87 @@ When syncing from SpecFact to Spec-Kit (`--bidirectional`), the CLI automaticall
 - **tasks.md**: Phase organization (Phase 1: Setup, Phase 2: Foundational, Phase 3+: User Stories), Story mappings ([US1], [US2]), Parallel markers [P]
 
 **All Spec-Kit fields are auto-generated** - no manual editing required unless you want to customize defaults. Generated artifacts are ready for `/speckit.analyze` without additional work.
+
+**Content Sanitization (export-only mode):**
+
+When exporting OpenSpec change proposals to public repositories, content sanitization removes internal/competitive information while preserving user-facing value:
+
+**What's Removed:**
+
+- Competitive analysis sections
+- Market positioning statements
+- Implementation details (file-by-file changes)
+- Effort estimates and timelines
+- Technical architecture details
+- Internal strategy sections
+
+**What's Preserved:**
+
+- High-level feature descriptions
+- User-facing value propositions
+- Acceptance criteria
+- External documentation links
+- Use cases and examples
+
+**When to Use Sanitization:**
+
+- **Different repos** (code repo ≠ planning repo): Sanitization recommended (default: yes)
+- **Same repo** (code repo = planning repo): Sanitization optional (default: no, user can override)
+- **Breaking changes**: Use sanitization to communicate changes early without exposing internal strategy
+- **OSS collaboration**: Use sanitization for public issues to keep contributors informed
+
+**Sanitization Auto-Detection:**
+
+- Automatically detects if code and planning are in different repositories
+- Defaults to sanitize when repos differ (protects internal information)
+- Defaults to no sanitization when repos are the same (user can choose full disclosure)
+- User can override with `--sanitize` or `--no-sanitize` flags
+
+**AI-Assisted Sanitization:**
+
+- Use slash command `/specfact.sync-backlog` for interactive, AI-assisted content rewriting
+- AI analyzes proposal content and suggests sanitized version
+- User can review and approve sanitized content before issue creation
+- Useful for complex proposals requiring nuanced content adaptation
+
+**Proposal Filtering (export-only mode):**
+
+When exporting OpenSpec change proposals to DevOps tools, proposals are filtered based on target repository type and status:
+
+**Public Repositories** (with `--sanitize`):
+
+- **Only syncs proposals with status `"applied"`** (archived/completed changes)
+- Filters out proposals with status `"proposed"`, `"in-progress"`, `"deprecated"`, or `"discarded"`
+- Applies regardless of whether proposals have existing source tracking entries
+- Prevents premature exposure of work-in-progress proposals to public repositories
+- Warning message displayed when proposals are filtered out
+
+**Internal Repositories** (with `--no-sanitize` or auto-detected as internal):
+
+- Syncs all active proposals regardless of status:
+  - `"proposed"` - New proposals not yet started
+  - `"in-progress"` - Proposals currently being worked on
+  - `"applied"` - Completed/archived proposals
+  - `"deprecated"` - Deprecated proposals
+  - `"discarded"` - Discarded proposals
+- If proposal has source tracking entry for target repo: syncs it (for updates)
+- If proposal doesn't have entry: syncs if status is active
+
+**Examples:**
+
+```bash
+# Public repo: only syncs "applied" proposals (archived changes)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --sanitize \
+  --target-repo nold-ai/specfact-cli
+
+# Internal repo: syncs all active proposals (proposed, in-progress, applied, etc.)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --no-sanitize \
+  --target-repo nold-ai/specfact-cli-internal
+```
 
 **Constitution Evidence Extraction:**
 

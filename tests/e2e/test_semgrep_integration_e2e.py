@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
@@ -106,6 +107,7 @@ class TestSemgrepIntegrationE2E:
             # Should detect API theme
             assert "API" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
 
+    @pytest.mark.timeout(30)
     def test_semgrep_detects_sqlalchemy_models(self):
         """Test that Semgrep detects SQLAlchemy models and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
