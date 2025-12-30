@@ -2869,7 +2869,27 @@ specfact sync bridge [OPTIONS]
 
 **DevOps Backlog Tracking (export-only mode):**
 
-When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira), the command exports OpenSpec change proposals to DevOps backlog tools:
+When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira), the command exports OpenSpec change proposals to DevOps backlog tools, creating GitHub issues and tracking implementation progress through automated comment annotations.
+
+**Quick Start:**
+
+1. **Create change proposals** in `openspec/changes/<change-id>/proposal.md`
+2. **Export to GitHub** to create issues:
+   ```bash
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --repo /path/to/openspec-repo
+   ```
+3. **Track code changes** by adding progress comments:
+   ```bash
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --track-code-changes \
+     --repo /path/to/openspec-repo \
+     --code-repo /path/to/source-code-repo  # If different from OpenSpec repo
+   ```
+
+**Basic Options:**
 
 - `--adapter github` - GitHub Issues adapter (requires GitHub API token)
 - `--repo-owner OWNER` - GitHub repository owner (optional, can use bridge config)
@@ -2882,6 +2902,7 @@ When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira)
   - `--no-sanitize`: Skip sanitization (use full proposal content)
 - `--target-repo OWNER/REPO` - Target repository for issue creation (format: owner/repo). Default: same as code repository
 - `--interactive` - Interactive mode for AI-assisted sanitization (requires slash command)
+- `--change-ids ID1,ID2` - Comma-separated list of change proposal IDs to export (default: all active proposals)
 
 **Environment Variables:**
 
@@ -3038,6 +3059,7 @@ When using `--mode export-only` with DevOps adapters, you can track implementati
 
 - `--track-code-changes/--no-track-code-changes` - Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False)
 - `--add-progress-comment/--no-add-progress-comment` - Add manual progress comment to existing issues without code change detection (default: False)
+- `--code-repo PATH` - Path to source code repository for code change detection (default: same as `--repo`). **Required when OpenSpec repository differs from source code repository.** For example, if OpenSpec proposals are in `specfact-cli-internal` but source code is in `specfact-cli`, use `--repo /path/to/specfact-cli-internal --code-repo /path/to/specfact-cli`.
 - `--update-existing/--no-update-existing` - Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.
 
 **Code Change Detection:**
@@ -3097,6 +3119,15 @@ specfact sync bridge --adapter github --mode export-only \
   --track-code-changes \
   --change-ids add-code-change-tracking \
   --repo .
+
+# Separate OpenSpec and source code repositories
+# OpenSpec proposals in specfact-cli-internal, source code in specfact-cli
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --change-ids add-code-change-tracking \
+  --repo /path/to/specfact-cli-internal \
+  --code-repo /path/to/specfact-cli
 ```
 
 **Prerequisites:**

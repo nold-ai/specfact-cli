@@ -1133,7 +1133,6 @@ def sync_bridge(
             console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
             raise typer.Exit(1)
 
-
         # Watch mode implementation (using bridge-based watch)
         if watch:
             from specfact_cli.sync.bridge_watch import BridgeWatch
