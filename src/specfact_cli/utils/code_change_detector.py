@@ -265,10 +265,9 @@ def format_progress_comment(progress_data: dict[str, Any], sanitize: bool = Fals
     if progress_data.get("detection_timestamp"):
         comment_parts.append("")
         detection_timestamp = progress_data["detection_timestamp"]
-        if sanitize:
+        if sanitize and "T" in detection_timestamp:
             # For public repos, only show date part, not full timestamp
-            if "T" in detection_timestamp:
-                detection_timestamp = detection_timestamp.split("T")[0]
+            detection_timestamp = detection_timestamp.split("T")[0]
         comment_parts.append(f"*Detected: {detection_timestamp}*")
 
     return "\n".join(comment_parts)

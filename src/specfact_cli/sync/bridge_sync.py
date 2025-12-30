@@ -940,6 +940,9 @@ class BridgeSync:
                                                 bundle_name="openspec",
                                             )
                                         )
+
+                                        # Save updated proposal with progress comment metadata
+                                        self._save_openspec_change_proposal(proposal)
                                     except Exception as e:
                                         # Log error but don't fail entire sync
                                         errors.append(f"Failed to add progress comment for {change_id}: {e}")
@@ -1523,6 +1526,26 @@ class BridgeSync:
                 entry["source_metadata"] = {}
             entry["source_metadata"]["content_hash"] = hash_match.group(1)
 
+        # Extract progress_comments from HTML comment
+        progress_comments_match = re.search(r"<!--\s*progress_comments:\s*(\[.*?\])\s*-->", entry_content, re.DOTALL)
+        if progress_comments_match:
+            import json
+            try:
+                progress_comments = json.loads(progress_comments_match.group(1))
+                if "source_metadata" not in entry:
+                    entry["source_metadata"] = {}
+                entry["source_metadata"]["progress_comments"] = progress_comments
+            except (json.JSONDecodeError, ValueError):
+                # Ignore invalid JSON
+                pass
+
+        # Extract last_code_change_detected from HTML comment
+        last_detection_match = re.search(r"<!--\s*last_code_change_detected:\s*([^\s]+)\s*-->", entry_content)
+        if last_detection_match:
+            if "source_metadata" not in entry:
+                entry["source_metadata"] = {}
+            entry["source_metadata"]["last_code_change_detected"] = last_detection_match.group(1)
+
         # Only return entry if it has at least source_id or source_url
         if entry.get("source_id") or entry.get("source_url"):
             return entry
@@ -1659,6 +1682,19 @@ class BridgeSync:
                     content_hash = source_metadata.get("content_hash")
                     if content_hash:
                         metadata_lines.append(f"<!-- content_hash: {content_hash} -->")
+
+                    # Save progress_comments and last_code_change_detected as hidden HTML comments
+                    # Format: <!-- progress_comments: <json> --> and <!-- last_code_change_detected: <timestamp> -->
+                    progress_comments = source_metadata.get("progress_comments")
+                    if progress_comments and isinstance(progress_comments, list) and len(progress_comments) > 0:
+                        import json
+                        # Save as JSON in HTML comment for persistence
+                        progress_comments_json = json.dumps(progress_comments, separators=(",", ":"))
+                        metadata_lines.append(f"<!-- progress_comments: {progress_comments_json} -->")
+
+                    last_code_change_detected = source_metadata.get("last_code_change_detected")
+                    if last_code_change_detected:
+                        metadata_lines.append(f"<!-- last_code_change_detected: {last_code_change_detected} -->")
 
                 # Add separator between entries (except for last one)
                 if i < len(source_tracking_list) - 1:
