@@ -847,6 +847,18 @@ def sync_bridge(
         help="Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.",
         hidden=True,
     ),
+    track_code_changes: bool = typer.Option(
+        False,
+        "--track-code-changes/--no-track-code-changes",
+        help="Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False).",
+        hidden=True,
+    ),
+    add_progress_comment: bool = typer.Option(
+        False,
+        "--add-progress-comment/--no-add-progress-comment",
+        help="Add manual progress comment to existing issues without code change detection (default: False).",
+        hidden=True,
+    ),
     interval: int = typer.Option(
         5,
         "--interval",
@@ -887,6 +899,8 @@ def sync_bridge(
         specfact sync bridge --repo . --watch --interval 10
         specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo
         specfact sync bridge --adapter github --mode export-only --update-existing  # Update existing issues when content changes
+        specfact sync bridge --adapter github --mode export-only --track-code-changes  # Detect code changes and add progress comments
+        specfact sync bridge --adapter github --mode export-only --add-progress-comment  # Add manual progress comment
     """
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe

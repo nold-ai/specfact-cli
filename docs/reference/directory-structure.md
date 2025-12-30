@@ -96,6 +96,9 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - Each project bundle is stored in its own directory: `.specfact/projects/<bundle-name>/`
 - Each bundle directory contains multiple aspect files:
   - `bundle.manifest.yaml` - Bundle metadata, versioning, checksums, and feature index (required)
+    - **Schema Versioning**: Set `schema_metadata.schema_version` to `"1.1"` to enable change tracking (v0.21.1+)
+    - **Change Tracking**: Change tracking data is loaded via bridge adapters (not stored in bundle directory)
+    - See [Schema Versioning](schema-versioning.md) for details
   - `product.yaml` - Product definition with themes and releases (required)
   - `idea.yaml` - Product vision and intent (optional)
   - `business.yaml` - Business context and market segments (optional)

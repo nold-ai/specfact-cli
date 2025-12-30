@@ -14,6 +14,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.change import ChangeProposal, ChangeTracking
 
 
 class BridgeAdapter(ABC):
@@ -102,4 +103,94 @@ class BridgeAdapter(ABC):
 
         Returns:
             BridgeConfig instance for this adapter
+        """
+
+    @beartype
+    @abstractmethod
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @ensure(lambda result: result is None or isinstance(result, ChangeTracking), "Must return ChangeTracking or None")
+    def load_change_tracking(
+        self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
+    ) -> ChangeTracking | None:
+        """
+        Load change tracking (adapter-specific storage location).
+
+        Adapters must check `bridge_config.external_base_path` for cross-repository
+        support. All paths should be resolved relative to external base when provided.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            bridge_config: Optional bridge configuration (for cross-repo support)
+
+        Returns:
+            ChangeTracking instance if found, None otherwise
+        """
+
+    @beartype
+    @abstractmethod
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(
+        lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
+    )
+    @ensure(lambda result: result is None, "Must return None")
+    def save_change_tracking(
+        self, bundle_dir: Path, change_tracking: ChangeTracking, bridge_config: BridgeConfig | None = None
+    ) -> None:
+        """
+        Save change tracking (adapter-specific storage location).
+
+        Adapters must check `bridge_config.external_base_path` for cross-repository
+        support. All paths should be resolved relative to external base when provided.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            change_tracking: ChangeTracking instance to save
+            bridge_config: Optional bridge configuration (for cross-repo support)
+        """
+
+    @beartype
+    @abstractmethod
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
+    @ensure(lambda result: result is None or isinstance(result, ChangeProposal), "Must return ChangeProposal or None")
+    def load_change_proposal(
+        self, bundle_dir: Path, change_name: str, bridge_config: BridgeConfig | None = None
+    ) -> ChangeProposal | None:
+        """
+        Load change proposal (adapter-specific storage location).
+
+        Adapters must check `bridge_config.external_base_path` for cross-repository
+        support. All paths should be resolved relative to external base when provided.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            change_name: Change identifier
+            bridge_config: Optional bridge configuration (for cross-repo support)
+
+        Returns:
+            ChangeProposal instance if found, None otherwise
+        """
+
+    @beartype
+    @abstractmethod
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
+    @ensure(lambda result: result is None, "Must return None")
+    def save_change_proposal(
+        self, bundle_dir: Path, proposal: ChangeProposal, bridge_config: BridgeConfig | None = None
+    ) -> None:
+        """
+        Save change proposal (adapter-specific storage location).
+
+        Adapters must check `bridge_config.external_base_path` for cross-repository
+        support. All paths should be resolved relative to external base when provided.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            proposal: ChangeProposal instance to save
+            bridge_config: Optional bridge configuration (for cross-repo support)
         """

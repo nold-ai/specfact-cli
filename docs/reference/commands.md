@@ -3030,6 +3030,104 @@ specfact sync bridge --adapter github --mode export-only \
   --target-repo nold-ai/specfact-cli-internal
 ```
 
+**Code Change Tracking and Progress Comments (export-only mode):**
+
+When using `--mode export-only` with DevOps adapters, you can track implementation progress by detecting code changes and adding progress comments to existing GitHub issues:
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--track-code-changes/--no-track-code-changes` - Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False)
+- `--add-progress-comment/--no-add-progress-comment` - Add manual progress comment to existing issues without code change detection (default: False)
+- `--update-existing/--no-update-existing` - Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.
+
+**Code Change Detection:**
+
+When `--track-code-changes` is enabled:
+
+1. **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
+2. **File Change Tracking**: Extracts files modified in detected commits
+3. **Progress Comment Generation**: Formats progress comment with:
+   - Commit details (hash, message, author, date)
+   - Files changed summary
+   - Detection timestamp
+4. **Duplicate Prevention**: Calculates SHA-256 hash of comment text and checks against existing progress comments
+5. **Source Tracking Update**: Stores progress comment in `source_metadata.progress_comments` and updates `last_code_change_detected` timestamp
+
+**Progress Comment Sanitization:**
+
+When `--sanitize` is enabled (for public repositories), progress comments are automatically sanitized:
+
+- **Commit messages**: Internal/confidential/competitive keywords removed, long messages truncated
+- **File paths**: Replaced with file type counts (e.g., "3 py file(s)" instead of full paths)
+- **Author emails**: Removed, only username shown
+- **Timestamps**: Date only (no time component)
+
+**Examples:**
+
+```bash
+# Detect code changes and add progress comments (internal repo)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --repo .
+
+# Detect code changes with sanitization (public repo)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --track-code-changes \
+  --sanitize \
+  --repo .
+
+# Add manual progress comment (without code change detection)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --add-progress-comment \
+  --repo .
+
+# Update existing issues AND add progress comments
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --update-existing \
+  --track-code-changes \
+  --repo .
+
+# Sync specific change proposal with code change tracking
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --change-ids add-code-change-tracking \
+  --repo .
+```
+
+**Prerequisites:**
+
+- Change proposals must exist in `openspec/changes/` directory
+- Issues must already exist (created via previous sync)
+- Git repository with commits mentioning the change proposal ID in commit messages
+- GitHub token (via `GITHUB_TOKEN` env var, `gh auth token`, or `--github-token`)
+
+**Verification:**
+
+After running the command, verify:
+
+1. **GitHub Issue**: Check that progress comment was added to the issue
+2. **Source Tracking**: Verify `openspec/changes/<change-id>/proposal.md` was updated with:
+
+   ```markdown
+   ## Source Tracking
+   
+   - source_repo: nold-ai/specfact-cli-internal
+   - source_id: "123"
+   - source_metadata:
+     - progress_comments:
+       - comment_hash: "abc123..."
+       - timestamp: "2025-12-30T10:00:00Z"
+       - summary: "Detected 1 commit..."
+     - last_code_change_detected: "2025-12-30T10:00:00Z"
+   ```
+
+3. **Duplicate Prevention**: Run the same command twice - second run should skip duplicate comment
+
 **Constitution Evidence Extraction:**
 
 When generating Spec-Kit `plan.md` files, SpecFact automatically extracts evidence-based constitution alignment from your codebase:

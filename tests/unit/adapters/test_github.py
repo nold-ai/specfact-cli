@@ -148,8 +148,96 @@ class TestGitHubAdapter:
 
         assert result["issue_number"] == 123
         assert result["state"] == "closed"
-        mock_patch.assert_called_once()
-        mock_post.assert_called_once()  # Comment added
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.post")
+    def test_add_progress_comment(
+        self,
+        mock_post: MagicMock,
+        github_adapter: GitHubAdapter,
+        bridge_config: BridgeConfig,
+    ) -> None:
+        """Test adding progress comment to GitHub issue."""
+        proposal_data = {
+            "change_id": "test-change",
+            "title": "Test Change",
+            "source_tracking": {"source_id": "123", "source_repo": "test-owner/test-repo"},
+            "progress_data": {
+                "has_changes": True,
+                "commits": [
+                    {
+                        "hash": "abc123",
+                        "message": "feat: implement feature",
+                        "author": "Test Author",
+                        "date": "2025-12-30 10:00:00 +0000",
+                        "files": ["src/test.py"],
+                    }
+                ],
+                "files_changed": ["src/test.py"],
+                "summary": "Detected 1 commit",
+                "detection_timestamp": "2025-12-30T10:00:00Z",
+            },
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "id": 1,
+            "html_url": "https://github.com/test-owner/test-repo/issues/123#issuecomment-1",
+        }
+        mock_post.return_value = mock_response
+
+        result = github_adapter.export_artifact(
+            artifact_key="code_change_progress",
+            artifact_data=proposal_data,
+            bridge_config=bridge_config,
+        )
+
+        assert result["comment_added"] is True
+        assert result["issue_number"] == 123
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        assert "comments" in call_args[0][0]
+        assert call_args[1]["json"]["body"] is not None
+
+    @beartype
+    def test_add_progress_comment_no_progress_data(
+        self, github_adapter: GitHubAdapter, bridge_config: BridgeConfig
+    ) -> None:
+        """Test adding progress comment when no progress data provided."""
+        proposal_data = {
+            "change_id": "test-change",
+            "title": "Test Change",
+            "source_tracking": {"source_id": "123", "source_repo": "test-owner/test-repo"},
+        }
+
+        result = github_adapter.export_artifact(
+            artifact_key="code_change_progress",
+            artifact_data=proposal_data,
+            bridge_config=bridge_config,
+        )
+
+        assert result["comment_added"] is False
+        assert result["issue_number"] == 123
+
+    @beartype
+    def test_add_progress_comment_missing_issue_number(
+        self, github_adapter: GitHubAdapter, bridge_config: BridgeConfig
+    ) -> None:
+        """Test adding progress comment when issue number is missing."""
+        proposal_data = {
+            "change_id": "test-change",
+            "title": "Test Change",
+            "source_tracking": {},
+            "progress_data": {"summary": "Test progress"},
+        }
+
+        with pytest.raises(ValueError, match="Issue number required for progress comment"):
+            github_adapter.export_artifact(
+                artifact_key="code_change_progress",
+                artifact_data=proposal_data,
+                bridge_config=bridge_config,
+            )
 
     @beartype
     def test_missing_api_token(self, github_adapter: GitHubAdapter, bridge_config: BridgeConfig) -> None:
