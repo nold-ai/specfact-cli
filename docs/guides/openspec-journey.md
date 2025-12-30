@@ -289,10 +289,10 @@ graph TB
     OS1 <-->|Bidirectional| SF1
     OS2 <-->|Bidirectional| SF2
     
-    style OS1 fill:#e1f5ff
-    style OS2 fill:#e1f5ff
-    style SF1 fill:#fff4e1
-    style SF2 fill:#fff4e1
+    style OS1 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style OS2 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style SF1 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF2 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
 ```
 
 **Key Insight**: Keep OpenSpec and SpecFact in perfect sync automatically!
