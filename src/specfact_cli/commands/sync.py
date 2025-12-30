@@ -980,6 +980,13 @@ def sync_bridge(
             # Create bridge sync instance
             bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
 
+            # Resolve code_repo_path if provided, otherwise use resolved_repo
+            code_repo_path_resolved: Path | None = None
+            if code_repo:
+                code_repo_path_resolved = Path(code_repo).resolve()
+            else:
+                code_repo_path_resolved = resolved_repo
+
             # Export change proposals
             with Progress(
                 SpinnerColumn(),
@@ -1129,6 +1136,9 @@ def sync_bridge(
         if not resolved_repo.is_dir():
             console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
             raise typer.Exit(1)
+
+        # Resolve code_repo_path if provided, otherwise use resolved_repo
+        code_repo_path_resolved = Path(code_repo).resolve() if code_repo else resolved_repo
 
         # Watch mode implementation (using bridge-based watch)
         if watch:
