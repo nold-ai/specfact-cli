@@ -20,7 +20,8 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 
 ### Target/Input
 
-- `--repo PATH` - Path to repository. Default: current directory (.)
+- `--repo PATH` - Path to OpenSpec repository containing change proposals. Default: current directory (.)
+- `--code-repo PATH` - Path to source code repository for code change detection (default: same as `--repo`). **Required when OpenSpec repository differs from source code repository.** For example, if OpenSpec proposals are in `specfact-cli-internal` but source code is in `specfact-cli`, use `--repo /path/to/specfact-cli-internal --code-repo /path/to/specfact-cli`.
 - `--target-repo OWNER/REPO` - Target repository for issue creation (format: owner/repo). Default: same as code repository
 
 ### Behavior/Options
@@ -49,6 +50,18 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 - `--tmp-file PATH` - Specify temporary file path (used with --export-to-tmp or --import-from-tmp)
   - Default: `/tmp/specfact-proposal-<change-id>.md` or `/tmp/specfact-proposal-<change-id>-sanitized.md`
 
+### Code Change Tracking (Advanced)
+
+- `--track-code-changes/--no-track-code-changes` - Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False)
+  - **Repository Selection**: Uses `--code-repo` if provided, otherwise uses `--repo` for code change detection
+  - **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
+  - **File Change Tracking**: Extracts files modified in detected commits
+  - **Progress Comment Generation**: Formats comment with commit details and file changes
+  - **Duplicate Prevention**: Checks against existing comments to avoid duplicates
+  - **Source Tracking Update**: Updates `proposal.md` with progress metadata
+- `--add-progress-comment/--no-add-progress-comment` - Add manual progress comment to existing issues without code change detection (default: False)
+- `--update-existing/--no-update-existing` - Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.
+
 ### Advanced/Configuration
 
 - `--adapter TYPE` - DevOps adapter type (github, ado, linear, jira). Default: github
@@ -61,10 +74,14 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 
 ### Step 1: Parse Arguments
 
-- Extract repository path (default: current directory)
+- Extract OpenSpec repository path (`--repo`, default: current directory)
+- Extract source code repository path (`--code-repo`, default: same as `--repo`)
 - Extract adapter type (default: github)
 - Extract sanitization preference (default: auto-detect)
 - Extract target repository (default: same as code repo)
+- Extract code change tracking preference (`--track-code-changes`, default: False)
+- Extract progress comment preference (`--add-progress-comment`, default: False)
+- **Note**: When `--code-repo` is provided, code changes are detected in that repository; otherwise, code changes are detected in the OpenSpec repository (`--repo`)
 
 ### Step 2: Interactive Change Selection (Slash Command Only)
 

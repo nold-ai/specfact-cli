@@ -116,9 +116,10 @@ specfact enforce sdd --bundle my-project
 
 1. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** ⭐ **START HERE** - See what SpecFact adds
 2. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
-3. **[Bridge Adapters](reference/commands.md#sync-bridge)** 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
-4. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
-5. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
+3. **[DevOps Adapter Integration](guides/devops-adapter-integration.md)** 🆕 **NEW** - GitHub Issues and backlog tracking (0.21.0)
+4. **[Bridge Adapters](reference/commands.md#sync-bridge)** 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
+5. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
+6. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
 
 **Time**: 15-30 minutes | **Result**: Understand how SpecFact complements Spec-Kit and OpenSpec for legacy code modernization
 
