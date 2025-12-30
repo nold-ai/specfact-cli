@@ -2950,6 +2950,12 @@ specfact sync bridge --adapter github --mode export-only \
 # Export using GitHub CLI for token (enterprise-friendly)
 specfact sync bridge --adapter github --mode export-only \
   --use-gh-cli
+
+# Export specific change proposals only
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo \
+  --change-ids add-feature-x,update-api \
+  --repo /path/to/openspec-repo
 ```
 
 **What it syncs (Spec-Kit adapter):**
@@ -3066,14 +3072,20 @@ When using `--mode export-only` with DevOps adapters, you can track implementati
 
 When `--track-code-changes` is enabled:
 
-1. **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
-2. **File Change Tracking**: Extracts files modified in detected commits
-3. **Progress Comment Generation**: Formats progress comment with:
+1. **Repository Selection**: 
+   - If `--code-repo` is provided, code changes are detected in that repository
+   - Otherwise, code changes are detected in the OpenSpec repository (`--repo`)
+   - **Important**: When OpenSpec and source code are in separate repositories, always use `--code-repo` to point to the source code repository
+2. **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
+   - Uses `git log --grep` to find commits containing the change ID in commit messages
+   - Optionally filters by `--since` timestamp (from `last_code_change_detected`) to only detect new commits
+3. **File Change Tracking**: Extracts files modified in detected commits using `git show --name-only`
+4. **Progress Comment Generation**: Formats progress comment with:
    - Commit details (hash, message, author, date)
-   - Files changed summary
+   - Files changed summary (up to 10 files listed, then "and X more file(s)")
    - Detection timestamp
-4. **Duplicate Prevention**: Calculates SHA-256 hash of comment text and checks against existing progress comments
-5. **Source Tracking Update**: Stores progress comment in `source_metadata.progress_comments` and updates `last_code_change_detected` timestamp
+5. **Duplicate Prevention**: Calculates SHA-256 hash of comment text and checks against existing progress comments to avoid duplicates
+6. **Source Tracking Update**: Stores progress comment metadata and updates `last_code_change_detected` timestamp in `proposal.md`
 
 **Progress Comment Sanitization:**
 
@@ -3141,23 +3153,30 @@ specfact sync bridge --adapter github --mode export-only \
 
 After running the command, verify:
 
-1. **GitHub Issue**: Check that progress comment was added to the issue
-2. **Source Tracking**: Verify `openspec/changes/<change-id>/proposal.md` was updated with:
+1. **GitHub Issue**: Check that progress comment was added to the issue:
+   ```bash
+   gh issue view <issue-number> --repo owner/repo --json comments --jq '.comments[-1].body'
+   ```
 
+2. **Source Tracking**: Verify `openspec/changes/<change-id>/proposal.md` was updated with:
    ```markdown
    ## Source Tracking
    
-   - source_repo: nold-ai/specfact-cli-internal
-   - source_id: "123"
-   - source_metadata:
-     - progress_comments:
-       - comment_hash: "abc123..."
-       - timestamp: "2025-12-30T10:00:00Z"
-       - summary: "Detected 1 commit..."
-     - last_code_change_detected: "2025-12-30T10:00:00Z"
+   - **GitHub Issue**: #123
+   - **Issue URL**: <https://github.com/owner/repo/issues/123>
+   - **Last Synced Status**: proposed
+   - **Sanitized**: false
+   <!-- last_code_change_detected: 2025-12-30T10:00:00Z -->
    ```
 
-3. **Duplicate Prevention**: Run the same command twice - second run should skip duplicate comment
+3. **Duplicate Prevention**: Run the same command twice - second run should skip duplicate comment (no new comment added)
+
+**Troubleshooting:**
+
+- **No commits detected**: Ensure commit messages include the change proposal ID (e.g., "add-code-change-tracking")
+- **Wrong repository**: Verify `--code-repo` points to the correct source code repository
+- **No comments added**: Check that issues exist (create them first without `--track-code-changes`)
+- **Sanitization issues**: Use `--sanitize` for public repos, `--no-sanitize` for internal repos
 
 **Constitution Evidence Extraction:**
 
