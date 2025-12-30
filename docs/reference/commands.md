@@ -2875,12 +2875,15 @@ When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira)
 
 1. **Create change proposals** in `openspec/changes/<change-id>/proposal.md`
 2. **Export to GitHub** to create issues:
+
    ```bash
    specfact sync bridge --adapter github --mode export-only \
      --repo-owner owner --repo-name repo \
      --repo /path/to/openspec-repo
    ```
+
 3. **Track code changes** by adding progress comments:
+
    ```bash
    specfact sync bridge --adapter github --mode export-only \
      --repo-owner owner --repo-name repo \
@@ -3072,20 +3075,14 @@ When using `--mode export-only` with DevOps adapters, you can track implementati
 
 When `--track-code-changes` is enabled:
 
-1. **Repository Selection**: 
-   - If `--code-repo` is provided, code changes are detected in that repository
-   - Otherwise, code changes are detected in the OpenSpec repository (`--repo`)
-   - **Important**: When OpenSpec and source code are in separate repositories, always use `--code-repo` to point to the source code repository
-2. **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
-   - Uses `git log --grep` to find commits containing the change ID in commit messages
-   - Optionally filters by `--since` timestamp (from `last_code_change_detected`) to only detect new commits
-3. **File Change Tracking**: Extracts files modified in detected commits using `git show --name-only`
-4. **Progress Comment Generation**: Formats progress comment with:
+1. **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
+2. **File Change Tracking**: Extracts files modified in detected commits
+3. **Progress Comment Generation**: Formats progress comment with:
    - Commit details (hash, message, author, date)
-   - Files changed summary (up to 10 files listed, then "and X more file(s)")
+   - Files changed summary
    - Detection timestamp
-5. **Duplicate Prevention**: Calculates SHA-256 hash of comment text and checks against existing progress comments to avoid duplicates
-6. **Source Tracking Update**: Stores progress comment metadata and updates `last_code_change_detected` timestamp in `proposal.md`
+4. **Duplicate Prevention**: Calculates SHA-256 hash of comment text and checks against existing progress comments
+5. **Source Tracking Update**: Stores progress comment in `source_metadata.progress_comments` and updates `last_code_change_detected` timestamp
 
 **Progress Comment Sanitization:**
 
@@ -3144,21 +3141,88 @@ specfact sync bridge --adapter github --mode export-only \
 
 **Prerequisites:**
 
-- Change proposals must exist in `openspec/changes/` directory
-- Issues must already exist (created via previous sync)
-- Git repository with commits mentioning the change proposal ID in commit messages
+**For Issue Creation:**
+
+- Change proposals must exist in `openspec/changes/<change-id>/proposal.md` directory (in the OpenSpec repository specified by `--repo`)
 - GitHub token (via `GITHUB_TOKEN` env var, `gh auth token`, or `--github-token`)
+- Repository access permissions (read for proposals, write for issues)
+
+**For Code Change Tracking:**
+
+- Issues must already exist (created via previous sync)
+- Git repository with commits mentioning the change proposal ID in commit messages:
+  - If `--code-repo` is provided, commits must be in that repository
+  - Otherwise, commits must be in the OpenSpec repository (`--repo`)
+- Commit messages should include the change proposal ID (e.g., "feat: implement add-code-change-tracking")
+
+**Separate OpenSpec and Source Code Repositories:**
+
+When your OpenSpec change proposals are in a different repository than your source code:
+
+```bash
+# Example: OpenSpec in specfact-cli-internal, source code in specfact-cli
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --repo /path/to/specfact-cli-internal \
+  --code-repo /path/to/specfact-cli
+```
+
+**Why use `--code-repo`?**
+
+- **OpenSpec repository** (`--repo`): Contains change proposals in `openspec/changes/` directory
+- **Source code repository** (`--code-repo`): Contains actual implementation commits that reference the change proposal ID
+
+If both are in the same repository, you can omit `--code-repo` and it will use `--repo` for both purposes.
+
+**Integration Workflow:**
+
+1. **Initial Setup** (one-time):
+
+   ```bash
+   # Create change proposal in openspec/changes/<change-id>/proposal.md
+   # Export to GitHub to create issue
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --repo /path/to/openspec-repo
+   ```
+
+2. **Development Workflow** (ongoing):
+
+   ```bash
+   # Make commits with change ID in commit message
+   git commit -m "feat: implement add-code-change-tracking - initial implementation"
+   
+   # Track progress automatically
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --track-code-changes \
+     --repo /path/to/openspec-repo \
+     --code-repo /path/to/source-code-repo
+   ```
+
+3. **Manual Progress Updates** (when needed):
+
+   ```bash
+   # Add manual progress comment without code change detection
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --add-progress-comment \
+     --repo /path/to/openspec-repo
+   ```
 
 **Verification:**
 
 After running the command, verify:
 
 1. **GitHub Issue**: Check that progress comment was added to the issue:
+
    ```bash
    gh issue view <issue-number> --repo owner/repo --json comments --jq '.comments[-1].body'
    ```
 
 2. **Source Tracking**: Verify `openspec/changes/<change-id>/proposal.md` was updated with:
+
    ```markdown
    ## Source Tracking
    
