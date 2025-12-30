@@ -26,6 +26,8 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 **If you've tried GitHub Spec-Kit or OpenSpec**, you know they're great for documenting new features and tracking changes. SpecFact adds what's missing for legacy code modernization:
 
+👉 **[OpenSpec Journey Guide](guides/openspec-journey.md)** 🆕 ⭐ - Complete integration guide with DevOps export, visual workflows, and brownfield modernization examples
+
 - ✅ **Runtime contract enforcement** → Spec-Kit/OpenSpec generate docs; SpecFact prevents regressions with executable contracts
 - ✅ **Brownfield-first** → Spec-Kit/OpenSpec excel at new features; SpecFact understands existing code
 - ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
@@ -173,7 +175,7 @@ specfact enforce sdd --bundle my-project
 
 - [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
-- [OpenSpec Journey](guides/openspec-journey.md) 🆕 ⭐ **START HERE** - Complete integration guide: DevOps export (✅), bridge adapter (⏳), visual workflows
+- [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
 - [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW** - GitHub Issues, backlog tracking, and progress comments (0.21.0)
 - [Bridge Adapters](reference/commands.md#sync-bridge) 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
 
