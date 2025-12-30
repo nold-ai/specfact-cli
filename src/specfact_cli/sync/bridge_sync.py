@@ -886,8 +886,10 @@ class BridgeSync:
                                 if not is_duplicate:
                                     try:
                                         # Add progress comment to issue
+                                        # Ensure source_tracking is included for adapter to extract issue number
                                         proposal_with_progress = {
                                             **proposal,
+                                            "source_tracking": source_tracking_list,  # Ensure source_tracking is available
                                             "progress_data": progress_data,
                                             "sanitize": should_sanitize if should_sanitize is not None else False,
                                         }
