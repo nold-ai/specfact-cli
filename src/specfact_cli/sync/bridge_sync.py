@@ -458,6 +458,7 @@ class BridgeSync:
         update_existing: bool = False,
         track_code_changes: bool = False,
         add_progress_comment: bool = False,
+        code_repo_path: Path | None = None,
     ) -> SyncResult:
         """
         Export OpenSpec change proposals to DevOps tools (export-only mode).
