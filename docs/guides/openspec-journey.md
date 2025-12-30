@@ -174,6 +174,18 @@ sequenceDiagram
     SF->>SF: Detect commits mentioning<br/>change ID
     SF->>GH: Add progress comment<br/>to issue #123
     GH-->>Dev: Progress visible in issue
+    
+    rect rgb(59, 130, 246)
+    Note over OS: OpenSpec<br/>Specification Management
+    end
+    
+    rect rgb(249, 115, 22)
+    Note over SF: SpecFact CLI<br/>Code Analysis & Enforcement
+    end
+    
+    rect rgb(100, 116, 139)
+    Note over GH: DevOps<br/>Backlog Tracking
+    end
 ```
 
 **Key Insight**: OpenSpec proposals become actionable DevOps backlog items automatically!
