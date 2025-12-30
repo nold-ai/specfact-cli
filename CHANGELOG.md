@@ -36,6 +36,9 @@ All notable changes to this project will be documented in this file.
 - **Bundle Loading**: Updated `ProjectBundle.load_from_directory()` to handle v1.1 schema and load change tracking via adapters
 - **GitHubAdapter**: Implemented new `BridgeAdapter` interface methods (returns None - export-only adapter)
 - **BridgeSync**: Extended `export_change_proposals_to_devops()` with `track_code_changes` and `add_progress_comment` parameters
+- **Documentation**: Enhanced `directory-structure.md` with detailed BundleManifest structure including optional `change_tracking` and `change_archive` fields (v1.1+)
+- **Documentation**: Updated README files to emphasize OpenSpec journey guide for users integrating SpecFact with OpenSpec
+- **Testing**: Added comprehensive integration tests for code change tracking and progress comments (`test_devops_github_sync.py`)
 
 ### Notes (0.21.1)
 
