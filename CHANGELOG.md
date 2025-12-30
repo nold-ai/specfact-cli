@@ -9,6 +9,46 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.21.1] - 2025-12-30
+
+### Added (0.21.1)
+
+- **Change Tracking Data Model (v1.1 Schema)**: Tool-agnostic change tracking models for delta spec tracking (ADDED/MODIFIED/REMOVED)
+  - **Change Models**: `ChangeType`, `FeatureDelta`, `ChangeProposal`, `ChangeTracking`, `ChangeArchive` models in `src/specfact_cli/models/change.py`
+  - **Bundle Extensions**: `BundleManifest` and `ProjectBundle` extended with optional `change_tracking` and `change_archive` fields (schema v1.1)
+  - **Helper Methods**: `ProjectBundle.get_active_changes()` and `get_feature_deltas()` for querying change proposals
+  - **Schema Versioning**: Support for schema v1.1 with backward compatibility for v1.0 bundles
+  - **BridgeAdapter Interface**: Extended `BridgeAdapter` interface with `load_change_tracking()`, `save_change_tracking()`, `load_change_proposal()`, `save_change_proposal()` methods
+  - **Cross-Repository Support**: Adapter methods support `external_base_path` for cross-repository configurations
+  - **Tool-Agnostic Design**: All tool-specific metadata stored in `source_tracking`, ensuring models work with any tool (OpenSpec, Linear, Jira, etc.)
+- **Code Change Tracking and Progress Comments**: Detect code changes and add progress comments to GitHub issues
+  - **Code Change Detection**: `detect_code_changes()` utility to detect git commits related to change proposals
+  - **Progress Comment Generation**: `format_progress_comment()` to format implementation progress details (commits, files changed, milestones)
+  - **Progress Comment Sanitization**: Sanitization support for public repositories - removes sensitive information from commit messages, file paths, author emails, and timestamps
+  - **GitHubAdapter Extension**: `_add_progress_comment()` method and `code_change_progress` artifact key support with sanitization flag
+  - **BridgeSync Integration**: Code change tracking integrated into `export_change_proposals_to_devops()` with duplicate detection and automatic sanitization based on repository setup
+  - **CLI Flags**: `--track-code-changes` and `--add-progress-comment` flags for `specfact sync bridge` command
+  - **Source Tracking Metadata**: Progress comments tracked in `source_metadata.progress_comments` with comment hash deduplication
+  - **Cross-Repository Support**: Code change detection works across repositories with proper issue targeting and sanitization
+
+### Changed (0.21.1)
+
+- **Bundle Loading**: Updated `ProjectBundle.load_from_directory()` to handle v1.1 schema and load change tracking via adapters
+- **GitHubAdapter**: Implemented new `BridgeAdapter` interface methods (returns None - export-only adapter)
+- **BridgeSync**: Extended `export_change_proposals_to_devops()` with `track_code_changes` and `add_progress_comment` parameters
+- **Documentation**: Enhanced `directory-structure.md` with detailed BundleManifest structure including optional `change_tracking` and `change_archive` fields (v1.1+)
+- **Documentation**: Updated README files to emphasize OpenSpec journey guide for users integrating SpecFact with OpenSpec
+- **Testing**: Added comprehensive integration tests for code change tracking and progress comments (`test_devops_github_sync.py`)
+
+### Notes (0.21.1)
+
+- **Backward Compatibility**: All change tracking fields are optional - existing v1.0 bundles continue to work without modification
+- **Foundation for OpenSpec**: This change provides the data model foundation for OpenSpec bridge adapter implementation (Phase 2)
+- **Future Tools**: Same change tracking models can be used by other tools (Linear, Jira) that support delta tracking
+- **Code Change Tracking**: Progress comments are separate from issue body updates and can coexist. Comments are deduplicated using SHA-256 hashes to prevent duplicate entries.
+
+---
+
 ## [0.21.0] - 2025-12-29
 
 ### Added (0.21.0)

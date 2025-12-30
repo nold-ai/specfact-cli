@@ -26,6 +26,8 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 **If you've tried GitHub Spec-Kit or OpenSpec**, you know they're great for documenting new features and tracking changes. SpecFact adds what's missing for legacy code modernization:
 
+👉 **[OpenSpec Journey Guide](guides/openspec-journey.md)** 🆕 ⭐ - Complete integration guide with DevOps export, visual workflows, and brownfield modernization examples
+
 - ✅ **Runtime contract enforcement** → Spec-Kit/OpenSpec generate docs; SpecFact prevents regressions with executable contracts
 - ✅ **Brownfield-first** → Spec-Kit/OpenSpec excel at new features; SpecFact understands existing code
 - ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
@@ -43,7 +45,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 **Bottom line:** Use Spec-Kit for documenting new features. Use OpenSpec for change tracking. Use SpecFact for modernizing legacy code safely and enabling team collaboration. Use all three together for the best of all worlds.
 
-👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[Bridge Adapters](reference/commands.md#sync-bridge)** (New in 0.21.0)
+👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[OpenSpec Journey](guides/openspec-journey.md)** 🆕 | **[Bridge Adapters](reference/commands.md#sync-bridge)** (New in 0.21.0)
 
 ---
 
@@ -116,9 +118,11 @@ specfact enforce sdd --bundle my-project
 
 1. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** ⭐ **START HERE** - See what SpecFact adds
 2. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
-3. **[Bridge Adapters](reference/commands.md#sync-bridge)** 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
-4. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
-5. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
+3. **[The Journey: OpenSpec + SpecFact Integration](guides/openspec-journey.md)** 🆕 **START HERE** - Complete OpenSpec integration guide with DevOps export (✅) and bridge adapter (⏳)
+4. **[DevOps Adapter Integration](guides/devops-adapter-integration.md)** 🆕 **NEW** - GitHub Issues and backlog tracking (0.21.0)
+5. **[Bridge Adapters](reference/commands.md#sync-bridge)** 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
+6. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
+7. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
 
 **Time**: 15-30 minutes | **Result**: Understand how SpecFact complements Spec-Kit and OpenSpec for legacy code modernization
 
@@ -171,6 +175,8 @@ specfact enforce sdd --bundle my-project
 
 - [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
+- [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
+- [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW** - GitHub Issues, backlog tracking, and progress comments (0.21.0)
 - [Bridge Adapters](reference/commands.md#sync-bridge) 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
 
 #### Team Collaboration & Agile/Scrum

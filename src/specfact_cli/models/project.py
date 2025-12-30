@@ -21,6 +21,7 @@ from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
+from specfact_cli.models.change import ChangeArchive, ChangeProposal, ChangeTracking, FeatureDelta
 from specfact_cli.models.contract import ContractIndex
 from specfact_cli.models.plan import (
     Business,
@@ -38,6 +39,26 @@ class BundleFormat(str, Enum):
     MONOLITHIC = "monolithic"  # Single file with all aspects
     MODULAR = "modular"  # Directory-based with separated aspects
     UNKNOWN = "unknown"
+
+
+def _is_schema_v1_1(manifest: BundleManifest) -> bool:
+    """
+    Check if bundle manifest uses schema version 1.1 or later.
+
+    Args:
+        manifest: Bundle manifest to check
+
+    Returns:
+        True if schema version is 1.1 or later, False otherwise
+    """
+    try:
+        schema_version = manifest.versions.schema_version
+        # Compare as strings, but handle numeric comparison for future versions
+        # For future versions (1.2, 2.0, etc.), we'd need more sophisticated parsing
+        # For now, only 1.1 is supported
+        return schema_version == "1.1"
+    except (AttributeError, KeyError):
+        return False
 
 
 class BundleVersions(BaseModel):
@@ -140,6 +161,15 @@ class BundleManifest(BaseModel):
         default_factory=list,
         description="Contract index (feature_key, contract_file, status, checksum, endpoints_count, coverage)",
     )
+    # NEW in v1.1 (optional, backward compatible)
+    change_tracking: ChangeTracking | None = Field(
+        default=None,
+        description="Change tracking (tool-agnostic capability, used by OpenSpec and potentially others) (v1.1+)",
+    )
+    change_archive: list[ChangeArchive] = Field(
+        default_factory=list,
+        description="Archive of completed changes (tool-agnostic) (v1.1+)",
+    )
 
 
 class ProjectBundle(BaseModel):
@@ -152,6 +182,11 @@ class ProjectBundle(BaseModel):
     product: Product = Field(..., description="Product definition")
     features: dict[str, Feature] = Field(default_factory=dict, description="Feature dictionary (key -> Feature)")
     clarifications: Clarifications | None = None
+    # NEW in v1.1 (optional, backward compatible)
+    change_tracking: ChangeTracking | None = Field(
+        default=None,
+        description="Change tracking (tool-agnostic capability, used by OpenSpec and potentially others) (v1.1+)",
+    )
 
     @classmethod
     @beartype
@@ -329,6 +364,35 @@ class ProjectBundle(BaseModel):
 
         bundle_name = bundle_dir.name
 
+        # Load change tracking if schema version is v1.1+
+        # Note: Change tracking is loaded via adapter, not from bundle directory directly
+        # This ensures tool-agnostic design - adapters decide storage location
+        change_tracking: ChangeTracking | None = None
+        if _is_schema_v1_1(manifest):
+            # Try to load change tracking via adapter if available
+            # This is optional - if no adapter or no change tracking exists, it remains None
+            try:
+                from specfact_cli.adapters.registry import AdapterRegistry
+                from specfact_cli.models.bridge import BridgeConfig
+                from specfact_cli.utils.structure import SpecFactStructure
+
+                # Check if bridge config exists
+                repo_root = bundle_dir.parent.parent
+                bridge_config_path = repo_root / SpecFactStructure.CONFIG / "bridge.yaml"
+                if bridge_config_path.exists():
+                    bridge_config_data = load_structured_file(bridge_config_path)
+                    bridge_config = BridgeConfig.model_validate(bridge_config_data)
+
+                    # Get adapter and try to load change tracking
+                    if bridge_config.adapter:
+                        adapter = AdapterRegistry.get_adapter(bridge_config.adapter.value)
+                        # Adapter must implement load_change_tracking (abstract method)
+                        change_tracking = adapter.load_change_tracking(bundle_dir, bridge_config)
+            except (ImportError, AttributeError, FileNotFoundError, ValueError, KeyError):
+                # Adapter not available, change tracking not present, or adapter doesn't support it
+                # This is fine - change tracking is optional even for v1.1 bundles
+                pass
+
         return cls(
             manifest=manifest,
             bundle_name=bundle_name,
@@ -337,6 +401,7 @@ class ProjectBundle(BaseModel):
             product=product,  # type: ignore[arg-type]  # Verified to be non-None above
             features=features,
             clarifications=clarifications,
+            change_tracking=change_tracking,
         )
 
     @beartype
@@ -628,3 +693,37 @@ class ProjectBundle(BaseModel):
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_obj.update(chunk)
         return hash_obj.hexdigest()
+
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def get_active_changes(self) -> list[ChangeProposal]:
+        """
+        Get all active (non-archived) change proposals.
+
+        Returns:
+            List of ChangeProposal objects with status "proposed" or "in-progress"
+        """
+        if not self.change_tracking:
+            return []
+        return [
+            proposal
+            for proposal in self.change_tracking.proposals.values()
+            if proposal.status in ["proposed", "in-progress"]
+        ]
+
+    @beartype
+    @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def get_feature_deltas(self, change_name: str) -> list[FeatureDelta]:
+        """
+        Get feature deltas for a specific change.
+
+        Args:
+            change_name: Change identifier
+
+        Returns:
+            List of FeatureDelta objects for the specified change, or empty list if not found
+        """
+        if not self.change_tracking:
+            return []
+        return self.change_tracking.feature_deltas.get(change_name, [])
