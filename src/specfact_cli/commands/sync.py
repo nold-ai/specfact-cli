@@ -989,6 +989,9 @@ def sync_bridge(
             ) as progress:
                 task = progress.add_task("[cyan]Syncing change proposals to DevOps...[/cyan]", total=None)
 
+                # Resolve code_repo_path if provided, otherwise use repo (OpenSpec repo)
+                code_repo_path_for_export = Path(code_repo).resolve() if code_repo else repo.resolve()
+
                 result = bridge_sync.export_change_proposals_to_devops(
                     adapter_type=adapter_type.value,
                     repo_owner=repo_owner,
@@ -1005,7 +1008,7 @@ def sync_bridge(
                     update_existing=update_existing,
                     track_code_changes=track_code_changes,
                     add_progress_comment=add_progress_comment,
-                    code_repo_path=code_repo_path_resolved,
+                    code_repo_path=code_repo_path_for_export,
                 )
                 progress.update(task, description="[green]✓[/green] Sync complete")
 
@@ -1130,8 +1133,6 @@ def sync_bridge(
             console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
             raise typer.Exit(1)
 
-        # Resolve code_repo_path if provided, otherwise use resolved_repo
-        code_repo_path_resolved = Path(code_repo).resolve() if code_repo else resolved_repo
 
         # Watch mode implementation (using bridge-based watch)
         if watch:
