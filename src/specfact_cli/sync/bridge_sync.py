@@ -1530,6 +1530,7 @@ class BridgeSync:
         progress_comments_match = re.search(r"<!--\s*progress_comments:\s*(\[.*?\])\s*-->", entry_content, re.DOTALL)
         if progress_comments_match:
             import json
+
             try:
                 progress_comments = json.loads(progress_comments_match.group(1))
                 if "source_metadata" not in entry:
@@ -1688,6 +1689,7 @@ class BridgeSync:
                     progress_comments = source_metadata.get("progress_comments")
                     if progress_comments and isinstance(progress_comments, list) and len(progress_comments) > 0:
                         import json
+
                         # Save as JSON in HTML comment for persistence
                         progress_comments_json = json.dumps(progress_comments, separators=(",", ":"))
                         metadata_lines.append(f"<!-- progress_comments: {progress_comments_json} -->")
