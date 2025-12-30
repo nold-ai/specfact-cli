@@ -15,7 +15,7 @@ Practical guides for using SpecFact CLI effectively.
 
 - **[Spec-Kit Journey](speckit-journey.md)** - Adding enforcement to Spec-Kit projects
 - **[Spec-Kit Comparison](speckit-comparison.md)** - Understand when to use each tool
-- **[OpenSpec Journey](openspec-journey.md)** 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
+- **[OpenSpec Journey](openspec-journey.md)** 🆕 ⭐ **START HERE** - Complete integration guide with visual workflows: DevOps export (✅), bridge adapter (⏳), brownfield modernization
 - **[Use Cases](use-cases.md)** - Real-world scenarios (brownfield primary, Spec-Kit secondary)
 
 ### General Guides
