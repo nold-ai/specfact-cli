@@ -988,10 +988,6 @@ def sync_bridge(
                 console=console,
             ) as progress:
                 task = progress.add_task("[cyan]Syncing change proposals to DevOps...[/cyan]", total=None)
-                # Use code_repo if provided, otherwise fall back to repo (OpenSpec repo)
-                code_repo_path = code_repo if code_repo else repo
-                if code_repo_path:
-                    code_repo_path = Path(code_repo_path).resolve()
 
                 result = bridge_sync.export_change_proposals_to_devops(
                     adapter_type=adapter_type.value,
@@ -1009,7 +1005,7 @@ def sync_bridge(
                     update_existing=update_existing,
                     track_code_changes=track_code_changes,
                     add_progress_comment=add_progress_comment,
-                    code_repo_path=code_repo_path,
+                    code_repo_path=code_repo_path_resolved,
                 )
                 progress.update(task, description="[green]✓[/green] Sync complete")
 
