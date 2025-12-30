@@ -74,14 +74,10 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 
 ### Step 1: Parse Arguments
 
-- Extract OpenSpec repository path (`--repo`, default: current directory)
-- Extract source code repository path (`--code-repo`, default: same as `--repo`)
+- Extract repository path (default: current directory)
 - Extract adapter type (default: github)
 - Extract sanitization preference (default: auto-detect)
 - Extract target repository (default: same as code repo)
-- Extract code change tracking preference (`--track-code-changes`, default: False)
-- Extract progress comment preference (`--add-progress-comment`, default: False)
-- **Note**: When `--code-repo` is provided, code changes are detected in that repository; otherwise, code changes are detected in the OpenSpec repository (`--repo`)
 
 ### Step 2: Interactive Change Selection (Slash Command Only)
 
@@ -118,8 +114,10 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 **For non-sanitized proposals** (direct export):
 
 ```bash
-specfact sync bridge --adapter github --mode export-only --repo <path> \
+specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --no-sanitize --change-ids <id1,id2> \
+  [--code-repo <source-code-path>] \
+  [--track-code-changes] [--add-progress-comment] \
   [--target-repo <owner/repo>] [--repo-owner <owner>] [--repo-name <name>] \
   [--github-token <token>] [--use-gh-cli]
 ```
@@ -128,12 +126,15 @@ specfact sync bridge --adapter github --mode export-only --repo <path> \
 
 ```bash
 # Step 3a: Export to temporary file for LLM review
-specfact sync bridge --adapter github --mode export-only --repo <path> \
+specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --sanitize --change-ids <id1,id2> \
+  [--code-repo <source-code-path>] \
   --export-to-tmp --tmp-file /tmp/specfact-proposal-<change-id>.md \
   [--target-repo <owner/repo>] [--repo-owner <owner>] [--repo-name <name>] \
   [--github-token <token>] [--use-gh-cli]
 ```
+
+**Note**: When `--code-repo` is provided, code change detection uses that repository. Otherwise, code changes are detected in the OpenSpec repository (`--repo`).
 
 ### Step 4: LLM Sanitization Review (Slash Command Only, For Sanitized Proposals)
 
@@ -190,6 +191,10 @@ specfact sync bridge --adapter github --mode export-only --repo <path> \
 - Show issue URLs and numbers
 - Indicate sanitization status (if applied)
 - List which proposals were sanitized vs exported directly
+- **Show code change tracking results** (if `--track-code-changes` was enabled):
+  - Number of commits detected
+  - Number of progress comments added
+  - Repository used for code change detection (`--code-repo` or `--repo`)
 - **Show filtering warnings** (if proposals were filtered out due to status)
   - Example: `⚠ Filtered out 2 proposal(s) with non-applied status (public repos only sync archived/completed proposals)`
 - Present any warnings or errors
@@ -240,8 +245,9 @@ When in copilot mode, follow this workflow:
 
 ```bash
 # For each sanitized proposal, export to temp file
-specfact sync bridge --adapter github --mode export-only --repo <path> \
+specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --change-ids <change-id> --export-to-tmp --tmp-file /tmp/specfact-proposal-<change-id>.md \
+  [--code-repo <source-code-path>] \
   [other options]
 ```
 
@@ -310,8 +316,10 @@ specfact sync bridge --adapter github --mode export-only --repo <path> \
 
 ```bash
 # Export non-sanitized proposals directly
-specfact sync bridge --adapter github --mode export-only --repo <path> \
+specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --change-ids <id1,id2> --no-sanitize \
+  [--code-repo <source-code-path>] \
+  [--track-code-changes] [--add-progress-comment] \
   [other options]
 ```
 
@@ -327,8 +335,10 @@ specfact sync bridge --adapter github --mode export-only --repo <path> \
 
 ```bash
 # For each approved sanitized proposal, import from temp file and create issue
-specfact sync bridge --adapter github --mode export-only --repo <path> \
+specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --change-ids <change-id> --import-from-tmp --tmp-file /tmp/specfact-proposal-<change-id>-sanitized.md \
+  [--code-repo <source-code-path>] \
+  [--track-code-changes] [--add-progress-comment] \
   [other options]
 ```
 
@@ -354,6 +364,11 @@ specfact sync bridge --adapter github --mode export-only --repo <path> \
    - Display sync results (issues created/updated)
    - Show issue URLs and numbers
    - Indicate which proposals were sanitized vs exported directly
+   - **Show code change tracking results** (if `--track-code-changes` was enabled):
+     - Number of commits detected per proposal
+     - Number of progress comments added per issue
+     - Repository used for code change detection (`--code-repo` or `--repo`)
+     - Example: `✓ Detected 3 commits for 'add-feature-x', added 1 progress comment to issue #123`
    - **Show filtering warnings** (if proposals were filtered out):
      - Public repos: `⚠ Filtered out N proposal(s) with non-applied status (public repos only sync archived/completed proposals)`
      - Internal repos: `⚠ Filtered out N proposal(s) without source tracking entry and inactive status`
@@ -370,11 +385,37 @@ specfact sync bridge --adapter github --mode export-only --repo <path> \
 
 Adapter: github
 Repository: nold-ai/specfact-cli-internal
+Code Repository: nold-ai/specfact-cli (separate repo)
 
 Issues Created:
   - #14: Add DevOps Backlog Tracking Integration
   - #15: Add Change Tracking Data Model
   - #16: Implement OpenSpec Bridge Adapter
+
+Sanitization: Applied (different repos detected)
+Issue IDs saved to OpenSpec proposal files
+```
+
+### Success (With Code Change Tracking)
+
+```text
+✓ Successfully synced 3 change proposals
+
+Adapter: github
+Repository: nold-ai/specfact-cli-internal
+Code Repository: nold-ai/specfact-cli (separate repo)
+
+Issues Created:
+  - #14: Add DevOps Backlog Tracking Integration
+  - #15: Add Change Tracking Data Model
+  - #16: Implement OpenSpec Bridge Adapter
+
+Code Change Tracking:
+  - Detected 5 commits for 'add-devops-backlog-tracking'
+  - Added 1 progress comment to issue #14
+  - Detected 3 commits for 'add-change-tracking-datamodel'
+  - Added 1 progress comment to issue #15
+  - No new commits detected for 'implement-openspec-bridge-adapter'
 
 Sanitization: Applied (different repos detected)
 Issue IDs saved to OpenSpec proposal files

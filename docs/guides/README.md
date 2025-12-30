@@ -11,10 +11,11 @@ Practical guides for using SpecFact CLI effectively.
 - **[Brownfield ROI](brownfield-roi.md)** ⭐ - Calculate time and cost savings
 - **[Brownfield FAQ](brownfield-faq.md)** ⭐ - Common questions about brownfield modernization
 
-### Secondary Use Case: Spec-Kit Integration
+### Secondary Use Case: Spec-Kit & OpenSpec Integration
 
 - **[Spec-Kit Journey](speckit-journey.md)** - Adding enforcement to Spec-Kit projects
 - **[Spec-Kit Comparison](speckit-comparison.md)** - Understand when to use each tool
+- **[OpenSpec Journey](openspec-journey.md)** 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
 - **[Use Cases](use-cases.md)** - Real-world scenarios (brownfield primary, Spec-Kit secondary)
 
 ### General Guides
