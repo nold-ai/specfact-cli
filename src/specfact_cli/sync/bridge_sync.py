@@ -834,8 +834,11 @@ class BridgeSync:
                                             last_detection = source_metadata.get("last_code_change_detected")
 
                                     # Detect code changes
+                                    # Use code_repo_path if provided (for separate source code repo),
+                                    # otherwise fall back to self.repo_path (OpenSpec repo)
+                                    code_repo = code_repo_path if code_repo_path else self.repo_path
                                     code_changes = detect_code_changes(
-                                        repo_path=self.repo_path,
+                                        repo_path=code_repo,
                                         change_id=change_id,
                                         since_timestamp=last_detection,
                                     )

@@ -859,6 +859,12 @@ def sync_bridge(
         help="Add manual progress comment to existing issues without code change detection (default: False).",
         hidden=True,
     ),
+    code_repo: Path = typer.Option(
+        None,
+        "--code-repo",
+        help="Path to source code repository for code change detection (default: same as --repo). Required when OpenSpec repository differs from source code repository.",
+        hidden=True,
+    ),
     interval: int = typer.Option(
         5,
         "--interval",
@@ -982,6 +988,11 @@ def sync_bridge(
                 console=console,
             ) as progress:
                 task = progress.add_task("[cyan]Syncing change proposals to DevOps...[/cyan]", total=None)
+                # Use code_repo if provided, otherwise fall back to resolved_repo
+                code_repo_path = code_repo if code_repo else resolved_repo
+                if code_repo_path:
+                    code_repo_path = Path(code_repo_path).resolve()
+
                 result = bridge_sync.export_change_proposals_to_devops(
                     adapter_type=adapter_type.value,
                     repo_owner=repo_owner,
@@ -996,6 +1007,9 @@ def sync_bridge(
                     import_from_tmp=import_from_tmp,
                     tmp_file=tmp_file,
                     update_existing=update_existing,
+                    track_code_changes=track_code_changes,
+                    add_progress_comment=add_progress_comment,
+                    code_repo_path=code_repo_path,
                 )
                 progress.update(task, description="[green]✓[/green] Sync complete")
 
