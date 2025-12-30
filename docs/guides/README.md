@@ -50,10 +50,11 @@ Practical guides for using SpecFact CLI effectively.
 3. **[DevOps Adapter Integration](devops-adapter-integration.md)** - GitHub Issues and backlog tracking
 4. **[Specmatic Integration](specmatic-integration.md)** - API contract testing workflow
 
-### For Spec-Kit Users (Secondary)
+### For Spec-Kit & OpenSpec Users (Secondary)
 
 1. **[Spec-Kit Journey](speckit-journey.md)** - Add enforcement to Spec-Kit projects
-2. **[Use Cases - Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)** - Step-by-step migration
+2. **[OpenSpec Journey](openspec-journey.md)** 🆕 - OpenSpec integration with SpecFact
+3. **[Use Cases - Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)** - Step-by-step migration
 
 ## Need Help?
 
