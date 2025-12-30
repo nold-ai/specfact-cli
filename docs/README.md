@@ -172,6 +172,7 @@ specfact enforce sdd --bundle my-project
 
 - [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
+- [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
 - [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW** - GitHub Issues, backlog tracking, and progress comments (0.21.0)
 - [Bridge Adapters](reference/commands.md#sync-bridge) 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
 

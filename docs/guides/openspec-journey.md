@@ -88,15 +88,15 @@ graph TB
     SF1 -->|Compare| OS1
     OS1 -->|Validate| SF2
     
-    style OS1 fill:#e1f5ff
-    style OS2 fill:#e1f5ff
-    style OS3 fill:#e1f5ff
-    style SF1 fill:#fff4e1
-    style SF2 fill:#fff4e1
-    style SF3 fill:#fff4e1
-    style GH fill:#f0f0f0
-    style ADO fill:#f0f0f0
-    style LIN fill:#f0f0f0
+    style OS1 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style OS2 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style OS3 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style SF1 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF2 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF3 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style GH fill:#64748b,stroke:#475569,stroke-width:2px,color:#fff
+    style ADO fill:#64748b,stroke:#475569,stroke-width:2px,color:#fff
+    style LIN fill:#64748b,stroke:#475569,stroke-width:2px,color:#fff
 ```
 
 **The Power of Integration:**
@@ -226,10 +226,11 @@ graph LR
     SF1 -->|Compare| SF2
     SF2 -->|Gap Report| Dev[Developer]
     
-    style OS1 fill:#e1f5ff
-    style OS2 fill:#e1f5ff
-    style SF1 fill:#fff4e1
-    style SF2 fill:#fff4e1
+    style OS1 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style OS2 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style SF1 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF2 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style Dev fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
 ```
 
 **Key Insight**: Validate that your code matches OpenSpec specifications automatically!
@@ -363,15 +364,18 @@ graph TB
     SF5 --> OS2[OpenSpec: Archive Change]
     OS2 --> End[End: Modernized Code]
     
-    style SF1 fill:#fff4e1
-    style SF2 fill:#fff4e1
-    style SF3 fill:#fff4e1
-    style SF4 fill:#fff4e1
-    style SF5 fill:#fff4e1
-    style OS1 fill:#e1f5ff
-    style OS2 fill:#e1f5ff
-    style GH fill:#f0f0f0
-    style GH2 fill:#f0f0f0
+    style Start fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff
+    style End fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
+    style SF1 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF2 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF3 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF4 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style SF5 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+    style OS1 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style OS2 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
+    style GH fill:#64748b,stroke:#475569,stroke-width:2px,color:#fff
+    style GH2 fill:#64748b,stroke:#475569,stroke-width:2px,color:#fff
+    style Dev fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -422,6 +426,7 @@ graph TB
 - **SpecFact**: Bridges the gap between plan and code
 
 This separation enables:
+
 - ✅ **Cross-Repository Workflows** - Specs in one repo, code in another
 - ✅ **Team Collaboration** - Product owners manage specs, developers implement code
 - ✅ **Clear Separation of Concerns** - Specifications separate from implementation
