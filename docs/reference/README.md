@@ -11,6 +11,7 @@ Complete technical reference for SpecFact CLI.
 - **[Telemetry](telemetry.md)** - Opt-in analytics and privacy guarantees
 - **[Feature Keys](feature-keys.md)** - Key normalization and formats
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
+- **[Schema Versioning](schema-versioning.md)** - Bundle schema versions and backward compatibility (v1.0, v1.1)
 
 ## Quick Reference
 

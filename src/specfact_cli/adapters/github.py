@@ -20,6 +20,7 @@ from rich.console import Console
 
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.change import ChangeProposal, ChangeTracking
 
 
 console = Console()
@@ -229,7 +230,44 @@ class GitHubAdapter(BridgeAdapter):
                 msg = "Issue number required for content update (missing in source_tracking for this repository)"
                 raise ValueError(msg)
             return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number))
-        msg = f"Unsupported artifact key: {artifact_key}. Supported: change_proposal, change_status, change_proposal_update"
+        if artifact_key == "code_change_progress":
+            # Extract issue number from source_tracking (support list or dict for backward compatibility)
+            source_tracking = artifact_data.get("source_tracking", {})
+            issue_number = None
+
+            # Handle list of entries (multi-repository support)
+            if isinstance(source_tracking, list):
+                # Find entry for this repository
+                target_repo = f"{repo_owner}/{repo_name}"
+                for entry in source_tracking:
+                    if isinstance(entry, dict):
+                        entry_repo = entry.get("source_repo")
+                        if entry_repo == target_repo:
+                            issue_number = entry.get("source_id")
+                            break
+                        # Backward compatibility: if no source_repo, try to extract from source_url
+                        if not entry_repo:
+                            source_url = entry.get("source_url", "")
+                            if source_url and target_repo in source_url:
+                                issue_number = entry.get("source_id")
+                                break
+            # Handle single dict (backward compatibility)
+            elif isinstance(source_tracking, dict):
+                issue_number = source_tracking.get("source_id")
+
+            if not issue_number:
+                msg = "Issue number required for progress comment (missing in source_tracking for this repository)"
+                raise ValueError(msg)
+
+            # Extract sanitize flag from artifact_data or bridge_config
+            sanitize = artifact_data.get("sanitize", False)
+            if bridge_config and hasattr(bridge_config, "sanitize"):
+                sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize
+
+            return self._add_progress_comment(
+                artifact_data, repo_owner, repo_name, int(issue_number), sanitize=sanitize
+            )
+        msg = f"Unsupported artifact key: {artifact_key}. Supported: change_proposal, change_status, change_proposal_update, code_change_progress"
         raise ValueError(msg)
 
     @beartype
@@ -249,6 +287,98 @@ class GitHubAdapter(BridgeAdapter):
         from specfact_cli.models.bridge import BridgeConfig
 
         return BridgeConfig.preset_github()
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @ensure(lambda result: result is None, "GitHub adapter does not support change tracking loading")
+    def load_change_tracking(
+        self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
+    ) -> ChangeTracking | None:
+        """
+        Load change tracking (not supported by GitHub adapter).
+
+        GitHub adapter is export-only (OpenSpec → GitHub Issues) and does not
+        support loading change tracking from GitHub.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            bridge_config: Optional bridge configuration
+
+        Returns:
+            None (not supported)
+        """
+        return None
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(
+        lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
+    )
+    @ensure(lambda result: result is None, "Must return None")
+    def save_change_tracking(
+        self, bundle_dir: Path, change_tracking: ChangeTracking, bridge_config: BridgeConfig | None = None
+    ) -> None:
+        """
+        Save change tracking (not supported by GitHub adapter).
+
+        GitHub adapter is export-only (OpenSpec → GitHub Issues) and does not
+        support saving change tracking to GitHub.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            change_tracking: ChangeTracking instance to save
+            bridge_config: Optional bridge configuration
+        """
+        # Not supported - GitHub adapter is export-only
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
+    @ensure(lambda result: result is None, "GitHub adapter does not support change proposal loading")
+    def load_change_proposal(
+        self, bundle_dir: Path, change_name: str, bridge_config: BridgeConfig | None = None
+    ) -> ChangeProposal | None:
+        """
+        Load change proposal (not supported by GitHub adapter).
+
+        GitHub adapter is export-only (OpenSpec → GitHub Issues) and does not
+        support loading change proposals from GitHub.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            change_name: Change identifier
+            bridge_config: Optional bridge configuration
+
+        Returns:
+            None (not supported)
+        """
+        return None
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
+    @ensure(lambda result: result is None, "Must return None")
+    def save_change_proposal(
+        self, bundle_dir: Path, proposal: ChangeProposal, bridge_config: BridgeConfig | None = None
+    ) -> None:
+        """
+        Save change proposal (not supported by GitHub adapter).
+
+        GitHub adapter is export-only (OpenSpec → GitHub Issues) and does not
+        support saving change proposals to GitHub. Use `export_artifact` with
+        artifact_key="change_proposal" to create GitHub issues instead.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            proposal: ChangeProposal instance to save
+            bridge_config: Optional bridge configuration
+        """
+        # Not supported - GitHub adapter is export-only
+        # Use export_artifact(artifact_key="change_proposal", ...) to create GitHub issues
 
     def _create_issue_from_proposal(
         self,
@@ -585,3 +715,52 @@ class GitHubAdapter(BridgeAdapter):
         if status == "in-progress":
             return f"🔄 Change in progress: {title}\n\nImplementation of this change proposal has started."
         return ""
+
+    def _add_progress_comment(
+        self,
+        proposal_data: dict[str, Any],  # ChangeProposal with progress_data
+        repo_owner: str,
+        repo_name: str,
+        issue_number: int,
+        sanitize: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Add progress comment to GitHub issue based on code changes.
+
+        Args:
+            proposal_data: Change proposal data with progress_data (dict with code change info)
+            repo_owner: GitHub repository owner
+            repo_name: GitHub repository name
+            issue_number: GitHub issue number
+            sanitize: If True, sanitize sensitive information in progress comment (for public repos)
+
+        Returns:
+            Dict with updated issue data: {"issue_number": int, "issue_url": str, "comment_added": bool}
+
+        Raises:
+            requests.RequestException: If GitHub API call fails
+        """
+        progress_data = proposal_data.get("progress_data", {})
+        if not progress_data:
+            # No progress data provided
+            return {
+                "issue_number": issue_number,
+                "issue_url": f"https://github.com/{repo_owner}/{repo_name}/issues/{issue_number}",
+                "comment_added": False,
+            }
+
+        from specfact_cli.utils.code_change_detector import format_progress_comment
+
+        comment_text = format_progress_comment(progress_data, sanitize=sanitize)
+
+        try:
+            self._add_issue_comment(repo_owner, repo_name, issue_number, comment_text)
+            return {
+                "issue_number": issue_number,
+                "issue_url": f"https://github.com/{repo_owner}/{repo_name}/issues/{issue_number}",
+                "comment_added": True,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to add progress comment to GitHub issue #{issue_number}: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise

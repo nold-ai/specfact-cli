@@ -1173,21 +1173,21 @@ specfact plan upgrade [OPTIONS]
 
 **Options:**
 
-- Bundle name is provided as a positional argument (e.g., `plan upgrade my-project`)
+- `--plan PATH` - Path to specific plan bundle to upgrade (default: active plan from `specfact plan select`)
 - `--all` - Upgrade all project bundles in `.specfact/projects/`
 - `--dry-run` - Show what would be upgraded without making changes
 
 **Example:**
 
 ```bash
-# Preview what would be upgraded
+# Preview what would be upgraded (active plan)
 specfact plan upgrade --dry-run
 
-# Upgrade active plan
+# Upgrade active plan (uses bundle selected via `specfact plan select`)
 specfact plan upgrade
 
-# Upgrade specific plan (bundle name as positional argument)
-specfact plan upgrade my-project
+# Upgrade specific plan by path
+specfact plan upgrade --plan .specfact/projects/my-project/bundle.manifest.yaml
 
 # Upgrade all plans
 specfact plan upgrade --all
@@ -1226,7 +1226,15 @@ The upgrade process:
 4. Computes and adds summary metadata with content hash for integrity verification
 5. Updates plan bundle file with new schema version
 
-**Note**: Upgraded plan bundles are backward compatible. Older CLI versions can still read them, but won't benefit from performance optimizations.
+**Active Plan Detection:**
+
+When no `--plan` option is provided, the command automatically uses the active bundle set via `specfact plan select`. If no active bundle is set, it falls back to the first available bundle in `.specfact/projects/` and provides a helpful tip to set it as active.
+
+**Backward Compatibility:**
+
+- Older bundles (schema 1.0) missing the `product` field are automatically upgraded with default empty `product` structure
+- Missing required fields are provided with sensible defaults during migration
+- Upgraded plan bundles are backward compatible. Older CLI versions can still read them, but won't benefit from performance optimizations
 
 #### `plan compare`
 
@@ -2869,7 +2877,30 @@ specfact sync bridge [OPTIONS]
 
 **DevOps Backlog Tracking (export-only mode):**
 
-When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira), the command exports OpenSpec change proposals to DevOps backlog tools:
+When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira), the command exports OpenSpec change proposals to DevOps backlog tools, creating GitHub issues and tracking implementation progress through automated comment annotations.
+
+**Quick Start:**
+
+1. **Create change proposals** in `openspec/changes/<change-id>/proposal.md`
+2. **Export to GitHub** to create issues:
+
+   ```bash
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --repo /path/to/openspec-repo
+   ```
+
+3. **Track code changes** by adding progress comments:
+
+   ```bash
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --track-code-changes \
+     --repo /path/to/openspec-repo \
+     --code-repo /path/to/source-code-repo  # If different from OpenSpec repo
+   ```
+
+**Basic Options:**
 
 - `--adapter github` - GitHub Issues adapter (requires GitHub API token)
 - `--repo-owner OWNER` - GitHub repository owner (optional, can use bridge config)
@@ -2882,6 +2913,7 @@ When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira)
   - `--no-sanitize`: Skip sanitization (use full proposal content)
 - `--target-repo OWNER/REPO` - Target repository for issue creation (format: owner/repo). Default: same as code repository
 - `--interactive` - Interactive mode for AI-assisted sanitization (requires slash command)
+- `--change-ids ID1,ID2` - Comma-separated list of change proposal IDs to export (default: all active proposals)
 
 **Environment Variables:**
 
@@ -2929,6 +2961,12 @@ specfact sync bridge --adapter github --mode export-only \
 # Export using GitHub CLI for token (enterprise-friendly)
 specfact sync bridge --adapter github --mode export-only \
   --use-gh-cli
+
+# Export specific change proposals only
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo \
+  --change-ids add-feature-x,update-api \
+  --repo /path/to/openspec-repo
 ```
 
 **What it syncs (Spec-Kit adapter):**
@@ -3029,6 +3067,188 @@ specfact sync bridge --adapter github --mode export-only \
   --no-sanitize \
   --target-repo nold-ai/specfact-cli-internal
 ```
+
+**Code Change Tracking and Progress Comments (export-only mode):**
+
+When using `--mode export-only` with DevOps adapters, you can track implementation progress by detecting code changes and adding progress comments to existing GitHub issues:
+
+**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+
+- `--track-code-changes/--no-track-code-changes` - Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False)
+- `--add-progress-comment/--no-add-progress-comment` - Add manual progress comment to existing issues without code change detection (default: False)
+- `--code-repo PATH` - Path to source code repository for code change detection (default: same as `--repo`). **Required when OpenSpec repository differs from source code repository.** For example, if OpenSpec proposals are in `specfact-cli-internal` but source code is in `specfact-cli`, use `--repo /path/to/specfact-cli-internal --code-repo /path/to/specfact-cli`.
+- `--update-existing/--no-update-existing` - Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.
+
+**Code Change Detection:**
+
+When `--track-code-changes` is enabled:
+
+1. **Git Commit Detection**: Searches git log for commits mentioning the change proposal ID (e.g., `add-code-change-tracking`)
+2. **File Change Tracking**: Extracts files modified in detected commits
+3. **Progress Comment Generation**: Formats progress comment with:
+   - Commit details (hash, message, author, date)
+   - Files changed summary
+   - Detection timestamp
+4. **Duplicate Prevention**: Calculates SHA-256 hash of comment text and checks against existing progress comments
+5. **Source Tracking Update**: Stores progress comment in `source_metadata.progress_comments` and updates `last_code_change_detected` timestamp
+
+**Progress Comment Sanitization:**
+
+When `--sanitize` is enabled (for public repositories), progress comments are automatically sanitized:
+
+- **Commit messages**: Internal/confidential/competitive keywords removed, long messages truncated
+- **File paths**: Replaced with file type counts (e.g., "3 py file(s)" instead of full paths)
+- **Author emails**: Removed, only username shown
+- **Timestamps**: Date only (no time component)
+
+**Examples:**
+
+```bash
+# Detect code changes and add progress comments (internal repo)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --repo .
+
+# Detect code changes with sanitization (public repo)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --track-code-changes \
+  --sanitize \
+  --repo .
+
+# Add manual progress comment (without code change detection)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --add-progress-comment \
+  --repo .
+
+# Update existing issues AND add progress comments
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --update-existing \
+  --track-code-changes \
+  --repo .
+
+# Sync specific change proposal with code change tracking
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --change-ids add-code-change-tracking \
+  --repo .
+
+# Separate OpenSpec and source code repositories
+# OpenSpec proposals in specfact-cli-internal, source code in specfact-cli
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --change-ids add-code-change-tracking \
+  --repo /path/to/specfact-cli-internal \
+  --code-repo /path/to/specfact-cli
+```
+
+**Prerequisites:**
+
+**For Issue Creation:**
+
+- Change proposals must exist in `openspec/changes/<change-id>/proposal.md` directory (in the OpenSpec repository specified by `--repo`)
+- GitHub token (via `GITHUB_TOKEN` env var, `gh auth token`, or `--github-token`)
+- Repository access permissions (read for proposals, write for issues)
+
+**For Code Change Tracking:**
+
+- Issues must already exist (created via previous sync)
+- Git repository with commits mentioning the change proposal ID in commit messages:
+  - If `--code-repo` is provided, commits must be in that repository
+  - Otherwise, commits must be in the OpenSpec repository (`--repo`)
+- Commit messages should include the change proposal ID (e.g., "feat: implement add-code-change-tracking")
+
+**Separate OpenSpec and Source Code Repositories:**
+
+When your OpenSpec change proposals are in a different repository than your source code:
+
+```bash
+# Example: OpenSpec in specfact-cli-internal, source code in specfact-cli
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli-internal \
+  --track-code-changes \
+  --repo /path/to/specfact-cli-internal \
+  --code-repo /path/to/specfact-cli
+```
+
+**Why use `--code-repo`?**
+
+- **OpenSpec repository** (`--repo`): Contains change proposals in `openspec/changes/` directory
+- **Source code repository** (`--code-repo`): Contains actual implementation commits that reference the change proposal ID
+
+If both are in the same repository, you can omit `--code-repo` and it will use `--repo` for both purposes.
+
+**Integration Workflow:**
+
+1. **Initial Setup** (one-time):
+
+   ```bash
+   # Create change proposal in openspec/changes/<change-id>/proposal.md
+   # Export to GitHub to create issue
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --repo /path/to/openspec-repo
+   ```
+
+2. **Development Workflow** (ongoing):
+
+   ```bash
+   # Make commits with change ID in commit message
+   git commit -m "feat: implement add-code-change-tracking - initial implementation"
+   
+   # Track progress automatically
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --track-code-changes \
+     --repo /path/to/openspec-repo \
+     --code-repo /path/to/source-code-repo
+   ```
+
+3. **Manual Progress Updates** (when needed):
+
+   ```bash
+   # Add manual progress comment without code change detection
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner owner --repo-name repo \
+     --add-progress-comment \
+     --repo /path/to/openspec-repo
+   ```
+
+**Verification:**
+
+After running the command, verify:
+
+1. **GitHub Issue**: Check that progress comment was added to the issue:
+
+   ```bash
+   gh issue view <issue-number> --repo owner/repo --json comments --jq '.comments[-1].body'
+   ```
+
+2. **Source Tracking**: Verify `openspec/changes/<change-id>/proposal.md` was updated with:
+
+   ```markdown
+   ## Source Tracking
+   
+   - **GitHub Issue**: #123
+   - **Issue URL**: <https://github.com/owner/repo/issues/123>
+   - **Last Synced Status**: proposed
+   - **Sanitized**: false
+   <!-- last_code_change_detected: 2025-12-30T10:00:00Z -->
+   ```
+
+3. **Duplicate Prevention**: Run the same command twice - second run should skip duplicate comment (no new comment added)
+
+**Troubleshooting:**
+
+- **No commits detected**: Ensure commit messages include the change proposal ID (e.g., "add-code-change-tracking")
+- **Wrong repository**: Verify `--code-repo` points to the correct source code repository
+- **No comments added**: Check that issues exist (create them first without `--track-code-changes`)
+- **Sanitization issues**: Use `--sanitize` for public repos, `--no-sanitize` for internal repos
 
 **Constitution Evidence Extraction:**
 

@@ -12,6 +12,13 @@ from specfact_cli.models.bridge import (
     CommandMapping,
     TemplateMapping,
 )
+from specfact_cli.models.change import (
+    ChangeArchive,
+    ChangeProposal,
+    ChangeTracking,
+    ChangeType,
+    FeatureDelta,
+)
 from specfact_cli.models.deviation import Deviation, DeviationReport, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementAction, EnforcementConfig, EnforcementPreset
 from specfact_cli.models.persona_template import PersonaTemplate, SectionType, SectionValidation, TemplateSection
@@ -50,6 +57,10 @@ __all__ = [
     "BundleManifest",
     "BundleVersions",
     "Business",
+    "ChangeArchive",
+    "ChangeProposal",
+    "ChangeTracking",
+    "ChangeType",
     "CommandMapping",
     "Deviation",
     "DeviationReport",
@@ -59,6 +70,7 @@ __all__ = [
     "EnforcementConfig",
     "EnforcementPreset",
     "Feature",
+    "FeatureDelta",
     "FeatureIndex",
     "Idea",
     "Metadata",

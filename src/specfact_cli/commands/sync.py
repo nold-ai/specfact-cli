@@ -847,6 +847,24 @@ def sync_bridge(
         help="Update existing issue bodies when proposal content changes (default: False for safety). Uses content hash to detect changes.",
         hidden=True,
     ),
+    track_code_changes: bool = typer.Option(
+        False,
+        "--track-code-changes/--no-track-code-changes",
+        help="Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False).",
+        hidden=True,
+    ),
+    add_progress_comment: bool = typer.Option(
+        False,
+        "--add-progress-comment/--no-add-progress-comment",
+        help="Add manual progress comment to existing issues without code change detection (default: False).",
+        hidden=True,
+    ),
+    code_repo: Path = typer.Option(
+        None,
+        "--code-repo",
+        help="Path to source code repository for code change detection (default: same as --repo). Required when OpenSpec repository differs from source code repository.",
+        hidden=True,
+    ),
     interval: int = typer.Option(
         5,
         "--interval",
@@ -887,6 +905,8 @@ def sync_bridge(
         specfact sync bridge --repo . --watch --interval 10
         specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo
         specfact sync bridge --adapter github --mode export-only --update-existing  # Update existing issues when content changes
+        specfact sync bridge --adapter github --mode export-only --track-code-changes  # Detect code changes and add progress comments
+        specfact sync bridge --adapter github --mode export-only --add-progress-comment  # Add manual progress comment
     """
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe
@@ -968,6 +988,10 @@ def sync_bridge(
                 console=console,
             ) as progress:
                 task = progress.add_task("[cyan]Syncing change proposals to DevOps...[/cyan]", total=None)
+
+                # Resolve code_repo_path if provided, otherwise use repo (OpenSpec repo)
+                code_repo_path_for_export = Path(code_repo).resolve() if code_repo else repo.resolve()
+
                 result = bridge_sync.export_change_proposals_to_devops(
                     adapter_type=adapter_type.value,
                     repo_owner=repo_owner,
@@ -982,6 +1006,9 @@ def sync_bridge(
                     import_from_tmp=import_from_tmp,
                     tmp_file=tmp_file,
                     update_existing=update_existing,
+                    track_code_changes=track_code_changes,
+                    add_progress_comment=add_progress_comment,
+                    code_repo_path=code_repo_path_for_export,
                 )
                 progress.update(task, description="[green]✓[/green] Sync complete")
 

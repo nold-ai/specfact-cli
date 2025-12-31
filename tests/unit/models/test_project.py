@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from specfact_cli.models.change import ChangeProposal, ChangeTracking, ChangeType, FeatureDelta
 from specfact_cli.models.plan import Business, Feature, Idea, Product, Story
 from specfact_cli.models.project import (
     BundleFormat,
@@ -19,6 +20,7 @@ from specfact_cli.models.project import (
     FeatureIndex,
     PersonaMapping,
     ProjectBundle,
+    _is_schema_v1_1,
 )
 
 
@@ -76,6 +78,25 @@ class TestBundleManifest:
         manifest = BundleManifest(schema_metadata=None, project_metadata=None, personas={"product-owner": persona})
         assert "product-owner" in manifest.personas
         assert manifest.personas["product-owner"].exports_to == "specs/*/spec.md"
+
+    def test_manifest_with_change_tracking_v1_1(self):
+        """Test BundleManifest with change tracking (v1.1 schema)."""
+        change_tracking = ChangeTracking()
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+            change_tracking=change_tracking,
+        )
+        assert manifest.change_tracking is not None
+        assert manifest.change_archive == []
+
+    def test_manifest_backward_compatibility_v1_0(self):
+        """Test BundleManifest backward compatibility (v1.0 schema)."""
+        manifest = BundleManifest(schema_metadata=None, project_metadata=None)
+        # v1.0 bundles should have None/empty change tracking
+        assert manifest.change_tracking is None
+        assert manifest.change_archive == []
 
 
 class TestProjectBundle:
@@ -364,3 +385,191 @@ class TestBundleFormat:
         assert BundleFormat.MONOLITHIC == "monolithic"
         assert BundleFormat.MODULAR == "modular"
         assert BundleFormat.UNKNOWN == "unknown"
+
+
+class TestProjectBundleChangeTracking:
+    """Tests for ProjectBundle change tracking extensions."""
+
+    def test_project_bundle_with_change_tracking(self):
+        """Test ProjectBundle with change tracking."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+        )
+        product = Product()
+        change_tracking = ChangeTracking()
+        bundle = ProjectBundle(
+            manifest=manifest, bundle_name="test-bundle", product=product, change_tracking=change_tracking
+        )
+        assert bundle.change_tracking is not None
+
+    def test_get_active_changes(self):
+        """Test get_active_changes() helper method."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+        )
+        product = Product()
+        change_tracking = ChangeTracking()
+        proposal1 = ChangeProposal(
+            name="add-feature-1",
+            title="Add Feature 1",
+            description="Add first feature",
+            rationale="Needed for MVP",
+            timeline=None,
+            owner=None,
+            stakeholders=[],
+            dependencies=[],
+            status="proposed",
+            created_at=datetime.now(UTC).isoformat(),
+            applied_at=None,
+            archived_at=None,
+            source_tracking=None,
+        )
+        proposal2 = ChangeProposal(
+            name="add-feature-2",
+            title="Add Feature 2",
+            description="Add second feature",
+            rationale="Needed for MVP",
+            timeline=None,
+            owner=None,
+            stakeholders=[],
+            dependencies=[],
+            status="in-progress",
+            created_at=datetime.now(UTC).isoformat(),
+            applied_at=None,
+            archived_at=None,
+            source_tracking=None,
+        )
+        proposal3 = ChangeProposal(
+            name="add-feature-3",
+            title="Add Feature 3",
+            description="Add third feature",
+            rationale="Needed for MVP",
+            timeline=None,
+            owner=None,
+            stakeholders=[],
+            dependencies=[],
+            status="applied",
+            created_at=datetime.now(UTC).isoformat(),
+            applied_at=datetime.now(UTC).isoformat(),
+            archived_at=None,
+            source_tracking=None,
+        )
+        change_tracking.proposals = {
+            "add-feature-1": proposal1,
+            "add-feature-2": proposal2,
+            "add-feature-3": proposal3,
+        }
+        bundle = ProjectBundle(
+            manifest=manifest, bundle_name="test-bundle", product=product, change_tracking=change_tracking
+        )
+
+        active_changes = bundle.get_active_changes()
+        assert len(active_changes) == 2
+        assert proposal1 in active_changes
+        assert proposal2 in active_changes
+        assert proposal3 not in active_changes
+
+    def test_get_active_changes_empty(self):
+        """Test get_active_changes() when no active changes."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+        )
+        product = Product()
+        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        # No change_tracking set
+        assert bundle.get_active_changes() == []
+
+    def test_get_feature_deltas(self):
+        """Test get_feature_deltas() helper method."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+        )
+        product = Product()
+        change_tracking = ChangeTracking()
+        proposed_feature = Feature(
+            key="FEATURE-001",
+            title="New Feature",
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        delta = FeatureDelta(
+            feature_key="FEATURE-001",
+            change_type=ChangeType.ADDED,
+            original_feature=None,
+            proposed_feature=proposed_feature,
+            change_rationale=None,
+            change_date=None,
+            validation_status=None,
+            validation_results=None,
+            source_tracking=None,
+        )
+        change_tracking.feature_deltas = {"add-feature-1": [delta]}
+        bundle = ProjectBundle(
+            manifest=manifest, bundle_name="test-bundle", product=product, change_tracking=change_tracking
+        )
+
+        deltas = bundle.get_feature_deltas("add-feature-1")
+        assert len(deltas) == 1
+        assert deltas[0].feature_key == "FEATURE-001"
+
+    def test_get_feature_deltas_not_found(self):
+        """Test get_feature_deltas() when change not found."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+        )
+        product = Product()
+        change_tracking = ChangeTracking()
+        bundle = ProjectBundle(
+            manifest=manifest, bundle_name="test-bundle", product=product, change_tracking=change_tracking
+        )
+
+        deltas = bundle.get_feature_deltas("non-existent-change")
+        assert deltas == []
+
+    def test_get_feature_deltas_no_change_tracking(self):
+        """Test get_feature_deltas() when change_tracking is None."""
+        manifest = BundleManifest(schema_metadata=None, project_metadata=None)
+        product = Product()
+        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        # No change_tracking set
+        assert bundle.get_feature_deltas("any-change") == []
+
+
+class TestSchemaVersionCheck:
+    """Tests for schema version check utility."""
+
+    def test_is_schema_v1_1_true(self):
+        """Test _is_schema_v1_1 returns True for v1.1."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.1", project="0.1.0"),
+        )
+        assert _is_schema_v1_1(manifest) is True
+
+    def test_is_schema_v1_1_false(self):
+        """Test _is_schema_v1_1 returns False for v1.0."""
+        manifest = BundleManifest(
+            schema_metadata=None,
+            project_metadata=None,
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+        )
+        assert _is_schema_v1_1(manifest) is False
+
+    def test_is_schema_v1_1_invalid_manifest(self):
+        """Test _is_schema_v1_1 handles invalid manifest gracefully."""
+        # Create manifest without versions (shouldn't happen in practice, but test defensive code)
+        manifest = BundleManifest(schema_metadata=None, project_metadata=None)
+        # Should still work because default versions are set
+        assert _is_schema_v1_1(manifest) is False  # Default is 1.0

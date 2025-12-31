@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -455,6 +456,9 @@ class BridgeSync:
         import_from_tmp: bool = False,
         tmp_file: Path | None = None,
         update_existing: bool = False,
+        track_code_changes: bool = False,
+        add_progress_comment: bool = False,
+        code_repo_path: Path | None = None,
     ) -> SyncResult:
         """
         Export OpenSpec change proposals to DevOps tools (export-only mode).
@@ -808,6 +812,149 @@ class BridgeSync:
                                     errors.append(
                                         f"Failed to update issue body for {proposal.get('change_id', 'unknown')}: {e}"
                                     )
+
+                        # Code change tracking and progress comments (when enabled)
+                        if track_code_changes or add_progress_comment:
+                            from specfact_cli.utils.code_change_detector import (
+                                calculate_comment_hash,
+                                detect_code_changes,
+                                format_progress_comment,
+                            )
+
+                            change_id = proposal.get("change_id", "unknown")
+                            progress_data: dict[str, Any] = {}
+
+                            if track_code_changes:
+                                # Detect code changes via git
+                                try:
+                                    # Get last detection timestamp from source tracking
+                                    last_detection = None
+                                    if target_entry:
+                                        source_metadata = target_entry.get("source_metadata", {})
+                                        if isinstance(source_metadata, dict):
+                                            last_detection = source_metadata.get("last_code_change_detected")
+
+                                    # Detect code changes
+                                    # Use code_repo_path if provided (for separate source code repo),
+                                    # otherwise fall back to self.repo_path (OpenSpec repo)
+                                    code_repo = code_repo_path if code_repo_path else self.repo_path
+                                    code_changes = detect_code_changes(
+                                        repo_path=code_repo,
+                                        change_id=change_id,
+                                        since_timestamp=last_detection,
+                                    )
+
+                                    if code_changes.get("has_changes"):
+                                        progress_data = code_changes
+                                    else:
+                                        # No code changes detected
+                                        continue
+                                except Exception as e:
+                                    # Log error but don't fail entire sync
+                                    errors.append(f"Failed to detect code changes for {change_id}: {e}")
+                                    continue
+
+                            if add_progress_comment and not progress_data:
+                                # Manual progress comment (no code change detection)
+                                progress_data = {
+                                    "summary": "Manual progress update",
+                                    "detection_timestamp": datetime.utcnow().isoformat() + "Z",
+                                }
+
+                            if progress_data:
+                                # Check for duplicate comments
+                                # Calculate hash on sanitized version if sanitization is enabled
+                                # (to detect duplicates based on what will actually be posted)
+                                comment_text = format_progress_comment(
+                                    progress_data, sanitize=should_sanitize if should_sanitize is not None else False
+                                )
+                                comment_hash = calculate_comment_hash(comment_text)
+
+                                # Get existing progress comments from source tracking
+                                progress_comments = []
+                                if target_entry:
+                                    source_metadata = target_entry.get("source_metadata", {})
+                                    if isinstance(source_metadata, dict):
+                                        progress_comments = source_metadata.get("progress_comments", [])
+
+                                # Check if this comment already exists
+                                is_duplicate = False
+                                if isinstance(progress_comments, list):
+                                    for existing_comment in progress_comments:
+                                        if isinstance(existing_comment, dict):
+                                            existing_hash = existing_comment.get("comment_hash")
+                                            if existing_hash == comment_hash:
+                                                is_duplicate = True
+                                                break
+
+                                if not is_duplicate:
+                                    try:
+                                        # Add progress comment to issue
+                                        # Ensure source_tracking is included for adapter to extract issue number
+                                        proposal_with_progress = {
+                                            **proposal,
+                                            "source_tracking": source_tracking_list,  # Ensure source_tracking is available
+                                            "progress_data": progress_data,
+                                            "sanitize": should_sanitize if should_sanitize is not None else False,
+                                        }
+                                        result = adapter.export_artifact(
+                                            artifact_key="code_change_progress",
+                                            artifact_data=proposal_with_progress,
+                                            bridge_config=self.bridge_config,
+                                        )
+
+                                        # Update source tracking with progress comment
+                                        if target_entry:
+                                            source_metadata = target_entry.get("source_metadata", {})
+                                            if not isinstance(source_metadata, dict):
+                                                source_metadata = {}
+                                            progress_comments = source_metadata.get("progress_comments", [])
+                                            if not isinstance(progress_comments, list):
+                                                progress_comments = []
+
+                                            # Add new comment to history
+                                            progress_comments.append(
+                                                {
+                                                    "comment_hash": comment_hash,
+                                                    "timestamp": progress_data.get("detection_timestamp"),
+                                                    "summary": progress_data.get("summary", ""),
+                                                }
+                                            )
+
+                                            updated_entry = {
+                                                **target_entry,
+                                                "source_metadata": {
+                                                    **source_metadata,
+                                                    "progress_comments": progress_comments,
+                                                    "last_code_change_detected": progress_data.get(
+                                                        "detection_timestamp"
+                                                    ),
+                                                },
+                                            }
+
+                                            if target_repo:
+                                                source_tracking_list = self._update_source_tracking_entry(
+                                                    source_tracking_list, target_repo, updated_entry
+                                                )
+                                                proposal["source_tracking"] = source_tracking_list
+
+                                        operations.append(
+                                            SyncOperation(
+                                                artifact_key="code_change_progress",
+                                                feature_id=change_id,
+                                                direction="export",
+                                                bundle_name="openspec",
+                                            )
+                                        )
+
+                                        # Save updated proposal with progress comment metadata
+                                        self._save_openspec_change_proposal(proposal)
+                                    except Exception as e:
+                                        # Log error but don't fail entire sync
+                                        errors.append(f"Failed to add progress comment for {change_id}: {e}")
+                                else:
+                                    # Duplicate comment - skip
+                                    warnings.append(f"Skipped duplicate progress comment for {change_id}")
                     else:
                         # No issue exists - create one
                         # Handle temporary file workflow if requested
@@ -1385,6 +1532,27 @@ class BridgeSync:
                 entry["source_metadata"] = {}
             entry["source_metadata"]["content_hash"] = hash_match.group(1)
 
+        # Extract progress_comments from HTML comment
+        progress_comments_match = re.search(r"<!--\s*progress_comments:\s*(\[.*?\])\s*-->", entry_content, re.DOTALL)
+        if progress_comments_match:
+            import json
+
+            try:
+                progress_comments = json.loads(progress_comments_match.group(1))
+                if "source_metadata" not in entry:
+                    entry["source_metadata"] = {}
+                entry["source_metadata"]["progress_comments"] = progress_comments
+            except (json.JSONDecodeError, ValueError):
+                # Ignore invalid JSON
+                pass
+
+        # Extract last_code_change_detected from HTML comment
+        last_detection_match = re.search(r"<!--\s*last_code_change_detected:\s*([^\s]+)\s*-->", entry_content)
+        if last_detection_match:
+            if "source_metadata" not in entry:
+                entry["source_metadata"] = {}
+            entry["source_metadata"]["last_code_change_detected"] = last_detection_match.group(1)
+
         # Only return entry if it has at least source_id or source_url
         if entry.get("source_id") or entry.get("source_url"):
             return entry
@@ -1521,6 +1689,20 @@ class BridgeSync:
                     content_hash = source_metadata.get("content_hash")
                     if content_hash:
                         metadata_lines.append(f"<!-- content_hash: {content_hash} -->")
+
+                    # Save progress_comments and last_code_change_detected as hidden HTML comments
+                    # Format: <!-- progress_comments: <json> --> and <!-- last_code_change_detected: <timestamp> -->
+                    progress_comments = source_metadata.get("progress_comments")
+                    if progress_comments and isinstance(progress_comments, list) and len(progress_comments) > 0:
+                        import json
+
+                        # Save as JSON in HTML comment for persistence
+                        progress_comments_json = json.dumps(progress_comments, separators=(",", ":"))
+                        metadata_lines.append(f"<!-- progress_comments: {progress_comments_json} -->")
+
+                    last_code_change_detected = source_metadata.get("last_code_change_detected")
+                    if last_code_change_detected:
+                        metadata_lines.append(f"<!-- last_code_change_detected: {last_code_change_detected} -->")
 
                 # Add separator between entries (except for last one)
                 if i < len(source_tracking_list) - 1:

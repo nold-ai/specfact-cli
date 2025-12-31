@@ -96,6 +96,12 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - Each project bundle is stored in its own directory: `.specfact/projects/<bundle-name>/`
 - Each bundle directory contains multiple aspect files:
   - `bundle.manifest.yaml` - Bundle metadata, versioning, checksums, and feature index (required)
+    - **Schema Versioning**: Set `schema_metadata.schema_version` to `"1.1"` to enable change tracking (v0.21.1+)
+    - **Change Tracking** (v1.1+): Optional `change_tracking` and `change_archive` fields are loaded via bridge adapters (not stored in bundle directory)
+      - `change_tracking`: Active change proposals and feature deltas (loaded from external tools like OpenSpec)
+      - `change_archive`: Completed changes with audit trail (loaded from external tools)
+      - Both fields are optional and backward compatible - v1.0 bundles work without them
+    - See [Schema Versioning](schema-versioning.md) for details
   - `product.yaml` - Product definition with themes and releases (required)
   - `idea.yaml` - Product vision and intent (optional)
   - `business.yaml` - Business context and market segments (optional)
@@ -148,6 +154,24 @@ features:
     stories: [...]
     # ... other feature fields
 ```
+
+**Bundle Manifest Structure (bundle.manifest.yaml):**
+
+The `bundle.manifest.yaml` file contains bundle metadata and (in v1.1+) optional change tracking fields:
+
+```yaml
+schema_metadata:
+  schema_version: "1.1"  # Set to "1.1" to enable change tracking (v0.21.1+)
+  project_version: "0.1.0"
+
+# ... other manifest fields (checksums, feature index, etc.)
+
+# Optional change tracking fields (v1.1+, loaded via bridge adapters)
+change_tracking: null  # Optional - loaded via bridge adapters (not stored in bundle directory)
+change_archive: []     # Optional - list of archived changes (not stored in bundle directory)
+```
+
+**Note**: The `change_tracking` and `change_archive` fields are optional and loaded dynamically via bridge adapters (e.g., OpenSpec adapter) rather than being stored directly in the bundle directory. This allows change tracking to be managed by external tools while keeping bundles tool-agnostic. See [Schema Versioning](schema-versioning.md) for details.
 
 **Summary Metadata (v1.1+):**
 

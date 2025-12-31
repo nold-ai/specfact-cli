@@ -19,24 +19,26 @@ class TestPlanUpgrade:
         """Test upgrading active plan in dry-run mode."""
         monkeypatch.chdir(tmp_path)
 
-        # Create .specfact structure
-        plans_dir = tmp_path / ".specfact" / "plans"
-        plans_dir.mkdir(parents=True)
+        # Create .specfact structure with modular bundle
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_dir = projects_dir / "test-bundle"
+        bundle_dir.mkdir()
 
-        # Create a plan bundle with old schema (1.0, no summary)
-        plan_path = plans_dir / "test.bundle.yaml"
+        # Create bundle manifest with old schema (1.0, no summary)
+        manifest_path = bundle_dir / "bundle.manifest.yaml"
         plan_data = {
             "version": "1.0",
             "product": {"themes": ["Theme1"]},
             "features": [{"key": "FEATURE-001", "title": "Feature 1"}],
         }
-        with plan_path.open("w") as f:
+        with manifest_path.open("w") as f:
             yaml.dump(plan_data, f)
 
-        # Set as active plan
-        config_path = plans_dir / "config.yaml"
+        # Set active bundle
+        config_path = tmp_path / ".specfact" / "config.yaml"
         with config_path.open("w") as f:
-            yaml.dump({"active_plan": "test.bundle.yaml"}, f)
+            yaml.dump({"active_bundle": "test-bundle"}, f)
 
         # Run upgrade in dry-run mode
         result = runner.invoke(app, ["plan", "upgrade", "--dry-run"])
@@ -46,31 +48,33 @@ class TestPlanUpgrade:
         assert "dry run" in result.stdout.lower()
 
         # Verify plan wasn't changed (dry run)
-        plan_data_after = load_yaml(plan_path)
+        plan_data_after = load_yaml(manifest_path)
         assert plan_data_after.get("version") == "1.0"
 
     def test_upgrade_active_plan_actual(self, tmp_path, monkeypatch):
         """Test actually upgrading active plan."""
         monkeypatch.chdir(tmp_path)
 
-        # Create .specfact structure
-        plans_dir = tmp_path / ".specfact" / "plans"
-        plans_dir.mkdir(parents=True)
+        # Create .specfact structure with modular bundle
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_dir = projects_dir / "test-bundle"
+        bundle_dir.mkdir()
 
-        # Create a plan bundle with old schema (1.0, no summary)
-        plan_path = plans_dir / "test.bundle.yaml"
+        # Create bundle manifest with old schema (1.0, no summary)
+        manifest_path = bundle_dir / "bundle.manifest.yaml"
         plan_data = {
             "version": "1.0",
             "product": {"themes": ["Theme1"]},
             "features": [{"key": "FEATURE-001", "title": "Feature 1"}],
         }
-        with plan_path.open("w") as f:
+        with manifest_path.open("w") as f:
             yaml.dump(plan_data, f)
 
-        # Set as active plan
-        config_path = plans_dir / "config.yaml"
+        # Set active bundle
+        config_path = tmp_path / ".specfact" / "config.yaml"
         with config_path.open("w") as f:
-            yaml.dump({"active_plan": "test.bundle.yaml"}, f)
+            yaml.dump({"active_bundle": "test-bundle"}, f)
 
         # Run upgrade
         result = runner.invoke(app, ["plan", "upgrade"])
@@ -79,7 +83,7 @@ class TestPlanUpgrade:
         assert "Upgraded" in result.stdout or "upgrade" in result.stdout.lower()
 
         # Verify plan was updated
-        plan_data_after = load_yaml(plan_path)
+        plan_data_after = load_yaml(manifest_path)
         assert plan_data_after.get("version") == "1.1"
         assert "summary" in plan_data_after.get("metadata", {})
 
@@ -141,9 +145,11 @@ class TestPlanUpgrade:
         """Test upgrading a plan that's already up to date."""
         monkeypatch.chdir(tmp_path)
 
-        # Create .specfact structure
-        plans_dir = tmp_path / ".specfact" / "plans"
-        plans_dir.mkdir(parents=True)
+        # Create .specfact structure with modular bundle
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_dir = projects_dir / "test-bundle"
+        bundle_dir.mkdir()
 
         # Create a plan bundle with current schema (1.1, with summary)
         from specfact_cli.generators.plan_generator import PlanGenerator
@@ -161,17 +167,55 @@ class TestPlanUpgrade:
         )
         bundle.update_summary(include_hash=True)
 
-        plan_path = plans_dir / "test.bundle.yaml"
+        manifest_path = bundle_dir / "bundle.manifest.yaml"
         generator = PlanGenerator()
-        generator.generate(bundle, plan_path, update_summary=True)
+        generator.generate(bundle, manifest_path, update_summary=True)
 
-        # Set as active plan
-        config_path = plans_dir / "config.yaml"
+        # Set active bundle
+        config_path = tmp_path / ".specfact" / "config.yaml"
         with config_path.open("w") as f:
-            yaml.dump({"active_plan": "test.bundle.yaml"}, f)
+            yaml.dump({"active_bundle": "test-bundle"}, f)
 
         # Run upgrade
         result = runner.invoke(app, ["plan", "upgrade"])
 
         assert result.exit_code == 0
         assert "up to date" in result.stdout.lower() or "Up to date" in result.stdout
+
+    def test_upgrade_plan_missing_product_field(self, tmp_path, monkeypatch):
+        """Test upgrading a plan bundle with missing product field (backward compatibility)."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create .specfact structure with modular bundle
+        projects_dir = tmp_path / ".specfact" / "projects"
+        projects_dir.mkdir(parents=True)
+        bundle_dir = projects_dir / "test-bundle"
+        bundle_dir.mkdir()
+
+        # Create bundle manifest without product field (old schema)
+        manifest_path = bundle_dir / "bundle.manifest.yaml"
+        plan_data = {
+            "version": "1.0",
+            "features": [{"key": "FEATURE-001", "title": "Feature 1"}],
+        }
+        with manifest_path.open("w") as f:
+            yaml.dump(plan_data, f)
+
+        # Set active bundle
+        config_path = tmp_path / ".specfact" / "config.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with config_path.open("w") as f:
+            yaml.dump({"active_bundle": "test-bundle"}, f)
+
+        # Run upgrade
+        result = runner.invoke(app, ["plan", "upgrade"])
+
+        assert result.exit_code == 0
+        assert "Upgraded" in result.stdout or "upgrade" in result.stdout.lower()
+
+        # Verify plan was updated with default product
+        plan_data_after = load_yaml(manifest_path)
+        assert plan_data_after.get("version") == "1.1"
+        assert "product" in plan_data_after
+        assert plan_data_after["product"] == {"themes": [], "releases": []}
+        assert "summary" in plan_data_after.get("metadata", {})

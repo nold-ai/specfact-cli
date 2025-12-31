@@ -447,6 +447,79 @@ class Deviation(BaseModel):
     suggestion: Optional[str] = None
 ```
 
+### Change Tracking Models (v1.1 Schema)
+
+**Introduced in v0.21.1**: Tool-agnostic change tracking models for delta spec tracking and change proposals. These models support OpenSpec and other tools (Linear, Jira, etc.) that track changes to specifications.
+
+```python
+from enum import Enum
+from pydantic import BaseModel
+from typing import Optional, Dict, List, Any
+
+class ChangeType(str, Enum):
+    """Change type for delta specs (tool-agnostic)."""
+    ADDED = "added"
+    MODIFIED = "modified"
+    REMOVED = "removed"
+
+class FeatureDelta(BaseModel):
+    """Delta tracking for a feature change (tool-agnostic)."""
+    feature_key: str
+    change_type: ChangeType
+    original_feature: Optional[Feature] = None  # For MODIFIED/REMOVED
+    proposed_feature: Optional[Feature] = None  # For ADDED/MODIFIED
+    change_rationale: Optional[str] = None
+    change_date: Optional[str] = None  # ISO timestamp
+    validation_status: Optional[str] = None  # pending, passed, failed
+    validation_results: Optional[Dict[str, Any]] = None
+    source_tracking: Optional[SourceTracking] = None  # Tool-specific metadata
+
+class ChangeProposal(BaseModel):
+    """Change proposal (tool-agnostic, used by OpenSpec and other tools)."""
+    name: str  # Change identifier (e.g., 'add-user-feedback')
+    title: str
+    description: str  # What: Description of the change
+    rationale: str  # Why: Rationale and business value
+    timeline: Optional[str] = None  # When: Timeline and dependencies
+    owner: Optional[str] = None  # Who: Owner and stakeholders
+    stakeholders: List[str] = []
+    dependencies: List[str] = []
+    status: str = "proposed"  # proposed, in-progress, applied, archived
+    created_at: str  # ISO timestamp
+    applied_at: Optional[str] = None
+    archived_at: Optional[str] = None
+    source_tracking: Optional[SourceTracking] = None  # Tool-specific metadata
+
+class ChangeTracking(BaseModel):
+    """Change tracking for a bundle (tool-agnostic capability)."""
+    proposals: Dict[str, ChangeProposal] = {}  # change_name -> ChangeProposal
+    feature_deltas: Dict[str, List[FeatureDelta]] = {}  # change_name -> [FeatureDelta]
+
+class ChangeArchive(BaseModel):
+    """Archive entry for completed changes (tool-agnostic)."""
+    change_name: str
+    applied_at: str  # ISO timestamp
+    applied_by: Optional[str] = None
+    pr_number: Optional[str] = None
+    commit_hash: Optional[str] = None
+    feature_deltas: List[FeatureDelta] = []
+    validation_results: Optional[Dict[str, Any]] = None
+    source_tracking: Optional[SourceTracking] = None  # Tool-specific metadata
+```
+
+**Key Design Principles**:
+
+- **Tool-Agnostic**: All tool-specific metadata stored in `source_tracking`, not in core models
+- **Cross-Repository Support**: Adapters can load change tracking from external repositories
+- **Backward Compatible**: All fields optional - v1.0 bundles work without modification
+- **Validation Integration**: Change proposals can include SpecFact validation results
+
+**Schema Versioning**:
+
+- **v1.0**: Original bundle format (no change tracking)
+- **v1.1**: Extended with optional `change_tracking` and `change_archive` fields
+- **Automatic Detection**: Bundle loader checks schema version and conditionally loads change tracking via adapters
+
 ## Module Structure
 
 ```bash
@@ -478,6 +551,7 @@ src/specfact_cli/
 ├── models/               # Pydantic data models
 │   ├── plan.py          # Plan bundle models (legacy compatibility)
 │   ├── project.py       # Project bundle models (modular structure)
+│   ├── change.py         # Change tracking models (v1.1 schema)
 │   ├── bridge.py        # Bridge configuration models
 │   ├── protocol.py      # Protocol FSM models
 │   └── deviation.py     # Deviation models
@@ -585,6 +659,148 @@ hatch run contract-test-e2e
 # Full test suite
 hatch run contract-test-full
 ```
+
+## Bridge Adapter Interface
+
+**Introduced in v0.21.1**: The `BridgeAdapter` interface has been extended with change tracking methods to support OpenSpec and other tools that track specification changes.
+
+### Core Interface Methods
+
+All adapters must implement these base methods:
+
+```python
+from abc import ABC, abstractmethod
+from pathlib import Path
+from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.change import ChangeProposal, ChangeTracking
+
+class BridgeAdapter(ABC):
+    @abstractmethod
+    def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
+        """Detect if adapter applies to repository."""
+
+    @abstractmethod
+    def import_artifact(self, artifact_key: str, artifact_path: Path | dict, project_bundle: Any, bridge_config: BridgeConfig | None = None) -> None:
+        """Import artifact from tool format to SpecFact."""
+
+    @abstractmethod
+    def export_artifact(self, artifact_key: str, artifact_data: Any, bridge_config: BridgeConfig | None = None) -> Path | dict:
+        """Export artifact from SpecFact to tool format."""
+
+    @abstractmethod
+    def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
+        """Generate bridge configuration for adapter."""
+```
+
+### Change Tracking Methods (v0.21.1+)
+
+**New in v0.21.1**: Adapters that support change tracking must implement these additional methods:
+
+```python
+@abstractmethod
+def load_change_tracking(
+    self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
+) -> ChangeTracking | None:
+    """
+    Load change tracking from adapter-specific storage location.
+    
+    Args:
+        bundle_dir: Path to bundle directory (.specfact/projects/<bundle-name>/)
+        bridge_config: Bridge configuration (may contain external_base_path for cross-repo)
+    
+    Returns:
+        ChangeTracking instance or None if not available
+    """
+
+@abstractmethod
+def save_change_tracking(
+    self, bundle_dir: Path, change_tracking: ChangeTracking, bridge_config: BridgeConfig | None = None
+) -> None:
+    """
+    Save change tracking to adapter-specific storage location.
+    
+    Args:
+        bundle_dir: Path to bundle directory
+        change_tracking: ChangeTracking instance to save
+        bridge_config: Bridge configuration (may contain external_base_path for cross-repo)
+    """
+
+@abstractmethod
+def load_change_proposal(
+    self, bundle_dir: Path, change_name: str, bridge_config: BridgeConfig | None = None
+) -> ChangeProposal | None:
+    """
+    Load change proposal from adapter-specific storage location.
+    
+    Args:
+        bundle_dir: Path to bundle directory
+        change_name: Change identifier (e.g., 'add-user-feedback')
+        bridge_config: Bridge configuration (may contain external_base_path for cross-repo)
+    
+    Returns:
+        ChangeProposal instance or None if not found
+    """
+
+@abstractmethod
+def save_change_proposal(
+    self, bundle_dir: Path, proposal: ChangeProposal, bridge_config: BridgeConfig | None = None
+) -> None:
+    """
+    Save change proposal to adapter-specific storage location.
+    
+    Args:
+        bundle_dir: Path to bundle directory
+        proposal: ChangeProposal instance to save
+        bridge_config: Bridge configuration (may contain external_base_path for cross-repo)
+    """
+```
+
+### Cross-Repository Support
+
+Adapters must support loading change tracking from external repositories:
+
+- **`external_base_path`**: If `bridge_config.external_base_path` is set, adapters should load change tracking from that location instead of `bundle_dir`
+- **Tool-Specific Storage**: Each adapter determines where change tracking is stored (e.g., OpenSpec uses `openspec/changes/`, Linear uses API)
+- **Source Tracking**: Tool-specific metadata (issue IDs, file paths, etc.) stored in `source_tracking` field
+
+### Implementation Examples
+
+**OpenSpec Adapter** (example - not yet implemented):
+
+```python
+class OpenSpecAdapter(BridgeAdapter):
+    def load_change_tracking(self, bundle_dir: Path, bridge_config: BridgeConfig | None = None) -> ChangeTracking | None:
+        # Load from openspec/changes/ directory
+        base_path = bridge_config.external_base_path if bridge_config and bridge_config.external_base_path else bundle_dir.parent.parent
+        changes_dir = base_path / "openspec" / "changes"
+        # Parse change proposals and feature deltas
+        return ChangeTracking(...)
+```
+
+**GitHub Adapter** (export-only):
+
+```python
+class GitHubAdapter(BridgeAdapter):
+    def load_change_tracking(self, bundle_dir: Path, bridge_config: BridgeConfig | None = None) -> ChangeTracking | None:
+        # GitHub adapter is export-only (OpenSpec → GitHub Issues)
+        return None
+    
+    def save_change_tracking(self, bundle_dir: Path, change_tracking: ChangeTracking, bridge_config: BridgeConfig | None = None) -> None:
+        # Export change proposals to GitHub Issues
+        pass
+    
+    def export_artifact(self, artifact_key: str, artifact_data: Any, bridge_config: BridgeConfig | None = None) -> dict:
+        # Supports artifact keys: change_proposal, change_status, change_proposal_update, code_change_progress
+        if artifact_key == "code_change_progress":
+            # Add progress comment to existing GitHub issue based on code changes
+            return self._add_progress_comment(artifact_data, ...)
+```
+
+### Schema Version Handling
+
+- **v1.0 Bundles**: `load_change_tracking()` returns `None` (backward compatible)
+- **v1.1 Bundles**: Bundle loader calls `load_change_tracking()` via adapter if schema version is 1.1+
+- **Automatic Detection**: `ProjectBundle.load_from_directory()` checks schema version before loading change tracking
 
 ## Dependencies
 

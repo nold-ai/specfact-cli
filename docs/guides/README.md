@@ -11,10 +11,11 @@ Practical guides for using SpecFact CLI effectively.
 - **[Brownfield ROI](brownfield-roi.md)** ⭐ - Calculate time and cost savings
 - **[Brownfield FAQ](brownfield-faq.md)** ⭐ - Common questions about brownfield modernization
 
-### Secondary Use Case: Spec-Kit Integration
+### Secondary Use Case: Spec-Kit & OpenSpec Integration
 
 - **[Spec-Kit Journey](speckit-journey.md)** - Adding enforcement to Spec-Kit projects
 - **[Spec-Kit Comparison](speckit-comparison.md)** - Understand when to use each tool
+- **[OpenSpec Journey](openspec-journey.md)** 🆕 ⭐ **START HERE** - Complete integration guide with visual workflows: DevOps export (✅), bridge adapter (⏳), brownfield modernization
 - **[Use Cases](use-cases.md)** - Real-world scenarios (brownfield primary, Spec-Kit secondary)
 
 ### General Guides
@@ -22,6 +23,7 @@ Practical guides for using SpecFact CLI effectively.
 - **[Workflows](workflows.md)** - Common daily workflows
 - **[IDE Integration](ide-integration.md)** - Set up slash commands in your IDE
 - **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` on CLI commands
+- **[DevOps Adapter Integration](devops-adapter-integration.md)** - Integrate with GitHub Issues, Azure DevOps, Linear, Jira for backlog tracking
 - **[Specmatic Integration](specmatic-integration.md)** - API contract testing with Specmatic (validate specs, generate tests, mock servers)
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
 - **[Competitive Analysis](competitive-analysis.md)** - How SpecFact compares to other tools
@@ -45,12 +47,15 @@ Practical guides for using SpecFact CLI effectively.
 
 1. **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` for enhanced prompts
 2. **[Operational Modes](../reference/modes.md)** - Understanding CI/CD vs CoPilot modes
-3. **[Specmatic Integration](specmatic-integration.md)** - API contract testing workflow
+3. **[DevOps Adapter Integration](devops-adapter-integration.md)** - GitHub Issues and backlog tracking
+4. **[Specmatic Integration](specmatic-integration.md)** - API contract testing workflow
 
-### For Spec-Kit Users (Secondary)
+### For Spec-Kit & OpenSpec Users (Secondary)
 
 1. **[Spec-Kit Journey](speckit-journey.md)** - Add enforcement to Spec-Kit projects
-2. **[Use Cases - Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)** - Step-by-step migration
+2. **[OpenSpec Journey](openspec-journey.md)** 🆕 ⭐ **START HERE** - Complete OpenSpec integration guide with DevOps export and visual workflows
+3. **[DevOps Adapter Integration](devops-adapter-integration.md)** 🆕 - Export change proposals to GitHub Issues
+4. **[Use Cases - Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)** - Step-by-step migration
 
 ## Need Help?
 
