@@ -1173,21 +1173,21 @@ specfact plan upgrade [OPTIONS]
 
 **Options:**
 
-- Bundle name is provided as a positional argument (e.g., `plan upgrade my-project`)
+- `--plan PATH` - Path to specific plan bundle to upgrade (default: active plan from `specfact plan select`)
 - `--all` - Upgrade all project bundles in `.specfact/projects/`
 - `--dry-run` - Show what would be upgraded without making changes
 
 **Example:**
 
 ```bash
-# Preview what would be upgraded
+# Preview what would be upgraded (active plan)
 specfact plan upgrade --dry-run
 
-# Upgrade active plan
+# Upgrade active plan (uses bundle selected via `specfact plan select`)
 specfact plan upgrade
 
-# Upgrade specific plan (bundle name as positional argument)
-specfact plan upgrade my-project
+# Upgrade specific plan by path
+specfact plan upgrade --plan .specfact/projects/my-project/bundle.manifest.yaml
 
 # Upgrade all plans
 specfact plan upgrade --all
@@ -1226,7 +1226,15 @@ The upgrade process:
 4. Computes and adds summary metadata with content hash for integrity verification
 5. Updates plan bundle file with new schema version
 
-**Note**: Upgraded plan bundles are backward compatible. Older CLI versions can still read them, but won't benefit from performance optimizations.
+**Active Plan Detection:**
+
+When no `--plan` option is provided, the command automatically uses the active bundle set via `specfact plan select`. If no active bundle is set, it falls back to the first available bundle in `.specfact/projects/` and provides a helpful tip to set it as active.
+
+**Backward Compatibility:**
+
+- Older bundles (schema 1.0) missing the `product` field are automatically upgraded with default empty `product` structure
+- Missing required fields are provided with sensible defaults during migration
+- Upgraded plan bundles are backward compatible. Older CLI versions can still read them, but won't benefit from performance optimizations
 
 #### `plan compare`
 

@@ -2286,27 +2286,45 @@ def upgrade(
             raise typer.Exit(1)
         plans_to_upgrade.append(plan)
     else:
-        # Use active plan
-        config_path = Path(".specfact/plans/config.yaml")
-        if config_path.exists():
-            import yaml
-
-            with config_path.open() as f:
-                config = yaml.safe_load(f) or {}
-            active_plan_name = config.get("active_plan")
-            if active_plan_name:
-                active_plan_path = Path(".specfact/plans") / active_plan_name
-                if active_plan_path.exists():
-                    plans_to_upgrade.append(active_plan_path)
+        # Use active plan (modular bundle system)
+        active_bundle_name = SpecFactStructure.get_active_bundle_name(Path("."))
+        if active_bundle_name:
+            bundle_dir = SpecFactStructure.project_dir(base_path=Path("."), bundle_name=active_bundle_name)
+            if bundle_dir.exists():
+                manifest_path = bundle_dir / "bundle.manifest.yaml"
+                if manifest_path.exists():
+                    plans_to_upgrade.append(manifest_path)
+                    print_info(f"Using active plan: {active_bundle_name}")
                 else:
-                    print_error(f"Active plan not found: {active_plan_name}")
+                    print_error(f"Bundle manifest not found: {manifest_path}")
+                    print_error(f"Bundle directory exists but manifest is missing: {bundle_dir}")
                     raise typer.Exit(1)
             else:
-                print_error("No active plan set. Use --plan to specify a plan or --all to upgrade all plans.")
+                print_error(f"Active bundle directory not found: {bundle_dir}")
+                print_error(f"Active bundle name: {active_bundle_name}")
                 raise typer.Exit(1)
         else:
-            print_error("No plan configuration found. Use --plan to specify a plan or --all to upgrade all plans.")
-            raise typer.Exit(1)
+            # Fallback: Try to find default bundle (first bundle in projects directory)
+            projects_dir = Path(".specfact/projects")
+            if projects_dir.exists():
+                bundles = [
+                    d.name for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()
+                ]
+                if bundles:
+                    bundle_name = bundles[0]
+                    bundle_dir = SpecFactStructure.project_dir(base_path=Path("."), bundle_name=bundle_name)
+                    manifest_path = bundle_dir / "bundle.manifest.yaml"
+                    plans_to_upgrade.append(manifest_path)
+                    print_info(f"Using default bundle: {bundle_name}")
+                    print_info(f"Tip: Use 'specfact plan select {bundle_name}' to set as active plan")
+                else:
+                    print_error("No project bundles found. Use --plan to specify a plan or --all to upgrade all plans.")
+                    print_error("Create one with: specfact plan init <bundle-name>")
+                    raise typer.Exit(1)
+            else:
+                print_error("No plan configuration found. Use --plan to specify a plan or --all to upgrade all plans.")
+                print_error("Create one with: specfact plan init <bundle-name>")
+                raise typer.Exit(1)
 
     if not plans_to_upgrade:
         print_warning("No plans found to upgrade")
