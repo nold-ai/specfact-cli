@@ -16,24 +16,6 @@
 
 ---
 
-<<<<<<< HEAD
-## 📋 Current Version: 0.21.0
-
-**🎉 v0.21.0** introduces DevOps backlog tracking integration and OpenSpec bridge adapter support, expanding SpecFact's capabilities for team collaboration and specification management.
-
-**SpecFact 0.21.0 focuses on what it does best: analyzing legacy code, enforcing contracts, and integrating with modern DevOps workflows.** This release is production-ready and continues to receive regular updates.
-
-| Capability | Status | Description |
-|------------|--------|-------------|
-| **Code Analysis** | ✅ Stable | Reverse engineer legacy code into documented specs |
-| **Gap Detection** | ✅ Stable | Find missing tests, contracts, and documentation |
-| **Contract Enforcement** | ✅ Stable | Prevent regressions with runtime validation |
-| **API Contract Testing** | ✅ Stable | Validate OpenAPI specs with Specmatic |
-| **AI IDE Bridge** | ✅ Stable | Generate prompts for Cursor, Copilot, Claude |
-| **DevOps Backlog Tracking** | ✅ New | Export OpenSpec change proposals to GitHub Issues, ADO, Linear, Jira |
-| **OpenSpec Integration** | ✅ New | Bridge adapter for OpenSpec change proposals and specifications |
-| **Code Generation** | ⚠️ Deprecated | Coming in v1.0 with AI-assisted workflow |
-=======
 ## What is SpecFact?
 
 **SpecFact CLI analyzes your existing Python code** to automatically extract specifications, find missing tests and contracts, and enforce them to prevent bugs during modernization.
@@ -41,7 +23,6 @@
 **Perfect for:** Teams modernizing legacy Python systems who can't afford production bugs during migration.
 
 ### The Problem It Solves
->>>>>>> origin/main
 
 - ❌ **Legacy code** with no documentation or outdated specs
 - ❌ **Missing tests** and contracts that should exist
