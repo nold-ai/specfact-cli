@@ -177,3 +177,44 @@ class TestPlanMigrator:
             plan_data_after = yaml.safe_load(f)
         assert plan_data_after.get("version") == "1.1"
         assert "summary" in plan_data_after.get("metadata", {})
+
+    def test_load_plan_bundle_missing_product(self, tmp_path):
+        """Test loading plan bundle with missing product field (backward compatibility)."""
+        # Create a test plan bundle without product field (old schema)
+        plan_path = tmp_path / "test.bundle.yaml"
+        plan_data = {
+            "version": "1.0",
+            "features": [],
+        }
+        with plan_path.open("w") as f:
+            yaml.dump(plan_data, f)
+
+        # Should load successfully with default product
+        bundle = load_plan_bundle(plan_path)
+        assert isinstance(bundle, PlanBundle)
+        assert bundle.version == "1.0"
+        assert bundle.product is not None
+        assert bundle.product.themes == []
+        assert bundle.product.releases == []
+
+    def test_migrate_plan_bundle_missing_product(self, tmp_path):
+        """Test migrating plan bundle with missing product field."""
+        migrator = PlanMigrator()
+
+        # Create plan bundle without product field
+        plan_path = tmp_path / "test.bundle.yaml"
+        plan_data = {
+            "version": "1.0",
+            "features": [{"key": "FEATURE-001", "title": "Feature 1"}],
+        }
+        with plan_path.open("w") as f:
+            yaml.dump(plan_data, f)
+
+        # Should load and migrate successfully
+        bundle, was_migrated = migrator.load_and_migrate(plan_path, dry_run=False)
+        assert was_migrated is True
+        assert bundle.product is not None
+        assert bundle.product.themes == []
+        assert bundle.product.releases == []
+        assert bundle.metadata is not None
+        assert bundle.metadata.summary is not None

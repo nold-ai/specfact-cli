@@ -49,6 +49,13 @@ def load_plan_bundle(plan_path: Path) -> PlanBundle:
         PlanBundle instance (may be from older schema)
     """
     plan_data = load_structured_file(plan_path)
+
+    # Provide defaults for missing required fields (for backward compatibility)
+    # This allows loading older bundles that may be missing required fields
+    if "product" not in plan_data or plan_data["product"] is None:
+        # Provide default Product if missing
+        plan_data["product"] = {"themes": [], "releases": []}
+
     return PlanBundle.model_validate(plan_data)
 
 
