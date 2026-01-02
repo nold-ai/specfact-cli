@@ -773,22 +773,59 @@ class SpecKitAdapter(BridgeAdapter):
                             "type": "modified" if stored_hash else "new",
                         }
 
-            # Monitor specs/ directory for feature specifications
-            specs_dir = repo_path / "specs"
-            if specs_dir.exists():
-                for spec_dir in specs_dir.iterdir():
-                    if spec_dir.is_dir():
-                        for spec_file in spec_dir.glob("*.md"):
-                            relative_path = str(spec_file.relative_to(repo_path))
-                            current_hash = self._get_file_hash(spec_file)
-                            stored_hash = self.hash_store.get(relative_path, "")
+        # Monitor specs/ directory for feature specifications
+        # Check all possible layouts: .specify/specs/ (canonical) > docs/specs/ > specs/ (root)
+        # Priority order matches generate_bridge_config() detection logic
+        # Note: Check all layouts regardless of whether .specify exists (some repos may have specs without .specify)
+        specify_specs_dir = repo_path / ".specify" / "specs"
+        docs_specs_dir = repo_path / "docs" / "specs"
+        classic_specs_dir = repo_path / "specs"
 
-                            if current_hash != stored_hash:
-                                changes[relative_path] = {
-                                    "file": spec_file,
-                                    "hash": current_hash,
-                                    "type": "modified" if stored_hash else "new",
-                                }
+        # Check canonical .specify/specs/ first
+        if specify_specs_dir.exists() and specify_specs_dir.is_dir():
+            for spec_dir in specify_specs_dir.iterdir():
+                if spec_dir.is_dir():
+                    for spec_file in spec_dir.glob("*.md"):
+                        relative_path = str(spec_file.relative_to(repo_path))
+                        current_hash = self._get_file_hash(spec_file)
+                        stored_hash = self.hash_store.get(relative_path, "")
+
+                        if current_hash != stored_hash:
+                            changes[relative_path] = {
+                                "file": spec_file,
+                                "hash": current_hash,
+                                "type": "modified" if stored_hash else "new",
+                            }
+        # Check modern docs/specs/ layout
+        elif docs_specs_dir.exists() and docs_specs_dir.is_dir():
+            for spec_dir in docs_specs_dir.iterdir():
+                if spec_dir.is_dir():
+                    for spec_file in spec_dir.glob("*.md"):
+                        relative_path = str(spec_file.relative_to(repo_path))
+                        current_hash = self._get_file_hash(spec_file)
+                        stored_hash = self.hash_store.get(relative_path, "")
+
+                        if current_hash != stored_hash:
+                            changes[relative_path] = {
+                                "file": spec_file,
+                                "hash": current_hash,
+                                "type": "modified" if stored_hash else "new",
+                            }
+        # Check classic specs/ at root (backward compatibility)
+        elif classic_specs_dir.exists() and classic_specs_dir.is_dir():
+            for spec_dir in classic_specs_dir.iterdir():
+                if spec_dir.is_dir():
+                    for spec_file in spec_dir.glob("*.md"):
+                        relative_path = str(spec_file.relative_to(repo_path))
+                        current_hash = self._get_file_hash(spec_file)
+                        stored_hash = self.hash_store.get(relative_path, "")
+
+                        if current_hash != stored_hash:
+                            changes[relative_path] = {
+                                "file": spec_file,
+                                "hash": current_hash,
+                                "type": "modified" if stored_hash else "new",
+                            }
 
         return changes
 
