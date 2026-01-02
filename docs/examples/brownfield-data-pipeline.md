@@ -364,7 +364,7 @@ SpecFact CLI integrates seamlessly with your existing tools:
 - **Pre-commit hooks**: Local validation prevents breaking changes
 - **Any IDE**: Pure CLI-first approach—works with any editor
 
-**See real examples**: [Integration Showcases](../integration-showcases/) - 5 complete examples showing bugs fixed via integrations
+**See real examples**: [Integration Showcases](integration-showcases/) - 5 complete examples showing bugs fixed via integrations
 
 ## Key Takeaways
 
@@ -390,7 +390,7 @@ SpecFact CLI integrates seamlessly with your existing tools:
 
 ## Next Steps
 
-1. **[Integration Showcases](../integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
+1. **[Integration Showcases](integration-showcases/)** - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations
 2. **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** - Complete modernization workflow
 3. **[Django Example](brownfield-django-modernization.md)** - Web app modernization
 4. **[Flask API Example](brownfield-flask-api.md)** - API modernization

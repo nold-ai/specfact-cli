@@ -338,7 +338,7 @@ specfact generate contracts-apply enhanced_login.py --original src/auth/login.py
 
 ## Related Documentation
 
-- **[CLI Enforcement Rules](../reference/cli-enforcement.md)** - Detailed enforcement rules
+- **[Architecture Documentation](../reference/architecture.md)** - Enforcement rules and quality gates
 - **[Operational Modes](../reference/modes.md)** - CI/CD vs Copilot modes
 - **[IDE Integration](ide-integration.md)** - Setting up slash commands
 - **[Command Reference](../reference/commands.md)** - Complete command reference

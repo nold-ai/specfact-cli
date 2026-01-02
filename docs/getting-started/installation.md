@@ -243,28 +243,13 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
+
 ### For Brownfield Projects
 
-Analyze existing code to generate specifications:
+Analyze existing code to generate specifications.
 
-```bash
-# Analyze repository (CI/CD mode - fast)
-specfact import from-code my-project \
-  --repo ./my-project \
-  --shadow-only \
-  --report analysis.md
-
-# Analyze with CoPilot mode (enhanced prompts)
-specfact --mode copilot import from-code my-project \
-  --repo ./my-project \
-  --confidence 0.7 \
-  --report analysis.md
-
-# Review generated plan
-cat analysis.md
-```
-
-**With IDE Integration (Interactive AI Assistant Mode):**
+**With IDE Integration (Interactive AI Assistant Mode - Recommended):**
 
 ```bash
 # Step 1: Install SpecFact CLI
@@ -278,17 +263,39 @@ specfact init
 # Or specify IDE: specfact init --ide cursor
 
 # Step 4: Use slash command in IDE chat
-/specfact.01-import legacy-api --repo .
+/specfact.01-import legacy-api
 # Or let the AI assistant prompt you for bundle name and other options
 ```
 
-**Important**:
+**Important for IDE Integration**:
 
 - Interactive mode automatically uses your IDE workspace (no `--repo .` needed in interactive mode)
 - Slash commands use numbered format: `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - Commands follow natural progression: 01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync
 - The AI assistant will prompt you for bundle names and confidence thresholds if not provided
 - Better feature detection than CLI-only mode (semantic understanding vs AST-only)
+- **Do NOT use `--mode copilot` with IDE slash commands** - IDE integration automatically provides enhanced prompts
+
+**CLI-Only Mode (Alternative - for CI/CD or when IDE integration is not available):**
+
+```bash
+# Analyze repository (CI/CD mode - fast)
+specfact import from-code my-project \
+  --repo ./my-project \
+  --shadow-only \
+  --report analysis.md
+
+# Analyze with CoPilot mode (enhanced prompts - CLI only, not for IDE)
+specfact --mode copilot import from-code my-project \
+  --repo ./my-project \
+  --confidence 0.7 \
+  --report analysis.md
+
+# Review generated plan
+cat analysis.md
+```
+
+**Note**: `--mode copilot` is for CLI usage only. When using IDE integration, use slash commands (e.g., `/specfact.01-import`) instead - IDE integration automatically provides enhanced prompts without needing the `--mode copilot` flag.
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
 
@@ -322,7 +329,8 @@ specfact sync repository --repo . --watch
 - **IDE integration**: Use `specfact init` to set up slash commands in IDE (requires pip install)
 - **Slash commands**: Use numbered format `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
-- **Bidirectional sync**: Use `sync bridge --adapter <adapter>` or `sync repository` for ongoing change management
+- **Bridge adapter sync**: Use `sync bridge --adapter <adapter-name>` for external tool integration (Spec-Kit, OpenSpec, GitHub, etc.)
+- **Repository sync**: Use `sync repository` for code change tracking
 - **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact repro`
 
 ---

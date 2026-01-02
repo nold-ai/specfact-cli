@@ -21,7 +21,7 @@ v0.17.0 - v0.20.0 are part of the **0.x stabilization track** leading to v0.20.0
 
 ### `implement` Command Deprecated
 
-The `implement tasks` command is deprecated in v0.17.0 and will be removed in v1.0.
+The `implement tasks` command was deprecated in v0.17.0 and removed in v0.22.0. The `generate tasks` command was also removed in v0.22.0.
 
 **Before (v0.16.x):**
 
@@ -118,8 +118,9 @@ If you were using `implement tasks` or `run idea-to-ship`, migrate to bridge com
 **Old workflow:**
 
 ```bash
-specfact generate tasks --bundle my-bundle
-specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
+# REMOVED in v0.22.0 - Use Spec-Kit, OpenSpec, or other SDD tools instead
+# specfact generate tasks --bundle my-bundle
+# specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
 ```
 
 **New workflow:**

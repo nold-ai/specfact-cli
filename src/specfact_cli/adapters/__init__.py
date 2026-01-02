@@ -9,10 +9,14 @@ from __future__ import annotations
 
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.adapters.github import GitHubAdapter
+from specfact_cli.adapters.openspec import OpenSpecAdapter
 from specfact_cli.adapters.registry import AdapterRegistry
+from specfact_cli.adapters.speckit import SpecKitAdapter
 
 
 # Auto-register built-in adapters
 AdapterRegistry.register("github", GitHubAdapter)
+AdapterRegistry.register("openspec", OpenSpecAdapter)
+AdapterRegistry.register("speckit", SpecKitAdapter)
 
-__all__ = ["AdapterRegistry", "BridgeAdapter", "GitHubAdapter"]
+__all__ = ["AdapterRegistry", "BridgeAdapter", "GitHubAdapter", "OpenSpecAdapter", "SpecKitAdapter"]

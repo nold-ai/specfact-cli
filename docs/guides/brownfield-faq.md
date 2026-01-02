@@ -225,7 +225,7 @@ Use all three together for comprehensive coverage.
 **Resources:**
 
 - [Brownfield Engineer Guide](brownfield-engineer.md) - Complete walkthrough
-- [Integration Showcases](../examples/integration-showcases.md) - Real examples
+- [Integration Showcases](../examples/integration-showcases/) - Real examples
 - [Getting Started](../getting-started/README.md) - Quick start guide
 
 ---
@@ -282,7 +282,7 @@ uvx specfact-cli@latest enforce stage --preset balanced
 cursor-agent --validate-with "uvx specfact-cli@latest enforce stage"
 ```
 
-See [Integration Showcases](../examples/integration-showcases.md) for real examples of bugs caught via different integrations.
+See [Integration Showcases](../examples/integration-showcases/) for real examples of bugs caught via different integrations.
 
 ### Do I need to learn a new platform?
 

@@ -282,7 +282,7 @@ specfact plan select --last 5
 1. **Auto-generate bootstrap constitution** (recommended for brownfield):
 
    ```bash
-   specfact constitution bootstrap --repo .
+   specfact sdd constitution bootstrap --repo .
    ```
 
    This analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution.
@@ -290,7 +290,7 @@ specfact plan select --last 5
 2. **Enrich existing minimal constitution**:
 
    ```bash
-   specfact constitution enrich --repo .
+   specfact sdd constitution enrich --repo .
    ```
 
    This fills placeholders in an existing constitution with repository context.
@@ -298,7 +298,7 @@ specfact plan select --last 5
 3. **Validate constitution completeness**:
 
    ```bash
-   specfact constitution validate
+   specfact sdd constitution validate
    ```
 
    This checks if the constitution is complete and ready for use.
@@ -316,7 +316,7 @@ specfact plan select --last 5
 
 ### Constitution Validation Fails
 
-**Issue**: `specfact constitution validate` reports issues
+**Issue**: `specfact sdd constitution validate` reports issues
 
 **Solutions**:
 
@@ -329,13 +329,13 @@ specfact plan select --last 5
 2. **Run enrichment**:
 
    ```bash
-   specfact constitution enrich --repo .
+   specfact sdd constitution enrich --repo .
    ```
 
 3. **Review validation output**:
 
    ```bash
-   specfact constitution validate --constitution .specify/memory/constitution.md
+   specfact sdd constitution validate --constitution .specify/memory/constitution.md
    ```
 
    The output will list specific issues (missing sections, placeholders, etc.).
@@ -343,7 +343,7 @@ specfact plan select --last 5
 4. **Fix issues manually** or re-run bootstrap:
 
    ```bash
-   specfact constitution bootstrap --repo . --overwrite
+   specfact sdd constitution bootstrap --repo . --overwrite
    ```
 
 ---

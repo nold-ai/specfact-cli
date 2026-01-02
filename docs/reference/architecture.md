@@ -150,11 +150,17 @@ SpecFact CLI supports bidirectional synchronization for consistent change manage
 
 ### Bridge-Based Sync (Adapter-Agnostic)
 
-Bidirectional synchronization between external tools (e.g., Spec-Kit) and SpecFact via configurable bridge:
+Bidirectional synchronization between external tools (e.g., Spec-Kit, OpenSpec) and SpecFact via configurable bridge:
 
 ```bash
-# One-time bidirectional sync
+# Spec-Kit bidirectional sync
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+
+# OpenSpec read-only sync (Phase 1)
+specfact sync bridge --adapter openspec --mode read-only --bundle <bundle-name> --repo .
+
+# OpenSpec cross-repository sync
+specfact sync bridge --adapter openspec --mode read-only --bundle <bundle-name> --repo . --external-base-path ../specfact-cli-internal
 
 # Continuous watch mode
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
@@ -168,7 +174,7 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ SpecFact protocol definitions
 - Automatic conflict resolution with priority rules
 
-**Bridge Architecture**: The sync layer uses a configurable bridge (`.specfact/config/bridge.yaml`) that maps SpecFact logical concepts to physical tool artifacts, making it adapter-agnostic and extensible for future tool integrations (Linear, Jira, Notion, etc.).
+**Bridge Architecture**: The sync layer uses a configurable bridge (`.specfact/config/bridge.yaml`) that maps SpecFact logical concepts to physical tool artifacts, making it adapter-agnostic and extensible for future tool integrations (OpenSpec, Linear, Jira, Notion, etc.). The architecture uses a plugin-based adapter registry pattern - all adapters are registered in `AdapterRegistry` and accessed via `AdapterRegistry.get_adapter()`, eliminating hard-coded adapter checks in core components like `BridgeProbe` and `BridgeSync`.
 
 ### Repository Sync
 
@@ -542,6 +548,11 @@ src/specfact_cli/
 │   ├── analyze_agent.py # Analyze agent mode
 │   ├── plan_agent.py    # Plan agent mode
 │   └── sync_agent.py    # Sync agent mode
+├── adapters/              # Bridge adapter implementations
+│   ├── base.py           # BridgeAdapter base interface
+│   ├── registry.py       # AdapterRegistry for plugin-based architecture
+│   ├── openspec.py       # OpenSpec adapter (read-only sync)
+│   └── speckit.py        # Spec-Kit adapter (bidirectional sync)
 ├── sync/                  # Sync operation modules
 │   ├── bridge_sync.py    # Bridge-based bidirectional sync (adapter-agnostic)
 │   ├── bridge_probe.py   # Bridge detection and auto-generation
@@ -690,11 +701,15 @@ class BridgeAdapter(ABC):
     @abstractmethod
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """Generate bridge configuration for adapter."""
+    
+    @abstractmethod
+    def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
+        """Get adapter capabilities (sync modes, layout, etc.)."""
 ```
 
 ### Change Tracking Methods (v0.21.1+)
 
-**New in v0.21.1**: Adapters that support change tracking must implement these additional methods:
+**Introduced in v0.21.1**: Adapters that support change tracking must implement these additional methods:
 
 ```python
 @abstractmethod
@@ -765,17 +780,77 @@ Adapters must support loading change tracking from external repositories:
 
 ### Implementation Examples
 
-**OpenSpec Adapter** (example - not yet implemented):
+**OpenSpec Adapter** (v0.21.1+):
+
+The OpenSpec adapter provides read-only sync (Phase 1) for importing OpenSpec specifications and change tracking:
 
 ```python
 class OpenSpecAdapter(BridgeAdapter):
+    def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
+        # Detects openspec/project.md or openspec/specs/ directory
+        base_path = bridge_config.external_base_path if bridge_config and bridge_config.external_base_path else repo_path
+        return (base_path / "openspec" / "project.md").exists() or (base_path / "openspec" / "specs").exists()
+    
+    def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
+        # Returns OpenSpec-specific capabilities
+        return ToolCapabilities(tool="openspec", layout="openspec", specs_dir="openspec/specs")
+    
     def load_change_tracking(self, bundle_dir: Path, bridge_config: BridgeConfig | None = None) -> ChangeTracking | None:
         # Load from openspec/changes/ directory
-        base_path = bridge_config.external_base_path if bridge_config and bridge_config.external_base_path else bundle_dir.parent.parent
+        base_path = bridge_config.external_base_path if bridge_config and bridge_config.external_base_path else bundle_dir.parent.parent.parent
         changes_dir = base_path / "openspec" / "changes"
         # Parse change proposals and feature deltas
         return ChangeTracking(...)
+    
+    def import_artifact(self, artifact_key: str, artifact_path: Path, project_bundle: Any, bridge_config: BridgeConfig | None = None) -> None:
+        # Supports: specification, project_context, change_proposal, change_spec_delta
+        # Parses OpenSpec markdown and updates project bundle
+        pass
 ```
+
+**Key Features:**
+- **Read-only sync (Phase 1)**: Import only, export methods raise `NotImplementedError`
+- **Cross-repository support**: Uses `external_base_path` for OpenSpec in different repositories
+- **Change tracking**: Loads change proposals and feature deltas from `openspec/changes/`
+- **Source tracking**: Stores OpenSpec paths in `source_tracking.source_metadata`
+
+**SpecKit Adapter** (v0.22.0+):
+
+The SpecKit adapter provides full bidirectional sync for Spec-Kit markdown artifacts:
+
+```python
+class SpecKitAdapter(BridgeAdapter):
+    def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
+        # Detects .specify/ directory or specs/ directory (classic/modern layouts)
+        base_path = bridge_config.external_base_path if bridge_config and bridge_config.external_base_path else repo_path
+        return (base_path / ".specify").exists() or (base_path / "specs").exists() or (base_path / "docs" / "specs").exists()
+    
+    def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
+        # Returns Spec-Kit-specific capabilities (bidirectional sync supported)
+        return ToolCapabilities(
+            tool="speckit",
+            layout="classic" or "modern",
+            specs_dir="specs" or "docs/specs",
+            supported_sync_modes=["bidirectional", "unidirectional"]
+        )
+    
+    def import_artifact(self, artifact_key: str, artifact_path: Path, project_bundle: Any, bridge_config: BridgeConfig | None = None) -> None:
+        # Supports: specification, plan, tasks, constitution
+        # Parses Spec-Kit markdown and updates project bundle
+        pass
+    
+    def export_artifact(self, artifact_key: str, artifact_data: Any, bridge_config: BridgeConfig | None = None) -> Path:
+        # Supports: specification, plan, tasks, constitution
+        # Exports SpecFact models to Spec-Kit markdown format
+        pass
+```
+
+**Key Features:**
+- **Bidirectional sync**: Full import and export support for Spec-Kit artifacts
+- **Classic and modern layouts**: Supports both `specs/` (classic) and `docs/specs/` (modern) directory structures
+- **Public helper methods**: `discover_features()`, `detect_changes()`, `detect_conflicts()`, `export_bundle()` for advanced operations
+- **Contract-first**: All methods have `@beartype`, `@require`, and `@ensure` decorators for runtime validation
+- **Adapter registry**: Registered in `AdapterRegistry` for plugin-based architecture
 
 **GitHub Adapter** (export-only):
 

@@ -85,7 +85,7 @@ class TestEnrichmentParser:
 ## Confidence Adjustments
 
 - FEATURE-ANALYZEAGENT → 0.95 (strong semantic understanding capabilities)
-- FEATURE-SPECKITSYNC → 0.9 (well-implemented bidirectional sync)
+- FEATURE-SPECKITADAPTER → 0.9 (well-implemented bidirectional sync via adapter registry)
 """
         report_file = tmp_path / "enrichment.md"
         report_file.write_text(report_content)
@@ -95,7 +95,7 @@ class TestEnrichmentParser:
 
         assert len(report.confidence_adjustments) == 2
         assert report.confidence_adjustments["FEATURE-ANALYZEAGENT"] == 0.95
-        assert report.confidence_adjustments["FEATURE-SPECKITSYNC"] == 0.9
+        assert report.confidence_adjustments["FEATURE-SPECKITADAPTER"] == 0.9
 
     def test_parse_business_context(self, tmp_path: Path):
         """Test parsing business context."""

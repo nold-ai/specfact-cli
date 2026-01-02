@@ -56,12 +56,10 @@ from specfact_cli import __version__, runtime
 # Import command modules
 from specfact_cli.commands import (
     analyze,
-    bridge,
     contract_cmd,
     drift,
     enforce,
     generate,
-    implement,
     import_cmd,
     init,
     migrate,
@@ -308,7 +306,7 @@ app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integrati
 app.add_typer(
     import_cmd.app,
     name="import",
-    help="Import codebases and external tool projects (e.g., Spec-Kit, GitHub, ADO, Linear, Jira)",
+    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira)",
 )
 
 # 2.5. Migration
@@ -323,10 +321,7 @@ app.add_typer(project_cmd.app, name="project", help="Manage project bundles with
 # 4. Code Generation
 app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
 
-# 5. Code Implementation
-app.add_typer(implement.app, name="implement", help="Execute tasks and generate code")
-
-# 6. Quality Enforcement
+# 5. Quality Enforcement
 app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
 
 # 7. Workflow Orchestration
@@ -347,7 +342,7 @@ app.add_typer(contract_cmd.app, name="contract", help="Manage OpenAPI contracts 
 app.add_typer(
     sync.app,
     name="sync",
-    help="Synchronize external tool artifacts and repository changes (Spec-Kit, GitHub, ADO, Linear, Jira, etc.)",
+    help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.)",
 )
 
 # 11.5. Drift Detection
@@ -355,13 +350,6 @@ app.add_typer(drift.app, name="drift", help="Detect drift between code and speci
 
 # 11.6. Analysis
 app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
-
-# 12. External Tool Integration
-app.add_typer(
-    bridge.bridge_app,
-    name="bridge",
-    help="Bridge adapters for external tool integration (Spec-Kit, GitHub, ADO, Linear, Jira, etc.)",
-)
 
 
 def cli_main() -> None:

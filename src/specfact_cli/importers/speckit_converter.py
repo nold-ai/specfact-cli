@@ -7,7 +7,6 @@ to SpecFact format (plans, protocols).
 
 from __future__ import annotations
 
-import contextlib
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -93,14 +92,18 @@ class SpecKitConverter:
         # Write to file if output path provided
         if output_path:
             SpecFactStructure.ensure_structure(output_path.parent)
-            with contextlib.suppress(FileExistsError, IsADirectoryError):
-                self.protocol_generator.generate(protocol, output_path)
+            # Only suppress FileExistsError if file already exists (idempotent)
+            if output_path.exists():
+                return protocol
+            self.protocol_generator.generate(protocol, output_path)
         else:
             # Use default path - construct .specfact/protocols/workflow.protocol.yaml
             output_path = self.repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
             SpecFactStructure.ensure_structure(self.repo_path)
-            with contextlib.suppress(FileExistsError, IsADirectoryError):
-                self.protocol_generator.generate(protocol, output_path)
+            # Only suppress FileExistsError if file already exists (idempotent)
+            if output_path.exists():
+                return protocol
+            self.protocol_generator.generate(protocol, output_path)
 
         return protocol
 

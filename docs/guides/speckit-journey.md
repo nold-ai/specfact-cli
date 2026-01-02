@@ -315,7 +315,7 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-
 ✅ Found specs/001-user-authentication/tasks.md
 ✅ Found .specify/memory/constitution.md
 
-**💡 Tip**: If constitution is missing or minimal, run `specfact bridge constitution bootstrap --repo .` to auto-generate from repository analysis.
+**💡 Tip**: If constitution is missing or minimal, run `specfact sdd constitution bootstrap --repo .` to auto-generate from repository analysis.
 
 📊 Migration Preview:
   - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
