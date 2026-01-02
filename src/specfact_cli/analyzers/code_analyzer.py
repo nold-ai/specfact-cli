@@ -495,17 +495,24 @@ class CodeAnalyzer:
             return []
 
         try:
+            # Check if semgrep is available quickly
+            if not shutil.which("semgrep"):
+                return []
+
             # Run feature detection
             configs = [str(self.semgrep_config)]
             # Also include code-quality config if available (for anti-patterns)
             if self.semgrep_quality_config is not None:
                 configs.append(str(self.semgrep_quality_config))
 
+            # Use shorter timeout in test environments (though we already skip in TEST_MODE)
+            timeout = 10
+
             result = subprocess.run(
                 ["semgrep", "--config", *configs, "--json", str(file_path)],
                 capture_output=True,
                 text=True,
-                timeout=10,  # Reduced timeout for faster failure in tests
+                timeout=timeout,
             )
 
             # Semgrep may return non-zero for valid findings

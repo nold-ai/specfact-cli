@@ -52,10 +52,11 @@ Practical guides for using SpecFact CLI effectively.
 
 ### For Spec-Kit & OpenSpec Users (Secondary)
 
-1. **[Spec-Kit Journey](speckit-journey.md)** - Add enforcement to Spec-Kit projects
-2. **[OpenSpec Journey](openspec-journey.md)** 🆕 ⭐ **START HERE** - Complete OpenSpec integration guide with DevOps export and visual workflows
-3. **[DevOps Adapter Integration](devops-adapter-integration.md)** 🆕 - Export change proposals to GitHub Issues
-4. **[Use Cases - Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)** - Step-by-step migration
+1. **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](../getting-started/tutorial-openspec-speckit.md)** ⭐ **START HERE** - Complete beginner-friendly step-by-step tutorial
+2. **[Spec-Kit Journey](speckit-journey.md)** - Add enforcement to Spec-Kit projects
+3. **[OpenSpec Journey](openspec-journey.md)** 🆕 ⭐ - Complete OpenSpec integration guide with DevOps export and visual workflows
+4. **[DevOps Adapter Integration](devops-adapter-integration.md)** 🆕 - Export change proposals to GitHub Issues
+5. **[Use Cases - Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)** - Step-by-step migration
 
 ## Need Help?
 

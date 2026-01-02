@@ -61,7 +61,7 @@ specfact import from-code --bundle legacy-api --repo ./legacy-app
 ```bash
 # If suggested, accept to auto-generate
 # Or run manually:
-specfact constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 ```
 
 This is especially useful if you plan to sync with Spec-Kit later.

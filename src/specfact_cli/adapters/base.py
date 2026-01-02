@@ -14,6 +14,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
 
 
@@ -40,6 +41,26 @@ class BridgeAdapter(ABC):
 
         Returns:
             True if adapter applies to this repository, False otherwise
+        """
+
+    @beartype
+    @abstractmethod
+    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
+    def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
+        """
+        Get tool capabilities for detected repository.
+
+        This method is called after detect() returns True to provide detailed
+        information about the tool's capabilities and configuration.
+
+        Args:
+            repo_path: Path to repository root
+            bridge_config: Optional bridge configuration (for cross-repo detection)
+
+        Returns:
+            ToolCapabilities instance with tool information
         """
 
     @beartype

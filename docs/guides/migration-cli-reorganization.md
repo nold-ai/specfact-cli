@@ -157,18 +157,18 @@ specfact plan review --bundle legacy-api
 **Current Command**:
 
 ```bash
-specfact bridge constitution bootstrap
-specfact bridge constitution enrich
-specfact bridge constitution validate
+specfact sdd constitution bootstrap
+specfact sdd constitution enrich
+specfact sdd constitution validate
 ```
 
-**Note**: The old `specfact constitution` command has been removed. All constitution functionality is now available under `specfact bridge constitution`.
+**Note**: The old `specfact constitution` command has been removed. All constitution functionality is now available under `specfact sdd constitution`.
 
 ---
 
 ## Why the Change?
 
-The constitution commands are **Spec-Kit adapter commands** - they're only needed when syncing with Spec-Kit or working in Spec-Kit format. Moving them under the `bridge` group makes it clear they're adapter/bridge commands, not core SpecFact functionality.
+The constitution commands are **Spec-Kit adapter commands** - they're only needed when syncing with Spec-Kit or working in Spec-Kit format. They are now under the `sdd` (Spec-Driven Development) command group, as constitution management is part of the SDD workflow.
 
 **Benefits**:
 
@@ -180,13 +180,13 @@ The constitution commands are **Spec-Kit adapter commands** - they're only neede
 
 ## Command Changes
 
-The old `specfact constitution` command has been removed. Use `specfact bridge constitution` instead:
+The old `specfact constitution` command has been removed. Use `specfact sdd constitution` instead:
 
 ```bash
 $ specfact constitution bootstrap --repo .
-⚠ Deprecation Warning: The 'specfact constitution' command is deprecated and will be removed in a future version.
-Please use 'specfact bridge constitution' instead.
-Example: 'specfact constitution bootstrap' → 'specfact bridge constitution bootstrap'
+⚠ Breaking Change: The 'specfact constitution' command has been removed.
+Please use 'specfact sdd constitution' instead.
+Example: 'specfact constitution bootstrap' → 'specfact sdd constitution bootstrap'
 
 [bold cyan]Generating bootstrap constitution for:[/bold cyan] .
 ...
@@ -200,16 +200,16 @@ Example: 'specfact constitution bootstrap' → 'specfact bridge constitution boo
 
 ```bash
 specfact import from-code --bundle legacy-api --repo .
-specfact bridge constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 specfact sync bridge --adapter speckit
 ```
 
 ### Constitution Management Workflow
 
 ```bash
-specfact bridge constitution bootstrap --repo .
-specfact bridge constitution validate
-specfact bridge constitution enrich --repo .
+specfact sdd constitution bootstrap --repo .
+specfact sdd constitution validate
+specfact sdd constitution enrich --repo .
 ```
 
 ---
@@ -222,7 +222,7 @@ Update your CI/CD pipelines to use the new command paths:
 
 ```yaml
 - name: Validate Constitution
-  run: specfact bridge constitution validate
+  run: specfact sdd constitution validate
 ```
 
 **GitLab CI Example**:
@@ -230,7 +230,7 @@ Update your CI/CD pipelines to use the new command paths:
 ```yaml
 validate_constitution:
   script:
-    - specfact bridge constitution validate
+    - specfact sdd constitution validate
 ```
 
 ---
@@ -247,7 +247,7 @@ Update any scripts that use the old commands:
 # specfact constitution bootstrap --repo .
 
 # New
-specfact bridge constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 ```
 
 **Python Script Example**:

@@ -115,6 +115,8 @@ class TestSyncRepositoryCommandIntegration:
         with TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             target = repo_path / "custom-specfact"
+            # Create target directory to satisfy contract requirement
+            target.mkdir(parents=True, exist_ok=True)
 
             src_dir = repo_path / "src"
             src_dir.mkdir(parents=True)

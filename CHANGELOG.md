@@ -9,6 +9,151 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.22.0] - 2026-01-01
+
+### Breaking Changes (0.22.0)
+
+- **Bridge Command Removal**: Removed `specfact bridge` command group entirely
+  - **Constitution Commands Moved**: `specfact bridge constitution *` commands moved to `specfact sdd constitution *`
+  - **Migration Required**: Update all scripts and workflows:
+    - `specfact bridge constitution bootstrap` → `specfact sdd constitution bootstrap`
+    - `specfact bridge constitution enrich` → `specfact sdd constitution enrich`
+    - `specfact bridge constitution validate` → `specfact sdd constitution validate`
+  - **Rationale**: Bridge adapters are internal connectors, not user-facing commands. Constitution management belongs under SDD (Spec-Driven Development) commands.
+
+- **SpecKitSync Class Removal**: Removed `SpecKitSync` class and `speckit_sync.py` module
+  - **Replacement**: Use `SpecKitAdapter` via `AdapterRegistry` for all Spec-Kit operations
+  - **Breaking**: Code that directly imports or instantiates `SpecKitSync` will fail
+  - **Migration**: Use `AdapterRegistry.get_adapter("speckit")` to get `SpecKitAdapter` instance
+  - **Rationale**: Eliminates deprecated code and enforces universal abstraction layer pattern
+
+### Added (0.22.0)
+
+- **OpenSpec Bridge Adapter (Phase 1 - Read-Only Sync)**: Plugin-based OpenSpec integration for importing specifications and change tracking
+  - **OpenSpec Adapter**: `OpenSpecAdapter` implements `BridgeAdapter` interface for read-only sync from OpenSpec to SpecFact
+  - **OpenSpec Parser**: `OpenSpecParser` for parsing OpenSpec markdown artifacts (project.md, specs/, changes/)
+  - **Cross-Repository Support**: `external_base_path` configuration for OpenSpec in different repositories
+  - **Change Tracking Import**: Loads change proposals and feature deltas from `openspec/changes/` directory
+  - **Source Tracking**: Stores OpenSpec paths and metadata in `source_tracking.source_metadata` field
+  - **Alignment Report**: `generate_alignment_report()` method to compare SpecFact features vs OpenSpec specs
+  - **CLI Integration**: `specfact sync bridge --adapter openspec --mode read-only` command with `--external-base-path` option
+  - **Adapter Registry**: OpenSpec adapter registered in `AdapterRegistry` for plugin-based architecture
+  - **Bridge Configuration**: `BridgeConfig.preset_openspec()` method with OpenSpec artifact mappings
+  - **Universal Abstraction Layer**: Refactored `BridgeProbe` and `BridgeSync` to use `AdapterRegistry` (no hard-coded adapter checks)
+  - **BridgeAdapter Interface**: Extended with `get_capabilities()` method for adapter capability detection
+
+- **SpecKitAdapter**: New `SpecKitAdapter` class implementing `BridgeAdapter` interface
+  - **Bidirectional Sync**: Full bidirectional sync support via adapter registry
+  - **Public Helper Methods**: `discover_features()`, `detect_changes()`, `detect_conflicts()`, `export_bundle()`
+  - **Adapter Registry Integration**: Registered in `AdapterRegistry` for plugin-based architecture
+  - **Contract Decorators**: All methods have `@beartype`, `@require`, and `@ensure` decorators
+
+- **Spec-Kit `.specify/specs/` Detection**: Added support for canonical Spec-Kit layout
+  - **Canonical Layout Support**: Added `BridgeConfig.preset_speckit_specify()` for `.specify/specs/` structure (recommended by Spec-Kit)
+  - **Priority Detection**: Detection now prioritizes `.specify/specs/` > `docs/specs/` > `specs/` (root)
+  - **Scanner Updates**: `SpecKitScanner` now checks `.specify/specs/` first before falling back to root-level `specs/`
+  - **Backward Compatibility**: Maintains support for root-level `specs/` and `docs/specs/` layouts
+  - **Rationale**: According to Spec-Kit documentation, `.specify/specs/` is the canonical location; root-level `specs/` may be inconsistent
+
+### Changed (0.22.0)
+
+- **Bridge Probe Refactoring**: Removed hard-coded Spec-Kit detection, now uses `AdapterRegistry` for universal adapter support
+- **Bridge Sync Refactoring**: Removed hard-coded adapter checks, now uses `AdapterRegistry.get_adapter()` for all adapters
+- **Source Tracking Model**: Extended `SourceTracking` with `tool` and `source_metadata` fields for tool-specific metadata storage
+- **Bridge Configuration**: Added `external_base_path` field to `BridgeConfig` for cross-repository integrations
+- **Adapter Type Enum**: Added `AdapterType.OPENSPEC` enum value
+
+- **Sync Command Refactoring**: Refactored `specfact sync bridge` to use adapter registry pattern
+  - **Removed Hard-Coded Checks**: All `if adapter_type == AdapterType.SPECKIT:` checks removed
+  - **Adapter-Agnostic**: Sync command now works with any registered adapter via `AdapterRegistry`
+  - **Capability-Based**: Sync mode detection now uses `adapter.get_capabilities().supported_sync_modes`
+  - **Universal Pattern**: All adapters accessed via `AdapterRegistry.get_adapter()` - no hard-coded checks
+
+- **Import Command Refactoring**: Refactored `specfact import from-bridge` to use adapter registry
+  - **Removed Hard-Coded Logic**: All Spec-Kit-specific instantiation removed
+  - **Adapter Registry**: Uses `AdapterRegistry` for all adapter operations
+
+- **Bridge Probe Refactoring**: Removed Spec-Kit-specific validation suggestions
+  - **Generic Capabilities**: Uses adapter capabilities for validation suggestions
+
+- **Bridge Sync Refactoring**: Removed hard-coded OpenSpec check in alignment report
+  - **Adapter-Agnostic**: Alignment report generation is now adapter-agnostic
+
+- **Command References**: Updated all help text and error messages
+  - **Constitution Commands**: All references updated from `specfact bridge constitution` to `specfact sdd constitution`
+  - **Probe Command**: Updated references from `specfact bridge probe` to `specfact sync bridge probe`
+
+- **Schema Version Management**: Improved schema version handling for new bundles
+  - **Latest Schema Reference**: Added `get_latest_schema_version()` function for semantic clarity when creating new bundles
+  - **Schema Constant**: Added `LATEST_SCHEMA_VERSION` alias for `CURRENT_SCHEMA_VERSION` (currently "1.1")
+  - **Bundle Creation**: Updated `import_cmd.py` and `sync.py` to use `get_latest_schema_version()` instead of hardcoded "1.0"
+  - **Future-Proofing**: New bundles now automatically use the latest schema version without code changes
+
+### Removed (0.22.0)
+
+- **SpecKitSync Class**: Deleted `src/specfact_cli/sync/speckit_sync.py` file
+  - **SyncResult Dataclass**: Removed `speckit_sync.SyncResult` (note: `BridgeSync.SyncResult` remains)
+  - **All References**: Removed all imports and usages of `SpecKitSync` throughout codebase
+
+- **Bridge Command**: Deleted `src/specfact_cli/commands/bridge.py` file
+  - **Command Registration**: Removed bridge command registration from `cli.py`
+
+- **Deprecated Commands**: Removed `specfact implement` and `specfact generate tasks` commands
+  - **Rationale**: SpecFact CLI focuses on analysis and enforcement, not code generation. Use Spec-Kit, OpenSpec, or other SDD tools for plan → feature → task workflows
+  - **Migration**: Use `specfact generate fix-prompt` and `specfact generate test-prompt` for AI IDE integration instead
+
+### Documentation (0.22.0)
+
+- **README Enhancements**: Comprehensive updates to main README and sub-level README files
+  - **Added "How SpecFact Compares" Section**: Prominent comparison table (similar to OpenSpec's approach) showing SpecFact vs. Spec-Kit, OpenSpec, and Traditional Testing
+  - **Enhanced Value Proposition**: Added "Why SpecFact?" section explaining brownfield-first analysis workflow and key outcomes
+  - **Improved Structure**: Reorganized README for better clarity and intuitive flow for new users
+  - **Updated Version References**: Changed all "Version 0.21.1" references to "Version 0.22.0" with current release notes
+  - **Copyright Updates**: Updated copyright years from "2025" to "2025-2026" in all README files
+  - **Link Verification**: Fixed broken internal links and verified all documentation links are valid
+
+- **New Tutorial**: Created comprehensive beginner-friendly tutorial `docs/getting-started/tutorial-openspec-speckit.md`
+  - **Complete Step-by-Step Guide**: 18 detailed steps covering both OpenSpec and Spec-Kit integration paths
+  - **Prerequisites Section**: Clear installation and setup instructions
+  - **Path A (OpenSpec)**: 9 steps covering change proposal creation, GitHub Issues export, progress tracking, and sync
+  - **Path B (Spec-Kit)**: 9 steps covering import, bidirectional sync, contract enforcement, and drift detection
+  - **Key Concepts**: Bridge adapters, sync modes, and troubleshooting sections
+  - **Verified Commands**: All commands tested and verified with accurate syntax and expected outputs
+  - **Command Syntax Fixes**: Corrected command usage (bundle as positional vs option, `--repo` usage, etc.)
+
+- **Comparison Guides Updates**: Enhanced comparison documentation
+  - **speckit-comparison.md**: Added adapter registry pattern notes and FAQ section about working with other specification tools
+  - **competitive-analysis.md**: Added "Building on Specification Tools" section with OpenSpec, Spec-Kit, and GitHub Issues adapters
+  - **openspec-journey.md**: Updated status from "PLANNED" to "✅ IMPLEMENTED" for OpenSpec bridge adapter (v0.22.0+)
+
+- **Command Reference Updates**: Updated `docs/reference/commands.md`
+  - **Removed Commands**: Marked `implement` and `generate tasks` as "REMOVED in v0.22.0" with migration guidance
+  - **Constitution Commands**: Updated all references from `specfact bridge constitution` to `specfact sdd constitution`
+  - **Bridge Adapters**: Added clear examples for `sync bridge --adapter openspec` and adapter registry pattern
+
+- **Migration Guides**: Updated migration documentation
+  - **migration-0.16-to-0.19.md**: Updated to reflect `implement tasks` and `generate tasks` commands removal
+  - **Troubleshooting Guide**: Updated all `specfact constitution` commands to `specfact sdd constitution`
+
+- **Architecture Documentation**: Updated `docs/reference/architecture.md`
+  - **Version References**: Changed "New in v0.21.1" to "Introduced in v0.21.1" for accurate historical context
+  - **Bridge Architecture**: Enhanced description of adapter registry pattern and plugin-based architecture
+
+- **Adapter Development Guide**: Created `docs/guides/adapter-development.md`
+  - **Complete Guide**: Comprehensive documentation on developing new bridge adapters
+  - **Examples**: SpecKitAdapter and GitHubAdapter examples
+  - **Best Practices**: Contract decorators, error handling, and testing guidelines
+
+### Notes (0.22.0)
+
+- **Phase 1 (Read-Only)**: OpenSpec adapter is read-only in Phase 1 - export methods raise `NotImplementedError`
+- **Plugin Architecture**: All adapters now accessed via `AdapterRegistry` - no hard-coded checks in core components
+- **Universal Abstraction Layer**: Complete refactoring of Spec-Kit integration to use adapter registry pattern, eliminating all hard-coded adapter checks
+- **Contract-First Approach**: All adapter methods now have full contract decorators (`@beartype`, `@require`, `@ensure`) for runtime validation
+- **Future Work**: Phase 4 will add bidirectional sync (export) capabilities to OpenSpec adapter
+
+---
+
 ## [0.21.1] - 2025-12-30
 
 ### Added (0.21.1)
@@ -1266,10 +1411,10 @@ This patch release fixes the critical design issue identified during OSS validat
   - Comprehensive documentation: `docs/guides/specmatic-integration.md`
   - Full test coverage: unit, integration, and e2e tests
 
-- **Bridge Command Group** - External tool integration
-  - New `bridge` command group for adapter commands
-  - Moved `constitution` commands to `specfact bridge constitution *`
-  - Clearer organization: bridge commands grouped together for external tool integration
+- **SDD Command Group** - Spec-Driven Development commands
+  - New `sdd` command group for SDD-related commands
+  - Moved `constitution` commands to `specfact sdd constitution *` (previously `specfact bridge constitution *`)
+  - Constitution management is part of SDD workflow, not bridge adapter commands
 
 ### Changed (0.10.0)
 
@@ -1285,7 +1430,7 @@ This patch release fixes the critical design issue identified during OSS validat
     8. `sync` - Synchronize Spec-Kit artifacts and repository changes
     9. `bridge` - Bridge adapters for external tool integration
   - Removed `hello` command - welcome message now shown when no command is provided
-  - Removed legacy `constitution` command (use `specfact bridge constitution` instead)
+  - Removed legacy `constitution` command (use `specfact sdd constitution` instead)
 
 - **Default Behavior**
   - Running `specfact` without arguments now shows welcome message instead of help
@@ -1313,7 +1458,7 @@ This patch release fixes the critical design issue identified during OSS validat
 - **Updated Documentation**
   - `README.md` - Added "API contract testing" to key capabilities
   - `docs/reference/commands.md` - Updated with new `spec` command group and `bridge` command structure
-  - All examples updated to use `specfact bridge constitution` instead of deprecated `specfact constitution`
+  - All examples updated to use `specfact sdd constitution` instead of deprecated `specfact constitution`
 
 ---
 

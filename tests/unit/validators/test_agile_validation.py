@@ -17,7 +17,7 @@ class TestAgileValidator:
             "business_value_description": "Improves user experience",
             "depends_on_stories": [],
             "blocks_stories": [],
-            "due_date": "2025-12-31",
+            "due_date": "2027-12-31",  # Future date to avoid past date validation warning
         }
         errors = validator.validate_dor(story)
         assert len(errors) == 0

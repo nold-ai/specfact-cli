@@ -43,6 +43,7 @@ uvx specfact-cli@latest plan init my-project --interactive
 
 - 📖 **[Installation Guide](installation.md)** - Install SpecFact CLI
 - 📖 **[First Steps](first-steps.md)** - Step-by-step first commands
+- 📖 **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](tutorial-openspec-speckit.md)** ⭐ **NEW** - Complete beginner-friendly tutorial
 - 📖 **[Use Cases](../guides/use-cases.md)** - See real-world examples
 - 📖 **[Command Reference](../reference/commands.md)** - Learn all available commands
 

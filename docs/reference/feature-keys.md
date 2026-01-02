@@ -245,6 +245,6 @@ print(normalize_feature_key(key2))  # Should match
 
 ## See Also
 
-- [Brownfield Analysis](use-cases.md#use-case-2-brownfield-code-hardening) - Explains why different formats exist
+- [Brownfield Analysis](../guides/use-cases.md#use-case-2-brownfield-code-hardening) - Explains why different formats exist
 - [Plan Comparison](../reference/commands.md#plan-compare) - How comparison works with normalization
 - [Plan Sync](../reference/commands.md#sync) - How sync handles different formats

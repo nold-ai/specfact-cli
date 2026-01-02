@@ -32,7 +32,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - ✅ **Brownfield-first** → Spec-Kit/OpenSpec excel at new features; SpecFact understands existing code
 - ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
 - ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
-- ✅ **DevOps integration** → Bridge adapters sync change proposals to GitHub Issues, ADO, Linear, Jira (New in 0.21.0)
+- ✅ **DevOps integration** → Bridge adapters sync change proposals to GitHub Issues, ADO, Linear, Jira
 - ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
 
 **Perfect together:**
@@ -40,12 +40,12 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
 - ✅ **OpenSpec** for change tracking → Specification anchoring and delta tracking
 - ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
-- ✅ **Bridge adapters** → Sync between all tools automatically (New in 0.21.0)
+- ✅ **Bridge adapters** → Sync between all tools automatically
 - ✅ **Team workflows** → SpecFact adds persona-based collaboration for agile/scrum teams
 
 **Bottom line:** Use Spec-Kit for documenting new features. Use OpenSpec for change tracking. Use SpecFact for modernizing legacy code safely and enabling team collaboration. Use all three together for the best of all worlds.
 
-👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[OpenSpec Journey](guides/openspec-journey.md)** 🆕 | **[Bridge Adapters](reference/commands.md#sync-bridge)** (New in 0.21.0)
+👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[OpenSpec Journey](guides/openspec-journey.md)** 🆕 | **[Bridge Adapters](reference/commands.md#sync-bridge)**
 
 ---
 
@@ -113,16 +113,17 @@ specfact enforce sdd --bundle my-project
 - ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
 - ✅ **OpenSpec** for change tracking → Specification anchoring and delta tracking
 - ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
-- ✅ **Bridge adapters** → Sync between all tools automatically (New in 0.21.0)
+- ✅ **Bridge adapters** → Sync between all tools automatically
 - ✅ **GitHub Actions** → SpecFact integrates with your existing GitHub workflows
 
-1. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** ⭐ **START HERE** - See what SpecFact adds
-2. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
-3. **[The Journey: OpenSpec + SpecFact Integration](guides/openspec-journey.md)** 🆕 **START HERE** - Complete OpenSpec integration guide with DevOps export (✅) and bridge adapter (⏳)
-4. **[DevOps Adapter Integration](guides/devops-adapter-integration.md)** 🆕 **NEW** - GitHub Issues and backlog tracking (0.21.0)
-5. **[Bridge Adapters](reference/commands.md#sync-bridge)** 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
-6. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
-7. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
+1. **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](getting-started/tutorial-openspec-speckit.md)** ⭐ **START HERE** - Complete beginner-friendly step-by-step tutorial
+2. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** - See what SpecFact adds
+3. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
+4. **[The Journey: OpenSpec + SpecFact Integration](guides/openspec-journey.md)** 🆕 - Complete OpenSpec integration guide with DevOps export (✅) and bridge adapter (✅)
+5. **[DevOps Adapter Integration](guides/devops-adapter-integration.md)** - GitHub Issues and backlog tracking
+6. **[Bridge Adapters](reference/commands.md#sync-bridge)** - OpenSpec and DevOps integration
+7. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
+8. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
 
 **Time**: 15-30 minutes | **Result**: Understand how SpecFact complements Spec-Kit and OpenSpec for legacy code modernization
 
@@ -176,8 +177,8 @@ specfact enforce sdd --bundle my-project
 - [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
 - [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
-- [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW** - GitHub Issues, backlog tracking, and progress comments (0.21.0)
-- [Bridge Adapters](reference/commands.md#sync-bridge) 🆕 **NEW** - OpenSpec and DevOps integration (0.21.0)
+- [DevOps Adapter Integration](guides/devops-adapter-integration.md) - GitHub Issues, backlog tracking, and progress comments
+- [Bridge Adapters](reference/commands.md#sync-bridge) - OpenSpec and DevOps integration
 
 #### Team Collaboration & Agile/Scrum
 
@@ -228,6 +229,6 @@ specfact enforce sdd --bundle my-project
 
 ---
 
-Copyright © 2025 Nold AI (Owner: Dominikus Nold)
+Copyright © 2025-2026 Nold AI (Owner: Dominikus Nold)
 
 **Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../TRADEMARKS.md) for more information.

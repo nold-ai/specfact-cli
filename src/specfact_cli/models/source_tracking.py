@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
@@ -35,6 +36,13 @@ class SourceTracking(BaseModel):
     test_functions: list[str] = Field(
         default_factory=list,
         description="Test function mappings (format: 'test_file.py::test_func')",
+    )
+    tool: str | None = Field(
+        default=None, description="Tool identifier (e.g., 'openspec', 'github', 'linear') for tool-specific metadata"
+    )
+    source_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Tool-specific metadata (e.g., OpenSpec paths, GitHub issue IDs, Linear issue URLs)",
     )
 
     @beartype

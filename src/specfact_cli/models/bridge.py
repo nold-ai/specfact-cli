@@ -25,6 +25,7 @@ class AdapterType(str, Enum):
     SPECKIT = "speckit"
     GENERIC_MARKDOWN = "generic-markdown"
     GITHUB = "github"  # DevOps backlog tracking
+    OPENSPEC = "openspec"  # OpenSpec integration
     ADO = "ado"  # Azure DevOps (future)
     LINEAR = "linear"  # Future
     JIRA = "jira"  # Future
@@ -111,10 +112,17 @@ class BridgeConfig(BaseModel):
     """
 
     version: str = Field(default="1.0", description="Bridge config schema version")
-    adapter: AdapterType = Field(..., description="Adapter type (speckit, generic-markdown, etc.)")
+    adapter: AdapterType = Field(..., description="Adapter type (speckit, generic-markdown, openspec, etc.)")
 
     # Artifact mappings: Logical SpecFact concepts -> Physical tool paths
     artifacts: dict[str, ArtifactMapping] = Field(..., description="Artifact path mappings")
+
+    # Cross-repository support: Base path for external tool repository
+    external_base_path: Path | None = Field(
+        default=None,
+        description="Base path for external tool repository (for cross-repo integrations). "
+        "When set, all artifact paths are resolved relative to this path instead of repo_path.",
+    )
 
     # Command mappings: Tool commands -> SpecFact triggers
     commands: dict[str, CommandMapping] = Field(default_factory=dict, description="Command mappings")
@@ -166,6 +174,9 @@ class BridgeConfig(BaseModel):
             Resolved Path object
         """
         artifact = self.artifacts[artifact_key]
+        # Use external_base_path if set, otherwise use provided base_path
+        if self.external_base_path is not None:
+            base_path = self.external_base_path
         return artifact.resolve_path(context, base_path)
 
     @beartype
@@ -231,6 +242,75 @@ class BridgeConfig(BaseModel):
                 path_pattern="specs/{feature_id}/contracts/{contract_name}.yaml",
                 format="yaml",
             ),
+            "constitution": ArtifactMapping(
+                path_pattern=".specify/memory/constitution.md",
+                format="markdown",
+            ),
+        }
+
+        commands = {
+            "analyze": CommandMapping(
+                trigger="/speckit.specify",
+                input_ref="specification",
+            ),
+            "plan": CommandMapping(
+                trigger="/speckit.plan",
+                input_ref="specification",
+                output_ref="plan",
+            ),
+        }
+
+        templates = TemplateMapping(
+            root_dir=".specify/prompts",
+            mapping={
+                "specification": "specify.md",
+                "plan": "plan.md",
+                "tasks": "tasks.md",
+            },
+        )
+
+        return cls(
+            adapter=AdapterType.SPECKIT,
+            artifacts=artifacts,
+            commands=commands,
+            templates=templates,
+        )
+
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_speckit_specify(cls) -> BridgeConfig:
+        """
+        Create Spec-Kit specify layout bridge preset (canonical format).
+
+        This is the canonical Spec-Kit layout where specs are inside .specify/specs/.
+        According to Spec-Kit documentation, this is the recommended structure.
+
+        Returns:
+            BridgeConfig for Spec-Kit specify layout (.specify/specs/)
+        """
+        artifacts = {
+            "specification": ArtifactMapping(
+                path_pattern=".specify/specs/{feature_id}/spec.md",
+                format="markdown",
+            ),
+            "plan": ArtifactMapping(
+                path_pattern=".specify/specs/{feature_id}/plan.md",
+                format="markdown",
+            ),
+            "tasks": ArtifactMapping(
+                path_pattern=".specify/specs/{feature_id}/tasks.md",
+                format="markdown",
+                sync_target="github_issues",
+            ),
+            "contracts": ArtifactMapping(
+                path_pattern=".specify/specs/{feature_id}/contracts/{contract_name}.yaml",
+                format="yaml",
+            ),
+            "constitution": ArtifactMapping(
+                path_pattern=".specify/memory/constitution.md",
+                format="markdown",
+            ),
         }
 
         commands = {
@@ -288,6 +368,10 @@ class BridgeConfig(BaseModel):
             "contracts": ArtifactMapping(
                 path_pattern="docs/specs/{feature_id}/contracts/{contract_name}.yaml",
                 format="yaml",
+            ),
+            "constitution": ArtifactMapping(
+                path_pattern=".specify/memory/constitution.md",
+                format="markdown",
             ),
         }
 
@@ -370,5 +454,48 @@ class BridgeConfig(BaseModel):
 
         return cls(
             adapter=AdapterType.GITHUB,
+            artifacts=artifacts,
+        )
+
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_openspec(cls) -> BridgeConfig:
+        """
+        Create OpenSpec bridge preset.
+
+        Returns:
+            BridgeConfig for OpenSpec integration with artifact mappings for:
+            - specification: openspec/specs/{feature_id}/spec.md
+            - project_context: openspec/project.md
+            - change_proposal: openspec/changes/{change_name}/proposal.md
+            - change_tasks: openspec/changes/{change_name}/tasks.md
+            - change_spec_delta: openspec/changes/{change_name}/specs/{feature_id}/spec.md
+        """
+        artifacts = {
+            "specification": ArtifactMapping(
+                path_pattern="openspec/specs/{feature_id}/spec.md",
+                format="markdown",
+            ),
+            "project_context": ArtifactMapping(
+                path_pattern="openspec/project.md",
+                format="markdown",
+            ),
+            "change_proposal": ArtifactMapping(
+                path_pattern="openspec/changes/{change_name}/proposal.md",
+                format="markdown",
+            ),
+            "change_tasks": ArtifactMapping(
+                path_pattern="openspec/changes/{change_name}/tasks.md",
+                format="markdown",
+            ),
+            "change_spec_delta": ArtifactMapping(
+                path_pattern="openspec/changes/{change_name}/specs/{feature_id}/spec.md",
+                format="markdown",
+            ),
+        }
+
+        return cls(
+            adapter=AdapterType.OPENSPEC,
             artifacts=artifacts,
         )

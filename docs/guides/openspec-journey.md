@@ -192,33 +192,32 @@ sequenceDiagram
 
 ---
 
-### **Stage 2: OpenSpec Bridge Adapter** ⏳ **PLANNED**
+### **Stage 2: OpenSpec Bridge Adapter** ✅ **IMPLEMENTED**
 
-**Time**: Coming soon
+**Time**: Available now (v0.22.0+)
 
-**What's Coming:**
+**What's Available:**
 
-Read-only sync from OpenSpec to SpecFact for alignment validation:
+Read-only sync from OpenSpec to SpecFact for change proposal tracking:
 
 ```bash
-# Import OpenSpec specs into SpecFact
+# Sync OpenSpec change proposals to SpecFact
 specfact sync bridge --adapter openspec --mode read-only \
   --bundle my-project \
   --repo /path/to/openspec-repo
 
-# Generate alignment report
-specfact plan compare --openspec-vs-code
-# → Compares OpenSpec specs vs SpecFact extracted features
-# → Identifies gaps (OpenSpec specs not extracted from code)
-# → Calculates coverage percentage
+# The adapter reads OpenSpec change proposals from openspec/changes/
+# and syncs them to SpecFact change tracking
 ```
 
-**What You'll Get:**
+**What You Get:**
 
-- ⏳ **Specification Import** - OpenSpec specs imported into SpecFact bundles
-- ⏳ **Alignment Reports** - Compare OpenSpec specs vs code-derived features
-- ⏳ **Gap Detection** - Identify OpenSpec specs not found in code
-- ⏳ **Coverage Calculation** - Measure how well code matches specifications
+- ✅ **Change Proposal Import** - OpenSpec change proposals synced to SpecFact bundles
+- ✅ **Change Tracking** - Track OpenSpec proposals in SpecFact format
+- ✅ **Read-Only Sync** - Import from OpenSpec without modifying OpenSpec files
+- ⏳ **Alignment Reports** - Compare OpenSpec specs vs code-derived features (planned)
+- ⏳ **Gap Detection** - Identify OpenSpec specs not found in code (planned)
+- ⏳ **Coverage Calculation** - Measure how well code matches specifications (planned)
 
 **Visual Flow:**
 
@@ -346,7 +345,7 @@ specfact sync bridge --adapter github --mode export-only \
   --repo /path/to/openspec-repo \
   --code-repo /path/to/source-code-repo
 
-# Step 6: Validate alignment ⏳ PLANNED
+# Step 6: Sync OpenSpec change proposals ✅ AVAILABLE
 specfact sync bridge --adapter openspec --mode read-only \
   --bundle legacy-api \
   --repo /path/to/openspec-repo
@@ -408,7 +407,7 @@ graph TB
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **OpenSpec Bridge Adapter** | ⏳ **Planned** | Read-only sync from OpenSpec to SpecFact |
+| **OpenSpec Bridge Adapter** | ✅ **Available** | Read-only sync from OpenSpec to SpecFact (v0.22.0+) |
 | **Alignment Reports** | ⏳ **Planned** | Compare OpenSpec specs vs code-derived features |
 | **Specification Import** | ⏳ **Planned** | Import OpenSpec specs into SpecFact bundles |
 | **Bidirectional Sync** | ⏳ **Future** | Full bidirectional sync between OpenSpec and SpecFact |
@@ -453,9 +452,13 @@ This separation enables:
 2. **[Commands Reference](../reference/commands.md#sync-bridge)** - Complete `sync bridge` documentation
 3. **[OpenSpec Documentation](https://github.com/nold-ai/openspec)** - Learn OpenSpec basics
 
+### **Available Now** ✅
+
+1. **OpenSpec Bridge Adapter** - Read-only sync for change proposal tracking (v0.22.0+)
+
 ### **Coming Soon** ⏳
 
-1. **OpenSpec Bridge Adapter** - Read-only sync and alignment reports
+1. **Alignment Reports** - Compare OpenSpec specs vs code-derived features
 2. **Bidirectional Sync** - Keep OpenSpec and SpecFact in sync
 3. **Watch Mode** - Real-time synchronization
 

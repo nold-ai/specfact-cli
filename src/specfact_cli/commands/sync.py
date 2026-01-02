@@ -20,18 +20,20 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from specfact_cli import runtime
+from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
-from specfact_cli.sync.speckit_sync import SpecKitSync
 from specfact_cli.telemetry import telemetry
 
 
 app = typer.Typer(
-    help="Synchronize external tool artifacts and repository changes (Spec-Kit, GitHub, Linear, Jira, etc.)"
+    help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, Linear, Jira, etc.)"
 )
 console = Console()
 
 
+@beartype
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
 def _is_test_mode() -> bool:
     """Check if running in test mode."""
     # Check for TEST_MODE environment variable
@@ -70,93 +72,90 @@ def _perform_sync_operation(
         overwrite: Overwrite existing tool artifacts
         adapter_type: Adapter type to use
     """
-    from specfact_cli.importers.speckit_converter import SpecKitConverter
-    from specfact_cli.importers.speckit_scanner import SpecKitScanner
-
     # Step 1: Detect tool repository (using bridge probe for auto-detection)
-    from specfact_cli.sync.bridge_probe import BridgeProbe
     from specfact_cli.utils.structure import SpecFactStructure
     from specfact_cli.validators.schema import validate_plan_bundle
 
-    probe = BridgeProbe(repo)
-    _ = probe.detect()  # Probe for detection, result not used in this path
+    # Get adapter from registry (universal pattern - no hard-coded checks)
+    adapter_instance = AdapterRegistry.get_adapter(adapter_type.value)
+    if adapter_instance is None:
+        console.print(f"[bold red]✗[/bold red] Adapter '{adapter_type.value}' not found in registry")
+        console.print("[dim]Available adapters: " + ", ".join(AdapterRegistry.list_adapters()) + "[/dim]")
+        raise typer.Exit(1)
 
-    # For Spec-Kit adapter, use legacy scanner for now
+    # Use adapter's detect() method (no bridge_config needed for initial detection)
+    if not adapter_instance.detect(repo, None):
+        console.print(f"[bold red]✗[/bold red] Not a {adapter_type.value} repository")
+        console.print(f"[dim]Expected: {adapter_type.value} structure[/dim]")
+        console.print("[dim]Tip: Use 'specfact sync bridge probe' to auto-detect tool configuration[/dim]")
+        raise typer.Exit(1)
+
+    console.print(f"[bold green]✓[/bold green] Detected {adapter_type.value} repository")
+
+    # Generate bridge config using adapter
+    bridge_config = adapter_instance.generate_bridge_config(repo)
+
+    # Step 1.5: Validate constitution exists and is not empty (Spec-Kit only)
+    # Note: Constitution is required for Spec-Kit but not for other adapters (e.g., OpenSpec)
+    capabilities = adapter_instance.get_capabilities(repo, bridge_config)
     if adapter_type == AdapterType.SPECKIT:
-        scanner = SpecKitScanner(repo)
-        if not scanner.is_speckit_repo():
-            console.print(f"[bold red]✗[/bold red] Not a {adapter_type.value} repository")
-            console.print("[dim]Expected: .specify/ directory[/dim]")
-            console.print("[dim]Tip: Use 'specfact bridge probe' to auto-detect tool configuration[/dim]")
+        has_constitution = capabilities.has_custom_hooks
+        if not has_constitution:
+            console.print("[bold red]✗[/bold red] Constitution required")
+            console.print("[red]Constitution file not found or is empty[/red]")
+            console.print("\n[bold yellow]Next Steps:[/bold yellow]")
+            console.print("1. Run 'specfact sdd constitution bootstrap --repo .' to auto-generate constitution")
+            console.print("2. Or run tool-specific constitution command in your AI assistant")
+            console.print("3. Then run 'specfact sync bridge --adapter <adapter>' again")
             raise typer.Exit(1)
 
-        console.print(f"[bold green]✓[/bold green] Detected {adapter_type.value} repository")
-    else:
-        console.print(f"[bold green]✓[/bold green] Using bridge adapter: {adapter_type.value}")
-        # TODO: Implement generic adapter detection
-        console.print("[yellow]⚠ Generic adapter not yet fully implemented[/yellow]")
-        raise typer.Exit(1)
-
-    # Step 1.5: Validate constitution exists and is not empty (Spec-Kit specific)
+    # Check if constitution is minimal and suggest bootstrap (Spec-Kit only)
     if adapter_type == AdapterType.SPECKIT:
-        has_constitution, constitution_error = scanner.has_constitution()
-    else:
-        has_constitution = True
-        constitution_error = None
-    if not has_constitution:
-        console.print("[bold red]✗[/bold red] Constitution required")
-        console.print(f"[red]{constitution_error}[/red]")
-        console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-        console.print("1. Run 'specfact bridge constitution bootstrap --repo .' to auto-generate constitution")
-        console.print("2. Or run tool-specific constitution command in your AI assistant")
-        console.print("3. Then run 'specfact sync bridge --adapter <adapter>' again")
-        raise typer.Exit(1)
+        constitution_path = repo / ".specify" / "memory" / "constitution.md"
+        if constitution_path.exists():
+            from specfact_cli.commands.sdd import is_constitution_minimal
 
-    # Check if constitution is minimal and suggest bootstrap
-    constitution_path = repo / ".specify" / "memory" / "constitution.md"
-    if constitution_path.exists():
-        from specfact_cli.commands.bridge import is_constitution_minimal
+            if is_constitution_minimal(constitution_path):
+                # Auto-generate in test mode, prompt in interactive mode
+                # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
+                is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+                if is_test_env:
+                    # Auto-generate bootstrap constitution in test mode
+                    from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 
-        if is_constitution_minimal(constitution_path):
-            # Auto-generate in test mode, prompt in interactive mode
-            # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-            is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_env:
-                # Auto-generate bootstrap constitution in test mode
-                from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
-
-                enricher = ConstitutionEnricher()
-                enriched_content = enricher.bootstrap(repo, constitution_path)
-                constitution_path.write_text(enriched_content, encoding="utf-8")
-            else:
-                # Check if we're in an interactive environment
-                if runtime.is_interactive():
-                    console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
-                    suggest_bootstrap = typer.confirm(
-                        "Generate bootstrap constitution from repository analysis?",
-                        default=True,
-                    )
-                    if suggest_bootstrap:
-                        from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
-
-                        console.print("[dim]Generating bootstrap constitution...[/dim]")
-                        enricher = ConstitutionEnricher()
-                        enriched_content = enricher.bootstrap(repo, constitution_path)
-                        constitution_path.write_text(enriched_content, encoding="utf-8")
-                        console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
-                        console.print("[dim]Review and adjust as needed before syncing[/dim]")
-                    else:
-                        console.print(
-                            "[dim]Skipping bootstrap. Run 'specfact bridge constitution bootstrap' manually if needed[/dim]"
-                        )
+                    enricher = ConstitutionEnricher()
+                    enriched_content = enricher.bootstrap(repo, constitution_path)
+                    constitution_path.write_text(enriched_content, encoding="utf-8")
                 else:
-                    # Non-interactive mode: skip prompt
-                    console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
-                    console.print(
-                        "[dim]Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
-                    )
+                    # Check if we're in an interactive environment
+                    if runtime.is_interactive():
+                        console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
+                        suggest_bootstrap = typer.confirm(
+                            "Generate bootstrap constitution from repository analysis?",
+                            default=True,
+                        )
+                        if suggest_bootstrap:
+                            from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 
-    console.print("[bold green]✓[/bold green] Constitution found and validated")
+                            console.print("[dim]Generating bootstrap constitution...[/dim]")
+                            enricher = ConstitutionEnricher()
+                            enriched_content = enricher.bootstrap(repo, constitution_path)
+                            constitution_path.write_text(enriched_content, encoding="utf-8")
+                            console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
+                            console.print("[dim]Review and adjust as needed before syncing[/dim]")
+                        else:
+                            console.print(
+                                "[dim]Skipping bootstrap. Run 'specfact sdd constitution bootstrap' manually if needed[/dim]"
+                            )
+                    else:
+                        # Non-interactive mode: skip prompt
+                        console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
+                        console.print(
+                            "[dim]Run 'specfact sdd constitution bootstrap --repo .' to generate constitution[/dim]"
+                        )
+        else:
+            # Constitution exists and is not minimal
+            console.print("[bold green]✓[/bold green] Constitution found and validated")
 
     # Step 2: Detect SpecFact structure
     specfact_exists = (repo / SpecFactStructure.ROOT).exists()
@@ -171,8 +170,12 @@ def _perform_sync_operation(
     if specfact_exists:
         console.print("[bold green]✓[/bold green] Detected SpecFact structure")
 
-    sync = SpecKitSync(repo)
-    converter = SpecKitConverter(repo)
+    # Use BridgeSync for adapter-agnostic sync operations
+    from specfact_cli.sync.bridge_sync import BridgeSync
+
+    bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
+
+    # Note: _sync_tool_to_specfact now uses adapter pattern, so converter/scanner are no longer needed
 
     with Progress(
         SpinnerColumn(),
@@ -180,13 +183,22 @@ def _perform_sync_operation(
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        # Step 3: Scan tool artifacts
+        # Step 3: Discover features using adapter (via bridge config)
         task = progress.add_task(f"[cyan]Scanning {adapter_type.value} artifacts...[/cyan]", total=None)
-        # Keep description showing current activity (spinner will show automatically)
         progress.update(task, description=f"[cyan]Scanning {adapter_type.value} artifacts...[/cyan]")
-        features = scanner.discover_features()
-        # Update with final status after completion
-        progress.update(task, description=f"[green]✓[/green] Found {len(features)} features in specs/")
+
+        # Discover features using adapter or bridge_sync (adapter-agnostic)
+        features: list[dict[str, Any]] = []
+        # Use adapter's discover_features method if available (e.g., Spec-Kit adapter)
+        if adapter_instance and hasattr(adapter_instance, "discover_features"):
+            features = adapter_instance.discover_features(repo, bridge_config)
+        else:
+            # For other adapters, use bridge_sync to discover features
+            feature_ids = bridge_sync._discover_feature_ids()
+            # Convert feature_ids to feature dicts (simplified for now)
+            features = [{"feature_key": fid} for fid in feature_ids]
+
+        progress.update(task, description=f"[green]✓[/green] Found {len(features)} features")
 
         # Step 3.5: Validate tool artifacts for unidirectional sync
         if not bidirectional and len(features) == 0:
@@ -195,21 +207,16 @@ def _perform_sync_operation(
                 f"[red]Unidirectional sync ({adapter_type.value} → SpecFact) requires at least one feature specification.[/red]"
             )
             console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-            if adapter_type == AdapterType.SPECKIT:
-                console.print("1. Run '/speckit.specify' command in your AI assistant to create feature specifications")
-                console.print("2. Optionally run '/speckit.plan' and '/speckit.tasks' to create complete artifacts")
-            else:
-                console.print(f"1. Create feature specifications in your {adapter_type.value} project")
-            console.print(f"3. Then run 'specfact sync bridge --adapter {adapter_type.value}' again")
+            console.print(f"1. Create feature specifications in your {adapter_type.value} project")
+            console.print(f"2. Then run 'specfact sync bridge --adapter {adapter_type.value}' again")
             console.print(
                 f"\n[dim]Note: For bidirectional sync, {adapter_type.value} artifacts are optional if syncing from SpecFact → {adapter_type.value}[/dim]"
             )
             raise typer.Exit(1)
 
         # Step 4: Sync based on mode
-        specfact_changes: dict[str, Any] = {}
-        conflicts: list[dict[str, Any]] = []
         features_converted_speckit = 0
+        conflicts: list[dict[str, Any]] = []  # Initialize conflicts for use in summary
 
         if bidirectional:
             # Bidirectional sync: tool → SpecFact and SpecFact → tool
@@ -267,21 +274,25 @@ def _perform_sync_operation(
                             description=f"[green]✓[/green] Loaded plan bundle ({len(loaded_plan_bundle.features)} features)",
                         )
                     else:
-                        # Fallback: create minimal bundle via converter (but skip expensive parsing)
+                        # Fallback: create minimal bundle via adapter (but skip expensive parsing)
                         progress.update(
                             task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]"
                         )
-                        merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
+                        merged_bundle = _sync_tool_to_specfact(
+                            repo, adapter_instance, bridge_config, bridge_sync, progress, task
+                        )[0]
                 else:
                     # No plan path found, create minimal bundle
                     progress.update(task, description=f"[cyan]Creating plan bundle from {adapter_type.value}...[/cyan]")
-                    merged_bundle = _sync_speckit_to_specfact(repo, converter, scanner, progress, task)[0]
+                    merged_bundle = _sync_tool_to_specfact(
+                        repo, adapter_instance, bridge_config, bridge_sync, progress, task
+                    )[0]
             else:
                 task = progress.add_task(f"[cyan]Converting {adapter_type.value} → SpecFact...[/cyan]", total=None)
                 # Show current activity (spinner will show automatically)
                 progress.update(task, description=f"[cyan]Converting {adapter_type.value} → SpecFact...[/cyan]")
-                merged_bundle, features_updated, features_added = _sync_speckit_to_specfact(
-                    repo, converter, scanner, progress
+                merged_bundle, features_updated, features_added = _sync_tool_to_specfact(
+                    repo, adapter_instance, bridge_config, bridge_sync, progress
                 )
 
             if merged_bundle:
@@ -304,7 +315,7 @@ def _perform_sync_operation(
             progress.update(task, description="[cyan]Detecting SpecFact changes...[/cyan]")
 
             # Detect SpecFact changes (for tracking/incremental sync, but don't block conversion)
-            specfact_changes = sync.detect_specfact_changes(repo)
+            # Uses adapter's change detection if available (adapter-agnostic)
 
             # Use the merged_bundle we already loaded, or load it if not available
             # We convert even if no "changes" detected, as long as plan bundle exists and has features
@@ -361,10 +372,12 @@ def _perform_sync_operation(
                 # Handle overwrite mode
                 if overwrite:
                     progress.update(task, description="[cyan]Removing existing artifacts...[/cyan]")
-                    # Delete existing Spec-Kit artifacts before conversion
+                    # Delete existing tool artifacts before conversion
                     specs_dir = repo / "specs"
                     if specs_dir.exists():
-                        console.print("[yellow]⚠[/yellow] Overwrite mode: Removing existing Spec-Kit artifacts...")
+                        console.print(
+                            f"[yellow]⚠[/yellow] Overwrite mode: Removing existing {adapter_type.value} artifacts..."
+                        )
                         shutil.rmtree(specs_dir)
                         specs_dir.mkdir(parents=True, exist_ok=True)
                         console.print("[green]✓[/green] Existing artifacts removed")
@@ -383,7 +396,14 @@ def _perform_sync_operation(
                         description=f"[cyan]Converting plan bundle to {adapter_type.value} format ({current} of {total})...[/cyan]",
                     )
 
-                features_converted_speckit = converter.convert_to_speckit(plan_bundle_to_convert, update_progress)
+                # Use adapter's export_bundle method (adapter-agnostic)
+                if adapter_instance and hasattr(adapter_instance, "export_bundle"):
+                    features_converted_speckit = adapter_instance.export_bundle(
+                        plan_bundle_to_convert, repo, update_progress, bridge_config
+                    )
+                else:
+                    msg = "Bundle export not available for this adapter"
+                    raise RuntimeError(msg)
                 progress.update(
                     task,
                     description=f"[green]✓[/green] Converted {features_converted_speckit} features to {adapter_type.value}",
@@ -400,9 +420,21 @@ def _perform_sync_operation(
                 progress.update(task, description=f"[green]✓[/green] No features to convert to {adapter_type.value}")
                 features_converted_speckit = 0
 
-            # Detect conflicts between both directions
-            speckit_changes = sync.detect_speckit_changes(repo)
-            conflicts = sync.detect_conflicts(speckit_changes, specfact_changes)
+            # Detect conflicts between both directions using adapter
+            if (
+                adapter_instance
+                and hasattr(adapter_instance, "detect_changes")
+                and hasattr(adapter_instance, "detect_conflicts")
+            ):
+                # Detect changes in both directions
+                changes_result = adapter_instance.detect_changes(repo, direction="both", bridge_config=bridge_config)
+                speckit_changes = changes_result.get("speckit_changes", {})
+                specfact_changes = changes_result.get("specfact_changes", {})
+                # Detect conflicts
+                conflicts = adapter_instance.detect_conflicts(speckit_changes, specfact_changes)
+            else:
+                # Fallback: no conflict detection available
+                conflicts = []
 
             if conflicts:
                 console.print(f"[yellow]⚠[/yellow] Found {len(conflicts)} conflicts")
@@ -417,8 +449,8 @@ def _perform_sync_operation(
             # Show current activity (spinner will show automatically)
             progress.update(task, description="[cyan]Converting to SpecFact format...[/cyan]")
 
-            merged_bundle, features_updated, features_added = _sync_speckit_to_specfact(
-                repo, converter, scanner, progress
+            merged_bundle, features_updated, features_added = _sync_tool_to_specfact(
+                repo, adapter_instance, bridge_config, bridge_sync, progress
             )
 
             if features_updated > 0 or features_added > 0:
@@ -430,10 +462,11 @@ def _perform_sync_operation(
                 console.print(f"[dim]  - Updated {features_updated} features[/dim]")
                 console.print(f"[dim]  - Added {features_added} new features[/dim]")
             else:
-                progress.update(
-                    task, description=f"[green]✓[/green] Created plan with {len(merged_bundle.features)} features"
-                )
-                console.print(f"[dim]Created plan with {len(merged_bundle.features)} features[/dim]")
+                if merged_bundle:
+                    progress.update(
+                        task, description=f"[green]✓[/green] Created plan with {len(merged_bundle.features)} features"
+                    )
+                    console.print(f"[dim]Created plan with {len(merged_bundle.features)} features[/dim]")
 
             # Report features synced
             console.print()
@@ -467,10 +500,7 @@ def _perform_sync_operation(
             if features_converted_speckit > 0:
                 console.print()
                 console.print("[bold cyan]Next Steps:[/bold cyan]")
-                if adapter_type == AdapterType.SPECKIT:
-                    console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
-                else:
-                    console.print(f"  Validate {adapter_type.value} artifact consistency and quality")
+                console.print(f"  Validate {adapter_type.value} artifact consistency and quality")
                 console.print("  This will check for ambiguities, duplications, and constitution alignment")
         else:
             console.print("[bold cyan]Sync Summary (Unidirectional):[/bold cyan]")
@@ -484,10 +514,7 @@ def _perform_sync_operation(
             # Post-sync validation suggestion
             console.print()
             console.print("[bold cyan]Next Steps:[/bold cyan]")
-            if adapter_type == AdapterType.SPECKIT:
-                console.print("  Run '/speckit.analyze' to validate artifact consistency and quality")
-            else:
-                console.print(f"  Validate {adapter_type.value} artifact consistency and quality")
+            console.print(f"  Validate {adapter_type.value} artifact consistency and quality")
             console.print("  This will check for ambiguities, duplications, and constitution alignment")
 
     console.print()
@@ -534,16 +561,37 @@ def _perform_sync_operation(
             console.print(f"[dim]💡 Tip: Install Specmatic to validate API specs: {error_msg}[/dim]")
 
 
-def _sync_speckit_to_specfact(
-    repo: Path, converter: Any, scanner: Any, progress: Any, task: int | None = None
+@beartype
+@require(lambda repo: repo.exists(), "Repository path must exist")
+@require(lambda repo: repo.is_dir(), "Repository path must be a directory")
+@require(lambda adapter_instance: adapter_instance is not None, "Adapter instance must not be None")
+@require(lambda bridge_config: bridge_config is not None, "Bridge config must not be None")
+@require(lambda bridge_sync: bridge_sync is not None, "Bridge sync must not be None")
+@require(lambda progress: progress is not None, "Progress must not be None")
+@require(lambda task: task is None or (isinstance(task, int) and task >= 0), "Task must be None or non-negative int")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "Must return tuple of 3 elements")
+@ensure(lambda result: isinstance(result[0], PlanBundle), "First element must be PlanBundle")
+@ensure(lambda result: isinstance(result[1], int) and result[1] >= 0, "Second element must be non-negative int")
+@ensure(lambda result: isinstance(result[2], int) and result[2] >= 0, "Third element must be non-negative int")
+def _sync_tool_to_specfact(
+    repo: Path,
+    adapter_instance: Any,
+    bridge_config: Any,
+    bridge_sync: Any,
+    progress: Any,
+    task: int | None = None,
 ) -> tuple[PlanBundle, int, int]:
     """
-    Sync tool artifacts to SpecFact format.
+    Sync tool artifacts to SpecFact format using adapter registry pattern.
+
+    This is an adapter-agnostic replacement for _sync_speckit_to_specfact that uses
+    the adapter registry instead of hard-coded converter/scanner instances.
 
     Args:
         repo: Repository path
-        converter: Tool converter instance (e.g., SpecKitConverter)
-        scanner: Tool scanner instance (e.g., SpecKitScanner)
+        adapter_instance: Adapter instance from registry
+        bridge_config: Bridge configuration
+        bridge_sync: BridgeSync instance
         progress: Rich Progress instance
         task: Optional progress task ID to update
 
@@ -619,12 +667,132 @@ def _sync_speckit_to_specfact(
                         description=f"[green]✓[/green] Removed {duplicates_removed} duplicates, cleaned plan saved",
                     )
 
-    # Convert tool artifacts to SpecFact
+    # Convert tool artifacts to SpecFact using adapter pattern
     if task is not None:
         progress.update(task, description="[cyan]Converting tool artifacts to SpecFact format...[/cyan]")
-    # Don't write plan file during sync - it's already saved as ProjectBundle
-    # convert_plan will skip writing if path is a modular bundle directory
-    converted_bundle = converter.convert_plan(None)
+
+    # Get default bundle name for ProjectBundle operations
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    bundle_name = SpecFactStructure.get_active_bundle_name(repo) or SpecFactStructure.DEFAULT_PLAN_NAME
+    bundle_dir = repo / SpecFactStructure.PROJECTS / bundle_name
+
+    # Ensure bundle directory exists
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load or create ProjectBundle
+    from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
+    from specfact_cli.utils.bundle_loader import load_project_bundle
+
+    project_bundle: ProjectBundle | None = None
+    if bundle_dir.exists() and (bundle_dir / "bundle.manifest.yaml").exists():
+        try:
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        except Exception:
+            # Bundle exists but failed to load - create new one
+            project_bundle = None
+
+    if project_bundle is None:
+        # Create new ProjectBundle with latest schema version
+        from specfact_cli.migrations.plan_migrator import get_latest_schema_version
+
+        manifest = BundleManifest(
+            versions=BundleVersions(schema=get_latest_schema_version(), project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
+        from specfact_cli.models.plan import Product
+
+        project_bundle = ProjectBundle(
+            manifest=manifest,
+            bundle_name=bundle_name,
+            product=Product(themes=[], releases=[]),
+            features={},
+            idea=None,
+            business=None,
+            clarifications=None,
+        )
+
+    # Discover features using adapter
+    discovered_features = []
+    if hasattr(adapter_instance, "discover_features"):
+        discovered_features = adapter_instance.discover_features(repo, bridge_config)
+    else:
+        # Fallback: use bridge_sync to discover feature IDs
+        feature_ids = bridge_sync._discover_feature_ids()
+        discovered_features = [{"feature_key": fid} for fid in feature_ids]
+
+    # Import each feature using adapter pattern
+    # Import artifacts in order: specification (required), then plan and tasks (if available)
+    artifact_order = ["specification", "plan", "tasks"]
+    for feature_data in discovered_features:
+        feature_id = feature_data.get("feature_key", "")
+        if not feature_id:
+            continue
+
+        # Import artifacts in order (specification first, then plan/tasks if available)
+        for artifact_key in artifact_order:
+            # Check if artifact type is supported by bridge config
+            if artifact_key not in bridge_config.artifacts:
+                continue
+
+            try:
+                result = bridge_sync.import_artifact(artifact_key, feature_id, bundle_name)
+                if not result.success and task is not None and artifact_key == "specification":
+                    # Log error but continue with other artifacts/features
+                    # Only show warning for specification (required), skip warnings for optional artifacts
+                    progress.update(
+                        task,
+                        description=f"[yellow]⚠[/yellow] Failed to import {artifact_key} for {feature_id}: {result.errors[0] if result.errors else 'Unknown error'}",
+                    )
+            except Exception as e:
+                # Log error but continue
+                if task is not None and artifact_key == "specification":
+                    progress.update(
+                        task, description=f"[yellow]⚠[/yellow] Error importing {artifact_key} for {feature_id}: {e}"
+                    )
+
+    # Save project bundle after all imports (BridgeSync.import_artifact saves automatically, but ensure it's saved)
+    from specfact_cli.utils.bundle_loader import save_project_bundle
+
+    try:
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+    except Exception:
+        # If loading fails, we'll create a new bundle below
+        project_bundle = None
+
+    # Reload project bundle to get updated features (after all imports)
+    # BridgeSync.import_artifact saves automatically, so reload to get latest state
+    try:
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+    except Exception:
+        # If loading fails after imports, something went wrong - create minimal bundle
+        if project_bundle is None:
+            from specfact_cli.migrations.plan_migrator import get_latest_schema_version
+
+            manifest = BundleManifest(
+                versions=BundleVersions(schema=get_latest_schema_version(), project="0.1.0"),
+                schema_metadata=None,
+                project_metadata=None,
+            )
+            from specfact_cli.models.plan import Product
+
+            project_bundle = ProjectBundle(
+                manifest=manifest,
+                bundle_name=bundle_name,
+                product=Product(themes=[], releases=[]),
+                features={},
+                idea=None,
+                business=None,
+                clarifications=None,
+            )
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+    # Convert ProjectBundle to PlanBundle for merging logic
+    from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+
+    converted_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
 
     # Merge with existing plan if it exists
     features_updated = 0
@@ -727,6 +895,25 @@ def _sync_speckit_to_specfact(
 
 
 @app.command("bridge")
+@beartype
+@require(lambda repo: repo.exists(), "Repository path must exist")
+@require(lambda repo: repo.is_dir(), "Repository path must be a directory")
+@require(
+    lambda bundle: bundle is None or (isinstance(bundle, str) and len(bundle) > 0),
+    "Bundle must be None or non-empty str",
+)
+@require(lambda bidirectional: isinstance(bidirectional, bool), "Bidirectional must be bool")
+@require(
+    lambda mode: mode is None
+    or mode in ("read-only", "export-only", "import-annotation", "bidirectional", "unidirectional"),
+    "Mode must be valid sync mode",
+)
+@require(lambda overwrite: isinstance(overwrite, bool), "Overwrite must be bool")
+@require(
+    lambda adapter: adapter is None or (isinstance(adapter, str) and len(adapter) > 0),
+    "Adapter must be None or non-empty str",
+)
+@ensure(lambda result: result is None, "Must return None")
 def sync_bridge(
     # Target/Input
     repo: Path = typer.Option(
@@ -748,10 +935,10 @@ def sync_bridge(
         "--bidirectional",
         help="Enable bidirectional sync (tool ↔ SpecFact)",
     ),
-    mode: str = typer.Option(
+    mode: str | None = typer.Option(
         None,
         "--mode",
-        help="Sync mode: 'read-only' (OpenSpec → SpecFact), 'export-only' (OpenSpec → DevOps), 'import-annotation' (DevOps → SpecFact). Default: bidirectional if --bidirectional, else unidirectional",
+        help="Sync mode: 'read-only' (OpenSpec → SpecFact), 'export-only' (SpecFact → DevOps), 'import-annotation' (DevOps → SpecFact). Default: bidirectional if --bidirectional, else unidirectional",
     ),
     overwrite: bool = typer.Option(
         False,
@@ -772,22 +959,29 @@ def sync_bridge(
     adapter: str = typer.Option(
         "speckit",
         "--adapter",
-        help="Adapter type: speckit, generic-markdown, github (available), ado, linear, jira, notion (future). Default: auto-detect",
+        help="Adapter type: speckit, openspec, generic-markdown, github (available), ado, linear, jira, notion (future). Default: auto-detect",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
-    repo_owner: str = typer.Option(
+    repo_owner: str | None = typer.Option(
         None,
         "--repo-owner",
         help="GitHub repository owner (for GitHub adapter)",
         hidden=True,
     ),
-    repo_name: str = typer.Option(
+    repo_name: str | None = typer.Option(
         None,
         "--repo-name",
         help="GitHub repository name (for GitHub adapter)",
         hidden=True,
     ),
-    github_token: str = typer.Option(
+    external_base_path: Path | None = typer.Option(
+        None,
+        "--external-base-path",
+        help="Base path for external tool repository (for cross-repo integrations, e.g., OpenSpec in different repo)",
+        file_okay=False,
+        dir_okay=True,
+    ),
+    github_token: str | None = typer.Option(
         None,
         "--github-token",
         help="GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)",
@@ -805,7 +999,7 @@ def sync_bridge(
         help="Sanitize proposal content for public issues (default: auto-detect based on repo setup). Removes competitive analysis, internal strategy, implementation details.",
         hidden=True,
     ),
-    target_repo: str = typer.Option(
+    target_repo: str | None = typer.Option(
         None,
         "--target-repo",
         help="Target repository for issue creation (format: owner/repo). Default: same as code repository.",
@@ -817,7 +1011,7 @@ def sync_bridge(
         help="Interactive mode for AI-assisted sanitization (requires slash command).",
         hidden=True,
     ),
-    change_ids: str = typer.Option(
+    change_ids: str | None = typer.Option(
         None,
         "--change-ids",
         help="Comma-separated list of change proposal IDs to export (default: all active proposals). Example: 'add-feature-x,update-api'",
@@ -835,7 +1029,7 @@ def sync_bridge(
         help="Import sanitized content from temporary file after LLM review (default: /tmp/specfact-proposal-<change-id>-sanitized.md).",
         hidden=True,
     ),
-    tmp_file: Path = typer.Option(
+    tmp_file: Path | None = typer.Option(
         None,
         "--tmp-file",
         help="Custom temporary file path (default: /tmp/specfact-proposal-<change-id>.md).",
@@ -859,7 +1053,7 @@ def sync_bridge(
         help="Add manual progress comment to existing issues without code change detection (default: False).",
         hidden=True,
     ),
-    code_repo: Path = typer.Option(
+    code_repo: Path | None = typer.Option(
         None,
         "--code-repo",
         help="Path to source code repository for code change detection (default: same as --repo). Required when OpenSpec repository differs from source code repository.",
@@ -876,12 +1070,13 @@ def sync_bridge(
     """
     Sync changes between external tool artifacts and SpecFact using bridge architecture.
 
-    Synchronizes artifacts from external tools (Spec-Kit, GitHub, ADO, Linear, Jira, etc.) with
+    Synchronizes artifacts from external tools (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.) with
     SpecFact project bundles using configurable bridge mappings.
 
     Supported adapters:
     - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
     - generic-markdown: Generic markdown-based specifications - import & sync
+    - openspec: OpenSpec integration (openspec/) - read-only sync (Phase 1)
     - github: GitHub Issues (DevOps backlog tracking, export-only mode) - export-only sync
     - ado: Azure DevOps Work Items (future) - planned
     - linear: Linear Issues (future) - planned
@@ -889,10 +1084,10 @@ def sync_bridge(
     - notion: Notion pages (future) - planned
 
     **Sync Modes:**
-    - read-only: OpenSpec → SpecFact (read specs, no writes)
-    - export-only: OpenSpec → DevOps (create/update issues, no import)
+    - read-only: OpenSpec → SpecFact (read specs, no writes) - OpenSpec adapter only
+    - export-only: SpecFact → DevOps (create/update issues, no import) - GitHub/ADO/Linear/Jira adapters
     - import-annotation: DevOps → SpecFact (import issues, annotate with findings) - future
-    - bidirectional: Full two-way sync (tool ↔ SpecFact)
+    - bidirectional: Full two-way sync (tool ↔ SpecFact) - Spec-Kit adapter only
 
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle
@@ -901,9 +1096,11 @@ def sync_bridge(
 
     **Examples:**
         specfact sync bridge --adapter speckit --repo . --bidirectional
+        specfact sync bridge --adapter openspec --repo . --mode read-only  # OpenSpec → SpecFact (read-only)
+        specfact sync bridge --adapter openspec --repo . --external-base-path ../other-repo  # Cross-repo OpenSpec
         specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
         specfact sync bridge --repo . --watch --interval 10
-        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo
+        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo  # SpecFact → GitHub Issues
         specfact sync bridge --adapter github --mode export-only --update-existing  # Update existing issues when content changes
         specfact sync bridge --adapter github --mode export-only --track-code-changes  # Detect code changes and add progress comments
         specfact sync bridge --adapter github --mode export-only --add-progress-comment  # Add manual progress comment
@@ -914,34 +1111,79 @@ def sync_bridge(
     if adapter == "speckit" or adapter == "auto":
         probe = BridgeProbe(repo)
         detected_capabilities = probe.detect()
-        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
+        # Use detected tool directly (e.g., "speckit", "openspec", "github")
+        # BridgeProbe already tries all registered adapters
+        if detected_capabilities.tool == "unknown":
+            console.print("[bold red]✗[/bold red] Could not auto-detect adapter")
+            console.print("[dim]No registered adapter detected this repository structure[/dim]")
+            registered = AdapterRegistry.list_adapters()
+            console.print(f"[dim]Registered adapters: {', '.join(registered)}[/dim]")
+            console.print("[dim]Tip: Specify adapter explicitly with --adapter <adapter>[/dim]")
+            raise typer.Exit(1)
+        adapter = detected_capabilities.tool
 
-    # Validate adapter
-    try:
-        adapter_type = AdapterType(adapter.lower())
-    except ValueError as err:
+    # Validate adapter using registry (no hard-coded checks)
+    adapter_lower = adapter.lower()
+    if not AdapterRegistry.is_registered(adapter_lower):
         console.print(f"[bold red]✗[/bold red] Unsupported adapter: {adapter}")
-        console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
-        raise typer.Exit(1) from err
+        registered = AdapterRegistry.list_adapters()
+        console.print(f"[dim]Registered adapters: {', '.join(registered)}[/dim]")
+        raise typer.Exit(1)
 
-    # Determine sync mode
-    # Auto-detect export-only mode for DevOps adapters when repo-owner/repo-name are provided
+    # Convert to AdapterType enum (for backward compatibility with existing code)
+    try:
+        adapter_type = AdapterType(adapter_lower)
+    except ValueError:
+        # Adapter is registered but not in enum (e.g., openspec might not be in enum yet)
+        # Use adapter string value directly
+        adapter_type = None
+
+    # Determine adapter_value for use throughout function
+    adapter_value = adapter_type.value if adapter_type else adapter_lower
+
+    # Determine sync mode using adapter capabilities (adapter-agnostic)
     if mode is None:
-        devops_adapters = ("github", "ado", "linear", "jira")
-        if adapter_type.value in devops_adapters and (repo_owner or repo_name):
-            # DevOps adapter with repo info → export-only mode (OpenSpec → DevOps)
-            sync_mode = "export-only"
+        # Get adapter to check capabilities
+        adapter_instance = AdapterRegistry.get_adapter(adapter_lower)
+        if adapter_instance:
+            # Get capabilities to determine supported sync modes
+            probe = BridgeProbe(repo)
+            capabilities = probe.detect()
+            bridge_config = probe.auto_generate_bridge(capabilities) if capabilities.tool != "unknown" else None
+            adapter_capabilities = adapter_instance.get_capabilities(repo, bridge_config)
+
+            # Use adapter's supported sync modes if available
+            if adapter_capabilities.supported_sync_modes:
+                # Auto-select based on adapter capabilities and context
+                if "export-only" in adapter_capabilities.supported_sync_modes and (repo_owner or repo_name):
+                    sync_mode = "export-only"
+                elif "read-only" in adapter_capabilities.supported_sync_modes:
+                    sync_mode = "read-only"
+                elif "bidirectional" in adapter_capabilities.supported_sync_modes:
+                    sync_mode = "bidirectional" if bidirectional else "unidirectional"
+                else:
+                    sync_mode = "unidirectional"  # Default fallback
+            else:
+                # Fallback: use bidirectional/unidirectional based on flag
+                sync_mode = "bidirectional" if bidirectional else "unidirectional"
         else:
+            # Fallback if adapter not found
             sync_mode = "bidirectional" if bidirectional else "unidirectional"
     else:
         sync_mode = mode.lower()
 
-    # Validate export-only mode requires DevOps adapter
-    if sync_mode == "export-only":
-        devops_adapters = ("github", "ado", "linear", "jira")
-        if adapter_type.value not in devops_adapters:
-            console.print("[bold red]✗[/bold red] Export-only mode requires DevOps adapter (github, ado, linear, jira)")
-            console.print(f"[dim]Current adapter: {adapter_type.value}[/dim]")
+    # Validate mode for adapter type using adapter capabilities
+    adapter_instance = AdapterRegistry.get_adapter(adapter_lower)
+    adapter_capabilities = None
+    if adapter_instance:
+        probe = BridgeProbe(repo)
+        capabilities = probe.detect()
+        bridge_config = probe.auto_generate_bridge(capabilities) if capabilities.tool != "unknown" else None
+        adapter_capabilities = adapter_instance.get_capabilities(repo, bridge_config)
+
+        if adapter_capabilities.supported_sync_modes and sync_mode not in adapter_capabilities.supported_sync_modes:
+            console.print(f"[bold red]✗[/bold red] Sync mode '{sync_mode}' not supported by adapter '{adapter_lower}'")
+            console.print(f"[dim]Supported modes: {', '.join(adapter_capabilities.supported_sync_modes)}[/dim]")
             raise typer.Exit(1)
 
     # Validate temporary file workflow parameters
@@ -955,7 +1197,7 @@ def sync_bridge(
         change_ids_list = [cid.strip() for cid in change_ids.split(",") if cid.strip()]
 
     telemetry_metadata = {
-        "adapter": adapter,
+        "adapter": adapter_value,
         "mode": sync_mode,
         "bidirectional": bidirectional,
         "watch": watch,
@@ -964,18 +1206,17 @@ def sync_bridge(
     }
 
     with telemetry.track_command("sync.bridge", telemetry_metadata) as record:
-        # Handle export-only mode (OpenSpec → DevOps)
+        # Handle export-only mode (SpecFact → DevOps)
         if sync_mode == "export-only":
             from specfact_cli.sync.bridge_sync import BridgeSync
 
-            console.print(f"[bold cyan]Exporting OpenSpec change proposals to {adapter_type.value}...[/bold cyan]")
+            console.print(f"[bold cyan]Exporting OpenSpec change proposals to {adapter_value}...[/bold cyan]")
 
-            # Create bridge config
-            bridge_config = None
-            if adapter_type == AdapterType.GITHUB:
-                from specfact_cli.models.bridge import BridgeConfig
+            # Create bridge config using adapter registry
+            from specfact_cli.models.bridge import BridgeConfig
 
-                bridge_config = BridgeConfig.preset_github()
+            adapter_instance = AdapterRegistry.get_adapter(adapter_value)
+            bridge_config = adapter_instance.generate_bridge_config(repo)
 
             # Create bridge sync instance
             bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
@@ -993,7 +1234,7 @@ def sync_bridge(
                 code_repo_path_for_export = Path(code_repo).resolve() if code_repo else repo.resolve()
 
                 result = bridge_sync.export_change_proposals_to_devops(
-                    adapter_type=adapter_type.value,
+                    adapter_type=adapter_value,
                     repo_owner=repo_owner,
                     repo_name=repo_name,
                     api_token=github_token,
@@ -1029,18 +1270,80 @@ def sync_bridge(
             # Telemetry is automatically tracked via context manager
             return
 
-        console.print(f"[bold cyan]Syncing {adapter_type.value} artifacts from:[/bold cyan] {repo}")
+        # Handle read-only mode (OpenSpec → SpecFact)
+        if sync_mode == "read-only":
+            from specfact_cli.models.bridge import BridgeConfig
+            from specfact_cli.sync.bridge_sync import BridgeSync
 
-        # For now, Spec-Kit adapter uses legacy sync (will be migrated to bridge)
-        if adapter_type != AdapterType.SPECKIT and adapter_type != AdapterType.GITHUB:
-            console.print(f"[yellow]⚠ Generic adapter ({adapter_type.value}) not yet fully implemented[/yellow]")
-            console.print("[dim]Falling back to Spec-Kit adapter for now[/dim]")
-            # TODO: Implement generic adapter sync via bridge
+            console.print(f"[bold cyan]Syncing OpenSpec artifacts (read-only) from:[/bold cyan] {repo}")
+
+            # Create bridge config with external_base_path if provided
+            bridge_config = BridgeConfig.preset_openspec()
+            if external_base_path:
+                if not external_base_path.exists() or not external_base_path.is_dir():
+                    console.print(
+                        f"[bold red]✗[/bold red] External base path does not exist or is not a directory: {external_base_path}"
+                    )
+                    raise typer.Exit(1)
+                bridge_config.external_base_path = external_base_path.resolve()
+
+            # Create bridge sync instance
+            bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
+
+            # Import OpenSpec artifacts
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("[cyan]Importing OpenSpec artifacts...[/cyan]", total=None)
+
+                # Import project context
+                if bundle:
+                    # Import specific artifacts for the bundle
+                    # For now, import all OpenSpec specs
+                    openspec_specs_dir = (
+                        bridge_config.external_base_path / "openspec" / "specs"
+                        if bridge_config.external_base_path
+                        else repo / "openspec" / "specs"
+                    )
+                    if openspec_specs_dir.exists():
+                        for spec_dir in openspec_specs_dir.iterdir():
+                            if spec_dir.is_dir() and (spec_dir / "spec.md").exists():
+                                feature_id = spec_dir.name
+                                result = bridge_sync.import_artifact("specification", feature_id, bundle)
+                                if not result.success:
+                                    console.print(
+                                        f"[yellow]⚠[/yellow] Failed to import {feature_id}: {', '.join(result.errors)}"
+                                    )
+
+                progress.update(task, description="[green]✓[/green] Import complete")
+
+            # Generate alignment report
+            if bundle:
+                console.print("\n[bold]Generating alignment report...[/bold]")
+                bridge_sync.generate_alignment_report(bundle)
+
+            console.print("[bold green]✓[/bold green] Read-only sync complete")
+            return
+
+        console.print(f"[bold cyan]Syncing {adapter_value} artifacts from:[/bold cyan] {repo}")
+
+        # Use adapter capabilities to check if bidirectional sync is supported
+        if adapter_capabilities and (
+            adapter_capabilities.supported_sync_modes
+            and "bidirectional" not in adapter_capabilities.supported_sync_modes
+        ):
+            console.print(f"[yellow]⚠ Adapter '{adapter_value}' does not support bidirectional sync[/yellow]")
+            console.print(f"[dim]Supported modes: {', '.join(adapter_capabilities.supported_sync_modes)}[/dim]")
+            console.print("[dim]Use read-only mode for adapters that don't support bidirectional sync[/dim]")
             raise typer.Exit(1)
 
         # Ensure tool compliance if requested
         if ensure_compliance:
-            console.print(f"\n[cyan]🔍 Validating plan bundle for {adapter_type.value} compliance...[/cyan]")
+            adapter_display = adapter_type.value if adapter_type else adapter_value
+            console.print(f"\n[cyan]🔍 Validating plan bundle for {adapter_display} compliance...[/cyan]")
             from specfact_cli.utils.structure import SpecFactStructure
             from specfact_cli.validators.schema import validate_plan_bundle
 
@@ -1268,6 +1571,14 @@ def sync_bridge(
 
         # Perform sync operation (extracted to avoid recursion in watch mode)
         # Use resolved_repo (already resolved and validated above)
+        # Convert adapter_value to AdapterType for legacy _perform_sync_operation
+        # (This function will be refactored to use adapter registry in future)
+        if adapter_type is None:
+            # For adapters not in enum yet (like openspec), we can't use legacy sync
+            console.print(f"[yellow]⚠ Adapter '{adapter_value}' requires bridge-based sync (not legacy)[/yellow]")
+            console.print("[dim]Use read-only mode for OpenSpec adapter[/dim]")
+            raise typer.Exit(1)
+
         _perform_sync_operation(
             repo=resolved_repo,
             bidirectional=bidirectional,
@@ -1279,6 +1590,20 @@ def sync_bridge(
 
 
 @app.command("repository")
+@beartype
+@require(lambda repo: repo.exists(), "Repository path must exist")
+@require(lambda repo: repo.is_dir(), "Repository path must be a directory")
+@require(
+    lambda target: target is None or (isinstance(target, Path) and target.exists()),
+    "Target must be None or existing Path",
+)
+@require(lambda watch: isinstance(watch, bool), "Watch must be bool")
+@require(lambda interval: isinstance(interval, int) and interval >= 1, "Interval must be int >= 1")
+@require(
+    lambda confidence: isinstance(confidence, float) and 0.0 <= confidence <= 1.0,
+    "Confidence must be float in [0.0, 1.0]",
+)
+@ensure(lambda result: result is None, "Must return None")
 def sync_repository(
     repo: Path = typer.Option(
         Path("."),

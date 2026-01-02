@@ -2,31 +2,20 @@
 Bridge probe for detecting tool configurations and auto-generating bridge configs.
 
 This module provides functionality to detect tool versions, directory layouts,
-and generate appropriate bridge configurations for Spec-Kit and future tool integrations.
+and generate appropriate bridge configurations using the adapter registry pattern.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from beartype import beartype
 from icontract import ensure, require
 
-from specfact_cli.models.bridge import AdapterType, ArtifactMapping, BridgeConfig, CommandMapping, TemplateMapping
+from specfact_cli.adapters.registry import AdapterRegistry
+from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.utils.structure import SpecFactStructure
-
-
-@dataclass
-class ToolCapabilities:
-    """Detected tool capabilities and configuration."""
-
-    tool: str  # Tool name (e.g., "speckit")
-    version: str | None = None  # Tool version if detectable
-    layout: str = "classic"  # Layout type: "classic" or "modern"
-    specs_dir: str = "specs"  # Specs directory path (relative to repo root)
-    has_external_config: bool = False  # Has external configuration files
-    has_custom_hooks: bool = False  # Has custom hooks or scripts
 
 
 class BridgeProbe:
@@ -51,210 +40,59 @@ class BridgeProbe:
 
     @beartype
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
-    def detect(self) -> ToolCapabilities:
+    def detect(self, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
-        Detect tool capabilities and configuration.
+        Detect tool capabilities and configuration using adapter registry.
+
+        This method loops through all registered adapters and calls their detect()
+        methods. The first adapter that returns True is used to get capabilities.
+
+        Args:
+            bridge_config: Optional bridge configuration (for cross-repo detection)
 
         Returns:
             ToolCapabilities instance with detected information
         """
-        # Try to detect Spec-Kit first (most common)
-        if self._is_speckit_repo():
-            return self._detect_speckit()
-        # Future: Add detection for other tools (Linear, Jira, etc.)
+        # Try all registered adapters
+        for adapter_type in AdapterRegistry.list_adapters():
+            try:
+                adapter = AdapterRegistry.get_adapter(adapter_type)
+                if adapter.detect(self.repo_path, bridge_config):
+                    # Adapter detected this repository, get its capabilities
+                    return adapter.get_capabilities(self.repo_path, bridge_config)
+            except Exception:
+                # Adapter failed to detect or get capabilities, try next one
+                continue
 
         # Default: Unknown tool
         return ToolCapabilities(tool="unknown")
 
     @beartype
-    @ensure(lambda result: isinstance(result, bool), "Must return boolean")
-    def _is_speckit_repo(self) -> bool:
-        """
-        Check if repository is a Spec-Kit project.
-
-        Returns:
-            True if Spec-Kit structure detected, False otherwise
-        """
-        specify_dir = self.repo_path / ".specify"
-        return specify_dir.exists() and specify_dir.is_dir()
-
-    @beartype
-    @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
-    def _detect_speckit(self) -> ToolCapabilities:
-        """
-        Detect Spec-Kit capabilities and configuration.
-
-        Returns:
-            ToolCapabilities instance for Spec-Kit
-        """
-        capabilities = ToolCapabilities(tool="speckit")
-
-        # Detect layout (classic vs modern)
-        # Classic: specs/ directory at root
-        # Modern: docs/specs/ directory
-        specs_classic = self.repo_path / "specs"
-        specs_modern = self.repo_path / "docs" / "specs"
-
-        if specs_modern.exists():
-            capabilities.layout = "modern"
-            capabilities.specs_dir = "docs/specs"
-        elif specs_classic.exists():
-            capabilities.layout = "classic"
-            capabilities.specs_dir = "specs"
-        else:
-            # Default to classic if neither exists (will be created)
-            capabilities.layout = "classic"
-            capabilities.specs_dir = "specs"
-
-        # Try to detect version from .specify directory structure
-        specify_dir = self.repo_path / ".specify"
-        if specify_dir.exists():
-            # Check for version indicators (e.g., prompts version, memory structure)
-            prompts_dir = specify_dir / "prompts"
-            memory_dir = specify_dir / "memory"
-            if prompts_dir.exists() and memory_dir.exists():
-                # Modern Spec-Kit structure
-                capabilities.version = "0.0.85+"  # Approximate version detection
-            elif memory_dir.exists():
-                # Classic structure
-                capabilities.version = "0.0.80+"  # Approximate version detection
-
-        # Check for external configuration
-        config_files = [
-            ".specify/config.yaml",
-            ".specify/config.yml",
-            "speckit.config.yaml",
-            "speckit.config.yml",
-        ]
-        for config_file in config_files:
-            if (self.repo_path / config_file).exists():
-                capabilities.has_external_config = True
-                break
-
-        # Check for custom hooks
-        hooks_dir = specify_dir / "hooks"
-        if hooks_dir.exists() and any(hooks_dir.iterdir()):
-            capabilities.has_custom_hooks = True
-
-        return capabilities
-
-    @beartype
-    @require(lambda capabilities: capabilities.tool in ["speckit", "unknown"], "Tool must be supported")
+    @require(lambda capabilities: capabilities.tool != "unknown", "Tool must be detected")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
-    def auto_generate_bridge(self, capabilities: ToolCapabilities) -> BridgeConfig:
+    def auto_generate_bridge(
+        self, capabilities: ToolCapabilities, bridge_config: BridgeConfig | None = None
+    ) -> BridgeConfig:
         """
-        Auto-generate bridge configuration based on detected capabilities.
+        Auto-generate bridge configuration based on detected capabilities using adapter registry.
 
         Args:
             capabilities: Detected tool capabilities
+            bridge_config: Optional bridge configuration (for cross-repo support)
 
         Returns:
             Generated BridgeConfig instance
+
+        Raises:
+            ValueError: If adapter for detected tool is not registered
         """
-        if capabilities.tool == "speckit":
-            return self._generate_speckit_bridge(capabilities)
+        # Get adapter for detected tool
+        if not AdapterRegistry.is_registered(capabilities.tool):
+            msg = f"Adapter for tool '{capabilities.tool}' is not registered. Registered adapters: {', '.join(AdapterRegistry.list_adapters())}"
+            raise ValueError(msg)
 
-        # Default: Generic markdown bridge
-        return self._generate_generic_markdown_bridge()
-
-    @beartype
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
-    def _generate_speckit_bridge(self, capabilities: ToolCapabilities) -> BridgeConfig:
-        """
-        Generate Spec-Kit bridge configuration.
-
-        Args:
-            capabilities: Spec-Kit capabilities
-
-        Returns:
-            BridgeConfig for Spec-Kit
-        """
-        # Determine feature ID pattern based on detected structure
-        # Classic: specs/001-feature-name/
-        # Modern: docs/specs/001-feature-name/
-        feature_id_pattern = "{feature_id}"  # Will be resolved at runtime
-
-        # Artifact mappings
-        artifacts = {
-            "specification": ArtifactMapping(
-                path_pattern=f"{capabilities.specs_dir}/{feature_id_pattern}/spec.md",
-                format="markdown",
-            ),
-            "plan": ArtifactMapping(
-                path_pattern=f"{capabilities.specs_dir}/{feature_id_pattern}/plan.md",
-                format="markdown",
-            ),
-            "tasks": ArtifactMapping(
-                path_pattern=f"{capabilities.specs_dir}/{feature_id_pattern}/tasks.md",
-                format="markdown",
-                sync_target="github_issues",  # Optional: link to external sync
-            ),
-            "contracts": ArtifactMapping(
-                path_pattern=f"{capabilities.specs_dir}/{feature_id_pattern}/contracts/{{contract_name}}.yaml",
-                format="yaml",
-            ),
-        }
-
-        # Command mappings
-        commands = {
-            "analyze": CommandMapping(
-                trigger="/speckit.specify",
-                input_ref="specification",
-            ),
-            "plan": CommandMapping(
-                trigger="/speckit.plan",
-                input_ref="specification",
-                output_ref="plan",
-            ),
-        }
-
-        # Template mappings (if .specify/prompts exists)
-        templates = None
-        specify_dir = self.repo_path / ".specify"
-        prompts_dir = specify_dir / "prompts"
-        if prompts_dir.exists():
-            template_mapping: dict[str, str] = {}
-            # Check for common template files
-            if (prompts_dir / "specify.md").exists():
-                template_mapping["specification"] = "specify.md"
-            if (prompts_dir / "plan.md").exists():
-                template_mapping["plan"] = "plan.md"
-            if (prompts_dir / "tasks.md").exists():
-                template_mapping["tasks"] = "tasks.md"
-
-            if template_mapping:
-                templates = TemplateMapping(
-                    root_dir=".specify/prompts",
-                    mapping=template_mapping,
-                )
-
-        return BridgeConfig(
-            adapter=AdapterType.SPECKIT,
-            artifacts=artifacts,
-            commands=commands,
-            templates=templates,
-        )
-
-    @beartype
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
-    def _generate_generic_markdown_bridge(self) -> BridgeConfig:
-        """
-        Generate generic markdown bridge configuration.
-
-        Returns:
-            BridgeConfig for generic markdown
-        """
-        artifacts = {
-            "specification": ArtifactMapping(
-                path_pattern="specs/{feature_id}/spec.md",
-                format="markdown",
-            ),
-        }
-
-        return BridgeConfig(
-            adapter=AdapterType.GENERIC_MARKDOWN,
-            artifacts=artifacts,
-        )
+        adapter = AdapterRegistry.get_adapter(capabilities.tool)
+        return adapter.generate_bridge_config(self.repo_path)
 
     @beartype
     @require(lambda bridge_config: isinstance(bridge_config, BridgeConfig), "Bridge config must be BridgeConfig")
@@ -312,27 +150,21 @@ class BridgeProbe:
                 except ValueError as e:
                     errors.append(f"Template resolution error for '{schema_key}': {e}")
 
-        # Suggest corrections based on common issues
-        if bridge_config.adapter == AdapterType.SPECKIT:
-            # Check if specs/ exists but bridge points to docs/specs/
-            specs_classic = self.repo_path / "specs"
-            if specs_classic.exists():
-                for artifact in bridge_config.artifacts.values():
-                    if "docs/specs" in artifact.path_pattern:
-                        suggestions.append(
-                            "Found 'specs/' directory but bridge points to 'docs/specs/'. "
-                            "Consider updating bridge config to use 'specs/' pattern."
-                        )
-                        break
+        # Suggest corrections based on common issues (adapter-agnostic)
+        # Get adapter to check capabilities and provide adapter-specific suggestions
+        adapter = AdapterRegistry.get_adapter(bridge_config.adapter.value)
+        if adapter:
+            adapter_capabilities = adapter.get_capabilities(self.repo_path, bridge_config)
+            specs_dir = self.repo_path / adapter_capabilities.specs_dir
 
-            # Check if docs/specs/ exists but bridge points to specs/
-            specs_modern = self.repo_path / "docs" / "specs"
-            if specs_modern.exists():
+            # Check if specs directory exists but bridge points to different location
+            if specs_dir.exists():
                 for artifact in bridge_config.artifacts.values():
-                    if artifact.path_pattern.startswith("specs/") and "docs" not in artifact.path_pattern:
+                    # Check if artifact pattern doesn't match detected specs_dir
+                    if adapter_capabilities.specs_dir not in artifact.path_pattern:
                         suggestions.append(
-                            "Found 'docs/specs/' directory but bridge points to 'specs/'. "
-                            "Consider updating bridge config to use 'docs/specs/' pattern."
+                            f"Found '{adapter_capabilities.specs_dir}/' directory but bridge points to different pattern. "
+                            f"Consider updating bridge config to use '{adapter_capabilities.specs_dir}/' pattern."
                         )
                         break
 

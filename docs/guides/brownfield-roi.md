@@ -169,7 +169,7 @@ SpecFact's code2spec provides similar automation:
 
 **See real examples of bugs fixed via integrations:**
 
-- **[Integration Showcases](../../examples/integration-showcases/)** - 5 complete examples:
+- **[Integration Showcases](../examples/integration-showcases/)** - 5 complete examples:
   - VS Code + Pre-commit: Async bug caught before commit
   - Cursor Integration: Regression prevented during refactoring
   - GitHub Actions: Type mismatch blocked from merging

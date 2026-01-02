@@ -20,6 +20,7 @@ from rich.console import Console
 
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
 
 
@@ -128,6 +129,31 @@ class GitHubAdapter(BridgeAdapter):
 
         # Check bridge config for external GitHub repo
         return bool(bridge_config and bridge_config.adapter.value == "github")
+
+    @beartype
+    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
+    def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
+        """
+        Get GitHub adapter capabilities.
+
+        Args:
+            repo_path: Path to repository root
+            bridge_config: Optional bridge configuration (for cross-repo detection)
+
+        Returns:
+            ToolCapabilities instance for GitHub adapter
+        """
+        return ToolCapabilities(
+            tool="github",
+            version=None,  # GitHub version not applicable
+            layout="api",  # GitHub uses API-based integration
+            specs_dir="",  # Not applicable for GitHub
+            has_external_config=True,  # Uses API tokens
+            has_custom_hooks=False,
+            supported_sync_modes=["export-only"],  # GitHub adapter: export-only (SpecFact → GitHub Issues)
+        )
 
     @beartype
     @require(

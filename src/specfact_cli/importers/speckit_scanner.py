@@ -163,12 +163,31 @@ class SpecKitScanner:
                 structure["specify_memory_dir"] = str(specify_memory_dir)
                 structure["memory_files"] = [str(f) for f in specify_memory_dir.glob("*.md")]
 
-        # Check for specs directory
-        specs_dir = self.repo_path / self.SPECS_DIR
-        if specs_dir.exists():
-            structure["specs_dir"] = str(specs_dir)
+        # Check for specs directory - prioritize .specify/specs/ over root specs/
+        # According to Spec-Kit documentation, specs should be inside .specify/specs/
+        specify_specs_dir = specify_dir / "specs" if specify_dir.exists() else None
+        root_specs_dir = self.repo_path / self.SPECS_DIR
+
+        # Prefer .specify/specs/ if it exists (canonical location)
+        if specify_specs_dir and specify_specs_dir.exists() and specify_specs_dir.is_dir():
+            structure["specs_dir"] = str(specify_specs_dir)
+            # Find all feature directories (.specify/specs/*/)
+            for spec_dir in specify_specs_dir.iterdir():
+                if spec_dir.is_dir():
+                    feature_dirs.append(str(spec_dir))
+                    # Find all markdown files in each feature directory
+                    for md_file in spec_dir.glob("*.md"):
+                        spec_files.append(str(md_file))
+                    # Also check for contracts/*.yaml
+                    contracts_dir = spec_dir / "contracts"
+                    if contracts_dir.exists():
+                        for yaml_file in contracts_dir.glob("*.yaml"):
+                            spec_files.append(str(yaml_file))
+        # Fallback to root specs/ for backward compatibility
+        elif root_specs_dir.exists() and root_specs_dir.is_dir():
+            structure["specs_dir"] = str(root_specs_dir)
             # Find all feature directories (specs/*/)
-            for spec_dir in specs_dir.iterdir():
+            for spec_dir in root_specs_dir.iterdir():
                 if spec_dir.is_dir():
                     feature_dirs.append(str(spec_dir))
                     # Find all markdown files in each feature directory

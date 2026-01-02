@@ -19,6 +19,9 @@ from specfact_cli.utils.structured_io import load_structured_file
 # Current schema version
 CURRENT_SCHEMA_VERSION = "1.1"
 
+# Latest schema version (alias for semantic clarity when creating new bundles)
+LATEST_SCHEMA_VERSION = CURRENT_SCHEMA_VERSION
+
 # Schema version history
 # Version 1.0: Initial schema (no summary metadata)
 # Version 1.1: Added summary metadata to Metadata model
@@ -33,6 +36,20 @@ def get_current_schema_version() -> str:
         Current schema version string (e.g., "1.1")
     """
     return CURRENT_SCHEMA_VERSION
+
+
+@beartype
+def get_latest_schema_version() -> str:
+    """
+    Get the latest schema version for new bundles.
+
+    This is an alias for get_current_schema_version() but provides semantic
+    clarity when creating new bundles that should use the latest schema.
+
+    Returns:
+        Latest schema version string (e.g., "1.1")
+    """
+    return LATEST_SCHEMA_VERSION
 
 
 @beartype

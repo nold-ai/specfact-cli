@@ -2,7 +2,7 @@
 Import command - Import codebases and external tool projects to contract-driven format.
 
 This module provides commands for importing existing codebases (brownfield) and
-external tool projects (e.g., Spec-Kit, Linear, Jira) and converting them to
+external tool projects (e.g., Spec-Kit, OpenSpec, Linear, Jira) and converting them to
 SpecFact contract-driven format using the bridge architecture.
 """
 
@@ -20,7 +20,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from specfact_cli import runtime
-from specfact_cli.models.bridge import AdapterType
+from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.telemetry import telemetry
@@ -29,7 +29,7 @@ from specfact_cli.utils.progress import save_bundle_with_progress
 
 
 app = typer.Typer(
-    help="Import codebases and external tool projects (e.g., Spec-Kit, Linear, Jira) to contract format",
+    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, Linear, Jira) to contract format",
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
 )
 console = Console()
@@ -61,10 +61,11 @@ def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name:
     Returns:
         ProjectBundle instance
     """
+    from specfact_cli.migrations.plan_migrator import get_latest_schema_version
 
-    # Create manifest
+    # Create manifest with latest schema version
     manifest = BundleManifest(
-        versions=BundleVersions(schema="1.0", project="0.1.0"),
+        versions=BundleVersions(schema=get_latest_schema_version(), project="0.1.0"),
         schema_metadata=None,
         project_metadata=None,
     )
@@ -1018,7 +1019,7 @@ def _suggest_constitution_bootstrap(repo: Path) -> None:
             else:
                 console.print()
                 console.print(
-                    "[dim]💡 Tip: Run 'specfact bridge constitution bootstrap --repo .' to generate constitution[/dim]"
+                    "[dim]💡 Tip: Run 'specfact sdd constitution bootstrap --repo .' to generate constitution[/dim]"
                 )
 
 
@@ -1198,7 +1199,7 @@ def from_bridge(
     adapter: str = typer.Option(
         "speckit",
         "--adapter",
-        help="Adapter type: speckit, generic-markdown (available), github, ado, linear, jira, notion (future). Default: auto-detect",
+        help="Adapter type: speckit, openspec, generic-markdown (available), github, ado, linear, jira, notion (future). Default: auto-detect",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
@@ -1206,11 +1207,12 @@ def from_bridge(
     Convert external tool project to SpecFact contract format using bridge architecture.
 
     This command uses bridge configuration to scan an external tool repository
-    (e.g., Spec-Kit, Linear, Jira), parse its structure, and generate equivalent
+    (e.g., Spec-Kit, OpenSpec, Linear, Jira), parse its structure, and generate equivalent
     SpecFact contracts, protocols, and plans.
 
     Supported adapters:
     - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
+    - openspec: OpenSpec integration (openspec/) - read-only sync (Phase 1)
     - generic-markdown: Generic markdown-based specifications - import & sync
     - github: GitHub Issues (export-only, no import) - DevOps backlog tracking only
     - ado: Azure DevOps Work Items (future) - planned
@@ -1236,25 +1238,49 @@ def from_bridge(
     if adapter == "speckit" or adapter == "auto":
         probe = BridgeProbe(repo)
         detected_capabilities = probe.detect()
-        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
+        # Use detected tool directly (e.g., "speckit", "openspec", "github")
+        # BridgeProbe already tries all registered adapters
+        if detected_capabilities.tool == "unknown":
+            console.print("[bold red]✗[/bold red] Could not auto-detect adapter")
+            console.print("[dim]No registered adapter detected this repository structure[/dim]")
+            registered = AdapterRegistry.list_adapters()
+            console.print(f"[dim]Registered adapters: {', '.join(registered)}[/dim]")
+            console.print("[dim]Tip: Specify adapter explicitly with --adapter <adapter>[/dim]")
+            raise typer.Exit(1)
+        adapter = detected_capabilities.tool
 
-    # Validate adapter
-    try:
-        adapter_type = AdapterType(adapter.lower())
-    except ValueError as err:
+    # Validate adapter using registry (no hard-coded checks)
+    adapter_lower = adapter.lower()
+    if not AdapterRegistry.is_registered(adapter_lower):
         console.print(f"[bold red]✗[/bold red] Unsupported adapter: {adapter}")
-        console.print(f"[dim]Supported adapters: {', '.join([a.value for a in AdapterType])}[/dim]")
-        raise typer.Exit(1) from err
+        registered = AdapterRegistry.list_adapters()
+        console.print(f"[dim]Registered adapters: {', '.join(registered)}[/dim]")
+        raise typer.Exit(1)
 
-    # For now, Spec-Kit adapter uses legacy converters (will be migrated to bridge)
-    spec_kit_scanner = None
-    spec_kit_converter = None
-    if adapter_type == AdapterType.SPECKIT:
-        from specfact_cli.importers.speckit_converter import SpecKitConverter
-        from specfact_cli.importers.speckit_scanner import SpecKitScanner
+    # Get adapter from registry (universal pattern - no hard-coded checks)
+    adapter_instance = AdapterRegistry.get_adapter(adapter_lower)
+    if adapter_instance is None:
+        console.print(f"[bold red]✗[/bold red] Adapter '{adapter_lower}' not found in registry")
+        console.print("[dim]Available adapters: " + ", ".join(AdapterRegistry.list_adapters()) + "[/dim]")
+        raise typer.Exit(1)
 
-        spec_kit_scanner = SpecKitScanner
-        spec_kit_converter = SpecKitConverter
+    # Use adapter's detect() method
+    from specfact_cli.sync.bridge_probe import BridgeProbe
+
+    probe = BridgeProbe(repo)
+    capabilities = probe.detect()
+    bridge_config = probe.auto_generate_bridge(capabilities) if capabilities.tool != "unknown" else None
+
+    if not adapter_instance.detect(repo, bridge_config):
+        console.print(f"[bold red]✗[/bold red] Not a {adapter_lower} repository")
+        console.print(f"[dim]Expected: {adapter_lower} structure[/dim]")
+        console.print("[dim]Tip: Use 'specfact sync bridge probe' to auto-detect tool configuration[/dim]")
+        raise typer.Exit(1)
+
+        console.print(f"[bold green]✓[/bold green] Detected {adapter_lower} repository")
+
+        # Get adapter capabilities for adapter-specific operations
+        capabilities = adapter_instance.get_capabilities(repo, bridge_config)
 
     telemetry_metadata = {
         "adapter": adapter,
@@ -1264,44 +1290,20 @@ def from_bridge(
     }
 
     with telemetry.track_command("import.from_bridge", telemetry_metadata) as record:
-        console.print(f"[bold cyan]Importing {adapter_type.value} project from:[/bold cyan] {repo}")
+        console.print(f"[bold cyan]Importing {adapter_lower} project from:[/bold cyan] {repo}")
 
-        # Use bridge-based import for supported adapters
-        if adapter_type == AdapterType.SPECKIT:
-            # Legacy Spec-Kit import (will be migrated to bridge)
-            if spec_kit_scanner is None:
-                msg = "SpecKitScanner not available"
-                raise RuntimeError(msg)
-            scanner = spec_kit_scanner(repo)
-
-            if not scanner.is_speckit_repo():
-                console.print(f"[bold red]✗[/bold red] Not a {adapter_type.value} repository")
-                console.print("[dim]Expected: .specify/ directory[/dim]")
-                console.print("[dim]Tip: Use 'specfact bridge probe' to auto-detect tool configuration[/dim]")
-                raise typer.Exit(1)
-        else:
-            # Generic bridge-based import
-            # bridge_sync = BridgeSync(repo)  # TODO: Use when implementing generic markdown import
-            console.print(f"[bold green]✓[/bold green] Using bridge adapter: {adapter_type.value}")
-            console.print("[yellow]⚠ Generic markdown adapter import is not yet fully implemented[/yellow]")
-            console.print("[dim]Falling back to Spec-Kit adapter for now[/dim]")
-            # TODO: Implement generic markdown import via bridge
-            raise typer.Exit(1)
-
-        if adapter_type == AdapterType.SPECKIT:
-            structure = scanner.scan_structure()
-
-            if dry_run:
-                console.print("[yellow]→ Dry run mode - no files will be written[/yellow]")
-                console.print("\n[bold]Detected Structure:[/bold]")
-                console.print(f"  - Specs Directory: {structure.get('specs_dir', 'Not found')}")
-                console.print(f"  - Memory Directory: {structure.get('specify_memory_dir', 'Not found')}")
-                if structure.get("feature_dirs"):
-                    console.print(f"  - Features Found: {len(structure['feature_dirs'])}")
-                if structure.get("memory_files"):
-                    console.print(f"  - Memory Files: {len(structure['memory_files'])}")
-                record({"dry_run": True, "features_found": len(structure.get("feature_dirs", []))})
-                return
+        # Use adapter for feature discovery (adapter-agnostic)
+        if dry_run:
+            # Discover features using adapter
+            features = adapter_instance.discover_features(repo, bridge_config)
+            console.print("[yellow]→ Dry run mode - no files will be written[/yellow]")
+            console.print("\n[bold]Detected Structure:[/bold]")
+            console.print(
+                f"  - Specs Directory: {capabilities.specs_dir if hasattr(capabilities, 'specs_dir') else 'N/A'}"
+            )
+            console.print(f"  - Features Found: {len(features)}")
+            record({"dry_run": True, "features_found": len(features)})
+            return
 
         if not write:
             console.print("[yellow]→ Use --write to actually convert files[/yellow]")
@@ -1317,53 +1319,205 @@ def from_bridge(
             TimeElapsedColumn(),
             console=console,
         ) as progress:
-            # Step 1: Discover features from markdown artifacts
-            task = progress.add_task(f"Discovering {adapter_type.value} features...", total=None)
-            features = scanner.discover_features()
+            # Step 1: Discover features from markdown artifacts (adapter-agnostic)
+            task = progress.add_task(f"Discovering {adapter_lower} features...", total=None)
+            # Use adapter's discover_features method (universal pattern)
+            features = adapter_instance.discover_features(repo, bridge_config)
+
             if not features:
-                console.print(f"[bold red]✗[/bold red] No features found in {adapter_type.value} repository")
+                console.print(f"[bold red]✗[/bold red] No features found in {adapter_lower} repository")
                 console.print("[dim]Expected: specs/*/spec.md files (or bridge-configured paths)[/dim]")
-                console.print("[dim]Tip: Use 'specfact bridge probe' to validate bridge configuration[/dim]")
+                console.print("[dim]Tip: Use 'specfact sync bridge probe' to validate bridge configuration[/dim]")
                 raise typer.Exit(1)
             progress.update(task, description=f"✓ Discovered {len(features)} features")
 
-            # Step 2: Convert protocol
-            task = progress.add_task("Converting protocol...", total=None)
-            if spec_kit_converter is None:
-                msg = "SpecKitConverter not available"
-                raise RuntimeError(msg)
-            converter = spec_kit_converter(repo)
+            # Step 2: Import artifacts using BridgeSync (adapter-agnostic)
+            from specfact_cli.sync.bridge_sync import BridgeSync
+
+            bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
             protocol = None
             plan_bundle = None
-            try:
-                protocol = converter.convert_protocol()
-                progress.update(task, description=f"✓ Protocol converted ({len(protocol.states)} states)")
 
-                # Step 3: Convert plan
-                task = progress.add_task("Converting plan bundle...", total=None)
-                plan_bundle = converter.convert_plan()
-                progress.update(task, description=f"✓ Plan converted ({len(plan_bundle.features)} features)")
+            # Import protocol if available
+            protocol_path = repo / ".specfact" / "protocols" / "workflow.protocol.yaml"
+            if protocol_path.exists():
+                from specfact_cli.models.protocol import Protocol
+                from specfact_cli.utils.yaml_utils import load_yaml
 
-                # Step 4: Generate Semgrep rules
-                task = progress.add_task("Generating Semgrep rules...", total=None)
-                _semgrep_path = converter.generate_semgrep_rules()  # Not used yet
-                progress.update(task, description="✓ Semgrep rules generated")
+                try:
+                    protocol_data = load_yaml(protocol_path)
+                    protocol = Protocol(**protocol_data)
+                except Exception as e:
+                    console.print(f"[yellow]⚠[/yellow] Protocol loading failed: {e}")
+                    protocol = None
 
-                # Step 5: Generate GitHub Action workflow
-                task = progress.add_task("Generating GitHub Action workflow...", total=None)
-                repo_name = repo.name if isinstance(repo, Path) else None
-                _workflow_path = converter.generate_github_action(repo_name=repo_name)  # Not used yet
-                progress.update(task, description="✓ GitHub Action workflow generated")
+            # Import features using adapter's import_artifact method
+            # Use "main" as default bundle name for bridge imports
+            bundle_name = "main"
 
-            except (FileExistsError, IsADirectoryError) as e:
+            # Ensure project bundle structure exists
+            from specfact_cli.utils.structure import SpecFactStructure
+
+            SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle_name)
+            bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
+
+            # Load or create project bundle
+            from specfact_cli.migrations.plan_migrator import get_latest_schema_version
+            from specfact_cli.models.project import BundleManifest, BundleVersions, Product, ProjectBundle
+            from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+
+            if bundle_dir.exists() and (bundle_dir / "bundle.manifest.yaml").exists():
+                plan_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+            else:
+                # Create initial bundle with latest schema version
+                manifest = BundleManifest(
+                    versions=BundleVersions(schema=get_latest_schema_version(), project="0.1.0"),
+                    schema_metadata=None,
+                    project_metadata=None,
+                )
+                product = Product(themes=[], releases=[])
+                plan_bundle = ProjectBundle(
+                    manifest=manifest,
+                    bundle_name=bundle_name,
+                    product=product,
+                    features={},
+                )
+                save_project_bundle(plan_bundle, bundle_dir, atomic=True)
+
+            # Import specification artifacts for each feature (creates features)
+            task = progress.add_task("Importing specifications...", total=len(features))
+            import_errors = []
+            imported_count = 0
+            for feature in features:
+                # Use original directory name for path resolution (feature_branch or spec_path)
+                # feature_key is normalized (uppercase/underscores), but we need original name for paths
+                feature_id = feature.get("feature_branch")  # Original directory name
+                if not feature_id and "spec_path" in feature:
+                    # Fallback: extract from spec_path if available
+                    spec_path_str = feature["spec_path"]
+                    if "/" in spec_path_str:
+                        parts = spec_path_str.split("/")
+                        # Find the directory name (should be before spec.md)
+                        for i, part in enumerate(parts):
+                            if part == "spec.md" and i > 0:
+                                feature_id = parts[i - 1]
+                                break
+
+                # If still no feature_id, try to use feature_key but convert back to directory format
+                if not feature_id:
+                    feature_key = feature.get("feature_key") or feature.get("key", "")
+                    if feature_key:
+                        # Convert normalized key back to directory name (ORDER_SERVICE -> order-service)
+                        # This is a best-effort conversion
+                        feature_id = feature_key.lower().replace("_", "-")
+
+                if feature_id:
+                    # Verify artifact path exists before importing (use original directory name)
+                    try:
+                        artifact_path = bridge_sync.resolve_artifact_path("specification", feature_id, bundle_name)
+                        if not artifact_path.exists():
+                            error_msg = f"Artifact not found for {feature_id}: {artifact_path}"
+                            import_errors.append(error_msg)
+                            console.print(f"[yellow]⚠[/yellow] {error_msg}")
+                            progress.update(task, advance=1)
+                            continue
+                    except Exception as e:
+                        error_msg = f"Failed to resolve artifact path for {feature_id}: {e}"
+                        import_errors.append(error_msg)
+                        console.print(f"[yellow]⚠[/yellow] {error_msg}")
+                        progress.update(task, advance=1)
+                        continue
+
+                    # Import specification artifact (use original directory name for path resolution)
+                    result = bridge_sync.import_artifact("specification", feature_id, bundle_name)
+                    if result.success:
+                        imported_count += 1
+                    else:
+                        error_msg = f"Failed to import specification for {feature_id}: {', '.join(result.errors)}"
+                        import_errors.append(error_msg)
+                        console.print(f"[yellow]⚠[/yellow] {error_msg}")
+                progress.update(task, advance=1)
+
+            if import_errors:
+                console.print(f"[bold yellow]⚠[/bold yellow] {len(import_errors)} specification import(s) had issues")
+                for error in import_errors[:5]:  # Show first 5 errors
+                    console.print(f"  - {error}")
+                if len(import_errors) > 5:
+                    console.print(f"  ... and {len(import_errors) - 5} more")
+
+            if imported_count == 0 and len(features) > 0:
+                console.print("[bold red]✗[/bold red] No specifications were imported successfully")
+                raise typer.Exit(1)
+
+            # Reload bundle after importing specifications
+            plan_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+
+            # Optionally import plan artifacts to add plan information
+            task = progress.add_task("Importing plans...", total=len(features))
+            for feature in features:
+                feature_key = feature.get("feature_key") or feature.get("key", "")
+                if feature_key:
+                    # Import plan artifact (adds plan information to existing features)
+                    result = bridge_sync.import_artifact("plan", feature_key, bundle_name)
+                    if not result.success and result.errors:
+                        # Plan import is optional, only warn if there are actual errors
+                        pass
+                progress.update(task, advance=1)
+
+            # Reload bundle after importing plans
+            plan_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+
+            # For Spec-Kit adapter, also generate protocol, Semgrep rules and GitHub Actions if supported
+            # These are Spec-Kit-specific enhancements, not core import functionality
+            if adapter_lower == "speckit":
+                from specfact_cli.importers.speckit_converter import SpecKitConverter
+
+                converter = SpecKitConverter(repo)
+                # Step 3: Generate protocol (Spec-Kit specific)
+                if hasattr(converter, "convert_protocol"):
+                    task = progress.add_task("Generating protocol...", total=None)
+                    try:
+                        _protocol = converter.convert_protocol()  # Generates .specfact/protocols/workflow.protocol.yaml
+                        progress.update(task, description="✓ Protocol generated")
+                        # Reload protocol after generation
+                        protocol_path = repo / ".specfact" / "protocols" / "workflow.protocol.yaml"
+                        if protocol_path.exists():
+                            from specfact_cli.models.protocol import Protocol
+                            from specfact_cli.utils.yaml_utils import load_yaml
+
+                            try:
+                                protocol_data = load_yaml(protocol_path)
+                                protocol = Protocol(**protocol_data)
+                            except Exception as e:
+                                console.print(f"[yellow]⚠[/yellow] Protocol loading failed: {e}")
+                    except Exception as e:
+                        console.print(f"[yellow]⚠[/yellow] Protocol generation failed: {e}")
+
+                # Step 4: Generate Semgrep rules (Spec-Kit specific)
+                if hasattr(converter, "generate_semgrep_rules"):
+                    task = progress.add_task("Generating Semgrep rules...", total=None)
+                    try:
+                        _semgrep_path = converter.generate_semgrep_rules()  # Not used yet
+                        progress.update(task, description="✓ Semgrep rules generated")
+                    except Exception as e:
+                        console.print(f"[yellow]⚠[/yellow] Semgrep rules generation failed: {e}")
+
+                # Step 5: Generate GitHub Action workflow (Spec-Kit specific)
+                if hasattr(converter, "generate_github_action"):
+                    task = progress.add_task("Generating GitHub Action workflow...", total=None)
+                    repo_name = repo.name if isinstance(repo, Path) else None
+                    try:
+                        _workflow_path = converter.generate_github_action(repo_name=repo_name)  # Not used yet
+                        progress.update(task, description="✓ GitHub Action workflow generated")
+                    except Exception as e:
+                        console.print(f"[yellow]⚠[/yellow] GitHub Action workflow generation failed: {e}")
+
+            # Handle file existence errors (conversion already completed above with individual try/except blocks)
+            # If plan_bundle or protocol are None, try to load existing ones
+            if plan_bundle is None or protocol is None:
                 from specfact_cli.migrations.plan_migrator import get_current_schema_version
                 from specfact_cli.models.plan import PlanBundle, Product
 
-                # Allow reruns without forcing callers to pass --force
-                # Also handle case where path is a directory instead of a file
-                console.print(
-                    f"[yellow]⚠ Files already exist or path conflict; reusing existing generated artifacts ({e})[/yellow]"
-                )
                 if plan_bundle is None:
                     plan_bundle = PlanBundle(
                         version=get_current_schema_version(),
@@ -1386,19 +1540,13 @@ def from_bridge(
                             protocol = Protocol(**protocol_data)
                         except Exception:
                             pass
-            except Exception as e:
-                console.print(f"[bold red]✗[/bold red] Conversion failed: {e}")
-                import traceback
-
-                console.print(f"[dim]{traceback.format_exc()}[/dim]")
-                raise typer.Exit(1) from e
 
         # Generate report
         if report and protocol and plan_bundle:
-            report_content = f"""# {adapter_type.value.upper()} Import Report
+            report_content = f"""# {adapter_lower.upper()} Import Report
 
 ## Repository: {repo}
-## Adapter: {adapter_type.value}
+## Adapter: {adapter_lower}
 
 ## Summary
 - **States Found**: {len(protocol.states)}
@@ -1424,12 +1572,24 @@ def from_bridge(
 
         # Save plan bundle as ProjectBundle (modular structure)
         if plan_bundle:
+            from specfact_cli.models.plan import PlanBundle
+            from specfact_cli.models.project import ProjectBundle
+
             bundle_name = "main"  # Default bundle name for bridge imports
-            project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
-            bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
-            SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle_name)
-            save_bundle_with_progress(project_bundle, bundle_dir, atomic=True, console_instance=console)
-            console.print(f"[dim]Project bundle: .specfact/projects/{bundle_name}/[/dim]")
+            # Check if plan_bundle is already a ProjectBundle or needs conversion
+            if isinstance(plan_bundle, ProjectBundle):
+                project_bundle = plan_bundle
+            elif isinstance(plan_bundle, PlanBundle):
+                project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
+            else:
+                # Unknown type, skip conversion
+                project_bundle = None
+
+            if project_bundle:
+                bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle_name)
+                SpecFactStructure.ensure_project_structure(base_path=repo, bundle_name=bundle_name)
+                save_bundle_with_progress(project_bundle, bundle_dir, atomic=True, console_instance=console)
+                console.print(f"[dim]Project bundle: .specfact/projects/{bundle_name}/[/dim]")
 
         console.print("[bold green]✓[/bold green] Import complete!")
         console.print("[dim]Protocol: .specfact/protocols/workflow.protocol.yaml[/dim]")

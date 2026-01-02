@@ -14,7 +14,16 @@ SpecFact CLI is a **brownfield-first legacy code modernization tool** that rever
 
 ---
 
-## Building on GitHub Spec-Kit
+## Building on Specification Tools
+
+SpecFact CLI integrates with multiple specification and planning tools through a plugin-based adapter architecture:
+
+- **GitHub Spec-Kit** - Interactive specification authoring
+- **OpenSpec** - Specification anchoring and change tracking (v0.22.0+)
+- **GitHub Issues** - DevOps backlog integration
+- **Future**: Linear, Jira, Azure DevOps, and more
+
+### Building on GitHub Spec-Kit
 
 ### What Spec-Kit Does Great
 
@@ -54,6 +63,31 @@ SpecFact CLI **complements Spec-Kit** by adding automation and enforcement:
 
 **[Learn the full journey →](speckit-journey.md)**
 
+### Working With OpenSpec
+
+**OpenSpec** is another complementary tool that focuses on specification anchoring and change tracking. SpecFact CLI integrates with OpenSpec via the OpenSpec adapter (available in v0.22.0+):
+
+- **OpenSpec** manages specifications and change proposals (the "what" and "why")
+- **SpecFact** analyzes existing code and enforces contracts (the "how" and "safety")
+- **Bridge Adapters** sync change proposals to DevOps tools (the "tracking")
+
+**Integration:**
+
+```bash
+# Read-only sync from OpenSpec to SpecFact (v0.22.0+)
+specfact sync bridge --adapter openspec --mode read-only \
+  --bundle my-project \
+  --repo /path/to/openspec-repo
+
+# Export OpenSpec change proposals to GitHub Issues
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --repo /path/to/openspec-repo
+```
+
+**[Learn the full OpenSpec integration journey →](openspec-journey.md)**
+
 ### Seamless Migration
 
 Already using Spec-Kit? SpecFact CLI **imports your work** in one command:
@@ -72,6 +106,8 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 ```
 
 **Best of both worlds**: Interactive authoring (Spec-Kit) + Automated enforcement (SpecFact)
+
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
 
 **Team collaboration**: **Shared structured plans** enable multiple developers to work on the same plan with automated deviation detection. Unlike Spec-Kit's manual markdown sharing, SpecFact provides automated bidirectional sync that keeps plans synchronized across team members:
 
