@@ -1111,7 +1111,16 @@ def sync_bridge(
     if adapter == "speckit" or adapter == "auto":
         probe = BridgeProbe(repo)
         detected_capabilities = probe.detect()
-        adapter = "speckit" if detected_capabilities.tool == "speckit" else "generic-markdown"
+        # Use detected tool directly (e.g., "speckit", "openspec", "github")
+        # BridgeProbe already tries all registered adapters
+        if detected_capabilities.tool == "unknown":
+            console.print("[bold red]✗[/bold red] Could not auto-detect adapter")
+            console.print("[dim]No registered adapter detected this repository structure[/dim]")
+            registered = AdapterRegistry.list_adapters()
+            console.print(f"[dim]Registered adapters: {', '.join(registered)}[/dim]")
+            console.print("[dim]Tip: Specify adapter explicitly with --adapter <adapter>[/dim]")
+            raise typer.Exit(1)
+        adapter = detected_capabilities.tool
 
     # Validate adapter using registry (no hard-coded checks)
     adapter_lower = adapter.lower()
