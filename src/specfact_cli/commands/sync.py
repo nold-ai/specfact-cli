@@ -95,63 +95,67 @@ def _perform_sync_operation(
     # Generate bridge config using adapter
     bridge_config = adapter_instance.generate_bridge_config(repo)
 
-    # Step 1.5: Validate constitution exists and is not empty (adapter-specific)
+    # Step 1.5: Validate constitution exists and is not empty (Spec-Kit only)
+    # Note: Constitution is required for Spec-Kit but not for other adapters (e.g., OpenSpec)
     capabilities = adapter_instance.get_capabilities(repo, bridge_config)
-    has_constitution = capabilities.has_custom_hooks
-    if not has_constitution:
-        console.print("[bold red]✗[/bold red] Constitution required")
-        console.print("[red]Constitution file not found or is empty[/red]")
-        console.print("\n[bold yellow]Next Steps:[/bold yellow]")
-        console.print("1. Run 'specfact sdd constitution bootstrap --repo .' to auto-generate constitution")
-        console.print("2. Or run tool-specific constitution command in your AI assistant")
-        console.print("3. Then run 'specfact sync bridge --adapter <adapter>' again")
-        raise typer.Exit(1)
+    if adapter_type == AdapterType.SPECKIT:
+        has_constitution = capabilities.has_custom_hooks
+        if not has_constitution:
+            console.print("[bold red]✗[/bold red] Constitution required")
+            console.print("[red]Constitution file not found or is empty[/red]")
+            console.print("\n[bold yellow]Next Steps:[/bold yellow]")
+            console.print("1. Run 'specfact sdd constitution bootstrap --repo .' to auto-generate constitution")
+            console.print("2. Or run tool-specific constitution command in your AI assistant")
+            console.print("3. Then run 'specfact sync bridge --adapter <adapter>' again")
+            raise typer.Exit(1)
 
-    # Check if constitution is minimal and suggest bootstrap
-    constitution_path = repo / ".specify" / "memory" / "constitution.md"
-    if constitution_path.exists():
-        from specfact_cli.commands.sdd import is_constitution_minimal
+    # Check if constitution is minimal and suggest bootstrap (Spec-Kit only)
+    if adapter_type == AdapterType.SPECKIT:
+        constitution_path = repo / ".specify" / "memory" / "constitution.md"
+        if constitution_path.exists():
+            from specfact_cli.commands.sdd import is_constitution_minimal
 
-        if is_constitution_minimal(constitution_path):
-            # Auto-generate in test mode, prompt in interactive mode
-            # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
-            is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_env:
-                # Auto-generate bootstrap constitution in test mode
-                from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+            if is_constitution_minimal(constitution_path):
+                # Auto-generate in test mode, prompt in interactive mode
+                # Check for test environment (TEST_MODE or PYTEST_CURRENT_TEST)
+                is_test_env = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+                if is_test_env:
+                    # Auto-generate bootstrap constitution in test mode
+                    from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 
-                enricher = ConstitutionEnricher()
-                enriched_content = enricher.bootstrap(repo, constitution_path)
-                constitution_path.write_text(enriched_content, encoding="utf-8")
-            else:
-                # Check if we're in an interactive environment
-                if runtime.is_interactive():
-                    console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
-                    suggest_bootstrap = typer.confirm(
-                        "Generate bootstrap constitution from repository analysis?",
-                        default=True,
-                    )
-                    if suggest_bootstrap:
-                        from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
-
-                        console.print("[dim]Generating bootstrap constitution...[/dim]")
-                        enricher = ConstitutionEnricher()
-                        enriched_content = enricher.bootstrap(repo, constitution_path)
-                        constitution_path.write_text(enriched_content, encoding="utf-8")
-                        console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
-                        console.print("[dim]Review and adjust as needed before syncing[/dim]")
-                    else:
-                        console.print(
-                            "[dim]Skipping bootstrap. Run 'specfact sdd constitution bootstrap' manually if needed[/dim]"
-                        )
+                    enricher = ConstitutionEnricher()
+                    enriched_content = enricher.bootstrap(repo, constitution_path)
+                    constitution_path.write_text(enriched_content, encoding="utf-8")
                 else:
-                    # Non-interactive mode: skip prompt
-                    console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
-                    console.print(
-                        "[dim]Run 'specfact sdd constitution bootstrap --repo .' to generate constitution[/dim]"
-                    )
+                    # Check if we're in an interactive environment
+                    if runtime.is_interactive():
+                        console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
+                        suggest_bootstrap = typer.confirm(
+                            "Generate bootstrap constitution from repository analysis?",
+                            default=True,
+                        )
+                        if suggest_bootstrap:
+                            from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
 
-    console.print("[bold green]✓[/bold green] Constitution found and validated")
+                            console.print("[dim]Generating bootstrap constitution...[/dim]")
+                            enricher = ConstitutionEnricher()
+                            enriched_content = enricher.bootstrap(repo, constitution_path)
+                            constitution_path.write_text(enriched_content, encoding="utf-8")
+                            console.print("[bold green]✓[/bold green] Bootstrap constitution generated")
+                            console.print("[dim]Review and adjust as needed before syncing[/dim]")
+                        else:
+                            console.print(
+                                "[dim]Skipping bootstrap. Run 'specfact sdd constitution bootstrap' manually if needed[/dim]"
+                            )
+                    else:
+                        # Non-interactive mode: skip prompt
+                        console.print("[yellow]⚠[/yellow] Constitution is minimal (essentially empty)")
+                        console.print(
+                            "[dim]Run 'specfact sdd constitution bootstrap --repo .' to generate constitution[/dim]"
+                        )
+        else:
+            # Constitution exists and is not minimal
+            console.print("[bold green]✓[/bold green] Constitution found and validated")
 
     # Step 2: Detect SpecFact structure
     specfact_exists = (repo / SpecFactStructure.ROOT).exists()
