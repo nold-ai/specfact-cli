@@ -18,11 +18,17 @@ from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.table import Table
 
-from specfact_cli.models.bridge import AdapterType, BridgeConfig
-from specfact_cli.models.project import ProjectBundle
+from specfact_cli.adapters.registry import AdapterRegistry
+from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.sync.bridge_probe import BridgeProbe
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+
+
+console = Console()
 
 
 @dataclass
@@ -51,6 +57,11 @@ class BridgeSync:
 
     This class provides generic sync functionality that works with any tool
     adapter by using bridge configuration to resolve paths dynamically.
+
+    Note: All adapter-specific logic (import/export) is handled by adapters
+    via the AdapterRegistry. This class does NOT contain hard-coded adapter
+    checks. Future adapters (SpecKitAdapter, GenericMarkdownAdapter) should
+    be created to move any remaining adapter-specific logic out of this class.
     """
 
     @beartype
@@ -176,12 +187,9 @@ class BridgeSync:
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            # Delegate to adapter-specific parser
-            if self.bridge_config.adapter == AdapterType.SPECKIT:
-                self._import_speckit_artifact(artifact_key, artifact_path, project_bundle, persona)
-            else:
-                # Generic markdown import
-                self._import_generic_markdown(artifact_key, artifact_path, project_bundle)
+            # Get adapter from registry (universal pattern - no hard-coded checks)
+            adapter = AdapterRegistry.get_adapter(self.bridge_config.adapter.value)
+            adapter.import_artifact(artifact_key, artifact_path, project_bundle, self.bridge_config)
 
             # Save updated bundle
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
@@ -204,67 +212,6 @@ class BridgeSync:
             errors=errors,
             warnings=warnings,
         )
-
-    @beartype
-    def _import_speckit_artifact(
-        self,
-        artifact_key: str,
-        artifact_path: Path,
-        project_bundle: ProjectBundle,
-        persona: str | None,
-    ) -> None:
-        """
-        Import Spec-Kit artifact using existing parser.
-
-        Args:
-            artifact_key: Artifact key (e.g., "specification", "plan")
-            artifact_path: Path to artifact file
-            project_bundle: Project bundle to update
-            persona: Persona for ownership validation (optional)
-        """
-        from specfact_cli.importers.speckit_scanner import SpecKitScanner
-
-        scanner = SpecKitScanner(self.repo_path)
-
-        # Parse based on artifact type
-        if artifact_key == "specification":
-            # Parse spec.md
-            parsed = scanner.parse_spec_markdown(artifact_path)
-            if parsed:
-                # Update project bundle with parsed data
-                # This would integrate with existing SpecKitConverter logic
-                pass
-        elif artifact_key == "plan":
-            # Parse plan.md
-            parsed = scanner.parse_plan_markdown(artifact_path)
-            if parsed:
-                # Update project bundle with parsed data
-                pass
-        elif artifact_key == "tasks":
-            # Parse tasks.md
-            parsed = scanner.parse_tasks_markdown(artifact_path)
-            if parsed:
-                # Update project bundle with parsed data
-                pass
-
-    @beartype
-    def _import_generic_markdown(
-        self,
-        artifact_key: str,
-        artifact_path: Path,
-        project_bundle: ProjectBundle,
-    ) -> None:
-        """
-        Import generic markdown artifact.
-
-        Args:
-            artifact_key: Artifact key
-            artifact_path: Path to artifact file
-            project_bundle: Project bundle to update
-        """
-        # Basic markdown import (placeholder for future implementation)
-        # TODO: Parse markdown content and update bundle
-        _ = artifact_path.read_text(encoding="utf-8")  # Placeholder for future parsing
 
     @beartype
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
@@ -308,25 +255,35 @@ class BridgeSync:
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-            # Resolve artifact path
-            artifact_path = self.resolve_artifact_path(artifact_key, feature_id, bundle_name)
+            # Get adapter from registry (universal pattern - no hard-coded checks)
+            adapter = AdapterRegistry.get_adapter(self.bridge_config.adapter.value)
 
-            # Conflict detection: warn if file exists (will be overwritten)
-            if artifact_path.exists():
-                warnings.append(
-                    f"Target file already exists: {artifact_path}. "
-                    "Will overwrite with bundle content. Use --overwrite flag to suppress this warning."
-                )
+            # Find feature in bundle for export
+            feature = None
+            for key, feat in project_bundle.features.items():
+                if key == feature_id or feature_id in key:
+                    feature = feat
+                    break
 
-            # Ensure parent directory exists
-            artifact_path.parent.mkdir(parents=True, exist_ok=True)
+            if feature is None:
+                errors.append(f"Feature '{feature_id}' not found in bundle '{bundle_name}'")
+                return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
 
-            # Delegate to adapter-specific generator
-            if self.bridge_config.adapter == AdapterType.SPECKIT:
-                self._export_speckit_artifact(artifact_key, artifact_path, project_bundle, feature_id, persona)
-            else:
-                # Generic markdown export
-                self._export_generic_markdown(artifact_key, artifact_path, project_bundle, feature_id)
+            # Export using adapter (adapter handles path resolution and writing)
+            exported_result = adapter.export_artifact(artifact_key, feature, self.bridge_config)
+
+            # Handle export result (Path for file-based, dict for API-based)
+            if isinstance(exported_result, Path):
+                # File-based export - check if file was created
+                if not exported_result.exists():
+                    warnings.append(f"Adapter exported to {exported_result} but file does not exist")
+                else:
+                    # Conflict detection: warn if file was overwritten
+                    warnings.append(f"Exported to {exported_result}. Use --overwrite flag to suppress this message.")
+            elif isinstance(exported_result, dict):
+                # API-based export (e.g., GitHub issues)
+                # Adapter handles the export, result contains API response data
+                pass
 
             operations.append(
                 SyncOperation(
@@ -348,91 +305,133 @@ class BridgeSync:
         )
 
     @beartype
-    def _export_speckit_artifact(
-        self,
-        artifact_key: str,
-        artifact_path: Path,
-        project_bundle: ProjectBundle,
-        feature_id: str,
-        persona: str | None,
-    ) -> None:
+    @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
+    @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
+    @ensure(lambda result: result is None, "Must return None")
+    def generate_alignment_report(self, bundle_name: str, output_file: Path | None = None) -> None:
         """
-        Export Spec-Kit artifact using existing generator.
+        Generate alignment report comparing SpecFact features vs OpenSpec specs.
+
+        This method compares features in the SpecFact bundle with specifications
+        in OpenSpec to identify gaps and calculate coverage.
 
         Args:
-            artifact_key: Artifact key (e.g., "specification", "plan")
-            artifact_path: Path to write artifact file
-            project_bundle: Project bundle to export from
-            feature_id: Feature identifier
-            persona: Persona for section filtering (optional)
-
-        Note: This uses placeholder implementations. Full integration with
-        SpecKitConverter will be implemented in future phases.
+            bundle_name: Project bundle name
+            output_file: Optional file path to save report (if None, only prints to console)
         """
-        # Find feature in bundle (by key or by feature_id pattern)
-        feature = None
-        for key, feat in project_bundle.features.items():
-            if key == feature_id or feature_id in key:
-                feature = feat
-                break
+        from specfact_cli.utils.structure import SpecFactStructure
 
-        if artifact_key == "specification":
-            # Generate spec.md (PO-owned sections)
-            content = self._generate_spec_markdown(feature, feature_id)
-            artifact_path.write_text(content, encoding="utf-8")
-        elif artifact_key == "plan":
-            # Generate plan.md (Architect-owned sections)
-            content = self._generate_plan_markdown(feature, feature_id)
-            artifact_path.write_text(content, encoding="utf-8")
-        elif artifact_key == "tasks":
-            # Generate tasks.md (Developer-owned sections)
-            content = self._generate_tasks_markdown(feature, feature_id)
-            artifact_path.write_text(content, encoding="utf-8")
+        # Check if adapter supports alignment reports (adapter-agnostic)
+        if not self.bridge_config:
+            console.print("[yellow]⚠[/yellow] Bridge config not available for alignment report")
+            return
 
-    @beartype
-    def _generate_spec_markdown(self, feature: Any, feature_id: str) -> str:
-        """Generate spec.md content (placeholder - will integrate with SpecKitConverter)."""
-        if feature is None:
-            return f"# Feature Specification: {feature_id}\n\n(Feature not found in bundle)\n"
-        title = feature.title if hasattr(feature, "title") else feature_id
-        return f"# Feature Specification: {title}\n\n(Generated from SpecFact bundle)\n"
+        adapter = AdapterRegistry.get_adapter(self.bridge_config.adapter.value)
+        if not adapter:
+            console.print(
+                f"[yellow]⚠[/yellow] Adapter '{self.bridge_config.adapter.value}' not found for alignment report"
+            )
+            return
 
-    @beartype
-    def _generate_plan_markdown(self, feature: Any, feature_id: str) -> str:
-        """Generate plan.md content (placeholder - will integrate with SpecKitConverter)."""
-        if feature is None:
-            return f"# Technical Plan: {feature_id}\n\n(Feature not found in bundle)\n"
-        title = feature.title if hasattr(feature, "title") else feature_id
-        return f"# Technical Plan: {title}\n\n(Generated from SpecFact bundle)\n"
+        bundle_dir = self.repo_path / SpecFactStructure.PROJECTS / bundle_name
+        if not bundle_dir.exists():
+            console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
+            return
 
-    @beartype
-    def _generate_tasks_markdown(self, feature: Any, feature_id: str) -> str:
-        """Generate tasks.md content (placeholder - will integrate with SpecKitConverter)."""
-        if feature is None:
-            return f"# Tasks: {feature_id}\n\n(Feature not found in bundle)\n"
-        title = feature.title if hasattr(feature, "title") else feature_id
-        return f"# Tasks: {title}\n\n(Generated from SpecFact bundle)\n"
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Generating alignment report...", total=None)
 
-    @beartype
-    def _export_generic_markdown(
-        self,
-        artifact_key: str,
-        artifact_path: Path,
-        project_bundle: ProjectBundle,
-        feature_id: str,
-    ) -> None:
-        """
-        Export generic markdown artifact.
+            # Load project bundle
+            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
 
-        Args:
-            artifact_key: Artifact key
-            artifact_path: Path to write artifact file
-            project_bundle: Project bundle to export from
-            feature_id: Feature identifier
-        """
-        # Basic markdown export (placeholder for future implementation)
-        content = f"# {artifact_key}\n\nExported from SpecFact bundle: {project_bundle.bundle_name}\n"
-        artifact_path.write_text(content, encoding="utf-8")
+            # Determine base path for external tool
+            base_path = (
+                self.bridge_config.external_base_path
+                if self.bridge_config and self.bridge_config.external_base_path
+                else self.repo_path
+            )
+
+            # Get external tool features using adapter (adapter-agnostic)
+            external_features = adapter.discover_features(base_path, self.bridge_config)
+            external_feature_ids: set[str] = set()
+            for feature in external_features:
+                feature_key = feature.get("feature_key") or feature.get("key", "")
+                if feature_key:
+                    external_feature_ids.add(feature_key)
+
+            # Get SpecFact features
+            specfact_feature_ids: set[str] = set(project_bundle.features.keys()) if project_bundle.features else set()
+
+            # Calculate alignment
+            aligned = specfact_feature_ids & external_feature_ids
+            gaps_in_specfact = external_feature_ids - specfact_feature_ids
+            gaps_in_external = specfact_feature_ids - external_feature_ids
+
+            total_specs = len(external_feature_ids) if external_feature_ids else 1
+            coverage = (len(aligned) / total_specs * 100) if total_specs > 0 else 0.0
+
+            progress.update(task, completed=1)
+
+        # Generate Rich-formatted report (adapter-agnostic)
+        adapter_name = self.bridge_config.adapter.value.upper() if self.bridge_config else "External Tool"
+        console.print(f"\n[bold]Alignment Report: SpecFact vs {adapter_name}[/bold]\n")
+
+        # Summary table
+        summary_table = Table(title="Alignment Summary", show_header=True, header_style="bold magenta")
+        summary_table.add_column("Metric", style="cyan")
+        summary_table.add_column("Count", style="green", justify="right")
+        summary_table.add_row(f"{adapter_name} Specs", str(len(external_feature_ids)))
+        summary_table.add_row("SpecFact Features", str(len(specfact_feature_ids)))
+        summary_table.add_row("Aligned", str(len(aligned)))
+        summary_table.add_row("Gaps in SpecFact", str(len(gaps_in_specfact)))
+        summary_table.add_row(f"Gaps in {adapter_name}", str(len(gaps_in_external)))
+        summary_table.add_row("Coverage", f"{coverage:.1f}%")
+        console.print(summary_table)
+
+        # Gaps table
+        if gaps_in_specfact:
+            console.print(f"\n[bold yellow]⚠ Gaps in SpecFact ({adapter_name} specs not extracted):[/bold yellow]")
+            gaps_table = Table(show_header=True, header_style="bold yellow")
+            gaps_table.add_column("Feature ID", style="cyan")
+            for feature_id in sorted(gaps_in_specfact):
+                gaps_table.add_row(feature_id)
+            console.print(gaps_table)
+
+        if gaps_in_external:
+            console.print(
+                f"\n[bold yellow]⚠ Gaps in {adapter_name} (SpecFact features not in {adapter_name}):[/bold yellow]"
+            )
+            gaps_table = Table(show_header=True, header_style="bold yellow")
+            gaps_table.add_column("Feature ID", style="cyan")
+            for feature_id in sorted(gaps_in_external):
+                gaps_table.add_row(feature_id)
+            console.print(gaps_table)
+
+        # Save to file if requested
+        if output_file:
+            adapter_name = self.bridge_config.adapter.value.upper() if self.bridge_config else "External Tool"
+            report_content = f"""# Alignment Report: SpecFact vs {adapter_name}
+
+## Summary
+- {adapter_name} Specs: {len(external_feature_ids)}
+- SpecFact Features: {len(specfact_feature_ids)}
+- Aligned: {len(aligned)}
+- Coverage: {coverage:.1f}%
+
+## Gaps in SpecFact
+{chr(10).join(f"- {fid}" for fid in sorted(gaps_in_specfact)) if gaps_in_specfact else "None"}
+
+## Gaps in {adapter_name}
+{chr(10).join(f"- {fid}" for fid in sorted(gaps_in_external)) if gaps_in_external else "None"}
+"""
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            output_file.write_text(report_content, encoding="utf-8")
+            console.print(f"\n[bold green]✓[/bold green] Report saved to {output_file}")
 
     @beartype
     @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
@@ -495,14 +494,22 @@ class BridgeSync:
         warnings: list[str] = []
 
         try:
-            # Get DevOps adapter from registry
-            # For GitHub adapter, pass use_gh_cli flag
+            # Get DevOps adapter from registry (adapter-agnostic)
+            # Get adapter to determine required kwargs
+            adapter_class = AdapterRegistry._adapters.get(adapter_type.lower())
+            if not adapter_class:
+                errors.append(f"Adapter '{adapter_type}' not found in registry")
+                return SyncResult(success=False, operations=[], errors=errors, warnings=warnings)
+
+            # Build adapter kwargs based on adapter type (adapter-agnostic)
+            # TODO: Move kwargs determination to adapter capabilities or adapter-specific method
             adapter_kwargs: dict[str, Any] = {
                 "repo_owner": repo_owner,
                 "repo_name": repo_name,
                 "api_token": api_token,
             }
-            if adapter_type == "github":
+            # GitHub adapter requires use_gh_cli flag
+            if adapter_type.lower() == "github":
                 adapter_kwargs["use_gh_cli"] = use_gh_cli
 
             adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)

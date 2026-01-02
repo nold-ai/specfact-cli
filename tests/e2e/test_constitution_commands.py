@@ -49,7 +49,7 @@ TDD mandatory: Tests written before implementation.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -89,7 +89,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -127,7 +127,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -166,7 +166,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -189,7 +189,7 @@ version = "1.0.0"
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "bootstrap",
                     "--repo",
@@ -248,7 +248,7 @@ description = "Test enrichment"
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -294,7 +294,7 @@ Constitution supersedes all other practices.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -315,7 +315,7 @@ Constitution supersedes all other practices.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "enrich",
                     "--repo",
@@ -371,7 +371,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -396,7 +396,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -429,7 +429,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "validate",
                     "--constitution",
@@ -452,7 +452,7 @@ Constitution supersedes all other practices. Amendments require documentation.
             result = runner.invoke(
                 app,
                 [
-                    "bridge",
+                    "sdd",
                     "constitution",
                     "validate",
                     "--constitution",

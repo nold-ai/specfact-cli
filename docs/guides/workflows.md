@@ -73,11 +73,24 @@ specfact import from-code --bundle integrations-module --repo . --entry-point sr
 
 ---
 
-## Bidirectional Sync (Secondary)
+## Bridge Adapter Sync (Secondary)
+
+Keep SpecFact synchronized with external tools (Spec-Kit, OpenSpec, GitHub Issues, etc.) via the plugin-based adapter registry.
+
+**Supported Adapters**:
+
+- **Spec-Kit** (`--adapter speckit`) - Bidirectional sync for interactive authoring
+- **OpenSpec** (`--adapter openspec`) - Read-only sync for change proposal tracking (v0.22.0+)
+- **GitHub Issues** (`--adapter github`) - Export change proposals to DevOps backlogs
+- **Future**: Linear, Jira, Azure DevOps, and more
+
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
+
+### Spec-Kit Bidirectional Sync
 
 Keep Spec-Kit and SpecFact synchronized automatically.
 
-### One-Time Sync
+#### One-Time Sync
 
 ```bash
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
@@ -95,7 +108,7 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 - When you want to keep both tools in sync
 - Before making changes in either tool
 
-### Watch Mode (Continuous Sync)
+#### Watch Mode (Continuous Sync)
 
 ```bash
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
@@ -126,7 +139,7 @@ echo "# New Feature" >> specs/002-new-feature/spec.md
 # Output: "Detected 1 change(s), syncing..."
 ```
 
-### What Gets Synced
+#### What Gets Synced
 
 - `specs/[###-feature-name]/spec.md` ↔ `.specfact/projects/<bundle-name>/features/FEATURE-*.yaml`
 - `specs/[###-feature-name]/plan.md` ↔ `.specfact/projects/<bundle-name>/product.yaml`
@@ -135,6 +148,31 @@ echo "# New Feature" >> specs/002-new-feature/spec.md
 - `specs/[###-feature-name]/contracts/*.yaml` ↔ `.specfact/protocols/*.yaml`
 
 **Note**: When syncing from SpecFact to Spec-Kit, all required Spec-Kit fields (frontmatter, INVSEST criteria, Constitution Check, Phases, Technology Stack, Story mappings) are automatically generated. No manual editing required - generated artifacts are ready for `/speckit.analyze`.
+
+### OpenSpec Read-Only Sync
+
+Sync OpenSpec change proposals to SpecFact (v0.22.0+):
+
+```bash
+# Read-only sync from OpenSpec to SpecFact
+specfact sync bridge --adapter openspec --mode read-only \
+  --bundle my-project \
+  --repo /path/to/openspec-repo
+```
+
+**What it does**:
+
+- Reads OpenSpec change proposals from `openspec/changes/`
+- Syncs proposals to SpecFact change tracking
+- Read-only mode (does not modify OpenSpec files)
+
+**When to use**:
+
+- When working with OpenSpec change proposals
+- For tracking OpenSpec proposals in SpecFact format
+- Before exporting proposals to DevOps tools
+
+See [OpenSpec Journey Guide](openspec-journey.md) for complete integration workflow.
 
 ---
 
@@ -409,9 +447,11 @@ specfact repro --verbose --budget 120
 
 ## Migration Workflow
 
-Complete workflow for migrating from Spec-Kit.
+Complete workflow for migrating from Spec-Kit or OpenSpec.
 
-### Step 1: Preview
+### Spec-Kit Migration
+
+#### Step 1: Preview
 
 ```bash
 specfact import from-bridge --adapter speckit --repo . --dry-run
@@ -419,11 +459,11 @@ specfact import from-bridge --adapter speckit --repo . --dry-run
 
 **What it does**:
 
-- Analyzes Spec-Kit project using bridge architecture
+- Analyzes Spec-Kit project using bridge adapter
 - Shows what will be imported
 - Does not modify anything
 
-### Step 2: Execute
+#### Step 2: Execute
 
 ```bash
 specfact import from-bridge --adapter speckit --repo . --write
@@ -431,11 +471,11 @@ specfact import from-bridge --adapter speckit --repo . --write
 
 **What it does**:
 
-- Imports Spec-Kit artifacts using bridge architecture
+- Imports Spec-Kit artifacts using bridge adapter
 - Creates modular project bundle structure
 - Converts to SpecFact format (multiple aspect files)
 
-### Step 3: Set Up Sync
+#### Step 3: Set Up Sync
 
 ```bash
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
@@ -443,9 +483,34 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 **What it does**:
 
-- Enables bidirectional sync
+- Enables bidirectional sync via Spec-Kit adapter
 - Keeps both tools in sync
 - Monitors for changes
+
+### OpenSpec Integration
+
+Sync with OpenSpec change proposals (v0.22.0+):
+
+```bash
+# Read-only sync from OpenSpec to SpecFact
+specfact sync bridge --adapter openspec --mode read-only \
+  --bundle my-project \
+  --repo /path/to/openspec-repo
+
+# Export OpenSpec change proposals to GitHub Issues
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --repo /path/to/openspec-repo
+```
+
+**What it does**:
+
+- Reads OpenSpec change proposals using OpenSpec adapter
+- Syncs proposals to SpecFact change tracking
+- Exports proposals to DevOps tools via GitHub adapter
+
+See [OpenSpec Journey Guide](openspec-journey.md) for complete integration workflow.
 
 ### Step 4: Enable Enforcement
 

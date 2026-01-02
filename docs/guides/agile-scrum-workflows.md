@@ -840,4 +840,4 @@ If template rendering fails:
 
 - [Command Reference - Project Commands](../reference/commands.md#project---project-bundle-management) - Complete command documentation including `project merge` and `project resolve-conflict`
 - [Project Bundle Structure](../reference/directory-structure.md) - Project bundle organization
-- [Template Customization](../guides/template-customization.md) - Advanced template customization
+- See [Project Commands](../reference/commands.md#project---project-bundle-management) for template customization options

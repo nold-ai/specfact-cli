@@ -212,9 +212,11 @@ specfact import from-bridge --adapter speckit --repo ./my-project
 # Step 3: Add runtime contracts to critical Python paths
 # (SpecFact contract decorators)
 
-# Step 4: Keep both in sync
+# Step 4: Keep both in sync (using adapter registry pattern)
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 ```
+
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
 
 ---
 
@@ -277,6 +279,17 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 Use both together for best results.
 
+### Does SpecFact work with other specification tools?
+
+**Yes!** SpecFact CLI uses a plugin-based adapter architecture that supports multiple tools:
+
+- **Spec-Kit** - Bidirectional sync for interactive authoring
+- **OpenSpec** - Read-only sync for change proposal tracking (v0.22.0+)
+- **GitHub Issues** - Export change proposals to DevOps backlogs
+- **Future**: Linear, Jira, Azure DevOps, and more
+
+All adapters are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
+
 ### Can I migrate from Spec-Kit to SpecFact?
 
 **Yes.** SpecFact can import Spec-Kit artifacts:
@@ -285,7 +298,20 @@ Use both together for best results.
 specfact import from-bridge --adapter speckit --repo ./my-project
 ```
 
-You can also keep using both tools with bidirectional sync.
+You can also keep using both tools with bidirectional sync via the adapter registry pattern.
+
+### Does SpecFact work with OpenSpec?
+
+**Yes!** SpecFact CLI integrates with OpenSpec via the OpenSpec adapter (v0.22.0+):
+
+```bash
+# Read-only sync from OpenSpec to SpecFact
+specfact sync bridge --adapter openspec --mode read-only \
+  --bundle my-project \
+  --repo /path/to/openspec-repo
+```
+
+OpenSpec focuses on specification anchoring and change tracking, while SpecFact adds brownfield analysis and runtime enforcement. **[Learn more →](openspec-journey.md)**
 
 ---
 

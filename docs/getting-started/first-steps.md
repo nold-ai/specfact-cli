@@ -100,7 +100,7 @@ Review the auto-generated plan to understand what SpecFact discovered about your
 **💡 Tip**: If you plan to sync with Spec-Kit later, the import command will suggest generating a bootstrap constitution. You can also run it manually:
 
 ```bash
-specfact bridge constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 ```
 
 ### Step 3: Find and Fix Gaps
@@ -324,7 +324,7 @@ Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
 # Generate constitution if missing (auto-suggested during sync)
-specfact bridge constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 
 # One-time bidirectional sync
 specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional

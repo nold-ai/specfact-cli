@@ -265,5 +265,5 @@ Examples are generated automatically from your OpenAPI schema. If generation fai
 ## Next Steps
 
 - Read the [API Reference](../reference/commands.md) for detailed command options
-- Check [Project Bundle Guide](../guides/project-bundles.md) for bundle management
+- Check [Architecture Documentation](../reference/architecture.md) for bundle management
 - See [Agile/Scrum Workflows](../guides/agile-scrum-workflows.md) for team collaboration

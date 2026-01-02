@@ -263,13 +263,13 @@ Before syncing, ensure you have a valid constitution:
 
 ```bash
 # Auto-generate from repository analysis (recommended for brownfield)
-specfact bridge constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 
 # Validate completeness
-specfact bridge constitution validate
+specfact sdd constitution validate
 
 # Or enrich existing minimal constitution
-specfact bridge constitution enrich --repo .
+specfact sdd constitution enrich --repo .
 ```
 
 **Note**: The `sync bridge --adapter speckit` command will detect if the constitution is missing or minimal and suggest bootstrap automatically.

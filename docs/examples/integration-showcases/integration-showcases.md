@@ -554,10 +554,10 @@ specfact --no-banner enforce stage --preset balanced
 
 ## Related Documentation
 
-- **[Getting Started](../getting-started/README.md)** - Installation and setup
-- **[IDE Integration](../guides/ide-integration.md)** - Set up integrations
-- **[Use Cases](../guides/use-cases.md)** - More real-world scenarios
-- **[Dogfooding Example](dogfooding-specfact-cli.md)** - SpecFact analyzing itself
+- **[Getting Started](../../getting-started/README.md)** - Installation and setup
+- **[IDE Integration](../../guides/ide-integration.md)** - Set up integrations
+- **[Use Cases](../../guides/use-cases.md)** - More real-world scenarios
+- **[Dogfooding Example](../dogfooding-specfact-cli.md)** - SpecFact analyzing itself
 
 ---
 

@@ -83,7 +83,7 @@ specfact repro --verbose
 
 - `generate fix-prompt` ⭐ **NEW** - Generate AI IDE prompt to fix gaps
 - `generate test-prompt` ⭐ **NEW** - Generate AI IDE prompt to create tests
-- `generate tasks` - Generate task breakdown from plan bundle
+- `generate tasks` - ⚠️ **REMOVED in v0.22.0** - Use Spec-Kit, OpenSpec, or other SDD tools instead
 - `generate contracts` - Generate contract stubs from SDD
 - `generate contracts-prompt` - Generate AI IDE prompt for adding contracts
 
@@ -101,13 +101,13 @@ specfact repro --verbose
 
 **Constitution Management (Spec-Kit Compatibility):**
 
-- `bridge constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
-- `bridge constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
-- `bridge constitution validate` - Validate constitution completeness (for Spec-Kit format)
+- `sdd constitution bootstrap` - Generate bootstrap constitution from repository analysis (for Spec-Kit format)
+- `sdd constitution enrich` - Auto-enrich existing constitution with repository context (for Spec-Kit format)
+- `sdd constitution validate` - Validate constitution completeness (for Spec-Kit format)
 
-**Note**: The `bridge constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
+**Note**: The `sdd constitution` commands are for **Spec-Kit compatibility** only. SpecFact itself uses modular project bundles (`.specfact/projects/<bundle-name>/`) and protocols (`.specfact/protocols/*.protocol.yaml`) for internal operations. Constitutions are only needed when syncing with Spec-Kit artifacts or working in Spec-Kit format.
 
-**⚠️ Deprecation Notice**: The old `specfact constitution` command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
+**⚠️ Breaking Change**: The `specfact bridge constitution` command has been moved to `specfact sdd constitution` as part of the bridge adapter refactoring. Please update your scripts and workflows.
 
 **Migration & Utilities:**
 
@@ -2770,7 +2770,11 @@ The generated prompt includes:
 
 ---
 
-#### `generate tasks`
+#### `generate tasks` - Removed
+
+> **⚠️ REMOVED in v0.22.0**: The `specfact generate tasks` command has been removed. Per SPECFACT_0x_TO_1x_BRIDGE_PLAN.md, SpecFact CLI does not create plan → feature → task (that's the job for spec-kit, openspec, etc.). We complement those SDD tools to enforce tests and quality.
+
+**Previous functionality (removed):**
 
 Generate task breakdown from project bundle and SDD manifest:
 
@@ -2802,24 +2806,18 @@ Tasks are organized into four phases:
 3. **User Stories**: Feature implementation tasks (linked to stories)
 4. **Polish**: Tests, documentation, optimization
 
-**Examples:**
+**Previous Examples (command removed):**
 
 ```bash
-# Generate tasks for active bundle
-specfact generate tasks
-
-# Generate tasks for specific bundle
-specfact generate tasks legacy-api
-
-# Output as JSON
-specfact generate tasks auth-module --output-format json
-
-# Output as Markdown (human-readable)
-specfact generate tasks legacy-api --output-format markdown
-
-# Custom output path
-specfact generate tasks legacy-api --out custom-tasks.yaml
+# REMOVED in v0.22.0 - Do not use
+# specfact generate tasks
+# specfact generate tasks legacy-api
+# specfact generate tasks auth-module --output-format json
+# specfact generate tasks legacy-api --output-format markdown
+# specfact generate tasks legacy-api --out custom-tasks.yaml
 ```
+
+**Migration:** Use Spec-Kit, OpenSpec, or other SDD tools to create tasks. SpecFact CLI focuses on enforcing tests and quality gates for existing code.
 
 **Output Structure (YAML):**
 
@@ -2866,9 +2864,10 @@ specfact sync bridge [OPTIONS]
 **Options:**
 
 - `--repo PATH` - Path to repository (default: `.`)
-- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown`, `github`, `ado`, `linear`, `jira`, `notion` (default: auto-detect)
+- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown`, `openspec`, `github`, `ado`, `linear`, `jira`, `notion` (default: auto-detect)
 - `--bundle BUNDLE_NAME` - Project bundle name for SpecFact → tool conversion (default: auto-detect)
 - `--mode MODE` - Sync mode: `read-only` (OpenSpec → SpecFact), `export-only` (OpenSpec → DevOps), `import-annotation` (DevOps → SpecFact). Default: bidirectional if `--bidirectional`, else unidirectional
+- `--external-base-path PATH` - Base path for external tool repository (for cross-repo integrations, e.g., OpenSpec in different repo)
 - `--bidirectional` - Enable bidirectional sync (default: one-way import)
 - `--overwrite` - Overwrite existing tool artifacts (delete all existing before sync)
 - `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
@@ -2944,6 +2943,13 @@ specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectio
 
 # Continuous watch mode
 specfact sync bridge --adapter speckit --repo . --bundle my-project --bidirectional --watch --interval 5
+
+# OpenSpec read-only sync (Phase 1 - import only)
+specfact sync bridge --adapter openspec --mode read-only --bundle my-project --repo .
+
+# OpenSpec cross-repository sync (OpenSpec in different repo)
+specfact sync bridge --adapter openspec --mode read-only --bundle my-project --repo . --external-base-path ../specfact-cli-internal
+```
 
 # Export OpenSpec change proposals to GitHub issues (auto-detect sanitization)
 specfact sync bridge --adapter github --mode export-only
@@ -3553,11 +3559,9 @@ See [Specmatic Integration Guide](../guides/specmatic-integration.md) for detail
 
 ---
 
-### `bridge` - Bridge Adapters for External Tool Integration
+### `sdd constitution` - Manage Project Constitutions (Spec-Kit Compatibility)
 
-Bridge adapters for external tool integration (Spec-Kit, Linear, Jira, etc.). These commands enable bidirectional sync and format conversion between SpecFact and external tools.
-
-#### `bridge constitution` - Manage Project Constitutions
+**Note**: Constitution management commands are part of the `sdd` (Spec-Driven Development) command group. The `specfact bridge` command group has been removed in v0.22.0 as part of the bridge adapter refactoring. Bridge adapters are now internal connectors accessed via `specfact sync bridge --adapter <adapter-name>`, not user-facing commands.
 
 Manage project constitutions for Spec-Kit format compatibility. Auto-generate bootstrap templates from repository analysis.
 
@@ -3571,14 +3575,14 @@ Manage project constitutions for Spec-Kit format compatibility. Auto-generate bo
 
 If you're using SpecFact standalone (without Spec-Kit), you don't need constitutions - use `specfact plan` commands instead.
 
-**Deprecation Notice**: The old `specfact constitution` command is deprecated and will be removed in a future version. Please use `specfact bridge constitution` instead.
+**⚠️ Breaking Change**: The `specfact bridge constitution` command has been moved to `specfact sdd constitution` as part of the bridge adapter refactoring. Please update your scripts and workflows.
 
-##### `bridge constitution bootstrap`
+##### `sdd constitution bootstrap`
 
 Generate bootstrap constitution from repository analysis:
 
 ```bash
-specfact bridge constitution bootstrap [OPTIONS]
+specfact sdd constitution bootstrap [OPTIONS]
 ```
 
 **Options:**
@@ -3591,13 +3595,13 @@ specfact bridge constitution bootstrap [OPTIONS]
 
 ```bash
 # Generate bootstrap constitution
-specfact bridge constitution bootstrap --repo .
+specfact sdd constitution bootstrap --repo .
 
 # Generate with custom output path
-specfact bridge constitution bootstrap --repo . --out custom-constitution.md
+specfact sdd constitution bootstrap --repo . --out custom-constitution.md
 
 # Overwrite existing constitution
-specfact bridge constitution bootstrap --repo . --overwrite
+specfact sdd constitution bootstrap --repo . --overwrite
 ```
 
 **What it does:**
@@ -3629,12 +3633,12 @@ specfact bridge constitution bootstrap --repo . --overwrite
 
 ---
 
-##### `bridge constitution enrich`
+##### `sdd constitution enrich`
 
 Auto-enrich existing constitution with repository context (Spec-Kit format):
 
 ```bash
-specfact bridge constitution enrich [OPTIONS]
+specfact sdd constitution enrich [OPTIONS]
 ```
 
 **Options:**
@@ -3646,10 +3650,10 @@ specfact bridge constitution enrich [OPTIONS]
 
 ```bash
 # Enrich existing constitution
-specfact bridge constitution enrich --repo .
+specfact sdd constitution enrich --repo .
 
 # Enrich specific constitution file
-specfact bridge constitution enrich --repo . --constitution custom-constitution.md
+specfact sdd constitution enrich --repo . --constitution custom-constitution.md
 ```
 
 **What it does:**
@@ -3667,12 +3671,12 @@ specfact bridge constitution enrich --repo . --constitution custom-constitution.
 
 ---
 
-##### `bridge constitution validate`
+##### `sdd constitution validate`
 
 Validate constitution completeness (Spec-Kit format):
 
 ```bash
-specfact bridge constitution validate [OPTIONS]
+specfact sdd constitution validate [OPTIONS]
 ```
 
 **Options:**
@@ -3683,10 +3687,10 @@ specfact bridge constitution validate [OPTIONS]
 
 ```bash
 # Validate default constitution
-specfact bridge constitution validate
+specfact sdd constitution validate
 
 # Validate specific constitution file
-specfact bridge constitution validate --constitution custom-constitution.md
+specfact sdd constitution validate --constitution custom-constitution.md
 ```
 
 **What it checks:**
@@ -3715,15 +3719,18 @@ specfact bridge constitution validate --constitution custom-constitution.md
 
 ---
 
-**Note**: The old `specfact constitution` command has been moved to `specfact bridge constitution`. See the [`bridge constitution`](#bridge-constitution---manage-project-constitutions) section above for complete documentation. The old command path is deprecated and will be removed in a future version.
+**Note**: The `specfact constitution` command has been moved to `specfact sdd constitution`. See the [`sdd constitution`](#sdd-constitution---manage-project-constitutions) section above for complete documentation.
 
-**Migration**: Replace `specfact constitution <command>` with `specfact bridge constitution <command>`.
+**Migration**: Replace `specfact constitution <command>` or `specfact bridge constitution <command>` with `specfact sdd constitution <command>`.
 
 **Example Migration:**
 
-- `specfact constitution bootstrap` → `specfact bridge constitution bootstrap`
-- `specfact constitution enrich` → `specfact bridge constitution enrich`
-- `specfact constitution validate` → `specfact bridge constitution validate`
+- `specfact constitution bootstrap` → `specfact sdd constitution bootstrap`
+- `specfact bridge constitution bootstrap` → `specfact sdd constitution bootstrap`
+- `specfact constitution enrich` → `specfact sdd constitution enrich`
+- `specfact bridge constitution enrich` → `specfact sdd constitution enrich`
+- `specfact constitution validate` → `specfact sdd constitution validate`
+- `specfact bridge constitution validate` → `specfact sdd constitution validate`
 
 ---
 
@@ -3916,13 +3923,13 @@ Displays a table with:
 
 ---
 
-### `implement` - Deprecated Task Execution
+### `implement` - Removed Task Execution
 
-> **⚠️ DEPRECATED in v0.17.0**: The `implement` command group is deprecated and will be removed in a future version. Use the AI IDE bridge commands instead.
+> **⚠️ REMOVED in v0.22.0**: The `implement` command group has been removed. Per SPECFACT_0x_TO_1x_BRIDGE_PLAN.md, SpecFact CLI does not create plan → feature → task (that's the job for spec-kit, openspec, etc.). We complement those SDD tools to enforce tests and quality. Use the AI IDE bridge commands (`specfact generate fix-prompt`, `specfact generate test-prompt`, etc.) instead.
 
-#### `implement tasks` (Deprecated)
+#### `implement tasks` (Removed)
 
-Direct task execution was deprecated in favor of AI IDE bridge workflows.
+Direct task execution was removed in v0.22.0. Use AI IDE bridge workflows instead.
 
 ```bash
 # DEPRECATED - Do not use for new projects
@@ -3952,7 +3959,8 @@ Replace `implement tasks` with the new AI IDE bridge workflow:
 - **Fix gaps**: `specfact generate fix-prompt`
 - **Add tests**: `specfact generate test-prompt`
 - **Add contracts**: `specfact generate contracts-prompt`
-- **Generate tasks**: `specfact generate tasks` (task breakdown only, no execution)
+
+> **⚠️ REMOVED in v0.22.0**: The `specfact generate tasks` command has been removed. Per SPECFACT_0x_TO_1x_BRIDGE_PLAN.md, SpecFact CLI does not create plan → feature → task (that's the job for spec-kit, openspec, etc.). We complement those SDD tools to enforce tests and quality.
 
 **See**: [Migration Guide (0.16 to 0.19)](../guides/migration-0.16-to-0.19.md) for detailed migration instructions.
 

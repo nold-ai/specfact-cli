@@ -312,6 +312,7 @@ class TestAdapterType:
         """Test all adapter types."""
         assert AdapterType.SPECKIT == "speckit"
         assert AdapterType.GENERIC_MARKDOWN == "generic-markdown"
+        assert AdapterType.OPENSPEC == "openspec"
         assert AdapterType.LINEAR == "linear"
         assert AdapterType.JIRA == "jira"
         assert AdapterType.NOTION == "notion"
@@ -367,3 +368,37 @@ class TestBridgeConfigPresets:
         context = {"feature_id": "001-auth"}
         resolved = config.resolve_path("specification", context, base_path=tmp_path)
         assert resolved == tmp_path / "docs" / "specs" / "001-auth" / "spec.md"
+
+    def test_preset_openspec(self):
+        """Test OpenSpec preset."""
+        config = BridgeConfig.preset_openspec()
+        assert config.adapter == AdapterType.OPENSPEC
+        assert "specification" in config.artifacts
+        assert config.artifacts["specification"].path_pattern == "openspec/specs/{feature_id}/spec.md"
+        assert "project_context" in config.artifacts
+        assert "change_proposal" in config.artifacts
+        assert "change_spec_delta" in config.artifacts
+        assert config.external_base_path is None
+
+    def test_preset_openspec_with_external_base_path(self, tmp_path):
+        """Test OpenSpec preset with external base path."""
+        config = BridgeConfig.preset_openspec()
+        config.external_base_path = tmp_path / "external"
+        assert config.external_base_path == tmp_path / "external"
+
+    def test_preset_openspec_resolve_path(self, tmp_path):
+        """Test that OpenSpec preset paths can be resolved."""
+        config = BridgeConfig.preset_openspec()
+        context = {"feature_id": "001-auth"}
+        resolved = config.resolve_path("specification", context, base_path=tmp_path)
+        assert resolved == tmp_path / "openspec" / "specs" / "001-auth" / "spec.md"
+
+    def test_preset_openspec_resolve_path_external_base(self, tmp_path):
+        """Test that OpenSpec preset paths can be resolved with external base path."""
+        external_path = tmp_path / "external"
+        external_path.mkdir()
+        config = BridgeConfig.preset_openspec()
+        config.external_base_path = external_path
+        context = {"feature_id": "001-auth"}
+        resolved = config.resolve_path("specification", context, base_path=tmp_path)
+        assert resolved == external_path / "openspec" / "specs" / "001-auth" / "spec.md"
