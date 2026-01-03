@@ -16,20 +16,21 @@ from typing import Any
 import typer
 from beartype import beartype
 from icontract import ensure, require
-from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from specfact_cli import runtime
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
+from specfact_cli.runtime import get_configured_console
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.terminal import get_progress_config
 
 
 app = typer.Typer(
     help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, Linear, Jira, etc.)"
 )
-console = Console()
+console = get_configured_console()
 
 
 @beartype
@@ -177,11 +178,11 @@ def _perform_sync_operation(
 
     # Note: _sync_tool_to_specfact now uses adapter pattern, so converter/scanner are no longer needed
 
+    progress_columns, progress_kwargs = get_progress_config()
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        TimeElapsedColumn(),
+        *progress_columns,
         console=console,
+        **progress_kwargs,
     ) as progress:
         # Step 3: Discover features using adapter (via bridge config)
         task = progress.add_task(f"[cyan]Scanning {adapter_type.value} artifacts...[/cyan]", total=None)
@@ -1222,11 +1223,11 @@ def sync_bridge(
             bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
 
             # Export change proposals
+            progress_columns, progress_kwargs = get_progress_config()
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
+                *progress_columns,
                 console=console,
+                **progress_kwargs,
             ) as progress:
                 task = progress.add_task("[cyan]Syncing change proposals to DevOps...[/cyan]", total=None)
 
@@ -1291,11 +1292,11 @@ def sync_bridge(
             bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
 
             # Import OpenSpec artifacts
+            progress_columns, progress_kwargs = get_progress_config()
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
+                *progress_columns,
                 console=console,
+                **progress_kwargs,
             ) as progress:
                 task = progress.add_task("[cyan]Importing OpenSpec artifacts...[/cyan]", total=None)
 
@@ -1869,11 +1870,10 @@ def sync_intelligent(
         specfact sync intelligent my-bundle --repo . --watch
         specfact sync intelligent my-bundle --repo . --code-to-spec auto --spec-to-code llm-prompt --tests specmatic
     """
-    from rich.console import Console
 
     from specfact_cli.utils.structure import SpecFactStructure
 
-    console = Console()
+    console = get_configured_console()
 
     # Use active plan as default if bundle not provided
     if bundle is None:

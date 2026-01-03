@@ -7,18 +7,32 @@ and preferred structured data formats for inputs/outputs.
 
 from __future__ import annotations
 
+import os
 import sys
+from enum import Enum
 
 from beartype import beartype
+from icontract import ensure
+from rich.console import Console
 
 from specfact_cli.modes import OperationalMode
 from specfact_cli.utils.structured_io import StructuredFormat
+from specfact_cli.utils.terminal import detect_terminal_capabilities, get_console_config
+
+
+class TerminalMode(str, Enum):
+    """Terminal output modes for Rich Console and Progress."""
+
+    GRAPHICAL = "graphical"  # Full Rich features (colors, animations)
+    BASIC = "basic"  # Plain text, no animations
+    MINIMAL = "minimal"  # Minimal output (test mode, CI/CD)
 
 
 _operational_mode: OperationalMode = OperationalMode.CICD
 _input_format: StructuredFormat = StructuredFormat.YAML
 _output_format: StructuredFormat = StructuredFormat.YAML
 _non_interactive_override: bool | None = None
+_console_cache: dict[TerminalMode, Console] = {}
 
 
 @beartype
@@ -93,3 +107,55 @@ def is_non_interactive() -> bool:
 def is_interactive() -> bool:
     """Inverse helper for readability."""
     return not is_non_interactive()
+
+
+@beartype
+@ensure(lambda result: isinstance(result, TerminalMode), "Must return TerminalMode")
+def get_terminal_mode() -> TerminalMode:
+    """
+    Get terminal mode based on detected capabilities and operational mode.
+
+    Terminal modes:
+    - GRAPHICAL: Full Rich features (colors, animations) - interactive TTY
+    - BASIC: Plain text, no animations - non-interactive or CI/CD
+    - MINIMAL: Minimal output - test mode
+
+    Returns:
+        TerminalMode enum value
+    """
+    caps = detect_terminal_capabilities()
+
+    # Test mode always returns MINIMAL
+    if os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None:
+        return TerminalMode.MINIMAL
+
+    # CI/CD or non-interactive returns BASIC
+    if caps.is_ci or not caps.is_interactive:
+        return TerminalMode.BASIC
+
+    # Interactive TTY with animations returns GRAPHICAL
+    if caps.supports_animations and caps.is_interactive:
+        return TerminalMode.GRAPHICAL
+
+    # Fallback to BASIC
+    return TerminalMode.BASIC
+
+
+@beartype
+@ensure(lambda result: isinstance(result, Console), "Must return Console")
+def get_configured_console() -> Console:
+    """
+    Get or create configured Console instance based on terminal capabilities.
+
+    Caches Console instance per terminal mode to avoid repeated detection.
+
+    Returns:
+        Configured Rich Console instance
+    """
+    mode = get_terminal_mode()
+
+    if mode not in _console_cache:
+        config = get_console_config()
+        _console_cache[mode] = Console(**config)
+
+    return _console_cache[mode]

@@ -11,6 +11,8 @@ permalink: /ide-integration/
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
 
+**Terminal Output**: The CLI automatically detects embedded terminals (Cursor, VS Code) and CI/CD environments, adapting output formatting automatically. Progress indicators work in all environments - see [Troubleshooting](troubleshooting.md#terminal-output-issues) for details.
+
 ---
 
 ## Overview
@@ -320,6 +322,7 @@ The `specfact init` command handles all conversions automatically.
 - [Command Reference](../reference/commands.md) - All CLI commands
 - [CoPilot Mode Guide](copilot-mode.md) - Using `--mode copilot` on CLI
 - [Getting Started](../getting-started/installation.md) - Installation and setup
+- [Troubleshooting](troubleshooting.md#terminal-output-issues) - Terminal output auto-detection in embedded terminals
 
 ---
 
