@@ -47,22 +47,61 @@ class BridgeProbe:
         This method loops through all registered adapters and calls their detect()
         methods. The first adapter that returns True is used to get capabilities.
 
+        **Detection Priority**: Layout-specific adapters (SpecKit, OpenSpec) are tried
+        before generic adapters (GitHub) to prevent false positives. A repository with
+        a GitHub remote but SpecKit/OpenSpec layout should be detected as SpecKit/OpenSpec,
+        not GitHub.
+
         Args:
             bridge_config: Optional bridge configuration (for cross-repo detection)
 
         Returns:
             ToolCapabilities instance with detected information
         """
-        # Try all registered adapters
-        for adapter_type in AdapterRegistry.list_adapters():
-            try:
-                adapter = AdapterRegistry.get_adapter(adapter_type)
-                if adapter.detect(self.repo_path, bridge_config):
-                    # Adapter detected this repository, get its capabilities
-                    return adapter.get_capabilities(self.repo_path, bridge_config)
-            except Exception:
-                # Adapter failed to detect or get capabilities, try next one
-                continue
+        # Get all registered adapters
+        all_adapters = AdapterRegistry.list_adapters()
+
+        # Prioritize layout-specific adapters (check directory structure) over generic ones
+        # Layout-specific adapters: speckit, openspec (check for specific directory layouts)
+        # Generic adapters: github (only checks for GitHub remote, too generic)
+        layout_specific_adapters = ["speckit", "openspec"]
+        generic_adapters = ["github"]
+
+        # Try layout-specific adapters first
+        for adapter_type in layout_specific_adapters:
+            if adapter_type in all_adapters:
+                try:
+                    adapter = AdapterRegistry.get_adapter(adapter_type)
+                    if adapter.detect(self.repo_path, bridge_config):
+                        # Layout-specific adapter detected this repository
+                        return adapter.get_capabilities(self.repo_path, bridge_config)
+                except Exception:
+                    # Adapter failed to detect or get capabilities, try next one
+                    continue
+
+        # Then try generic adapters (fallback for repos without layout-specific structure)
+        for adapter_type in generic_adapters:
+            if adapter_type in all_adapters:
+                try:
+                    adapter = AdapterRegistry.get_adapter(adapter_type)
+                    if adapter.detect(self.repo_path, bridge_config):
+                        # Generic adapter detected this repository
+                        return adapter.get_capabilities(self.repo_path, bridge_config)
+                except Exception:
+                    # Adapter failed to detect or get capabilities, try next one
+                    continue
+
+        # Finally try any remaining adapters not in the priority lists
+        for adapter_type in all_adapters:
+            if adapter_type not in layout_specific_adapters and adapter_type not in generic_adapters:
+                try:
+                    adapter = AdapterRegistry.get_adapter(adapter_type)
+                    if adapter.detect(self.repo_path, bridge_config):
+                        # Adapter detected this repository
+                        return adapter.get_capabilities(self.repo_path, bridge_config)
+                except Exception:
+                    # Adapter failed to detect or get capabilities, try next one
+                    continue
 
         # Default: Unknown tool
         return ToolCapabilities(tool="unknown")

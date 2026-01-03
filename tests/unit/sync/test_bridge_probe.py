@@ -378,3 +378,64 @@ class TestBridgeProbe:
         # Try to save again without overwrite
         with pytest.raises(FileExistsError):
             probe.save_bridge_config(bridge_config, overwrite=False)
+
+    def test_detect_priority_layout_specific_over_generic(self, tmp_path):
+        """Test that layout-specific adapters (SpecKit, OpenSpec) are tried before generic adapters (GitHub).
+
+        This prevents GitHub adapter from short-circuiting detection for repositories
+        that have both a GitHub remote AND a SpecKit/OpenSpec layout.
+        """
+        # Create a repository with both GitHub remote AND SpecKit layout
+        # This simulates a real-world scenario where a SpecKit project is hosted on GitHub
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        git_config = git_dir / "config"
+        git_config.write_text('[remote "origin"]\n    url = https://github.com/user/repo.git\n')
+
+        # Create SpecKit structure (layout-specific)
+        specs_dir = tmp_path / "specs"
+        specs_dir.mkdir()
+
+        probe = BridgeProbe(tmp_path)
+        capabilities = probe.detect()
+
+        # Should detect as SpecKit (layout-specific), NOT GitHub (generic)
+        # Even though GitHub remote exists, SpecKit layout takes priority
+        assert capabilities.tool == "speckit"
+        assert capabilities.tool != "github"
+
+    def test_detect_priority_openspec_over_github(self, tmp_path):
+        """Test that OpenSpec adapter is tried before GitHub adapter."""
+        # Create a repository with both GitHub remote AND OpenSpec layout
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        git_config = git_dir / "config"
+        git_config.write_text('[remote "origin"]\n    url = https://github.com/user/repo.git\n')
+
+        # Create OpenSpec structure (layout-specific)
+        openspec_dir = tmp_path / "openspec"
+        openspec_dir.mkdir()
+        (openspec_dir / "project.md").write_text("# Project")
+
+        probe = BridgeProbe(tmp_path)
+        capabilities = probe.detect()
+
+        # Should detect as OpenSpec (layout-specific), NOT GitHub (generic)
+        assert capabilities.tool == "openspec"
+        assert capabilities.tool != "github"
+
+    def test_detect_github_fallback_when_no_layout(self, tmp_path):
+        """Test that GitHub adapter is used as fallback when no layout-specific structure exists."""
+        # Create a repository with GitHub remote but NO layout-specific structure
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        git_config = git_dir / "config"
+        git_config.write_text('[remote "origin"]\n    url = https://github.com/user/repo.git\n')
+
+        # No SpecKit or OpenSpec structure
+
+        probe = BridgeProbe(tmp_path)
+        capabilities = probe.detect()
+
+        # Should detect as GitHub (generic fallback) since no layout-specific structure exists
+        assert capabilities.tool == "github"
