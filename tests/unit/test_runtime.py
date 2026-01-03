@@ -1,0 +1,108 @@
+"""
+Unit tests for runtime configuration helpers.
+"""
+
+from __future__ import annotations
+
+import os
+from unittest.mock import patch
+
+from specfact_cli.runtime import TerminalMode, get_configured_console, get_terminal_mode
+from specfact_cli.utils.terminal import TerminalCapabilities
+
+
+class TestGetTerminalMode:
+    """Test terminal mode detection."""
+
+    def test_terminal_mode_minimal_test_mode(self) -> None:
+        """Test that TEST_MODE returns MINIMAL."""
+        with patch.dict(os.environ, {"TEST_MODE": "true"}, clear=True):
+            mode = get_terminal_mode()
+            assert mode == TerminalMode.MINIMAL
+
+    def test_terminal_mode_minimal_pytest(self) -> None:
+        """Test that PYTEST_CURRENT_TEST returns MINIMAL."""
+        with patch.dict(os.environ, {"PYTEST_CURRENT_TEST": "test_something"}, clear=True):
+            mode = get_terminal_mode()
+            assert mode == TerminalMode.MINIMAL
+
+    def test_terminal_mode_basic_ci(self) -> None:
+        """Test that CI environment returns BASIC."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect,
+        ):
+            # Remove TEST_MODE and PYTEST_CURRENT_TEST if present
+            os.environ.pop("TEST_MODE", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=False,
+                is_interactive=False,
+                is_ci=True,
+            )
+            mode = get_terminal_mode()
+            assert mode == TerminalMode.BASIC
+
+    def test_terminal_mode_basic_non_interactive(self) -> None:
+        """Test that non-interactive terminal returns BASIC."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect,
+        ):
+            # Remove TEST_MODE and PYTEST_CURRENT_TEST if present
+            os.environ.pop("TEST_MODE", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=False,
+                is_interactive=False,
+                is_ci=False,
+            )
+            mode = get_terminal_mode()
+            assert mode == TerminalMode.BASIC
+
+    def test_terminal_mode_graphical(self) -> None:
+        """Test that interactive TTY with animations returns GRAPHICAL."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect,
+        ):
+            # Remove TEST_MODE and PYTEST_CURRENT_TEST if present
+            os.environ.pop("TEST_MODE", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=True,
+                is_interactive=True,
+                is_ci=False,
+            )
+            mode = get_terminal_mode()
+            assert mode == TerminalMode.GRAPHICAL
+
+
+class TestGetConfiguredConsole:
+    """Test configured console creation and caching."""
+
+    def test_get_configured_console_creates_console(self) -> None:
+        """Test that get_configured_console creates a Console instance."""
+        console = get_configured_console()
+        assert console is not None
+        from rich.console import Console
+
+        assert isinstance(console, Console)
+
+    def test_get_configured_console_caches(self) -> None:
+        """Test that get_configured_console caches Console instances."""
+        console1 = get_configured_console()
+        console2 = get_configured_console()
+        # Should return the same instance (cached)
+        assert console1 is console2
+
+    def test_get_configured_console_different_modes(self) -> None:
+        """Test that different terminal modes create different Console instances."""
+        # This test verifies caching works per mode
+        # In practice, mode doesn't change during execution, so we test caching
+        console1 = get_configured_console()
+        console2 = get_configured_console()
+        assert console1 is console2

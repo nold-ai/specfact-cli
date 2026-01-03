@@ -9,6 +9,87 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.22.1] - 2026-01-03
+
+### Added (0.22.1)
+
+- **Terminal Output Auto-Detection**: Automatic terminal capability detection and adaptive output formatting
+  - **Terminal Capability Detection**: New `TerminalCapabilities` dataclass and `detect_terminal_capabilities()` function in `src/specfact_cli/utils/terminal.py`
+  - **Terminal Mode Detection**: Three terminal modes (GRAPHICAL, BASIC, MINIMAL) automatically selected based on environment
+  - **Rich Console Configuration**: `get_configured_console()` function provides Rich Console instances configured for detected terminal capabilities
+  - **Progress Configuration**: `get_progress_config()` function provides appropriate Progress column configurations based on terminal mode
+  - **Environment Variable Support**: Respects standard environment variables (`NO_COLOR`, `FORCE_COLOR`, `CI`, `TEST_MODE`, `PYTEST_CURRENT_TEST`)
+  - **CI/CD Detection**: Automatically detects CI/CD environments (GitHub Actions, GitLab CI, CircleCI, Travis, Jenkins, Buildkite) and uses BASIC mode
+  - **Embedded Terminal Support**: Automatically detects embedded terminals (Cursor, VS Code) and adapts output for optimal readability
+  - **TTY Detection**: Uses `sys.stdout.isatty()` to determine interactive vs non-interactive terminals
+  - **Plain Text Progress**: `print_progress()` helper function for plain text progress updates in BASIC/MINIMAL modes
+  - **Cached Console Instances**: Console instances are cached for performance (lazy initialization pattern)
+
+- **Terminal Output Testing Guide**: New comprehensive testing guide `docs/guides/testing-terminal-output.md`
+  - **Multiple Testing Methods**: Instructions for testing with `NO_COLOR`, `CI=true`, `TERM=dumb`, and other methods
+  - **GNOME Terminal Instructions**: Specific instructions for Ubuntu/GNOME systems
+  - **Verification Commands**: Commands to verify terminal mode detection and capabilities
+  - **Expected Behavior**: Clear documentation of what to expect in each terminal mode
+
+### Changed (0.22.1)
+
+- **CLI Commands Terminal Output**: All CLI commands now use adaptive terminal output
+  - **Import Command**: `specfact import` uses `get_configured_console()` and `get_progress_config()` for adaptive progress display
+  - **Sync Command**: `specfact sync` uses adaptive terminal output for all progress indicators
+  - **Generate Command**: `specfact generate` uses configured console for consistent output
+  - **SDD Command**: `specfact sdd` uses adaptive terminal output
+  - **Bridge Sync**: Internal `BridgeSync` class uses adaptive terminal output for progress indicators
+  - **Progress Utilities**: `load_bundle_with_progress()` and `save_bundle_with_progress()` use lazy imports to avoid circular dependencies
+
+- **Runtime Terminal Management**: Enhanced `src/specfact_cli/runtime.py` with terminal mode management
+  - **TerminalMode Enum**: New enum with GRAPHICAL, BASIC, and MINIMAL values
+  - **get_terminal_mode()**: Function to determine current terminal mode based on capabilities
+  - **get_configured_console()**: Central function to get cached, configured Rich Console instance
+  - **Integration**: All terminal detection logic integrated into runtime module
+
+- **Documentation Updates**: Comprehensive documentation updates for terminal output behavior
+  - **Troubleshooting Guide**: Added detailed "Terminal Output Issues" section in `docs/guides/troubleshooting.md`
+    - Auto-detection explanation (detection order and logic)
+    - Terminal modes documentation (GRAPHICAL, BASIC, MINIMAL)
+    - Environment variable overrides
+    - Examples and troubleshooting for embedded terminals and CI/CD
+  - **UX Features Guide**: Updated "Unified Progress Display" section in `docs/guides/ux-features.md`
+    - Added "Automatic Terminal Adaptation" subsection
+    - Explains auto-detection for different terminal types
+    - Links to troubleshooting guide
+  - **IDE Integration Guide**: Added terminal output note in `docs/guides/ide-integration.md`
+    - Mentions automatic detection for embedded terminals
+    - Links to troubleshooting guide
+  - **Use Cases Guide**: Added terminal output note in CI/CD use case section
+    - Explains plain text output in CI/CD environments
+    - Links to troubleshooting guide
+
+### Fixed (0.22.1)
+
+- **Circular Import Resolution**: Fixed circular dependency between `progress.py` and `runtime.py` using lazy imports
+- **Progress API Usage**: Fixed `Progress` initialization to use positional arguments for columns (not `columns` keyword)
+- **Console Configuration**: Fixed console configuration to properly respect terminal capabilities
+- **Test Environment**: Fixed test environment setup to properly simulate different terminal modes
+
+### Documentation (0.22.1)
+
+- **Terminal Output Documentation**: Comprehensive documentation for terminal output auto-detection
+  - **Troubleshooting Section**: Complete terminal output troubleshooting guide with auto-detection details
+  - **Testing Guide**: New guide for testing terminal output modes on different systems
+  - **UX Features**: Updated progress display documentation with terminal adaptation details
+  - **IDE Integration**: Added terminal output information for embedded terminals
+  - **Use Cases**: Added CI/CD terminal output behavior documentation
+
+### Notes (0.22.1)
+
+- **Zero Configuration**: Terminal output auto-detection requires no manual configuration - works out of the box
+- **Backward Compatible**: All existing Rich features continue to work - auto-detection only enhances compatibility
+- **Standard Compliance**: Respects `NO_COLOR` standard (<https://no-color.org/>) for color disabling
+- **CI/CD Optimized**: Automatically uses plain text output in CI/CD for better log readability
+- **Test Mode Support**: Automatically uses minimal output when `TEST_MODE=true` or `PYTEST_CURRENT_TEST` is set
+
+---
+
 ## [0.22.0] - 2026-01-01
 
 ### Breaking Changes (0.22.0)

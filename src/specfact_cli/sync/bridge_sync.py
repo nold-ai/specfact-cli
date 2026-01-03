@@ -18,17 +18,18 @@ from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import Progress
 from rich.table import Table
 
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.runtime import get_configured_console
 from specfact_cli.sync.bridge_probe import BridgeProbe
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+from specfact_cli.utils.terminal import get_progress_config
 
 
-console = Console()
+console = get_configured_console()
 
 
 @dataclass
@@ -338,11 +339,11 @@ class BridgeSync:
             console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
             return
 
+        progress_columns, progress_kwargs = get_progress_config()
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            TimeElapsedColumn(),
+            *progress_columns,
             console=console,
+            **progress_kwargs,
         ) as progress:
             task = progress.add_task("Generating alignment report...", total=None)
 

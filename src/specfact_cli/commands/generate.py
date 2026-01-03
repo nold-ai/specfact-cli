@@ -11,11 +11,11 @@ from pathlib import Path
 import typer
 from beartype import beartype
 from icontract import ensure, require
-from rich.console import Console
 
 from specfact_cli.generators.contract_generator import ContractGenerator
 from specfact_cli.migrations.plan_migrator import load_plan_bundle
 from specfact_cli.models.sdd import SDDManifest
+from specfact_cli.runtime import get_configured_console
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
 from specfact_cli.utils.env_manager import (
@@ -29,7 +29,7 @@ from specfact_cli.utils.structured_io import load_structured_file
 
 
 app = typer.Typer(help="Generate artifacts from SDD and plans")
-console = Console()
+console = get_configured_console()
 
 
 def _show_apply_help() -> None:

@@ -469,6 +469,8 @@ specfact repro --budget 120 --verbose
 
 **Solution**: Add SpecFact GitHub Action to PR workflow.
 
+**Terminal Output**: The CLI automatically detects CI/CD environments and uses plain text output (no colors, no animations) for better log readability. Progress updates are visible in CI/CD logs. See [Troubleshooting](troubleshooting.md#terminal-output-issues) for details.
+
 ### Steps (CI/CD Integration)
 
 #### 1. Add GitHub Action

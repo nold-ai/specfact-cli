@@ -48,7 +48,6 @@ except ImportError:
 import typer
 from beartype import beartype
 from icontract import ViolationError
-from rich.console import Console
 from rich.panel import Panel
 
 from specfact_cli import __version__, runtime
@@ -71,6 +70,7 @@ from specfact_cli.commands import (
     sync,
 )
 from specfact_cli.modes import OperationalMode, detect_mode
+from specfact_cli.runtime import get_configured_console
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -124,7 +124,7 @@ app = typer.Typer(
     cls=ProgressiveDisclosureGroup,  # Use custom group for progressive disclosure
 )
 
-console = Console()
+console = get_configured_console()
 
 # Global mode context (set by --mode flag or auto-detected)
 _current_mode: OperationalMode | None = None

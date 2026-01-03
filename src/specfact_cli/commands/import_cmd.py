@@ -16,23 +16,24 @@ from typing import Any
 import typer
 from beartype import beartype
 from icontract import require
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import Progress
 
 from specfact_cli import runtime
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
+from specfact_cli.runtime import get_configured_console
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.performance import track_performance
 from specfact_cli.utils.progress import save_bundle_with_progress
+from specfact_cli.utils.terminal import get_progress_config
 
 
 app = typer.Typer(
     help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, Linear, Jira) to contract format",
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
 )
-console = Console()
+console = get_configured_console()
 
 
 def _is_valid_repo_path(path: Path) -> bool:
@@ -98,11 +99,11 @@ def _check_incremental_changes(
     from specfact_cli.utils.incremental_check import check_incremental_changes
 
     try:
+        progress_columns, progress_kwargs = get_progress_config()
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            TimeElapsedColumn(),
+            *progress_columns,
             console=console,
+            **progress_kwargs,
         ) as progress:
             task = progress.add_task("[cyan]Checking for changes...", total=None)
             progress.update(task, description="[cyan]Loading manifest and checking file changes...")
@@ -576,7 +577,7 @@ def _extract_contracts(
                 f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
             )
 
-        from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+        from rich.progress import Progress
 
         def process_feature(feature: Feature) -> tuple[str, dict[str, Any] | None]:
             """Process a single feature and return (feature_key, openapi_spec or None)."""
@@ -611,14 +612,11 @@ def _extract_contracts(
                 pass
             return (feature.key, None)
 
+        progress_columns, progress_kwargs = get_progress_config()
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TextColumn("({task.completed}/{task.total})"),
-            TimeElapsedColumn(),
+            *progress_columns,
             console=console,
+            **progress_kwargs,
         ) as progress:
             task = progress.add_task("[cyan]Extracting contracts...", total=len(features_with_files))
             if is_test_mode:
@@ -1313,11 +1311,11 @@ def from_bridge(
         # Ensure SpecFact structure exists
         SpecFactStructure.ensure_structure(repo)
 
+        progress_columns, progress_kwargs = get_progress_config()
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            TimeElapsedColumn(),
+            *progress_columns,
             console=console,
+            **progress_kwargs,
         ) as progress:
             # Step 1: Discover features from markdown artifacts (adapter-agnostic)
             task = progress.add_task(f"Discovering {adapter_lower} features...", total=None)
