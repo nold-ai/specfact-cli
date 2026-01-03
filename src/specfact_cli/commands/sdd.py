@@ -13,10 +13,10 @@ from typing import Any
 import typer
 from beartype import beartype
 from icontract import ensure, require
-from rich.console import Console
 from rich.table import Table
 
 from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
+from specfact_cli.runtime import get_configured_console
 from specfact_cli.utils import print_error, print_info, print_success
 from specfact_cli.utils.sdd_discovery import list_all_sdds
 from specfact_cli.utils.structure import SpecFactStructure
@@ -28,7 +28,14 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
-console = Console()
+console = get_configured_console()
+
+# Constitution subcommand group
+constitution_app = typer.Typer(
+    help="Manage project constitutions (Spec-Kit format compatibility). Generates and validates constitutions at .specify/memory/constitution.md for Spec-Kit format compatibility."
+)
+
+app.add_typer(constitution_app, name="constitution")
 
 # Constitution subcommand group
 constitution_app = typer.Typer(

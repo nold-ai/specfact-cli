@@ -15,13 +15,10 @@ from time import time
 from typing import Any
 
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import Progress
 
 from specfact_cli.models.project import ProjectBundle
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
-
-
-console = Console()
 
 
 def _is_test_mode() -> bool:
@@ -89,12 +86,16 @@ def load_bundle_with_progress(
     Args:
         bundle_dir: Path to bundle directory
         validate_hashes: Whether to validate file checksums
-        console_instance: Optional Console instance (defaults to module console)
+        console_instance: Optional Console instance (defaults to configured console)
 
     Returns:
         Loaded ProjectBundle instance
     """
-    display_console = console_instance or console
+    # Lazy import to avoid circular dependency
+    from specfact_cli.runtime import get_configured_console
+    from specfact_cli.utils.terminal import get_progress_config
+
+    display_console = console_instance if console_instance is not None else get_configured_console()
     start_time = time()
 
     # Try to use Progress display, but fall back to direct load if it fails
@@ -103,11 +104,11 @@ def load_bundle_with_progress(
 
     if use_progress:
         try:
+            progress_columns, progress_kwargs = get_progress_config()
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
+                *progress_columns,
                 console=display_console,
+                **progress_kwargs,
             ) as progress:
                 task = progress.add_task("Loading project bundle...", total=None)
 
@@ -149,9 +150,13 @@ def save_bundle_with_progress(
         bundle: ProjectBundle instance to save
         bundle_dir: Path to bundle directory
         atomic: Whether to use atomic writes
-        console_instance: Optional Console instance (defaults to module console)
+        console_instance: Optional Console instance (defaults to configured console)
     """
-    display_console = console_instance or console
+    # Lazy import to avoid circular dependency
+    from specfact_cli.runtime import get_configured_console
+    from specfact_cli.utils.terminal import get_progress_config
+
+    display_console = console_instance if console_instance is not None else get_configured_console()
     start_time = time()
 
     # Try to use Progress display, but fall back to direct save if it fails
@@ -160,11 +165,11 @@ def save_bundle_with_progress(
 
     if use_progress:
         try:
+            progress_columns, progress_kwargs = get_progress_config()
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
+                *progress_columns,
                 console=display_console,
+                **progress_kwargs,
             ) as progress:
                 task = progress.add_task("Saving project bundle...", total=None)
 

@@ -242,7 +242,7 @@ Watch mode uses an optimized cache:
 
 ## Unified Progress Display
 
-All commands use consistent progress indicators.
+All commands use consistent progress indicators that automatically adapt to your terminal environment.
 
 ### Progress Format
 
@@ -259,6 +259,17 @@ This shows:
 - Current artifact name (FEATURE-001.yaml)
 - Elapsed time
 
+### Automatic Terminal Adaptation
+
+The CLI **automatically detects terminal capabilities** and adjusts progress display:
+
+- **Interactive terminals** → Full Rich progress with animations, colors, and progress bars
+- **Embedded terminals** (Cursor, VS Code) → Plain text progress updates (no animations)
+- **CI/CD pipelines** → Plain text progress updates for readable logs
+- **Test mode** → Minimal output
+
+**No manual configuration required** - the CLI adapts automatically. See [Troubleshooting](troubleshooting.md#terminal-output-issues) for details.
+
 ### Visibility
 
 Progress is shown for:
@@ -268,7 +279,7 @@ Progress is shown for:
 - File processing operations
 - Analysis operations
 
-**No "dark" periods** - you always know what's happening.
+**No "dark" periods** - you always know what's happening, regardless of terminal type.
 
 ## Best Practices
 
@@ -303,3 +314,4 @@ Progress is shown for:
 - [Command Reference](../reference/commands.md) - Complete command documentation
 - [Workflows](workflows.md) - Common daily workflows
 - [IDE Integration](ide-integration.md) - Enhanced IDE experience
+- [Troubleshooting](troubleshooting.md#terminal-output-issues) - Terminal output auto-detection and troubleshooting

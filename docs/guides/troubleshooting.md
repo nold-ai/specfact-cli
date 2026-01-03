@@ -540,6 +540,111 @@ specfact plan select --last 5
 
 ---
 
+## Terminal Output Issues
+
+SpecFact CLI **automatically detects terminal capabilities** and adjusts output formatting for optimal user experience across different environments. No manual configuration required - the CLI adapts to your terminal environment.
+
+### How Terminal Auto-Detection Works
+
+The CLI automatically detects terminal capabilities in this order:
+
+1. **Test Mode Detection**:
+   - `TEST_MODE=true` or `PYTEST_CURRENT_TEST` → **MINIMAL** mode
+
+2. **CI/CD Detection**:
+   - `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `CIRCLECI`, `TRAVIS`, `JENKINS_URL`, `BUILDKITE` → **BASIC** mode
+
+3. **Color Support Detection**:
+   - `NO_COLOR` → Disables colors (respects [NO_COLOR standard](https://no-color.org/))
+   - `FORCE_COLOR=1` → Forces colors
+   - `TERM` and `COLORTERM` environment variables → Additional hints
+
+4. **Terminal Type Detection**:
+   - TTY detection (`sys.stdout.isatty()`) → Interactive vs non-interactive
+   - Interactive TTY with animations → **GRAPHICAL** mode
+   - Non-interactive → **BASIC** mode
+
+5. **Default Fallback**:
+   - If uncertain → **BASIC** mode (safe, readable output)
+
+### Terminal Modes
+
+The CLI supports three terminal modes (auto-selected based on detection):
+
+* **GRAPHICAL** - Full Rich features (colors, animations, progress bars) for interactive terminals
+* **BASIC** - Plain text, no animations, simple progress updates for CI/CD and embedded terminals
+* **MINIMAL** - Minimal output for test mode
+
+### Environment Variables (Optional Overrides)
+
+You can override auto-detection using standard environment variables:
+
+* **`NO_COLOR`** - Disables all colors (respects [NO_COLOR standard](https://no-color.org/))
+* **`FORCE_COLOR=1`** - Forces color output even in non-interactive terminals
+* **`CI=true`** - Explicitly enables basic mode (no animations, plain text)
+* **`TEST_MODE=true`** - Enables minimal mode for testing
+
+### Examples
+
+```bash
+# Auto-detection (default behavior)
+specfact import from-code my-bundle
+# → Automatically detects terminal and uses appropriate mode
+
+# Manual override: Disable colors
+NO_COLOR=1 specfact import from-code my-bundle
+
+# Manual override: Force colors in CI/CD
+FORCE_COLOR=1 specfact sync bridge
+
+# Manual override: Explicit CI/CD mode
+CI=true specfact import from-code my-bundle
+```
+
+### No Progress Visible in Embedded Terminals
+
+**Issue**: No progress indicators visible when running commands in Cursor, VS Code, or other embedded terminals.
+
+**Cause**: Embedded terminals are non-interactive and may not support Rich animations.
+
+**Solution**: The CLI automatically detects embedded terminals and switches to basic mode with plain text progress updates. If you still don't see progress:
+
+1. **Verify auto-detection is working**:
+   ```bash
+   # Check terminal mode (should show BASIC in embedded terminals)
+   python -c "from specfact_cli.runtime import get_terminal_mode; print(get_terminal_mode())"
+   ```
+
+2. **Check environment variables**:
+   ```bash
+   # Ensure NO_COLOR is not set (unless you want plain text)
+   unset NO_COLOR
+   ```
+
+3. **Verify terminal supports stdout**:
+   - Embedded terminals should support stdout (not stderr-only)
+   - Progress updates are throttled - wait a few seconds for updates
+
+4. **Manual override** (if needed):
+   ```bash
+   # Force basic mode
+   CI=true specfact import from-code my-bundle
+   ```
+
+### Colors Not Working in CI/CD
+
+**Issue**: No colors in CI/CD pipeline output.
+
+**Cause**: CI/CD environments are automatically detected and use basic mode (no colors) for better log readability.
+
+**Solution**: This is expected behavior. CI/CD logs are more readable without colors. To force colors:
+
+```bash
+FORCE_COLOR=1 specfact import from-code my-bundle
+```
+
+---
+
 ## Getting Help
 
 If you're still experiencing issues:
