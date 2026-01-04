@@ -45,7 +45,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 **Bottom line:** Use Spec-Kit for documenting new features. Use OpenSpec for change tracking. Use SpecFact for modernizing legacy code safely and enabling team collaboration. Use all three together for the best of all worlds.
 
-👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[OpenSpec Journey](guides/openspec-journey.md)** 🆕 | **[Bridge Adapters](reference/commands.md#sync-bridge)**
+👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[OpenSpec Journey](guides/openspec-journey.md)** 🆕 | **[Integrations Overview](guides/integrations-overview.md)** 🆕 | **[Bridge Adapters](reference/commands.md#sync-bridge)**
 
 ---
 

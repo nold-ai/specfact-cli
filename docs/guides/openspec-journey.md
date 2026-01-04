@@ -448,6 +448,8 @@ This separation enables:
 
 ### Related Guides
 
+- [Integrations Overview](integrations-overview.md) - Overview of all SpecFact CLI integrations
+
 - [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
 - [Common Tasks Index](common-tasks.md) - Quick reference for OpenSpec integration tasks
 - [DevOps Adapter Integration](devops-adapter-integration.md) - GitHub Issues and backlog tracking

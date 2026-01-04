@@ -563,6 +563,8 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
 ### Related Guides
 
+- [Integrations Overview](integrations-overview.md) - Overview of all SpecFact CLI integrations
+
 - [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
 - [Common Tasks Index](common-tasks.md) - Quick reference for DevOps integration tasks
 - [OpenSpec Journey](openspec-journey.md) - OpenSpec integration with DevOps export
