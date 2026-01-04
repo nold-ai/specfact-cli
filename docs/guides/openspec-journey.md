@@ -444,6 +444,32 @@ This separation enables:
 
 ---
 
+## See Also
+
+### Related Guides
+
+- [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
+- [Common Tasks Index](common-tasks.md) - Quick reference for OpenSpec integration tasks
+- [DevOps Adapter Integration](devops-adapter-integration.md) - GitHub Issues and backlog tracking
+- [Team Collaboration Workflow](team-collaboration-workflow.md) - Team collaboration patterns
+
+### Related Commands
+
+- [Command Reference - Import Commands](../reference/commands.md#import---import-from-external-formats) - `import from-bridge` reference
+- [Command Reference - Sync Commands](../reference/commands.md#sync-bridge) - `sync bridge` reference
+- [Command Reference - DevOps Adapters](../reference/commands.md#sync-bridge) - Adapter configuration
+
+### Related Examples
+
+- [OpenSpec Integration Examples](../examples/) - Real-world integration examples
+
+### Getting Started
+
+- [Getting Started](../getting-started/README.md) - Quick setup guide
+- [Architecture](../reference/architecture.md) - System architecture and design
+
+---
+
 ## 📚 Next Steps
 
 ### **Try It Now** ✅

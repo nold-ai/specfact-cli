@@ -133,10 +133,12 @@ specfact enforce sdd --bundle my-project
 
 **Goal**: Use SpecFact effectively in your workflow
 
-1. **[Command Reference](reference/commands.md)** - All commands with examples
-2. **[Use Cases](guides/use-cases.md)** - Real-world scenarios
-3. **[IDE Integration](guides/ide-integration.md)** - Set up slash commands
-4. **[CoPilot Mode](guides/copilot-mode.md)** - Enhanced prompts
+1. **[Command Chains Reference](guides/command-chains.md)** ⭐ **NEW** - Complete workflows and command sequences
+2. **[Common Tasks Index](guides/common-tasks.md)** ⭐ **NEW** - Quick "How do I X?" reference
+3. **[Command Reference](reference/commands.md)** - All commands with examples
+4. **[Use Cases](guides/use-cases.md)** - Real-world scenarios
+5. **[IDE Integration](guides/ide-integration.md)** - Set up slash commands
+6. **[CoPilot Mode](guides/copilot-mode.md)** - Enhanced prompts
 
 **Time**: 30-60 minutes | **Result**: Master daily workflows
 

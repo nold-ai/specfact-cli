@@ -559,12 +559,28 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
 ---
 
-## Related Documentation
+## See Also
 
-- **[Commands Reference](../reference/commands.md)** - Complete `sync bridge` command documentation
-- **[Architecture](../reference/architecture.md)** - System architecture and design
-- **[Agile/Scrum Workflows](agile-scrum-workflows.md)** - Persona-based backlog management
-- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+### Related Guides
+
+- [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
+- [Common Tasks Index](common-tasks.md) - Quick reference for DevOps integration tasks
+- [OpenSpec Journey](openspec-journey.md) - OpenSpec integration with DevOps export
+- [Agile/Scrum Workflows](agile-scrum-workflows.md) - Persona-based backlog management
+
+### Related Commands
+
+- [Command Reference - Sync Bridge](../reference/commands.md#sync-bridge) - Complete `sync bridge` command documentation
+- [Command Reference - DevOps Adapters](../reference/commands.md#sync-bridge) - Adapter configuration
+
+### Related Examples
+
+- [DevOps Integration Examples](../examples/) - Real-world integration examples
+
+### Architecture & Troubleshooting
+
+- [Architecture](../reference/architecture.md) - System architecture and design
+- [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
 ---
 

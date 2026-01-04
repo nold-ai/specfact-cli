@@ -1,4 +1,183 @@
-# Prompt Validation System
+# Prompt Templates and Slash Commands Reference
+
+This directory contains documentation and tools for validating slash command prompts, as well as a reference for all available slash commands.
+
+---
+
+## Slash Commands Reference
+
+SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS Code + Copilot, Claude Code, etc.). These commands enable a seamless workflow: **SpecFact finds gaps → AI IDE fixes them → SpecFact validates**.
+
+### Quick Start
+
+1. **Initialize IDE integration**:
+
+   ```bash
+   specfact init --ide cursor
+   ```
+
+2. **Use slash commands in your IDE**:
+
+   ```bash
+   /specfact.01-import legacy-api --repo .
+   /specfact.03-review legacy-api
+   /specfact.05-enforce legacy-api
+   ```
+
+**Related**: [AI IDE Workflow Guide](../guides/ai-ide-workflow.md) - Complete workflow guide
+
+---
+
+### Core Workflow Commands
+
+#### `/specfact.01-import`
+
+**Purpose**: Import from codebase (brownfield modernization)
+
+**Equivalent CLI**: `specfact import from-code`
+
+**Example**:
+
+```bash
+/specfact.01-import legacy-api --repo .
+```
+
+**Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain)
+
+---
+
+#### `/specfact.02-plan`
+
+**Purpose**: Plan management (init, add-feature, add-story, update-idea, update-feature, update-story)
+
+**Equivalent CLI**: `specfact plan init/add-feature/add-story/update-idea/update-feature/update-story`
+
+**Example**:
+
+```bash
+/specfact.02-plan init legacy-api
+/specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
+```
+
+**Workflow**: [Greenfield Planning Chain](../guides/command-chains.md#2-greenfield-planning-chain)
+
+---
+
+#### `/specfact.03-review`
+
+**Purpose**: Review plan and promote
+
+**Equivalent CLI**: `specfact plan review`
+
+**Example**:
+
+```bash
+/specfact.03-review legacy-api
+```
+
+**Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain), [Greenfield Planning Chain](../guides/command-chains.md#2-greenfield-planning-chain)
+
+---
+
+#### `/specfact.04-sdd`
+
+**Purpose**: Create SDD manifest
+
+**Equivalent CLI**: `specfact enforce sdd`
+
+**Example**:
+
+```bash
+/specfact.04-sdd legacy-api
+```
+
+**Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain)
+
+---
+
+#### `/specfact.05-enforce`
+
+**Purpose**: SDD enforcement
+
+**Equivalent CLI**: `specfact enforce sdd`
+
+**Example**:
+
+```bash
+/specfact.05-enforce legacy-api
+```
+
+**Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain), [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
+
+---
+
+#### `/specfact.06-sync`
+
+**Purpose**: Sync operations
+
+**Equivalent CLI**: `specfact sync bridge`
+
+**Example**:
+
+```bash
+/specfact.06-sync --adapter speckit --repo . --bidirectional
+```
+
+**Workflow**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
+
+---
+
+#### `/specfact.07-contracts`
+
+**Purpose**: Contract management (analyze, generate prompts, apply contracts sequentially)
+
+**Equivalent CLI**: `specfact generate contracts-prompt`
+
+**Example**:
+
+```bash
+/specfact.07-contracts legacy-api --apply all-contracts
+```
+
+**Workflow**: [AI-Assisted Code Enhancement Chain](../guides/command-chains.md#7-ai-assisted-code-enhancement-chain-emerging)
+
+---
+
+### Advanced Commands
+
+#### `/specfact.compare`
+
+**Purpose**: Compare plans
+
+**Equivalent CLI**: `specfact plan compare`
+
+**Example**:
+
+```bash
+/specfact.compare --bundle legacy-api
+```
+
+**Workflow**: [Code-to-Plan Comparison Chain](../guides/command-chains.md#6-code-to-plan-comparison-chain)
+
+---
+
+#### `/specfact.validate`
+
+**Purpose**: Validation suite
+
+**Equivalent CLI**: `specfact repro`
+
+**Example**:
+
+```bash
+/specfact.validate --repo .
+```
+
+**Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain), [Gap Discovery & Fixing Chain](../guides/command-chains.md#9-gap-discovery--fixing-chain-emerging)
+
+---
+
+## Prompt Validation System
 
 This directory contains documentation and tools for validating slash command prompts to ensure they are correct, aligned with CLI commands, and provide good UX.
 

@@ -8,6 +8,30 @@ permalink: /commands/
 
 Complete reference for all SpecFact CLI commands.
 
+## Commands by Workflow
+
+**Quick Navigation**: Find commands organized by workflow and command chain.
+
+👉 **[Command Chains Reference](../guides/command-chains.md)** ⭐ **NEW** - Complete workflows with decision trees and visual diagrams
+
+### Workflow Matrix
+
+| Workflow | Primary Commands | Chain Reference |
+|----------|-----------------|-----------------|
+| **Brownfield Modernization** | `import from-code`, `plan review`, `plan update-feature`, `enforce sdd`, `repro` | [Brownfield Chain](../guides/command-chains.md#1-brownfield-modernization-chain) |
+| **Greenfield Planning** | `plan init`, `plan add-feature`, `plan add-story`, `plan review`, `plan harden`, `generate contracts`, `enforce sdd` | [Greenfield Chain](../guides/command-chains.md#2-greenfield-planning-chain) |
+| **External Tool Integration** | `import from-bridge`, `plan review`, `sync bridge`, `enforce sdd` | [Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain) |
+| **API Contract Development** | `spec validate`, `spec backward-compat`, `spec generate-tests`, `spec mock`, `contract verify` | [API Chain](../guides/command-chains.md#4-api-contract-development-chain) |
+| **Plan Promotion & Release** | `plan review`, `enforce sdd`, `plan promote`, `project version bump` | [Promotion Chain](../guides/command-chains.md#5-plan-promotion--release-chain) |
+| **Code-to-Plan Comparison** | `import from-code`, `plan compare`, `drift detect`, `sync repository` | [Comparison Chain](../guides/command-chains.md#6-code-to-plan-comparison-chain) |
+| **AI-Assisted Enhancement** | `generate contracts-prompt`, `contracts-apply`, `contract coverage`, `repro` | [AI Enhancement Chain](../guides/command-chains.md#7-ai-assisted-code-enhancement-chain-emerging) |
+| **Test Generation** | `generate test-prompt`, `spec generate-tests`, `pytest` | [Test Generation Chain](../guides/command-chains.md#8-test-generation-from-specifications-chain-emerging) |
+| **Gap Discovery & Fixing** | `repro --verbose`, `generate fix-prompt`, `enforce sdd` | [Gap Discovery Chain](../guides/command-chains.md#9-gap-discovery--fixing-chain-emerging) |
+
+**Not sure which workflow to use?** → [Command Chains Decision Tree](../guides/command-chains.md#when-to-use-which-chain)
+
+---
+
 ## Quick Reference
 
 ### Most Common Commands
@@ -61,11 +85,24 @@ specfact repro --verbose
 
 **Project Bundle Management:**
 
+- `project init-personas` - Initialize persona definitions for team collaboration
+  - **Workflow**: [Team Collaboration Workflow](../guides/team-collaboration-workflow.md)
 - `project export --bundle <bundle-name> --persona <persona>` - Export persona-specific Markdown artifacts
+  - **Workflow**: [Team Collaboration Workflow](../guides/team-collaboration-workflow.md), [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
 - `project import --bundle <bundle-name> --persona <persona> --source <file>` - Import persona edits from Markdown
+  - **Workflow**: [Team Collaboration Workflow](../guides/team-collaboration-workflow.md), [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
+- `project lock --bundle <bundle-name> --section <section> --persona <persona>` - Lock section for editing
+  - **Workflow**: [Team Collaboration Workflow](../guides/team-collaboration-workflow.md)
+- `project unlock --bundle <bundle-name> --section <section>` - Unlock section after editing
+  - **Workflow**: [Team Collaboration Workflow](../guides/team-collaboration-workflow.md)
+- `project locks --bundle <bundle-name>` - List all locked sections
+  - **Workflow**: [Team Collaboration Workflow](../guides/team-collaboration-workflow.md)
 - `project version check --bundle <bundle-name>` - Recommend version bump (major/minor/patch/none)
+  - **Workflow**: [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
 - `project version bump --bundle <bundle-name> --type <major|minor|patch>` - Apply SemVer bump and record history
+  - **Workflow**: [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
 - `project version set --bundle <bundle-name> --version <semver>` - Set explicit project version and record history
+  - **Workflow**: [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
 - **CI/CD Integration**: The GitHub Action template includes a configurable version check step with three modes:
   - `info`: Informational only, logs recommendations without failing CI
   - `warn` (default): Logs warnings but continues CI execution
@@ -75,9 +112,12 @@ specfact repro --verbose
 **Enforcement:**
 
 - `enforce sdd` - Validate SDD manifest compliance
+  - **Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain), [Greenfield Planning Chain](../guides/command-chains.md#2-greenfield-planning-chain), [Plan Promotion & Release Chain](../guides/command-chains.md#5-plan-promotion--release-chain)
 - `enforce stage` - Configure quality gates
 - `repro` - Run validation suite
+  - **Workflow**: [Brownfield Modernization Chain](../guides/command-chains.md#1-brownfield-modernization-chain), [Gap Discovery & Fixing Chain](../guides/command-chains.md#9-gap-discovery--fixing-chain-emerging)
 - `drift detect` - Detect drift between code and specifications
+  - **Workflow**: [Code-to-Plan Comparison Chain](../guides/command-chains.md#6-code-to-plan-comparison-chain)
 
 **AI IDE Bridge (v0.17+):**
 
@@ -90,14 +130,20 @@ specfact repro --verbose
 **Synchronization:**
 
 - `sync bridge` - Sync with external tools via bridge architecture (Spec-Kit, Linear, Jira, etc.)
+  - **Workflow**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
 - `sync repository` - Sync code changes
+  - **Workflow**: [Code-to-Plan Comparison Chain](../guides/command-chains.md#6-code-to-plan-comparison-chain)
 
 **API Specification Management:**
 
 - `spec validate` - Validate OpenAPI/AsyncAPI specifications with Specmatic
+  - **Workflow**: [API Contract Development Chain](../guides/command-chains.md#4-api-contract-development-chain)
 - `spec backward-compat` - Check backward compatibility between spec versions
+  - **Workflow**: [API Contract Development Chain](../guides/command-chains.md#4-api-contract-development-chain)
 - `spec generate-tests` - Generate contract tests from specifications
+  - **Workflow**: [API Contract Development Chain](../guides/command-chains.md#4-api-contract-development-chain), [Test Generation from Specifications Chain](../guides/command-chains.md#8-test-generation-from-specifications-chain-emerging)
 - `spec mock` - Launch mock server for development
+  - **Workflow**: [API Contract Development Chain](../guides/command-chains.md#4-api-contract-development-chain)
 
 **Constitution Management (Spec-Kit Compatibility):**
 
