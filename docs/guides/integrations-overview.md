@@ -194,21 +194,21 @@ Start: What do you need?
 
 ### Common Workflows
 
-**1. Brownfield Modernization with OpenSpec**
+#### 1. Brownfield Modernization with OpenSpec
 
 - Use SpecFact CLI `import from-code` to analyze existing code
 - Export to OpenSpec for specification anchoring
 - Use OpenSpec change proposals for tracking improvements
 - Sync proposals to GitHub Issues via DevOps adapter
 
-**2. Greenfield Development with Spec-Kit**
+#### 2. Greenfield Development with Spec-Kit
 
 - Use Spec-Kit for interactive specification authoring
 - Add SpecFact CLI enforcement for runtime contracts
 - Use Specmatic for API contract testing
 - Integrate with AI IDE for streamlined workflows
 
-**3. Full Stack Development**
+#### 3. Full Stack Development
 
 - Use Spec-Kit/OpenSpec for specification management
 - Use SpecFact CLI for code-level contract enforcement
