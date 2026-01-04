@@ -151,6 +151,12 @@ Detailed instructions for the AI assistant...
 
 ## Available Slash Commands
 
+**Complete Reference**: [Prompts README](../prompts/README.md) - Full slash commands reference with examples
+
+**Workflow Guide**: [AI IDE Workflow Guide](ai-ide-workflow.md) - Complete workflow from setup to validation
+
+## Available Slash Commands
+
 **Core Workflow Commands** (numbered for workflow ordering):
 
 | Command | Description | CLI Equivalent |

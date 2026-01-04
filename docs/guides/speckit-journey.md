@@ -501,12 +501,29 @@ specfact enforce stage --preset strict
 
 ---
 
-## 🔗 Related Documentation
+## See Also
 
-- **[Getting Started](../getting-started/README.md)** - Quick setup guide
-- **[Use Cases](use-cases.md)** - Detailed Spec-Kit migration use case
-- **[Commands](../reference/commands.md)** - `import from-bridge` and `sync bridge` reference
-- **[Architecture](../reference/architecture.md)** - How SpecFact integrates with Spec-Kit
+### Related Guides
+
+- [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
+- [Common Tasks Index](common-tasks.md) - Quick reference for "How do I sync with Spec-Kit?"
+- [Spec-Kit Comparison](speckit-comparison.md) - Detailed comparison guide
+- [Use Cases](use-cases.md) - Detailed Spec-Kit migration use case
+
+### Related Commands
+
+- [Command Reference - Import Commands](../reference/commands.md#import---import-from-external-formats) - `import from-bridge` reference
+- [Command Reference - Sync Commands](../reference/commands.md#sync-bridge) - `sync bridge` reference
+- [Command Reference - SDD Constitution](../reference/commands.md#sdd-constitution---manage-project-constitutions) - Constitution management
+
+### Related Examples
+
+- [Spec-Kit Migration Examples](../examples/) - Real-world migration examples
+
+### Getting Started
+
+- [Getting Started](../getting-started/README.md) - Quick setup guide
+- [Architecture](../reference/architecture.md) - How SpecFact integrates with Spec-Kit
 
 ---
 
