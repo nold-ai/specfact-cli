@@ -10,6 +10,39 @@
     {% if jekyll.environment == 'production' and site.google_analytics %}
     {% include google-analytics.html %}
     {% endif %}
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid after converting all blocks
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'default',
+          securityLevel: 'loose',
+          flowchart: { useMaxWidth: true }
+        });
+      });
+    </script>
   </head>
   <body>
     <header class="site-header" role="banner">
