@@ -571,18 +571,18 @@ The CLI automatically detects terminal capabilities in this order:
 
 The CLI supports three terminal modes (auto-selected based on detection):
 
-* **GRAPHICAL** - Full Rich features (colors, animations, progress bars) for interactive terminals
-* **BASIC** - Plain text, no animations, simple progress updates for CI/CD and embedded terminals
-* **MINIMAL** - Minimal output for test mode
+- **GRAPHICAL** - Full Rich features (colors, animations, progress bars) for interactive terminals
+- **BASIC** - Plain text, no animations, simple progress updates for CI/CD and embedded terminals
+- **MINIMAL** - Minimal output for test mode
 
 ### Environment Variables (Optional Overrides)
 
 You can override auto-detection using standard environment variables:
 
-* **`NO_COLOR`** - Disables all colors (respects [NO_COLOR standard](https://no-color.org/))
-* **`FORCE_COLOR=1`** - Forces color output even in non-interactive terminals
-* **`CI=true`** - Explicitly enables basic mode (no animations, plain text)
-* **`TEST_MODE=true`** - Enables minimal mode for testing
+- **`NO_COLOR`** - Disables all colors (respects [NO_COLOR standard](https://no-color.org/))
+- **`FORCE_COLOR=1`** - Forces color output even in non-interactive terminals
+- **`CI=true`** - Explicitly enables basic mode (no animations, plain text)
+- **`TEST_MODE=true`** - Enables minimal mode for testing
 
 ### Examples
 
@@ -610,12 +610,14 @@ CI=true specfact import from-code my-bundle
 **Solution**: The CLI automatically detects embedded terminals and switches to basic mode with plain text progress updates. If you still don't see progress:
 
 1. **Verify auto-detection is working**:
+
    ```bash
    # Check terminal mode (should show BASIC in embedded terminals)
    python -c "from specfact_cli.runtime import get_terminal_mode; print(get_terminal_mode())"
    ```
 
 2. **Check environment variables**:
+
    ```bash
    # Ensure NO_COLOR is not set (unless you want plain text)
    unset NO_COLOR
@@ -626,6 +628,7 @@ CI=true specfact import from-code my-bundle
    - Progress updates are throttled - wait a few seconds for updates
 
 4. **Manual override** (if needed):
+
    ```bash
    # Force basic mode
    CI=true specfact import from-code my-bundle
