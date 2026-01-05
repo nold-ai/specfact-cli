@@ -35,6 +35,8 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 ### Guides
 
+- **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
+- **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
 - **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
 - **[IDE Integration](guides/ide-integration.md)** - Set up slash commands in your IDE
@@ -44,6 +46,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 ### Reference
 
+- **[Reference Documentation](reference/)** - Complete technical reference index
 - **[Command Reference](reference/commands.md)** - Complete command documentation
 - **[Architecture](reference/architecture.md)** - Technical design and principles
 - **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
