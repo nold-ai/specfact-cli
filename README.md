@@ -47,7 +47,7 @@ AI coding assistants are powerful but unpredictable when requirements live in ch
 
 ## 🚀 Quick Start
 
-### Install (10 seconds)
+### Step 1: Install SpecFact CLI
 
 ```bash
 # Zero-install (recommended - no setup needed)
@@ -57,18 +57,50 @@ uvx specfact-cli@latest
 pip install -U specfact-cli
 ```
 
-### Your First Command (< 60 seconds)
+### Step 2: Initialize IDE Integration
 
-**Analyze your existing code:**
+**Set up slash commands in your IDE (Cursor, VS Code, Copilot, etc.):**
+
+```bash
+# Auto-detect IDE and initialize
+specfact init
+
+# Or specify IDE explicitly
+specfact init --ide cursor
+specfact init --ide vscode
+
+# Install required packages for contract enhancement
+specfact init --ide cursor --install-deps
+```
+
+**What this does:**
+
+- Copies prompt templates to your IDE
+- Makes slash commands available in your IDE's AI chat
+- Optionally installs required packages (`beartype`, `icontract`, `crosshair-tool`, `pytest`)
+
+### Step 3: Run Your First Analysis
+
+**In your IDE's AI chat, use the slash command:**
+
+```bash
+# In IDE chat (Cursor, VS Code, Copilot, etc.)
+/specfact.01-import my-project --repo .
+```
+
+**Or use the CLI directly:**
 
 ```bash
 # Analyze legacy codebase (most common use case)
 specfact import from-code my-project --repo .
 ```
 
+**⏱️ Timing:** Analysis typically takes **10-15 minutes** for typical repositories (e.g., `specfact-cli` itself with several hundred features & contracts). Smaller codebases may complete in 2-5 minutes. The analysis performs AST parsing, Semgrep pattern detection, and Specmatic integration.
+
 **That's it!** SpecFact will extract features and stories from your code, find missing tests and contracts, and generate a plan bundle you can enforce.
 
-👉 **[Getting Started Guide](docs/getting-started/README.md)** - Complete walkthrough with examples
+👉 **[Getting Started Guide](docs/getting-started/README.md)** - Complete walkthrough with examples  
+👉 **[AI IDE Workflow Guide](docs/guides/ai-ide-workflow.md)** ⭐ - Complete AI-assisted development workflow
 
 ---
 
