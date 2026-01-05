@@ -1,6 +1,6 @@
 ---
 layout: default
-title: The Journey: From Spec-Kit to SpecFact
+title: "The Journey: From Spec-Kit to SpecFact"
 permalink: /guides/speckit-journey/
 ---
 
