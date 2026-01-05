@@ -708,7 +708,7 @@ Templates use Jinja2 syntax with these variables:
 ### Example: Custom Template Section
 
 ```jinja2
-{% if features %}
+{% raw %}{% if features %}
 ## Features & User Stories
 
 {% for feature_key, feature in features.items() %}
@@ -729,7 +729,7 @@ Templates use Jinja2 syntax with these variables:
 {% endif %}
 
 {% endfor %}
-{% endif %}
+{% endif %}{% endraw %}
 ```
 
 ## Validation Examples
