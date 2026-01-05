@@ -252,79 +252,79 @@ body {
     font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
   }
   
-  // Rouge syntax highlighting spans - ensure no dark backgrounds
+  // Rouge syntax highlighting spans - dark theme colors for readability
   .highlight {
     span {
       background-color: transparent !important;
       color: var(--text-color) !important;
     }
     
-    // Syntax highlighting colors (light theme)
-    .c { color: #6a737d !important; } // Comments
-    .k { color: #d73a49 !important; } // Keywords
-    .l { color: #005cc5 !important; } // Literals
+    // Syntax highlighting colors (dark theme optimized)
+    .c { color: #8892b0 !important; } // Comments - muted gray-blue
+    .k { color: #ff6b9d !important; } // Keywords - pink/red
+    .l { color: #64ffda !important; } // Literals - cyan
     .n { color: var(--text-color) !important; } // Names
-    .o { color: #d73a49 !important; } // Operators
-    .p { color: var(--text-color) !important; } // Punctuation
-    .cm { color: #6a737d !important; } // Comment multiline
-    .cp { color: #6a737d !important; } // Comment preproc
-    .c1 { color: #6a737d !important; } // Comment single
-    .cs { color: #6a737d !important; } // Comment special
-    .gd { color: #d73a49 !important; } // Generic deleted
+    .o { color: #ff6b9d !important; } // Operators - pink
+    .p { color: #ccd6f6 !important; } // Punctuation - light text
+    .cm { color: #8892b0 !important; } // Comment multiline
+    .cp { color: #8892b0 !important; } // Comment preproc
+    .c1 { color: #8892b0 !important; } // Comment single
+    .cs { color: #8892b0 !important; } // Comment special
+    .gd { color: #ff6b9d !important; } // Generic deleted
     .ge { font-style: italic !important; } // Generic emph
-    .gr { color: #d73a49 !important; } // Generic error
+    .gr { color: #ff6b9d !important; } // Generic error
     .gh { color: var(--text-color) !important; font-weight: bold !important; } // Generic heading
-    .gi { color: #28a745 !important; } // Generic inserted
-    .go { color: #6a737d !important; } // Generic output
-    .gp { color: #6a737d !important; } // Generic prompt
+    .gi { color: #64ffda !important; } // Generic inserted - cyan
+    .go { color: #8892b0 !important; } // Generic output
+    .gp { color: #8892b0 !important; } // Generic prompt
     .gs { font-weight: bold !important; } // Generic strong
     .gu { color: var(--text-color) !important; font-weight: bold !important; } // Generic subheading
-    .gt { color: #d73a49 !important; } // Generic traceback
-    .kc { color: #005cc5 !important; } // Keyword constant
-    .kd { color: #d73a49 !important; } // Keyword declaration
-    .kn { color: #d73a49 !important; } // Keyword namespace
-    .kp { color: #d73a49 !important; } // Keyword pseudo
-    .kr { color: #d73a49 !important; } // Keyword reserved
-    .kt { color: #d73a49 !important; } // Keyword type
-    .ld { color: #032f62 !important; } // Literal date
-    .m { color: #005cc5 !important; } // Literal number
-    .s { color: #032f62 !important; } // Literal string
-    .na { color: #005cc5 !important; } // Name attribute
-    .nb { color: #005cc5 !important; } // Name builtin
-    .nc { color: #6f42c1 !important; } // Name class
-    .no { color: #005cc5 !important; } // Name constant
-    .nd { color: #6f42c1 !important; } // Name decorator
-    .ni { color: #800080 !important; } // Name entity
-    .ne { color: #990000 !important; font-weight: bold !important; } // Name exception
-    .nf { color: #6f42c1 !important; } // Name function
-    .nl { color: #005cc5 !important; } // Name label
+    .gt { color: #ff6b9d !important; } // Generic traceback
+    .kc { color: #64ffda !important; } // Keyword constant - cyan
+    .kd { color: #ff6b9d !important; } // Keyword declaration - pink
+    .kn { color: #ff6b9d !important; } // Keyword namespace
+    .kp { color: #ff6b9d !important; } // Keyword pseudo
+    .kr { color: #ff6b9d !important; } // Keyword reserved
+    .kt { color: #ff6b9d !important; } // Keyword type
+    .ld { color: #64ffda !important; } // Literal date - cyan
+    .m { color: #64ffda !important; } // Literal number - cyan
+    .s { color: #a8e6cf !important; } // Literal string - light green
+    .na { color: #64ffda !important; } // Name attribute - cyan
+    .nb { color: #64ffda !important; } // Name builtin - cyan
+    .nc { color: #c792ea !important; } // Name class - purple
+    .no { color: #64ffda !important; } // Name constant - cyan
+    .nd { color: #c792ea !important; } // Name decorator - purple
+    .ni { color: #c792ea !important; } // Name entity - purple
+    .ne { color: #ff6b9d !important; font-weight: bold !important; } // Name exception
+    .nf { color: #c792ea !important; } // Name function - purple
+    .nl { color: #64ffda !important; } // Name label - cyan
     .nn { color: var(--text-color) !important; } // Name namespace
     .nx { color: var(--text-color) !important; } // Name other
     .py { color: var(--text-color) !important; } // Name property
-    .nt { color: #22863a !important; } // Name tag
-    .nv { color: #e36209 !important; } // Name variable
-    .ow { color: #d73a49 !important; } // Operator word
-    .w { color: #bbbbbb !important; } // Text whitespace
-    .mf { color: #005cc5 !important; } // Literal number float
-    .mh { color: #005cc5 !important; } // Literal number hex
-    .mi { color: #005cc5 !important; } // Literal number integer
-    .mo { color: #005cc5 !important; } // Literal number oct
-    .sb { color: #032f62 !important; } // Literal string backtick
-    .sc { color: #032f62 !important; } // Literal string char
-    .sd { color: #6a737d !important; } // Literal string doc
-    .s2 { color: #032f62 !important; } // Literal string double
-    .se { color: #032f62 !important; } // Literal string escape
-    .sh { color: #032f62 !important; } // Literal string heredoc
-    .si { color: #032f62 !important; } // Literal string interpol
-    .sx { color: #032f62 !important; } // Literal string other
-    .sr { color: #032f62 !important; } // Literal string regex
-    .s1 { color: #032f62 !important; } // Literal string single
-    .ss { color: #032f62 !important; } // Literal string symbol
+    .nt { color: #64ffda !important; } // Name tag - cyan (YAML keys)
+    .nv { color: #ffd93d !important; } // Name variable - yellow
+    .ow { color: #ff6b9d !important; } // Operator word
+    .w { color: #8892b0 !important; } // Text whitespace
+    .mf { color: #64ffda !important; } // Literal number float
+    .mh { color: #64ffda !important; } // Literal number hex
+    .mi { color: #64ffda !important; } // Literal number integer
+    .mo { color: #64ffda !important; } // Literal number oct
+    .sb { color: #a8e6cf !important; } // Literal string backtick
+    .sc { color: #a8e6cf !important; } // Literal string char
+    .sd { color: #8892b0 !important; } // Literal string doc
+    .s2 { color: #a8e6cf !important; } // Literal string double
+    .se { color: #a8e6cf !important; } // Literal string escape
+    .sh { color: #a8e6cf !important; } // Literal string heredoc
+    .si { color: #a8e6cf !important; } // Literal string interpol
+    .sx { color: #a8e6cf !important; } // Literal string other
+    .sr { color: #a8e6cf !important; } // Literal string regex
+    .s1 { color: #a8e6cf !important; } // Literal string single
+    .ss { color: #a8e6cf !important; } // Literal string symbol
     .bp { color: var(--text-color) !important; } // Name builtin pseudo
-    .vc { color: #e36209 !important; } // Name variable class
-    .vg { color: #e36209 !important; } // Name variable global
-    .vi { color: #e36209 !important; } // Name variable instance
-    .il { color: #005cc5 !important; } // Literal number integer long
+    .vc { color: #ffd93d !important; } // Name variable class - yellow
+    .vg { color: #ffd93d !important; } // Name variable global - yellow
+    .vi { color: #ffd93d !important; } // Name variable instance - yellow
+    .il { color: #64ffda !important; } // Literal number integer long
   }
   
   // Blockquotes
