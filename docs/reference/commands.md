@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Command Reference
-permalink: /commands/
+permalink: /reference/commands/
 ---
 
 # Command Reference

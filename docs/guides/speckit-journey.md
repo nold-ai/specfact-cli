@@ -1,3 +1,9 @@
+---
+layout: default
+title: The Journey: From Spec-Kit to SpecFact
+permalink: /guides/speckit-journey/
+---
+
 # The Journey: From Spec-Kit to SpecFact
 
 > **Spec-Kit and SpecFact are complementary, not competitive.**  
