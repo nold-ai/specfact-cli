@@ -12,9 +12,16 @@
 
 <div align="center">
 
-**[🌐 Website](https://specfact.com)** • **[📚 Documentation](https://nold-ai.github.io/specfact-cli/)** • **[💬 Support](mailto:hello@noldai.com)**
+**[🌐 specfact.com](https://specfact.com)** • **[📚 specfact.io](https://specfact.io)** • **[👨‍💻 specfact.dev](https://specfact.dev)** • **[📖 GitHub Pages Docs](https://nold-ai.github.io/specfact-cli/)** • **[💬 Support](mailto:hello@noldai.com)**
 
 </div>
+
+### 🌐 SpecFact Domains
+
+- **[specfact.com](https://specfact.com)** - Commercial landing page (marketing, pricing, enterprise)
+- **[specfact.io](https://specfact.io)** - Product ecosystem hub (CLI reference, integrations, changelog, product docs)
+- **[specfact.dev](https://specfact.dev)** - Developer community (tutorials, guides, blog, community content) ⭐ **For developers**
+- **[GitHub Pages Docs](https://nold-ai.github.io/specfact-cli/)** - Complete online documentation
 
 ---
 
