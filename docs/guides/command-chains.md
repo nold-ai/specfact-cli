@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Command Chains Reference
-permalink: /command-chains/
+permalink: /guides/command-chains/
 ---
 
 # Command Chains Reference

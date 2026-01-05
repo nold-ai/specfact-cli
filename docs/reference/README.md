@@ -1,3 +1,9 @@
+---
+layout: default
+title: Reference Documentation
+permalink: /reference/
+---
+
 # Reference Documentation
 
 Complete technical reference for SpecFact CLI.

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Agile/Scrum Workflows with SpecFact CLI
+permalink: /guides/agile-scrum-workflows/
+---
+
 # Agile/Scrum Workflows with SpecFact CLI
 
 This guide explains how to use SpecFact CLI for agile/scrum workflows, including backlog management, sprint planning, dependency tracking, and Definition of Ready (DoR) validation.

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: IDE Integration with SpecFact CLI
-permalink: /ide-integration/
+permalink: /guides/ide-integration/
 ---
 
 # IDE Integration with SpecFact CLI
