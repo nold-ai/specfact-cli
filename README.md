@@ -16,7 +16,7 @@
 
 </div>
 
-### 🌐 SpecFact Domains
+## 🌐 SpecFact Domains
 
 - **[specfact.com](https://specfact.com)** - Commercial landing page (marketing, pricing, enterprise)
 - **[specfact.io](https://specfact.io)** - Product ecosystem hub (CLI reference, integrations, changelog, product docs)
