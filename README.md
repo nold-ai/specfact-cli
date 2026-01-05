@@ -12,7 +12,7 @@
 
 <div align="center">
 
-**[🌐 Website](https://noldai.com)** • **[📚 Documentation](https://nold-ai.github.io/specfact-cli)** • **[💬 Support](mailto:hello@noldai.com)**
+**[🌐 Website](https://specfact.com)** • **[📚 Documentation](https://nold-ai.github.io/specfact-cli/)** • **[💬 Support](mailto:hello@noldai.com)**
 
 </div>
 
@@ -30,180 +30,11 @@ AI coding assistants are powerful but unpredictable when requirements live in ch
 
 **Key outcomes:**
 
-* **Understand legacy code** in minutes, not weeks (automatic spec extraction)
-* **Find gaps** in tests, contracts, and documentation automatically
-* **Prevent regressions** with runtime contract enforcement during modernization
-* **Works with the tools you already use**: VS Code, Cursor, GitHub Actions, pre-commit hooks
-* **No API keys required** - Works completely offline
-
-## How SpecFact Compares (at a glance)
-
-**New to spec-driven development?** Here's how SpecFact compares to other tools:
-
-| Tool | Best For | SpecFact's Focus |
-|------|----------|------------------|
-| **GitHub Spec-Kit** | Greenfield specs, multi-language, interactive authoring | **Brownfield analysis**, runtime enforcement, formal verification |
-| **OpenSpec** | Specification anchoring, change tracking, cross-repo workflows | **Code analysis**, contract enforcement, DevOps integration |
-| **Traditional Testing** | Manual test writing, code review | **Automated gap detection**, contract-first validation, CI/CD gates |
-
-**Key Differentiators:**
-
-* ✅ **Brownfield-first** - Reverse engineers existing code (primary use case)
-* ✅ **Runtime enforcement** - Contracts prevent regressions automatically
-* ✅ **Formal verification** - CrossHair symbolic execution (not just LLM suggestions)
-* ✅ **Team collaboration** - Role-based workflows for agile/scrum teams
-* ✅ **Works offline** - No API keys, no cloud, zero vendor lock-in
-
-**Compared to spec-kit & OpenSpec**: Those shine for brand-new features (0→1) and change tracking. SpecFact also excels when modernizing existing behavior (1→n), especially when you need runtime safety nets.
-
-👉 **[See detailed comparison guide](docs/guides/speckit-comparison.md)** - Understand when to use SpecFact, Spec-Kit, OpenSpec, or all together
-
-### The Problem It Solves
-
-* ❌ **Legacy code** with no documentation or outdated specs
-* ❌ **Missing tests** and contracts that should exist
-* ❌ **Regressions** introduced during refactoring/modernization
-* ❌ **No safety net** to catch bugs before production
-
-### The Solution
-
-SpecFact CLI:
-
-1. **Analyzes** your existing code → Extracts specs automatically
-2. **Finds gaps** → Missing tests, contracts, documentation
-3. **Enforces contracts** → Prevents regressions with runtime validation
-4. **Integrates** → Works with VS Code, Cursor, GitHub Actions, pre-commit hooks
-
-**Works offline. No account required. Zero vendor lock-in.**
-
-### How It Works
-
-SpecFact follows a simple workflow that analyzes existing code and enforces contracts to prevent regressions:
-
-```
-┌────────────────────┐
-│ Analyze Legacy     │
-│ Code               │
-└────────┬───────────┘
-         │ extract specs automatically
-         ▼
-┌────────────────────┐
-│ Find Gaps          │
-│ (tests, contracts) │◀──── feedback loop ──────┐
-└────────┬───────────┘                          │
-         │ add contracts                        │
-         ▼                                      │
-┌────────────────────┐                          │
-│ Enforce Contracts  │──────────────────────────┘
-│ (runtime validation)│
-└────────┬───────────┘
-         │ modernize safely
-         ▼
-┌────────────────────┐
-│ Prevent Regressions│
-│ (safety net)       │
-└────────────────────┘
-
-1. Analyze your existing code to extract specs automatically
-2. Find gaps in tests, contracts, and documentation
-3. Add contracts to critical paths for runtime enforcement
-4. Modernize safely knowing contracts will catch regressions
-```
-
-```mermaid
-graph TB
-    subgraph "Your Legacy Code"
-        LC[Legacy Python Code<br/>No docs, no tests]
-    end
-    
-    subgraph "SpecFact Analysis"
-        A1[import from-code<br/>Extract specs]
-        A2[Find Gaps<br/>Missing tests & contracts]
-        A3[Generate Plan Bundle<br/>Features & Stories]
-    end
-    
-    subgraph "Contract Enforcement"
-        E1[Add Contracts<br/>Runtime validation]
-        E2[Enforce SDD<br/>Quality gates]
-        E3[CI/CD Integration<br/>Block bad code]
-    end
-    
-    subgraph "Team Collaboration"
-        T1[Export by Role<br/>PO, Architect, Dev]
-        T2[Markdown Workflows<br/>No YAML editing]
-        T3[Sync to DevOps<br/>GitHub, Linear, Jira]
-    end
-    
-    subgraph "Safety Net"
-        S1[Prevent Regressions<br/>Catch bugs early]
-        S2[Modernize Safely<br/>Refactor with confidence]
-    end
-    
-    LC -->|Step 1| A1
-    A1 --> A2
-    A2 --> A3
-    A3 -->|Step 2| E1
-    E1 --> E2
-    E2 --> E3
-    E3 -->|Step 3| S1
-    S1 --> S2
-    
-    A3 -->|Optional| T1
-    T1 --> T2
-    T2 --> T3
-    
-    style LC fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
-    style A1 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
-    style A2 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
-    style A3 fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
-    style E1 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
-    style E2 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
-    style E3 fill:#3b82f6,stroke:#1e40af,stroke-width:2px,color:#fff
-    style T1 fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
-    style T2 fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
-    style T3 fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
-    style S1 fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff
-    style S2 fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff
-```
-
-### Typical Workflow
-
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant SF as SpecFact CLI
-    participant Code as Legacy Code
-    participant CI as CI/CD
-    
-    Note over Dev,CI: Step 1: Analyze Legacy Code
-    Dev->>SF: specfact import from-code my-project
-    SF->>Code: Analyze Python files
-    Code-->>SF: Extract features & stories
-    SF-->>Dev: Plan bundle created
-    
-    Note over Dev,CI: Step 2: Find & Fix Gaps
-    Dev->>SF: specfact analyze gaps my-project
-    SF-->>Dev: Missing tests & contracts found
-    Dev->>Dev: Add tests & contracts
-    
-    Note over Dev,CI: Step 3: Enforce Contracts
-    Dev->>SF: specfact enforce sdd my-project
-    SF->>SF: Validate contracts
-    SF-->>Dev: Quality gates configured
-    
-    Note over Dev,CI: Step 4: Modernize Safely
-    Dev->>Code: Refactor code
-    Code->>CI: Push changes
-    CI->>SF: Run contract validation
-    SF-->>CI: ✅ Pass or ❌ Block
-    
-    alt Contracts Pass
-        CI-->>Dev: ✅ Merge allowed
-    else Contracts Fail
-        CI-->>Dev: ❌ Merge blocked
-        Dev->>Code: Fix violations
-    end
-```
+- **Understand legacy code** in minutes, not weeks (automatic spec extraction)
+- **Find gaps** in tests, contracts, and documentation automatically
+- **Prevent regressions** with runtime contract enforcement during modernization
+- **Works with the tools you already use**: VS Code, Cursor, GitHub Actions, pre-commit hooks
+- **No API keys required** - Works completely offline
 
 ---
 
@@ -226,18 +57,45 @@ pip install -U specfact-cli
 ```bash
 # Analyze legacy codebase (most common use case)
 specfact import from-code my-project --repo .
-
-# Or start a new project
-specfact plan init my-project --interactive
 ```
 
-**That's it!** SpecFact will:
-
-* Extract features and stories from your code
-* Find missing tests and contracts
-* Generate a plan bundle you can enforce
+**That's it!** SpecFact will extract features and stories from your code, find missing tests and contracts, and generate a plan bundle you can enforce.
 
 👉 **[Getting Started Guide](docs/getting-started/README.md)** - Complete walkthrough with examples
+
+---
+
+## 🎯 Find Your Path
+
+### New to SpecFact?
+
+**Primary Goal**: Analyze legacy Python → find gaps → enforce contracts
+
+1. **[Getting Started](docs/getting-started/README.md)** - Install and run your first command
+2. **[Command Chains Reference](docs/guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
+3. **[Common Tasks Quick Reference](docs/guides/common-tasks.md)** ⭐ **NEW** - Quick answers to "How do I X?"
+4. **[Modernizing Legacy Code?](docs/guides/brownfield-engineer.md)** ⭐ - Brownfield-first guide
+5. **[The Brownfield Journey](docs/guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+
+**Time**: < 10 minutes | **Result**: Running your first brownfield analysis
+
+### Using AI IDEs? (Cursor, Copilot, Claude)
+
+**Primary Goal**: Let SpecFact find gaps, use your AI IDE to fix them
+
+👉 **[AI IDE Workflow Guide](docs/guides/ai-ide-workflow.md)** ⭐ **NEW** - Complete AI-assisted development workflow
+
+### Working with a Team?
+
+**Primary Goal**: Enable team collaboration with role-based workflows
+
+👉 **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** ⭐ - Persona-based team collaboration
+
+### Need Integrations?
+
+**Primary Goal**: Integrate with Spec-Kit, OpenSpec, Specmatic, or DevOps tools
+
+👉 **[Integrations Overview](docs/guides/integrations-overview.md)** ⭐ **NEW** - Complete guide to all integrations
 
 ---
 
@@ -245,28 +103,37 @@ specfact plan init my-project --interactive
 
 ### 🔍 Code Analysis
 
-* **Reverse engineer** legacy code into documented specs
-* **Find gaps** in tests, contracts, and documentation
-* **Works with** any Python project (no special setup required)
+- **Reverse engineer** legacy code into documented specs
+- **Find gaps** in tests, contracts, and documentation
+- **Works with** any Python project (no special setup required)
+
+👉 **[Command Chains](docs/guides/command-chains.md)** - See complete workflows
 
 ### 🛡️ Contract Enforcement
 
-* **Prevent regressions** with runtime contract validation
-* **CI/CD integration** - Block bad code from merging
-* **Works offline** - No cloud required
+- **Prevent regressions** with runtime contract validation
+- **CI/CD integration** - Block bad code from merging
+- **Works offline** - No cloud required
+
+👉 **[Command Reference](docs/reference/commands.md)** - All enforcement commands
 
 ### 👥 Team Collaboration
 
-* **Role-based workflows** - Product Owners, Architects, Developers work in parallel
-* **Markdown-based** - No YAML editing required
-* **Agile/scrum ready** - DoR checklists, story points, dependencies
+- **Role-based workflows** - Product Owners, Architects, Developers work in parallel
+- **Markdown-based** - No YAML editing required
+- **Agile/scrum ready** - DoR checklists, story points, dependencies
+
+👉 **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** - Team collaboration guide
 
 ### 🔌 Integrations
 
-* **VS Code, Cursor** - Catch bugs before you commit
-* **GitHub Actions** - Automated quality gates
-* **AI IDEs** - Generate prompts for fixing gaps
-* **DevOps tools** - Sync with GitHub Issues, Linear, Jira
+- **VS Code, Cursor** - Catch bugs before you commit
+- **GitHub Actions** - Automated quality gates
+- **AI IDEs** - Generate prompts for fixing gaps
+- **DevOps tools** - Sync with GitHub Issues, Linear, Jira
+- **Spec-Kit, OpenSpec, Specmatic** - Works with your existing tools
+
+👉 **[Integrations Overview](docs/guides/integrations-overview.md)** - All integration options
 
 ---
 
@@ -276,33 +143,11 @@ specfact plan init my-project --interactive
 
 **Problem:** Existing codebase with no specs or outdated documentation
 
-```bash
-# Step 1: Analyze your code
-specfact import from-code my-project --repo .
-
-# Step 2: Review what was found
-specfact plan review my-project
-
-# Step 3: Enforce contracts to prevent regressions
-specfact enforce sdd my-project
-```
-
 👉 **[Brownfield Modernization Guide](docs/guides/brownfield-engineer.md)** - Complete walkthrough
 
 ### 2. Working with a Team
 
 **Problem:** Need team collaboration with role-based workflows
-
-```bash
-# Product Owner: Export backlog
-specfact project export --bundle my-project --persona product-owner
-
-# Architect: Export technical design
-specfact project export --bundle my-project --persona architect
-
-# Developer: Export implementation tasks
-specfact project export --bundle my-project --persona developer
-```
 
 👉 **[Agile/Scrum Workflows Guide](docs/guides/agile-scrum-workflows.md)** - Team collaboration guide
 
@@ -310,103 +155,90 @@ specfact project export --bundle my-project --persona developer
 
 **Problem:** Want AI to fix gaps, but need validation
 
-```bash
-# Step 1: Find gaps
-specfact analyze gaps --bundle my-project
+👉 **[AI IDE Workflow Guide](docs/guides/ai-ide-workflow.md)** - Complete AI-assisted workflow
 
-# Step 2: Generate AI prompt
-specfact generate fix-prompt GAP-001 --bundle my-project
+### 4. Integrating with Other Tools
 
-# Step 3: Copy to AI IDE → AI fixes → Validate
-specfact enforce sdd --bundle my-project
-```
+**Problem:** Want to use SpecFact with Spec-Kit, OpenSpec, or Specmatic
 
-👉 **[AI IDE Integration](docs/guides/ide-integration.md)** - Setup guide
-
----
-
-## See It In Action
-
-We ran SpecFact CLI **on itself** to prove it works:
-
-* ⚡ Analyzed 32 legacy Python files → Found **32 features** and **81 stories** in **3 seconds**
-* 🚫 Set enforcement → **Blocked 2 HIGH violations** automatically
-* 📊 Compared plans → Found **24 deviations** in **5 seconds**
-
-**Total time**: < 10 seconds | **Result**: Found real bugs and inconsistencies
-
-👉 **[Read the complete example](docs/examples/dogfooding-specfact-cli.md)** - See actual commands and outputs
+👉 **[Integrations Overview](docs/guides/integrations-overview.md)** - Choose the right integration
 
 ---
 
 ## Documentation
 
-### 🎯 Find Your Path
+### Quick References
 
-**New to SpecFact?**
+- **[Command Chains](docs/guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
+- **[Common Tasks](docs/guides/common-tasks.md)** ⭐ **NEW** - Quick answers to "How do I X?"
+- **[Command Reference](docs/reference/commands.md)** - All commands documented
 
-1. **[Getting Started](docs/getting-started/README.md)** - Install and first commands
-2. **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](docs/getting-started/tutorial-openspec-speckit.md)** ⭐ **NEW** - Complete beginner-friendly tutorial
-3. **[Modernizing Legacy Code?](docs/guides/brownfield-engineer.md)** ⭐ - Complete guide
-4. **[Use Cases](docs/guides/use-cases.md)** - Common scenarios
-5. **[Command Reference](docs/reference/commands.md)** - All commands
+### Getting Started
 
-**Working with a Team?**
+- **[Getting Started Guide](docs/getting-started/README.md)** - Install and first commands
+- **[Modernizing Legacy Code?](docs/guides/brownfield-engineer.md)** ⭐ - Brownfield-first guide
+- **[The Brownfield Journey](docs/guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
 
-* **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** ⭐ - Persona-based collaboration
-* **[Project Commands](docs/reference/commands.md#project---project-bundle-management)** - Export/import workflows
+### Guides
 
-**Want Integrations?**
+- **[AI IDE Workflow](docs/guides/ai-ide-workflow.md)** ⭐ **NEW** - AI-assisted development
+- **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** ⭐ - Team collaboration
+- **[Integrations Overview](docs/guides/integrations-overview.md)** ⭐ **NEW** - All integrations
+- **[Use Cases](docs/guides/use-cases.md)** - Common scenarios
 
-* **[IDE Integration](docs/guides/ide-integration.md)** - VS Code, Cursor setup
-* **[Integration Showcases](docs/examples/integration-showcases/)** - Real bugs fixed
-* **[GitHub Actions](docs/guides/use-cases.md#use-case-4-cicd-integration)** - CI/CD setup
+### Integration Guides
 
-**Advanced Topics**
+- **[Spec-Kit Journey](docs/guides/speckit-journey.md)** - From Spec-Kit to SpecFact
+- **[OpenSpec Journey](docs/guides/openspec-journey.md)** - OpenSpec integration
+- **[Specmatic Integration](docs/guides/specmatic-integration.md)** - API contract testing
+- **[DevOps Adapter Integration](docs/guides/devops-adapter-integration.md)** - GitHub Issues, Linear, Jira
 
-* **[Architecture](docs/reference/architecture.md)** - How it works
-* **[Schema Versioning](docs/reference/schema-versioning.md)** - Bundle schemas
-* **[Testing Guide](docs/technical/testing.md)** - Development setup
-
-👉 **[Full Documentation Index](docs/README.md)** - Browse all documentation
-
----
-
-## Version 0.22.0
-
-**Latest release** introduces bridge adapter architecture refactoring and OpenSpec integration.
-
-**What's New:**
-
-* ✅ **Bridge Adapter Architecture** - Plugin-based adapter registry pattern for extensible tool integration
-* ✅ **OpenSpec Adapter** - Read-only sync from OpenSpec to SpecFact (v0.22.0+)
-* ✅ **SpecKitAdapter** - Refactored Spec-Kit integration using adapter pattern
-* ✅ **Command Updates** - Constitution commands moved to `specfact sdd constitution`
-* ✅ **Breaking Changes** - Removed `specfact bridge` command group, `implement`, and `generate tasks` commands
-
-👉 **[Changelog](CHANGELOG.md)** - Complete release history
+👉 **[Full Documentation Index](docs/README.md)** - Browse all documentation  
+👉 **[GitHub Pages Documentation](https://nold-ai.github.io/specfact-cli/)** - Online documentation site
 
 ---
 
-## Why SpecFact?
+## How SpecFact Compares
+
+**New to spec-driven development?** Here's how SpecFact compares to other tools:
+
+| Tool | Best For | SpecFact's Focus |
+|------|----------|------------------|
+| **GitHub Spec-Kit** | Greenfield specs, multi-language, interactive authoring | **Brownfield analysis**, runtime enforcement, formal verification |
+| **OpenSpec** | Specification anchoring, change tracking, cross-repo workflows | **Code analysis**, contract enforcement, DevOps integration |
+| **Traditional Testing** | Manual test writing, code review | **Automated gap detection**, contract-first validation, CI/CD gates |
+
+**Key Differentiators:**
+
+- ✅ **Brownfield-first** - Reverse engineers existing code (primary use case)
+- ✅ **Runtime enforcement** - Contracts prevent regressions automatically
+- ✅ **Formal verification** - CrossHair symbolic execution (not just LLM suggestions)
+- ✅ **Team collaboration** - Role-based workflows for agile/scrum teams
+- ✅ **Works offline** - No API keys, no cloud, zero vendor lock-in
+
+👉 **[See detailed comparison guide](docs/guides/speckit-comparison.md)** - Understand when to use SpecFact, Spec-Kit, OpenSpec, or all together
+
+---
+
+## Benefits
 
 ### Works with Your Existing Tools
 
-* ✅ **No new platform** - Pure CLI, works offline
-* ✅ **No account required** - Fully local, zero vendor lock-in
-* ✅ **Integrates everywhere** - VS Code, Cursor, GitHub Actions, pre-commit hooks
+- ✅ **No new platform** - Pure CLI, works offline
+- ✅ **No account required** - Fully local, zero vendor lock-in
+- ✅ **Integrates everywhere** - VS Code, Cursor, GitHub Actions, pre-commit hooks
 
 ### Built for Real Teams
 
-* ✅ **Role-based workflows** - Product Owners, Architects, Developers work in parallel
-* ✅ **Markdown-based** - No YAML editing, human-readable conflicts
-* ✅ **Agile/scrum ready** - DoR checklists, story points, sprint planning
+- ✅ **Role-based workflows** - Product Owners, Architects, Developers work in parallel
+- ✅ **Markdown-based** - No YAML editing, human-readable conflicts
+- ✅ **Agile/scrum ready** - DoR checklists, story points, sprint planning
 
 ### Proven Results
 
-* ✅ **Catches real bugs** - See [Integration Showcases](docs/examples/integration-showcases/)
-* ✅ **Prevents regressions** - Runtime contract enforcement
-* ✅ **Works on legacy code** - Analyzed itself successfully
+- ✅ **Catches real bugs** - See [Integration Showcases](docs/examples/integration-showcases/)
+- ✅ **Prevents regressions** - Runtime contract enforcement
+- ✅ **Works on legacy code** - Analyzed itself successfully
 
 ---
 
@@ -427,9 +259,9 @@ hatch run contract-test-full
 
 **Apache License 2.0** - Open source and enterprise-friendly
 
-* ✅ Free to use for any purpose (commercial or non-commercial)
-* ✅ Modify and distribute as needed
-* ✅ Enterprise-friendly with explicit patent grant
+- ✅ Free to use for any purpose (commercial or non-commercial)
+- ✅ Modify and distribute as needed
+- ✅ Enterprise-friendly with explicit patent grant
 
 [Full license](LICENSE.md)
 
@@ -437,10 +269,10 @@ hatch run contract-test-full
 
 ## Support
 
-* 💬 **Questions?** [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
-* 🐛 **Found a bug?** [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
-* 📧 **Need help?** [hello@noldai.com](mailto:hello@noldai.com)
-* 🌐 **Learn more:** [noldai.com](https://noldai.com)
+- 💬 **Questions?** [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
+- 🐛 **Found a bug?** [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
+- 📧 **Need help?** [hello@noldai.com](mailto:hello@noldai.com)
+- 🌐 **Learn more:** [specfact.com](https://specfact.com) • [specfact.io](https://specfact.io) • [specfact.dev](https://specfact.dev)
 
 ---
 
