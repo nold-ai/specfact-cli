@@ -4,8 +4,8 @@
 title: SpecFact CLI Documentation
 description: >-
   Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.
-baseurl: "/specfact-cli"  # Project pages require baseurl
-url: "https://nold-ai.github.io"  # GitHub Pages domain
+baseurl: ""  # Custom domain at root, no baseurl needed
+url: "https://docs.specfact.io"  # Custom domain
 
 # Build settings
 markdown: kramdown
@@ -36,7 +36,6 @@ exclude:
   - scripts
   - specs
   - resources
-  - "*.css.map"  # Exclude source map files
 
 # Source and destination (Jekyll will look for files in docs/)
 # Note: For GitHub Pages, Jekyll typically expects source in root or docs/
@@ -46,13 +45,21 @@ destination: _site
 
 # Defaults
 defaults:
-  # Apply permalink pattern only to markdown pages
-  # Note: Assets (SCSS files) are not pages, so they won't be affected by this
+  # Default layout for all pages
   - scope:
       path: ""
       type: pages
     values:
       layout: default
+  # Apply permalink pattern only to markdown files (exclude assets)
+  # Note: SCSS files with front matter are treated as pages and inherit this pattern
+  # We exclude assets/ directory to prevent CSS from being output at main/index.css
+  - scope:
+      path: ""
+      type: pages
+      exclude:
+        - "assets/**"
+    values:
       permalink: /:basename/
   - scope:
       path: "getting-started"
@@ -89,7 +96,7 @@ minima:
 # sass_dir is only needed for custom SASS partials directory
 sass:
   style: compressed
-  sourcemap: never  # Disable source maps to avoid conflicts
+  sourcemap: never  # Disable source maps to prevent JSON output
 
 # Footer
 footer:

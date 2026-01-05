@@ -12,7 +12,7 @@
 
 <div align="center">
 
-**[🌐 specfact.com](https://specfact.com)** • **[📚 specfact.io](https://specfact.io)** • **[👨‍💻 specfact.dev](https://specfact.dev)** • **[📖 GitHub Pages Docs](https://nold-ai.github.io/specfact-cli/)** • **[💬 Support](mailto:hello@noldai.com)**
+**[🌐 specfact.com](https://specfact.com)** • **[📚 specfact.io](https://specfact.io)** • **[👨‍💻 specfact.dev](https://specfact.dev)** • **[📖 Documentation](https://docs.specfact.io/)** • **[💬 Support](mailto:hello@noldai.com)**
 
 </div>
 
@@ -21,7 +21,7 @@
 - **[specfact.com](https://specfact.com)** - Commercial landing page (marketing, pricing, enterprise)
 - **[specfact.io](https://specfact.io)** - Product ecosystem hub (CLI reference, integrations, changelog, product docs)
 - **[specfact.dev](https://specfact.dev)** - Developer community (tutorials, guides, blog, community content) ⭐ **For developers**
-- **[GitHub Pages Docs](https://nold-ai.github.io/specfact-cli/)** - Complete online documentation
+- **[docs.specfact.io](https://docs.specfact.io/)** - Complete online documentation
 
 ---
 
@@ -233,7 +233,7 @@ specfact import from-code my-project --repo .
 - **[DevOps Adapter Integration](docs/guides/devops-adapter-integration.md)** - GitHub Issues, Linear, Jira
 
 👉 **[Full Documentation Index](docs/README.md)** - Browse all documentation  
-👉 **[GitHub Pages Documentation](https://nold-ai.github.io/specfact-cli/)** - Online documentation site
+👉 **[Online Documentation](https://docs.specfact.io/)** - Complete documentation site
 
 ---
 
