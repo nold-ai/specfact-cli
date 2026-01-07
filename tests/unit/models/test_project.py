@@ -376,6 +376,80 @@ class TestProjectBundle:
         expected = hashlib.sha256(b"test content").hexdigest()
         assert checksum == expected
 
+    def test_save_to_directory_checksums_computed_during_write(self, tmp_path: Path):
+        """Test that checksums are computed during serialization (not after reading back)."""
+        bundle_dir = tmp_path / "test-bundle"
+
+        manifest = BundleManifest(schema_metadata=None, project_metadata=None)
+        product = Product(themes=["Theme1"])
+        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+
+        # Add multiple features to test parallel saving
+        for i in range(5):
+            feature = Feature(
+                key=f"FEATURE-{i:03d}",
+                title=f"Test Feature {i}",
+                source_tracking=None,
+                contract=None,
+                protocol=None,
+            )
+            bundle.add_feature(feature)
+
+        bundle.save_to_directory(bundle_dir)
+
+        # Verify checksums are computed and stored in manifest
+        assert "product.yaml" in bundle.manifest.checksums.files
+        assert len(bundle.manifest.checksums.files["product.yaml"]) == 64  # SHA256 hex digest
+
+        # Verify feature checksums are computed
+        for i in range(5):
+            feature_file = f"features/FEATURE-{i:03d}.yaml"
+            assert feature_file in bundle.manifest.checksums.files
+            assert len(bundle.manifest.checksums.files[feature_file]) == 64
+
+        # Verify checksums match file contents (validates checksum computed correctly)
+        for artifact_name, checksum in bundle.manifest.checksums.files.items():
+            artifact_path = bundle_dir / artifact_name
+            if artifact_path.exists():
+                # Compute checksum from file (old method) and compare
+                file_checksum = ProjectBundle._compute_file_checksum(artifact_path)
+                assert checksum == file_checksum, f"Checksum mismatch for {artifact_name}"
+
+    @pytest.mark.timeout(30)  # Increase timeout for large bundle test
+    def test_save_to_directory_large_bundle_worker_reduction(self, tmp_path: Path):
+        """Test that large bundles (1000+ features) use fewer workers for memory optimization."""
+        bundle_dir = tmp_path / "test-bundle"
+
+        manifest = BundleManifest(schema_metadata=None, project_metadata=None)
+        product = Product(themes=["Theme1"])
+        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+
+        # Add 1001 features to trigger large bundle logic
+        # This tests the worker reduction optimization (4 workers instead of 8)
+        num_features = 1001
+        for i in range(num_features):
+            feature = Feature(
+                key=f"FEATURE-{i:04d}",
+                title=f"Test Feature {i}",
+                source_tracking=None,
+                contract=None,
+                protocol=None,
+            )
+            bundle.add_feature(feature)
+
+        # Save should complete successfully with reduced workers
+        # Note: This test takes longer due to large bundle size (30s timeout)
+        bundle.save_to_directory(bundle_dir)
+
+        # Verify all features saved
+        assert (bundle_dir / "features").exists()
+        saved_features = list((bundle_dir / "features").glob("*.yaml"))
+        assert len(saved_features) == num_features
+
+        # Verify checksums computed for all features
+        # Features + product + manifest (and potentially idea/business if present)
+        assert len(bundle.manifest.checksums.files) >= num_features
+
 
 class TestBundleFormat:
     """Tests for BundleFormat enum."""

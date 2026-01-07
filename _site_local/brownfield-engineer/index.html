@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Modernizing Legacy Code (Brownfield Engineer Guide) | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Modernizing Legacy Code (Brownfield Engineer Guide)" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/brownfield-engineer/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/brownfield-engineer/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Modernizing Legacy Code (Brownfield Engineer Guide)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"Modernizing Legacy Code (Brownfield Engineer Guide)","url":"https://nold-ai.github.io/specfact-cli/brownfield-engineer/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="guide-for-legacy-modernization-engineers">Guide for Legacy Modernization Engineers</h1>
+
+<blockquote>
+  <p><strong>Complete walkthrough for modernizing legacy Python code with SpecFact CLI</strong></p>
+</blockquote>
+
+<hr />
+
+<h2 id="your-challenge">Your Challenge</h2>
+
+<p>You’re responsible for modernizing a legacy Python system that:</p>
+
+<ul>
+  <li>Has minimal or no documentation</li>
+  <li>Was built by developers who have left</li>
+  <li>Contains critical business logic you can’t risk breaking</li>
+  <li>Needs migration to modern Python, cloud infrastructure, or microservices</li>
+</ul>
+
+<p><strong>Sound familiar?</strong> You’re not alone. 70% of IT budgets are consumed by legacy maintenance, and the legacy modernization market is $25B+ and growing.</p>
+
+<hr />
+
+<h2 id="specfact-for-brownfield-your-safety-net">SpecFact for Brownfield: Your Safety Net</h2>
+
+<p>SpecFact CLI is designed specifically for your situation. It provides:</p>
+
+<ol>
+  <li><strong>Automated spec extraction</strong> (code2spec) - Understand what your code does in &lt; 10 seconds</li>
+  <li><strong>Runtime contract enforcement</strong> - Prevent regressions during modernization</li>
+  <li><strong>Symbolic execution</strong> - Discover hidden edge cases with CrossHair</li>
+  <li><strong>Formal guarantees</strong> - Mathematical verification, not probabilistic LLM suggestions</li>
+  <li><strong>CLI-first integration</strong> - Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. Works offline, no account required, no vendor lock-in.</li>
+</ol>
+
+<hr />
+
+<h2 id="step-1-understand-what-you-have">Step 1: Understand What You Have</h2>
+
+<p><strong>CLI-First Approach</strong>: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.</p>
+
+<h3 id="extract-specs-from-legacy-code">Extract Specs from Legacy Code</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Analyze your legacy codebase</span>
+specfact import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> ./legacy-app
+
+<span class="c"># For large codebases or multi-project repos, analyze specific modules:</span>
+specfact import from-code <span class="nt">--bundle</span> core-module <span class="nt">--repo</span> ./legacy-app <span class="nt">--entry-point</span> src/core
+specfact import from-code <span class="nt">--bundle</span> api-module <span class="nt">--repo</span> ./legacy-app <span class="nt">--entry-point</span> src/api
+</code></pre></div></div>
+
+<p><strong>What you get:</strong></p>
+
+<ul>
+  <li>✅ Auto-generated feature map of existing functionality</li>
+  <li>✅ Extracted user stories from code patterns</li>
+  <li>✅ Dependency graph showing module relationships</li>
+  <li>✅ Business logic documentation from function signatures</li>
+  <li>✅ Edge cases discovered via symbolic execution</li>
+</ul>
+
+<p><strong>Example output:</strong></p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>✅ Analyzed 47 Python files
+✅ Extracted 23 features:
+
+   - FEATURE-001: User Authentication (95% confidence)
+   - FEATURE-002: Payment Processing (92% confidence)
+   - FEATURE-003: Order Management (88% confidence)
+   ...
+✅ Generated 112 user stories from existing code patterns
+✅ Detected 6 edge cases with CrossHair symbolic execution
+⏱️  Completed in 8.2 seconds
+</code></pre></div></div>
+
+<p><strong>Time saved:</strong> 60-120 hours of manual documentation work → <strong>8 seconds</strong></p>
+
+<p><strong>💡 Partial Repository Coverage:</strong></p>
+
+<p>For large codebases or monorepos with multiple projects, you can analyze specific subdirectories using <code class="language-plaintext highlighter-rouge">--entry-point</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Analyze only the core module</span>
+specfact import from-code <span class="nt">--bundle</span> core-module <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--entry-point</span> src/core
+
+<span class="c"># Analyze only the API service</span>
+specfact import from-code <span class="nt">--bundle</span> api-service <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--entry-point</span> projects/api-service
+</code></pre></div></div>
+
+<p>This enables:</p>
+
+<ul>
+  <li><strong>Faster analysis</strong> - Focus on specific modules for quicker feedback</li>
+  <li><strong>Incremental modernization</strong> - Modernize one module at a time</li>
+  <li><strong>Multi-plan support</strong> - Create separate plan bundles for different projects/modules</li>
+  <li><strong>Better organization</strong> - Keep plans organized by project boundaries</li>
+</ul>
+
+<p><strong>💡 Tip</strong>: After importing, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration. This auto-generates a constitution from your repository analysis:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># If suggested, accept to auto-generate</span>
+<span class="c"># Or run manually:</span>
+specfact sdd constitution bootstrap <span class="nt">--repo</span> <span class="nb">.</span>
+</code></pre></div></div>
+
+<p>This is especially useful if you plan to sync with Spec-Kit later.</p>
+
+<hr />
+
+<h2 id="step-2-add-contracts-to-critical-paths">Step 2: Add Contracts to Critical Paths</h2>
+
+<h3 id="identify-critical-functions">Identify Critical Functions</h3>
+
+<p>SpecFact helps you identify which functions are critical (high risk, high business value):</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Review extracted plan to identify critical paths</span>
+<span class="nb">cat</span> .specfact/projects/&lt;bundle-name&gt;/bundle.manifest.yaml
+</code></pre></div></div>
+
+<h3 id="add-runtime-contracts">Add Runtime Contracts</h3>
+
+<p>Add contract decorators to critical functions:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Before: Undocumented legacy function
+</span><span class="k">def</span> <span class="nf">process_payment</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">amount</span><span class="p">,</span> <span class="n">currency</span><span class="p">):</span>
+    <span class="c1"># 80 lines of legacy code with hidden business rules
+</span>    <span class="bp">...</span>
+
+<span class="c1"># After: Contract-enforced function
+</span><span class="kn">import</span> <span class="n">icontract</span>
+
+<span class="nd">@icontract.require</span><span class="p">(</span><span class="k">lambda</span> <span class="n">amount</span><span class="p">:</span> <span class="n">amount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="sh">"</span><span class="s">Payment amount must be positive</span><span class="sh">"</span><span class="p">)</span>
+<span class="nd">@icontract.require</span><span class="p">(</span><span class="k">lambda</span> <span class="n">currency</span><span class="p">:</span> <span class="n">currency</span> <span class="ow">in</span> <span class="p">[</span><span class="sh">'</span><span class="s">USD</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">EUR</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">GBP</span><span class="sh">'</span><span class="p">])</span>
+<span class="nd">@icontract.ensure</span><span class="p">(</span><span class="k">lambda</span> <span class="n">result</span><span class="p">:</span> <span class="n">result</span><span class="p">.</span><span class="n">status</span> <span class="ow">in</span> <span class="p">[</span><span class="sh">'</span><span class="s">SUCCESS</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">FAILED</span><span class="sh">'</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">process_payment</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">amount</span><span class="p">,</span> <span class="n">currency</span><span class="p">):</span>
+    <span class="c1"># Same 80 lines of legacy code
+</span>    <span class="c1"># Now with runtime enforcement
+</span>    <span class="bp">...</span>
+</code></pre></div></div>
+
+<p><strong>What this gives you:</strong></p>
+
+<ul>
+  <li>✅ Runtime validation catches invalid inputs immediately</li>
+  <li>✅ Prevents regressions during refactoring</li>
+  <li>✅ Documents expected behavior (executable documentation)</li>
+  <li>✅ CrossHair discovers edge cases automatically</li>
+</ul>
+
+<hr />
+
+<h2 id="step-3-modernize-with-confidence">Step 3: Modernize with Confidence</h2>
+
+<h3 id="refactor-safely">Refactor Safely</h3>
+
+<p>With contracts in place, you can refactor knowing that violations will be caught:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Refactored version (same contracts)
+</span><span class="nd">@icontract.require</span><span class="p">(</span><span class="k">lambda</span> <span class="n">amount</span><span class="p">:</span> <span class="n">amount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="sh">"</span><span class="s">Payment amount must be positive</span><span class="sh">"</span><span class="p">)</span>
+<span class="nd">@icontract.require</span><span class="p">(</span><span class="k">lambda</span> <span class="n">currency</span><span class="p">:</span> <span class="n">currency</span> <span class="ow">in</span> <span class="p">[</span><span class="sh">'</span><span class="s">USD</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">EUR</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">GBP</span><span class="sh">'</span><span class="p">])</span>
+<span class="nd">@icontract.ensure</span><span class="p">(</span><span class="k">lambda</span> <span class="n">result</span><span class="p">:</span> <span class="n">result</span><span class="p">.</span><span class="n">status</span> <span class="ow">in</span> <span class="p">[</span><span class="sh">'</span><span class="s">SUCCESS</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">FAILED</span><span class="sh">'</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">process_payment</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">amount</span><span class="p">,</span> <span class="n">currency</span><span class="p">):</span>
+    <span class="c1"># Modernized implementation
+</span>    <span class="c1"># If contract violated → exception raised immediately
+</span>    <span class="bp">...</span>
+
+</code></pre></div></div>
+
+<h3 id="catch-regressions-automatically">Catch Regressions Automatically</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># During modernization, accidentally break contract:
+</span><span class="nf">process_payment</span><span class="p">(</span><span class="n">user_id</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">amount</span><span class="o">=-</span><span class="mi">50</span><span class="p">,</span> <span class="n">currency</span><span class="o">=</span><span class="sh">"</span><span class="s">XYZ</span><span class="sh">"</span><span class="p">)</span>
+
+<span class="c1"># Runtime enforcement catches it:
+# ❌ ContractViolation: Payment amount must be positive (got -50)
+#    at process_payment() call from refactored checkout.py:142
+#    → Prevented production bug during modernization!
+</span></code></pre></div></div>
+
+<hr />
+
+<h2 id="step-4-discover-hidden-edge-cases">Step 4: Discover Hidden Edge Cases</h2>
+
+<h3 id="crosshair-symbolic-execution">CrossHair Symbolic Execution</h3>
+
+<p>SpecFact uses CrossHair to discover edge cases that manual testing misses:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Legacy function with hidden edge case
+</span><span class="nd">@icontract.require</span><span class="p">(</span><span class="k">lambda</span> <span class="n">numbers</span><span class="p">:</span> <span class="nf">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nd">@icontract.ensure</span><span class="p">(</span><span class="k">lambda</span> <span class="n">numbers</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="nf">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nf">min</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">result</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">remove_smallest</span><span class="p">(</span><span class="n">numbers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="sh">"""</span><span class="s">Remove and return smallest number from list</span><span class="sh">"""</span>
+    <span class="n">smallest</span> <span class="o">=</span> <span class="nf">min</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+    <span class="n">numbers</span><span class="p">.</span><span class="nf">remove</span><span class="p">(</span><span class="n">smallest</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">smallest</span>
+
+<span class="c1"># CrossHair finds counterexample:
+# Input: [3, 3, 5] → After removal: [3, 5], min=3, returned=3
+# ❌ Postcondition violated: min(numbers) &gt; result fails when duplicates exist!
+# CrossHair generates concrete failing input: [3, 3, 5]
+</span></code></pre></div></div>
+
+<p><strong>Why this matters:</strong></p>
+
+<ul>
+  <li>✅ Discovers edge cases LLMs miss</li>
+  <li>✅ Mathematical proof of violations (not probabilistic)</li>
+  <li>✅ Generates concrete test inputs automatically</li>
+  <li>✅ Prevents production bugs before they happen</li>
+</ul>
+
+<hr />
+
+<h2 id="real-world-example-django-legacy-app">Real-World Example: Django Legacy App</h2>
+
+<h3 id="the-problem">The Problem</h3>
+
+<p>You inherited a 3-year-old Django app with:</p>
+
+<ul>
+  <li>No documentation</li>
+  <li>No type hints</li>
+  <li>No tests</li>
+  <li>15 undocumented API endpoints</li>
+  <li>Business logic buried in views</li>
+</ul>
+
+<h3 id="the-solution">The Solution</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Step 1: Extract specs</span>
+specfact import from-code <span class="nt">--bundle</span> customer-portal <span class="nt">--repo</span> ./legacy-django-app
+
+<span class="c"># Output:</span>
+✅ Analyzed 47 Python files
+✅ Extracted 23 features <span class="o">(</span>API endpoints, background <span class="nb">jobs</span>, integrations<span class="o">)</span>
+✅ Generated 112 user stories from existing code patterns
+✅ Time: 8 seconds
+</code></pre></div></div>
+
+<h3 id="the-results">The Results</h3>
+
+<ul>
+  <li>✅ Legacy app fully documented in &lt; 10 minutes</li>
+  <li>✅ Prevented 4 production bugs during refactoring</li>
+  <li>✅ New developers onboard 60% faster</li>
+  <li>✅ CrossHair discovered 6 hidden edge cases</li>
+</ul>
+
+<hr />
+
+<h2 id="roi-time-and-cost-savings">ROI: Time and Cost Savings</h2>
+
+<h3 id="manual-approach">Manual Approach</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Task</th>
+      <th>Time Investment</th>
+      <th>Cost (@$150/hr)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Manually document 50-file legacy app</td>
+      <td>80-120 hours</td>
+      <td>$12,000-$18,000</td>
+    </tr>
+    <tr>
+      <td>Write tests for undocumented code</td>
+      <td>100-150 hours</td>
+      <td>$15,000-$22,500</td>
+    </tr>
+    <tr>
+      <td>Debug regression during refactor</td>
+      <td>40-80 hours</td>
+      <td>$6,000-$12,000</td>
+    </tr>
+    <tr>
+      <td><strong>TOTAL</strong></td>
+      <td><strong>220-350 hours</strong></td>
+      <td><strong>$33,000-$52,500</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="specfact-automated-approach">SpecFact Automated Approach</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Task</th>
+      <th>Time Investment</th>
+      <th>Cost (@$150/hr)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Run code2spec extraction</td>
+      <td>10 minutes</td>
+      <td>$25</td>
+    </tr>
+    <tr>
+      <td>Review and refine extracted specs</td>
+      <td>8-16 hours</td>
+      <td>$1,200-$2,400</td>
+    </tr>
+    <tr>
+      <td>Add contracts to critical paths</td>
+      <td>16-24 hours</td>
+      <td>$2,400-$3,600</td>
+    </tr>
+    <tr>
+      <td>CrossHair edge case discovery</td>
+      <td>2-4 hours</td>
+      <td>$300-$600</td>
+    </tr>
+    <tr>
+      <td><strong>TOTAL</strong></td>
+      <td><strong>26-44 hours</strong></td>
+      <td><strong>$3,925-$6,625</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="roi-87-time-saved-26000-45000-cost-avoided">ROI: <strong>87% time saved, $26,000-$45,000 cost avoided</strong></h3>
+
+<hr />
+
+<h2 id="integration-with-your-workflow">Integration with Your Workflow</h2>
+
+<p>SpecFact CLI integrates seamlessly with your existing tools:</p>
+
+<ul>
+  <li><strong>VS Code</strong>: Use pre-commit hooks to catch breaking changes before commit</li>
+  <li><strong>Cursor</strong>: AI assistant workflows catch regressions during refactoring</li>
+  <li><strong>GitHub Actions</strong>: CI/CD integration blocks bad code from merging</li>
+  <li><strong>Pre-commit hooks</strong>: Local validation prevents breaking changes</li>
+  <li><strong>Any IDE</strong>: Pure CLI-first approach—works with any editor</li>
+</ul>
+
+<p><strong>See real examples</strong>: <a href="../examples/integration-showcases/">Integration Showcases</a> - 5 complete examples showing bugs fixed via integrations</p>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<h3 id="1-start-with-shadow-mode">1. Start with Shadow Mode</h3>
+
+<p>Begin in shadow mode to observe without blocking:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--shadow-only</span>
+</code></pre></div></div>
+
+<h3 id="2-add-contracts-incrementally">2. Add Contracts Incrementally</h3>
+
+<p>Don’t try to contract everything at once:</p>
+
+<ol>
+  <li><strong>Week 1</strong>: Add contracts to 3-5 critical functions</li>
+  <li><strong>Week 2</strong>: Expand to 10-15 functions</li>
+  <li><strong>Week 3</strong>: Add contracts to all public APIs</li>
+  <li><strong>Week 4+</strong>: Add contracts to internal functions as needed</li>
+</ol>
+
+<h3 id="3-use-crosshair-for-edge-case-discovery">3. Use CrossHair for Edge Case Discovery</h3>
+
+<p>Run CrossHair on critical functions before refactoring:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>hatch run contract-explore src/payment.py
+</code></pre></div></div>
+
+<h3 id="4-document-your-findings">4. Document Your Findings</h3>
+
+<p>Keep notes on:</p>
+
+<ul>
+  <li>Edge cases discovered</li>
+  <li>Contract violations caught</li>
+  <li>Time saved on documentation</li>
+  <li>Bugs prevented during modernization</li>
+</ul>
+
+<hr />
+
+<h2 id="common-questions">Common Questions</h2>
+
+<h3 id="can-specfact-analyze-code-with-no-docstrings">Can SpecFact analyze code with no docstrings?</h3>
+
+<p><strong>Yes.</strong> code2spec analyzes:</p>
+
+<ul>
+  <li>Function signatures and type hints</li>
+  <li>Code patterns and control flow</li>
+  <li>Existing validation logic</li>
+  <li>Module dependencies</li>
+</ul>
+
+<p>No docstrings needed.</p>
+
+<h3 id="what-if-the-legacy-code-has-no-type-hints">What if the legacy code has no type hints?</h3>
+
+<p><strong>SpecFact infers types</strong> from usage patterns and generates specs. You can add type hints incrementally as part of modernization.</p>
+
+<h3 id="can-specfact-handle-obfuscated-or-minified-code">Can SpecFact handle obfuscated or minified code?</h3>
+
+<p><strong>Limited.</strong> SpecFact works best with:</p>
+
+<ul>
+  <li>Source code (not compiled bytecode)</li>
+  <li>Readable variable names</li>
+</ul>
+
+<p>For heavily obfuscated code, consider deobfuscation first.</p>
+
+<h3 id="will-contracts-slow-down-my-code">Will contracts slow down my code?</h3>
+
+<p><strong>Minimal impact.</strong> Contract checks are fast (microseconds per call). For high-performance code, you can disable contracts in production while keeping them in tests.</p>
+
+<hr />
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ol>
+  <li><strong><a href="../examples/integration-showcases/">Integration Showcases</a></strong> - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations</li>
+  <li><strong><a href="/specfact-cli/guides/brownfield-roi.md">ROI Calculator</a></strong> - Calculate your time and cost savings</li>
+  <li><strong><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></strong> - Complete modernization workflow</li>
+  <li><strong><a href="../examples/">Examples</a></strong> - Real-world brownfield examples</li>
+  <li><strong><a href="/specfact-cli/guides/brownfield-faq.md">FAQ</a></strong> - More brownfield-specific questions</li>
+</ol>
+
+<hr />
+
+<h2 id="support">Support</h2>
+
+<ul>
+  <li>💬 <a href="https://github.com/nold-ai/specfact-cli/discussions">GitHub Discussions</a></li>
+  <li>🐛 <a href="https://github.com/nold-ai/specfact-cli/issues">GitHub Issues</a></li>
+  <li>📧 <a href="mailto:hello@noldai.com">hello@noldai.com</a></li>
+</ul>
+
+<hr />
+
+<p><strong>Happy modernizing!</strong> 🚀</p>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

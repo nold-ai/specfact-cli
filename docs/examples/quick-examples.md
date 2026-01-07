@@ -66,6 +66,20 @@ specfact import from-code my-project --repo . --shadow-only
 # CoPilot mode (enhanced prompts)
 specfact --mode copilot import from-code my-project --repo . --confidence 0.7
 
+# Re-validate existing features (force re-analysis)
+specfact import from-code my-project --repo . --revalidate-features
+
+# Resume interrupted import (features saved early as checkpoint)
+# If import is cancelled, just run the same command again
+specfact import from-code my-project --repo .
+
+# Partial analysis (analyze specific subdirectory only)
+specfact import from-code my-project --repo . --entry-point src/core
+
+# Large codebase with progress reporting
+# Progress bars show: feature analysis, source linking, contract extraction
+specfact import from-code large-project --repo . --confidence 0.5
+
 ```
 
 ## Plan Management

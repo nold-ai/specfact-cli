@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>UX Features Guide | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="UX Features Guide" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/ux-features/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/ux-features/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="UX Features Guide" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"UX Features Guide","url":"https://nold-ai.github.io/specfact-cli/ux-features/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="ux-features-guide">UX Features Guide</h1>
+
+<p>This guide covers the user experience features that make SpecFact CLI intuitive and efficient.</p>
+
+<h2 id="progressive-disclosure">Progressive Disclosure</h2>
+
+<p>SpecFact CLI uses progressive disclosure to show the most important options first, while keeping advanced options accessible when needed. This reduces cognitive load for new users while maintaining full functionality for power users.</p>
+
+<h3 id="regular-help">Regular Help</h3>
+
+<p>By default, <code class="language-plaintext highlighter-rouge">--help</code> shows only the most commonly used options:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact import from-code <span class="nt">--help</span>
+</code></pre></div></div>
+
+<p>This displays:</p>
+
+<ul>
+  <li>Required arguments</li>
+  <li>Common options (bundle, repo, output)</li>
+  <li>Behavior flags (interactive, verbose, dry-run, force)</li>
+  <li>Essential workflow options</li>
+</ul>
+
+<h3 id="advanced-help">Advanced Help</h3>
+
+<p>To see all options including advanced configuration, use <code class="language-plaintext highlighter-rouge">--help-advanced</code> (alias: <code class="language-plaintext highlighter-rouge">-ha</code>):</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact import from-code <span class="nt">--help-advanced</span>
+</code></pre></div></div>
+
+<p>This reveals:</p>
+
+<ul>
+  <li><strong>Advanced configuration options</strong>: Confidence thresholds, key formats, adapter types</li>
+  <li><strong>Fine-tuning parameters</strong>: Watch intervals, time budgets, session limits</li>
+  <li><strong>Expert-level settings</strong>: Taxonomy filtering, content hash matching, backward compatibility checks</li>
+  <li><strong>CI/CD automation options</strong>: Non-interactive JSON inputs, exact name matching</li>
+</ul>
+
+<h3 id="hidden-options-summary">Hidden Options Summary</h3>
+
+<p>The following options are hidden by default across commands:</p>
+
+<p><strong>Import Commands:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">--entry-point</code> - Partial analysis (subdirectory only)</li>
+  <li><code class="language-plaintext highlighter-rouge">--enrichment</code> - LLM enrichment workflow</li>
+  <li><code class="language-plaintext highlighter-rouge">--adapter</code> - Adapter type configuration (auto-detected)</li>
+  <li><code class="language-plaintext highlighter-rouge">--confidence</code> - Feature detection threshold</li>
+  <li><code class="language-plaintext highlighter-rouge">--key-format</code> - Feature key format (classname vs sequential)</li>
+</ul>
+
+<p><strong>Sync Commands:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">--adapter</code> - Adapter type configuration (auto-detected)</li>
+  <li><code class="language-plaintext highlighter-rouge">--interval</code> - Watch mode interval tuning</li>
+  <li><code class="language-plaintext highlighter-rouge">--confidence</code> - Feature detection threshold</li>
+</ul>
+
+<p><strong>Plan Commands:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">--max-questions</code> - Review session limit</li>
+  <li><code class="language-plaintext highlighter-rouge">--category</code> - Taxonomy category filtering</li>
+  <li><code class="language-plaintext highlighter-rouge">--findings-format</code> - Output format for findings</li>
+  <li><code class="language-plaintext highlighter-rouge">--answers</code> - Non-interactive JSON input</li>
+  <li><code class="language-plaintext highlighter-rouge">--stages</code> - Filter by promotion stages</li>
+  <li><code class="language-plaintext highlighter-rouge">--last</code> - Show last N plans</li>
+  <li><code class="language-plaintext highlighter-rouge">--current</code> - Show only active plan</li>
+  <li><code class="language-plaintext highlighter-rouge">--name</code> - Exact bundle name matching</li>
+  <li><code class="language-plaintext highlighter-rouge">--id</code> - Content hash ID matching</li>
+</ul>
+
+<p><strong>Spec Commands:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">--previous</code> - Backward compatibility check</li>
+</ul>
+
+<p><strong>Other Commands:</strong></p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">repro --budget</code> - Time budget configuration</li>
+  <li><code class="language-plaintext highlighter-rouge">generate contracts-prompt --output</code> - Custom output path</li>
+  <li><code class="language-plaintext highlighter-rouge">init --ide</code> - IDE selection override (auto-detection works)</li>
+</ul>
+
+<p><strong>Tip</strong>: Advanced options are still functional even when hidden - you can use them directly without <code class="language-plaintext highlighter-rouge">--help-advanced</code>/<code class="language-plaintext highlighter-rouge">-ha</code>. The flag only affects what’s shown in help text.</p>
+
+<p><strong>Example:</strong></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># This works even though --confidence is hidden in regular help:</span>
+specfact import from-code my-bundle <span class="nt">--confidence</span> 0.7 <span class="nt">--key-format</span> sequential
+
+<span class="c"># To see all options in help:</span>
+specfact import from-code <span class="nt">--help-advanced</span>  <span class="c"># or -ha</span>
+</code></pre></div></div>
+
+<h2 id="context-detection">Context Detection</h2>
+
+<p>SpecFact CLI automatically detects your project context to provide smart defaults and suggestions.</p>
+
+<h3 id="auto-detection">Auto-Detection</h3>
+
+<p>When you run commands, SpecFact automatically detects:</p>
+
+<ul>
+  <li><strong>Project Type</strong>: Python, JavaScript, etc.</li>
+  <li><strong>Framework</strong>: FastAPI, Django, Flask, etc.</li>
+  <li><strong>Existing Specs</strong>: OpenAPI/AsyncAPI specifications</li>
+  <li><strong>Plan Bundles</strong>: Existing SpecFact project bundles</li>
+  <li><strong>Configuration</strong>: Specmatic configuration files</li>
+</ul>
+
+<h3 id="smart-defaults">Smart Defaults</h3>
+
+<p>Based on detected context, SpecFact provides intelligent defaults:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># If OpenAPI spec detected, suggests validation</span>
+specfact spec validate <span class="nt">--bundle</span> &lt;auto-detected&gt;
+
+<span class="c"># If low contract coverage detected, suggests analysis</span>
+specfact analyze <span class="nt">--bundle</span> &lt;auto-detected&gt;
+</code></pre></div></div>
+
+<h3 id="explicit-context">Explicit Context</h3>
+
+<p>You can also explicitly check your project context:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Context detection is automatic, but you can verify</span>
+specfact import from-code <span class="nt">--bundle</span> my-bundle <span class="nt">--repo</span> <span class="nb">.</span>
+<span class="c"># CLI automatically detects Python, FastAPI, existing specs, etc.</span>
+</code></pre></div></div>
+
+<h2 id="intelligent-suggestions">Intelligent Suggestions</h2>
+
+<p>SpecFact provides context-aware suggestions to guide your workflow.</p>
+
+<h3 id="next-steps">Next Steps</h3>
+
+<p>After running commands, SpecFact suggests logical next steps:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>specfact import from-code <span class="nt">--bundle</span> legacy-api
+✓ Import <span class="nb">complete</span>
+
+💡 Suggested next steps:
+  • specfact analyze <span class="nt">--bundle</span> legacy-api  <span class="c"># Analyze contract coverage</span>
+  • specfact enforce sdd <span class="nt">--bundle</span> legacy-api  <span class="c"># Enforce quality gates</span>
+  • specfact <span class="nb">sync </span>intelligent <span class="nt">--bundle</span> legacy-api  <span class="c"># Sync code and specs</span>
+</code></pre></div></div>
+
+<h3 id="error-fixes">Error Fixes</h3>
+
+<p>When errors occur, SpecFact suggests specific fixes:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>specfact analyze <span class="nt">--bundle</span> missing-bundle
+✗ Error: Bundle <span class="s1">'missing-bundle'</span> not found
+
+💡 Suggested fixes:
+  • specfact plan <span class="k">select</span>  <span class="c"># Select an active plan bundle</span>
+  • specfact import from-code <span class="nt">--bundle</span> missing-bundle  <span class="c"># Create a new bundle</span>
+</code></pre></div></div>
+
+<h3 id="improvements">Improvements</h3>
+
+<p>Based on analysis, SpecFact suggests improvements:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>specfact analyze <span class="nt">--bundle</span> legacy-api
+⚠ Low contract coverage detected <span class="o">(</span>30%<span class="o">)</span>
+
+💡 Suggested improvements:
+  • specfact analyze <span class="nt">--bundle</span> legacy-api  <span class="c"># Identify missing contracts</span>
+  • specfact import from-code <span class="nt">--bundle</span> legacy-api  <span class="c"># Extract contracts from code</span>
+</code></pre></div></div>
+
+<h2 id="template-driven-quality">Template-Driven Quality</h2>
+
+<p>SpecFact uses templates to ensure high-quality, consistent specifications.</p>
+
+<h3 id="feature-specification-templates">Feature Specification Templates</h3>
+
+<p>When creating features, templates guide you to focus on:</p>
+
+<ul>
+  <li><strong>WHAT</strong> users need (not HOW to implement)</li>
+  <li><strong>WHY</strong> the feature is valuable</li>
+  <li><strong>Uncertainty markers</strong> for ambiguous requirements: <code class="language-plaintext highlighter-rouge">[NEEDS CLARIFICATION: specific question]</code></li>
+  <li><strong>Completeness checklists</strong> to ensure nothing is missed</li>
+</ul>
+
+<h3 id="implementation-plan-templates">Implementation Plan Templates</h3>
+
+<p>Implementation plans follow templates that:</p>
+
+<ul>
+  <li>Keep high-level steps readable</li>
+  <li>Extract detailed algorithms to separate files</li>
+  <li>Enforce test-first thinking (contracts → tests → implementation)</li>
+  <li>Include phase gates for architectural principles</li>
+</ul>
+
+<h3 id="contract-extraction-templates">Contract Extraction Templates</h3>
+
+<p>Contract extraction uses templates to:</p>
+
+<ul>
+  <li>Extract contracts from legacy code patterns</li>
+  <li>Identify validation logic</li>
+  <li>Map to formal contracts (icontract, beartype)</li>
+  <li>Mark uncertainties for later clarification</li>
+</ul>
+
+<h2 id="enhanced-watch-mode">Enhanced Watch Mode</h2>
+
+<p>Watch mode has been enhanced with intelligent change detection.</p>
+
+<h3 id="hash-based-detection">Hash-Based Detection</h3>
+
+<p>Watch mode only processes files that actually changed:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact <span class="nb">sync </span>intelligent <span class="nt">--bundle</span> my-bundle <span class="nt">--watch</span>
+</code></pre></div></div>
+
+<p><strong>Features</strong>:</p>
+
+<ul>
+  <li>SHA256 hash-based change detection</li>
+  <li>Only processes files with actual content changes</li>
+  <li>Skips unchanged files (even if modified timestamp changed)</li>
+  <li>Faster sync operations</li>
+</ul>
+
+<h3 id="dependency-tracking">Dependency Tracking</h3>
+
+<p>Watch mode tracks file dependencies:</p>
+
+<ul>
+  <li>Identifies dependent files</li>
+  <li>Processes dependencies when source files change</li>
+  <li>Incremental processing (only changed files and dependencies)</li>
+</ul>
+
+<h3 id="cache-optimization">Cache Optimization</h3>
+
+<p>Watch mode uses an optimized cache:</p>
+
+<ul>
+  <li>LZ4 compression (when available) for faster I/O</li>
+  <li>Persistent cache across sessions</li>
+  <li>Automatic cache management</li>
+</ul>
+
+<h2 id="unified-progress-display">Unified Progress Display</h2>
+
+<p>All commands use consistent progress indicators that automatically adapt to your terminal environment.</p>
+
+<h3 id="progress-format">Progress Format</h3>
+
+<p>Progress displays use a consistent <code class="language-plaintext highlighter-rouge">n/m</code> format:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Loading artifact 3/12: FEATURE-001.yaml
+</code></pre></div></div>
+
+<p>This shows:</p>
+
+<ul>
+  <li>Current item number (3)</li>
+  <li>Total items (12)</li>
+  <li>Current artifact name (FEATURE-001.yaml)</li>
+  <li>Elapsed time</li>
+</ul>
+
+<h3 id="automatic-terminal-adaptation">Automatic Terminal Adaptation</h3>
+
+<p>The CLI <strong>automatically detects terminal capabilities</strong> and adjusts progress display:</p>
+
+<ul>
+  <li><strong>Interactive terminals</strong> → Full Rich progress with animations, colors, and progress bars</li>
+  <li><strong>Embedded terminals</strong> (Cursor, VS Code) → Plain text progress updates (no animations)</li>
+  <li><strong>CI/CD pipelines</strong> → Plain text progress updates for readable logs</li>
+  <li><strong>Test mode</strong> → Minimal output</li>
+</ul>
+
+<p><strong>No manual configuration required</strong> - the CLI adapts automatically. See <a href="/specfact-cli/troubleshooting/#terminal-output-issues">Troubleshooting</a> for details.</p>
+
+<h3 id="visibility">Visibility</h3>
+
+<p>Progress is shown for:</p>
+
+<ul>
+  <li>All bundle load/save operations</li>
+  <li>Long-running operations (&gt;1 second)</li>
+  <li>File processing operations</li>
+  <li>Analysis operations</li>
+</ul>
+
+<p><strong>No “dark” periods</strong> - you always know what’s happening, regardless of terminal type.</p>
+
+<h2 id="best-practices">Best Practices</h2>
+
+<h3 id="using-progressive-disclosure">Using Progressive Disclosure</h3>
+
+<ol>
+  <li><strong>Start with regular help</strong> - Most users only need common options</li>
+  <li><strong>Use <code class="language-plaintext highlighter-rouge">--help-advanced</code> (<code class="language-plaintext highlighter-rouge">-ha</code>)</strong> when you need fine-grained control</li>
+  <li><strong>Advanced options work without help</strong> - You can use them directly</li>
+</ol>
+
+<h3 id="leveraging-context-detection">Leveraging Context Detection</h3>
+
+<ol>
+  <li><strong>Let SpecFact auto-detect</strong> - It’s usually correct</li>
+  <li><strong>Verify context</strong> - Check suggestions match your project</li>
+  <li><strong>Use explicit flags</strong> - Override auto-detection when needed</li>
+</ol>
+
+<h3 id="following-suggestions">Following Suggestions</h3>
+
+<ol>
+  <li><strong>Read suggestions carefully</strong> - They’re context-aware</li>
+  <li><strong>Follow the workflow</strong> - Suggestions guide logical next steps</li>
+  <li><strong>Use error suggestions</strong> - They provide specific fixes</li>
+</ol>
+
+<h3 id="using-templates">Using Templates</h3>
+
+<ol>
+  <li><strong>Follow template structure</strong> - Ensures quality and consistency</li>
+  <li><strong>Mark uncertainties</strong> - Use <code class="language-plaintext highlighter-rouge">[NEEDS CLARIFICATION]</code> markers</li>
+  <li><strong>Complete checklists</strong> - Templates include completeness checks</li>
+</ol>
+
+<hr />
+
+<p><strong>Related Documentation</strong>:</p>
+
+<ul>
+  <li><a href="/specfact-cli/reference/commands/">Command Reference</a> - Complete command documentation</li>
+  <li><a href="/specfact-cli/guides/workflows.md">Workflows</a> - Common daily workflows</li>
+  <li><a href="/specfact-cli/guides/ide-integration/">IDE Integration</a> - Enhanced IDE experience</li>
+  <li><a href="/specfact-cli/troubleshooting/#terminal-output-issues">Troubleshooting</a> - Terminal output auto-detection and troubleshooting</li>
+</ul>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

@@ -528,7 +528,18 @@ class CodeAnalyzer:
             return []
 
     def _should_skip_file(self, file_path: Path) -> bool:
-        """Check if file should be skipped."""
+        """
+        Check if file should be skipped.
+
+        Test files are always skipped from feature extraction because:
+        - Tests are validation artifacts, not specification artifacts
+        - Tests validate code, they don't define what code should do
+        - Test files should only be used for linking to production features and extracting examples
+        """
+        file_str = str(file_path)
+        file_name = file_path.name
+
+        # Skip common non-source directories
         skip_patterns = [
             "__pycache__",
             ".git",
@@ -540,10 +551,19 @@ class CodeAnalyzer:
             "dist",
             "build",
             ".eggs",
-            "tests",  # Skip test files
         ]
 
-        return any(pattern in str(file_path) for pattern in skip_patterns)
+        if any(pattern in file_str for pattern in skip_patterns):
+            return True
+
+        # Skip test directories (both "test/" and "tests/")
+        # Check if any path component is a test directory
+        path_parts = file_path.parts
+        if any(part in ("test", "tests") for part in path_parts):
+            return True
+
+        # Skip test files by naming pattern (test_*.py, *_test.py)
+        return file_name.startswith("test_") or file_name.endswith("_test.py")
 
     def _analyze_file(self, file_path: Path) -> None:
         """Analyze a single Python file (legacy sequential version)."""

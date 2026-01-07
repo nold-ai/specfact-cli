@@ -323,6 +323,11 @@ specfact import from-code [OPTIONS]
   - Existing features are updated (confidence, outcomes, title if empty)
   - Stories are merged into existing features (new stories added, existing preserved)
   - Business context is applied to the plan bundle
+- `--revalidate-features/--no-revalidate-features` - Re-validate and re-analyze existing features even if source files haven't changed. Useful when:
+  - Analysis logic has improved and you want to re-analyze with better algorithms
+  - Confidence threshold has changed and you want to re-evaluate features
+  - Source files were modified outside the repository (e.g., moved, renamed)
+  - Default: `False` (only re-analyze if files changed). When enabled, forces full codebase analysis regardless of incremental change detection
 
 **Note**: The bundle name (positional argument) will be automatically sanitized (lowercased, spaces/special chars removed) for filesystem persistence. The bundle is created at `.specfact/projects/<bundle-name>/`.
 
@@ -363,6 +368,15 @@ specfact import from-code --bundle core-module \
 specfact import from-code --bundle api-service \
   --repo ./monorepo \
   --entry-point projects/api-service
+
+# Re-validate existing features (force re-analysis even if files unchanged)
+specfact import from-code --bundle legacy-api \
+  --repo ./my-project \
+  --revalidate-features
+
+# Resume interrupted import (features are saved early as checkpoint)
+# If import is cancelled, restart with same command - it will resume from checkpoint
+specfact import from-code --bundle legacy-api --repo ./my-project
 ```
 
 **What it does:**
@@ -379,6 +393,19 @@ specfact import from-code --bundle api-service \
 - **Optimized Bundle Size**: 81% reduction (18MB → 3.4MB, 5.3x smaller) via test pattern extraction to OpenAPI contracts
 - **Acceptance Criteria**: Limited to 1-3 high-level items per story, detailed examples in contract files
 - **Interruptible**: Press Ctrl+C during analysis to cancel immediately (all parallel operations support graceful cancellation)
+- **Progress Reporting**: Real-time progress bars show:
+  - Feature analysis progress (features discovered, themes detected)
+  - Source file linking progress (features linked to source files)
+  - Contract extraction progress (OpenAPI contracts generated)
+- **Performance Optimizations**:
+  - Pre-computes AST parsing and file hashes (5-15x faster for large codebases)
+  - Caches function mappings to avoid repeated file parsing
+  - Optimized for repositories with thousands of features (e.g., SQLAlchemy with 3000+ features)
+- **Early Save Checkpoint**: Features are saved immediately after initial analysis, allowing you to resume if the process is interrupted during expensive operations (source tracking, contract extraction)
+- **Feature Validation**: When loading existing bundles, automatically validates:
+  - Source files still exist (detects orphaned features)
+  - Feature structure is valid (detects incomplete features)
+  - Reports validation issues with actionable tips
 - **Contract Extraction**: Automatically extracts API contracts from function signatures, type hints, and validation logic:
   - Function parameters → Request schema (JSON Schema format)
   - Return types → Response schema
@@ -2998,27 +3025,33 @@ specfact sync bridge --adapter openspec --mode read-only --bundle my-project --r
 ```
 
 # Export OpenSpec change proposals to GitHub issues (auto-detect sanitization)
+
 specfact sync bridge --adapter github --mode export-only
 
 # Export with explicit repository and sanitization
+
 specfact sync bridge --adapter github --mode export-only \
   --repo-owner owner --repo-name repo \
   --sanitize \
   --target-repo public-owner/public-repo
 
 # Export without sanitization (use full proposal content)
+
 specfact sync bridge --adapter github --mode export-only \
   --no-sanitize
 
 # Export using GitHub CLI for token (enterprise-friendly)
+
 specfact sync bridge --adapter github --mode export-only \
   --use-gh-cli
 
 # Export specific change proposals only
+
 specfact sync bridge --adapter github --mode export-only \
   --repo-owner owner --repo-name repo \
   --change-ids add-feature-x,update-api \
   --repo /path/to/openspec-repo
+
 ```
 
 **What it syncs (Spec-Kit adapter):**

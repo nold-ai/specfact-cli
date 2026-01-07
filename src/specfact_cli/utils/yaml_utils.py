@@ -109,6 +109,10 @@ class YAMLUtils:
         YAML parsers interpret "Yes", "No", "True", "False", "On", "Off" as booleans
         unless they're quoted. This function ensures these values are quoted.
 
+        Optimized: early exit for simple types, avoids unnecessary recursion overhead.
+        For large structures (>100 items), processes directly without pre-check to avoid
+        double traversal overhead.
+
         Args:
             data: Data structure to process
 
@@ -118,13 +122,38 @@ class YAMLUtils:
         # Boolean-like strings that YAML parsers interpret as booleans
         boolean_like_strings = {"yes", "no", "true", "false", "on", "off", "Yes", "No", "True", "False", "On", "Off"}
 
+        # Early exit for simple types (most common case)
+        if isinstance(data, str):
+            return DoubleQuotedScalarString(data) if data in boolean_like_strings else data
+        if not isinstance(data, (dict, list)):
+            return data
+
+        # Recursive processing for collections
         if isinstance(data, dict):
+            # For large dicts, process directly to avoid double traversal (check + process)
+            # The overhead of checking all items is similar to processing them
+            if len(data) > 100:
+                return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
+            # For smaller dicts, check first to avoid creating new dict if not needed
+            needs_processing = any(
+                (isinstance(v, str) and v in boolean_like_strings) or isinstance(v, (dict, list)) for v in data.values()
+            )
+            if not needs_processing:
+                return data
             return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
         if isinstance(data, list):
+            # For large lists, process directly to avoid double traversal (check + process)
+            # The overhead of checking all items is similar to processing them
+            if len(data) > 100:
+                return [self._quote_boolean_like_strings(item) for item in data]
+            # For smaller lists, check first to avoid creating new list if not needed
+            needs_processing = any(
+                (isinstance(item, str) and item in boolean_like_strings) or isinstance(item, (dict, list))
+                for item in data
+            )
+            if not needs_processing:
+                return data
             return [self._quote_boolean_like_strings(item) for item in data]
-        if isinstance(data, str) and data in boolean_like_strings:
-            # Use DoubleQuotedScalarString to force quoting in YAML output
-            return DoubleQuotedScalarString(data)
         return data
 
     @beartype

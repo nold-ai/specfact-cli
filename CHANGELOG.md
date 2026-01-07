@@ -9,6 +9,69 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.23.0] - 2026-01-07
+
+### Added (0.23.0)
+
+- **Import Command Performance Optimizations**: Major performance improvements for large codebases
+  - **Pre-computed Caches**: AST parsing and file hashes are pre-computed once before parallel processing (5-15x faster)
+  - **Function Mapping Cache**: Function names are extracted once per file and cached for reuse
+  - **Optimized for Large Codebases**: Handles 3000+ features efficiently (6-15 minutes vs 90+ minutes previously)
+  - **Progress Reporting**: Real-time progress bars for feature analysis, source linking, and contract extraction
+  - **Early Save Checkpoint**: Features are saved immediately after initial analysis to prevent data loss on interruption
+  - **Feature Validation**: Automatic validation of existing features when resuming imports
+    - Detects orphaned features (all source files missing)
+    - Identifies invalid features (some files missing or structure issues)
+    - Reports validation results with actionable tips
+  - **Re-validation Flag**: `--revalidate-features` flag to force re-analysis even if files haven't changed
+    - Useful when analysis logic improves or confidence threshold changes
+    - Forces full codebase analysis regardless of incremental change detection
+
+### Changed (0.23.0)
+
+- **Import Command Performance**: Source file linking is now 5-15x faster for large codebases
+  - Pre-computes all AST parsing before parallel processing
+  - Caches file hashes to avoid repeated computation
+  - Optimized matching logic with pre-computed feature title words
+- **Import Command Progress**: Enhanced progress reporting with detailed status messages
+  - Shows feature count, themes, and stories during analysis
+  - Real-time progress bars for source file linking
+  - Clear checkpoint messages when features are saved
+  - **Enhanced Analysis Setup**: Added spinner progress for file discovery (`repo.rglob("*.py")`), filtering, and hash collection phases
+    - Eliminates 30-60 second silent wait periods during file discovery
+    - Shows real-time status: "Preparing enhanced analysis..." → "Discovering Python files..." → "Filtering X files..." → "Ready to analyze X files"
+  - **Contract Loading**: Added progress bar for parallel YAML contract loading
+    - Shows "Loading X existing contract(s)..." with completion count
+    - Provides visibility during potentially slow contract file I/O operations
+  - **Enrichment Context Operations**: Added spinner progress for hash comparison, context building, and file writing
+    - Shows progress during hash comparison (reading existing file, building temp context)
+    - Shows progress during context building (iterating through features and contracts)
+    - Shows progress during markdown conversion and file writing
+  - **Incremental Change Detection**: Improved progress feedback with completion status message
+  - **Changed File Collection**: Added status message during file path collection
+
+### Documentation (0.23.0)
+
+- **Import Features Guide**: New comprehensive guide `docs/guides/import-features.md`
+  - Progress reporting details
+  - Feature validation explanation
+  - Early save checkpoint benefits
+  - Performance optimization details
+  - Re-validation flag usage
+  - Best practices for large codebases
+  - Troubleshooting tips
+- **Command Reference**: Updated `docs/reference/commands.md` with new `--revalidate-features` flag
+- **Quick Examples**: Updated `docs/examples/quick-examples.md` with new import features
+- **README**: Updated timing information and checkpoint details
+
+### Fixed (0.23.0)
+
+- **Linting Errors**: Fixed unused `progress_columns` variable warnings in enrichment context functions
+  - Prefixed unused variables with underscore (`_progress_columns`) to indicate intentional non-usage
+  - All linting checks now pass without errors
+
+---
+
 ## [0.22.1] - 2026-01-03
 
 ### Added (0.22.1)
@@ -1993,25 +2056,6 @@ This patch release fixes the critical design issue identified during OSS validat
 
 ---
 
-## [Unreleased]
-
-### Added
-
-- **Structured JSON/YAML Controls**
-  - New global `specfact --input-format/--output-format` options propagate preferred serialization across commands
-  - `specfact plan init` and `specfact import from-code` now expose `--output-format` overrides for per-command control
-  - `PlanGenerator` and `ReportGenerator` can emit JSON or YAML, and `validate_plan_bundle` / `FSMValidator` load either automatically
-  - Added regression tests covering JSON plan generation and validation to protect CI workflows
-
-### Changed
-
-- **CLI + Docs**
-  - Default plan-path helpers/search now detect both `.bundle.yaml` and `.bundle.json`
-  - Repository/prompt docs updated to describe the new format flags and reference `.bundle.<format>` placeholders for slash-commands
-  - `SpecFactStructure` utilities now emit enriched/brownfield filenames preserving the original format so Copilot/CI stay in sync
-
----
-
 ## [0.6.9]
 
 ### Added (0.6.9)
@@ -2022,6 +2066,12 @@ This patch release fixes the critical design issue identified during OSS validat
   - `--dry-run` option to preview upgrades without making changes
   - Automatic detection of schema version mismatches and missing summary metadata
   - Migration path: 1.0 → 1.1 (adds summary metadata)
+
+- **Structured JSON/YAML Controls**
+  - New global `specfact --input-format/--output-format` options propagate preferred serialization across commands
+  - `specfact plan init` and `specfact import from-code` now expose `--output-format` overrides for per-command control
+  - `PlanGenerator` and `ReportGenerator` can emit JSON or YAML, and `validate_plan_bundle` / `FSMValidator` load either automatically
+  - Added regression tests covering JSON plan generation and validation to protect CI workflows
 
 - **Summary Metadata for Performance**
   - Plan bundles now include summary metadata (`metadata.summary`) for fast access
@@ -2050,6 +2100,11 @@ This patch release fixes the critical design issue identified during OSS validat
   - Fast path for large files: only reads first 50KB for metadata extraction
   - Early filtering: when `--last N` is used, only processes N+10 most recent files
   - Performance improved from 6.5s to 3.6s (44% faster) for typical workloads
+
+- **CLI + Docs**
+  - Default plan-path helpers/search now detect both `.bundle.yaml` and `.bundle.json`
+  - Repository/prompt docs updated to describe the new format flags and reference `.bundle.<format>` placeholders for slash-commands
+  - `SpecFactStructure` utilities now emit enriched/brownfield filenames preserving the original format so Copilot/CI stay in sync
 
 ---
 

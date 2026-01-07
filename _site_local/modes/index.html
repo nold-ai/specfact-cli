@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Operational Modes | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Operational Modes" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/modes/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/modes/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Operational Modes" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"Operational Modes","url":"https://nold-ai.github.io/specfact-cli/modes/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="operational-modes">Operational Modes</h1>
+
+<p>Reference documentation for SpecFact CLI’s operational modes: CI/CD and CoPilot.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p>SpecFact CLI supports two operational modes for different use cases:</p>
+
+<ul>
+  <li><strong>CI/CD Mode</strong> (default): Fast, deterministic execution for automated pipelines</li>
+  <li><strong>CoPilot Mode</strong>: Enhanced prompts with context injection for interactive development</li>
+</ul>
+
+<h2 id="mode-detection">Mode Detection</h2>
+
+<p>Mode is automatically detected based on:</p>
+
+<ol>
+  <li><strong>Explicit <code class="language-plaintext highlighter-rouge">--mode</code> flag</strong> (highest priority)</li>
+  <li><strong>CoPilot API availability</strong> (environment/IDE detection)</li>
+  <li><strong>IDE integration</strong> (VS Code/Cursor with CoPilot enabled)</li>
+  <li><strong>Default to CI/CD mode</strong> (fallback)</li>
+</ol>
+
+<h2 id="testing-mode-detection">Testing Mode Detection</h2>
+
+<p>This reference shows how to test mode detection and command routing in practice.</p>
+
+<h2 id="quick-test-commands">Quick Test Commands</h2>
+
+<p><strong>Note</strong>: The CLI must be run through <code class="language-plaintext highlighter-rouge">hatch run</code> or installed first. Use <code class="language-plaintext highlighter-rouge">hatch run specfact</code> or install with <code class="language-plaintext highlighter-rouge">hatch build &amp;&amp; pip install -e .</code>.</p>
+
+<h3 id="1-test-explicit-mode-flags">1. Test Explicit Mode Flags</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Test CI/CD mode explicitly</span>
+hatch run specfact <span class="nt">--mode</span> cicd hello
+
+<span class="c"># Test CoPilot mode explicitly</span>
+hatch run specfact <span class="nt">--mode</span> copilot hello
+
+<span class="c"># Test invalid mode (should fail)</span>
+hatch run specfact <span class="nt">--mode</span> invalid hello
+
+<span class="c"># Test short form -m flag</span>
+hatch run specfact <span class="nt">-m</span> cicd hello
+</code></pre></div></div>
+
+<h3 id="quick-test-script">Quick Test Script</h3>
+
+<p>Run the automated test script:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Python-based test (recommended)</span>
+python3 test_mode_practical.py
+
+<span class="c"># Or using hatch</span>
+hatch run python test_mode_practical.py
+</code></pre></div></div>
+
+<p>This script tests all detection scenarios automatically.</p>
+
+<h3 id="2-test-environment-variable">2. Test Environment Variable</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Set environment variable and test</span>
+<span class="nb">export </span><span class="nv">SPECFACT_MODE</span><span class="o">=</span>copilot
+specfact hello
+
+<span class="c"># Set to CI/CD mode</span>
+<span class="nb">export </span><span class="nv">SPECFACT_MODE</span><span class="o">=</span>cicd
+specfact hello
+
+<span class="c"># Unset to test default</span>
+<span class="nb">unset </span>SPECFACT_MODE
+specfact hello  <span class="c"># Should default to CI/CD</span>
+</code></pre></div></div>
+
+<h3 id="3-test-auto-detection">3. Test Auto-Detection</h3>
+
+<h4 id="test-copilot-api-detection">Test CoPilot API Detection</h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Simulate CoPilot API available</span>
+<span class="nb">export </span><span class="nv">COPILOT_API_URL</span><span class="o">=</span>https://api.copilot.com
+specfact hello  <span class="c"># Should detect CoPilot mode</span>
+
+<span class="c"># Or with token</span>
+<span class="nb">export </span><span class="nv">COPILOT_API_TOKEN</span><span class="o">=</span>token123
+specfact hello  <span class="c"># Should detect CoPilot mode</span>
+
+<span class="c"># Or with GitHub Copilot token</span>
+<span class="nb">export </span><span class="nv">GITHUB_COPILOT_TOKEN</span><span class="o">=</span>token123
+specfact hello  <span class="c"># Should detect CoPilot mode</span>
+</code></pre></div></div>
+
+<h4 id="test-ide-detection">Test IDE Detection</h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Simulate VS Code environment</span>
+<span class="nb">export </span><span class="nv">VSCODE_PID</span><span class="o">=</span>12345
+<span class="nb">export </span><span class="nv">COPILOT_ENABLED</span><span class="o">=</span><span class="nb">true
+</span>specfact hello  <span class="c"># Should detect CoPilot mode</span>
+
+<span class="c"># Simulate Cursor environment</span>
+<span class="nb">export </span><span class="nv">CURSOR_PID</span><span class="o">=</span>12345
+<span class="nb">export </span><span class="nv">CURSOR_COPILOT_ENABLED</span><span class="o">=</span><span class="nb">true
+</span>specfact hello  <span class="c"># Should detect CoPilot mode</span>
+
+<span class="c"># Simulate VS Code via TERM_PROGRAM</span>
+<span class="nb">export </span><span class="nv">TERM_PROGRAM</span><span class="o">=</span>vscode
+<span class="nb">export </span><span class="nv">VSCODE_COPILOT_ENABLED</span><span class="o">=</span><span class="nb">true
+</span>specfact hello  <span class="c"># Should detect CoPilot mode</span>
+</code></pre></div></div>
+
+<h3 id="4-test-priority-order">4. Test Priority Order</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Test that explicit flag overrides environment</span>
+<span class="nb">export </span><span class="nv">SPECFACT_MODE</span><span class="o">=</span>copilot
+specfact <span class="nt">--mode</span> cicd hello  <span class="c"># Should use CI/CD mode (flag wins)</span>
+
+<span class="c"># Test that explicit flag overrides auto-detection</span>
+<span class="nb">export </span><span class="nv">COPILOT_API_URL</span><span class="o">=</span>https://api.copilot.com
+specfact <span class="nt">--mode</span> cicd hello  <span class="c"># Should use CI/CD mode (flag wins)</span>
+</code></pre></div></div>
+
+<h3 id="5-test-default-behavior">5. Test Default Behavior</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Clean environment - should default to CI/CD</span>
+<span class="nb">unset </span>SPECFACT_MODE
+<span class="nb">unset </span>COPILOT_API_URL
+<span class="nb">unset </span>COPILOT_API_TOKEN
+<span class="nb">unset </span>GITHUB_COPILOT_TOKEN
+<span class="nb">unset </span>VSCODE_PID
+<span class="nb">unset </span>CURSOR_PID
+specfact hello  <span class="c"># Should default to CI/CD mode</span>
+</code></pre></div></div>
+
+<h2 id="python-interactive-testing">Python Interactive Testing</h2>
+
+<p>You can also test the detection logic directly in Python using hatch:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Test explicit mode</span>
+hatch run python <span class="nt">-c</span> <span class="s2">"from specfact_cli.modes import OperationalMode, detect_mode; mode = detect_mode(explicit_mode=OperationalMode.CICD); print(f'Explicit CI/CD: {mode}')"</span>
+
+<span class="c"># Test environment variable</span>
+<span class="nv">SPECFACT_MODE</span><span class="o">=</span>copilot hatch run python <span class="nt">-c</span> <span class="s2">"from specfact_cli.modes import OperationalMode, detect_mode; import os; mode = detect_mode(explicit_mode=None); print(f'Environment Copilot: {mode}')"</span>
+
+<span class="c"># Test default</span>
+hatch run python <span class="nt">-c</span> <span class="s2">"from specfact_cli.modes import OperationalMode, detect_mode; import os; os.environ.clear(); mode = detect_mode(explicit_mode=None); print(f'Default: {mode}')"</span>
+</code></pre></div></div>
+
+<p>Or use the practical test script:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>hatch run python test_mode_practical.py
+</code></pre></div></div>
+
+<h2 id="testing-command-routing-phase-32">Testing Command Routing (Phase 3.2+)</h2>
+
+<h3 id="current-state-phase-32">Current State (Phase 3.2)</h3>
+
+<p><strong>Important</strong>: In Phase 3.2, mode detection and routing infrastructure is complete, but <strong>actual command execution is identical</strong> for both modes. The only difference is the log message. Actual mode-specific behavior will be implemented in Phase 4.</p>
+
+<h3 id="test-with-actual-commands">Test with Actual Commands</h3>
+
+<p>The <code class="language-plaintext highlighter-rouge">import from-code</code> command now uses mode-aware routing. You should see mode information in the output (but execution is the same for now):</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Test with CI/CD mode (bundle name as positional argument)</span>
+hatch run specfact <span class="nt">--mode</span> cicd import from-code test-project <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.5 <span class="nt">--shadow-only</span>
+
+<span class="c"># Expected output:</span>
+<span class="c"># Mode: CI/CD (direct execution)</span>
+<span class="c"># Analyzing repository: .</span>
+<span class="c"># ...</span>
+</code></pre></div></div>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Test with CoPilot mode (bundle name as positional argument)</span>
+hatch run specfact <span class="nt">--mode</span> copilot import from-code test-project <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.5 <span class="nt">--shadow-only</span>
+
+<span class="c"># Expected output:</span>
+<span class="c"># Mode: CoPilot (agent routing)</span>
+<span class="c"># Analyzing repository: .</span>
+<span class="c"># ...</span>
+</code></pre></div></div>
+
+<h3 id="test-router-directly">Test Router Directly</h3>
+
+<p>You can also test the routing logic directly in Python:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Test router with CI/CD mode</span>
+hatch run python <span class="nt">-c</span> <span class="s2">"
+from specfact_cli.modes import OperationalMode, get_router
+router = get_router()
+result = router.route('import from-code', OperationalMode.CICD, {})
+print(f'Mode: {result.mode}')
+print(f'Execution mode: {result.execution_mode}')
+"</span>
+
+<span class="c"># Test router with CoPilot mode</span>
+hatch run python <span class="nt">-c</span> <span class="s2">"
+from specfact_cli.modes import OperationalMode, get_router
+router = get_router()
+result = router.route('import from-code', OperationalMode.COPILOT, {})
+print(f'Mode: {result.mode}')
+print(f'Execution mode: {result.execution_mode}')
+"</span>
+</code></pre></div></div>
+
+<h2 id="real-world-scenarios">Real-World Scenarios</h2>
+
+<h3 id="scenario-1-cicd-pipeline">Scenario 1: CI/CD Pipeline</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># In GitHub Actions or CI/CD</span>
+<span class="c"># No environment variables set</span>
+<span class="c"># Should auto-detect CI/CD mode (bundle name as positional argument)</span>
+hatch run specfact import from-code my-project <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Expected: Mode: CI/CD (direct execution)</span>
+</code></pre></div></div>
+
+<h3 id="scenario-2-developer-with-copilot">Scenario 2: Developer with CoPilot</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Developer running in VS Code/Cursor with CoPilot enabled</span>
+<span class="c"># IDE environment variables automatically set</span>
+<span class="c"># Should auto-detect CoPilot mode (bundle name as positional argument)</span>
+hatch run specfact import from-code my-project <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Expected: Mode: CoPilot (agent routing)</span>
+</code></pre></div></div>
+
+<h3 id="scenario-3-force-mode-override">Scenario 3: Force Mode Override</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Developer wants CI/CD mode even though CoPilot is available (bundle name as positional argument)</span>
+hatch run specfact <span class="nt">--mode</span> cicd import from-code my-project <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Expected: Mode: CI/CD (direct execution) - flag overrides auto-detection</span>
+</code></pre></div></div>
+
+<h2 id="verification-script">Verification Script</h2>
+
+<p>Here’s a simple script to test all scenarios:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+<span class="c"># test-mode-detection.sh</span>
+
+<span class="nb">echo</span> <span class="s2">"=== Testing Mode Detection ==="</span>
+<span class="nb">echo
+
+echo</span> <span class="s2">"1. Testing explicit CI/CD mode:"</span>
+specfact <span class="nt">--mode</span> cicd hello
+<span class="nb">echo
+
+echo</span> <span class="s2">"2. Testing explicit CoPilot mode:"</span>
+specfact <span class="nt">--mode</span> copilot hello
+<span class="nb">echo
+
+echo</span> <span class="s2">"3. Testing invalid mode (should fail):"</span>
+specfact <span class="nt">--mode</span> invalid hello 2&gt;&amp;1 <span class="o">||</span> <span class="nb">echo</span> <span class="s2">"✓ Failed as expected"</span>
+<span class="nb">echo
+
+echo</span> <span class="s2">"4. Testing SPECFACT_MODE environment variable:"</span>
+<span class="nb">export </span><span class="nv">SPECFACT_MODE</span><span class="o">=</span>copilot
+specfact hello
+<span class="nb">unset </span>SPECFACT_MODE
+<span class="nb">echo
+
+echo</span> <span class="s2">"5. Testing CoPilot API detection:"</span>
+<span class="nb">export </span><span class="nv">COPILOT_API_URL</span><span class="o">=</span>https://api.copilot.com
+specfact hello
+<span class="nb">unset </span>COPILOT_API_URL
+<span class="nb">echo
+
+echo</span> <span class="s2">"6. Testing default (no overrides):"</span>
+specfact hello
+<span class="nb">echo
+
+echo</span> <span class="s2">"=== All Tests Complete ==="</span>
+</code></pre></div></div>
+
+<h2 id="debugging-mode-detection">Debugging Mode Detection</h2>
+
+<p>To see what mode is being detected, you can add debug output:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># In Python
+</span><span class="kn">from</span> <span class="n">specfact_cli.modes</span> <span class="kn">import</span> <span class="n">detect_mode</span><span class="p">,</span> <span class="n">OperationalMode</span>
+<span class="kn">import</span> <span class="n">os</span>
+
+<span class="n">mode</span> <span class="o">=</span> <span class="nf">detect_mode</span><span class="p">(</span><span class="n">explicit_mode</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<span class="nf">print</span><span class="p">(</span><span class="sa">f</span><span class="sh">"</span><span class="s">Detected mode: </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="sh">"</span><span class="p">)</span>
+<span class="nf">print</span><span class="p">(</span><span class="sa">f</span><span class="sh">"</span><span class="s">Environment variables:</span><span class="sh">"</span><span class="p">)</span>
+<span class="nf">print</span><span class="p">(</span><span class="sa">f</span><span class="sh">"</span><span class="s">  SPECFACT_MODE: </span><span class="si">{</span><span class="n">os</span><span class="p">.</span><span class="n">environ</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="sh">'</span><span class="s">SPECFACT_MODE</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">not set</span><span class="sh">'</span><span class="p">)</span><span class="si">}</span><span class="sh">"</span><span class="p">)</span>
+<span class="nf">print</span><span class="p">(</span><span class="sa">f</span><span class="sh">"</span><span class="s">  COPILOT_API_URL: </span><span class="si">{</span><span class="n">os</span><span class="p">.</span><span class="n">environ</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="sh">'</span><span class="s">COPILOT_API_URL</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">not set</span><span class="sh">'</span><span class="p">)</span><span class="si">}</span><span class="sh">"</span><span class="p">)</span>
+<span class="nf">print</span><span class="p">(</span><span class="sa">f</span><span class="sh">"</span><span class="s">  VSCODE_PID: </span><span class="si">{</span><span class="n">os</span><span class="p">.</span><span class="n">environ</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="sh">'</span><span class="s">VSCODE_PID</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">not set</span><span class="sh">'</span><span class="p">)</span><span class="si">}</span><span class="sh">"</span><span class="p">)</span>
+<span class="nf">print</span><span class="p">(</span><span class="sa">f</span><span class="sh">"</span><span class="s">  CURSOR_PID: </span><span class="si">{</span><span class="n">os</span><span class="p">.</span><span class="n">environ</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="sh">'</span><span class="s">CURSOR_PID</span><span class="sh">'</span><span class="p">,</span> <span class="sh">'</span><span class="s">not set</span><span class="sh">'</span><span class="p">)</span><span class="si">}</span><span class="sh">"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="expected-results">Expected Results</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Scenario</th>
+      <th>Expected Mode</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--mode cicd</code></td>
+      <td>CICD</td>
+      <td>Explicit flag (highest priority)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">--mode copilot</code></td>
+      <td>COPILOT</td>
+      <td>Explicit flag (highest priority)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">SPECFACT_MODE=copilot</code></td>
+      <td>COPILOT</td>
+      <td>Environment variable</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">COPILOT_API_URL</code> set</td>
+      <td>COPILOT</td>
+      <td>Auto-detection</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">VSCODE_PID</code> + <code class="language-plaintext highlighter-rouge">COPILOT_ENABLED=true</code></td>
+      <td>COPILOT</td>
+      <td>IDE detection</td>
+    </tr>
+    <tr>
+      <td>Clean environment</td>
+      <td>CICD</td>
+      <td>Default fallback</td>
+    </tr>
+    <tr>
+      <td>Invalid mode</td>
+      <td>Error</td>
+      <td>Validation rejects invalid values</td>
+    </tr>
+  </tbody>
+</table>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+
