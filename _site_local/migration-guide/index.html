@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Migration Guide | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Migration Guide" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/migration-guide/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/migration-guide/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Migration Guide" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"Migration Guide","url":"https://nold-ai.github.io/specfact-cli/migration-guide/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="migration-guide">Migration Guide</h1>
+
+<blockquote>
+  <p><strong>Decision tree and workflow for migrating between SpecFact CLI versions and from other tools</strong></p>
+</blockquote>
+
+<hr />
+
+<h2 id="overview">Overview</h2>
+
+<p>This guide helps you decide when and how to migrate:</p>
+
+<ul>
+  <li><strong>Between SpecFact CLI versions</strong> - When upgrading to a new version</li>
+  <li><strong>From other tools</strong> - When migrating from Spec-Kit, OpenSpec, or other SDD tools</li>
+  <li><strong>Between project structures</strong> - When restructuring your project bundles</li>
+</ul>
+
+<hr />
+
+<h2 id="migration-decision-tree">Migration Decision Tree</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Start: What do you need to migrate?
+
+├─ Upgrading SpecFact CLI version?
+│  ├─ Minor version (0.19 → 0.20)?
+│  │  └─ → Usually automatic, check [Version-Specific Migration Guides](#version-specific-migrations)
+│  ├─ Major version (0.x → 1.0)?
+│  │  └─ → Check breaking changes, use [Version-Specific Migration Guides](#version-specific-migrations)
+│  └─ CLI reorganization (pre-0.16 → 0.16+)?
+│     └─ → See [CLI Reorganization Migration](/specfact-cli/guides/migration-cli-reorganization.md)
+│
+├─ Migrating from Spec-Kit?
+│  └─ → See [Spec-Kit Journey Guide](/specfact-cli/guides/speckit-journey/)
+│
+├─ Migrating from OpenSpec?
+│  └─ → See [OpenSpec Journey Guide](/specfact-cli/guides/openspec-journey.md)
+│
+└─ Restructuring project bundles?
+   └─ → See [Project Bundle Management](/specfact-cli/reference/commands/#project---project-bundle-management)
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="version-specific-migrations">Version-Specific Migrations</h2>
+
+<h3 id="migration-from-016-to-019">Migration from 0.16 to 0.19+</h3>
+
+<p><strong>Breaking Changes</strong>: CLI command reorganization</p>
+
+<p><strong>Migration Steps</strong>:</p>
+
+<ol>
+  <li>Review <a href="/specfact-cli/guides/migration-cli-reorganization.md">CLI Reorganization Migration Guide</a></li>
+  <li>Update scripts and CI/CD pipelines</li>
+  <li>Test commands in development environment</li>
+  <li>Update documentation references</li>
+</ol>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/migration-0.16-to-0.19.md">Migration 0.16 to 0.19</a></p>
+
+<hr />
+
+<h3 id="migration-from-pre-016-to-016">Migration from Pre-0.16 to 0.16+</h3>
+
+<p><strong>Breaking Changes</strong>: Major CLI reorganization</p>
+
+<p><strong>Migration Steps</strong>:</p>
+
+<ol>
+  <li>Review <a href="/specfact-cli/guides/migration-cli-reorganization.md">CLI Reorganization Migration Guide</a></li>
+  <li>Update all command references</li>
+  <li>Migrate plan bundles to new schema</li>
+  <li>Update CI/CD configurations</li>
+</ol>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/migration-cli-reorganization.md">CLI Reorganization Migration</a></p>
+
+<hr />
+
+<h2 id="tool-migration-workflows">Tool Migration Workflows</h2>
+
+<h3 id="migrating-from-spec-kit">Migrating from Spec-Kit</h3>
+
+<p><strong>Workflow</strong>: Use External Tool Integration Chain</p>
+
+<ol>
+  <li>Import from Spec-Kit via bridge adapter</li>
+  <li>Review imported plan</li>
+  <li>Set up bidirectional sync (optional)</li>
+  <li>Enforce SDD compliance</li>
+</ol>
+
+<p><strong>Detailed Guide</strong>: <a href="/specfact-cli/guides/speckit-journey/">Spec-Kit Journey Guide</a></p>
+
+<p><strong>Command Chain</strong>: <a href="/specfact-cli/guides/command-chains/#3-external-tool-integration-chain">External Tool Integration Chain</a></p>
+
+<hr />
+
+<h3 id="migrating-from-openspec">Migrating from OpenSpec</h3>
+
+<p><strong>Workflow</strong>: Use External Tool Integration Chain</p>
+
+<ol>
+  <li>Import from OpenSpec via bridge adapter</li>
+  <li>Review imported change proposals</li>
+  <li>Set up DevOps sync (optional)</li>
+  <li>Enforce SDD compliance</li>
+</ol>
+
+<p><strong>Detailed Guide</strong>: <a href="/specfact-cli/guides/openspec-journey.md">OpenSpec Journey Guide</a></p>
+
+<p><strong>Command Chain</strong>: <a href="/specfact-cli/guides/command-chains/#3-external-tool-integration-chain">External Tool Integration Chain</a></p>
+
+<hr />
+
+<h2 id="project-structure-migrations">Project Structure Migrations</h2>
+
+<h3 id="migrating-between-project-bundles">Migrating Between Project Bundles</h3>
+
+<p><strong>When to use</strong>: Restructuring projects, splitting/merging bundles</p>
+
+<p><strong>Commands</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Export from old bundle</span>
+specfact project <span class="nb">export</span> <span class="nt">--bundle</span> old-bundle <span class="nt">--persona</span> &lt;persona&gt;
+
+<span class="c"># Create new bundle</span>
+specfact plan init <span class="nt">--bundle</span> new-bundle
+
+<span class="c"># Import to new bundle (manual editing may be required)</span>
+specfact project import <span class="nt">--bundle</span> new-bundle <span class="nt">--persona</span> &lt;persona&gt; <span class="nt">--source</span> exported.md
+</code></pre></div></div>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/reference/commands/#project---project-bundle-management">Project Bundle Management</a></p>
+
+<hr />
+
+<h2 id="plan-schema-migrations">Plan Schema Migrations</h2>
+
+<h3 id="upgrading-plan-bundles">Upgrading Plan Bundles</h3>
+
+<p><strong>When to use</strong>: When plan bundles are on an older schema version</p>
+
+<p><strong>Command</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Upgrade all bundles</span>
+specfact plan upgrade <span class="nt">--all</span>
+
+<span class="c"># Upgrade specific bundle</span>
+specfact plan upgrade <span class="nt">--bundle</span> &lt;bundle-name&gt;
+</code></pre></div></div>
+
+<p><strong>Benefits</strong>:</p>
+
+<ul>
+  <li>Improved performance (44% faster <code class="language-plaintext highlighter-rouge">plan select</code>)</li>
+  <li>New features and metadata</li>
+  <li>Better compatibility</li>
+</ul>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/reference/commands/#plan-upgrade">Plan Upgrade</a></p>
+
+<hr />
+
+<h2 id="migration-workflow-examples">Migration Workflow Examples</h2>
+
+<h3 id="example-1-upgrading-specfact-cli">Example 1: Upgrading SpecFact CLI</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># 1. Check current version</span>
+specfact <span class="nt">--version</span>
+
+<span class="c"># 2. Review migration guide for target version</span>
+<span class="c"># See: guides/migration-*.md</span>
+
+<span class="c"># 3. Upgrade SpecFact CLI</span>
+pip <span class="nb">install</span> <span class="nt">--upgrade</span> specfact-cli
+
+<span class="c"># 4. Upgrade plan bundles</span>
+specfact plan upgrade <span class="nt">--all</span>
+
+<span class="c"># 5. Test commands</span>
+specfact plan <span class="k">select</span> <span class="nt">--last</span> 5
+</code></pre></div></div>
+
+<hr />
+
+<h3 id="example-2-migrating-from-spec-kit">Example 2: Migrating from Spec-Kit</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># 1. Import from Spec-Kit</span>
+specfact import from-bridge <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--adapter</span> speckit <span class="nt">--write</span>
+
+<span class="c"># 2. Review imported plan</span>
+specfact plan review <span class="nt">--bundle</span> &lt;bundle-name&gt;
+
+<span class="c"># 3. Set up bidirectional sync (optional)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+
+<span class="c"># 4. Enforce SDD compliance</span>
+specfact enforce sdd <span class="nt">--bundle</span> &lt;bundle-name&gt;
+</code></pre></div></div>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/speckit-journey/">Spec-Kit Journey Guide</a></p>
+
+<hr />
+
+<h2 id="troubleshooting-migrations">Troubleshooting Migrations</h2>
+
+<h3 id="common-issues">Common Issues</h3>
+
+<p><strong>Issue</strong>: Plan bundles fail to upgrade</p>
+
+<p><strong>Solution</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Check bundle schema version</span>
+specfact plan <span class="k">select</span> <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--json</span> | jq <span class="s1">'.schema_version'</span>
+
+<span class="c"># Manual upgrade if needed</span>
+specfact plan upgrade <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--force</span>
+</code></pre></div></div>
+
+<p><strong>Issue</strong>: Imported plans have missing data</p>
+
+<p><strong>Solution</strong>:</p>
+
+<ol>
+  <li>Review import logs</li>
+  <li>Use <code class="language-plaintext highlighter-rouge">plan review</code> to identify gaps</li>
+  <li>Use <code class="language-plaintext highlighter-rouge">plan update-feature</code> to fill missing data</li>
+  <li>Re-import if needed</li>
+</ol>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/troubleshooting/">Troubleshooting Guide</a></p>
+
+<hr />
+
+<h2 id="see-also">See Also</h2>
+
+<ul>
+  <li><a href="/specfact-cli/guides/command-chains/">Command Chains Reference</a> - Complete workflows</li>
+  <li><a href="/specfact-cli/common-tasks/">Common Tasks Index</a> - Quick reference</li>
+  <li><a href="/specfact-cli/guides/speckit-journey/">Spec-Kit Journey Guide</a> - Spec-Kit migration</li>
+  <li><a href="/specfact-cli/guides/openspec-journey.md">OpenSpec Journey Guide</a> - OpenSpec migration</li>
+  <li><a href="/specfact-cli/troubleshooting/">Troubleshooting Guide</a> - Common issues</li>
+</ul>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

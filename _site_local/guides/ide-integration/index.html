@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>IDE Integration with SpecFact CLI | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="IDE Integration with SpecFact CLI" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/guides/ide-integration/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/guides/ide-integration/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="IDE Integration with SpecFact CLI" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"IDE Integration with SpecFact CLI","url":"https://nold-ai.github.io/specfact-cli/guides/ide-integration/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="ide-integration-with-specfact-cli">IDE Integration with SpecFact CLI</h1>
+
+<p><strong>Status</strong>: ✅ <strong>AVAILABLE</strong> (v0.4.2+)<br />
+<strong>Last Updated</strong>: 2025-11-09</p>
+
+<p><strong>CLI-First Approach</strong>: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.</p>
+
+<p><strong>Terminal Output</strong>: The CLI automatically detects embedded terminals (Cursor, VS Code) and CI/CD environments, adapting output formatting automatically. Progress indicators work in all environments - see <a href="/specfact-cli/troubleshooting/#terminal-output-issues">Troubleshooting</a> for details.</p>
+
+<hr />
+
+<h2 id="overview">Overview</h2>
+
+<p>SpecFact CLI supports IDE integration through <strong>prompt templates</strong> that work with various AI-assisted IDEs. These templates are copied to IDE-specific locations and automatically registered by the IDE as slash commands.</p>
+
+<p><strong>See real examples</strong>: <a href="../examples/integration-showcases/">Integration Showcases</a> - 5 complete examples showing bugs fixed via IDE integrations</p>
+
+<p><strong>Supported IDEs:</strong></p>
+
+<ul>
+  <li>✅ <strong>Cursor</strong> - <code class="language-plaintext highlighter-rouge">.cursor/commands/</code></li>
+  <li>✅ <strong>VS Code / GitHub Copilot</strong> - <code class="language-plaintext highlighter-rouge">.github/prompts/</code> + <code class="language-plaintext highlighter-rouge">.vscode/settings.json</code></li>
+  <li>✅ <strong>Claude Code</strong> - <code class="language-plaintext highlighter-rouge">.claude/commands/</code></li>
+  <li>✅ <strong>Gemini CLI</strong> - <code class="language-plaintext highlighter-rouge">.gemini/commands/</code></li>
+  <li>✅ <strong>Qwen Code</strong> - <code class="language-plaintext highlighter-rouge">.qwen/commands/</code></li>
+  <li>✅ <strong>opencode</strong> - <code class="language-plaintext highlighter-rouge">.opencode/command/</code></li>
+  <li>✅ <strong>Windsurf</strong> - <code class="language-plaintext highlighter-rouge">.windsurf/workflows/</code></li>
+  <li>✅ <strong>Kilo Code</strong> - <code class="language-plaintext highlighter-rouge">.kilocode/workflows/</code></li>
+  <li>✅ <strong>Auggie</strong> - <code class="language-plaintext highlighter-rouge">.augment/commands/</code></li>
+  <li>✅ <strong>Roo Code</strong> - <code class="language-plaintext highlighter-rouge">.roo/commands/</code></li>
+  <li>✅ <strong>CodeBuddy</strong> - <code class="language-plaintext highlighter-rouge">.codebuddy/commands/</code></li>
+  <li>✅ <strong>Amp</strong> - <code class="language-plaintext highlighter-rouge">.agents/commands/</code></li>
+  <li>✅ <strong>Amazon Q Developer</strong> - <code class="language-plaintext highlighter-rouge">.amazonq/prompts/</code></li>
+</ul>
+
+<hr />
+
+<h2 id="quick-start">Quick Start</h2>
+
+<h3 id="step-1-initialize-ide-integration">Step 1: Initialize IDE Integration</h3>
+
+<p>Run the <code class="language-plaintext highlighter-rouge">specfact init</code> command in your repository:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Auto-detect IDE</span>
+specfact init
+
+<span class="c"># Or specify IDE explicitly</span>
+specfact init <span class="nt">--ide</span> cursor
+specfact init <span class="nt">--ide</span> vscode
+specfact init <span class="nt">--ide</span> copilot
+
+<span class="c"># Install required packages for contract enhancement</span>
+specfact init <span class="nt">--install-deps</span>
+
+<span class="c"># Initialize for specific IDE and install dependencies</span>
+specfact init <span class="nt">--ide</span> cursor <span class="nt">--install-deps</span>
+</code></pre></div></div>
+
+<p><strong>What it does:</strong></p>
+
+<ol>
+  <li>Detects your IDE (or uses <code class="language-plaintext highlighter-rouge">--ide</code> flag)</li>
+  <li>Copies prompt templates from <code class="language-plaintext highlighter-rouge">resources/prompts/</code> to IDE-specific location</li>
+  <li>Creates/updates VS Code settings if needed</li>
+  <li>Makes slash commands available in your IDE</li>
+  <li>Optionally installs required packages for contract enhancement (if <code class="language-plaintext highlighter-rouge">--install-deps</code> is provided):
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">beartype&gt;=0.22.4</code> - Runtime type checking</li>
+      <li><code class="language-plaintext highlighter-rouge">icontract&gt;=2.7.1</code> - Design-by-contract decorators</li>
+      <li><code class="language-plaintext highlighter-rouge">crosshair-tool&gt;=0.0.97</code> - Contract exploration</li>
+      <li><code class="language-plaintext highlighter-rouge">pytest&gt;=8.4.2</code> - Testing framework</li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="step-2-use-slash-commands-in-your-ide">Step 2: Use Slash Commands in Your IDE</h3>
+
+<p>Once initialized, you can use slash commands directly in your IDE’s AI chat:</p>
+
+<p><strong>In Cursor / VS Code / Copilot:</strong></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Core workflow commands (numbered for natural progression)</span>
+/specfact.01-import legacy-api <span class="nt">--repo</span> <span class="nb">.</span>
+/specfact.02-plan init legacy-api
+/specfact.02-plan add-feature <span class="nt">--bundle</span> legacy-api <span class="nt">--key</span> FEATURE-001 <span class="nt">--title</span> <span class="s2">"User Auth"</span>
+/specfact.03-review legacy-api
+/specfact.04-sdd legacy-api
+/specfact.05-enforce legacy-api
+/specfact.06-sync <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span>
+/specfact.07-contracts legacy-api <span class="nt">--apply</span> all-contracts  <span class="c"># Analyze, generate prompts, apply contracts sequentially</span>
+
+<span class="c"># Advanced commands</span>
+/specfact.compare <span class="nt">--bundle</span> legacy-api
+/specfact.validate <span class="nt">--repo</span> <span class="nb">.</span>
+</code></pre></div></div>
+
+<p>The IDE automatically recognizes these commands and provides enhanced prompts.</p>
+
+<hr />
+
+<h2 id="how-it-works">How It Works</h2>
+
+<h3 id="prompt-templates">Prompt Templates</h3>
+
+<p>Slash commands are <strong>markdown prompt templates</strong> (not executable CLI commands). They:</p>
+
+<ol>
+  <li><strong>Live in your repository</strong> - Templates are stored in <code class="language-plaintext highlighter-rouge">resources/prompts/</code> (packaged with SpecFact CLI)</li>
+  <li><strong>Get copied to IDE locations</strong> - <code class="language-plaintext highlighter-rouge">specfact init</code> copies them to IDE-specific directories</li>
+  <li><strong>Registered automatically</strong> - The IDE reads these files and makes them available as slash commands</li>
+  <li><strong>Provide enhanced prompts</strong> - Templates include detailed instructions for the AI assistant</li>
+</ol>
+
+<h3 id="template-format">Template Format</h3>
+
+<p>Each template follows this structure:</p>
+
+<div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">description</span><span class="pi">:</span> <span class="s">Command description for IDE display</span>
+<span class="nn">---</span>
+
+<span class="gu">## User Input</span>
+
+<span class="p">```</span><span class="nl">text
+</span>$ARGUMENTS
+</code></pre></div></div>
+
+<h2 id="goal">Goal</h2>
+
+<p>Detailed instructions for the AI assistant…</p>
+
+<h2 id="execution-steps">Execution Steps</h2>
+
+<ol>
+  <li>
+    <p>Parse arguments…</p>
+  </li>
+  <li>
+    <p>Execute command…</p>
+  </li>
+  <li>
+    <p>Generate output…</p>
+  </li>
+</ol>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+### IDE Registration
+
+**How IDEs discover slash commands:**
+
+- **VS Code / Copilot**: Reads `.github/prompts/*.prompt.md` files listed in `.vscode/settings.json` under `chat.promptFilesRecommendations`
+- **Cursor**: Automatically discovers `.cursor/commands/*.md` files
+- **Other IDEs**: Follow their respective discovery mechanisms
+
+---
+
+## Available Slash Commands
+
+**Complete Reference**: [Prompts README](/specfact-cli/prompts/README.md) - Full slash commands reference with examples
+
+**Workflow Guide**: [AI IDE Workflow Guide](/specfact-cli/ai-ide-workflow/) - Complete workflow from setup to validation
+
+## Available Slash Commands
+
+**Core Workflow Commands** (numbered for workflow ordering):
+
+| Command | Description | CLI Equivalent |
+|---------|-------------|----------------|
+| `/specfact.01-import` | Import codebase into plan bundle | `specfact import from-code &lt;bundle-name&gt;` |
+| `/specfact.02-plan` | Plan management (init, add-feature, add-story, update-idea, update-feature, update-story) | `specfact plan &lt;operation&gt; &lt;bundle-name&gt;` |
+| `/specfact.03-review` | Review plan and promote through stages | `specfact plan review &lt;bundle-name&gt;`, `specfact plan promote &lt;bundle-name&gt;` |
+| `/specfact.04-sdd` | Create SDD manifest from plan | `specfact plan harden &lt;bundle-name&gt;` |
+| `/specfact.05-enforce` | Validate SDD and contracts | `specfact enforce sdd &lt;bundle-name&gt;` |
+| `/specfact.06-sync` | Sync with external tools or repository | `specfact sync bridge --adapter &lt;adapter&gt;` |
+| `/specfact.07-contracts` | Contract enhancement workflow: analyze → generate prompts → apply sequentially | `specfact analyze contracts`, `specfact generate contracts-prompt`, `specfact generate contracts-apply` |
+
+**Advanced Commands** (no numbering):
+
+| Command | Description | CLI Equivalent |
+|---------|-------------|----------------|
+| `/specfact.compare` | Compare manual vs auto plans | `specfact plan compare` |
+| `/specfact.validate` | Run validation suite | `specfact repro` |
+| `/specfact.generate-contracts-prompt` | Generate AI IDE prompt for adding contracts | `specfact generate contracts-prompt &lt;file&gt; --apply &lt;contracts&gt;` |
+
+---
+
+## Examples
+
+### Example 1: Initialize for Cursor
+
+```bash
+# Run init in your repository
+cd /path/to/my-project
+specfact init --ide cursor
+
+# Output:
+# ✓ Initialization Complete
+# Copied 5 template(s) to .cursor/commands/
+#
+# You can now use SpecFact slash commands in Cursor!
+# Example: /specfact.01-import legacy-api --repo .
+</code></pre></div></div>
+
+<p><strong>Now in Cursor:</strong></p>
+
+<ol>
+  <li>Open Cursor AI chat</li>
+  <li>Type <code class="language-plaintext highlighter-rouge">/specfact.01-import legacy-api --repo .</code></li>
+  <li>Cursor recognizes the command and provides enhanced prompts</li>
+</ol>
+
+<h3 id="example-2-initialize-for-vs-code--copilot">Example 2: Initialize for VS Code / Copilot</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Run init in your repository</span>
+specfact init <span class="nt">--ide</span> vscode
+
+<span class="c"># Output:</span>
+<span class="c"># ✓ Initialization Complete</span>
+<span class="c"># Copied 5 template(s) to .github/prompts/</span>
+<span class="c"># Updated VS Code settings: .vscode/settings.json</span>
+
+</code></pre></div></div>
+
+<p><strong>VS Code settings.json:</strong></p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"chat"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"promptFilesRecommendations"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.01-import.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.02-plan.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.03-review.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.04-sdd.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.05-enforce.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.06-sync.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.07-contracts.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.compare.prompt.md"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">".github/prompts/specfact.validate.prompt.md"</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h3 id="example-3-update-templates">Example 3: Update Templates</h3>
+
+<p>If you update SpecFact CLI, run <code class="language-plaintext highlighter-rouge">init</code> again to update templates:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Re-run init to update templates (use --force to overwrite)</span>
+specfact init <span class="nt">--ide</span> cursor <span class="nt">--force</span>
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="advanced-usage">Advanced Usage</h2>
+
+<h3 id="custom-template-locations">Custom Template Locations</h3>
+
+<p>By default, templates are copied from SpecFact CLI’s package resources. To use custom templates:</p>
+
+<ol>
+  <li>Create your own templates in a custom location</li>
+  <li>Modify <code class="language-plaintext highlighter-rouge">specfact init</code> to use custom path (future feature)</li>
+</ol>
+
+<h3 id="ide-specific-customization">IDE-Specific Customization</h3>
+
+<p>Different IDEs may require different template formats:</p>
+
+<ul>
+  <li><strong>Markdown</strong> (Cursor, Claude, etc.): Direct <code class="language-plaintext highlighter-rouge">.md</code> files</li>
+  <li><strong>TOML</strong> (Gemini, Qwen): Converted to TOML format automatically</li>
+  <li><strong>VS Code</strong>: <code class="language-plaintext highlighter-rouge">.prompt.md</code> files with settings.json integration</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">specfact init</code> command handles all conversions automatically.</p>
+
+<hr />
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="slash-commands-not-showing-in-ide">Slash Commands Not Showing in IDE</h3>
+
+<p><strong>Issue</strong>: Commands don’t appear in IDE autocomplete</p>
+
+<p><strong>Solutions:</strong></p>
+
+<ol>
+  <li>
+    <p><strong>Verify files exist:</strong></p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> .cursor/commands/specfact-<span class="k">*</span>.md  <span class="c"># For Cursor</span>
+<span class="nb">ls</span> .github/prompts/specfact-<span class="k">*</span>.prompt.md  <span class="c"># For VS Code</span>
+
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p><strong>Re-run init:</strong></p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact init <span class="nt">--ide</span> cursor <span class="nt">--force</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p><strong>Restart IDE</strong>: Some IDEs require restart to discover new commands</p>
+  </li>
+</ol>
+
+<h3 id="vs-code-settings-not-updated">VS Code Settings Not Updated</h3>
+
+<p><strong>Issue</strong>: VS Code settings.json not created or updated</p>
+
+<p><strong>Solutions:</strong></p>
+
+<ol>
+  <li>
+    <p><strong>Check permissions:</strong></p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-la</span> .vscode/settings.json
+
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p><strong>Manually verify settings.json:</strong></p>
+
+    <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"chat"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"promptFilesRecommendations"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">]</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+
+</span></code></pre></div>    </div>
+  </li>
+  <li>
+    <p><strong>Re-run init:</strong></p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact init <span class="nt">--ide</span> vscode <span class="nt">--force</span>
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<hr />
+
+<h2 id="related-documentation">Related Documentation</h2>
+
+<ul>
+  <li><a href="/specfact-cli/reference/commands/">Command Reference</a> - All CLI commands</li>
+  <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode Guide</a> - Using <code class="language-plaintext highlighter-rouge">--mode copilot</code> on CLI</li>
+  <li><a href="/specfact-cli/getting-started/installation/">Getting Started</a> - Installation and setup</li>
+  <li><a href="/specfact-cli/troubleshooting/#terminal-output-issues">Troubleshooting</a> - Terminal output auto-detection in embedded terminals</li>
+</ul>
+
+<hr />
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+  <li>⭐ <strong><a href="../examples/integration-showcases/">Integration Showcases</a></strong> - See real bugs fixed via VS Code, Cursor, GitHub Actions integrations</li>
+  <li>✅ Initialize IDE integration with <code class="language-plaintext highlighter-rouge">specfact init</code></li>
+  <li>✅ Use slash commands in your IDE</li>
+  <li>📖 Read <a href="/specfact-cli/copilot-mode/">CoPilot Mode Guide</a> for CLI usage</li>
+  <li>📖 Read <a href="/specfact-cli/reference/commands/">Command Reference</a> for all commands</li>
+</ul>
+
+<hr />
+
+<p><strong>Trademarks</strong>: All product names, logos, and brands mentioned in this guide are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See <a href="../../TRADEMARKS.md">TRADEMARKS.md</a> for more information.</p>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

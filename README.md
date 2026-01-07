@@ -95,7 +95,11 @@ specfact init --ide cursor --install-deps
 specfact import from-code my-project --repo .
 ```
 
-**⏱️ Timing:** Analysis typically takes **10-15 minutes** for typical repositories (e.g., `specfact-cli` itself with several hundred features & contracts). Smaller codebases may complete in 2-5 minutes. The analysis performs AST parsing, Semgrep pattern detection, and Specmatic integration.
+**⏱️ Timing:** Analysis typically takes **10-15 minutes** for typical repositories (e.g., `specfact-cli` itself with several hundred features & contracts). Smaller codebases may complete in 2-5 minutes. Large codebases (3000+ features) may take 15-30 minutes, but progress reporting shows real-time status. The analysis performs AST parsing, Semgrep pattern detection, and Specmatic integration.
+
+**💾 Checkpointing:** Features are saved immediately after initial analysis, so you can safely interrupt and resume the import process without losing progress.
+
+**⚡ Performance:** Optimized for large codebases with pre-computed AST parsing and file hashes (5-15x faster than previous versions).
 
 **That's it!** SpecFact will extract features and stories from your code, find missing tests and contracts, and generate a plan bundle you can enforce.
 

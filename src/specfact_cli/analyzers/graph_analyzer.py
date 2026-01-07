@@ -28,16 +28,21 @@ class GraphAnalyzer:
 
     @beartype
     @require(lambda repo_path: isinstance(repo_path, Path), "Repo path must be Path")
-    def __init__(self, repo_path: Path) -> None:
+    def __init__(self, repo_path: Path, file_hashes_cache: dict[str, str] | None = None) -> None:
         """
         Initialize graph analyzer.
 
         Args:
             repo_path: Path to repository root
+            file_hashes_cache: Optional pre-computed file hashes (file_path -> hash) for caching
         """
         self.repo_path = repo_path.resolve()
         self.call_graphs: dict[str, dict[str, list[str]]] = {}  # file -> {function -> [called_functions]}
         self.dependency_graph: nx.DiGraph = nx.DiGraph()
+        # Cache for file hashes and import extraction results
+        self.file_hashes_cache: dict[str, str] = file_hashes_cache or {}
+        self.imports_cache: dict[str, list[str]] = {}  # file_hash -> [imports]
+        self.module_name_cache: dict[str, str] = {}  # file_path -> module_name
 
     @beartype
     @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
@@ -127,7 +132,7 @@ class GraphAnalyzer:
     @beartype
     @require(lambda python_files: isinstance(python_files, list), "Python files must be list")
     @ensure(lambda result: isinstance(result, nx.DiGraph), "Must return DiGraph")
-    def build_dependency_graph(self, python_files: list[Path]) -> nx.DiGraph:
+    def build_dependency_graph(self, python_files: list[Path], progress_callback: Any | None = None) -> nx.DiGraph:
         """
         Build comprehensive dependency graph using NetworkX.
 
@@ -136,6 +141,7 @@ class GraphAnalyzer:
 
         Args:
             python_files: List of Python file paths
+            progress_callback: Optional callback function(completed: int, total: int) for progress updates
 
         Returns:
             NetworkX directed graph of module dependencies
@@ -186,6 +192,7 @@ class GraphAnalyzer:
 
         executor1 = ThreadPoolExecutor(max_workers=max_workers)
         wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
+        completed_imports = 0
         try:
             future_to_file = {executor1.submit(process_imports, file_path): file_path for file_path in python_files}
 
@@ -194,13 +201,20 @@ class GraphAnalyzer:
                     edges = future.result()
                     for module_name, matching_module in edges:
                         graph.add_edge(module_name, matching_module)
+                    completed_imports += 1
+                    if progress_callback:
+                        progress_callback(completed_imports, len(python_files))
                 except Exception:
+                    completed_imports += 1
+                    if progress_callback:
+                        progress_callback(completed_imports, len(python_files))
                     continue
         finally:
             executor1.shutdown(wait=wait_on_shutdown)
 
         # Extract call graphs using pyan (if available) - parallelized for performance
         executor2 = ThreadPoolExecutor(max_workers=max_workers)
+        completed_call_graphs = 0
         try:
             future_to_file = {
                 executor2.submit(self.extract_call_graph, file_path): file_path for file_path in python_files
@@ -216,8 +230,15 @@ class GraphAnalyzer:
                             callee_module = self._resolve_module_from_function(callee, python_files)
                             if callee_module and callee_module in graph:
                                 graph.add_edge(module_name, callee_module)
+                    completed_call_graphs += 1
+                    if progress_callback:
+                        # Report progress as phase 2 (after imports phase)
+                        progress_callback(len(python_files) + completed_call_graphs, len(python_files) * 2)
                 except Exception:
                     # Skip if call graph extraction fails for this file
+                    completed_call_graphs += 1
+                    if progress_callback:
+                        progress_callback(len(python_files) + completed_call_graphs, len(python_files) * 2)
                     continue
         finally:
             executor2.shutdown(wait=wait_on_shutdown)
@@ -229,25 +250,52 @@ class GraphAnalyzer:
     @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
     @ensure(lambda result: isinstance(result, str), "Must return str")
     def _path_to_module_name(self, file_path: Path) -> str:
-        """Convert file path to module name."""
+        """Convert file path to module name (cached)."""
+        file_key = str(file_path)
+        if file_key in self.module_name_cache:
+            return self.module_name_cache[file_key]
+
         try:
             relative_path = file_path.relative_to(self.repo_path)
         except ValueError:
             relative_path = file_path
 
         parts = [*relative_path.parts[:-1], relative_path.stem]
-        return ".".join(parts)
+        module_name = ".".join(parts)
+        self.module_name_cache[file_key] = module_name
+        return module_name
 
     @beartype
     @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def _extract_imports_from_ast(self, file_path: Path) -> list[str]:
         """
-        Extract imported module names from AST.
+        Extract imported module names from AST (cached by file hash).
 
         Extracts full import paths (not just root modules) to enable proper matching.
         """
         import ast
+        import hashlib
+
+        # Compute file hash for caching
+        file_hash = ""
+        try:
+            file_key = str(file_path.relative_to(self.repo_path))
+        except ValueError:
+            file_key = str(file_path)
+
+        if file_key in self.file_hashes_cache:
+            file_hash = self.file_hashes_cache[file_key]
+        elif file_path.exists():
+            try:
+                file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+                self.file_hashes_cache[file_key] = file_hash
+            except Exception:
+                pass
+
+        # Check cache first
+        if file_hash and file_hash in self.imports_cache:
+            return self.imports_cache[file_hash]
 
         imports: set[str] = set()
         stdlib_modules = {
@@ -306,7 +354,11 @@ class GraphAnalyzer:
         except (SyntaxError, UnicodeDecodeError):
             pass
 
-        return list(imports)
+        result = list(imports)
+        # Cache result
+        if file_hash:
+            self.imports_cache[file_hash] = result
+        return result
 
     @beartype
     @require(lambda imported: isinstance(imported, str), "Imported name must be str")

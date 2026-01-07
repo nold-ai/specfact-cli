@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Competitive Analysis | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Competitive Analysis" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/competitive-analysis/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/competitive-analysis/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Competitive Analysis" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"Competitive Analysis","url":"https://nold-ai.github.io/specfact-cli/competitive-analysis/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="what-you-gain-with-specfact-cli">What You Gain with SpecFact CLI</h1>
+
+<p>How SpecFact CLI complements and extends other development tools.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p>SpecFact CLI is a <strong>brownfield-first legacy code modernization tool</strong> that reverse engineers existing Python code into documented specs, then enforces them as runtime contracts. It builds on the strengths of specification tools like GitHub Spec-Kit and works alongside AI coding platforms to provide production-ready quality gates for legacy codebases.</p>
+
+<hr />
+
+<h2 id="building-on-specification-tools">Building on Specification Tools</h2>
+
+<p>SpecFact CLI integrates with multiple specification and planning tools through a plugin-based adapter architecture:</p>
+
+<ul>
+  <li><strong>GitHub Spec-Kit</strong> - Interactive specification authoring</li>
+  <li><strong>OpenSpec</strong> - Specification anchoring and change tracking (v0.22.0+)</li>
+  <li><strong>GitHub Issues</strong> - DevOps backlog integration</li>
+  <li><strong>Future</strong>: Linear, Jira, Azure DevOps, and more</li>
+</ul>
+
+<h3 id="building-on-github-spec-kit">Building on GitHub Spec-Kit</h3>
+
+<h3 id="what-spec-kit-does-great">What Spec-Kit Does Great</h3>
+
+<p>GitHub Spec-Kit pioneered the concept of <strong>living specifications</strong> with interactive slash commands. It’s excellent for:</p>
+
+<ul>
+  <li>✅ <strong>Interactive Specification</strong> - Slash commands (<code class="language-plaintext highlighter-rouge">/speckit.specify</code>, <code class="language-plaintext highlighter-rouge">/speckit.plan</code>) with AI assistance</li>
+  <li>✅ <strong>Rapid Prototyping</strong> - Quick spec → plan → tasks → code workflow for <strong>new features</strong></li>
+  <li>✅ <strong>Learning &amp; Exploration</strong> - Great for understanding state machines, contracts, requirements</li>
+  <li>✅ <strong>IDE Integration</strong> - CoPilot chat makes it accessible to less technical developers</li>
+  <li>✅ <strong>Constitution &amp; Planning</strong> - Add constitution, plans, and feature breakdowns for new features</li>
+  <li>✅ <strong>Single-Developer Projects</strong> - Perfect for personal projects and learning</li>
+</ul>
+
+<p><strong>Note</strong>: Spec-Kit excels at working with <strong>new features</strong> - you can add constitution, create plans, and break down features for things you’re building from scratch.</p>
+
+<h3 id="what-specfact-cli-adds-to-github-spec-kit">What SpecFact CLI Adds To GitHub Spec-Kit</h3>
+
+<p>SpecFact CLI <strong>complements Spec-Kit</strong> by adding automation and enforcement:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Enhancement</th>
+      <th>What You Get</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Automated enforcement</strong></td>
+      <td>Runtime + static contract validation, CI/CD gates</td>
+    </tr>
+    <tr>
+      <td><strong>Shared plans</strong></td>
+      <td><strong>Shared structured plans</strong> enable team collaboration with automated bidirectional sync (not just manual markdown sharing like Spec-Kit)</td>
+    </tr>
+    <tr>
+      <td><strong>Code vs plan drift detection</strong></td>
+      <td>Automated comparison of intended design (manual plan) vs actual implementation (code-derived plan from <code class="language-plaintext highlighter-rouge">import from-code</code>)</td>
+    </tr>
+    <tr>
+      <td><strong>CI/CD integration</strong></td>
+      <td>Automated quality gates in your pipeline</td>
+    </tr>
+    <tr>
+      <td><strong>Brownfield support</strong></td>
+      <td>Analyze existing code to complement Spec-Kit’s greenfield focus</td>
+    </tr>
+    <tr>
+      <td><strong>Property testing</strong></td>
+      <td>FSM fuzzing, Hypothesis-based validation</td>
+    </tr>
+    <tr>
+      <td><strong>No-escape gates</strong></td>
+      <td>Budget-based enforcement prevents violations</td>
+    </tr>
+    <tr>
+      <td><strong>Bidirectional sync</strong></td>
+      <td>Keep using Spec-Kit interactively, sync automatically with SpecFact</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="the-journey-from-spec-kit-to-specfact">The Journey: From Spec-Kit to SpecFact</h3>
+
+<p><strong>Spec-Kit and SpecFact are complementary, not competitive:</strong></p>
+
+<ul>
+  <li><strong>Stage 1: Spec-Kit</strong> - Interactive authoring with slash commands (<code class="language-plaintext highlighter-rouge">/speckit.specify</code>, <code class="language-plaintext highlighter-rouge">/speckit.plan</code>)</li>
+  <li><strong>Stage 2: SpecFact</strong> - Automated enforcement (CI/CD gates, contract validation)</li>
+  <li><strong>Stage 3: Bidirectional Sync</strong> - Use both tools together (Spec-Kit authoring + SpecFact enforcement)</li>
+</ul>
+
+<p><strong><a href="/specfact-cli/guides/speckit-journey/">Learn the full journey →</a></strong></p>
+
+<h3 id="working-with-openspec">Working With OpenSpec</h3>
+
+<p><strong>OpenSpec</strong> is another complementary tool that focuses on specification anchoring and change tracking. SpecFact CLI integrates with OpenSpec via the OpenSpec adapter (available in v0.22.0+):</p>
+
+<ul>
+  <li><strong>OpenSpec</strong> manages specifications and change proposals (the “what” and “why”)</li>
+  <li><strong>SpecFact</strong> analyzes existing code and enforces contracts (the “how” and “safety”)</li>
+  <li><strong>Bridge Adapters</strong> sync change proposals to DevOps tools (the “tracking”)</li>
+</ul>
+
+<p><strong>Integration:</strong></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Read-only sync from OpenSpec to SpecFact (v0.22.0+)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> openspec <span class="nt">--mode</span> read-only <span class="se">\</span>
+  <span class="nt">--bundle</span> my-project <span class="se">\</span>
+  <span class="nt">--repo</span> /path/to/openspec-repo
+
+<span class="c"># Export OpenSpec change proposals to GitHub Issues</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> github <span class="nt">--mode</span> export-only <span class="se">\</span>
+  <span class="nt">--repo-owner</span> your-org <span class="se">\</span>
+  <span class="nt">--repo-name</span> your-repo <span class="se">\</span>
+  <span class="nt">--repo</span> /path/to/openspec-repo
+</code></pre></div></div>
+
+<p><strong><a href="/specfact-cli/guides/openspec-journey.md">Learn the full OpenSpec integration journey →</a></strong></p>
+
+<h3 id="seamless-migration">Seamless Migration</h3>
+
+<p>Already using Spec-Kit? SpecFact CLI <strong>imports your work</strong> in one command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact import from-bridge <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> ./my-speckit-project <span class="nt">--write</span>
+</code></pre></div></div>
+
+<p><strong>Result</strong>: Your Spec-Kit artifacts (spec.md, plan.md, tasks.md) become production-ready contracts with zero manual work.</p>
+
+<p><strong>Ongoing</strong>: Keep using Spec-Kit interactively, sync automatically with SpecFact:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Enable bidirectional sync (bridge-based, adapter-agnostic)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+</code></pre></div></div>
+
+<p><strong>Best of both worlds</strong>: Interactive authoring (Spec-Kit) + Automated enforcement (SpecFact)</p>
+
+<p><strong>Note</strong>: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in <code class="language-plaintext highlighter-rouge">AdapterRegistry</code> and accessed via <code class="language-plaintext highlighter-rouge">specfact sync bridge --adapter &lt;adapter-name&gt;</code>, making the architecture extensible for future tool integrations.</p>
+
+<p><strong>Team collaboration</strong>: <strong>Shared structured plans</strong> enable multiple developers to work on the same plan with automated deviation detection. Unlike Spec-Kit’s manual markdown sharing, SpecFact provides automated bidirectional sync that keeps plans synchronized across team members:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Enable bidirectional sync for team collaboration</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+<span class="c"># → Automatically syncs Spec-Kit artifacts ↔ SpecFact project bundles</span>
+<span class="c"># → Multiple developers can work on the same plan with automated synchronization</span>
+<span class="c"># → No manual markdown sharing required</span>
+
+<span class="c"># Detect code vs plan drift automatically</span>
+specfact plan compare <span class="nt">--bundle</span> legacy-api <span class="nt">--code-vs-plan</span>
+<span class="c"># → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)</span>
+<span class="c"># → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"</span>
+<span class="c"># → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)</span>
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="working-with-ai-coding-tools">Working With AI Coding Tools</h2>
+
+<h3 id="what-ai-tools-do-great">What AI Tools Do Great</h3>
+
+<p>Tools like <strong>Replit Agent 3, Lovable, Cursor, and Copilot</strong> excel at:</p>
+
+<ul>
+  <li>✅ Rapid code generation</li>
+  <li>✅ Quick prototyping</li>
+  <li>✅ Learning and exploration</li>
+  <li>✅ Boilerplate reduction</li>
+</ul>
+
+<h3 id="what-specfact-cli-adds-to-ai-coding-tools">What SpecFact CLI Adds To AI Coding Tools</h3>
+
+<p>SpecFact CLI <strong>validates AI-generated code</strong> with:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Enhancement</th>
+      <th>What You Get</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Contract validation</strong></td>
+      <td>Ensure AI code meets your specs</td>
+    </tr>
+    <tr>
+      <td><strong>Runtime sentinels</strong></td>
+      <td>Catch async anti-patterns automatically</td>
+    </tr>
+    <tr>
+      <td><strong>No-escape gates</strong></td>
+      <td>Block broken code from merging</td>
+    </tr>
+    <tr>
+      <td><strong>Offline validation</strong></td>
+      <td>Works in air-gapped environments</td>
+    </tr>
+    <tr>
+      <td><strong>Evidence trails</strong></td>
+      <td>Reproducible proof of quality</td>
+    </tr>
+    <tr>
+      <td><strong>Team standards</strong></td>
+      <td>Enforce consistent patterns across AI-generated code</td>
+    </tr>
+    <tr>
+      <td><strong>CoPilot integration</strong></td>
+      <td>Slash commands for seamless IDE workflow</td>
+    </tr>
+    <tr>
+      <td><strong>Agent mode routing</strong></td>
+      <td>Enhanced prompts for better AI assistance</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="perfect-combination">Perfect Combination</h3>
+
+<p><strong>AI tools generate code fast</strong> → <strong>SpecFact CLI ensures it’s correct</strong></p>
+
+<p>Use AI for speed, use SpecFact for quality.</p>
+
+<h3 id="copilot-enabled-mode">CoPilot-Enabled Mode</h3>
+
+<p>When using Cursor, Copilot, or other AI assistants, SpecFact CLI integrates seamlessly:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Slash commands in IDE (after specfact init)</span>
+specfact init <span class="nt">--ide</span> cursor
+/specfact.01-import legacy-api <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+/specfact.02-plan init legacy-api
+/specfact.06-sync <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span>
+</code></pre></div></div>
+
+<p><strong>Benefits:</strong></p>
+
+<ul>
+  <li><strong>Automatic mode detection</strong> - Switches to CoPilot mode when available</li>
+  <li><strong>Context injection</strong> - Uses current file, selection, and workspace context</li>
+  <li><strong>Enhanced prompts</strong> - Optimized for AI understanding</li>
+  <li><strong>Agent mode routing</strong> - Specialized prompts for different operations</li>
+</ul>
+
+<hr />
+
+<h2 id="key-capabilities">Key Capabilities</h2>
+
+<h3 id="1-temporal-contracts">1. Temporal Contracts</h3>
+
+<p><strong>What it means</strong>: State machines with runtime validation</p>
+
+<p><strong>Why developers love it</strong>: Catches state transition bugs automatically</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Protocol enforces valid state transitions</span>
+<span class="na">transitions</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">from_state</span><span class="pi">:</span> <span class="s">CONNECTED</span>
+    <span class="na">on_event</span><span class="pi">:</span> <span class="s">disconnect</span>
+    <span class="na">to_state</span><span class="pi">:</span> <span class="s">DISCONNECTING</span>
+    <span class="na">guard</span><span class="pi">:</span> <span class="s">no_pending_messages</span>  <span class="c1"># ✅ Checked at runtime</span>
+</code></pre></div></div>
+
+<h3 id="2-proof-carrying-promotion">2. Proof-Carrying Promotion</h3>
+
+<p><strong>What it means</strong>: Evidence required before code merges</p>
+
+<p><strong>Why developers love it</strong>: “Works on my machine” becomes provable</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># PR includes reproducible evidence</span>
+specfact repro <span class="nt">--budget</span> 120 <span class="nt">--report</span> evidence.md
+</code></pre></div></div>
+
+<h3 id="3-brownfield-first--primary">3. Brownfield-First ⭐ PRIMARY</h3>
+
+<p><strong>What it means</strong>: <strong>Primary use case</strong> - Reverse engineer existing legacy code into documented specs, then enforce contracts to prevent regressions during modernization.</p>
+
+<p><strong>Why developers love it</strong>: Understand undocumented legacy code in minutes, not weeks. Modernize with confidence knowing contracts catch regressions automatically.</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Primary use case: Analyze legacy code</span>
+specfact import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> ./legacy-app
+
+<span class="c"># Extract specs from existing code in &lt; 10 seconds</span>
+<span class="c"># Then enforce contracts to prevent regressions</span>
+specfact enforce stage <span class="nt">--preset</span> balanced
+</code></pre></div></div>
+
+<p><strong>How it complements Spec-Kit</strong>: Spec-Kit focuses on new feature authoring (greenfield); SpecFact CLI’s <strong>primary focus</strong> is brownfield code modernization with runtime enforcement.</p>
+
+<h3 id="4-code-vs-plan-drift-detection">4. Code vs Plan Drift Detection</h3>
+
+<p><strong>What it means</strong>: Automated comparison of intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what’s in your code). Auto-derived plans come from <code class="language-plaintext highlighter-rouge">import from-code</code> (code analysis), so comparison IS “code vs plan drift”.</p>
+
+<p><strong>Why developers love it</strong>: Detects code vs plan drift automatically (not just artifact consistency like Spec-Kit’s <code class="language-plaintext highlighter-rouge">/speckit.analyze</code>). Spec-Kit’s <code class="language-plaintext highlighter-rouge">/speckit.analyze</code> only checks artifact consistency between markdown files; SpecFact CLI detects actual code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from code analysis).</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Detect code vs plan drift automatically</span>
+specfact plan compare <span class="nt">--bundle</span> legacy-api <span class="nt">--code-vs-plan</span>
+<span class="c"># → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)</span>
+<span class="c"># → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"</span>
+<span class="c"># → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)</span>
+</code></pre></div></div>
+
+<p><strong>How it complements Spec-Kit</strong>: Spec-Kit’s <code class="language-plaintext highlighter-rouge">/speckit.analyze</code> only checks artifact consistency between markdown files; SpecFact CLI detects code vs plan drift by comparing manual plans (intended design) with code-derived plans (actual implementation from <code class="language-plaintext highlighter-rouge">import from-code</code>).</p>
+
+<h3 id="5-evidence-based">5. Evidence-Based</h3>
+
+<p><strong>What it means</strong>: Reproducible validation and reports</p>
+
+<p><strong>Why developers love it</strong>: Debug failures with concrete data</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Generate reproducible evidence</span>
+specfact repro <span class="nt">--report</span> evidence.md
+</code></pre></div></div>
+
+<h3 id="6-offline-first">6. Offline-First</h3>
+
+<p><strong>What it means</strong>: Works without internet connection</p>
+
+<p><strong>Why developers love it</strong>: Air-gapped environments, no data exfiltration, fast</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Works completely offline</span>
+uvx specfact-cli@latest plan init <span class="nt">--interactive</span>
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="when-to-use-specfact-cli">When to Use SpecFact CLI</h2>
+
+<h3 id="specfact-cli-is-perfect-for--primary">SpecFact CLI is Perfect For ⭐ PRIMARY</h3>
+
+<ul>
+  <li>✅ <strong>Legacy code modernization</strong> ⭐ - Reverse engineer undocumented code into specs</li>
+  <li>✅ <strong>Brownfield projects</strong> ⭐ - Understand and modernize existing Python codebases</li>
+  <li>✅ <strong>High-risk refactoring</strong> ⭐ - Prevent regressions with runtime contract enforcement</li>
+  <li>✅ <strong>Production systems</strong> - Need quality gates and validation</li>
+  <li>✅ <strong>Team projects</strong> - Multiple developers need consistent standards</li>
+  <li>✅ <strong>Compliance environments</strong> - Evidence-based validation required</li>
+  <li>✅ <strong>Air-gapped deployments</strong> - Offline-first architecture</li>
+  <li>✅ <strong>Open source projects</strong> - Transparent, inspectable tooling</li>
+</ul>
+
+<h3 id="specfact-cli-works-alongside">SpecFact CLI Works Alongside</h3>
+
+<ul>
+  <li>✅ <strong>AI coding assistants</strong> - Validate AI-generated code</li>
+  <li>✅ <strong>Spec-Kit projects</strong> - One-command import</li>
+  <li>✅ <strong>Existing CI/CD</strong> - Drop-in quality gates</li>
+  <li>✅ <strong>Your IDE</strong> - Command-line or extension (v0.2)</li>
+</ul>
+
+<hr />
+
+<h2 id="getting-started-with-specfact-cli">Getting Started With SpecFact CLI</h2>
+
+<h3 id="modernizing-legacy-code--primary">Modernizing Legacy Code? ⭐ PRIMARY</h3>
+
+<p><strong>Reverse engineer existing code</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Primary use case: Analyze legacy codebase</span>
+specfact import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> ./legacy-app
+</code></pre></div></div>
+
+<p>See <a href="/specfact-cli/use-cases/#use-case-1-brownfield-code-modernization-primary">Use Cases: Brownfield Modernization</a> ⭐</p>
+
+<h3 id="already-using-spec-kit-secondary">Already Using Spec-Kit? (Secondary)</h3>
+
+<p><strong>One-command import</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact import from-bridge <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--write</span>
+</code></pre></div></div>
+
+<p>See <a href="/specfact-cli/use-cases/#use-case-2-github-spec-kit-migration-secondary">Use Cases: Spec-Kit Migration</a></p>
+
+<h3 id="using-ai-coding-tools">Using AI Coding Tools?</h3>
+
+<p><strong>Add validation layer</strong>:</p>
+
+<ol>
+  <li>Let AI generate code as usual</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">specfact import from-code --repo .</code> (auto-detects CoPilot mode)</li>
+  <li>Review auto-generated plan</li>
+  <li>Enable <code class="language-plaintext highlighter-rouge">specfact enforce stage --preset balanced</code></li>
+</ol>
+
+<p><strong>With CoPilot Integration:</strong></p>
+
+<p>Use slash commands directly in your IDE:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># First, initialize IDE integration</span>
+specfact init <span class="nt">--ide</span> cursor
+
+<span class="c"># Then use slash commands in IDE chat</span>
+/specfact.01-import legacy-api <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+/specfact.compare <span class="nt">--bundle</span> legacy-api
+/specfact.06-sync <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span>
+</code></pre></div></div>
+
+<p>SpecFact CLI automatically detects CoPilot and switches to enhanced mode.</p>
+
+<h3 id="starting-from-scratch">Starting From Scratch?</h3>
+
+<p><strong>Greenfield approach</strong>:</p>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">specfact plan init --bundle legacy-api --interactive</code></li>
+  <li>Add features and stories</li>
+  <li>Enable strict enforcement</li>
+  <li>Let SpecFact guide development</li>
+</ol>
+
+<p>See <a href="/specfact-cli/getting-started/README.md">Getting Started</a> for detailed setup.</p>
+
+<hr />
+
+<p>See <a href="/specfact-cli/getting-started/README.md">Getting Started</a> for quick setup and <a href="/specfact-cli/use-cases/">Use Cases</a> for detailed scenarios.</p>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+
