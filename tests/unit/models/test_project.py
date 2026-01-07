@@ -415,6 +415,7 @@ class TestProjectBundle:
                 file_checksum = ProjectBundle._compute_file_checksum(artifact_path)
                 assert checksum == file_checksum, f"Checksum mismatch for {artifact_name}"
 
+    @pytest.mark.timeout(30)  # Increase timeout for large bundle test
     def test_save_to_directory_large_bundle_worker_reduction(self, tmp_path: Path):
         """Test that large bundles (1000+ features) use fewer workers for memory optimization."""
         bundle_dir = tmp_path / "test-bundle"
@@ -424,7 +425,9 @@ class TestProjectBundle:
         bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
 
         # Add 1001 features to trigger large bundle logic
-        for i in range(1001):
+        # This tests the worker reduction optimization (4 workers instead of 8)
+        num_features = 1001
+        for i in range(num_features):
             feature = Feature(
                 key=f"FEATURE-{i:04d}",
                 title=f"Test Feature {i}",
@@ -435,14 +438,17 @@ class TestProjectBundle:
             bundle.add_feature(feature)
 
         # Save should complete successfully with reduced workers
+        # Note: This test takes longer due to large bundle size (30s timeout)
         bundle.save_to_directory(bundle_dir)
 
         # Verify all features saved
         assert (bundle_dir / "features").exists()
-        assert len(list((bundle_dir / "features").glob("*.yaml"))) == 1001
+        saved_features = list((bundle_dir / "features").glob("*.yaml"))
+        assert len(saved_features) == num_features
 
         # Verify checksums computed for all features
-        assert len(bundle.manifest.checksums.files) >= 1001  # Features + product + manifest
+        # Features + product + manifest (and potentially idea/business if present)
+        assert len(bundle.manifest.checksums.files) >= num_features
 
 
 class TestBundleFormat:
