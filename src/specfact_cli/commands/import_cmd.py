@@ -674,13 +674,11 @@ def _extract_relationships_and_graph(
         progress.update(
             relationships_task,
             completed=len(python_files),
-            description=f"[green]✓[/green] Mapped {len(relationships['imports'])} files with relationships",
+            total=len(python_files),
+            description=f"[green]✓[/green] Relationship analysis complete: {len(relationships['imports'])} files mapped",
         )
-        # Keep task visible briefly, then print completion and remove
+        # Keep final progress bar visible instead of removing it
         time.sleep(0.1)  # Brief pause to show completion
-        console.print(f"[green]✓[/green] Relationship analysis complete: {len(relationships['imports'])} files mapped")
-        console.print()  # Add newline for clarity
-        progress.remove_task(relationships_task)
 
     # Graph analysis is optional and can be slow - only run if explicitly needed
     # Skip by default for faster imports (can be enabled with --with-graph flag in future)
@@ -710,17 +708,11 @@ def _extract_relationships_and_graph(
                 progress.update(
                     graph_task,
                     completed=len(python_files) * 2,
-                    description=f"[green]✓[/green] Built dependency graph: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies",
+                    total=len(python_files) * 2,
+                    description=f"[green]✓[/green] Dependency graph complete: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies",
                 )
-                # Keep task visible briefly, then print completion and remove
-                import time
-
+                # Keep final progress bar visible instead of removing it
                 time.sleep(0.1)  # Brief pause to show completion
-                console.print(
-                    f"[green]✓[/green] Dependency graph complete: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies"
-                )
-                console.print()  # Add newline for clarity
-            progress.remove_task(graph_task)
             relationships["dependency_graph"] = graph_summary
             relationships["call_graphs"] = graph_analyzer.call_graphs
     elif should_regenerate_graph and not pyan3_available:
@@ -1034,18 +1026,16 @@ def _extract_contracts(
                         completed_count += 1
                         progress.update(task, completed=completed_count)
                         console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
-                # Sequential mode completion
+                # Sequential mode completion - keep progress bar visible with final state
                 progress.update(
                     task,
                     completed=len(features_with_files),
-                    description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contracts generated",
+                    total=len(features_with_files),
+                    description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
                 )
-                # Brief pause to show completion, then print and add newline
+                # Brief pause to show completion state
                 time.sleep(0.1)
-                console.print(
-                    f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)"
-                )
-                console.print()  # Add newline for clarity
+                # Keep progress bar visible instead of removing it
             else:
                 # Create feature lookup dictionary for O(1) access instead of O(n) search
                 feature_lookup: dict[str, Feature] = {f.key: f for f in features_with_files}
@@ -1092,18 +1082,16 @@ def _extract_contracts(
                 finally:
                     if not interrupted:
                         executor.shutdown(wait=True)
-                        # Update progress to show completion, then print message
+                        # Update progress to show completion - keep progress bar visible with final state
                         progress.update(
                             task,
                             completed=len(features_with_files),
-                            description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contracts generated",
+                            total=len(features_with_files),
+                            description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
                         )
-                        # Brief pause to show completion, then print and add newline
+                        # Brief pause to show completion state
                         time.sleep(0.1)
-                        console.print(
-                            f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)"
-                        )
-                        console.print()  # Add newline for clarity
+                        # Keep progress bar visible instead of removing it
                     else:
                         executor.shutdown(wait=False)
 
