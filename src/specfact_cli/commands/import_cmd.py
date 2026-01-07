@@ -1012,11 +1012,22 @@ def _extract_contracts(
             if is_test_mode:
                 # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
                 completed_count = 0
-                for feature in features_with_files:
+                for idx, feature in enumerate(features_with_files, 1):
                     try:
+                        # Update progress to show current feature being processed
+                        feature_display = feature.key[:60] + "..." if len(feature.key) > 60 else feature.key
+                        progress.update(
+                            task,
+                            completed=completed_count,
+                            description=f"[cyan]Extracting contract from {feature_display}... ({idx}/{len(features_with_files)})",
+                        )
                         feature_key, openapi_spec = process_feature(feature)
                         completed_count += 1
-                        progress.update(task, completed=completed_count)
+                        progress.update(
+                            task,
+                            completed=completed_count,
+                            description=f"[cyan]Extracted contract from {feature_display} ({completed_count}/{len(features_with_files)})",
+                        )
                         if openapi_spec:
                             contract_ref = f"contracts/{feature_key}.openapi.yaml"
                             feature.contract = contract_ref
@@ -1024,8 +1035,12 @@ def _extract_contracts(
                             contracts_generated += 1
                     except Exception as e:
                         completed_count += 1
-                        progress.update(task, completed=completed_count)
-                        console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                        progress.update(
+                            task,
+                            completed=completed_count,
+                            description=f"[dim]⚠ Failed: {feature.key[:50]}... ({completed_count}/{len(features_with_files)})[/dim]",
+                        )
+                        console.print(f"[dim]⚠ Warning: Failed to process feature {feature.key}: {e}[/dim]")
                 # Sequential mode completion - keep progress bar visible with final state
                 progress.update(
                     task,
@@ -1044,20 +1059,37 @@ def _extract_contracts(
                 try:
                     future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
                     completed_count = 0
+                    total_features = len(features_with_files)
+                    pending_count = total_features
                     try:
                         for future in as_completed(future_to_feature):
                             try:
                                 feature_key, openapi_spec = future.result()
                                 completed_count += 1
-                                progress.update(task, completed=completed_count)
+                                pending_count = total_features - completed_count
+                                # Get the feature for display
+                                feature = feature_lookup.get(feature_key)
+                                feature_display = feature_key[:50] + "..." if len(feature_key) > 50 else feature_key
+
+                                # Update progress with current feature info and pending count
                                 if openapi_spec:
+                                    progress.update(
+                                        task,
+                                        completed=completed_count,
+                                        description=f"[cyan]Extracted contract from {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)",
+                                    )
                                     # O(1) lookup instead of O(n) search
-                                    feature = feature_lookup.get(feature_key)
                                     if feature:
                                         contract_ref = f"contracts/{feature_key}.openapi.yaml"
                                         feature.contract = contract_ref
                                         contracts_data[feature_key] = openapi_spec
                                         contracts_generated += 1
+                                else:
+                                    progress.update(
+                                        task,
+                                        completed=completed_count,
+                                        description=f"[dim]No contract for {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                    )
                             except KeyboardInterrupt:
                                 interrupted = True
                                 for f in future_to_feature:
@@ -1066,8 +1098,23 @@ def _extract_contracts(
                                 break
                             except Exception as e:
                                 completed_count += 1
-                                progress.update(task, completed=completed_count)
-                                console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                                pending_count = total_features - completed_count
+                                # Try to get feature_key from the future's associated feature
+                                feature_for_error = future_to_feature.get(future)
+                                feature_key_for_display = feature_for_error.key if feature_for_error else "unknown"
+                                feature_display = (
+                                    feature_key_for_display[:50] + "..."
+                                    if len(feature_key_for_display) > 50
+                                    else feature_key_for_display
+                                )
+                                progress.update(
+                                    task,
+                                    completed=completed_count,
+                                    description=f"[dim]⚠ Failed: {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                )
+                                console.print(
+                                    f"[dim]⚠ Warning: Failed to process feature {feature_key_for_display}: {e}[/dim]"
+                                )
                     except KeyboardInterrupt:
                         interrupted = True
                         for f in future_to_feature:
