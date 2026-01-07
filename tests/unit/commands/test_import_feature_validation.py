@@ -316,14 +316,16 @@ class TestValidateExistingFeatures:
         results = _validate_existing_features(mixed_plan_bundle, sample_repo_path)
 
         assert results["total_checked"] == 5
-        assert len(results["valid_features"]) == 1
-        assert results["valid_features"] == ["FEATURE-001"]
+        # FEATURE-001: Valid (has stories, source_tracking, files exist)
+        # FEATURE-005: Valid (has source_tracking, files exist, empty stories are allowed for newly discovered features)
+        assert len(results["valid_features"]) == 2
+        assert "FEATURE-001" in results["valid_features"]
+        assert "FEATURE-005" in results["valid_features"]
         assert len(results["orphaned_features"]) == 1
         assert results["orphaned_features"] == ["FEATURE-002"]
-        assert len(results["invalid_features"]) == 3  # FEATURE-003, FEATURE-004, FEATURE-005
-        assert "FEATURE-003" in results["invalid_features"]
+        assert len(results["invalid_features"]) == 2  # FEATURE-003, FEATURE-004
+        assert "FEATURE-003" in results["invalid_features"]  # Some files missing
         assert "FEATURE-004" in results["invalid_features"]  # No source tracking
-        assert "FEATURE-005" in results["invalid_features"]  # Empty stories
 
     def test_validate_feature_without_source_tracking(self, sample_repo_path: Path) -> None:
         """Test validation with feature that has no source tracking."""
@@ -397,10 +399,12 @@ class TestValidateExistingFeatures:
         results = _validate_existing_features(plan_bundle, sample_repo_path)
 
         assert results["total_checked"] == 1
-        assert len(results["valid_features"]) == 0
+        # Features without stories are now considered valid (they may be newly discovered)
+        # As long as they have source_tracking and files exist, they're valid
+        assert len(results["valid_features"]) == 1
+        assert results["valid_features"] == ["FEATURE-007"]
         assert len(results["orphaned_features"]) == 0
-        assert len(results["invalid_features"]) == 1
-        assert results["invalid_features"] == ["FEATURE-007"]
+        assert len(results["invalid_features"]) == 0
 
     def test_validate_feature_with_partial_files(self, sample_repo_path: Path) -> None:
         """Test validation with feature that has some existing and some missing files."""

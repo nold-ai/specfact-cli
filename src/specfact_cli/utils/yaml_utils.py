@@ -109,6 +109,8 @@ class YAMLUtils:
         YAML parsers interpret "Yes", "No", "True", "False", "On", "Off" as booleans
         unless they're quoted. This function ensures these values are quoted.
 
+        Optimized: early exit for simple types, avoids unnecessary recursion overhead.
+
         Args:
             data: Data structure to process
 
@@ -118,13 +120,30 @@ class YAMLUtils:
         # Boolean-like strings that YAML parsers interpret as booleans
         boolean_like_strings = {"yes", "no", "true", "false", "on", "off", "Yes", "No", "True", "False", "On", "Off"}
 
+        # Early exit for simple types (most common case)
+        if isinstance(data, str):
+            return DoubleQuotedScalarString(data) if data in boolean_like_strings else data
+        if not isinstance(data, (dict, list)):
+            return data
+
+        # Recursive processing for collections
         if isinstance(data, dict):
+            # Check if any values need quoting before creating new dict (optimization)
+            needs_processing = any(
+                (isinstance(v, str) and v in boolean_like_strings) or isinstance(v, (dict, list)) for v in data.values()
+            )
+            if not needs_processing:
+                return data
             return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
         if isinstance(data, list):
+            # Check if any items need quoting before creating new list (optimization)
+            needs_processing = any(
+                (isinstance(item, str) and item in boolean_like_strings) or isinstance(item, (dict, list))
+                for item in data
+            )
+            if not needs_processing:
+                return data
             return [self._quote_boolean_like_strings(item) for item in data]
-        if isinstance(data, str) and data in boolean_like_strings:
-            # Use DoubleQuotedScalarString to force quoting in YAML output
-            return DoubleQuotedScalarString(data)
         return data
 
     @beartype
