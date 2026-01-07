@@ -495,28 +495,71 @@ class ProjectBundle(BaseModel):
 
         # Save artifacts in parallel using ThreadPoolExecutor
         # In test mode, use fewer workers to avoid resource contention
+        # For large bundles (1000+ features), reduce workers to manage memory usage
+        # Memory optimization: Each worker keeps model_dump() copy + serialized content in memory
         if os.environ.get("TEST_MODE") == "true":
             max_workers = max(1, min(2, len(save_tasks)))  # Max 2 workers in test mode
         else:
-            max_workers = min(os.cpu_count() or 4, 8, len(save_tasks))  # Cap at 8 workers
+            cpu_count = os.cpu_count() or 4
+            # Reduce workers for large bundles to manage memory (4GB+ usage reported)
+            # With 2000+ features, 8 workers can use 4GB+ memory (each feature ~2MB serialized)
+            if num_features > 1000:
+                # For large bundles, use fewer workers to reduce peak memory
+                max_workers = min(cpu_count, 4, len(save_tasks))  # Cap at 4 workers for large bundles
+            else:
+                max_workers = min(cpu_count, 8, len(save_tasks))  # Cap at 8 workers for smaller bundles
         completed_count = 0
         checksums: dict[str, str] = {}  # Track checksums for manifest update
-        feature_indices: list[FeatureIndex] = []  # Track feature indices
+        # Pre-allocate feature_indices list to avoid repeated resizing (performance optimization)
+        # Use None as placeholder, will be replaced with actual FeatureIndex objects
+        num_features = len(self.features)
+        feature_indices: list[FeatureIndex | None] = [None] * num_features
+        # Pre-compute feature key to index mapping for O(1) lookup during result processing
+        feature_key_to_save_index: dict[str, int] = {}
+        for save_index, key in enumerate(self.features):
+            feature_key_to_save_index[key] = save_index
 
-        def save_artifact(
-            artifact_name: str, artifact_path: Path, data: dict[str, Any] | Feature
-        ) -> tuple[str, str]:
+        def save_artifact(artifact_name: str, artifact_path: Path, data: dict[str, Any] | Feature) -> tuple[str, str]:
             """Save a single artifact and return (name, checksum)."""
+            import hashlib
+
             # Handle Feature objects (call model_dump() in parallel) vs pre-dumped dicts
-            if isinstance(data, Feature):
-                # Feature object - serialize in parallel (avoids sequential bottleneck)
-                dump_data = data.model_dump()
+            # Feature object - serialize in parallel (avoids sequential bottleneck)
+            # Pre-serialized dict (for aspects like idea, business, product)
+            dump_data = data.model_dump() if isinstance(data, Feature) else data
+
+            # Compute checksum during serialization to avoid reading file back (memory optimization)
+            # This reduces memory usage significantly by avoiding duplicate file content in memory
+            hash_obj = hashlib.sha256()
+            from specfact_cli.utils.structured_io import StructuredFormat
+
+            path = Path(artifact_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fmt = StructuredFormat.from_path(path)
+
+            if fmt == StructuredFormat.JSON:
+                import json
+
+                content = json.dumps(dump_data, indent=2).encode("utf-8")
+                hash_obj.update(content)
+                path.write_bytes(content)
             else:
-                # Pre-serialized dict (for aspects like idea, business, product)
-                dump_data = data
-            dump_structured_file(dump_data, artifact_path)
-            # Compute checksum after file is written (static method)
-            checksum = ProjectBundle._compute_file_checksum(artifact_path)
+                # For YAML, serialize to string first, then hash and write
+                # This avoids reading file back for checksum computation
+                from specfact_cli.utils.structured_io import _get_yaml_instance
+
+                yaml_instance = _get_yaml_instance()
+                # Quote boolean-like strings to prevent YAML parsing issues
+                quoted_data = yaml_instance._quote_boolean_like_strings(dump_data)
+                # Serialize to string, then hash and write
+                yaml_content = yaml_instance.dump_string(quoted_data)
+                yaml_bytes = yaml_content.encode("utf-8")
+                hash_obj.update(yaml_bytes)
+                path.write_bytes(yaml_bytes)
+
+            checksum = hash_obj.hexdigest()
+            # Clear large objects to help GC (memory optimization)
+            del dump_data
             return (artifact_name, checksum)
 
         if save_tasks:
@@ -542,11 +585,13 @@ class ProjectBundle(BaseModel):
                             if progress_callback:
                                 progress_callback(completed_count, total_artifacts, artifact_name)
 
-                            # Build feature indices for features
+                            # Build feature indices for features (optimized with pre-allocated list)
                             if artifact_name.startswith("features/"):
                                 feature_file = artifact_name.split("/", 1)[1]
                                 key = feature_file.replace(".yaml", "")
-                                if key in self.features:
+                                # Use pre-computed mapping for O(1) lookup (avoids dictionary lookup in self.features)
+                                if key in feature_key_to_save_index:
+                                    save_idx = feature_key_to_save_index[key]
                                     feature = self.features[key]
                                     feature_index = FeatureIndex(
                                         key=key,
@@ -559,7 +604,8 @@ class ProjectBundle(BaseModel):
                                         contract=feature.contract,  # Link contract from feature
                                         checksum=checksum,
                                     )
-                                    feature_indices.append(feature_index)
+                                    # Direct assignment to pre-allocated list (avoids list.append() resizing)
+                                    feature_indices[save_idx] = feature_index
                         except KeyboardInterrupt:
                             interrupted = True
                             for f in future_to_task:
@@ -592,7 +638,8 @@ class ProjectBundle(BaseModel):
 
         # Update manifest with checksums and feature indices
         self.manifest.checksums.files.update(checksums)
-        self.manifest.features = feature_indices
+        # Filter out None placeholders (shouldn't happen, but safety check)
+        self.manifest.features = [idx for idx in feature_indices if idx is not None]
 
         # Save manifest (last, after all checksums are computed)
         if progress_callback:
