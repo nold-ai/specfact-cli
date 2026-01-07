@@ -110,6 +110,8 @@ class YAMLUtils:
         unless they're quoted. This function ensures these values are quoted.
 
         Optimized: early exit for simple types, avoids unnecessary recursion overhead.
+        For large structures (>100 items), processes directly without pre-check to avoid
+        double traversal overhead.
 
         Args:
             data: Data structure to process
@@ -128,7 +130,11 @@ class YAMLUtils:
 
         # Recursive processing for collections
         if isinstance(data, dict):
-            # Check if any values need quoting before creating new dict (optimization)
+            # For large dicts, process directly to avoid double traversal (check + process)
+            # The overhead of checking all items is similar to processing them
+            if len(data) > 100:
+                return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
+            # For smaller dicts, check first to avoid creating new dict if not needed
             needs_processing = any(
                 (isinstance(v, str) and v in boolean_like_strings) or isinstance(v, (dict, list)) for v in data.values()
             )
@@ -136,7 +142,11 @@ class YAMLUtils:
                 return data
             return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
         if isinstance(data, list):
-            # Check if any items need quoting before creating new list (optimization)
+            # For large lists, process directly to avoid double traversal (check + process)
+            # The overhead of checking all items is similar to processing them
+            if len(data) > 100:
+                return [self._quote_boolean_like_strings(item) for item in data]
+            # For smaller lists, check first to avoid creating new list if not needed
             needs_processing = any(
                 (isinstance(item, str) and item in boolean_like_strings) or isinstance(item, (dict, list))
                 for item in data

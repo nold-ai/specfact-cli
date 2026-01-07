@@ -454,7 +454,7 @@ def _extract_relationships_and_graph(
     plan_bundle: PlanBundle | None,
     should_regenerate_relationships: bool,
     should_regenerate_graph: bool,
-    include_tests: bool = True,
+    include_tests: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Extract relationships and graph dependencies."""
     relationships: dict[str, Any] = {}
@@ -533,15 +533,17 @@ def _extract_relationships_and_graph(
                 python_files = [f for f in python_files if entry_point in f.parts]
 
             # Filter files based on --include-tests/--exclude-tests flag
-            # Default: Include test files for comprehensive analysis
-            # --exclude-tests: Skip test files for faster processing (~30-50% speedup)
-            # Rationale for excluding tests:
+            # Default: Exclude test files (they're validation artifacts, not specifications)
+            # --include-tests: Include test files in dependency graph (only if needed)
+            # Rationale for excluding tests by default:
             # - Test files are consumers of production code (not producers)
             # - Test files import production code, but production code doesn't import tests
             # - Interfaces and routes are defined in production code, not tests
             # - Dependency graph flows from production code, so skipping tests has minimal impact
+            # - Test files are never extracted as features (they validate code, they don't define it)
             if not include_tests:
-                # Exclude test files when --exclude-tests is specified
+                # Exclude test files when --exclude-tests is specified (default)
+                # Test files are validation artifacts, not specifications
                 python_files = [
                     f
                     for f in python_files
@@ -550,6 +552,7 @@ def _extract_relationships_and_graph(
                         for skip in [
                             "/test_",
                             "/tests/",
+                            "/test/",  # Handle singular "test/" directory (e.g., SQLAlchemy)
                             "/vendor/",
                             "/.venv/",
                             "/venv/",
@@ -557,6 +560,8 @@ def _extract_relationships_and_graph(
                             "/__pycache__/",
                         ]
                     )
+                    and not f.name.startswith("test_")  # Exclude test_*.py files
+                    and not f.name.endswith("_test.py")  # Exclude *_test.py files
                 ]
             else:
                 # Default: Include test files, but still filter vendor/venv files
@@ -2021,9 +2026,9 @@ def from_code(
         help="Force full regeneration of all artifacts, ignoring incremental changes. Default: False",
     ),
     include_tests: bool = typer.Option(
-        True,
+        False,
         "--include-tests/--exclude-tests",
-        help="Include/exclude test files in relationship mapping. Default: --include-tests (test files are included for comprehensive analysis). Use --exclude-tests to optimize speed.",
+        help="Include/exclude test files in relationship mapping and dependency graph. Default: --exclude-tests (test files are excluded by default). Test files are never extracted as features (they're validation artifacts, not specifications). Use --include-tests only if you need test files in the dependency graph.",
     ),
     revalidate_features: bool = typer.Option(
         False,
@@ -2060,7 +2065,7 @@ def from_code(
     **Parameter Groups:**
     - **Target/Input**: bundle (required argument), --repo, --entry-point, --enrichment
     - **Output/Results**: --report
-    - **Behavior/Options**: --shadow-only, --enrich-for-speckit, --force, --include-tests/--exclude-tests
+    - **Behavior/Options**: --shadow-only, --enrich-for-speckit, --force, --include-tests/--exclude-tests (default: exclude)
     - **Advanced/Configuration**: --confidence, --key-format
 
     **Examples:**
@@ -2068,7 +2073,8 @@ def from_code(
         specfact import from-code auth-module --repo . --enrichment enrichment-report.md
         specfact import from-code my-project --repo . --confidence 0.7 --shadow-only
         specfact import from-code my-project --repo . --force  # Force full regeneration
-        specfact import from-code my-project --repo . --exclude-tests  # Exclude test files for faster processing
+        specfact import from-code my-project --repo .  # Test files excluded by default
+        specfact import from-code my-project --repo . --include-tests  # Include test files in dependency graph
     """
     from specfact_cli.cli import get_current_mode
     from specfact_cli.modes import get_router
