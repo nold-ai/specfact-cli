@@ -284,9 +284,11 @@ class OpenAPIExtractor:
             file_path: Path to Python file
             openapi_spec: OpenAPI spec dictionary to update
         """
-        # Early exit optimization: Skip files without API endpoints
-        if not self._has_api_endpoints(file_path):
-            return
+        # Note: Early exit optimization disabled - too aggressive for class-based APIs
+        # The extractor also processes class-based APIs and interfaces, not just decorator-based APIs
+        # Early exit would skip these valid cases. AST caching provides sufficient performance benefit.
+        # if not self._has_api_endpoints(file_path):
+        #     return
 
         # Use cached AST or parse and cache
         tree = self._get_or_parse_file(file_path)

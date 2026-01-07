@@ -809,8 +809,8 @@ def get_users():
         assert extractor._ast_cache[shared_file] is cached_ast
 
     @beartype
-    def test_early_exit_for_non_api_files(self, tmp_path: Path) -> None:
-        """Test that early exit optimization skips non-API files without deep AST analysis."""
+    def test_early_exit_detection_method(self, tmp_path: Path) -> None:
+        """Test that early exit detection method works (though currently disabled in extraction)."""
         # Create a non-API file (model/utility without API endpoints)
         model_file = tmp_path / "models.py"
         model_file.write_text(
@@ -827,21 +827,21 @@ class User(BaseModel):
         # Create an API file for comparison
         api_file = tmp_path / "api.py"
         api_file.write_text(
-            '''
+            """
 from fastapi import APIRouter
 
 router = APIRouter()
 
 @router.get("/users")
 def get_users():
-    """Get users."""
+    \"\"\"Get users.\"\"\"
     pass
-'''
+"""
         )
 
         extractor = OpenAPIExtractor(tmp_path)
 
-        # Test early exit for non-API file
+        # Test early exit detection for non-API file
         has_endpoints = extractor._has_api_endpoints(model_file)
         assert has_endpoints is False
 
@@ -849,7 +849,9 @@ def get_users():
         has_endpoints_api = extractor._has_api_endpoints(api_file)
         assert has_endpoints_api is True
 
-        # Verify that non-API file is skipped during extraction
+        # Note: Early exit is currently disabled in _extract_endpoints_from_file
+        # because it's too aggressive - it skips class-based APIs and interfaces
+        # Both files will be processed, but the detection method still works
         feature = Feature(
             key="FEATURE-TEST",
             title="Test Feature",
@@ -871,11 +873,8 @@ def get_users():
         # API file should be processed (has endpoints)
         assert "/users" in result["paths"]
 
-        # Model file should be skipped (no endpoints, early exit)
-        # Cache should not contain model file AST (was skipped before parsing)
-        # But if it does, it means early exit didn't work - verify it's not in cache
-        # Actually, early exit happens before parsing, so model_file shouldn't be in cache
-        # unless it was processed for some other reason
+        # Model file will also be processed (early exit disabled)
+        # but won't generate endpoints since it has no API patterns
 
     @beartype
     def test_cache_invalidation_on_file_change(self, tmp_path: Path) -> None:
