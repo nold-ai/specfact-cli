@@ -9,6 +9,43 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.23.1] - 2026-01-07
+
+### Fixed (0.23.1)
+
+- **Import Command Bug Fixes**: Fixed critical bugs in enrichment and contract extraction workflow
+  - **Unhashable Type Error**: Fixed `TypeError: unhashable type: 'Feature'` when applying enrichment reports
+    - Changed `dict[Feature, list[Path]]` to `dict[str, list[Path]]` using feature keys instead of Feature objects
+    - Added `feature_objects: dict[str, Feature]` mapping to maintain Feature object references
+    - Prevents runtime errors during contract extraction when enrichment adds new features
+  - **Enrichment Performance Regression**: Fixed severe performance issue where enrichment forced full contract regeneration
+    - Removed `or enrichment` condition from `_check_incremental_changes` that forced full regeneration
+    - Enrichment now only triggers contract extraction for new features (without contracts)
+    - Existing contracts are not regenerated when only metadata changes (confidence adjustments, business context)
+    - Performance improvement: enrichment with unchanged files now completes in seconds instead of 80+ minutes for large bundles
+  - **Contract Extraction Order**: Fixed contract extraction to run after enrichment application
+    - Ensures new features from enrichment reports are included in contract extraction
+    - New features without contracts now correctly get contracts extracted
+
+### Added (0.23.1)
+
+- **Comprehensive Test Coverage**: Added extensive test suite for import and enrichment bugs
+  - **Integration Tests**: New `test_import_enrichment_contracts.py` with 5 test cases (552 lines)
+    - Tests enrichment not forcing full contract regeneration
+    - Tests new features from enrichment getting contracts extracted
+    - Tests incremental contract extraction with enrichment
+    - Tests feature objects not used as dictionary keys
+    - Tests performance regression prevention
+  - **Unit Tests**: New `test_import_contract_extraction.py` with 5 test cases (262 lines)
+    - Tests Feature objects not being hashable (regression test)
+    - Tests contract extraction using feature keys, not objects
+    - Tests incremental contract regeneration logic
+    - Tests enrichment not forcing contract regeneration
+    - Tests new features from enrichment getting contracts
+  - **Updated Existing Tests**: Enhanced `test_import_command.py` with enrichment regression test
+
+---
+
 ## [0.23.0] - 2026-01-07
 
 ### Added (0.23.0)

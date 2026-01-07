@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -93,8 +94,10 @@ def _check_incremental_changes(
     if force:
         console.print("[yellow]⚠ Force mode enabled - regenerating all artifacts[/yellow]\n")
         return None  # None means regenerate everything
-    if not bundle_dir.exists() or enrichment:
-        return None
+    if not bundle_dir.exists():
+        return None  # No bundle exists, regenerate everything
+    # Note: enrichment doesn't force full regeneration - it only adds/updates features
+    # Contracts should only be regenerated if source files changed, not just because enrichment was applied
 
     from specfact_cli.utils.incremental_check import check_incremental_changes
 
@@ -105,12 +108,73 @@ def _check_incremental_changes(
             console=console,
             **progress_kwargs,
         ) as progress:
-            task = progress.add_task("[cyan]Checking for changes...", total=None)
-            progress.update(task, description="[cyan]Loading manifest and checking file changes...")
+            # Load manifest first to get feature count for determinate progress
+            manifest_path = bundle_dir / "bundle.manifest.yaml"
+            num_features = 0
+            total_ops = 100  # Default estimate for determinate progress
 
-        incremental_changes = check_incremental_changes(bundle_dir, repo, features=None)
+            if manifest_path.exists():
+                try:
+                    from specfact_cli.models.project import BundleManifest
+                    from specfact_cli.utils.structured_io import load_structured_file
 
-        if not any(incremental_changes.values()):
+                    manifest_data = load_structured_file(manifest_path)
+                    manifest = BundleManifest.model_validate(manifest_data)
+                    num_features = len(manifest.features)
+
+                    # Estimate total operations: manifest (1) + loading features (num_features) + file checks (num_features * ~2 avg files)
+                    # Use a reasonable estimate for determinate progress
+                    estimated_file_checks = num_features * 2 if num_features > 0 else 10
+                    total_ops = max(1 + num_features + estimated_file_checks, 10)  # Minimum 10 for visibility
+                except Exception:
+                    # If manifest load fails, use default estimate
+                    pass
+
+            # Create task with estimated total for determinate progress bar
+            task = progress.add_task("[cyan]Loading manifest and checking file changes...", total=total_ops)
+
+            # Create progress callback to update the progress bar
+            def update_progress(current: int, total: int, message: str) -> None:
+                """Update progress bar with current status."""
+                # Always update total when provided (we get better estimates as we progress)
+                # The total from incremental_check may be more accurate than our initial estimate
+                current_total = progress.tasks[task].total
+                if current_total is None:
+                    # No total set yet, use the provided one
+                    progress.update(task, total=total)
+                elif total != current_total:
+                    # Total changed, update it (this handles both increases and decreases)
+                    # We trust the incremental_check calculation as it has more accurate info
+                    progress.update(task, total=total)
+                # Always update completed and description
+                progress.update(task, completed=current, description=f"[cyan]{message}[/cyan]")
+
+            # Call check_incremental_changes with progress callback
+            incremental_changes = check_incremental_changes(
+                bundle_dir, repo, features=None, progress_callback=update_progress
+            )
+
+            # Update progress to completion
+            task_info = progress.tasks[task]
+            final_total = task_info.total if task_info.total and task_info.total > 0 else total_ops
+            progress.update(
+                task,
+                completed=final_total,
+                total=final_total,
+                description="[green]✓[/green] Change check complete",
+            )
+            # Brief pause to show completion
+            time.sleep(0.1)
+
+        # If enrichment is provided, we need to apply it even if no source files changed
+        # Mark bundle as needing regeneration to ensure enrichment is applied
+        if enrichment and incremental_changes and not any(incremental_changes.values()):
+            # Enrichment provided but no source changes - still need to apply enrichment
+            incremental_changes["bundle"] = True  # Force bundle regeneration to apply enrichment
+            console.print(f"[green]✓[/green] Project bundle already exists: {bundle_dir}")
+            console.print("[dim]No source file changes detected, but enrichment will be applied[/dim]")
+        elif not any(incremental_changes.values()):
+            # No changes and no enrichment - can skip everything
             console.print(f"[green]✓[/green] Project bundle already exists: {bundle_dir}")
             console.print("[dim]No changes detected - all artifacts are up-to-date[/dim]")
             console.print("[dim]Skipping regeneration of relationships, contracts, graph, and enrichment context[/dim]")
@@ -590,6 +654,8 @@ def _extract_relationships_and_graph(
         console=console,
         **progress_kwargs,
     ) as progress:
+        import time
+
         # Step 1: Analyze relationships
         relationships_task = progress.add_task(
             f"[cyan]Analyzing relationships in {len(python_files)} files...",
@@ -610,6 +676,10 @@ def _extract_relationships_and_graph(
             completed=len(python_files),
             description=f"[green]✓[/green] Mapped {len(relationships['imports'])} files with relationships",
         )
+        # Keep task visible briefly, then print completion and remove
+        time.sleep(0.1)  # Brief pause to show completion
+        console.print(f"[green]✓[/green] Relationship analysis complete: {len(relationships['imports'])} files mapped")
+        console.print()  # Add newline for clarity
         progress.remove_task(relationships_task)
 
     # Graph analysis is optional and can be slow - only run if explicitly needed
@@ -642,6 +712,14 @@ def _extract_relationships_and_graph(
                     completed=len(python_files) * 2,
                     description=f"[green]✓[/green] Built dependency graph: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies",
                 )
+                # Keep task visible briefly, then print completion and remove
+                import time
+
+                time.sleep(0.1)  # Brief pause to show completion
+                console.print(
+                    f"[green]✓[/green] Dependency graph complete: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies"
+                )
+                console.print()  # Add newline for clarity
             progress.remove_task(graph_task)
             relationships["dependency_graph"] = graph_summary
             relationships["call_graphs"] = graph_analyzer.call_graphs
@@ -657,6 +735,7 @@ def _extract_contracts(
     plan_bundle: PlanBundle,
     should_regenerate_contracts: bool,
     record_event: Any,
+    force: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Extract OpenAPI contracts from features."""
     import os
@@ -784,10 +863,72 @@ def _extract_contracts(
     # Extract contracts if needed
     test_converter = OpenAPITestConverter(repo)
     if should_regenerate_contracts:
-        # Filter features that need contract regeneration (check file hashes)
-        features_with_files: list[Feature] = []
-        for f in plan_bundle.features:
-            if f.source_tracking and f.source_tracking.implementation_files:
+        # When force=True, skip hash checking and process all features with source files
+        if force:
+            # Force mode: process all features with implementation files
+            features_with_files = [
+                f for f in plan_bundle.features if f.source_tracking and f.source_tracking.implementation_files
+            ]
+        else:
+            # Filter features that need contract regeneration (check file hashes)
+            # Pre-compute all file hashes in parallel to avoid redundant I/O
+            import os
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            # Collect all unique files that need hash checking
+            files_to_check: set[Path] = set()
+            feature_to_files: dict[str, list[Path]] = {}  # Use feature key (str) instead of Feature object
+            feature_objects: dict[str, Feature] = {}  # Keep reference to Feature objects
+
+            for f in plan_bundle.features:
+                if f.source_tracking and f.source_tracking.implementation_files:
+                    feature_files: list[Path] = []
+                    for impl_file in f.source_tracking.implementation_files:
+                        file_path = repo / impl_file
+                        if file_path.exists():
+                            files_to_check.add(file_path)
+                            feature_files.append(file_path)
+                    if feature_files:
+                        feature_to_files[f.key] = feature_files
+                        feature_objects[f.key] = f
+
+            # Pre-compute all file hashes in parallel (batch operation)
+            current_hashes: dict[Path, str] = {}
+            if files_to_check:
+                is_test_mode = os.environ.get("TEST_MODE") == "true"
+
+                def compute_file_hash(file_path: Path) -> tuple[Path, str | None]:
+                    """Compute hash for a single file (thread-safe)."""
+                    try:
+                        import hashlib
+
+                        return (file_path, hashlib.sha256(file_path.read_bytes()).hexdigest())
+                    except Exception:
+                        return (file_path, None)
+
+                if is_test_mode:
+                    # Sequential in test mode
+                    for file_path in files_to_check:
+                        _, hash_value = compute_file_hash(file_path)
+                        if hash_value:
+                            current_hashes[file_path] = hash_value
+                else:
+                    # Parallel in production mode
+                    max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(files_to_check)))
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        futures = {executor.submit(compute_file_hash, fp): fp for fp in files_to_check}
+                        for future in as_completed(futures):
+                            try:
+                                file_path, hash_value = future.result()
+                                if hash_value:
+                                    current_hashes[file_path] = hash_value
+                            except Exception:
+                                pass
+
+            # Now check features using pre-computed hashes (no file I/O)
+            features_with_files = []
+            for feature_key, feature_files in feature_to_files.items():
+                f = feature_objects[feature_key]
                 # Check if contract needs regeneration (file changed or contract missing)
                 needs_regeneration = False
                 if not f.contract:
@@ -798,16 +939,22 @@ def _extract_contracts(
                     if not contract_path.exists():
                         needs_regeneration = True
                     else:
-                        # Check if any implementation file changed
-                        for impl_file in f.source_tracking.implementation_files:
-                            file_path = repo / impl_file
-                            if file_path.exists() and f.source_tracking.has_changed(file_path):
+                        # Check if any implementation file changed using pre-computed hashes
+                        if f.source_tracking:
+                            for file_path in feature_files:
+                                if file_path in current_hashes:
+                                    stored_hash = f.source_tracking.file_hashes.get(str(file_path))
+                                    if stored_hash != current_hashes[file_path]:
+                                        needs_regeneration = True
+                                        break
+                            else:
+                                # File exists but hash computation failed, assume changed
                                 needs_regeneration = True
                                 break
                 if needs_regeneration:
                     features_with_files.append(f)
     else:
-        features_with_files = []
+        features_with_files: list[Feature] = []
 
     if features_with_files and should_regenerate_contracts:
         import os
@@ -887,6 +1034,18 @@ def _extract_contracts(
                         completed_count += 1
                         progress.update(task, completed=completed_count)
                         console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                # Sequential mode completion
+                progress.update(
+                    task,
+                    completed=len(features_with_files),
+                    description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contracts generated",
+                )
+                # Brief pause to show completion, then print and add newline
+                time.sleep(0.1)
+                console.print(
+                    f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)"
+                )
+                console.print()  # Add newline for clarity
             else:
                 # Create feature lookup dictionary for O(1) access instead of O(n) search
                 feature_lookup: dict[str, Feature] = {f.key: f for f in features_with_files}
@@ -933,6 +1092,18 @@ def _extract_contracts(
                 finally:
                     if not interrupted:
                         executor.shutdown(wait=True)
+                        # Update progress to show completion, then print message
+                        progress.update(
+                            task,
+                            completed=len(features_with_files),
+                            description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contracts generated",
+                        )
+                        # Brief pause to show completion, then print and add newline
+                        time.sleep(0.1)
+                        console.print(
+                            f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)"
+                        )
+                        console.print()  # Add newline for clarity
                     else:
                         executor.shutdown(wait=False)
 
@@ -2291,8 +2462,14 @@ def from_code(
 
             if plan_bundle is None:
                 # Need to run full codebase analysis (either no bundle exists, or features need regeneration)
+                # If enrichment is provided, try to load existing bundle first (enrichment needs existing bundle)
                 if enrichment:
                     plan_bundle = _load_existing_bundle(bundle_dir)
+                    if plan_bundle is None:
+                        console.print(
+                            "[bold red]✗ Cannot apply enrichment: No existing bundle found. Run import without --enrichment first.[/bold red]"
+                        )
+                        raise typer.Exit(1)
 
                 if plan_bundle is None:
                     # Phase 4.9 & 4.10: Track codebase analysis performance
@@ -2341,6 +2518,7 @@ def from_code(
 
             # Enhanced Analysis Phase: Extract relationships, contracts, and graph dependencies
             # Check if we need to regenerate these artifacts
+            # Note: enrichment doesn't force full regeneration - only new features need contracts
             should_regenerate_relationships = incremental_changes is None or incremental_changes.get(
                 "relationships", True
             )
@@ -2349,6 +2527,14 @@ def from_code(
             should_regenerate_enrichment = incremental_changes is None or incremental_changes.get(
                 "enrichment_context", True
             )
+            # If enrichment is provided, ensure bundle is regenerated to apply it
+            # This ensures enrichment is applied even if no source files changed
+            if enrichment and incremental_changes:
+                # Force bundle regeneration to apply enrichment
+                incremental_changes["bundle"] = True
+
+            # Track features before enrichment to detect new ones that need contracts
+            features_before_enrichment = {f.key for f in plan_bundle.features} if enrichment else set()
 
             # Phase 4.10: Track relationship extraction performance
             with perf_monitor.track("extract_relationships_and_graph"):
@@ -2363,10 +2549,30 @@ def from_code(
                     include_tests,
                 )
 
+            # Apply enrichment BEFORE contract extraction so new features get contracts
+            if enrichment:
+                with perf_monitor.track("apply_enrichment"):
+                    plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
+
+                # After enrichment, check if new features were added that need contracts
+                features_after_enrichment = {f.key for f in plan_bundle.features}
+                new_features_added = features_after_enrichment - features_before_enrichment
+
+                # If new features were added, we need to extract contracts for them
+                # Mark contracts for regeneration if new features were added
+                if new_features_added:
+                    console.print(
+                        f"[dim]Note: {len(new_features_added)} new feature(s) from enrichment will get contracts extracted[/dim]"
+                    )
+                    # New features need contracts, so ensure contract extraction runs
+                    if incremental_changes and not incremental_changes.get("contracts", False):
+                        # Only regenerate contracts if we have new features, not all contracts
+                        should_regenerate_contracts = True
+
             # Phase 4.10: Track contract extraction performance
             with perf_monitor.track("extract_contracts"):
                 contracts_data = _extract_contracts(
-                    repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
+                    repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event, force=force
                 )
 
             # Phase 4.10: Track enrichment context building performance
@@ -2380,11 +2586,6 @@ def from_code(
                     should_regenerate_enrichment,
                     record_event,
                 )
-
-            # Apply enrichment if provided
-            if enrichment:
-                with perf_monitor.track("apply_enrichment"):
-                    plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
 
             # Save bundle if needed
             with perf_monitor.track("save_bundle"):
