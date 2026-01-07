@@ -282,10 +282,16 @@ class ProjectBundle(BaseModel):
 
         # Load artifacts in parallel using ThreadPoolExecutor
         # In test mode, use fewer workers to avoid resource contention
+        # Note: YAML parsing and Pydantic validation are CPU-bound, not I/O-bound
+        # Too many workers can cause contention and slowdown due to GIL and memory pressure
         if os.environ.get("TEST_MODE") == "true":
             max_workers = max(1, min(2, len(load_tasks)))  # Max 2 workers in test mode
         else:
-            max_workers = min(os.cpu_count() or 4, 8, len(load_tasks))  # Cap at 8 workers
+            # Optimal worker count balances parallelism with overhead
+            # For CPU-bound tasks (YAML parsing + Pydantic validation), more workers != faster
+            # Use CPU count as baseline, but cap at 8 to avoid contention
+            cpu_count = os.cpu_count() or 4
+            max_workers = min(cpu_count, 8, len(load_tasks))
         completed_count = current
 
         def load_artifact(artifact_name: str, artifact_path: Path, validator: Callable) -> tuple[str, Any]:
@@ -445,7 +451,9 @@ class ProjectBundle(BaseModel):
         self.manifest.bundle["format"] = "directory-based"
 
         # Prepare tasks for parallel saving (all artifacts except manifest)
-        save_tasks: list[tuple[str, Path, dict[str, Any]]] = []
+        # Note: Features are passed as Feature objects (model_dump() called in parallel)
+        # Aspects (idea, business, product) are pre-dumped as dicts
+        save_tasks: list[tuple[str, Path, dict[str, Any] | Feature]] = []
 
         # Add aspect saving tasks
         if self.idea:
@@ -469,6 +477,9 @@ class ProjectBundle(BaseModel):
         if not isinstance(self.features, dict):
             raise ValueError(f"Expected features to be dict, got {type(self.features)}")
 
+        # Pre-compute feature paths (fast operation)
+        # Note: model_dump() is called inside parallel task to avoid sequential bottleneck
+        # This prevents sequential serialization of 500+ features before parallel processing starts
         for key, feature in self.features.items():
             # Ensure key is a string, not a FeatureIndex or other object
             if not isinstance(key, str):
@@ -479,7 +490,8 @@ class ProjectBundle(BaseModel):
 
             feature_file = f"{key}.yaml"
             feature_path = features_dir / feature_file
-            save_tasks.append((f"features/{feature_file}", feature_path, feature.model_dump()))
+            # Pass Feature object instead of dict - model_dump() will be called in parallel
+            save_tasks.append((f"features/{feature_file}", feature_path, feature))
 
         # Save artifacts in parallel using ThreadPoolExecutor
         # In test mode, use fewer workers to avoid resource contention
@@ -491,9 +503,18 @@ class ProjectBundle(BaseModel):
         checksums: dict[str, str] = {}  # Track checksums for manifest update
         feature_indices: list[FeatureIndex] = []  # Track feature indices
 
-        def save_artifact(artifact_name: str, artifact_path: Path, data: dict[str, Any]) -> tuple[str, str]:
+        def save_artifact(
+            artifact_name: str, artifact_path: Path, data: dict[str, Any] | Feature
+        ) -> tuple[str, str]:
             """Save a single artifact and return (name, checksum)."""
-            dump_structured_file(data, artifact_path)
+            # Handle Feature objects (call model_dump() in parallel) vs pre-dumped dicts
+            if isinstance(data, Feature):
+                # Feature object - serialize in parallel (avoids sequential bottleneck)
+                dump_data = data.model_dump()
+            else:
+                # Pre-serialized dict (for aspects like idea, business, product)
+                dump_data = data
+            dump_structured_file(dump_data, artifact_path)
             # Compute checksum after file is written (static method)
             checksum = ProjectBundle._compute_file_checksum(artifact_path)
             return (artifact_name, checksum)
