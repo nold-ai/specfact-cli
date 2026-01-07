@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>The Journey: From Spec-Kit to SpecFact | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="The Journey: From Spec-Kit to SpecFact" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/guides/speckit-journey/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/guides/speckit-journey/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="The Journey: From Spec-Kit to SpecFact" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"The Journey: From Spec-Kit to SpecFact","url":"https://nold-ai.github.io/specfact-cli/guides/speckit-journey/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="the-journey-from-spec-kit-to-specfact">The Journey: From Spec-Kit to SpecFact</h1>
+
+<blockquote>
+  <p><strong>Spec-Kit and SpecFact are complementary, not competitive.</strong><br />
+<strong>Primary Use Case</strong>: SpecFact CLI for brownfield code modernization<br />
+<strong>Secondary Use Case</strong>: Add SpecFact enforcement to Spec-Kit’s interactive authoring for new features</p>
+</blockquote>
+
+<hr />
+
+<h2 id="-why-level-up">🎯 Why Level Up?</h2>
+
+<h3 id="what-spec-kit-does-great"><strong>What Spec-Kit Does Great</strong></h3>
+
+<p>Spec-Kit is <strong>excellent</strong> for:</p>
+
+<ul>
+  <li>✅ <strong>Interactive Specification</strong> - Slash commands (<code class="language-plaintext highlighter-rouge">/speckit.specify</code>, <code class="language-plaintext highlighter-rouge">/speckit.plan</code>) with AI assistance</li>
+  <li>✅ <strong>Rapid Prototyping</strong> - Quick spec → plan → tasks → code workflow for <strong>NEW features</strong></li>
+  <li>✅ <strong>Learning &amp; Exploration</strong> - Great for understanding state machines, contracts, requirements</li>
+  <li>✅ <strong>IDE Integration</strong> - CoPilot chat makes it accessible to less technical developers</li>
+  <li>✅ <strong>Constitution &amp; Planning</strong> - Add constitution, plans, and feature breakdowns for new features</li>
+  <li>✅ <strong>Single-Developer Projects</strong> - Perfect for personal projects and learning</li>
+</ul>
+
+<p><strong>Note</strong>: Spec-Kit excels at working with <strong>new features</strong> - you can add constitution, create plans, and break down features for things you’re building from scratch.</p>
+
+<h3 id="what-spec-kit-is-designed-for-vs-specfact-cli"><strong>What Spec-Kit Is Designed For (vs. SpecFact CLI)</strong></h3>
+
+<p>Spec-Kit <strong>is designed primarily for</strong>:</p>
+
+<ul>
+  <li>✅ <strong>Greenfield Development</strong> - Interactive authoring of new features via slash commands</li>
+  <li>✅ <strong>Specification-First Workflow</strong> - Natural language → spec → plan → tasks → code</li>
+  <li>✅ <strong>Interactive AI Assistance</strong> - CoPilot chat-based specification and planning</li>
+  <li>✅ <strong>New Feature Planning</strong> - Add constitution, plans, and feature breakdowns for new features</li>
+</ul>
+
+<p>Spec-Kit <strong>is not designed primarily for</strong> (but SpecFact CLI provides):</p>
+
+<ul>
+  <li>⚠️ <strong>Work with Existing Code</strong> - <strong>Not designed primarily for analyzing existing repositories or iterating on existing features</strong>
+    <ul>
+      <li>Spec-Kit allows you to add constitution, plans, and feature breakdowns for <strong>NEW features</strong> via interactive slash commands</li>
+      <li>Current design focuses on greenfield development and interactive authoring</li>
+      <li><strong>This is the primary area where SpecFact CLI complements Spec-Kit</strong> 🎯</li>
+    </ul>
+  </li>
+  <li>⚠️ <strong>Brownfield Analysis</strong> - Not designed primarily for reverse-engineering from existing code</li>
+  <li>⚠️ <strong>Automated Enforcement</strong> - Not designed for CI/CD gates or automated contract validation</li>
+  <li>⚠️ <strong>Team Collaboration</strong> - Not designed for shared plans or deviation detection between developers</li>
+  <li>⚠️ <strong>Production Quality Gates</strong> - Not designed for proof bundles or budget-based enforcement</li>
+  <li>⚠️ <strong>Multi-Repository Sync</strong> - Not designed for cross-repo consistency validation</li>
+  <li>⚠️ <strong>Deterministic Execution</strong> - Designed for interactive AI interactions rather than scriptable automation</li>
+</ul>
+
+<h3 id="when-to-level-up"><strong>When to Level Up</strong></h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Need</th>
+      <th>Spec-Kit Solution</th>
+      <th>SpecFact Solution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Work with existing code</strong> ⭐ <strong>PRIMARY</strong></td>
+      <td>⚠️ <strong>Not designed for</strong> - Focuses on new feature authoring</td>
+      <td>✅ <strong><code class="language-plaintext highlighter-rouge">import from-code</code></strong> ⭐ - Reverse-engineer existing code to plans (PRIMARY use case)</td>
+    </tr>
+    <tr>
+      <td><strong>Iterate on existing features</strong> ⭐ <strong>PRIMARY</strong></td>
+      <td>⚠️ <strong>Not designed for</strong> - Focuses on new feature planning</td>
+      <td>✅ <strong>Auto-derive plans</strong> ⭐ - Understand existing features from code (PRIMARY use case)</td>
+    </tr>
+    <tr>
+      <td><strong>Brownfield projects</strong> ⭐ <strong>PRIMARY</strong></td>
+      <td>⚠️ <strong>Not designed for</strong> - Designed primarily for greenfield</td>
+      <td>✅ <strong>Brownfield analysis</strong> ⭐ - Work with existing projects (PRIMARY use case)</td>
+    </tr>
+    <tr>
+      <td><strong>Team collaboration</strong></td>
+      <td>Manual sharing, no sync</td>
+      <td><strong>Shared structured plans</strong> (automated bidirectional sync for team collaboration), automated deviation detection</td>
+    </tr>
+    <tr>
+      <td><strong>CI/CD integration</strong></td>
+      <td>Manual validation</td>
+      <td>Automated gates, proof bundles</td>
+    </tr>
+    <tr>
+      <td><strong>Production deployment</strong></td>
+      <td>Manual checklist</td>
+      <td>Automated quality gates</td>
+    </tr>
+    <tr>
+      <td><strong>Code review</strong></td>
+      <td>Manual review</td>
+      <td>Automated deviation detection</td>
+    </tr>
+    <tr>
+      <td><strong>Compliance</strong></td>
+      <td>Manual audit</td>
+      <td>Proof bundles, reproducible checks</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="-brownfield-modernization-with-specfact--spec-kit">🌱 Brownfield Modernization with SpecFact + Spec-Kit</h2>
+
+<h3 id="best-of-both-worlds-for-legacy-code"><strong>Best of Both Worlds for Legacy Code</strong></h3>
+
+<p>When modernizing legacy code, you can use <strong>both tools together</strong> for maximum value:</p>
+
+<ol>
+  <li><strong>Spec-Kit</strong> for initial spec generation (fast, LLM-powered)</li>
+  <li><strong>SpecFact</strong> for runtime contract enforcement (safety net)</li>
+  <li><strong>Spec-Kit</strong> maintains documentation (living specs)</li>
+  <li><strong>SpecFact</strong> prevents regressions (contract enforcement)</li>
+</ol>
+
+<h3 id="workflow-legacy-code--modernized-code"><strong>Workflow: Legacy Code → Modernized Code</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Step 1: Use SpecFact to extract specs from legacy code</span>
+specfact import from-code <span class="nt">--bundle</span> customer-portal <span class="nt">--repo</span> ./legacy-app
+
+<span class="c"># Output: Auto-generated project bundle from existing code</span>
+<span class="c"># ✅ Analyzed 47 Python files</span>
+<span class="c"># ✅ Extracted 23 features</span>
+<span class="c"># ✅ Generated 112 user stories</span>
+<span class="c"># ⏱️  Completed in 8.2 seconds</span>
+<span class="c"># 📁 Project bundle: .specfact/projects/customer-portal/</span>
+
+<span class="c"># Step 2: (Optional) Use Spec-Kit to refine specs interactively</span>
+<span class="c"># /speckit.specify --feature "Payment Processing"</span>
+<span class="c"># /speckit.plan --feature "Payment Processing"</span>
+
+<span class="c"># Step 3: Use SpecFact to add runtime contracts</span>
+<span class="c"># Add @icontract decorators to critical paths</span>
+
+<span class="c"># Step 4: Modernize safely with contract safety net</span>
+<span class="c"># Refactor knowing contracts will catch regressions</span>
+
+<span class="c"># Step 5: Keep both in sync</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> customer-portal <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+</code></pre></div></div>
+
+<h3 id="why-this-works"><strong>Why This Works</strong></h3>
+
+<ul>
+  <li><strong>SpecFact code2spec</strong> extracts specs from undocumented legacy code automatically</li>
+  <li><strong>Spec-Kit interactive authoring</strong> refines specs with LLM assistance</li>
+  <li><strong>SpecFact runtime contracts</strong> prevent regressions during modernization</li>
+  <li><strong>Spec-Kit documentation</strong> maintains living specs for team</li>
+</ul>
+
+<p><strong>Result:</strong> Fast spec generation + runtime safety net = confident modernization</p>
+
+<h3 id="see-also"><strong>See Also</strong></h3>
+
+<ul>
+  <li><strong><a href="/specfact-cli/brownfield-engineer/">Brownfield Engineer Guide</a></strong> - Complete brownfield workflow</li>
+  <li><strong><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></strong> - Step-by-step modernization guide</li>
+  <li><strong><a href="/specfact-cli/guides/speckit-comparison.md">Spec-Kit Comparison</a></strong> - Detailed comparison</li>
+</ul>
+
+<hr />
+
+<h2 id="-the-onboarding-journey">🚀 The Onboarding Journey</h2>
+
+<h3 id="stage-1-discovery-what-is-specfact"><strong>Stage 1: Discovery</strong> (“What is SpecFact?”)</h3>
+
+<p><strong>Time</strong>: &lt; 5 minutes</p>
+
+<p>Learn how SpecFact complements Spec-Kit:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># See it in action</span>
+specfact <span class="nt">--help</span>
+
+<span class="c"># Read the docs</span>
+<span class="nb">cat </span>docs/getting-started.md
+</code></pre></div></div>
+
+<p><strong>What you’ll discover</strong>:</p>
+
+<ul>
+  <li>✅ SpecFact imports your Spec-Kit artifacts automatically</li>
+  <li>✅ Automated enforcement (CI/CD gates, contract validation)</li>
+  <li>✅ <strong>Shared plans</strong> (bidirectional sync for team collaboration)</li>
+  <li>✅ <strong>Code vs plan drift detection</strong> (automated deviation detection)</li>
+  <li>✅ Production readiness (quality gates, proof bundles)</li>
+</ul>
+
+<p><strong>Key insight</strong>: SpecFact <strong>preserves</strong> your Spec-Kit workflow - you can use both tools together!</p>
+
+<hr />
+
+<h3 id="stage-2-first-import-try-it-out"><strong>Stage 2: First Import</strong> (“Try It Out”)</h3>
+
+<p><strong>Time</strong>: &lt; 60 seconds</p>
+
+<p>Import your Spec-Kit project to see what SpecFact adds:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># 1. Preview what will be imported</span>
+specfact import from-bridge <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> ./my-speckit-project <span class="nt">--dry-run</span>
+
+<span class="c"># 2. Execute import (one command) - bundle name will be auto-detected or you can specify with --bundle</span>
+specfact import from-bridge <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> ./my-speckit-project <span class="nt">--write</span>
+
+<span class="c"># 3. Review generated bundle using CLI commands</span>
+specfact plan review <span class="nt">--bundle</span> &lt;bundle-name&gt;
+</code></pre></div></div>
+
+<p><strong>What was created</strong>:</p>
+
+<ul>
+  <li>Modular project bundle at <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code> (multiple aspect files)</li>
+  <li><code class="language-plaintext highlighter-rouge">.specfact/protocols/workflow.protocol.yaml</code> (from FSM if detected)</li>
+  <li><code class="language-plaintext highlighter-rouge">.specfact/gates/config.yaml</code> (quality gates configuration)</li>
+</ul>
+
+<p><strong>Note</strong>: Use CLI commands to interact with bundles. Do not edit <code class="language-plaintext highlighter-rouge">.specfact</code> files directly.</p>
+
+<p><strong>What happens</strong>:</p>
+
+<ol>
+  <li><strong>Parses Spec-Kit artifacts</strong>: <code class="language-plaintext highlighter-rouge">specs/[###-feature-name]/spec.md</code>, <code class="language-plaintext highlighter-rouge">plan.md</code>, <code class="language-plaintext highlighter-rouge">tasks.md</code>, <code class="language-plaintext highlighter-rouge">.specify/memory/constitution.md</code></li>
+  <li><strong>Generates SpecFact plans</strong>: Converts Spec-Kit features/stories → SpecFact models</li>
+  <li><strong>Creates enforcement config</strong>: Quality gates, CI/CD integration</li>
+  <li><strong>Preserves Spec-Kit artifacts</strong>: Your original files remain untouched</li>
+</ol>
+
+<p><strong>Result</strong>: Your Spec-Kit specs become production-ready contracts with automated quality gates!</p>
+
+<hr />
+
+<h3 id="stage-3-adoption-use-both-together"><strong>Stage 3: Adoption</strong> (“Use Both Together”)</h3>
+
+<p><strong>Time</strong>: Ongoing (automatic)</p>
+
+<p>Keep using Spec-Kit interactively, sync automatically with SpecFact:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Enable bidirectional sync (bridge-based, adapter-agnostic)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+</code></pre></div></div>
+
+<p><strong>Workflow</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># 1. Continue using Spec-Kit interactively (slash commands)</span>
+/speckit.specify <span class="nt">--feature</span> <span class="s2">"User Authentication"</span>
+/speckit.plan <span class="nt">--feature</span> <span class="s2">"User Authentication"</span>
+/speckit.tasks <span class="nt">--feature</span> <span class="s2">"User Authentication"</span>
+
+<span class="c"># 2. SpecFact automatically syncs new artifacts (watch mode)</span>
+<span class="c"># → Detects changes in specs/[###-feature-name]/</span>
+<span class="c"># → Imports new spec.md, plan.md, tasks.md</span>
+<span class="c"># → Updates .specfact/projects/&lt;bundle-name&gt;/ aspect files</span>
+<span class="c"># → Enables shared plans for team collaboration</span>
+
+<span class="c"># 3. Detect code vs plan drift automatically</span>
+specfact plan compare <span class="nt">--code-vs-plan</span>
+<span class="c"># → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)</span>
+<span class="c"># → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)</span>
+<span class="c"># → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"</span>
+
+<span class="c"># 4. Enable automated enforcement</span>
+specfact enforce stage <span class="nt">--preset</span> balanced
+
+<span class="c"># 5. CI/CD automatically validates (GitHub Action)</span>
+<span class="c"># → Runs on every PR</span>
+<span class="c"># → Blocks HIGH severity issues</span>
+<span class="c"># → Generates proof bundles</span>
+</code></pre></div></div>
+
+<p><strong>What you get</strong>:</p>
+
+<ul>
+  <li>✅ <strong>Interactive authoring</strong> (Spec-Kit): Use slash commands for rapid prototyping</li>
+  <li>✅ <strong>Automated enforcement</strong> (SpecFact): CI/CD gates catch issues automatically</li>
+  <li>✅ <strong>Team collaboration</strong> (SpecFact): Shared plans, deviation detection</li>
+  <li>✅ <strong>Production readiness</strong> (SpecFact): Quality gates, proof bundles</li>
+</ul>
+
+<p><strong>Best of both worlds</strong>: Spec-Kit for authoring, SpecFact for enforcement!</p>
+
+<hr />
+
+<h3 id="stage-4-migration-full-specfact-workflow"><strong>Stage 4: Migration</strong> (“Full SpecFact Workflow”)</h3>
+
+<p><strong>Time</strong>: Progressive (1-4 weeks)</p>
+
+<p><strong>Optional</strong>: Migrate to full SpecFact workflow (or keep using both tools together)</p>
+
+<h4 id="week-1-import--sync"><strong>Week 1: Import + Sync</strong></h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Import existing Spec-Kit project</span>
+specfact import from-bridge <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--write</span>
+
+<span class="c"># Enable bidirectional sync (bridge-based, adapter-agnostic)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+</code></pre></div></div>
+
+<p><strong>Result</strong>: Both tools working together seamlessly.</p>
+
+<h4 id="week-2-3-enable-enforcement-shadow-mode"><strong>Week 2-3: Enable Enforcement (Shadow Mode)</strong></h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Start in shadow mode (observe only)</span>
+specfact enforce stage <span class="nt">--preset</span> minimal
+
+<span class="c"># Set up CrossHair for contract exploration</span>
+specfact repro setup
+
+<span class="c"># Review what would be blocked</span>
+specfact repro <span class="nt">--verbose</span>
+
+<span class="c"># Apply auto-fixes for violations (if available)</span>
+specfact repro <span class="nt">--fix</span> <span class="nt">--verbose</span>
+</code></pre></div></div>
+
+<p><strong>Result</strong>: See what SpecFact would catch, no blocking yet. Auto-fixes can be applied for Semgrep violations.</p>
+
+<h4 id="week-4-enable-balanced-enforcement"><strong>Week 4: Enable Balanced Enforcement</strong></h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Enable balanced mode (block HIGH, warn MEDIUM)</span>
+specfact enforce stage <span class="nt">--preset</span> balanced
+
+<span class="c"># Test with real PR</span>
+git checkout <span class="nt">-b</span> test-enforcement
+<span class="c"># Make a change that violates contracts</span>
+specfact repro  <span class="c"># Should block HIGH issues</span>
+
+<span class="c"># Or apply auto-fixes first</span>
+specfact repro <span class="nt">--fix</span>  <span class="c"># Apply Semgrep auto-fixes, then validate</span>
+</code></pre></div></div>
+
+<p><strong>Result</strong>: Automated enforcement catching critical issues. Auto-fixes can be applied before validation.</p>
+
+<h4 id="week-5-full-specfact-workflow-optional"><strong>Week 5+: Full SpecFact Workflow</strong> (Optional)</h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Enable strict enforcement</span>
+specfact enforce stage <span class="nt">--preset</span> strict
+
+<span class="c"># Full automation (CI/CD, brownfield analysis, etc.)</span>
+<span class="c"># (CrossHair setup already done in Week 3)</span>
+specfact repro <span class="nt">--budget</span> 120 <span class="nt">--verbose</span>
+</code></pre></div></div>
+
+<p><strong>Result</strong>: Complete SpecFact workflow - or keep using both tools together!</p>
+
+<hr />
+
+<h2 id="-step-by-step-migration">📋 Step-by-Step Migration</h2>
+
+<h3 id="step-1-preview-migration"><strong>Step 1: Preview Migration</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># See what will be imported (safe - no changes)</span>
+specfact import from-bridge <span class="nt">--adapter</span> speckit <span class="nt">--repo</span> ./my-speckit-project <span class="nt">--dry-run</span>
+</code></pre></div></div>
+
+<p><strong>Expected Output</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🔍 Analyzing Spec-Kit project via bridge adapter...
+✅ Found .specify/ directory <span class="o">(</span>modern format<span class="o">)</span>
+✅ Found specs/001-user-authentication/spec.md
+✅ Found specs/001-user-authentication/plan.md
+✅ Found specs/001-user-authentication/tasks.md
+✅ Found .specify/memory/constitution.md
+
+<span class="k">**</span>💡 Tip<span class="k">**</span>: If constitution is missing or minimal, run <span class="sb">`</span>specfact sdd constitution bootstrap <span class="nt">--repo</span> .<span class="sb">`</span> to auto-generate from repository analysis.
+
+📊 Migration Preview:
+  - Will create: .specfact/projects/&lt;bundle-name&gt;/ <span class="o">(</span>modular project bundle<span class="o">)</span>
+  - Will create: .specfact/protocols/workflow.protocol.yaml <span class="o">(</span><span class="k">if </span>FSM detected<span class="o">)</span>
+  - Will create: .specfact/gates/config.yaml
+  - Will convert: Spec-Kit features → SpecFact Feature models
+  - Will convert: Spec-Kit user stories → SpecFact Story models
+  
+🚀 Ready to migrate <span class="o">(</span>use <span class="nt">--write</span> to execute<span class="o">)</span>
+</code></pre></div></div>
+
+<h3 id="step-2-execute-migration"><strong>Step 2: Execute Migration</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Execute migration (creates SpecFact artifacts)</span>
+specfact import from-bridge <span class="se">\</span>
+  <span class="nt">--adapter</span> speckit <span class="se">\</span>
+  <span class="nt">--repo</span> ./my-speckit-project <span class="se">\</span>
+  <span class="nt">--write</span> <span class="se">\</span>
+  <span class="nt">--report</span> migration-report.md
+</code></pre></div></div>
+
+<p><strong>What it does</strong>:</p>
+
+<ol>
+  <li><strong>Parses Spec-Kit artifacts</strong> (via bridge adapter):
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">specs/[###-feature-name]/spec.md</code> → Features, user stories, requirements</li>
+      <li><code class="language-plaintext highlighter-rouge">specs/[###-feature-name]/plan.md</code> → Technical context, architecture</li>
+      <li><code class="language-plaintext highlighter-rouge">specs/[###-feature-name]/tasks.md</code> → Tasks, story mappings</li>
+      <li><code class="language-plaintext highlighter-rouge">.specify/memory/constitution.md</code> → Principles, constraints</li>
+    </ul>
+  </li>
+  <li><strong>Generates SpecFact artifacts</strong>:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code> - Modular project bundle (multiple aspect files)</li>
+      <li><code class="language-plaintext highlighter-rouge">.specfact/protocols/workflow.protocol.yaml</code> - FSM protocol (if detected)</li>
+      <li><code class="language-plaintext highlighter-rouge">.specfact/gates/config.yaml</code> - Quality gates configuration</li>
+    </ul>
+  </li>
+  <li><strong>Preserves Spec-Kit artifacts</strong>:
+    <ul>
+      <li>Original files remain untouched</li>
+      <li>Bidirectional sync keeps both aligned</li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="step-3-review-generated-artifacts"><strong>Step 3: Review Generated Artifacts</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Review plan bundle using CLI commands</span>
+specfact plan review <span class="nt">--bundle</span> &lt;bundle-name&gt;
+
+<span class="c"># Review enforcement config using CLI commands</span>
+specfact enforce show-config
+
+<span class="c"># Review migration report</span>
+<span class="nb">cat </span>migration-report.md
+</code></pre></div></div>
+
+<p><strong>Note</strong>: Use CLI commands to interact with bundles. Do not edit <code class="language-plaintext highlighter-rouge">.specfact</code> files directly.</p>
+
+<p><strong>What to check</strong>:</p>
+
+<ul>
+  <li>✅ Features/stories correctly mapped from Spec-Kit</li>
+  <li>✅ Acceptance criteria preserved</li>
+  <li>✅ Business context extracted from constitution</li>
+  <li>✅ Enforcement config matches your needs</li>
+</ul>
+
+<h3 id="step-4-enable-shared-plans-bidirectional-sync"><strong>Step 4: Enable Shared Plans (Bidirectional Sync)</strong></h3>
+
+<p><strong>Shared structured plans</strong> enable team collaboration with automated bidirectional sync. Unlike Spec-Kit’s manual markdown sharing, SpecFact automatically keeps plans synchronized across team members.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># One-time sync</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span>
+
+<span class="c"># Continuous watch mode (recommended for team collaboration)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span> <span class="nt">--interval</span> 5
+</code></pre></div></div>
+
+<p><strong>What it syncs</strong>:</p>
+
+<ul>
+  <li><strong>Spec-Kit → SpecFact</strong>: New <code class="language-plaintext highlighter-rouge">spec.md</code>, <code class="language-plaintext highlighter-rouge">plan.md</code>, <code class="language-plaintext highlighter-rouge">tasks.md</code> → Updated <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code> aspect files</li>
+  <li><strong>SpecFact → Spec-Kit</strong>: Changes to <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code> → Updated Spec-Kit markdown with all required fields auto-generated:
+    <ul>
+      <li><strong>spec.md</strong>: Frontmatter, INVSEST criteria, Scenarios (Primary, Alternate, Exception, Recovery)</li>
+      <li><strong>plan.md</strong>: Constitution Check, Phases, Technology Stack (from constraints)</li>
+      <li><strong>tasks.md</strong>: Phase organization, Story mappings ([US1], [US2]), Parallel markers</li>
+    </ul>
+  </li>
+  <li><strong>Team collaboration</strong>: Multiple developers can work on the same plan with automated synchronization</li>
+  <li><strong>No manual editing required</strong>: All Spec-Kit fields are auto-generated - ready for <code class="language-plaintext highlighter-rouge">/speckit.analyze</code> without additional work</li>
+</ul>
+
+<h3 id="step-5-enable-enforcement"><strong>Step 5: Enable Enforcement</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Week 1-2: Shadow mode (observe only)</span>
+specfact enforce stage <span class="nt">--preset</span> minimal
+
+<span class="c"># Week 3-4: Balanced mode (block HIGH, warn MEDIUM)</span>
+specfact enforce stage <span class="nt">--preset</span> balanced
+
+<span class="c"># Week 5+: Strict mode (block MEDIUM+)</span>
+specfact enforce stage <span class="nt">--preset</span> strict
+</code></pre></div></div>
+
+<h3 id="step-6-validate"><strong>Step 6: Validate</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Set up CrossHair for contract exploration (one-time setup)</span>
+specfact repro setup
+
+<span class="c"># Run all checks</span>
+specfact repro <span class="nt">--verbose</span>
+
+<span class="c"># Check CI/CD integration</span>
+git push origin feat/specfact-migration
+<span class="c"># → GitHub Action runs automatically</span>
+<span class="c"># → PR blocked if HIGH severity issues found</span>
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="-best-practices">💡 Best Practices</h2>
+
+<h3 id="1-start-in-shadow-mode"><strong>1. Start in Shadow Mode</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Always start with shadow mode (no blocking)</span>
+specfact enforce stage <span class="nt">--preset</span> minimal
+specfact repro
+</code></pre></div></div>
+
+<p><strong>Why</strong>: See what SpecFact would catch before enabling blocking.</p>
+
+<h3 id="2-use-shared-plans-bidirectional-sync"><strong>2. Use Shared Plans (Bidirectional Sync)</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Enable bidirectional sync for team collaboration</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span>
+</code></pre></div></div>
+
+<p><strong>Why</strong>: <strong>Shared structured plans</strong> enable team collaboration with automated bidirectional sync. Unlike Spec-Kit’s manual markdown sharing, SpecFact automatically keeps plans synchronized across team members. Continue using Spec-Kit interactively, get SpecFact automation automatically.</p>
+
+<h3 id="3-progressive-enforcement"><strong>3. Progressive Enforcement</strong></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Week 1: Shadow (observe)</span>
+specfact enforce stage <span class="nt">--preset</span> minimal
+
+<span class="c"># Week 2-3: Balanced (block HIGH)</span>
+specfact enforce stage <span class="nt">--preset</span> balanced
+
+<span class="c"># Week 4+: Strict (block MEDIUM+)</span>
+specfact enforce stage <span class="nt">--preset</span> strict
+</code></pre></div></div>
+
+<p><strong>Why</strong>: Gradual adoption reduces disruption and builds team confidence.</p>
+
+<h3 id="4-keep-spec-kit-artifacts"><strong>4. Keep Spec-Kit Artifacts</strong></h3>
+
+<p><strong>Don’t delete Spec-Kit files</strong> - they’re still useful:</p>
+
+<ul>
+  <li>✅ Interactive authoring (slash commands)</li>
+  <li>✅ Fallback if SpecFact has issues</li>
+  <li>✅ Team members who prefer Spec-Kit workflow</li>
+</ul>
+
+<p><strong>Bidirectional sync</strong> keeps both aligned automatically.</p>
+
+<hr />
+
+<h2 id="-faq">❓ FAQ</h2>
+
+<h3 id="q-do-i-need-to-stop-using-spec-kit"><strong>Q: Do I need to stop using Spec-Kit?</strong></h3>
+
+<p><strong>A</strong>: No! SpecFact works <strong>alongside</strong> Spec-Kit. Use Spec-Kit for interactive authoring (new features), SpecFact for automated enforcement and existing code analysis.</p>
+
+<h3 id="q-what-happens-to-my-spec-kit-artifacts"><strong>Q: What happens to my Spec-Kit artifacts?</strong></h3>
+
+<p><strong>A</strong>: They’re <strong>preserved</strong> - SpecFact imports them but doesn’t modify them. Bidirectional sync keeps both aligned.</p>
+
+<h3 id="q-can-i-export-back-to-spec-kit"><strong>Q: Can I export back to Spec-Kit?</strong></h3>
+
+<p><strong>A</strong>: Yes! SpecFact can export back to Spec-Kit format. Your original files are never modified.</p>
+
+<h3 id="q-what-if-i-prefer-spec-kit-workflow"><strong>Q: What if I prefer Spec-Kit workflow?</strong></h3>
+
+<p><strong>A</strong>: Keep using Spec-Kit! Bidirectional sync automatically keeps SpecFact artifacts updated. Use SpecFact for CI/CD enforcement and brownfield analysis.</p>
+
+<h3 id="q-does-specfact-replace-spec-kit"><strong>Q: Does SpecFact replace Spec-Kit?</strong></h3>
+
+<p><strong>A</strong>: No - they’re <strong>complementary</strong>. Spec-Kit excels at interactive authoring for new features, SpecFact adds automation, enforcement, and brownfield analysis capabilities.</p>
+
+<hr />
+
+<h2 id="see-also-1">See Also</h2>
+
+<h3 id="related-guides">Related Guides</h3>
+
+<ul>
+  <li>
+    <p><a href="/specfact-cli/guides/integrations-overview.md">Integrations Overview</a> - Overview of all SpecFact CLI integrations</p>
+  </li>
+  <li><a href="/specfact-cli/guides/command-chains/">Command Chains Reference</a> - Complete workflows including <a href="/specfact-cli/guides/command-chains/#3-external-tool-integration-chain">External Tool Integration Chain</a></li>
+  <li><a href="/specfact-cli/common-tasks/">Common Tasks Index</a> - Quick reference for “How do I sync with Spec-Kit?”</li>
+  <li><a href="/specfact-cli/guides/speckit-comparison.md">Spec-Kit Comparison</a> - Detailed comparison guide</li>
+  <li><a href="/specfact-cli/use-cases/">Use Cases</a> - Detailed Spec-Kit migration use case</li>
+</ul>
+
+<h3 id="related-commands">Related Commands</h3>
+
+<ul>
+  <li><a href="/specfact-cli/reference/commands/#import---import-from-external-formats">Command Reference - Import Commands</a> - <code class="language-plaintext highlighter-rouge">import from-bridge</code> reference</li>
+  <li><a href="/specfact-cli/reference/commands/#sync-bridge">Command Reference - Sync Commands</a> - <code class="language-plaintext highlighter-rouge">sync bridge</code> reference</li>
+  <li><a href="/specfact-cli/reference/commands/#sdd-constitution---manage-project-constitutions">Command Reference - SDD Constitution</a> - Constitution management</li>
+</ul>
+
+<h3 id="related-examples">Related Examples</h3>
+
+<ul>
+  <li><a href="../examples/">Spec-Kit Migration Examples</a> - Real-world migration examples</li>
+</ul>
+
+<h3 id="getting-started">Getting Started</h3>
+
+<ul>
+  <li><a href="/specfact-cli/getting-started/README.md">Getting Started</a> - Quick setup guide</li>
+  <li><a href="/specfact-cli/architecture/">Architecture</a> - How SpecFact integrates with Spec-Kit</li>
+</ul>
+
+<hr />
+
+<p><strong>Next Steps</strong>:</p>
+
+<ol>
+  <li><strong>Try it</strong>: <code class="language-plaintext highlighter-rouge">specfact import from-bridge --adapter speckit --repo . --dry-run</code></li>
+  <li><strong>Import</strong>: <code class="language-plaintext highlighter-rouge">specfact import from-bridge --adapter speckit --repo . --write</code></li>
+  <li><strong>Sync</strong>: <code class="language-plaintext highlighter-rouge">specfact sync bridge --adapter speckit --bundle &lt;bundle-name&gt; --repo . --bidirectional --watch</code></li>
+  <li><strong>Enforce</strong>: <code class="language-plaintext highlighter-rouge">specfact enforce stage --preset minimal</code> (start shadow mode)</li>
+</ol>
+
+<hr />
+
+<blockquote>
+  <p><strong>Remember</strong>: Spec-Kit and SpecFact are complementary. Use Spec-Kit for interactive authoring, add SpecFact for automated enforcement. Best of both worlds! 🚀</p>
+</blockquote>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

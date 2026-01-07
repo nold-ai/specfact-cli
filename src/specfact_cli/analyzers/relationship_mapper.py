@@ -8,6 +8,7 @@ understanding of the codebase structure.
 from __future__ import annotations
 
 import ast
+import hashlib
 import os
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -31,18 +32,23 @@ class RelationshipMapper:
 
     @beartype
     @require(lambda repo_path: isinstance(repo_path, Path), "Repo path must be Path")
-    def __init__(self, repo_path: Path) -> None:
+    def __init__(self, repo_path: Path, file_hashes_cache: dict[str, str] | None = None) -> None:
         """
         Initialize relationship mapper.
 
         Args:
             repo_path: Path to repository root
+            file_hashes_cache: Optional pre-computed file hashes (file_path -> hash) for caching
         """
         self.repo_path = repo_path.resolve()
         self.imports: dict[str, list[str]] = defaultdict(list)  # file -> [imported_modules]
         self.dependencies: dict[str, list[str]] = defaultdict(list)  # module -> [dependencies]
         self.interfaces: dict[str, dict[str, Any]] = {}  # interface_name -> interface_info
         self.framework_routes: dict[str, list[dict[str, Any]]] = defaultdict(list)  # file -> [route_info]
+        # Cache for file hashes and AST parsing results
+        self.file_hashes_cache: dict[str, str] = file_hashes_cache or {}
+        self.ast_cache: dict[str, ast.AST] = {}  # file_path -> parsed AST
+        self.analysis_cache: dict[str, dict[str, Any]] = {}  # file_hash -> analysis_result
 
     @beartype
     @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
@@ -179,11 +185,47 @@ class RelationshipMapper:
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files with syntax errors
-            return {"imports": [], "dependencies": [], "interfaces": [], "routes": []}
+            result = {"imports": [], "dependencies": [], "interfaces": [], "routes": []}
+            # Cache the result even for errors to avoid re-processing
+            file_hash = self._compute_file_hash(file_path)
+            if file_hash:
+                self.analysis_cache[file_hash] = result
+            return result
+
+    @beartype
+    @require(lambda self, file_path: isinstance(file_path, Path), "File path must be Path")
+    def _compute_file_hash(self, file_path: Path) -> str:
+        """
+        Compute SHA256 hash of file content.
+
+        Args:
+            file_path: Path to file
+
+        Returns:
+            SHA256 hash as hex string
+        """
+        try:
+            file_key = str(file_path.relative_to(self.repo_path))
+        except ValueError:
+            file_key = str(file_path)
+
+        # Check cache first
+        if file_key in self.file_hashes_cache:
+            return self.file_hashes_cache[file_key]
+
+        # Compute hash
+        if not file_path.exists():
+            return ""
+        try:
+            file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+            self.file_hashes_cache[file_key] = file_hash
+            return file_hash
+        except Exception:
+            return ""
 
     def _analyze_file_parallel(self, file_path: Path) -> tuple[str, dict[str, Any]]:
         """
-        Analyze a single file for relationships (thread-safe version).
+        Analyze a single file for relationships (thread-safe version with caching).
 
         Args:
             file_path: Path to Python file
@@ -191,41 +233,55 @@ class RelationshipMapper:
         Returns:
             Tuple of (file_key, relationships_dict)
         """
+        # Get file key
+        try:
+            file_key = str(file_path.relative_to(self.repo_path))
+        except ValueError:
+            file_key = str(file_path)
+
+        # Compute file hash for caching
+        file_hash = self._compute_file_hash(file_path)
+
+        # Check if we have cached analysis result for this file hash
+        if file_hash and file_hash in self.analysis_cache:
+            return (file_key, self.analysis_cache[file_hash])
+
         # Skip very large files early (>500KB) to speed up processing
         try:
             file_size = file_path.stat().st_size
             if file_size > 500 * 1024:  # 500KB
-                try:
-                    file_key = str(file_path.relative_to(self.repo_path))
-                except ValueError:
-                    file_key = str(file_path)
-                return (file_key, {"imports": [], "dependencies": [], "interfaces": {}, "routes": []})
+                result = {"imports": [], "dependencies": [], "interfaces": {}, "routes": []}
+                if file_hash:
+                    self.analysis_cache[file_hash] = result
+                return (file_key, result)
         except Exception:
             pass
 
         try:
-            with file_path.open(encoding="utf-8") as f:
-                content = f.read()
-                # For large files (>100KB), only extract imports (faster)
-                if len(content) > 100 * 1024:  # ~100KB
-                    tree = ast.parse(content, filename=str(file_path))
-                    large_file_imports: list[str] = []
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.Import):
-                            for alias in node.names:
-                                large_file_imports.append(alias.name)
-                        if isinstance(node, ast.ImportFrom) and node.module:
-                            large_file_imports.append(node.module)
-                    try:
-                        file_key = str(file_path.relative_to(self.repo_path))
-                    except ValueError:
-                        file_key = str(file_path)
-                    return (
-                        file_key,
-                        {"imports": large_file_imports, "dependencies": [], "interfaces": {}, "routes": []},
-                    )
+            # Check if we have cached AST
+            if file_key in self.ast_cache:
+                tree = self.ast_cache[file_key]
+            else:
+                with file_path.open(encoding="utf-8") as f:
+                    content = f.read()
+                    # For large files (>100KB), only extract imports (faster)
+                    if len(content) > 100 * 1024:  # ~100KB
+                        tree = ast.parse(content, filename=str(file_path))
+                        large_file_imports: list[str] = []
+                        for node in ast.walk(tree):
+                            if isinstance(node, ast.Import):
+                                for alias in node.names:
+                                    large_file_imports.append(alias.name)
+                            if isinstance(node, ast.ImportFrom) and node.module:
+                                large_file_imports.append(node.module)
+                        result = {"imports": large_file_imports, "dependencies": [], "interfaces": {}, "routes": []}
+                        if file_hash:
+                            self.analysis_cache[file_hash] = result
+                        return (file_key, result)
 
-                tree = ast.parse(content, filename=str(file_path))
+                    tree = ast.parse(content, filename=str(file_path))
+                    # Cache AST for future use
+                    self.ast_cache[file_key] = tree
 
             file_imports: list[str] = []
             file_dependencies: list[str] = []
@@ -337,15 +393,18 @@ class RelationshipMapper:
             for interface_info in file_interfaces:
                 interfaces_dict[interface_info["name"]] = interface_info
 
-            return (
-                file_key,
-                {
-                    "imports": file_imports,
-                    "dependencies": file_dependencies,
-                    "interfaces": interfaces_dict,
-                    "routes": file_routes,
-                },
-            )
+            result = {
+                "imports": file_imports,
+                "dependencies": file_dependencies,
+                "interfaces": interfaces_dict,
+                "routes": file_routes,
+            }
+
+            # Cache result for future use (keyed by file hash)
+            if file_hash:
+                self.analysis_cache[file_hash] = result
+
+            return (file_key, result)
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files with syntax errors
@@ -353,17 +412,22 @@ class RelationshipMapper:
                 file_key = str(file_path.relative_to(self.repo_path))
             except ValueError:
                 file_key = str(file_path)
-            return (file_key, {"imports": [], "dependencies": [], "interfaces": {}, "routes": []})
+            result = {"imports": [], "dependencies": [], "interfaces": {}, "routes": []}
+            # Cache result for syntax errors to avoid re-processing
+            if file_hash:
+                self.analysis_cache[file_hash] = result
+            return (file_key, result)
 
     @beartype
     @require(lambda file_paths: isinstance(file_paths, list), "File paths must be list")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
-    def analyze_files(self, file_paths: list[Path]) -> dict[str, Any]:
+    def analyze_files(self, file_paths: list[Path], progress_callback: Any | None = None) -> dict[str, Any]:
         """
         Analyze multiple files for relationships (parallelized).
 
         Args:
             file_paths: List of file paths to analyze
+            progress_callback: Optional callback function(completed: int, total: int) for progress updates
 
         Returns:
             Dictionary with all relationships
@@ -390,6 +454,7 @@ class RelationshipMapper:
         interrupted = False
         # In test mode, use wait=False to avoid hanging on shutdown
         wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
+        completed_count = 0
         try:
             # Submit all tasks
             future_to_file = {executor.submit(self._analyze_file_parallel, f): f for f in python_files}
@@ -405,6 +470,10 @@ class RelationshipMapper:
                         # Merge interfaces
                         for interface_name, interface_info in result["interfaces"].items():
                             self.interfaces[interface_name] = interface_info
+                        # Update progress
+                        completed_count += 1
+                        if progress_callback:
+                            progress_callback(completed_count, len(python_files))
                         # Store routes
                         if result["routes"]:
                             self.framework_routes[file_key] = result["routes"]
@@ -416,7 +485,9 @@ class RelationshipMapper:
                         break
                     except Exception:
                         # Skip files that fail to process
-                        pass
+                        completed_count += 1
+                        if progress_callback:
+                            progress_callback(completed_count, len(python_files))
             except KeyboardInterrupt:
                 interrupted = True
                 for f in future_to_file:

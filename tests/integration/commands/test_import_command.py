@@ -296,3 +296,46 @@ def create_resource_{i}():
                 # Should have generated contracts for multiple features (if features were detected)
                 # May be 0 if no contracts detected, which is OK
                 assert len(contract_files) >= 0
+
+    @pytest.mark.timeout(20)
+    def test_import_revalidate_features_flag_exists(self, tmp_path: Path) -> None:
+        """Test that --revalidate-features flag is accepted by the command."""
+        import os
+
+        # Ensure TEST_MODE is set to skip Semgrep
+        os.environ["TEST_MODE"] = "true"
+
+        # Create initial codebase
+        api_file = tmp_path / "api.py"
+        api_file.write_text(
+            '''
+class UserService:
+    """User management service."""
+
+    def create_user(self, name: str):
+        """Create a new user."""
+        return {"id": 1, "name": name}
+'''
+        )
+
+        runner = CliRunner()
+
+        # Test that the flag is accepted (doesn't cause argument parsing error)
+        result = runner.invoke(
+            app,
+            [
+                "import",
+                "from-code",
+                "test-bundle-revalidate",
+                "--repo",
+                str(tmp_path),
+                "--confidence",
+                "0.3",
+                "--revalidate-features",
+            ],
+        )
+
+        # Command should not fail due to unknown argument
+        # Exit code 0 or 1 is acceptable (1 might mean no features detected or other issues)
+        # Exit code 2 would indicate argument parsing error
+        assert result.exit_code != 2, "Flag should be recognized"

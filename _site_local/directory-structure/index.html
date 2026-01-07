@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>SpecFact CLI Directory Structure | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="SpecFact CLI Directory Structure" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/directory-structure/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/directory-structure/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="SpecFact CLI Directory Structure" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"SpecFact CLI Directory Structure","url":"https://nold-ai.github.io/specfact-cli/directory-structure/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="specfact-cli-directory-structure">SpecFact CLI Directory Structure</h1>
+
+<p>This document defines the canonical directory structure for SpecFact CLI artifacts.</p>
+
+<blockquote>
+  <p><strong>Primary Use Case</strong>: SpecFact CLI is designed for <strong>brownfield code modernization</strong> - reverse-engineering existing codebases into documented specs with runtime contract enforcement. The directory structure reflects this brownfield-first approach.</p>
+</blockquote>
+
+<p><strong>CLI-First Approach</strong>: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p>All SpecFact artifacts are stored under <code class="language-plaintext highlighter-rouge">.specfact/</code> in the repository root. This ensures:</p>
+
+<ul>
+  <li><strong>Consistency</strong>: All artifacts in one predictable location</li>
+  <li><strong>Multiple plans</strong>: Support for multiple plan bundles in a single repository</li>
+  <li><strong>Gitignore-friendly</strong>: Easy to exclude reports from version control</li>
+  <li><strong>Clear separation</strong>: Plans (versioned) vs reports (ephemeral)</li>
+  <li><strong>CLI-first</strong>: All artifacts are local, no cloud storage required</li>
+</ul>
+
+<h2 id="canonical-structure">Canonical Structure</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.specfact/
+├── config.yaml              <span class="c"># SpecFact configuration (optional)</span>
+├── config/                  <span class="c"># Global configuration (optional)</span>
+│   ├── bridge.yaml          <span class="c"># Bridge configuration for external tools</span>
+│   └── ...
+├── cache/                   <span class="c"># Shared cache (gitignored, global for performance)</span>
+│   ├── dependency-graph.json
+│   └── commit-history.json
+├── projects/                <span class="c"># Modular project bundles (versioned in git)</span>
+│   ├── &lt;bundle-name&gt;/       <span class="c"># Project bundle directory</span>
+│   │   ├── bundle.manifest.yaml  <span class="c"># Bundle metadata, versioning, and checksums</span>
+│   │   ├── idea.yaml             <span class="c"># Product vision (optional)</span>
+│   │   ├── business.yaml         <span class="c"># Business context (optional)</span>
+│   │   ├── product.yaml          <span class="c"># Releases, themes (required)</span>
+│   │   ├── clarifications.yaml   <span class="c"># Clarification sessions (optional)</span>
+│   │   ├── sdd.yaml              <span class="c"># SDD manifest (bundle-specific, Phase 8.5)</span>
+│   │   ├── tasks.yaml            <span class="c"># Task breakdown (bundle-specific, Phase 8.5)</span>
+│   │   ├── features/             <span class="c"># Individual feature files</span>
+│   │   │   ├── FEATURE-001.yaml
+│   │   │   ├── FEATURE-002.yaml
+│   │   │   └── ...
+│   │   ├── contracts/            <span class="c"># OpenAPI contracts (bundle-specific)</span>
+│   │   │   └── ...
+│   │   ├── protocols/            <span class="c"># FSM protocols (bundle-specific)</span>
+│   │   │   └── ...
+│   │   ├── reports/              <span class="c"># Bundle-specific reports (gitignored, Phase 8.5)</span>
+│   │   │   ├── brownfield/
+│   │   │   │   └── analysis-2025-10-31T14-30-00.md
+│   │   │   ├── comparison/
+│   │   │   │   └── report-2025-10-31T14-30-00.md
+│   │   │   ├── enrichment/
+│   │   │   │   └── &lt;bundle-name&gt;-2025-10-31T14-30-00.enrichment.md
+│   │   │   └── enforcement/
+│   │   │       └── report-2025-10-31T14-30-00.yaml
+│   │   ├── logs/                 <span class="c"># Bundle-specific logs (gitignored, Phase 8.5)</span>
+│   │   │   └── 2025-10-31T14-30-00.log
+│   │   └── prompts/              <span class="c"># AI IDE contract enhancement prompts (optional)</span>
+│   │       └── enhance-&lt;filename&gt;-&lt;contracts&gt;.md
+│   ├── legacy-api/         <span class="c"># Example: Brownfield-derived bundle</span>
+│   │   ├── bundle.manifest.yaml
+│   │   ├── product.yaml
+│   │   ├── sdd.yaml
+│   │   ├── tasks.yaml
+│   │   ├── features/
+│   │   ├── reports/
+│   │   └── logs/
+│   └── my-project/          <span class="c"># Example: Main project bundle</span>
+│       ├── bundle.manifest.yaml
+│       ├── idea.yaml
+│       ├── business.yaml
+│       ├── product.yaml
+│       ├── sdd.yaml
+│       ├── tasks.yaml
+│       ├── features/
+│       ├── reports/
+│       └── logs/
+└── gates/                   <span class="c"># Enforcement configuration (global)</span>
+    └── config.yaml          <span class="c"># Enforcement settings (versioned)</span>
+</code></pre></div></div>
+
+<h2 id="directory-purposes">Directory Purposes</h2>
+
+<h3 id="specfactprojects-versioned"><code class="language-plaintext highlighter-rouge">.specfact/projects/</code> (Versioned)</h3>
+
+<p><strong>Purpose</strong>: Store modular project bundles that define the contract for the project.</p>
+
+<p><strong>Guidelines</strong>:</p>
+
+<ul>
+  <li>Each project bundle is stored in its own directory: <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code></li>
+  <li>Each bundle directory contains multiple aspect files:
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">bundle.manifest.yaml</code> - Bundle metadata, versioning, checksums, and feature index (required)
+        <ul>
+          <li><strong>Schema Versioning</strong>: Set <code class="language-plaintext highlighter-rouge">schema_metadata.schema_version</code> to <code class="language-plaintext highlighter-rouge">"1.1"</code> to enable change tracking (v0.21.1+)</li>
+          <li><strong>Change Tracking</strong> (v1.1+): Optional <code class="language-plaintext highlighter-rouge">change_tracking</code> and <code class="language-plaintext highlighter-rouge">change_archive</code> fields are loaded via bridge adapters (not stored in bundle directory)
+            <ul>
+              <li><code class="language-plaintext highlighter-rouge">change_tracking</code>: Active change proposals and feature deltas (loaded from external tools like OpenSpec)</li>
+              <li><code class="language-plaintext highlighter-rouge">change_archive</code>: Completed changes with audit trail (loaded from external tools)</li>
+              <li>Both fields are optional and backward compatible - v1.0 bundles work without them</li>
+            </ul>
+          </li>
+          <li>See <a href="/specfact-cli/schema-versioning/">Schema Versioning</a> for details</li>
+        </ul>
+      </li>
+      <li><code class="language-plaintext highlighter-rouge">product.yaml</code> - Product definition with themes and releases (required)</li>
+      <li><code class="language-plaintext highlighter-rouge">idea.yaml</code> - Product vision and intent (optional)</li>
+      <li><code class="language-plaintext highlighter-rouge">business.yaml</code> - Business context and market segments (optional)</li>
+      <li><code class="language-plaintext highlighter-rouge">clarifications.yaml</code> - Clarification sessions and Q&amp;A (optional)</li>
+      <li><code class="language-plaintext highlighter-rouge">sdd.yaml</code> - SDD manifest (bundle-specific, Phase 8.5, versioned)</li>
+      <li><code class="language-plaintext highlighter-rouge">tasks.yaml</code> - Task breakdown (bundle-specific, Phase 8.5, versioned)</li>
+      <li><code class="language-plaintext highlighter-rouge">features/</code> - Directory containing individual feature files:
+        <ul>
+          <li><code class="language-plaintext highlighter-rouge">FEATURE-001.yaml</code> - Individual feature with stories</li>
+          <li><code class="language-plaintext highlighter-rouge">FEATURE-002.yaml</code> - Individual feature with stories</li>
+          <li>Each feature file is self-contained with its stories, acceptance criteria, etc.</li>
+        </ul>
+      </li>
+      <li><code class="language-plaintext highlighter-rouge">contracts/</code> - OpenAPI contract files (bundle-specific, versioned)</li>
+      <li><code class="language-plaintext highlighter-rouge">protocols/</code> - FSM protocol definitions (bundle-specific, versioned)</li>
+      <li><code class="language-plaintext highlighter-rouge">reports/</code> - Bundle-specific analysis reports (gitignored, Phase 8.5)</li>
+      <li><code class="language-plaintext highlighter-rouge">logs/</code> - Bundle-specific execution logs (gitignored, Phase 8.5)</li>
+    </ul>
+  </li>
+  <li><strong>Always committed to git</strong> - these are the source of truth (except reports/ and logs/)</li>
+  <li><strong>Phase 8.5</strong>: All bundle-specific artifacts are stored within bundle folders for better isolation</li>
+  <li>Use descriptive bundle names: <code class="language-plaintext highlighter-rouge">legacy-api</code>, <code class="language-plaintext highlighter-rouge">my-project</code>, <code class="language-plaintext highlighter-rouge">feature-auth</code></li>
+  <li>Supports multiple bundles per repository for brownfield modernization, monorepos, or feature branches</li>
+  <li>Aspect files are YAML format (JSON support may be added in future)</li>
+</ul>
+
+<p><strong>Plan Bundle Structure:</strong></p>
+
+<p>Plan bundles are YAML (or JSON) files with the following structure:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">version</span><span class="pi">:</span> <span class="s2">"</span><span class="s">1.1"</span>  <span class="c1"># Schema version (current: 1.1)</span>
+
+<span class="na">metadata</span><span class="pi">:</span>
+  <span class="na">stage</span><span class="pi">:</span> <span class="s2">"</span><span class="s">draft"</span>  <span class="c1"># draft, review, approved, released</span>
+  <span class="na">summary</span><span class="pi">:</span>  <span class="c1"># Summary metadata for fast access (added in v1.1)</span>
+    <span class="na">features_count</span><span class="pi">:</span> <span class="m">5</span>
+    <span class="na">stories_count</span><span class="pi">:</span> <span class="m">12</span>
+    <span class="na">themes_count</span><span class="pi">:</span> <span class="m">2</span>
+    <span class="na">releases_count</span><span class="pi">:</span> <span class="m">1</span>
+    <span class="na">content_hash</span><span class="pi">:</span> <span class="s2">"</span><span class="s">abc123def456..."</span>  <span class="c1"># SHA256 hash for integrity</span>
+    <span class="na">computed_at</span><span class="pi">:</span> <span class="s2">"</span><span class="s">2025-01-15T10:30:00"</span>
+
+<span class="na">idea</span><span class="pi">:</span>
+  <span class="na">title</span><span class="pi">:</span> <span class="s2">"</span><span class="s">Project</span><span class="nv"> </span><span class="s">Title"</span>
+  <span class="na">narrative</span><span class="pi">:</span> <span class="s2">"</span><span class="s">Project</span><span class="nv"> </span><span class="s">description"</span>
+  <span class="c1"># ... other idea fields</span>
+
+<span class="na">product</span><span class="pi">:</span>
+  <span class="na">themes</span><span class="pi">:</span> <span class="pi">[</span><span class="s2">"</span><span class="s">Theme1"</span><span class="pi">,</span> <span class="s2">"</span><span class="s">Theme2"</span><span class="pi">]</span>
+  <span class="na">releases</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">...</span><span class="pi">]</span>
+
+<span class="na">features</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">key</span><span class="pi">:</span> <span class="s2">"</span><span class="s">FEATURE-001"</span>
+    <span class="na">title</span><span class="pi">:</span> <span class="s2">"</span><span class="s">Feature</span><span class="nv"> </span><span class="s">Title"</span>
+    <span class="na">stories</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">...</span><span class="pi">]</span>
+    <span class="c1"># ... other feature fields</span>
+</code></pre></div></div>
+
+<p><strong>Bundle Manifest Structure (bundle.manifest.yaml):</strong></p>
+
+<p>The <code class="language-plaintext highlighter-rouge">bundle.manifest.yaml</code> file contains bundle metadata and (in v1.1+) optional change tracking fields:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">schema_metadata</span><span class="pi">:</span>
+  <span class="na">schema_version</span><span class="pi">:</span> <span class="s2">"</span><span class="s">1.1"</span>  <span class="c1"># Set to "1.1" to enable change tracking (v0.21.1+)</span>
+  <span class="na">project_version</span><span class="pi">:</span> <span class="s2">"</span><span class="s">0.1.0"</span>
+
+<span class="c1"># ... other manifest fields (checksums, feature index, etc.)</span>
+
+<span class="c1"># Optional change tracking fields (v1.1+, loaded via bridge adapters)</span>
+<span class="na">change_tracking</span><span class="pi">:</span> <span class="kc">null</span>  <span class="c1"># Optional - loaded via bridge adapters (not stored in bundle directory)</span>
+<span class="na">change_archive</span><span class="pi">:</span> <span class="pi">[]</span>     <span class="c1"># Optional - list of archived changes (not stored in bundle directory)</span>
+</code></pre></div></div>
+
+<p><strong>Note</strong>: The <code class="language-plaintext highlighter-rouge">change_tracking</code> and <code class="language-plaintext highlighter-rouge">change_archive</code> fields are optional and loaded dynamically via bridge adapters (e.g., OpenSpec adapter) rather than being stored directly in the bundle directory. This allows change tracking to be managed by external tools while keeping bundles tool-agnostic. See <a href="/specfact-cli/schema-versioning/">Schema Versioning</a> for details.</p>
+
+<p><strong>Summary Metadata (v1.1+):</strong></p>
+
+<p>Plan bundles version 1.1 and later include summary metadata in the <code class="language-plaintext highlighter-rouge">metadata.summary</code> section. This provides:</p>
+
+<ul>
+  <li><strong>Fast access</strong>: Read plan counts without parsing entire file (44% faster performance)</li>
+  <li><strong>Integrity verification</strong>: Content hash detects plan modifications</li>
+  <li><strong>Performance optimization</strong>: Only reads first 50KB for large files (&gt;10MB)</li>
+</ul>
+
+<p><strong>Upgrading Plan Bundles:</strong></p>
+
+<p>Use <code class="language-plaintext highlighter-rouge">specfact plan upgrade</code> to migrate older plan bundles to the latest schema:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Upgrade active plan</span>
+specfact plan upgrade
+
+<span class="c"># Upgrade all plans</span>
+specfact plan upgrade <span class="nt">--all</span>
+
+<span class="c"># Preview upgrades</span>
+specfact plan upgrade <span class="nt">--dry-run</span>
+</code></pre></div></div>
+
+<p>See <a href="/specfact-cli/reference/commands/#plan-upgrade"><code class="language-plaintext highlighter-rouge">plan upgrade</code></a> for details.</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.specfact/projects/
+├── my-project/                    <span class="c"># Primary project bundle</span>
+│   ├── bundle.manifest.yaml       <span class="c"># Metadata, checksums, feature index</span>
+│   ├── idea.yaml                  <span class="c"># Product vision</span>
+│   ├── business.yaml              <span class="c"># Business context</span>
+│   ├── product.yaml               <span class="c"># Themes and releases</span>
+│   ├── features/                  <span class="c"># Individual feature files</span>
+│   │   ├── FEATURE-001.yaml
+│   │   ├── FEATURE-002.yaml
+│   │   └── FEATURE-003.yaml
+│   └── prompts/                   <span class="c"># AI IDE contract enhancement prompts (optional)</span>
+│       └── enhance-&lt;filename&gt;-&lt;contracts&gt;.md
+├── legacy-api/                    <span class="c"># ⭐ Reverse-engineered from existing API (brownfield)</span>
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   ├── features/
+│   │   ├── FEATURE-AUTH.yaml
+│   │   └── FEATURE-PAYMENT.yaml
+│   └── prompts/                   <span class="c"># Bundle-specific prompts (avoids conflicts)</span>
+│       └── enhance-&lt;filename&gt;-&lt;contracts&gt;.md
+├── legacy-payment/                 <span class="c"># ⭐ Reverse-engineered from existing payment system (brownfield)</span>
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── FEATURE-PAYMENT.yaml
+└── feature-auth/                   <span class="c"># Auth feature bundle</span>
+    ├── bundle.manifest.yaml
+    ├── product.yaml
+    └── features/
+        └── FEATURE-AUTH.yaml
+</code></pre></div></div>
+
+<h3 id="specfactprotocols-versioned"><code class="language-plaintext highlighter-rouge">.specfact/protocols/</code> (Versioned)</h3>
+
+<p><strong>Purpose</strong>: Store FSM (Finite State Machine) protocol definitions.</p>
+
+<p><strong>Guidelines</strong>:</p>
+
+<ul>
+  <li>Define valid states and transitions</li>
+  <li><strong>Always committed to git</strong></li>
+  <li>Used for workflow validation</li>
+</ul>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.specfact/protocols/
+├── development-workflow.protocol.yaml
+└── deployment-pipeline.protocol.yaml
+</code></pre></div></div>
+
+<h3 id="bundle-specific-artifacts-phase-85">Bundle-Specific Artifacts (Phase 8.5)</h3>
+
+<p><strong>Phase 8.5 Update</strong>: All bundle-specific artifacts are now stored within <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code> folders for better isolation and organization.</p>
+
+<p><strong>Bundle-Specific Artifacts</strong>:</p>
+
+<ul>
+  <li><strong>Reports</strong>: <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/reports/</code> (gitignored)
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">brownfield/</code> - Brownfield analysis reports</li>
+      <li><code class="language-plaintext highlighter-rouge">comparison/</code> - Plan comparison reports</li>
+      <li><code class="language-plaintext highlighter-rouge">enrichment/</code> - LLM enrichment reports</li>
+      <li><code class="language-plaintext highlighter-rouge">enforcement/</code> - SDD enforcement validation reports</li>
+    </ul>
+  </li>
+  <li><strong>SDD Manifests</strong>: <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/sdd.yaml</code> (versioned)</li>
+  <li><strong>Tasks</strong>: <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/tasks.yaml</code> (versioned)</li>
+  <li><strong>Logs</strong>: <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/logs/</code> (gitignored)</li>
+</ul>
+
+<p><strong>Migration</strong>: Use <code class="language-plaintext highlighter-rouge">specfact migrate artifacts</code> to move existing artifacts from global locations to bundle-specific folders.</p>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.specfact/projects/legacy-api/
+├── bundle.manifest.yaml
+├── product.yaml
+├── sdd.yaml                    <span class="c"># Bundle-specific SDD manifest</span>
+├── tasks.yaml                  <span class="c"># Bundle-specific task breakdown</span>
+├── reports/                    <span class="c"># Bundle-specific reports (gitignored)</span>
+│   ├── brownfield/
+│   │   └── analysis-2025-10-31T14-30-00.md
+│   ├── comparison/
+│   │   └── report-2025-10-31T14-30-00.md
+│   ├── enrichment/
+│   │   └── legacy-api-2025-10-31T14-30-00.enrichment.md
+│   └── enforcement/
+│       └── report-2025-10-31T14-30-00.yaml
+└── logs/                       <span class="c"># Bundle-specific logs (gitignored)</span>
+    └── 2025-10-31T14-30-00.log
+</code></pre></div></div>
+
+<h3 id="legacy-global-locations-removed">Legacy Global Locations (Removed)</h3>
+
+<p><strong>Note</strong>: The following global locations have been removed (Phase 8.5):</p>
+
+<ul>
+  <li>❌ <code class="language-plaintext highlighter-rouge">.specfact/plans/</code> - Removed (active bundle config migrated to <code class="language-plaintext highlighter-rouge">.specfact/config.yaml</code>)</li>
+  <li>❌ <code class="language-plaintext highlighter-rouge">.specfact/gates/results/</code> - Removed (enforcement reports are bundle-specific)</li>
+  <li>❌ <code class="language-plaintext highlighter-rouge">.specfact/reports/</code> - Removed (reports are bundle-specific)</li>
+  <li>❌ <code class="language-plaintext highlighter-rouge">.specfact/sdd/</code> - Removed (SDD manifests are bundle-specific)</li>
+  <li>❌ <code class="language-plaintext highlighter-rouge">.specfact/tasks/</code> - Removed (task files are bundle-specific)</li>
+</ul>
+
+<p><strong>Migration</strong>: Use <code class="language-plaintext highlighter-rouge">specfact migrate cleanup-legacy</code> to remove empty legacy directories, and <code class="language-plaintext highlighter-rouge">specfact migrate artifacts</code> to migrate existing artifacts to bundle-specific locations.</p>
+
+<h3 id="specfactgates-versioned"><code class="language-plaintext highlighter-rouge">.specfact/gates/</code> (Versioned)</h3>
+
+<p><strong>Purpose</strong>: Global enforcement configuration.</p>
+
+<p><strong>Guidelines</strong>:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">config.yaml</code> is versioned (defines enforcement policy)</li>
+  <li>Enforcement reports are bundle-specific (stored in <code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/reports/enforcement/</code>)</li>
+</ul>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.specfact/gates/
+└── config.yaml              <span class="c"># Versioned: enforcement policy</span>
+</code></pre></div></div>
+
+<p><strong>Note</strong>: Enforcement execution reports are stored in bundle-specific locations (Phase 8.5):</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/reports/enforcement/report-&lt;timestamp&gt;.yaml</code></li>
+</ul>
+
+<h3 id="specfactcache-gitignored"><code class="language-plaintext highlighter-rouge">.specfact/cache/</code> (Gitignored)</h3>
+
+<p><strong>Purpose</strong>: Tool caches for faster execution.</p>
+
+<p><strong>Guidelines</strong>:</p>
+
+<ul>
+  <li><strong>Gitignored</strong> - optimization only</li>
+  <li>Safe to delete anytime</li>
+  <li>Automatically regenerated</li>
+</ul>
+
+<h2 id="default-command-paths">Default Command Paths</h2>
+
+<h3 id="specfact-import-from-code--primary"><code class="language-plaintext highlighter-rouge">specfact import from-code</code> ⭐ PRIMARY</h3>
+
+<p><strong>Primary use case</strong>: Reverse-engineer existing codebases into project bundles.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Command syntax</span>
+specfact import from-code &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="o">[</span>OPTIONS]
+
+<span class="c"># Creates modular bundle at:</span>
+.specfact/projects/&lt;bundle-name&gt;/
+├── bundle.manifest.yaml  <span class="c"># Bundle metadata, versioning, checksums, feature index</span>
+├── product.yaml          <span class="c"># Product definition (required)</span>
+├── idea.yaml            <span class="c"># Product vision (if provided)</span>
+├── business.yaml        <span class="c"># Business context (if provided)</span>
+└── features/            <span class="c"># Individual feature files</span>
+    ├── FEATURE-001.yaml
+    ├── FEATURE-002.yaml
+    └── ...
+
+<span class="c"># Analysis report (bundle-specific, gitignored, Phase 8.5)</span>
+.specfact/projects/&lt;bundle-name&gt;/reports/brownfield/analysis-&lt;timestamp&gt;.md
+</code></pre></div></div>
+
+<p><strong>Example (brownfield modernization)</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Analyze legacy codebase</span>
+specfact import from-code legacy-api <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Creates:</span>
+<span class="c"># - .specfact/projects/legacy-api/bundle.manifest.yaml (versioned)</span>
+<span class="c"># - .specfact/projects/legacy-api/product.yaml (versioned)</span>
+<span class="c"># - .specfact/projects/legacy-api/features/FEATURE-*.yaml (versioned, one per feature)</span>
+<span class="c"># - .specfact/reports/brownfield/analysis-2025-10-31T14-30-00.md (gitignored)</span>
+</code></pre></div></div>
+
+<h3 id="specfact-plan-init-alternative"><code class="language-plaintext highlighter-rouge">specfact plan init</code> (Alternative)</h3>
+
+<p><strong>Alternative use case</strong>: Create new project bundles for greenfield projects.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Command syntax</span>
+specfact plan init &lt;bundle-name&gt; <span class="o">[</span>OPTIONS]
+
+<span class="c"># Creates modular bundle at:</span>
+.specfact/projects/&lt;bundle-name&gt;/
+├── bundle.manifest.yaml  <span class="c"># Bundle metadata and versioning</span>
+├── product.yaml         <span class="c"># Product definition (required)</span>
+├── idea.yaml           <span class="c"># Product vision (if provided via prompts)</span>
+└── features/           <span class="c"># Empty features directory (created when first feature added)</span>
+
+<span class="c"># Also creates (if --interactive):</span>
+.specfact/config.yaml
+</code></pre></div></div>
+
+<h3 id="specfact-plan-compare"><code class="language-plaintext highlighter-rouge">specfact plan compare</code></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Compare two bundles (explicit paths to bundle directories)</span>
+specfact plan compare <span class="se">\</span>
+  <span class="nt">--manual</span> .specfact/projects/manual-plan <span class="se">\</span>
+  <span class="nt">--auto</span> .specfact/projects/auto-derived <span class="se">\</span>
+  <span class="nt">--out</span> .specfact/reports/comparison/report-<span class="k">*</span>.md
+
+<span class="c"># Note: Commands accept bundle directory paths, not individual files</span>
+</code></pre></div></div>
+
+<h3 id="specfact-sync-bridge"><code class="language-plaintext highlighter-rouge">specfact sync bridge</code></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Sync with external tools (Spec-Kit, Linear, Jira, etc.)</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span>
+
+<span class="c"># Watch mode</span>
+specfact <span class="nb">sync </span>bridge <span class="nt">--adapter</span> speckit <span class="nt">--bundle</span> &lt;bundle-name&gt; <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--bidirectional</span> <span class="nt">--watch</span> <span class="nt">--interval</span> 5
+
+<span class="c"># Sync files are tracked in .specfact/reports/sync/</span>
+</code></pre></div></div>
+
+<h3 id="specfact-sync-repository"><code class="language-plaintext highlighter-rouge">specfact sync repository</code></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Sync code changes</span>
+specfact <span class="nb">sync </span>repository <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--target</span> .specfact
+
+<span class="c"># Watch mode</span>
+specfact <span class="nb">sync </span>repository <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--watch</span> <span class="nt">--interval</span> 5
+
+<span class="c"># Sync reports in .specfact/reports/sync/</span>
+</code></pre></div></div>
+
+<h3 id="specfact-enforce-stage"><code class="language-plaintext highlighter-rouge">specfact enforce stage</code></h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Reads/writes</span>
+.specfact/gates/config.yaml
+</code></pre></div></div>
+
+<h3 id="specfact-init"><code class="language-plaintext highlighter-rouge">specfact init</code></h3>
+
+<p>Initializes IDE integration by copying prompt templates to IDE-specific locations:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Auto-detect IDE</span>
+specfact init
+
+<span class="c"># Specify IDE explicitly</span>
+specfact init <span class="nt">--ide</span> cursor
+specfact init <span class="nt">--ide</span> vscode
+specfact init <span class="nt">--ide</span> copilot
+</code></pre></div></div>
+
+<p><strong>Creates IDE-specific directories:</strong></p>
+
+<ul>
+  <li><strong>Cursor</strong>: <code class="language-plaintext highlighter-rouge">.cursor/commands/</code> (markdown files)</li>
+  <li><strong>VS Code / Copilot</strong>: <code class="language-plaintext highlighter-rouge">.github/prompts/</code> (<code class="language-plaintext highlighter-rouge">.prompt.md</code> files) + <code class="language-plaintext highlighter-rouge">.vscode/settings.json</code></li>
+  <li><strong>Claude Code</strong>: <code class="language-plaintext highlighter-rouge">.claude/commands/</code> (markdown files)</li>
+  <li><strong>Gemini</strong>: <code class="language-plaintext highlighter-rouge">.gemini/commands/</code> (TOML files)</li>
+  <li><strong>Qwen</strong>: <code class="language-plaintext highlighter-rouge">.qwen/commands/</code> (TOML files)</li>
+  <li><strong>Other IDEs</strong>: See <a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a></li>
+</ul>
+
+<p><strong>See <a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a></strong> for complete setup instructions.</p>
+
+<p><strong>See real examples</strong>: <a href="../examples/integration-showcases/">Integration Showcases</a> - 5 complete examples showing bugs fixed via IDE integrations</p>
+
+<h2 id="configuration-file">Configuration File</h2>
+
+<p><code class="language-plaintext highlighter-rouge">.specfact/config.yaml</code> (optional):</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">version</span><span class="pi">:</span> <span class="s2">"</span><span class="s">1.0"</span>
+
+<span class="c1"># Default bundle to use (optional)</span>
+<span class="na">default_bundle</span><span class="pi">:</span> <span class="s">my-project</span>
+
+<span class="c1"># Analysis settings</span>
+<span class="na">analysis</span><span class="pi">:</span>
+  <span class="na">confidence_threshold</span><span class="pi">:</span> <span class="m">0.7</span>
+  <span class="na">exclude_patterns</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="s2">"</span><span class="s">**/__pycache__/**"</span>
+    <span class="pi">-</span> <span class="s2">"</span><span class="s">**/node_modules/**"</span>
+    <span class="pi">-</span> <span class="s2">"</span><span class="s">**/venv/**"</span>
+
+<span class="c1"># Enforcement settings</span>
+<span class="na">enforcement</span><span class="pi">:</span>
+  <span class="na">preset</span><span class="pi">:</span> <span class="s">balanced</span>  <span class="c1"># strict, balanced, minimal, shadow</span>
+  <span class="na">budget_seconds</span><span class="pi">:</span> <span class="m">120</span>
+  <span class="na">fail_fast</span><span class="pi">:</span> <span class="kc">false</span>
+
+<span class="c1"># Repro settings</span>
+<span class="na">repro</span><span class="pi">:</span>
+  <span class="na">parallel</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">timeout</span><span class="pi">:</span> <span class="m">300</span>
+</code></pre></div></div>
+
+<h2 id="ide-integration-directories">IDE Integration Directories</h2>
+
+<p>When you run <code class="language-plaintext highlighter-rouge">specfact init</code>, prompt templates are copied to IDE-specific locations for slash command integration.</p>
+
+<h3 id="ide-specific-locations">IDE-Specific Locations</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>IDE</th>
+      <th>Directory</th>
+      <th>Format</th>
+      <th>Settings File</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Cursor</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.cursor/commands/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>VS Code / Copilot</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.github/prompts/</code></td>
+      <td><code class="language-plaintext highlighter-rouge">.prompt.md</code></td>
+      <td><code class="language-plaintext highlighter-rouge">.vscode/settings.json</code></td>
+    </tr>
+    <tr>
+      <td><strong>Claude Code</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.claude/commands/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Gemini</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.gemini/commands/</code></td>
+      <td>TOML</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Qwen</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.qwen/commands/</code></td>
+      <td>TOML</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>opencode</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.opencode/command/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Windsurf</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.windsurf/workflows/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Kilo Code</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.kilocode/workflows/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Auggie</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.augment/commands/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Roo Code</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.roo/commands/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>CodeBuddy</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.codebuddy/commands/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Amp</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.agents/commands/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Amazon Q</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.amazonq/prompts/</code></td>
+      <td>Markdown</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="example-structure-cursor">Example Structure (Cursor)</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.cursor/
+└── commands/
+    ├── specfact.01-import.md
+    ├── specfact.02-plan.md
+    ├── specfact.03-review.md
+    ├── specfact.04-sdd.md
+    ├── specfact.05-enforce.md
+    ├── specfact.06-sync.md
+    ├── specfact.compare.md
+    └── specfact.validate.md
+</code></pre></div></div>
+
+<h3 id="example-structure-vs-code--copilot">Example Structure (VS Code / Copilot)</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.github/
+└── prompts/
+    ├── specfact.01-import.prompt.md
+    ├── specfact.02-plan.prompt.md
+    ├── specfact.03-review.prompt.md
+    ├── specfact.04-sdd.prompt.md
+    ├── specfact.05-enforce.prompt.md
+    ├── specfact.06-sync.prompt.md
+    ├── specfact.compare.prompt.md
+    └── specfact.validate.prompt.md
+.vscode/
+└── settings.json  <span class="c"># Updated with promptFilesRecommendations</span>
+</code></pre></div></div>
+
+<p><strong>Guidelines:</strong></p>
+
+<ul>
+  <li><strong>Versioned</strong> - IDE directories are typically committed to git (team-shared configuration)</li>
+  <li><strong>Templates</strong> - Prompt templates are read-only for the IDE, not modified by users</li>
+  <li><strong>Settings</strong> - VS Code <code class="language-plaintext highlighter-rouge">settings.json</code> is merged (not overwritten) to preserve existing settings</li>
+  <li><strong>Auto-discovery</strong> - IDEs automatically discover and register templates as slash commands</li>
+  <li><strong>CLI-first</strong> - Works offline, no account required, no vendor lock-in</li>
+</ul>
+
+<p><strong>See <a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a></strong> for detailed setup and usage.</p>
+
+<p><strong>See real examples</strong>: <a href="../examples/integration-showcases/">Integration Showcases</a> - 5 complete examples showing bugs fixed via IDE integrations</p>
+
+<hr />
+
+<h2 id="specfact-cli-package-structure">SpecFact CLI Package Structure</h2>
+
+<p>The SpecFact CLI package includes prompt templates that are copied to IDE locations:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>specfact-cli/
+└── resources/
+    └── prompts/              <span class="c"># Prompt templates (in package)</span>
+        ├── specfact.01-import.md
+        ├── specfact.02-plan.md
+        ├── specfact.03-review.md
+        ├── specfact.04-sdd.md
+        ├── specfact.05-enforce.md
+        ├── specfact.06-sync.md
+        ├── specfact.compare.md
+        ├── specfact.validate.md
+        └── shared/
+            └── cli-enforcement.md
+</code></pre></div></div>
+
+<p><strong>These templates are:</strong></p>
+
+<ul>
+  <li>Packaged with SpecFact CLI</li>
+  <li>Copied to IDE locations by <code class="language-plaintext highlighter-rouge">specfact init</code></li>
+  <li>Not modified by users (read-only templates)</li>
+</ul>
+
+<hr />
+
+<h2 id="gitignore-recommendations"><code class="language-plaintext highlighter-rouge">.gitignore</code> Recommendations</h2>
+
+<p>Add to <code class="language-plaintext highlighter-rouge">.gitignore</code>:</p>
+
+<pre><code class="language-gitignore"># SpecFact ephemeral artifacts
+.specfact/projects/*/reports/
+.specfact/projects/*/logs/
+.specfact/cache/
+
+# Keep these versioned
+!.specfact/projects/
+!.specfact/config.yaml
+!.specfact/gates/config.yaml
+
+# IDE integration directories (optional - typically versioned)
+# Uncomment if you don't want to commit IDE integration files
+# .cursor/commands/
+# .github/prompts/
+# .vscode/settings.json
+# .claude/commands/
+# .gemini/commands/
+# .qwen/commands/
+</code></pre>
+
+<p><strong>Note</strong>: IDE integration directories are typically <strong>versioned</strong> (committed to git) so team members share the same slash commands. However, you can gitignore them if preferred.</p>
+
+<h2 id="migration-from-old-structure">Migration from Old Structure</h2>
+
+<p>If you have existing artifacts in other locations:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Old structure (monolithic bundles, deprecated)</span>
+.specfact/plans/&lt;name&gt;.bundle.&lt;format&gt;
+.specfact/reports/analysis.md
+
+<span class="c"># New structure (modular bundles)</span>
+.specfact/projects/my-project/
+├── bundle.manifest.yaml
+└── bundle.yaml
+.specfact/reports/brownfield/analysis.md
+
+<span class="c"># Migration</span>
+<span class="nb">mkdir</span> <span class="nt">-p</span> .specfact/projects/my-project .specfact/reports/brownfield
+<span class="c"># Convert monolithic bundle to modular bundle structure</span>
+<span class="c"># (Use 'specfact plan upgrade' or manual conversion)</span>
+<span class="nb">mv </span>reports/analysis.md .specfact/reports/brownfield/
+</code></pre></div></div>
+
+<h2 id="multiple-plans-in-one-repository">Multiple Plans in One Repository</h2>
+
+<p>SpecFact supports multiple plan bundles for:</p>
+
+<ul>
+  <li><strong>Brownfield modernization</strong> ⭐ <strong>PRIMARY</strong>: Separate plans for legacy components vs modernized code</li>
+  <li><strong>Monorepos</strong>: One plan per service</li>
+  <li><strong>Feature branches</strong>: Feature-specific plans</li>
+</ul>
+
+<p><strong>Example (Brownfield Modernization)</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.specfact/projects/
+├── my-project/                      <span class="c"># Overall project bundle</span>
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── ...
+├── legacy-api/                      <span class="c"># ⭐ Reverse-engineered from existing API (brownfield)</span>
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       ├── FEATURE-AUTH.yaml
+│       └── FEATURE-API.yaml
+├── legacy-payment/                  <span class="c"># ⭐ Reverse-engineered from existing payment system (brownfield)</span>
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── FEATURE-PAYMENT.yaml
+├── modernized-api/                  <span class="c"># New API bundle (after modernization)</span>
+│   ├── bundle.manifest.yaml
+│   ├── product.yaml
+│   └── features/
+│       └── ...
+└── feature-new-auth/                <span class="c"># Experimental feature bundle</span>
+    ├── bundle.manifest.yaml
+    ├── product.yaml
+    └── features/
+        └── FEATURE-AUTH.yaml
+</code></pre></div></div>
+
+<p><strong>Usage (Brownfield Workflow)</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Step 1: Reverse-engineer legacy codebase</span>
+specfact import from-code legacy-api <span class="se">\</span>
+  <span class="nt">--repo</span> src/legacy-api <span class="se">\</span>
+  <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Step 2: Compare legacy vs modernized (use bundle directories, not files)</span>
+specfact plan compare <span class="se">\</span>
+  <span class="nt">--manual</span> .specfact/projects/legacy-api <span class="se">\</span>
+  <span class="nt">--auto</span> .specfact/projects/modernized-api
+
+<span class="c"># Step 3: Analyze specific legacy component</span>
+specfact import from-code legacy-payment <span class="se">\</span>
+  <span class="nt">--repo</span> src/legacy-payment <span class="se">\</span>
+  <span class="nt">--confidence</span> 0.7
+</code></pre></div></div>
+
+<h2 id="summary">Summary</h2>
+
+<h3 id="specfact-artifacts">SpecFact Artifacts</h3>
+
+<ul>
+  <li><strong><code class="language-plaintext highlighter-rouge">.specfact/</code></strong> - All SpecFact artifacts live here</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">projects/</code> and <code class="language-plaintext highlighter-rouge">protocols/</code></strong> - Versioned (git)</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">reports/</code>, <code class="language-plaintext highlighter-rouge">gates/results/</code>, <code class="language-plaintext highlighter-rouge">cache/</code></strong> - Gitignored (ephemeral)</li>
+  <li><strong>Modular bundles</strong> - Each bundle in its own directory with manifest and content files</li>
+  <li><strong>Use descriptive bundle names</strong> - Supports multiple bundles per repo</li>
+  <li><strong>Default paths always start with <code class="language-plaintext highlighter-rouge">.specfact/</code></strong> - Consistent and predictable</li>
+  <li><strong>Timestamped reports</strong> - Auto-generated reports include timestamps for tracking</li>
+  <li><strong>Bridge architecture</strong> - Bidirectional sync with external tools (Spec-Kit, Linear, Jira, etc.) via bridge adapters</li>
+</ul>
+
+<h3 id="ide-integration">IDE Integration</h3>
+
+<ul>
+  <li><strong>IDE directories</strong> - Created by <code class="language-plaintext highlighter-rouge">specfact init</code> (e.g., <code class="language-plaintext highlighter-rouge">.cursor/commands/</code>, <code class="language-plaintext highlighter-rouge">.github/prompts/</code>)</li>
+  <li><strong>Prompt templates</strong> - Copied from <code class="language-plaintext highlighter-rouge">resources/prompts/</code> in SpecFact CLI package</li>
+  <li><strong>Typically versioned</strong> - IDE directories are usually committed to git for team sharing</li>
+  <li><strong>Auto-discovery</strong> - IDEs automatically discover and register templates as slash commands</li>
+  <li><strong>Settings files</strong> - VS Code <code class="language-plaintext highlighter-rouge">settings.json</code> is merged (not overwritten)</li>
+</ul>
+
+<h3 id="quick-reference">Quick Reference</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Location</th>
+      <th>Git Status</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Project Bundles</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/</code></td>
+      <td>Versioned</td>
+      <td>Modular contract definitions</td>
+    </tr>
+    <tr>
+      <td><strong>Bundle Prompts</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.specfact/projects/&lt;bundle-name&gt;/prompts/</code></td>
+      <td>Versioned (optional)</td>
+      <td>AI IDE contract enhancement prompts</td>
+    </tr>
+    <tr>
+      <td><strong>Protocols</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.specfact/protocols/</code></td>
+      <td>Versioned</td>
+      <td>FSM definitions</td>
+    </tr>
+    <tr>
+      <td><strong>Reports</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.specfact/reports/</code></td>
+      <td>Gitignored</td>
+      <td>Analysis reports</td>
+    </tr>
+    <tr>
+      <td><strong>Cache</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.specfact/cache/</code></td>
+      <td>Gitignored</td>
+      <td>Tool caches</td>
+    </tr>
+    <tr>
+      <td><strong>IDE Templates</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">.cursor/commands/</code>, <code class="language-plaintext highlighter-rouge">.github/prompts/</code>, etc.</td>
+      <td>Versioned (recommended)</td>
+      <td>Slash command templates</td>
+    </tr>
+  </tbody>
+</table>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Using CoPilot Mode | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Using CoPilot Mode" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/copilot-mode/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/copilot-mode/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Using CoPilot Mode" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"Using CoPilot Mode","url":"https://nold-ai.github.io/specfact-cli/copilot-mode/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="using-copilot-mode">Using CoPilot Mode</h1>
+
+<p><strong>Status</strong>: ✅ <strong>AVAILABLE</strong> (v0.4.2+)<br />
+<strong>Last Updated</strong>: 2025-11-02</p>
+
+<hr />
+
+<h2 id="overview">Overview</h2>
+
+<p>SpecFact CLI supports two operational modes:</p>
+
+<ul>
+  <li><strong>CI/CD Mode</strong> (Default): Fast, deterministic execution for automation</li>
+  <li><strong>CoPilot Mode</strong>: Interactive assistance with enhanced prompts for IDEs</li>
+</ul>
+
+<p>Mode is auto-detected based on environment, or you can explicitly set it with <code class="language-plaintext highlighter-rouge">--mode cicd</code> or <code class="language-plaintext highlighter-rouge">--mode copilot</code>.</p>
+
+<hr />
+
+<h2 id="quick-start">Quick Start</h2>
+
+<h3 id="quick-start-using-copilot-mode">Quick Start Using CoPilot Mode</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Explicitly enable CoPilot mode</span>
+specfact <span class="nt">--mode</span> copilot import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Mode is auto-detected based on environment (IDE integration, CoPilot API availability)</span>
+specfact import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7  <span class="c"># Auto-detects CoPilot if available</span>
+</code></pre></div></div>
+
+<h3 id="what-you-get-with-copilot-mode">What You Get with CoPilot Mode</h3>
+
+<ul>
+  <li>✅ <strong>Enhanced prompts</strong> with context injection (current file, selection, workspace)</li>
+  <li>✅ <strong>Agent routing</strong> for better analysis and planning</li>
+  <li>✅ <strong>Context-aware execution</strong> optimized for interactive use</li>
+  <li>✅ <strong>Better AI steering</strong> with detailed instructions</li>
+</ul>
+
+<hr />
+
+<h2 id="how-it-works">How It Works</h2>
+
+<h3 id="mode-detection">Mode Detection</h3>
+
+<p>SpecFact CLI automatically detects the operational mode:</p>
+
+<ol>
+  <li><strong>Explicit flag</strong> - <code class="language-plaintext highlighter-rouge">--mode cicd</code> or <code class="language-plaintext highlighter-rouge">--mode copilot</code> (highest priority)</li>
+  <li><strong>Environment detection</strong> - Checks for CoPilot API availability, IDE integration</li>
+  <li><strong>Default</strong> - Falls back to CI/CD mode if no CoPilot environment detected</li>
+</ol>
+
+<h3 id="agent-routing">Agent Routing</h3>
+
+<p>In CoPilot mode, commands are routed through specialized agents:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Agent</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">import from-code</code></td>
+      <td><code class="language-plaintext highlighter-rouge">AnalyzeAgent</code></td>
+      <td>AI-first brownfield analysis with semantic understanding (multi-language support)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">plan init</code></td>
+      <td><code class="language-plaintext highlighter-rouge">PlanAgent</code></td>
+      <td>Plan management with business logic understanding</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">plan compare</code></td>
+      <td><code class="language-plaintext highlighter-rouge">PlanAgent</code></td>
+      <td>Plan comparison with deviation analysis</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">sync bridge --adapter speckit</code></td>
+      <td><code class="language-plaintext highlighter-rouge">SyncAgent</code></td>
+      <td>Bidirectional sync with conflict resolution</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="context-injection">Context Injection</h3>
+
+<p>CoPilot mode automatically injects relevant context:</p>
+
+<ul>
+  <li><strong>Current file</strong>: Active file in IDE</li>
+  <li><strong>Selection</strong>: Selected text/code</li>
+  <li><strong>Workspace</strong>: Repository root path</li>
+  <li><strong>Git context</strong>: Current branch, recent commits</li>
+  <li><strong>Codebase context</strong>: Directory structure, files, dependencies</li>
+</ul>
+
+<p>This context is used to generate enhanced prompts that instruct the AI IDE to:</p>
+
+<ul>
+  <li>Understand the codebase semantically</li>
+  <li>Call the SpecFact CLI with appropriate arguments</li>
+  <li>Enhance CLI results with semantic understanding</li>
+</ul>
+
+<h3 id="pragmatic-integration-benefits">Pragmatic Integration Benefits</h3>
+
+<ul>
+  <li>✅ <strong>No separate LLM setup</strong> - Uses AI IDE’s existing LLM (Cursor, CoPilot, etc.)</li>
+  <li>✅ <strong>No additional API costs</strong> - Leverages existing IDE infrastructure</li>
+  <li>✅ <strong>Simpler architecture</strong> - No langchain, API keys, or complex integration</li>
+  <li>✅ <strong>Better developer experience</strong> - Native IDE integration via slash commands</li>
+  <li>✅ <strong>Streamlined workflow</strong> - AI understands codebase, CLI handles structured work</li>
+</ul>
+
+<hr />
+
+<h2 id="examples">Examples</h2>
+
+<h3 id="example-1-brownfield-analysis--primary">Example 1: Brownfield Analysis ⭐ PRIMARY</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># CI/CD mode (fast, deterministic, Python-only)</span>
+specfact <span class="nt">--mode</span> cicd import from-code <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># CoPilot mode (AI-first, semantic understanding, multi-language)</span>
+specfact <span class="nt">--mode</span> copilot import from-code <span class="nt">--repo</span> <span class="nb">.</span> <span class="nt">--confidence</span> 0.7
+
+<span class="c"># Output (CoPilot mode):</span>
+<span class="c"># Mode: CoPilot (AI-first analysis)</span>
+<span class="c"># 🤖 AI-powered analysis (semantic understanding)...</span>
+<span class="c"># ✓ AI analysis complete</span>
+<span class="c"># ✓ Found X features</span>
+<span class="c"># ✓ Detected themes: ...</span>
+</code></pre></div></div>
+
+<p><strong>Key Differences</strong>:</p>
+
+<ul>
+  <li><strong>CoPilot Mode</strong>: Uses LLM for semantic understanding, supports all languages, generates high-quality Spec-Kit artifacts</li>
+  <li><strong>CI/CD Mode</strong>: Uses Python AST for fast analysis, Python-only, generates generic content (hardcoded fallbacks)</li>
+</ul>
+
+<h3 id="example-2-plan-initialization">Example 2: Plan Initialization</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># CI/CD mode (minimal prompts)</span>
+specfact <span class="nt">--mode</span> cicd plan init <span class="nt">--no-interactive</span>
+
+<span class="c"># CoPilot mode (enhanced interactive prompts)</span>
+specfact <span class="nt">--mode</span> copilot plan init <span class="nt">--interactive</span>
+
+<span class="c"># Output:</span>
+<span class="c"># Mode: CoPilot (agent routing)</span>
+<span class="c"># Agent prompt generated (XXX chars)</span>
+<span class="c"># [enhanced interactive prompts]</span>
+</code></pre></div></div>
+
+<h3 id="example-3-plan-comparison">Example 3: Plan Comparison</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># CoPilot mode with enhanced deviation analysis (bundle directory paths)</span>
+specfact <span class="nt">--mode</span> copilot plan compare <span class="se">\</span>
+  <span class="nt">--manual</span> .specfact/projects/main <span class="se">\</span>
+  <span class="nt">--auto</span> .specfact/projects/my-project-auto
+
+<span class="c"># Output:</span>
+<span class="c"># Mode: CoPilot (agent routing)</span>
+<span class="c"># Agent prompt generated (XXX chars)</span>
+<span class="c"># [enhanced deviation analysis with context]</span>
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="mode-differences">Mode Differences</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>CI/CD Mode</th>
+      <th>CoPilot Mode</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Speed</strong></td>
+      <td>Fast, deterministic</td>
+      <td>Slightly slower, context-aware</td>
+    </tr>
+    <tr>
+      <td><strong>Output</strong></td>
+      <td>Structured, minimal</td>
+      <td>Enhanced, detailed</td>
+    </tr>
+    <tr>
+      <td><strong>Prompts</strong></td>
+      <td>Standard</td>
+      <td>Enhanced with context</td>
+    </tr>
+    <tr>
+      <td><strong>Context</strong></td>
+      <td>Minimal</td>
+      <td>Full context injection</td>
+    </tr>
+    <tr>
+      <td><strong>Agent Routing</strong></td>
+      <td>Direct execution</td>
+      <td>Agent-based routing</td>
+    </tr>
+    <tr>
+      <td><strong>Use Case</strong></td>
+      <td>Automation, CI/CD</td>
+      <td>Interactive development, IDE</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="when-to-use-each-mode">When to Use Each Mode</h2>
+
+<h3 id="use-cicd-mode-when">Use CI/CD Mode When</h3>
+
+<ul>
+  <li>✅ Running in CI/CD pipelines</li>
+  <li>✅ Automating workflows</li>
+  <li>✅ Need fast, deterministic execution</li>
+  <li>✅ Don’t need enhanced prompts</li>
+</ul>
+
+<h3 id="use-copilot-mode-when">Use CoPilot Mode When</h3>
+
+<ul>
+  <li>✅ Working in IDE with AI assistance</li>
+  <li>✅ Need enhanced prompts for better AI steering</li>
+  <li>✅ Want context-aware execution</li>
+  <li>✅ Interactive development workflows</li>
+</ul>
+
+<hr />
+
+<h2 id="ide-integration">IDE Integration</h2>
+
+<p>For IDE integration with slash commands, see:</p>
+
+<ul>
+  <li><strong><a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a></strong> - Set up slash commands in your IDE</li>
+</ul>
+
+<hr />
+
+<h2 id="related-documentation">Related Documentation</h2>
+
+<ul>
+  <li><a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a> - Set up IDE slash commands</li>
+  <li><a href="/specfact-cli/reference/commands/">Command Reference</a> - All CLI commands</li>
+  <li><a href="/specfact-cli/architecture/">Architecture</a> - Technical details</li>
+</ul>
+
+<hr />
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+  <li>✅ Use <code class="language-plaintext highlighter-rouge">--mode copilot</code> on CLI commands for enhanced prompts</li>
+  <li>📖 Read <a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a> for slash commands</li>
+  <li>📖 Read <a href="/specfact-cli/reference/commands/">Command Reference</a> for all commands</li>
+</ul>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>AI IDE Workflow Guide | SpecFact CLI Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="AI IDE Workflow Guide" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<meta property="og:description" content="Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts." />
+<link rel="canonical" href="https://nold-ai.github.io/specfact-cli/ai-ide-workflow/" />
+<meta property="og:url" content="https://nold-ai.github.io/specfact-cli/ai-ide-workflow/" />
+<meta property="og:site_name" content="SpecFact CLI Documentation" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="AI IDE Workflow Guide" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.","headline":"AI IDE Workflow Guide","url":"https://nold-ai.github.io/specfact-cli/ai-ide-workflow/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/specfact-cli/assets/main.css">
+    <link rel="alternate" type="application/rss+xml" title="SpecFact CLI Documentation" href="/specfact-cli/feed.xml">
+    
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
+        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
+        
+        mermaidCodeBlocks.forEach(function(codeBlock) {
+          const pre = codeBlock.closest('pre');
+          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          
+          // Create mermaid div
+          const mermaidDiv = document.createElement('div');
+          mermaidDiv.className = 'mermaid';
+          mermaidDiv.textContent = mermaidCode.trim();
+          
+          // Replace the entire pre block (or just the code if no pre)
+          if (pre) {
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+          } else {
+            codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
+          }
+        });
+        
+        // Initialize Mermaid with dark theme matching specfact.io colors
+        mermaid.initialize({ 
+          startOnLoad: true,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          },
+          themeVariables: {
+            darkMode: true,
+            primaryColor: '#64ffda',
+            primaryTextColor: '#ccd6f6',
+            primaryBorderColor: '#64ffda',
+            lineColor: '#64ffda',
+            secondaryColor: '#112240',
+            tertiaryColor: '#1d2d50',
+            background: '#0a192f',
+            mainBkgColor: '#112240',
+            secondBkgColor: '#1d2d50',
+            textColor: '#ccd6f6',
+            border1: '#64ffda',
+            border2: '#8892b0',
+            noteBkgColor: '#1d2d50',
+            noteTextColor: '#ccd6f6',
+            noteBorderColor: '#64ffda',
+            actorBorder: '#64ffda',
+            actorBkg: '#112240',
+            actorTextColor: '#ccd6f6',
+            actorLineColor: '#64ffda',
+            labelBoxBkgColor: '#112240',
+            labelBoxBorderColor: '#64ffda',
+            labelTextColor: '#ccd6f6',
+            loopTextColor: '#ccd6f6',
+            activationBorderColor: '#64ffda',
+            activationBkgColor: '#1d2d50',
+            sequenceNumberColor: '#0a192f',
+            sectionBkgColor: '#1d2d50',
+            altBkgColor: '#112240',
+            critBkgColor: '#1d2d50',
+            doneBkgColor: '#64ffda',
+            doneBorderColor: '#64ffda',
+            taskBorderColor: '#64ffda',
+            taskBkgColor: '#112240',
+            taskTextLightColor: '#ccd6f6',
+            taskTextColor: '#ccd6f6',
+            taskTextDarkColor: '#0a192f',
+            taskTextOutsideColor: '#ccd6f6',
+            taskTextClickableColor: '#64ffda',
+            activeTaskBorderColor: '#64ffda',
+            activeTaskBkgColor: '#1d2d50',
+            gridColor: '#8892b0',
+            critBorderColor: '#64ffda'
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <div class="wrapper">
+        <a class="site-title" rel="author" href="/specfact-cli/">SpecFact CLI Documentation</a>
+        <nav class="site-nav">
+          <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+          <label for="nav-trigger">
+            <span class="menu-icon">
+              <svg viewBox="0 0 18 15" width="18px" height="15px">
+                <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+              </svg>
+            </span>
+          </label>
+          <div class="trigger">
+            <a class="page-link" href="/specfact-cli/">Home</a>
+            <a class="page-link" href="/specfact-cli/getting-started/installation/">Getting Started</a>
+            <a class="page-link" href="/specfact-cli/brownfield-engineer/">Guides</a>
+            <a class="page-link" href="/specfact-cli/commands/">Reference</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper docs-layout">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-inner">
+            <h2 class="docs-sidebar-title">
+              <a href="/specfact-cli/">SpecFact CLI</a>
+            </h2>
+
+            <nav class="docs-nav">
+              <p class="docs-nav-section">Getting Started</p>
+              <ul>
+                <li><a href="/specfact-cli/getting-started/installation/">Installation</a></li>
+                <li><a href="/specfact-cli/getting-started/first-steps/">First Steps</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Guides</p>
+              <ul>
+                <li><a href="/specfact-cli/guides/command-chains/">Command Chains</a></li>
+                <li><a href="/specfact-cli/guides/agile-scrum-workflows/">Agile/Scrum Workflows</a></li>
+                <li><a href="/specfact-cli/brownfield-engineer/">Modernizing Legacy Code</a></li>
+                <li><a href="/specfact-cli/brownfield-journey/">Brownfield Journey</a></li>
+                <li><a href="/specfact-cli/ux-features/">UX Features</a></li>
+                <li><a href="/specfact-cli/use-cases/">Use Cases</a></li>
+                <li><a href="/specfact-cli/ide-integration/">IDE Integration</a></li>
+                <li><a href="/specfact-cli/copilot-mode/">CoPilot Mode</a></li>
+                <li><a href="/specfact-cli/troubleshooting/">Troubleshooting</a></li>
+                <li><a href="/specfact-cli/competitive-analysis/">Competitive Analysis</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Reference</p>
+              <ul>
+                <li><a href="/specfact-cli/reference/">Reference Documentation</a></li>
+                <li><a href="/specfact-cli/reference/commands/">Command Reference</a></li>
+                <li><a href="/specfact-cli/architecture/">Architecture</a></li>
+                <li><a href="/specfact-cli/modes/">Operational Modes</a></li>
+                <li><a href="/specfact-cli/directory-structure/">Directory Structure</a></li>
+              </ul>
+
+              <p class="docs-nav-section">Examples</p>
+              <ul>
+                <li><a href="/specfact-cli/examples/">All Examples</a></li>
+                <li><a href="/specfact-cli/quick-examples/">Quick Examples</a></li>
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <div class="docs-content">
+          <h1 id="ai-ide-workflow-guide">AI IDE Workflow Guide</h1>
+
+<blockquote>
+  <p><strong>Complete guide to using SpecFact CLI with AI IDEs (Cursor, VS Code + Copilot, Claude Code, etc.)</strong></p>
+</blockquote>
+
+<hr />
+
+<h2 id="overview">Overview</h2>
+
+<p>SpecFact CLI integrates with AI-assisted IDEs through slash commands that enable a seamless workflow: <strong>SpecFact finds gaps → AI IDE fixes them → SpecFact validates</strong>. This guide explains the complete workflow from setup to validation.</p>
+
+<p><strong>Key Benefits</strong>:</p>
+
+<ul>
+  <li>✅ <strong>You control the AI</strong> - Use your preferred AI model</li>
+  <li>✅ <strong>SpecFact validates</strong> - Ensure AI-generated code meets contracts</li>
+  <li>✅ <strong>No lock-in</strong> - Works with any AI IDE</li>
+  <li>✅ <strong>CLI-first</strong> - Works offline, no account required</li>
+</ul>
+
+<hr />
+
+<h2 id="setup-process">Setup Process</h2>
+
+<h3 id="step-1-initialize-ide-integration">Step 1: Initialize IDE Integration</h3>
+
+<p>Run the <code class="language-plaintext highlighter-rouge">init --ide</code> command in your repository:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Auto-detect IDE</span>
+specfact init
+
+<span class="c"># Or specify IDE explicitly</span>
+specfact init <span class="nt">--ide</span> cursor
+specfact init <span class="nt">--ide</span> vscode
+specfact init <span class="nt">--ide</span> copilot
+
+<span class="c"># Install required packages for contract enhancement</span>
+specfact init <span class="nt">--ide</span> cursor <span class="nt">--install-deps</span>
+</code></pre></div></div>
+
+<p><strong>What it does</strong>:</p>
+
+<ol>
+  <li>Detects your IDE (or uses <code class="language-plaintext highlighter-rouge">--ide</code> flag)</li>
+  <li>Copies prompt templates from <code class="language-plaintext highlighter-rouge">resources/prompts/</code> to IDE-specific location</li>
+  <li>Creates/updates IDE settings if needed</li>
+  <li>Makes slash commands available in your IDE</li>
+  <li>Optionally installs required packages (<code class="language-plaintext highlighter-rouge">beartype</code>, <code class="language-plaintext highlighter-rouge">icontract</code>, <code class="language-plaintext highlighter-rouge">crosshair-tool</code>, <code class="language-plaintext highlighter-rouge">pytest</code>)</li>
+</ol>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a> - Complete setup instructions</p>
+
+<hr />
+
+<h2 id="available-slash-commands">Available Slash Commands</h2>
+
+<p>Once initialized, the following slash commands are available in your IDE:</p>
+
+<h3 id="core-workflow-commands">Core Workflow Commands</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Slash Command</th>
+      <th>Purpose</th>
+      <th>Equivalent CLI Command</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.01-import</code></td>
+      <td>Import from codebase</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact import from-code</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.02-plan</code></td>
+      <td>Plan management</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact plan init/add-feature/add-story</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.03-review</code></td>
+      <td>Review plan</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact plan review</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.04-sdd</code></td>
+      <td>Create SDD manifest</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact enforce sdd</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.05-enforce</code></td>
+      <td>SDD enforcement</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact enforce sdd</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.06-sync</code></td>
+      <td>Sync operations</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact sync bridge</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.07-contracts</code></td>
+      <td>Contract management</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact generate contracts-prompt</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="advanced-commands">Advanced Commands</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Slash Command</th>
+      <th>Purpose</th>
+      <th>Equivalent CLI Command</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.compare</code></td>
+      <td>Compare plans</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact plan compare</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/specfact.validate</code></td>
+      <td>Validation suite</td>
+      <td><code class="language-plaintext highlighter-rouge">specfact repro</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/ide-integration/#available-slash-commands">IDE Integration - Available Slash Commands</a></p>
+
+<hr />
+
+<h2 id="complete-workflow-prompt-generation--ai-ide--validation-loop">Complete Workflow: Prompt Generation → AI IDE → Validation Loop</h2>
+
+<h3 id="workflow-overview">Workflow Overview</h3>
+
+<pre><code class="language-mermaid">graph TD
+    A[SpecFact Analysis] --&gt;|Find Gaps| B[Generate Prompt]
+    B --&gt;|Copy to IDE| C[AI IDE]
+    C --&gt;|Generate Fix| D[Apply Changes]
+    D --&gt;|SpecFact Validate| E[Validation]
+    E --&gt;|Pass| F[Complete]
+    E --&gt;|Fail| B
+</code></pre>
+
+<h3 id="step-by-step-workflow">Step-by-Step Workflow</h3>
+
+<h4 id="1-run-specfact-analysis">1. Run SpecFact Analysis</h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Import from codebase</span>
+specfact import from-code <span class="nt">--bundle</span> my-project <span class="nt">--repo</span> <span class="nb">.</span>
+
+<span class="c"># Run validation to find gaps</span>
+specfact repro <span class="nt">--verbose</span>
+</code></pre></div></div>
+
+<h4 id="2-generate-ai-ready-prompt">2. Generate AI-Ready Prompt</h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Generate fix prompt for a specific gap</span>
+specfact generate fix-prompt GAP-001 <span class="nt">--bundle</span> my-project
+
+<span class="c"># Or generate contract prompt</span>
+specfact generate contracts-prompt <span class="nt">--bundle</span> my-project <span class="nt">--feature</span> FEATURE-001
+
+<span class="c"># Or generate test prompt</span>
+specfact generate test-prompt src/auth/login.py <span class="nt">--bundle</span> my-project
+</code></pre></div></div>
+
+<h4 id="3-use-ai-ide-to-apply-fixes">3. Use AI IDE to Apply Fixes</h4>
+
+<p><strong>In Cursor / VS Code / Copilot</strong>:</p>
+
+<ol>
+  <li>Open the generated prompt file</li>
+  <li>Copy the prompt content</li>
+  <li>Paste into AI IDE chat</li>
+  <li>AI generates the fix</li>
+  <li>Review and apply the changes</li>
+</ol>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># After generating prompt</span>
+<span class="nb">cat</span> .specfact/prompts/fix-prompt-GAP-001.md
+
+<span class="c"># Copy content to AI IDE chat</span>
+<span class="c"># AI generates fix</span>
+<span class="c"># Apply changes to code</span>
+</code></pre></div></div>
+
+<h4 id="4-validate-with-specfact">4. Validate with SpecFact</h4>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Check contract coverage</span>
+specfact contract coverage <span class="nt">--bundle</span> my-project
+
+<span class="c"># Run validation</span>
+specfact repro <span class="nt">--verbose</span>
+
+<span class="c"># Enforce SDD compliance</span>
+specfact enforce sdd <span class="nt">--bundle</span> my-project
+</code></pre></div></div>
+
+<h4 id="5-iterate-if-needed">5. Iterate if Needed</h4>
+
+<p>If validation fails, return to step 2 and generate a new prompt for the remaining issues.</p>
+
+<hr />
+
+<h2 id="integration-with-command-chains">Integration with Command Chains</h2>
+
+<p>The AI IDE workflow integrates with several command chains:</p>
+
+<h3 id="ai-assisted-code-enhancement-chain">AI-Assisted Code Enhancement Chain</h3>
+
+<p><strong>Workflow</strong>: <code class="language-plaintext highlighter-rouge">generate contracts-prompt</code> → [AI IDE] → <code class="language-plaintext highlighter-rouge">contracts-apply</code> → <code class="language-plaintext highlighter-rouge">contract coverage</code> → <code class="language-plaintext highlighter-rouge">repro</code></p>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/command-chains/#7-ai-assisted-code-enhancement-chain-emerging">AI-Assisted Code Enhancement Chain</a></p>
+
+<h3 id="test-generation-from-specifications-chain">Test Generation from Specifications Chain</h3>
+
+<p><strong>Workflow</strong>: <code class="language-plaintext highlighter-rouge">generate test-prompt</code> → [AI IDE] → <code class="language-plaintext highlighter-rouge">spec generate-tests</code> → <code class="language-plaintext highlighter-rouge">pytest</code></p>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/command-chains/#8-test-generation-from-specifications-chain-emerging">Test Generation from Specifications Chain</a></p>
+
+<h3 id="gap-discovery--fixing-chain">Gap Discovery &amp; Fixing Chain</h3>
+
+<p><strong>Workflow</strong>: <code class="language-plaintext highlighter-rouge">repro --verbose</code> → <code class="language-plaintext highlighter-rouge">generate fix-prompt</code> → [AI IDE] → <code class="language-plaintext highlighter-rouge">enforce sdd</code></p>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/command-chains/#9-gap-discovery--fixing-chain-emerging">Gap Discovery &amp; Fixing Chain</a></p>
+
+<hr />
+
+<h2 id="example-complete-ai-ide-workflow">Example: Complete AI IDE Workflow</h2>
+
+<h3 id="scenario-add-contracts-to-existing-code">Scenario: Add Contracts to Existing Code</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># 1. Analyze codebase</span>
+specfact import from-code <span class="nt">--bundle</span> legacy-api <span class="nt">--repo</span> <span class="nb">.</span>
+
+<span class="c"># 2. Find gaps</span>
+specfact repro <span class="nt">--verbose</span>
+
+<span class="c"># 3. Generate contract prompt</span>
+specfact generate contracts-prompt <span class="nt">--bundle</span> legacy-api <span class="nt">--feature</span> FEATURE-001
+
+<span class="c"># 4. [In AI IDE] Use slash command or paste prompt</span>
+<span class="c"># /specfact.generate-contracts-prompt legacy-api FEATURE-001</span>
+<span class="c"># AI generates contracts</span>
+<span class="c"># Apply contracts to code</span>
+
+<span class="c"># 5. Validate</span>
+specfact contract coverage <span class="nt">--bundle</span> legacy-api
+specfact repro <span class="nt">--verbose</span>
+specfact enforce sdd <span class="nt">--bundle</span> legacy-api
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="supported-ides">Supported IDEs</h2>
+
+<p>SpecFact CLI supports the following AI IDEs:</p>
+
+<ul>
+  <li>✅ <strong>Cursor</strong> - <code class="language-plaintext highlighter-rouge">.cursor/commands/</code></li>
+  <li>✅ <strong>VS Code / GitHub Copilot</strong> - <code class="language-plaintext highlighter-rouge">.github/prompts/</code> + <code class="language-plaintext highlighter-rouge">.vscode/settings.json</code></li>
+  <li>✅ <strong>Claude Code</strong> - <code class="language-plaintext highlighter-rouge">.claude/commands/</code></li>
+  <li>✅ <strong>Gemini CLI</strong> - <code class="language-plaintext highlighter-rouge">.gemini/commands/</code></li>
+  <li>✅ <strong>Qwen Code</strong> - <code class="language-plaintext highlighter-rouge">.qwen/commands/</code></li>
+  <li>✅ <strong>opencode</strong> - <code class="language-plaintext highlighter-rouge">.opencode/command/</code></li>
+  <li>✅ <strong>Windsurf</strong> - <code class="language-plaintext highlighter-rouge">.windsurf/workflows/</code></li>
+  <li>✅ <strong>Kilo Code</strong> - <code class="language-plaintext highlighter-rouge">.kilocode/workflows/</code></li>
+  <li>✅ <strong>Auggie</strong> - <code class="language-plaintext highlighter-rouge">.augment/commands/</code></li>
+  <li>✅ <strong>Roo Code</strong> - <code class="language-plaintext highlighter-rouge">.roo/commands/</code></li>
+  <li>✅ <strong>CodeBuddy</strong> - <code class="language-plaintext highlighter-rouge">.codebuddy/commands/</code></li>
+  <li>✅ <strong>Amp</strong> - <code class="language-plaintext highlighter-rouge">.agents/commands/</code></li>
+  <li>✅ <strong>Amazon Q Developer</strong> - <code class="language-plaintext highlighter-rouge">.amazonq/prompts/</code></li>
+</ul>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/ide-integration/#supported-ides">IDE Integration - Supported IDEs</a></p>
+
+<hr />
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="slash-commands-not-showing">Slash Commands Not Showing</h3>
+
+<p><strong>Issue</strong>: Slash commands don’t appear in IDE</p>
+
+<p><strong>Solution</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Re-initialize with force</span>
+specfact init <span class="nt">--ide</span> cursor <span class="nt">--force</span>
+</code></pre></div></div>
+
+<p><strong>Related</strong>: <a href="/specfact-cli/guides/ide-integration/#troubleshooting">IDE Integration - Troubleshooting</a></p>
+
+<hr />
+
+<h3 id="ai-generated-code-fails-validation">AI-Generated Code Fails Validation</h3>
+
+<p><strong>Issue</strong>: AI-generated code doesn’t pass SpecFact validation</p>
+
+<p><strong>Solution</strong>:</p>
+
+<ol>
+  <li>Review validation errors</li>
+  <li>Generate a new prompt with more specific requirements</li>
+  <li>Re-run AI generation</li>
+  <li>Validate again</li>
+</ol>
+
+<hr />
+
+<h2 id="see-also">See Also</h2>
+
+<ul>
+  <li><a href="/specfact-cli/guides/ide-integration/">IDE Integration Guide</a> - Complete setup and configuration</li>
+  <li><a href="/specfact-cli/guides/command-chains/">Command Chains Reference</a> - Complete workflows</li>
+  <li><a href="/specfact-cli/common-tasks/">Common Tasks Index</a> - Quick reference</li>
+  <li><a href="/specfact-cli/reference/commands/#generate---generate-artifacts">Generate Commands Reference</a> - Command documentation</li>
+</ul>
+
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer h-card">
+      <data class="u-url" href="/specfact-cli/"></data>
+      <div class="wrapper">
+        <div class="footer-col-wrapper">
+          <div class="footer-col">
+            <p class="p-name">SpecFact CLI Documentation</p>
+            <p>Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.</p>
+          </div>
+          <div class="footer-col">
+            <p>© 2025 Nold AI (Owner: Dominikus Nold)</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
+
+
