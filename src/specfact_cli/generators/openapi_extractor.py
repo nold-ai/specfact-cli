@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import hashlib
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -36,6 +37,16 @@ class OpenAPIExtractor:
         """
         self.repo_path = repo_path.resolve()
         self._lock = Lock()  # Thread lock for parallel processing
+        # Performance optimization: Cache AST trees and file content to avoid redundant parsing
+        self._ast_cache: dict[Path, ast.AST] = {}  # File path -> AST tree
+        self._file_hash_cache: dict[Path, str] = {}  # File path -> content hash for cache invalidation
+        # Pre-compiled regex patterns for early exit optimization
+        self._api_patterns = [
+            re.compile(r"@(app|router)\.(get|post|put|delete|patch|head|options)", re.IGNORECASE),
+            re.compile(r"@app\.route\("),
+            re.compile(r"APIRouter\("),
+            re.compile(r"FastAPI\("),
+        ]
 
     @beartype
     @require(lambda self, feature: isinstance(feature, Feature), "Feature must be Feature instance")
@@ -193,6 +204,78 @@ class OpenAPIExtractor:
 
         return openapi_spec
 
+    def _has_api_endpoints(self, file_path: Path) -> bool:
+        """
+        Quick check if file likely has API endpoints before deep AST analysis.
+
+        This optimization allows early exit for non-API files (models, utilities, etc.),
+        avoiding expensive AST parsing and traversal.
+
+        Args:
+            file_path: Path to Python file
+
+        Returns:
+            True if file likely contains API endpoints, False otherwise
+        """
+        try:
+            # Read first 4KB to check for API patterns (most API decorators are near top)
+            with file_path.open(encoding="utf-8") as f:
+                content_preview = f.read(4096)
+
+            # Quick regex check for common API patterns
+            return any(pattern.search(content_preview) for pattern in self._api_patterns)
+        except Exception:
+            # If we can't read the file, proceed with full analysis (safer)
+            return True
+
+    def _get_or_parse_file(self, file_path: Path) -> ast.AST | None:
+        """
+        Get cached AST or parse and cache file.
+
+        This optimization prevents redundant AST parsing when the same file
+        is processed by multiple features.
+
+        Args:
+            file_path: Path to Python file
+
+        Returns:
+            AST tree or None if parsing fails
+        """
+        # Check cache first (thread-safe check)
+        with self._lock:
+            if file_path in self._ast_cache:
+                # Verify file hasn't changed by checking hash
+                try:
+                    with file_path.open(encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                    current_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+                    if file_path in self._file_hash_cache and self._file_hash_cache[file_path] == current_hash:
+                        # Cache hit - file unchanged
+                        return self._ast_cache[file_path]
+                    # File changed - update hash
+                    self._file_hash_cache[file_path] = current_hash
+                except Exception:
+                    # If we can't verify, use cached AST (safer than failing)
+                    return self._ast_cache.get(file_path)
+
+        # Cache miss or file changed - parse file
+        try:
+            with file_path.open(encoding="utf-8") as f:
+                content = f.read()
+
+            tree = ast.parse(content, filename=str(file_path))
+            file_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+            # Cache the AST and hash (thread-safe)
+            with self._lock:
+                self._ast_cache[file_path] = tree
+                self._file_hash_cache[file_path] = file_hash
+
+            return tree
+        except Exception:
+            return None
+
     def _extract_endpoints_from_file(self, file_path: Path, openapi_spec: dict[str, Any]) -> None:
         """
         Extract API endpoints from a Python file using AST.
@@ -201,10 +284,16 @@ class OpenAPIExtractor:
             file_path: Path to Python file
             openapi_spec: OpenAPI spec dictionary to update
         """
-        try:
-            with file_path.open(encoding="utf-8") as f:
-                tree = ast.parse(f.read(), filename=str(file_path))
+        # Early exit optimization: Skip files without API endpoints
+        if not self._has_api_endpoints(file_path):
+            return
 
+        # Use cached AST or parse and cache
+        tree = self._get_or_parse_file(file_path)
+        if tree is None:
+            return
+
+        try:
             # Track router instances and their prefixes
             router_prefixes: dict[str, str] = {}  # router_name -> prefix
             router_tags: dict[str, list[str]] = {}  # router_name -> tags

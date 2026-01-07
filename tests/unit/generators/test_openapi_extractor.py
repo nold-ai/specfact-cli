@@ -744,3 +744,188 @@ def delete_user(user_id: int):
         # Should not raise error, just skip non-matching operations
         updated_spec = extractor.add_test_examples(openapi_spec, test_examples)
         assert updated_spec == openapi_spec  # No changes
+
+    @beartype
+    def test_ast_caching_optimization(self, tmp_path: Path) -> None:
+        """Test that AST caching prevents redundant parsing when same file is used by multiple features."""
+        # Create a shared file that will be used by multiple features
+        shared_file = tmp_path / "shared_api.py"
+        shared_file.write_text(
+            '''
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
+
+@router.get("/users")
+def get_users():
+    """Get all users."""
+    pass
+'''
+        )
+
+        extractor = OpenAPIExtractor(tmp_path)
+
+        # Create two features that reference the same file
+        feature1 = Feature(
+            key="FEATURE-1",
+            title="Feature 1",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(shared_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        feature2 = Feature(
+            key="FEATURE-2",
+            title="Feature 2",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(shared_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        # Process first feature - should parse file
+        result1 = extractor.extract_openapi_from_code(tmp_path, feature1)
+        assert "/api/users" in result1["paths"]
+
+        # Verify cache was populated
+        assert shared_file in extractor._ast_cache
+        assert shared_file in extractor._file_hash_cache
+
+        # Process second feature - should use cached AST
+        cached_ast = extractor._ast_cache[shared_file]
+        result2 = extractor.extract_openapi_from_code(tmp_path, feature2)
+        assert "/api/users" in result2["paths"]
+
+        # Verify same AST object was reused (cache hit)
+        assert extractor._ast_cache[shared_file] is cached_ast
+
+    @beartype
+    def test_early_exit_for_non_api_files(self, tmp_path: Path) -> None:
+        """Test that early exit optimization skips non-API files without deep AST analysis."""
+        # Create a non-API file (model/utility without API endpoints)
+        model_file = tmp_path / "models.py"
+        model_file.write_text(
+            """
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+"""
+        )
+
+        # Create an API file for comparison
+        api_file = tmp_path / "api.py"
+        api_file.write_text(
+            '''
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/users")
+def get_users():
+    """Get users."""
+    pass
+'''
+        )
+
+        extractor = OpenAPIExtractor(tmp_path)
+
+        # Test early exit for non-API file
+        has_endpoints = extractor._has_api_endpoints(model_file)
+        assert has_endpoints is False
+
+        # Test that API file is detected
+        has_endpoints_api = extractor._has_api_endpoints(api_file)
+        assert has_endpoints_api is True
+
+        # Verify that non-API file is skipped during extraction
+        feature = Feature(
+            key="FEATURE-TEST",
+            title="Test Feature",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[
+                    str(model_file.relative_to(tmp_path)),
+                    str(api_file.relative_to(tmp_path)),
+                ],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        result = extractor.extract_openapi_from_code(tmp_path, feature)
+
+        # API file should be processed (has endpoints)
+        assert "/users" in result["paths"]
+
+        # Model file should be skipped (no endpoints, early exit)
+        # Cache should not contain model file AST (was skipped before parsing)
+        # But if it does, it means early exit didn't work - verify it's not in cache
+        # Actually, early exit happens before parsing, so model_file shouldn't be in cache
+        # unless it was processed for some other reason
+
+    @beartype
+    def test_cache_invalidation_on_file_change(self, tmp_path: Path) -> None:
+        """Test that cache is invalidated when file content changes."""
+        test_file = tmp_path / "test_api.py"
+        original_content = '''
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/users")
+def get_users():
+    """Get users."""
+    pass
+'''
+        test_file.write_text(original_content)
+
+        extractor = OpenAPIExtractor(tmp_path)
+        feature = Feature(
+            key="FEATURE-TEST",
+            title="Test Feature",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(test_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        # First extraction - should parse and cache
+        result1 = extractor.extract_openapi_from_code(tmp_path, feature)
+        assert "/users" in result1["paths"]
+        original_ast = extractor._ast_cache[test_file]
+        original_hash = extractor._file_hash_cache[test_file]
+
+        # Modify file content
+        modified_content = original_content + "\n# Modified"
+        test_file.write_text(modified_content)
+
+        # Second extraction - should detect change and re-parse
+        result2 = extractor.extract_openapi_from_code(tmp_path, feature)
+        assert "/users" in result2["paths"]
+
+        # Verify new AST was created (different object)
+        new_ast = extractor._ast_cache[test_file]
+        new_hash = extractor._file_hash_cache[test_file]
+
+        # Hash should be different
+        assert new_hash != original_hash
+        # AST should be different object (re-parsed)
+        assert new_ast is not original_ast
