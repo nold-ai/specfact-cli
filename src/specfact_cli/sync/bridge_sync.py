@@ -18,7 +18,7 @@ from datetime import datetime
 try:
     from datetime import UTC
 except ImportError:
-    UTC = UTC
+    UTC = UTC  # type: ignore[assignment]
 from pathlib import Path
 from typing import Any
 
