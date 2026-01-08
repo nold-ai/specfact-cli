@@ -8,6 +8,8 @@
         "src"
     ],
     "pythonVersion": "3.11",
+    "venvPath": ".",
+    "venv": ".venv",
     "typeCheckingMode": "standard",
     "reportUnknownMemberType": "warning",
     "reportAttributeAccessIssue": "warning",

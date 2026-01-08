@@ -12,7 +12,7 @@ import multiprocessing
 import os
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
@@ -35,6 +35,78 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
 )
 console = get_configured_console()
+
+if TYPE_CHECKING:
+    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
+    from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
+
+
+_CONTRACT_WORKER_EXTRACTOR: OpenAPIExtractor | None = None
+_CONTRACT_WORKER_TEST_CONVERTER: OpenAPITestConverter | None = None
+_CONTRACT_WORKER_REPO: Path | None = None
+_CONTRACT_WORKER_CONTRACTS_DIR: Path | None = None
+
+
+def _init_contract_worker(repo_path: str, contracts_dir: str) -> None:
+    """Initialize per-process contract extraction state."""
+    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
+    from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
+
+    global _CONTRACT_WORKER_CONTRACTS_DIR
+    global _CONTRACT_WORKER_EXTRACTOR
+    global _CONTRACT_WORKER_REPO
+    global _CONTRACT_WORKER_TEST_CONVERTER
+
+    _CONTRACT_WORKER_REPO = Path(repo_path)
+    _CONTRACT_WORKER_CONTRACTS_DIR = Path(contracts_dir)
+    _CONTRACT_WORKER_EXTRACTOR = OpenAPIExtractor(_CONTRACT_WORKER_REPO)
+    _CONTRACT_WORKER_TEST_CONVERTER = OpenAPITestConverter(_CONTRACT_WORKER_REPO)
+
+
+def _extract_contract_worker(feature_data: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+    """Extract a single OpenAPI contract in a worker process."""
+    from specfact_cli.models.plan import Feature
+
+    if (
+        _CONTRACT_WORKER_EXTRACTOR is None
+        or _CONTRACT_WORKER_TEST_CONVERTER is None
+        or _CONTRACT_WORKER_REPO is None
+        or _CONTRACT_WORKER_CONTRACTS_DIR is None
+    ):
+        raise RuntimeError("Contract extraction worker not initialized")
+
+    feature = Feature(**feature_data)
+    try:
+        openapi_spec = _CONTRACT_WORKER_EXTRACTOR.extract_openapi_from_code(_CONTRACT_WORKER_REPO, feature)
+        if openapi_spec.get("paths"):
+            test_examples: dict[str, Any] = {}
+            has_test_functions = any(story.test_functions for story in feature.stories) or (
+                feature.source_tracking and feature.source_tracking.test_functions
+            )
+
+            if has_test_functions:
+                all_test_functions: list[str] = []
+                for story in feature.stories:
+                    if story.test_functions:
+                        all_test_functions.extend(story.test_functions)
+                if feature.source_tracking and feature.source_tracking.test_functions:
+                    all_test_functions.extend(feature.source_tracking.test_functions)
+                if all_test_functions:
+                    test_examples = _CONTRACT_WORKER_TEST_CONVERTER.extract_examples_from_tests(all_test_functions)
+
+            if test_examples:
+                openapi_spec = _CONTRACT_WORKER_EXTRACTOR.add_test_examples(openapi_spec, test_examples)
+
+            contract_filename = f"{feature.key}.openapi.yaml"
+            contract_path = _CONTRACT_WORKER_CONTRACTS_DIR / contract_filename
+            _CONTRACT_WORKER_EXTRACTOR.save_openapi_contract(openapi_spec, contract_path)
+            return (feature.key, openapi_spec)
+    except KeyboardInterrupt:
+        raise
+    except Exception:
+        return (feature.key, None)
+
+    return (feature.key, None)
 
 
 def _is_valid_repo_path(path: Path) -> bool:
@@ -731,12 +803,11 @@ def _extract_contracts(
 ) -> dict[str, dict[str, Any]]:
     """Extract OpenAPI contracts from features."""
     import os
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
     from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
     from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
 
-    openapi_extractor = OpenAPIExtractor(repo)
     contracts_generated = 0
     contracts_dir = bundle_dir / "contracts"
     contracts_dir.mkdir(parents=True, exist_ok=True)
@@ -853,7 +924,6 @@ def _extract_contracts(
                 console.print(f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle")
 
     # Extract contracts if needed
-    test_converter = OpenAPITestConverter(repo)
     if should_regenerate_contracts:
         # When force=True, skip hash checking and process all features with source files
         if force:
@@ -953,6 +1023,8 @@ def _extract_contracts(
 
         # In test mode, use sequential processing to avoid ThreadPoolExecutor deadlocks
         is_test_mode = os.environ.get("TEST_MODE") == "true"
+        pool_mode = os.environ.get("SPECFACT_CONTRACT_POOL", "process").lower()
+        use_process_pool = not is_test_mode and pool_mode != "thread" and len(features_with_files) > 1
         # Define max_workers for non-test mode (always defined to satisfy type checker)
         max_workers = 1
         if is_test_mode:
@@ -961,46 +1033,14 @@ def _extract_contracts(
             )
         else:
             max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_files)))
+            pool_label = "process" if use_process_pool else "thread"
             console.print(
-                f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
+                f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} {pool_label} worker(s))...[/cyan]"
             )
 
         from rich.progress import Progress
 
         from specfact_cli.utils.terminal import get_progress_config
-
-        def process_feature(feature: Feature) -> tuple[str, dict[str, Any] | None]:
-            """Process a single feature and return (feature_key, openapi_spec or None)."""
-            try:
-                openapi_spec = openapi_extractor.extract_openapi_from_code(repo, feature)
-                if openapi_spec.get("paths"):
-                    test_examples: dict[str, Any] = {}
-                    has_test_functions = any(story.test_functions for story in feature.stories) or (
-                        feature.source_tracking and feature.source_tracking.test_functions
-                    )
-
-                    if has_test_functions:
-                        all_test_functions: list[str] = []
-                        for story in feature.stories:
-                            if story.test_functions:
-                                all_test_functions.extend(story.test_functions)
-                        if feature.source_tracking and feature.source_tracking.test_functions:
-                            all_test_functions.extend(feature.source_tracking.test_functions)
-                        if all_test_functions:
-                            test_examples = test_converter.extract_examples_from_tests(all_test_functions)
-
-                    if test_examples:
-                        openapi_spec = openapi_extractor.add_test_examples(openapi_spec, test_examples)
-
-                    contract_filename = f"{feature.key}.openapi.yaml"
-                    contract_path = contracts_dir / contract_filename
-                    openapi_extractor.save_openapi_contract(openapi_spec, contract_path)
-                    return (feature.key, openapi_spec)
-            except KeyboardInterrupt:
-                raise
-            except Exception:
-                pass
-            return (feature.key, None)
 
         progress_columns, progress_kwargs = get_progress_config()
         with Progress(
@@ -1009,76 +1049,36 @@ def _extract_contracts(
             **progress_kwargs,
         ) as progress:
             task = progress.add_task("[cyan]Extracting contracts...", total=len(features_with_files))
-            if is_test_mode:
-                # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
-                completed_count = 0
-                for idx, feature in enumerate(features_with_files, 1):
-                    try:
-                        # Update progress to show current feature being processed
-                        feature_display = feature.key[:60] + "..." if len(feature.key) > 60 else feature.key
-                        progress.update(
-                            task,
-                            completed=completed_count,
-                            description=f"[cyan]Extracting contract from {feature_display}... ({idx}/{len(features_with_files)})",
-                        )
-                        feature_key, openapi_spec = process_feature(feature)
-                        completed_count += 1
-                        progress.update(
-                            task,
-                            completed=completed_count,
-                            description=f"[cyan]Extracted contract from {feature_display} ({completed_count}/{len(features_with_files)})",
-                        )
-                        if openapi_spec:
-                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
-                            feature.contract = contract_ref
-                            contracts_data[feature_key] = openapi_spec
-                            contracts_generated += 1
-                    except Exception as e:
-                        completed_count += 1
-                        progress.update(
-                            task,
-                            completed=completed_count,
-                            description=f"[dim]⚠ Failed: {feature.key[:50]}... ({completed_count}/{len(features_with_files)})[/dim]",
-                        )
-                        console.print(f"[dim]⚠ Warning: Failed to process feature {feature.key}: {e}[/dim]")
-                # Sequential mode completion - keep progress bar visible with final state
-                progress.update(
-                    task,
-                    completed=len(features_with_files),
-                    total=len(features_with_files),
-                    description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
-                )
-                # Brief pause to show completion state
-                time.sleep(0.1)
-                # Keep progress bar visible instead of removing it
-            else:
-                # Create feature lookup dictionary for O(1) access instead of O(n) search
+            if use_process_pool:
                 feature_lookup: dict[str, Feature] = {f.key: f for f in features_with_files}
-                executor = ThreadPoolExecutor(max_workers=max_workers)
+                executor = ProcessPoolExecutor(
+                    max_workers=max_workers,
+                    initializer=_init_contract_worker,
+                    initargs=(str(repo), str(contracts_dir)),
+                )
                 interrupted = False
                 try:
-                    future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+                    future_to_feature_key = {
+                        executor.submit(_extract_contract_worker, f.model_dump()): f.key for f in features_with_files
+                    }
                     completed_count = 0
                     total_features = len(features_with_files)
                     pending_count = total_features
                     try:
-                        for future in as_completed(future_to_feature):
+                        for future in as_completed(future_to_feature_key):
                             try:
                                 feature_key, openapi_spec = future.result()
                                 completed_count += 1
                                 pending_count = total_features - completed_count
-                                # Get the feature for display
-                                feature = feature_lookup.get(feature_key)
                                 feature_display = feature_key[:50] + "..." if len(feature_key) > 50 else feature_key
 
-                                # Update progress with current feature info and pending count
                                 if openapi_spec:
                                     progress.update(
                                         task,
                                         completed=completed_count,
                                         description=f"[cyan]Extracted contract from {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)",
                                     )
-                                    # O(1) lookup instead of O(n) search
+                                    feature = feature_lookup.get(feature_key)
                                     if feature:
                                         contract_ref = f"contracts/{feature_key}.openapi.yaml"
                                         feature.contract = contract_ref
@@ -1092,16 +1092,14 @@ def _extract_contracts(
                                     )
                             except KeyboardInterrupt:
                                 interrupted = True
-                                for f in future_to_feature:
+                                for f in future_to_feature_key:
                                     if not f.done():
                                         f.cancel()
                                 break
                             except Exception as e:
                                 completed_count += 1
                                 pending_count = total_features - completed_count
-                                # Try to get feature_key from the future's associated feature
-                                feature_for_error = future_to_feature.get(future)
-                                feature_key_for_display = feature_for_error.key if feature_for_error else "unknown"
+                                feature_key_for_display = future_to_feature_key.get(future, "unknown")
                                 feature_display = (
                                     feature_key_for_display[:50] + "..."
                                     if len(feature_key_for_display) > 50
@@ -1117,7 +1115,7 @@ def _extract_contracts(
                                 )
                     except KeyboardInterrupt:
                         interrupted = True
-                        for f in future_to_feature:
+                        for f in future_to_feature_key:
                             if not f.done():
                                 f.cancel()
                     if interrupted:
@@ -1129,18 +1127,172 @@ def _extract_contracts(
                 finally:
                     if not interrupted:
                         executor.shutdown(wait=True)
-                        # Update progress to show completion - keep progress bar visible with final state
                         progress.update(
                             task,
                             completed=len(features_with_files),
                             total=len(features_with_files),
                             description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
                         )
-                        # Brief pause to show completion state
                         time.sleep(0.1)
-                        # Keep progress bar visible instead of removing it
                     else:
                         executor.shutdown(wait=False)
+            else:
+                openapi_extractor = OpenAPIExtractor(repo)
+                test_converter = OpenAPITestConverter(repo)
+
+                def process_feature(feature: Feature) -> tuple[str, dict[str, Any] | None]:
+                    """Process a single feature and return (feature_key, openapi_spec or None)."""
+                    try:
+                        openapi_spec = openapi_extractor.extract_openapi_from_code(repo, feature)
+                        if openapi_spec.get("paths"):
+                            test_examples: dict[str, Any] = {}
+                            has_test_functions = any(story.test_functions for story in feature.stories) or (
+                                feature.source_tracking and feature.source_tracking.test_functions
+                            )
+
+                            if has_test_functions:
+                                all_test_functions: list[str] = []
+                                for story in feature.stories:
+                                    if story.test_functions:
+                                        all_test_functions.extend(story.test_functions)
+                                if feature.source_tracking and feature.source_tracking.test_functions:
+                                    all_test_functions.extend(feature.source_tracking.test_functions)
+                                if all_test_functions:
+                                    test_examples = test_converter.extract_examples_from_tests(all_test_functions)
+
+                            if test_examples:
+                                openapi_spec = openapi_extractor.add_test_examples(openapi_spec, test_examples)
+
+                            contract_filename = f"{feature.key}.openapi.yaml"
+                            contract_path = contracts_dir / contract_filename
+                            openapi_extractor.save_openapi_contract(openapi_spec, contract_path)
+                            return (feature.key, openapi_spec)
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception:
+                        pass
+                    return (feature.key, None)
+
+                if is_test_mode:
+                    # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
+                    completed_count = 0
+                    for idx, feature in enumerate(features_with_files, 1):
+                        try:
+                            feature_display = feature.key[:60] + "..." if len(feature.key) > 60 else feature.key
+                            progress.update(
+                                task,
+                                completed=completed_count,
+                                description=f"[cyan]Extracting contract from {feature_display}... ({idx}/{len(features_with_files)})",
+                            )
+                            feature_key, openapi_spec = process_feature(feature)
+                            completed_count += 1
+                            progress.update(
+                                task,
+                                completed=completed_count,
+                                description=f"[cyan]Extracted contract from {feature_display} ({completed_count}/{len(features_with_files)})",
+                            )
+                            if openapi_spec:
+                                contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                                feature.contract = contract_ref
+                                contracts_data[feature_key] = openapi_spec
+                                contracts_generated += 1
+                        except Exception as e:
+                            completed_count += 1
+                            progress.update(
+                                task,
+                                completed=completed_count,
+                                description=f"[dim]⚠ Failed: {feature.key[:50]}... ({completed_count}/{len(features_with_files)})[/dim]",
+                            )
+                            console.print(f"[dim]⚠ Warning: Failed to process feature {feature.key}: {e}[/dim]")
+                    progress.update(
+                        task,
+                        completed=len(features_with_files),
+                        total=len(features_with_files),
+                        description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
+                    )
+                    time.sleep(0.1)
+                else:
+                    feature_lookup_thread: dict[str, Feature] = {f.key: f for f in features_with_files}
+                    executor = ThreadPoolExecutor(max_workers=max_workers)
+                    interrupted = False
+                    try:
+                        future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+                        completed_count = 0
+                        total_features = len(features_with_files)
+                        pending_count = total_features
+                        try:
+                            for future in as_completed(future_to_feature):
+                                try:
+                                    feature_key, openapi_spec = future.result()
+                                    completed_count += 1
+                                    pending_count = total_features - completed_count
+                                    feature = feature_lookup_thread.get(feature_key)
+                                    feature_display = feature_key[:50] + "..." if len(feature_key) > 50 else feature_key
+
+                                    if openapi_spec:
+                                        progress.update(
+                                            task,
+                                            completed=completed_count,
+                                            description=f"[cyan]Extracted contract from {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)",
+                                        )
+                                        if feature:
+                                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                                            feature.contract = contract_ref
+                                            contracts_data[feature_key] = openapi_spec
+                                            contracts_generated += 1
+                                    else:
+                                        progress.update(
+                                            task,
+                                            completed=completed_count,
+                                            description=f"[dim]No contract for {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                        )
+                                except KeyboardInterrupt:
+                                    interrupted = True
+                                    for f in future_to_feature:
+                                        if not f.done():
+                                            f.cancel()
+                                    break
+                                except Exception as e:
+                                    completed_count += 1
+                                    pending_count = total_features - completed_count
+                                    feature_for_error = future_to_feature.get(future)
+                                    feature_key_for_display = feature_for_error.key if feature_for_error else "unknown"
+                                    feature_display = (
+                                        feature_key_for_display[:50] + "..."
+                                        if len(feature_key_for_display) > 50
+                                        else feature_key_for_display
+                                    )
+                                    progress.update(
+                                        task,
+                                        completed=completed_count,
+                                        description=f"[dim]⚠ Failed: {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                    )
+                                    console.print(
+                                        f"[dim]⚠ Warning: Failed to process feature {feature_key_for_display}: {e}[/dim]"
+                                    )
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_feature:
+                                if not f.done():
+                                    f.cancel()
+                        if interrupted:
+                            raise KeyboardInterrupt
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        raise
+                    finally:
+                        if not interrupted:
+                            executor.shutdown(wait=True)
+                            progress.update(
+                                task,
+                                completed=len(features_with_files),
+                                total=len(features_with_files),
+                                description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
+                            )
+                            time.sleep(0.1)
+                        else:
+                            executor.shutdown(wait=False)
 
     elif should_regenerate_contracts:
         console.print("[dim]No features with implementation files found for contract extraction[/dim]")
