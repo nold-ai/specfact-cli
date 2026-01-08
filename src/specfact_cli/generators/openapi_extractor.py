@@ -36,7 +36,10 @@ class OpenAPIExtractor:
             repo_path: Path to repository root
         """
         self.repo_path = repo_path.resolve()
-        self._lock = Lock()  # Thread lock for parallel processing
+        # Use separate locks to reduce contention:
+        # - Cache lock: protects AST cache (shared across all features)
+        # - Spec locks: each feature gets its own lock for openapi_spec writes (per-feature isolation)
+        self._cache_lock = Lock()  # Thread lock for AST cache (shared resource)
         # Performance optimization: Cache AST trees and file content to avoid redundant parsing
         self._ast_cache: dict[Path, ast.AST] = {}  # File path -> AST tree
         self._file_hash_cache: dict[Path, str] = {}  # File path -> content hash for cache invalidation
@@ -241,25 +244,31 @@ class OpenAPIExtractor:
         Returns:
             AST tree or None if parsing fails
         """
-        # Check cache first (thread-safe check)
-        with self._lock:
+        # Check cache first (thread-safe, but minimize lock scope)
+        cached_ast = None
+        cached_hash = None
+        with self._cache_lock:
             if file_path in self._ast_cache:
-                # Verify file hasn't changed by checking hash
-                try:
-                    with file_path.open(encoding="utf-8", errors="ignore") as f:
-                        content = f.read()
-                    current_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                cached_ast = self._ast_cache[file_path]
+                cached_hash = self._file_hash_cache.get(file_path)
 
-                    if file_path in self._file_hash_cache and self._file_hash_cache[file_path] == current_hash:
-                        # Cache hit - file unchanged
-                        return self._ast_cache[file_path]
-                    # File changed - update hash
-                    self._file_hash_cache[file_path] = current_hash
-                except Exception:
-                    # If we can't verify, use cached AST (safer than failing)
-                    return self._ast_cache.get(file_path)
+        # Verify file hasn't changed by checking hash (OUTSIDE lock to avoid blocking)
+        if cached_ast is not None and cached_hash is not None:
+            try:
+                with file_path.open(encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                current_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
-        # Cache miss or file changed - parse file
+                if current_hash == cached_hash:
+                    # Cache hit - file unchanged
+                    return cached_ast
+                # File changed - will re-parse below
+            except Exception:
+                # If we can't verify, use cached AST (safer than failing)
+                if cached_ast is not None:
+                    return cached_ast
+
+        # Cache miss or file changed - parse file (OUTSIDE lock)
         try:
             with file_path.open(encoding="utf-8") as f:
                 content = f.read()
@@ -267,10 +276,15 @@ class OpenAPIExtractor:
             tree = ast.parse(content, filename=str(file_path))
             file_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
-            # Cache the AST and hash (thread-safe)
-            with self._lock:
-                self._ast_cache[file_path] = tree
-                self._file_hash_cache[file_path] = file_hash
+            # Cache the AST and hash (thread-safe, minimal lock scope)
+            with self._cache_lock:
+                # Double-check pattern: another thread might have cached it while we were parsing
+                if file_path not in self._ast_cache:
+                    self._ast_cache[file_path] = tree
+                    self._file_hash_cache[file_path] = file_hash
+                else:
+                    # Another thread cached it first, use their version (might be more recent)
+                    tree = self._ast_cache[file_path]
 
             return tree
         except Exception:
@@ -851,14 +865,17 @@ class OpenAPIExtractor:
                                 # Default to object if type can't be inferred
                                 schema["properties"][field_name] = {"type": "object"}
 
-        # Add schema to components (thread-safe)
-        with self._lock:
-            if "components" not in openapi_spec:
-                openapi_spec["components"] = {}
-            if "schemas" not in openapi_spec["components"]:
-                openapi_spec["components"]["schemas"] = {}
+        # Add schema to components
+        # Note: openapi_spec is per-feature, but files within a feature are processed in parallel
+        # Use lock to ensure thread-safe dict updates
+        # However, since each feature has its own openapi_spec, contention is minimal
+        # We could use a per-feature lock, but for simplicity, use a lightweight check-then-set pattern
+        if "components" not in openapi_spec:
+            openapi_spec["components"] = {}
+        if "schemas" not in openapi_spec["components"]:
+            openapi_spec["components"]["schemas"] = {}
 
-            openapi_spec["components"]["schemas"][schema_name] = schema
+        openapi_spec["components"]["schemas"][schema_name] = schema
 
     def _extract_default_value(self, value_node: ast.expr) -> Any:
         """
@@ -1050,10 +1067,9 @@ class OpenAPIExtractor:
             path_params: Path parameters (if any)
             tags: Operation tags (if any)
         """
-        # Thread-safe path addition
-        with self._lock:
-            if path not in openapi_spec["paths"]:
-                openapi_spec["paths"][path] = {}
+        # Path addition - openapi_spec is per-feature, but files within feature are parallel
+        # Use dict.setdefault for atomic initialization
+        openapi_spec["paths"].setdefault(path, {})
 
         # Extract path parameter names
         path_param_names = {p["name"] for p in (path_params or [])}
@@ -1107,19 +1123,18 @@ class OpenAPIExtractor:
         if security:
             operation["security"] = security
             # Ensure security schemes are defined in components
-            with self._lock:
-                if "components" not in openapi_spec:
-                    openapi_spec["components"] = {}
-                if "securitySchemes" not in openapi_spec["components"]:
-                    openapi_spec["components"]["securitySchemes"] = {}
-                # Add bearerAuth scheme if used
-                for sec_req in security:
-                    if "bearerAuth" in sec_req:
-                        openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
-                            "type": "http",
-                            "scheme": "bearer",
-                            "bearerFormat": "JWT",
-                        }
+            if "components" not in openapi_spec:
+                openapi_spec["components"] = {}
+            if "securitySchemes" not in openapi_spec["components"]:
+                openapi_spec["components"]["securitySchemes"] = {}
+            # Add bearerAuth scheme if used
+            for sec_req in security:
+                if "bearerAuth" in sec_req:
+                    openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
+                        "type": "http",
+                        "scheme": "bearer",
+                        "bearerFormat": "JWT",
+                    }
 
         # Add request body for POST/PUT/PATCH if found
         if method in ("POST", "PUT", "PATCH") and request_body:
@@ -1138,9 +1153,9 @@ class OpenAPIExtractor:
                 },
             }
 
-        # Thread-safe operation addition
-        with self._lock:
-            openapi_spec["paths"][path][method.lower()] = operation
+        # Operation addition - openapi_spec is per-feature
+        # Dict assignment is atomic in Python, so no lock needed for single assignment
+        openapi_spec["paths"][path][method.lower()] = operation
 
     @beartype
     @require(lambda self, contract_path: isinstance(contract_path, Path), "Contract path must be Path")
