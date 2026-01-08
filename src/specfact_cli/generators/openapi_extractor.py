@@ -253,8 +253,10 @@ class OpenAPIExtractor:
                 cached_hash = self._file_hash_cache.get(file_path)
 
         # Verify file hasn't changed by checking hash (OUTSIDE lock to avoid blocking)
+        # OPTIMIZATION: Only read file once, reuse content for parsing if needed
         if cached_ast is not None and cached_hash is not None:
             try:
+                # Read file once
                 with file_path.open(encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                 current_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -262,16 +264,24 @@ class OpenAPIExtractor:
                 if current_hash == cached_hash:
                     # Cache hit - file unchanged
                     return cached_ast
-                # File changed - will re-parse below
+                # File changed - will re-parse below using the content we just read
             except Exception:
                 # If we can't verify, use cached AST (safer than failing)
                 if cached_ast is not None:
                     return cached_ast
+                # If we can't read, we'll try again below
+                content = None
+        else:
+            # Cache miss - need to read file
+            content = None
 
         # Cache miss or file changed - parse file (OUTSIDE lock)
+        # OPTIMIZATION: Reuse content if we already read it for hash check
         try:
-            with file_path.open(encoding="utf-8") as f:
-                content = f.read()
+            if content is None:
+                # Read file if we don't have content yet
+                with file_path.open(encoding="utf-8") as f:
+                    content = f.read()
 
             tree = ast.parse(content, filename=str(file_path))
             file_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -314,8 +324,8 @@ class OpenAPIExtractor:
             router_prefixes: dict[str, str] = {}  # router_name -> prefix
             router_tags: dict[str, list[str]] = {}  # router_name -> tags
 
-            # First pass: Extract Pydantic models and find router instances
-            # Use iter_child_nodes for module-level items (more efficient than ast.walk)
+            # Single-pass optimization: Combine all extraction in one traversal
+            # Use iter_child_nodes for module-level items (more efficient than ast.walk for top-level)
             for node in ast.iter_child_nodes(tree):
                 # Extract Pydantic models (BaseModel subclasses)
                 if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
@@ -351,11 +361,8 @@ class OpenAPIExtractor:
                     if router_tags_list:
                         router_tags[router_name] = router_tags_list
 
-            # Second pass: Extract endpoints from functions and class methods
-            # Process module-level functions and class methods separately for efficiency
-            for node in ast.iter_child_nodes(tree):
-                # Extract from function definitions (module-level or class methods)
-                if isinstance(node, ast.FunctionDef):
+                # Extract endpoints from function definitions (module-level) - COMBINED with first pass
+                elif isinstance(node, ast.FunctionDef):
                     # Check for decorators that indicate HTTP routes
                     for decorator in node.decorator_list:
                         if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
@@ -426,8 +433,7 @@ class OpenAPIExtractor:
                                     for method in methods:
                                         self._add_operation(openapi_spec, path, method, node, path_params=path_params)
 
-                # Extract from class definitions (class-based APIs)
-                # Pattern: Classes represent APIs, methods represent endpoints
+                # Extract from class definitions (class-based APIs) - CONTINUED from single pass
                 elif isinstance(node, ast.ClassDef):
                     # Skip private classes and test classes
                     if node.name.startswith("_") or node.name.startswith("Test"):
