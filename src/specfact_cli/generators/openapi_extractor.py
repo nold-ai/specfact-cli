@@ -436,22 +436,9 @@ class OpenAPIExtractor:
                     if any(pattern in node.name for pattern in skip_class_patterns):
                         continue
 
-                    # Skip classes that inherit from non-API base types
-                    skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
-                    should_skip_class = False
-                    for base in node.bases:
-                        base_name = ""
-                        if isinstance(base, ast.Name):
-                            base_name = base.id
-                        elif isinstance(base, ast.Attribute):
-                            base_name = base.attr
-                        if any(pattern in base_name for pattern in skip_base_patterns):
-                            should_skip_class = True
-                            break
-                    if should_skip_class:
-                        continue
-
                     # Check if class is an abstract base class or protocol (interface)
+                    # IMPORTANT: Check for interfaces FIRST before skipping ABC classes
+                    # Interfaces (ABC/Protocol with abstract methods) should be processed
                     is_interface = False
                     for base in node.bases:
                         if isinstance(base, ast.Name) and base.id in ["ABC", "Protocol", "AbstractBase", "Interface"]:
@@ -462,6 +449,24 @@ class OpenAPIExtractor:
                             # Check for typing.Protocol, abc.ABC, etc.
                             is_interface = True
                             break
+
+                    # If it's an interface, we'll process it below (skip the base class skip logic)
+                    # Only skip non-interface ABC/Protocol classes
+                    if not is_interface:
+                        # Skip classes that inherit from non-API base types (but not interfaces)
+                        skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
+                        should_skip_class = False
+                        for base in node.bases:
+                            base_name = ""
+                            if isinstance(base, ast.Name):
+                                base_name = base.id
+                            elif isinstance(base, ast.Attribute):
+                                base_name = base.attr
+                            if any(pattern in base_name for pattern in skip_base_patterns):
+                                should_skip_class = True
+                                break
+                        if should_skip_class:
+                            continue
 
                     # For interfaces, extract abstract methods as potential endpoints
                     if is_interface:
@@ -867,8 +872,15 @@ class OpenAPIExtractor:
         """
         if isinstance(value_node, ast.Constant):
             return value_node.value
-        if isinstance(value_node, ast.NameConstant):  # Python < 3.8 compatibility
-            return value_node.value
+        # Python < 3.8 compatibility - suppress deprecation warning
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            # ast.NameConstant is deprecated in Python 3.8+, removed in 3.14
+            # Keep for backward compatibility with older Python versions
+            if hasattr(ast, "NameConstant") and isinstance(value_node, ast.NameConstant):
+                return value_node.value
         if isinstance(value_node, ast.Name) and value_node.id == "None":
             return None
         return None

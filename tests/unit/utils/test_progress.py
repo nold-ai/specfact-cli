@@ -30,7 +30,10 @@ class TestCreateProgressCallback:
 
         callback(1, 5, "FEATURE-001.yaml")
 
-        progress.update.assert_called_once_with(task_id, description="Loading artifact 1/5: FEATURE-001.yaml")
+        # Callback should be called twice: once to set total, once to set completed and description
+        assert progress.update.call_count == 2
+        progress.update.assert_any_call(task_id, total=5)
+        progress.update.assert_any_call(task_id, completed=1, description="Loading artifact 1/5: FEATURE-001.yaml")
 
     def test_create_callback_without_prefix(self):
         """Test creating callback without prefix."""
@@ -41,7 +44,10 @@ class TestCreateProgressCallback:
 
         callback(3, 10, "product.yaml")
 
-        progress.update.assert_called_once_with(task_id, description="Processing artifact 3/10: product.yaml")
+        # Callback should be called twice: once to set total, once to set completed and description
+        assert progress.update.call_count == 2
+        progress.update.assert_any_call(task_id, total=10)
+        progress.update.assert_any_call(task_id, completed=3, description="Processing artifact 3/10: product.yaml")
 
 
 class TestLoadBundleWithProgress:

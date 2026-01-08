@@ -11,6 +11,12 @@ import hashlib
 import logging
 import subprocess
 from datetime import datetime
+
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = UTC
 from pathlib import Path
 from typing import Any
 
@@ -58,7 +64,7 @@ def detect_code_changes(
         "commits": [],
         "files_changed": [],
         "summary": "",
-        "detection_timestamp": datetime.utcnow().isoformat() + "Z",
+        "detection_timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
 
     # Check if git is available
