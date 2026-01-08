@@ -301,6 +301,7 @@ class OpenAPIExtractor:
             router_tags: dict[str, list[str]] = {}  # router_name -> tags
 
             # First pass: Extract Pydantic models and find router instances
+            # Use iter_child_nodes for module-level items (more efficient than ast.walk)
             for node in ast.iter_child_nodes(tree):
                 # Extract Pydantic models (BaseModel subclasses)
                 if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
@@ -336,23 +337,8 @@ class OpenAPIExtractor:
                     if router_tags_list:
                         router_tags[router_name] = router_tags_list
 
-            # Second pass: Extract endpoints from functions and class methods (use iter_child_nodes for efficiency)
-            # Note: We need to walk recursively for nested classes, but we'll do it more efficiently
-            def extract_from_node(node: ast.AST) -> None:
-                """Recursively extract endpoints from AST node."""
-                if isinstance(node, ast.Module):
-                    # Start from module level
-                    for child in node.body:
-                        extract_from_node(child)
-                elif isinstance(node, ast.ClassDef):
-                    # Process class and its methods
-                    for child in node.body:
-                        extract_from_node(child)
-                elif isinstance(node, ast.FunctionDef):
-                    # Process function
-                    pass  # Will be handled below
-
-            # Use more efficient iteration - only walk what we need
+            # Second pass: Extract endpoints from functions and class methods
+            # Process module-level functions and class methods separately for efficiency
             for node in ast.iter_child_nodes(tree):
                 # Extract from function definitions (module-level or class methods)
                 if isinstance(node, ast.FunctionDef):
@@ -433,6 +419,38 @@ class OpenAPIExtractor:
                     if node.name.startswith("_") or node.name.startswith("Test"):
                         continue
 
+                    # Performance optimization: Skip non-API class types
+                    # These are common in ORM/library code and not API endpoints
+                    skip_class_patterns = [
+                        "Protocol",
+                        "TypedDict",
+                        "Enum",
+                        "ABC",
+                        "AbstractBase",
+                        "Mixin",
+                        "Base",
+                        "Meta",
+                        "Descriptor",
+                        "Property",
+                    ]
+                    if any(pattern in node.name for pattern in skip_class_patterns):
+                        continue
+
+                    # Skip classes that inherit from non-API base types
+                    skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
+                    should_skip_class = False
+                    for base in node.bases:
+                        base_name = ""
+                        if isinstance(base, ast.Name):
+                            base_name = base.id
+                        elif isinstance(base, ast.Attribute):
+                            base_name = base.attr
+                        if any(pattern in base_name for pattern in skip_base_patterns):
+                            should_skip_class = True
+                            break
+                    if should_skip_class:
+                        continue
+
                     # Check if class is an abstract base class or protocol (interface)
                     is_interface = False
                     for base in node.bases:
@@ -507,11 +525,67 @@ class OpenAPIExtractor:
 
                     # Check if class has methods that could be API endpoints
                     # Look for public methods (not starting with _)
-                    class_methods = [
-                        child
-                        for child in node.body
-                        if isinstance(child, ast.FunctionDef) and not child.name.startswith("_")
-                    ]
+                    # Performance optimization: Be very selective - only process methods that strongly suggest API endpoints
+                    class_methods = []
+                    for child in node.body:
+                        if isinstance(child, ast.FunctionDef) and not child.name.startswith("_"):
+                            method_name_lower = child.name.lower()
+
+                            # Skip methods that are clearly utility/library methods
+                            skip_method_patterns = [
+                                "processor",
+                                "adapter",
+                                "factory",
+                                "builder",
+                                "helper",
+                                "validator",
+                                "converter",
+                                "serializer",
+                                "deserializer",
+                                "get_",
+                                "set_",
+                                "has_",
+                                "is_",
+                                "can_",
+                                "should_",
+                                "copy",
+                                "clone",
+                                "adapt",
+                                "coerce",
+                                "compare",
+                                "compile",
+                                "dialect",
+                                "variant",
+                                "resolve",
+                                "literal",
+                                "bind",
+                                "result",
+                            ]
+                            if any(pattern in method_name_lower for pattern in skip_method_patterns):
+                                continue
+
+                            # Only include methods that strongly suggest API endpoints
+                            # Must match CRUD patterns or be very short (likely API methods)
+                            is_crud_like = any(
+                                verb in method_name_lower
+                                for verb in ["create", "add", "update", "delete", "remove", "fetch", "list", "save"]
+                            )
+                            is_short_api_like = len(method_name_lower.split("_")) <= 2 and method_name_lower not in [
+                                "copy",
+                                "clone",
+                                "adapt",
+                                "coerce",
+                            ]
+
+                            if is_crud_like or is_short_api_like:
+                                class_methods.append(child)
+
+                    # Performance optimization: Limit number of methods processed per class
+                    # Large classes with many methods are likely not API endpoints
+                    max_methods_per_class = 15
+                    if len(class_methods) > max_methods_per_class:
+                        # Too many methods - likely a utility/library class, not an API
+                        continue
 
                     if class_methods:
                         # Generate base path from class name (e.g., UserManager -> /users)

@@ -928,3 +928,96 @@ def get_users():
         assert new_hash != original_hash
         # AST should be different object (re-parsed)
         assert new_ast is not original_ast
+
+    @beartype
+    def test_class_filtering_optimization(self, tmp_path: Path) -> None:
+        """Test that non-API class types are skipped for performance."""
+        # Create a file with various class types
+        test_file = tmp_path / "mixed_classes.py"
+        test_file.write_text(
+            """
+from typing import Protocol, TypedDict
+from enum import Enum
+
+# Protocol class - should be skipped
+class ProcessorType(Protocol):
+    def process(self, value: str) -> str: ...
+
+# TypedDict - should be skipped
+class ConfigDict(TypedDict):
+    key: str
+    value: int
+
+# Enum - should be skipped
+class Status(Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+# Regular class with many utility methods - should be skipped (too many methods)
+class TypeEngine:
+    def evaluates_none(self): pass
+    def copy(self): pass
+    def literal_processor(self): pass
+    def bind_processor(self): pass
+    def result_processor(self): pass
+    def column_expression(self): pass
+    def bind_expression(self): pass
+    def compare_values(self): pass
+    def get_dbapi_type(self): pass
+    def python_type(self): pass
+    def with_variant(self): pass
+    def _resolve_for_literal(self): pass
+    def _resolve_for_python_type(self): pass
+    def _with_collation(self): pass
+    def _type_affinity(self): pass
+    def _generic_type_affinity(self): pass
+    def as_generic(self): pass
+    def dialect_impl(self): pass
+    def _unwrapped_dialect_impl(self): pass
+    def _cached_literal_processor(self): pass
+    def _cached_bind_processor(self): pass
+    def _cached_result_processor(self): pass
+    def _cached_custom_processor(self): pass
+    def _dialect_info(self): pass
+    def _gen_dialect_impl(self): pass
+    def _static_cache_key(self): pass
+    def adapt(self): pass
+    def coerce_compared_value(self): pass
+    def _compare_type_affinity(self): pass
+    def compile(self): pass
+
+# API-like class with CRUD methods - should be processed
+class UserManager:
+    def create_user(self, name: str): pass
+    def get_user(self, user_id: int): pass
+    def update_user(self, user_id: int, name: str): pass
+    def delete_user(self, user_id: int): pass
+"""
+        )
+
+        extractor = OpenAPIExtractor(tmp_path)
+        feature = Feature(
+            key="FEATURE-TEST",
+            title="Test Feature",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(test_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        result = extractor.extract_openapi_from_code(tmp_path, feature)
+
+        # Protocol, TypedDict, Enum classes should be skipped (no endpoints)
+        # TypeEngine should be skipped (too many utility methods)
+        # UserManager should be processed (CRUD methods)
+        paths = list(result["paths"].keys())
+        
+        # Should have endpoints from UserManager only
+        assert any("user-manager" in path for path in paths), "UserManager endpoints should be extracted"
+        
+        # Should NOT have endpoints from Protocol, TypedDict, Enum, or TypeEngine
+        # (These are filtered out by optimizations)
