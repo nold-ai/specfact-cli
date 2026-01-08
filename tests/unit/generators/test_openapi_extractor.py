@@ -1015,9 +1015,9 @@ class UserManager:
         # TypeEngine should be skipped (too many utility methods)
         # UserManager should be processed (CRUD methods)
         paths = list(result["paths"].keys())
-        
+
         # Should have endpoints from UserManager only
         assert any("user-manager" in path for path in paths), "UserManager endpoints should be extracted"
-        
+
         # Should NOT have endpoints from Protocol, TypedDict, Enum, or TypeEngine
         # (These are filtered out by optimizations)
