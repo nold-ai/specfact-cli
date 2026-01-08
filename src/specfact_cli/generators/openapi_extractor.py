@@ -12,7 +12,6 @@ import contextlib
 import hashlib
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -190,20 +189,13 @@ class OpenAPIExtractor:
             for file_path in all_files:
                 self._extract_endpoints_from_file(file_path, openapi_spec)
         else:
-            # Parallel processing in production mode
-            max_workers = min(len(all_files), os.cpu_count() or 4)
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all file processing tasks
-                futures = {
-                    executor.submit(self._extract_endpoints_from_file, file_path, openapi_spec): file_path
-                    for file_path in all_files
-                }
-
-                # Wait for all tasks to complete
-                for future in as_completed(futures):
-                    with contextlib.suppress(Exception):
-                        # Skip files with errors (already handled in _extract_endpoints_from_file)
-                        future.result()
+            # Sequential file processing within feature
+            # NOTE: Features are already processed in parallel at the command level,
+            # so nested parallelism here creates GIL contention and overhead.
+            # Most features have 1 file anyway, so sequential processing is faster.
+            for file_path in all_files:
+                with contextlib.suppress(Exception):
+                    self._extract_endpoints_from_file(file_path, openapi_spec)
 
         return openapi_spec
 
@@ -288,13 +280,16 @@ class OpenAPIExtractor:
 
             # Cache the AST and hash (thread-safe, minimal lock scope)
             with self._cache_lock:
-                # Double-check pattern: another thread might have cached it while we were parsing
-                if file_path not in self._ast_cache:
+                # Update cache if file changed or not cached
+                # Since we removed nested parallelism, we can safely update on hash change
+                cached_hash = self._file_hash_cache.get(file_path)
+                if cached_hash != file_hash:
+                    # File changed or not cached - update cache
                     self._ast_cache[file_path] = tree
                     self._file_hash_cache[file_path] = file_hash
                 else:
-                    # Another thread cached it first, use their version (might be more recent)
-                    tree = self._ast_cache[file_path]
+                    # Use cached version (file unchanged)
+                    tree = self._ast_cache.get(file_path, tree)
 
             return tree
         except Exception:

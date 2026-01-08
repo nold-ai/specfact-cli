@@ -11,8 +11,11 @@ import time
 from io import StringIO
 from pathlib import Path
 
+import yaml
+
 from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
 from specfact_cli.models.plan import Feature
+from specfact_cli.models.project import SourceTracking
 
 
 def profile_extraction(repo_path: Path, feature: Feature) -> None:
@@ -30,12 +33,14 @@ def profile_extraction(repo_path: Path, feature: Feature) -> None:
 
     s = StringIO()
     ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-    ps.print_stats(20)
+    ps.print_stats(30)
 
     print(f"\n=== Extraction Profile for {feature.key} ===")
     print(f"Total time: {elapsed:.3f}s")
+    print(f"Files processed: {len(feature.source_tracking.implementation_files) if feature.source_tracking else 0}")
     print(f"Paths extracted: {len(result.get('paths', {}))}")
-    print("\nTop 20 time consumers:")
+    print(f"Schemas extracted: {len(result.get('components', {}).get('schemas', {}))}")
+    print("\nTop 30 time consumers:")
     print(s.getvalue())
 
 
@@ -49,6 +54,20 @@ if __name__ == "__main__":
     repo_path = Path(sys.argv[1])
     feature_yaml = Path(sys.argv[2])
 
-    # Load feature (simplified - you'd use actual loader)
-    print(f"Profiling extraction for feature in {feature_yaml}")
-    print("Note: This is a diagnostic tool - implement feature loading as needed")
+    # Load feature from YAML
+    with feature_yaml.open() as f:
+        feature_data = yaml.safe_load(f)
+
+    feature = Feature(
+        key=feature_data["key"],
+        title=feature_data["title"],
+        stories=[],
+        source_tracking=SourceTracking(**feature_data.get("source_tracking", {}))
+        if feature_data.get("source_tracking")
+        else None,
+        contract=feature_data.get("contract"),
+        protocol=feature_data.get("protocol"),
+    )
+
+    print(f"Profiling extraction for {feature.key}")
+    profile_extraction(repo_path, feature)

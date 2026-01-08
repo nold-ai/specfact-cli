@@ -909,8 +909,21 @@ def get_users():
         # First extraction - should parse and cache
         result1 = extractor.extract_openapi_from_code(tmp_path, feature)
         assert "/users" in result1["paths"]
-        original_ast = extractor._ast_cache[test_file]
-        original_hash = extractor._file_hash_cache[test_file]
+        # Use the resolved absolute path (as extractor does: repo_path / impl_file)
+        # The extractor creates: file_path = repo_path / impl_file where impl_file is a string
+        impl_file_str = str(test_file.relative_to(tmp_path))
+        resolved_file = tmp_path / impl_file_str
+        # Try both test_file and resolved_file as cache keys (Path equality should work)
+        cache_key = resolved_file
+        if cache_key not in extractor._ast_cache and test_file in extractor._ast_cache:
+            cache_key = test_file
+        # Ensure cache key exists
+        assert cache_key in extractor._ast_cache, (
+            f"Cache key not found. Available keys: {list(extractor._ast_cache.keys())}, "
+            f"Looking for: {resolved_file} or {test_file}"
+        )
+        original_ast = extractor._ast_cache[cache_key]
+        original_hash = extractor._file_hash_cache[cache_key]
 
         # Modify file content
         modified_content = original_content + "\n# Modified"
@@ -921,8 +934,13 @@ def get_users():
         assert "/users" in result2["paths"]
 
         # Verify new AST was created (different object)
-        new_ast = extractor._ast_cache[test_file]
-        new_hash = extractor._file_hash_cache[test_file]
+        # Use the same cache key as before
+        assert cache_key in extractor._ast_cache, (
+            f"Cache key not found after second extraction. Available keys: {list(extractor._ast_cache.keys())}, "
+            f"Looking for: {cache_key}"
+        )
+        new_ast = extractor._ast_cache[cache_key]
+        new_hash = extractor._file_hash_cache[cache_key]
 
         # Hash should be different
         assert new_hash != original_hash
