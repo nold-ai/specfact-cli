@@ -15,7 +15,7 @@ import yaml
 
 from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
 from specfact_cli.models.plan import Feature
-from specfact_cli.models.project import SourceTracking
+from specfact_cli.models.source_tracking import SourceTracking
 
 
 def profile_extraction(repo_path: Path, feature: Feature) -> None:
