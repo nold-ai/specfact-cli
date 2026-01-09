@@ -23,9 +23,7 @@ class TestCrosshairRunnerEnvironment:
             original_path = os.environ.get("PATH", "")
 
             with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0, stdout="", stderr="", text=True
-                )
+                mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", text=True)
 
                 run_crosshair(test_file, timeout=10)
 
@@ -50,9 +48,7 @@ class TestCrosshairRunnerEnvironment:
 
         try:
             with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0, stdout="", stderr="", text=True
-                )
+                mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", text=True)
 
                 custom_pythonpath = "/custom/path"
                 run_crosshair(test_file, timeout=10, pythonpath=custom_pythonpath)
@@ -81,9 +77,7 @@ class TestCrosshairRunnerEnvironment:
             os.environ["TEST_VAR"] = "test_value"
 
             with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0, stdout="", stderr="", text=True
-                )
+                mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", text=True)
 
                 run_crosshair(test_file, timeout=10)
 

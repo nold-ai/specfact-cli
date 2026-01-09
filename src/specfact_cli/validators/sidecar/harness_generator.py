@@ -6,10 +6,10 @@ This module generates CrossHair harness files from OpenAPI contracts.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
-import re
 import yaml
 from beartype import beartype
 from icontract import ensure, require

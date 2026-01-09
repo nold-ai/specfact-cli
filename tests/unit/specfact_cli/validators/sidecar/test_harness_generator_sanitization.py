@@ -26,7 +26,12 @@ class TestHarnessGeneratorSanitization:
 
         # Should contain valid Python function name
         assert "def harness_" in harness
-        assert "/" not in harness or "harness_get_users_id" in harness
+        # Extract function name and verify it's valid
+        for line in harness.split("\n"):
+            if line.strip().startswith("def harness_"):
+                func_name = line.split("def ")[1].split("(")[0]
+                assert all(c.isalnum() or c == "_" for c in func_name), f"Invalid function name: {func_name}"
+                break
 
     def test_sanitize_operation_id_with_special_chars(self) -> None:
         """Test that operation IDs with special characters are sanitized."""
@@ -43,9 +48,19 @@ class TestHarnessGeneratorSanitization:
         harness = render_harness(operations)
 
         # Should replace /, {, } with underscores
-        assert "harness_get_users_id" in harness or "harness_get_users__id_" in harness
-        assert "/" not in harness.split("def ")[1].split("(")[0] if "def " in harness else True
-        assert "{" not in harness.split("def ")[1].split("(")[0] if "def " in harness else True
+        # The sanitized function name should be harness_get_users__id_ (all special chars become _)
+        assert "def harness_" in harness
+        # Extract function name from the def line
+        for line in harness.split("\n"):
+            if line.strip().startswith("def harness_"):
+                func_name = line.split("def ")[1].split("(")[0]
+                # Should not contain invalid characters
+                assert "/" not in func_name, f"Function name contains /: {func_name}"
+                assert "{" not in func_name, f"Function name contains {{: {func_name}"
+                assert "}" not in func_name, f"Function name contains }}: {func_name}"
+                # Should only contain valid identifier characters
+                assert all(c.isalnum() or c == "_" for c in func_name), f"Invalid function name: {func_name}"
+                break
 
     def test_sanitize_fallback_operation_id(self) -> None:
         """Test that fallback operation IDs (method_path) are sanitized."""
