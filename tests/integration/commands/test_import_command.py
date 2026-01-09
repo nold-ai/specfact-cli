@@ -339,3 +339,98 @@ class UserService:
         # Exit code 0 or 1 is acceptable (1 might mean no features detected or other issues)
         # Exit code 2 would indicate argument parsing error
         assert result.exit_code != 2, "Flag should be recognized"
+
+    @pytest.mark.timeout(30)
+    def test_import_with_enrichment_does_not_regenerate_all_contracts(self, tmp_path: Path) -> None:
+        """
+        Test that import with enrichment doesn't regenerate all contracts.
+
+        Regression test for bug where enrichment forced full contract regeneration.
+        """
+        import os
+
+        os.environ["TEST_MODE"] = "true"
+
+        # Create initial codebase
+        api_file = tmp_path / "api.py"
+        api_file.write_text(
+            '''
+class UserService:
+    """User management service."""
+
+    def create_user(self, name: str):
+        """Create a new user."""
+        return {"id": 1, "name": name}
+'''
+        )
+
+        runner = CliRunner()
+
+        # Phase 1: Initial import
+        result1 = runner.invoke(
+            app,
+            [
+                "import",
+                "from-code",
+                "test-enrichment-contracts",
+                "--repo",
+                str(tmp_path),
+                "--confidence",
+                "0.5",
+            ],
+        )
+
+        assert result1.exit_code in (0, 1)  # May succeed or have no features
+
+        bundle_dir = tmp_path / ".specfact" / "projects" / "test-enrichment-contracts"
+        if not bundle_dir.exists():
+            pytest.skip("Bundle not created, skipping enrichment test")
+
+        contracts_dir = bundle_dir / "contracts"
+        initial_contracts = {}
+        if contracts_dir.exists():
+            for contract_file in contracts_dir.glob("*.yaml"):
+                initial_contracts[contract_file.name] = contract_file.stat().st_mtime
+
+        # Phase 2: Create enrichment report (only metadata changes)
+        enrichment_dir = tmp_path / ".specfact" / "reports" / "enrichment"
+        enrichment_dir.mkdir(parents=True, exist_ok=True)
+        enrichment_report = enrichment_dir / "test-enrichment-contracts.enrichment.md"
+        enrichment_report.write_text(
+            """# Enrichment Report
+
+## Confidence Adjustments
+
+- FEATURE-USERSERVICE → 0.95
+"""
+        )
+
+        # Phase 3: Apply enrichment (should NOT regenerate contracts)
+        result2 = runner.invoke(
+            app,
+            [
+                "import",
+                "from-code",
+                "test-enrichment-contracts",
+                "--repo",
+                str(tmp_path),
+                "--enrichment",
+                str(enrichment_report),
+                "--confidence",
+                "0.5",
+            ],
+        )
+
+        assert result2.exit_code in (0, 1)
+
+        # Verify contracts were NOT regenerated (if they existed)
+        if contracts_dir.exists() and initial_contracts:
+            for contract_file in contracts_dir.glob("*.yaml"):
+                if contract_file.name in initial_contracts:
+                    new_mtime = contract_file.stat().st_mtime
+                    old_mtime = initial_contracts[contract_file.name]
+                    # Allow small difference for filesystem precision
+                    time_diff = abs(new_mtime - old_mtime)
+                    assert time_diff < 2.0, f"Contract {contract_file.name} was regenerated unnecessarily"
+
+        os.environ.pop("TEST_MODE", None)

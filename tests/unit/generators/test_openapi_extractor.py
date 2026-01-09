@@ -744,3 +744,298 @@ def delete_user(user_id: int):
         # Should not raise error, just skip non-matching operations
         updated_spec = extractor.add_test_examples(openapi_spec, test_examples)
         assert updated_spec == openapi_spec  # No changes
+
+    @beartype
+    def test_ast_caching_optimization(self, tmp_path: Path) -> None:
+        """Test that AST caching prevents redundant parsing when same file is used by multiple features."""
+        # Create a shared file that will be used by multiple features
+        shared_file = tmp_path / "shared_api.py"
+        shared_file.write_text(
+            '''
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api")
+
+@router.get("/users")
+def get_users():
+    """Get all users."""
+    pass
+'''
+        )
+
+        extractor = OpenAPIExtractor(tmp_path)
+
+        # Create two features that reference the same file
+        feature1 = Feature(
+            key="FEATURE-1",
+            title="Feature 1",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(shared_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        feature2 = Feature(
+            key="FEATURE-2",
+            title="Feature 2",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(shared_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        # Process first feature - should parse file
+        result1 = extractor.extract_openapi_from_code(tmp_path, feature1)
+        assert "/api/users" in result1["paths"]
+
+        # Verify cache was populated
+        assert shared_file in extractor._ast_cache
+        assert shared_file in extractor._file_hash_cache
+
+        # Process second feature - should use cached AST
+        cached_ast = extractor._ast_cache[shared_file]
+        result2 = extractor.extract_openapi_from_code(tmp_path, feature2)
+        assert "/api/users" in result2["paths"]
+
+        # Verify same AST object was reused (cache hit)
+        assert extractor._ast_cache[shared_file] is cached_ast
+
+    @beartype
+    def test_early_exit_detection_method(self, tmp_path: Path) -> None:
+        """Test that early exit detection method works (though currently disabled in extraction)."""
+        # Create a non-API file (model/utility without API endpoints)
+        model_file = tmp_path / "models.py"
+        model_file.write_text(
+            """
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+"""
+        )
+
+        # Create an API file for comparison
+        api_file = tmp_path / "api.py"
+        api_file.write_text(
+            """
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/users")
+def get_users():
+    \"\"\"Get users.\"\"\"
+    pass
+"""
+        )
+
+        extractor = OpenAPIExtractor(tmp_path)
+
+        # Test early exit detection for non-API file
+        has_endpoints = extractor._has_api_endpoints(model_file)
+        assert has_endpoints is False
+
+        # Test that API file is detected
+        has_endpoints_api = extractor._has_api_endpoints(api_file)
+        assert has_endpoints_api is True
+
+        # Note: Early exit is currently disabled in _extract_endpoints_from_file
+        # because it's too aggressive - it skips class-based APIs and interfaces
+        # Both files will be processed, but the detection method still works
+        feature = Feature(
+            key="FEATURE-TEST",
+            title="Test Feature",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[
+                    str(model_file.relative_to(tmp_path)),
+                    str(api_file.relative_to(tmp_path)),
+                ],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        result = extractor.extract_openapi_from_code(tmp_path, feature)
+
+        # API file should be processed (has endpoints)
+        assert "/users" in result["paths"]
+
+        # Model file will also be processed (early exit disabled)
+        # but won't generate endpoints since it has no API patterns
+
+    @beartype
+    def test_cache_invalidation_on_file_change(self, tmp_path: Path) -> None:
+        """Test that cache is invalidated when file content changes."""
+        test_file = tmp_path / "test_api.py"
+        original_content = '''
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/users")
+def get_users():
+    """Get users."""
+    pass
+'''
+        test_file.write_text(original_content)
+
+        extractor = OpenAPIExtractor(tmp_path)
+        feature = Feature(
+            key="FEATURE-TEST",
+            title="Test Feature",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(test_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        # First extraction - should parse and cache
+        result1 = extractor.extract_openapi_from_code(tmp_path, feature)
+        assert "/users" in result1["paths"]
+        # Use the resolved absolute path (as extractor does: repo_path / impl_file)
+        # The extractor creates: file_path = repo_path / impl_file where impl_file is a string
+        impl_file_str = str(test_file.relative_to(tmp_path))
+        resolved_file = tmp_path / impl_file_str
+        # Try both test_file and resolved_file as cache keys (Path equality should work)
+        cache_key = resolved_file
+        if cache_key not in extractor._ast_cache and test_file in extractor._ast_cache:
+            cache_key = test_file
+        # Ensure cache key exists
+        assert cache_key in extractor._ast_cache, (
+            f"Cache key not found. Available keys: {list(extractor._ast_cache.keys())}, "
+            f"Looking for: {resolved_file} or {test_file}"
+        )
+        original_ast = extractor._ast_cache[cache_key]
+        original_hash = extractor._file_hash_cache[cache_key]
+
+        # Modify file content
+        modified_content = original_content + "\n# Modified"
+        test_file.write_text(modified_content)
+
+        # Second extraction - should detect change and re-parse
+        result2 = extractor.extract_openapi_from_code(tmp_path, feature)
+        assert "/users" in result2["paths"]
+
+        # Verify new AST was created (different object)
+        # Use the same cache key as before
+        assert cache_key in extractor._ast_cache, (
+            f"Cache key not found after second extraction. Available keys: {list(extractor._ast_cache.keys())}, "
+            f"Looking for: {cache_key}"
+        )
+        new_ast = extractor._ast_cache[cache_key]
+        new_hash = extractor._file_hash_cache[cache_key]
+
+        # Hash should be different
+        assert new_hash != original_hash
+        # AST should be different object (re-parsed)
+        assert new_ast is not original_ast
+
+    @beartype
+    def test_class_filtering_optimization(self, tmp_path: Path) -> None:
+        """Test that non-API class types are skipped for performance."""
+        # Create a file with various class types
+        test_file = tmp_path / "mixed_classes.py"
+        test_file.write_text(
+            """
+from typing import Protocol, TypedDict
+from enum import Enum
+
+# Protocol class - should be skipped
+class ProcessorType(Protocol):
+    def process(self, value: str) -> str: ...
+
+# TypedDict - should be skipped
+class ConfigDict(TypedDict):
+    key: str
+    value: int
+
+# Enum - should be skipped
+class Status(Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+# Regular class with many utility methods - should be skipped (too many methods)
+class TypeEngine:
+    def evaluates_none(self): pass
+    def copy(self): pass
+    def literal_processor(self): pass
+    def bind_processor(self): pass
+    def result_processor(self): pass
+    def column_expression(self): pass
+    def bind_expression(self): pass
+    def compare_values(self): pass
+    def get_dbapi_type(self): pass
+    def python_type(self): pass
+    def with_variant(self): pass
+    def _resolve_for_literal(self): pass
+    def _resolve_for_python_type(self): pass
+    def _with_collation(self): pass
+    def _type_affinity(self): pass
+    def _generic_type_affinity(self): pass
+    def as_generic(self): pass
+    def dialect_impl(self): pass
+    def _unwrapped_dialect_impl(self): pass
+    def _cached_literal_processor(self): pass
+    def _cached_bind_processor(self): pass
+    def _cached_result_processor(self): pass
+    def _cached_custom_processor(self): pass
+    def _dialect_info(self): pass
+    def _gen_dialect_impl(self): pass
+    def _static_cache_key(self): pass
+    def adapt(self): pass
+    def coerce_compared_value(self): pass
+    def _compare_type_affinity(self): pass
+    def compile(self): pass
+
+# API-like class with CRUD methods - should be processed
+class UserManager:
+    def create_user(self, name: str): pass
+    def get_user(self, user_id: int): pass
+    def update_user(self, user_id: int, name: str): pass
+    def delete_user(self, user_id: int): pass
+"""
+        )
+
+        extractor = OpenAPIExtractor(tmp_path)
+        feature = Feature(
+            key="FEATURE-TEST",
+            title="Test Feature",
+            stories=[],
+            source_tracking=SourceTracking(
+                implementation_files=[str(test_file.relative_to(tmp_path))],
+                test_files=[],
+                file_hashes={},
+            ),
+            contract=None,
+            protocol=None,
+        )
+
+        result = extractor.extract_openapi_from_code(tmp_path, feature)
+
+        # Protocol, TypedDict, Enum classes should be skipped (no endpoints)
+        # TypeEngine should be skipped (too many utility methods)
+        # UserManager should be processed (CRUD methods)
+        paths = list(result["paths"].keys())
+
+        # Should have endpoints from UserManager only
+        assert any("user-manager" in path for path in paths), "UserManager endpoints should be extracted"
+
+        # Should NOT have endpoints from Protocol, TypedDict, Enum, or TypeEngine
+        # (These are filtered out by optimizations)

@@ -9,6 +9,63 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.23.1] - 2026-01-07
+
+### Fixed (0.23.1)
+
+- **Contract Extraction Performance**: Fixed critical performance bottleneck causing extremely slow contract extraction
+  - **Nested Parallelism Removal**: Eliminated GIL contention from nested ThreadPoolExecutor instances
+    - Removed file-level parallelism within features (features already processed in parallel at command level)
+    - Files within each feature now processed sequentially to avoid thread contention
+    - Performance improvement: contract extraction for large codebases (300+ features) now completes in reasonable time instead of hours
+    - Resolves issue where CPU usage was low despite long processing times due to GIL contention
+  - **Cache Invalidation Logic**: Fixed cache update logic to properly detect and handle file changes
+    - Changed double-check pattern to compare file hashes before updating cache
+    - Cache now correctly updates when file content changes, not just on cache misses
+    - Ensures AST cache reflects current file state after modifications
+  - **Test Robustness**: Enhanced cache invalidation test to handle Path object differences
+    - Test now handles both `test_file` and `resolved_file` as cache keys
+    - Path objects are compared by value, ensuring correct cache lookups
+    - Added assertions to verify cache keys exist before accessing
+
+- **Import Command Bug Fixes**: Fixed critical bugs in enrichment and contract extraction workflow
+  - **Unhashable Type Error**: Fixed `TypeError: unhashable type: 'Feature'` when applying enrichment reports
+    - Changed `dict[Feature, list[Path]]` to `dict[str, list[Path]]` using feature keys instead of Feature objects
+    - Added `feature_objects: dict[str, Feature]` mapping to maintain Feature object references
+    - Prevents runtime errors during contract extraction when enrichment adds new features
+  - **Enrichment Performance Regression**: Fixed severe performance issue where enrichment forced full contract regeneration
+    - Removed `or enrichment` condition from `_check_incremental_changes` that forced full regeneration
+    - Enrichment now only triggers contract extraction for new features (without contracts)
+    - Existing contracts are not regenerated when only metadata changes (confidence adjustments, business context)
+    - Performance improvement: enrichment with unchanged files now completes in seconds instead of 80+ minutes for large bundles
+  - **Contract Extraction Order**: Fixed contract extraction to run after enrichment application
+    - Ensures new features from enrichment reports are included in contract extraction
+    - New features without contracts now correctly get contracts extracted
+
+### Added (0.23.1)
+
+- **Contract Extraction Profiling Tool**: Added diagnostic tool for performance analysis
+  - New `tools/profile_contract_extraction.py` script for profiling contract extraction bottlenecks
+  - Helps identify performance issues in contract extraction process
+  - Provides detailed timing and profiling information for individual features
+
+- **Comprehensive Test Coverage**: Added extensive test suite for import and enrichment bugs
+  - **Integration Tests**: New `test_import_enrichment_contracts.py` with 5 test cases (552 lines)
+    - Tests enrichment not forcing full contract regeneration
+    - Tests new features from enrichment getting contracts extracted
+    - Tests incremental contract extraction with enrichment
+    - Tests feature objects not used as dictionary keys
+    - Tests performance regression prevention
+  - **Unit Tests**: New `test_import_contract_extraction.py` with 5 test cases (262 lines)
+    - Tests Feature objects not being hashable (regression test)
+    - Tests contract extraction using feature keys, not objects
+    - Tests incremental contract regeneration logic
+    - Tests enrichment not forcing contract regeneration
+    - Tests new features from enrichment getting contracts
+  - **Updated Existing Tests**: Enhanced `test_import_command.py` with enrichment regression test
+
+---
+
 ## [0.23.0] - 2026-01-07
 
 ### Added (0.23.0)

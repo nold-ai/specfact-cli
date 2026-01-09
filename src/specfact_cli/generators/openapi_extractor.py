@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import hashlib
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -35,7 +35,20 @@ class OpenAPIExtractor:
             repo_path: Path to repository root
         """
         self.repo_path = repo_path.resolve()
-        self._lock = Lock()  # Thread lock for parallel processing
+        # Use separate locks to reduce contention:
+        # - Cache lock: protects AST cache (shared across all features)
+        # - Spec locks: each feature gets its own lock for openapi_spec writes (per-feature isolation)
+        self._cache_lock = Lock()  # Thread lock for AST cache (shared resource)
+        # Performance optimization: Cache AST trees and file content to avoid redundant parsing
+        self._ast_cache: dict[Path, ast.AST] = {}  # File path -> AST tree
+        self._file_hash_cache: dict[Path, str] = {}  # File path -> content hash for cache invalidation
+        # Pre-compiled regex patterns for early exit optimization
+        self._api_patterns = [
+            re.compile(r"@(app|router)\.(get|post|put|delete|patch|head|options)", re.IGNORECASE),
+            re.compile(r"@app\.route\("),
+            re.compile(r"APIRouter\("),
+            re.compile(r"FastAPI\("),
+        ]
 
     @beartype
     @require(lambda self, feature: isinstance(feature, Feature), "Feature must be Feature instance")
@@ -176,22 +189,111 @@ class OpenAPIExtractor:
             for file_path in all_files:
                 self._extract_endpoints_from_file(file_path, openapi_spec)
         else:
-            # Parallel processing in production mode
-            max_workers = min(len(all_files), os.cpu_count() or 4)
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all file processing tasks
-                futures = {
-                    executor.submit(self._extract_endpoints_from_file, file_path, openapi_spec): file_path
-                    for file_path in all_files
-                }
-
-                # Wait for all tasks to complete
-                for future in as_completed(futures):
-                    with contextlib.suppress(Exception):
-                        # Skip files with errors (already handled in _extract_endpoints_from_file)
-                        future.result()
+            # Sequential file processing within feature
+            # NOTE: Features are already processed in parallel at the command level,
+            # so nested parallelism here creates GIL contention and overhead.
+            # Most features have 1 file anyway, so sequential processing is faster.
+            for file_path in all_files:
+                with contextlib.suppress(Exception):
+                    self._extract_endpoints_from_file(file_path, openapi_spec)
 
         return openapi_spec
+
+    def _has_api_endpoints(self, file_path: Path) -> bool:
+        """
+        Quick check if file likely has API endpoints before deep AST analysis.
+
+        This optimization allows early exit for non-API files (models, utilities, etc.),
+        avoiding expensive AST parsing and traversal.
+
+        Args:
+            file_path: Path to Python file
+
+        Returns:
+            True if file likely contains API endpoints, False otherwise
+        """
+        try:
+            # Read first 4KB to check for API patterns (most API decorators are near top)
+            with file_path.open(encoding="utf-8") as f:
+                content_preview = f.read(4096)
+
+            # Quick regex check for common API patterns
+            return any(pattern.search(content_preview) for pattern in self._api_patterns)
+        except Exception:
+            # If we can't read the file, proceed with full analysis (safer)
+            return True
+
+    def _get_or_parse_file(self, file_path: Path) -> ast.AST | None:
+        """
+        Get cached AST or parse and cache file.
+
+        This optimization prevents redundant AST parsing when the same file
+        is processed by multiple features.
+
+        Args:
+            file_path: Path to Python file
+
+        Returns:
+            AST tree or None if parsing fails
+        """
+        # Check cache first (thread-safe, but minimize lock scope)
+        cached_ast = None
+        cached_hash = None
+        with self._cache_lock:
+            if file_path in self._ast_cache:
+                cached_ast = self._ast_cache[file_path]
+                cached_hash = self._file_hash_cache.get(file_path)
+
+        # Verify file hasn't changed by checking hash (OUTSIDE lock to avoid blocking)
+        # OPTIMIZATION: Only read file once, reuse content for parsing if needed
+        if cached_ast is not None and cached_hash is not None:
+            try:
+                # Read file once
+                with file_path.open(encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                current_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+                if current_hash == cached_hash:
+                    # Cache hit - file unchanged
+                    return cached_ast
+                # File changed - will re-parse below using the content we just read
+            except Exception:
+                # If we can't verify, use cached AST (safer than failing)
+                if cached_ast is not None:
+                    return cached_ast
+                # If we can't read, we'll try again below
+                content = None
+        else:
+            # Cache miss - need to read file
+            content = None
+
+        # Cache miss or file changed - parse file (OUTSIDE lock)
+        # OPTIMIZATION: Reuse content if we already read it for hash check
+        try:
+            if content is None:
+                # Read file if we don't have content yet
+                with file_path.open(encoding="utf-8") as f:
+                    content = f.read()
+
+            tree = ast.parse(content, filename=str(file_path))
+            file_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+            # Cache the AST and hash (thread-safe, minimal lock scope)
+            with self._cache_lock:
+                # Update cache if file changed or not cached
+                # Since we removed nested parallelism, we can safely update on hash change
+                cached_hash = self._file_hash_cache.get(file_path)
+                if cached_hash != file_hash:
+                    # File changed or not cached - update cache
+                    self._ast_cache[file_path] = tree
+                    self._file_hash_cache[file_path] = file_hash
+                else:
+                    # Use cached version (file unchanged)
+                    tree = self._ast_cache.get(file_path, tree)
+
+            return tree
+        except Exception:
+            return None
 
     def _extract_endpoints_from_file(self, file_path: Path, openapi_spec: dict[str, Any]) -> None:
         """
@@ -201,15 +303,24 @@ class OpenAPIExtractor:
             file_path: Path to Python file
             openapi_spec: OpenAPI spec dictionary to update
         """
-        try:
-            with file_path.open(encoding="utf-8") as f:
-                tree = ast.parse(f.read(), filename=str(file_path))
+        # Note: Early exit optimization disabled - too aggressive for class-based APIs
+        # The extractor also processes class-based APIs and interfaces, not just decorator-based APIs
+        # Early exit would skip these valid cases. AST caching provides sufficient performance benefit.
+        # if not self._has_api_endpoints(file_path):
+        #     return
 
+        # Use cached AST or parse and cache
+        tree = self._get_or_parse_file(file_path)
+        if tree is None:
+            return
+
+        try:
             # Track router instances and their prefixes
             router_prefixes: dict[str, str] = {}  # router_name -> prefix
             router_tags: dict[str, list[str]] = {}  # router_name -> tags
 
-            # First pass: Extract Pydantic models and find router instances
+            # Single-pass optimization: Combine all extraction in one traversal
+            # Use iter_child_nodes for module-level items (more efficient than ast.walk for top-level)
             for node in ast.iter_child_nodes(tree):
                 # Extract Pydantic models (BaseModel subclasses)
                 if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
@@ -245,26 +356,8 @@ class OpenAPIExtractor:
                     if router_tags_list:
                         router_tags[router_name] = router_tags_list
 
-            # Second pass: Extract endpoints from functions and class methods (use iter_child_nodes for efficiency)
-            # Note: We need to walk recursively for nested classes, but we'll do it more efficiently
-            def extract_from_node(node: ast.AST) -> None:
-                """Recursively extract endpoints from AST node."""
-                if isinstance(node, ast.Module):
-                    # Start from module level
-                    for child in node.body:
-                        extract_from_node(child)
-                elif isinstance(node, ast.ClassDef):
-                    # Process class and its methods
-                    for child in node.body:
-                        extract_from_node(child)
+                # Extract endpoints from function definitions (module-level) - COMBINED with first pass
                 elif isinstance(node, ast.FunctionDef):
-                    # Process function
-                    pass  # Will be handled below
-
-            # Use more efficient iteration - only walk what we need
-            for node in ast.iter_child_nodes(tree):
-                # Extract from function definitions (module-level or class methods)
-                if isinstance(node, ast.FunctionDef):
                     # Check for decorators that indicate HTTP routes
                     for decorator in node.decorator_list:
                         if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
@@ -335,14 +428,32 @@ class OpenAPIExtractor:
                                     for method in methods:
                                         self._add_operation(openapi_spec, path, method, node, path_params=path_params)
 
-                # Extract from class definitions (class-based APIs)
-                # Pattern: Classes represent APIs, methods represent endpoints
+                # Extract from class definitions (class-based APIs) - CONTINUED from single pass
                 elif isinstance(node, ast.ClassDef):
                     # Skip private classes and test classes
                     if node.name.startswith("_") or node.name.startswith("Test"):
                         continue
 
+                    # Performance optimization: Skip non-API class types
+                    # These are common in ORM/library code and not API endpoints
+                    skip_class_patterns = [
+                        "Protocol",
+                        "TypedDict",
+                        "Enum",
+                        "ABC",
+                        "AbstractBase",
+                        "Mixin",
+                        "Base",
+                        "Meta",
+                        "Descriptor",
+                        "Property",
+                    ]
+                    if any(pattern in node.name for pattern in skip_class_patterns):
+                        continue
+
                     # Check if class is an abstract base class or protocol (interface)
+                    # IMPORTANT: Check for interfaces FIRST before skipping ABC classes
+                    # Interfaces (ABC/Protocol with abstract methods) should be processed
                     is_interface = False
                     for base in node.bases:
                         if isinstance(base, ast.Name) and base.id in ["ABC", "Protocol", "AbstractBase", "Interface"]:
@@ -353,6 +464,24 @@ class OpenAPIExtractor:
                             # Check for typing.Protocol, abc.ABC, etc.
                             is_interface = True
                             break
+
+                    # If it's an interface, we'll process it below (skip the base class skip logic)
+                    # Only skip non-interface ABC/Protocol classes
+                    if not is_interface:
+                        # Skip classes that inherit from non-API base types (but not interfaces)
+                        skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
+                        should_skip_class = False
+                        for base in node.bases:
+                            base_name = ""
+                            if isinstance(base, ast.Name):
+                                base_name = base.id
+                            elif isinstance(base, ast.Attribute):
+                                base_name = base.attr
+                            if any(pattern in base_name for pattern in skip_base_patterns):
+                                should_skip_class = True
+                                break
+                        if should_skip_class:
+                            continue
 
                     # For interfaces, extract abstract methods as potential endpoints
                     if is_interface:
@@ -416,11 +545,67 @@ class OpenAPIExtractor:
 
                     # Check if class has methods that could be API endpoints
                     # Look for public methods (not starting with _)
-                    class_methods = [
-                        child
-                        for child in node.body
-                        if isinstance(child, ast.FunctionDef) and not child.name.startswith("_")
-                    ]
+                    # Performance optimization: Be very selective - only process methods that strongly suggest API endpoints
+                    class_methods = []
+                    for child in node.body:
+                        if isinstance(child, ast.FunctionDef) and not child.name.startswith("_"):
+                            method_name_lower = child.name.lower()
+
+                            # Skip methods that are clearly utility/library methods
+                            skip_method_patterns = [
+                                "processor",
+                                "adapter",
+                                "factory",
+                                "builder",
+                                "helper",
+                                "validator",
+                                "converter",
+                                "serializer",
+                                "deserializer",
+                                "get_",
+                                "set_",
+                                "has_",
+                                "is_",
+                                "can_",
+                                "should_",
+                                "copy",
+                                "clone",
+                                "adapt",
+                                "coerce",
+                                "compare",
+                                "compile",
+                                "dialect",
+                                "variant",
+                                "resolve",
+                                "literal",
+                                "bind",
+                                "result",
+                            ]
+                            if any(pattern in method_name_lower for pattern in skip_method_patterns):
+                                continue
+
+                            # Only include methods that strongly suggest API endpoints
+                            # Must match CRUD patterns or be very short (likely API methods)
+                            is_crud_like = any(
+                                verb in method_name_lower
+                                for verb in ["create", "add", "update", "delete", "remove", "fetch", "list", "save"]
+                            )
+                            is_short_api_like = len(method_name_lower.split("_")) <= 2 and method_name_lower not in [
+                                "copy",
+                                "clone",
+                                "adapt",
+                                "coerce",
+                            ]
+
+                            if is_crud_like or is_short_api_like:
+                                class_methods.append(child)
+
+                    # Performance optimization: Limit number of methods processed per class
+                    # Large classes with many methods are likely not API endpoints
+                    max_methods_per_class = 15
+                    if len(class_methods) > max_methods_per_class:
+                        # Too many methods - likely a utility/library class, not an API
+                        continue
 
                     if class_methods:
                         # Generate base path from class name (e.g., UserManager -> /users)
@@ -681,14 +866,17 @@ class OpenAPIExtractor:
                                 # Default to object if type can't be inferred
                                 schema["properties"][field_name] = {"type": "object"}
 
-        # Add schema to components (thread-safe)
-        with self._lock:
-            if "components" not in openapi_spec:
-                openapi_spec["components"] = {}
-            if "schemas" not in openapi_spec["components"]:
-                openapi_spec["components"]["schemas"] = {}
+        # Add schema to components
+        # Note: openapi_spec is per-feature, but files within a feature are processed in parallel
+        # Use lock to ensure thread-safe dict updates
+        # However, since each feature has its own openapi_spec, contention is minimal
+        # We could use a per-feature lock, but for simplicity, use a lightweight check-then-set pattern
+        if "components" not in openapi_spec:
+            openapi_spec["components"] = {}
+        if "schemas" not in openapi_spec["components"]:
+            openapi_spec["components"]["schemas"] = {}
 
-            openapi_spec["components"]["schemas"][schema_name] = schema
+        openapi_spec["components"]["schemas"][schema_name] = schema
 
     def _extract_default_value(self, value_node: ast.expr) -> Any:
         """
@@ -702,8 +890,15 @@ class OpenAPIExtractor:
         """
         if isinstance(value_node, ast.Constant):
             return value_node.value
-        if isinstance(value_node, ast.NameConstant):  # Python < 3.8 compatibility
-            return value_node.value
+        # Python < 3.8 compatibility - suppress deprecation warning
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            # ast.NameConstant is deprecated in Python 3.8+, removed in 3.14
+            # Keep for backward compatibility with older Python versions
+            if hasattr(ast, "NameConstant") and isinstance(value_node, ast.NameConstant):
+                return value_node.value
         if isinstance(value_node, ast.Name) and value_node.id == "None":
             return None
         return None
@@ -873,10 +1068,9 @@ class OpenAPIExtractor:
             path_params: Path parameters (if any)
             tags: Operation tags (if any)
         """
-        # Thread-safe path addition
-        with self._lock:
-            if path not in openapi_spec["paths"]:
-                openapi_spec["paths"][path] = {}
+        # Path addition - openapi_spec is per-feature, but files within feature are parallel
+        # Use dict.setdefault for atomic initialization
+        openapi_spec["paths"].setdefault(path, {})
 
         # Extract path parameter names
         path_param_names = {p["name"] for p in (path_params or [])}
@@ -930,19 +1124,18 @@ class OpenAPIExtractor:
         if security:
             operation["security"] = security
             # Ensure security schemes are defined in components
-            with self._lock:
-                if "components" not in openapi_spec:
-                    openapi_spec["components"] = {}
-                if "securitySchemes" not in openapi_spec["components"]:
-                    openapi_spec["components"]["securitySchemes"] = {}
-                # Add bearerAuth scheme if used
-                for sec_req in security:
-                    if "bearerAuth" in sec_req:
-                        openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
-                            "type": "http",
-                            "scheme": "bearer",
-                            "bearerFormat": "JWT",
-                        }
+            if "components" not in openapi_spec:
+                openapi_spec["components"] = {}
+            if "securitySchemes" not in openapi_spec["components"]:
+                openapi_spec["components"]["securitySchemes"] = {}
+            # Add bearerAuth scheme if used
+            for sec_req in security:
+                if "bearerAuth" in sec_req:
+                    openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
+                        "type": "http",
+                        "scheme": "bearer",
+                        "bearerFormat": "JWT",
+                    }
 
         # Add request body for POST/PUT/PATCH if found
         if method in ("POST", "PUT", "PATCH") and request_body:
@@ -961,9 +1154,9 @@ class OpenAPIExtractor:
                 },
             }
 
-        # Thread-safe operation addition
-        with self._lock:
-            openapi_spec["paths"][path][method.lower()] = operation
+        # Operation addition - openapi_spec is per-feature
+        # Dict assignment is atomic in Python, so no lock needed for single assignment
+        openapi_spec["paths"][path][method.lower()] = operation
 
     @beartype
     @require(lambda self, contract_path: isinstance(contract_path, Path), "Contract path must be Path")
