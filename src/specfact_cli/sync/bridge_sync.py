@@ -13,6 +13,12 @@ import hashlib
 import re
 from dataclasses import dataclass
 from datetime import datetime
+
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = UTC  # type: ignore[assignment]
 from pathlib import Path
 from typing import Any
 
@@ -866,7 +872,7 @@ class BridgeSync:
                                 # Manual progress comment (no code change detection)
                                 progress_data = {
                                     "summary": "Manual progress update",
-                                    "detection_timestamp": datetime.utcnow().isoformat() + "Z",
+                                    "detection_timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                                 }
 
                             if progress_data:

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,12 @@ from specfact_cli.models.plan import Feature
 @beartype
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
-def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Feature] | None = None) -> dict[str, bool]:
+def check_incremental_changes(
+    bundle_dir: Path,
+    repo: Path,
+    features: list[Feature] | None = None,
+    progress_callback: Callable[[int, int, str], None] | None = None,
+) -> dict[str, bool]:
     """
     Check which artifacts need regeneration based on file hash changes.
 
@@ -30,6 +36,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
         bundle_dir: Path to project bundle directory
         repo: Path to repository root
         features: Optional list of features to check (if None, loads from bundle)
+        progress_callback: Optional callback function(current: int, total: int, message: str) for progress updates
 
     Returns:
         Dictionary with keys:
@@ -67,6 +74,13 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
 
             manifest_data = load_structured_file(manifest_path)
             manifest = BundleManifest.model_validate(manifest_data)
+
+            # Calculate estimated total for progress tracking (will be refined when we know actual file count)
+            num_features = len(manifest.features)
+            estimated_total = 1 + num_features + (num_features * 2)  # ~2 files per feature average
+
+            if progress_callback:
+                progress_callback(1, estimated_total, "Loading manifest...")
 
             # Load only source_tracking sections from feature files in parallel
             features_dir = bundle_dir / "features"
@@ -172,11 +186,20 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
             wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
             try:
                 future_to_index = {executor.submit(load_feature_source_tracking, fi): fi for fi in manifest.features}
+                completed_features = 0
                 for future in as_completed(future_to_index):
                     try:
                         feature = future.result()
                         if feature:
                             features.append(feature)
+                        completed_features += 1
+                        if progress_callback:
+                            # Use estimated_total for now (will be refined when we know actual file count)
+                            progress_callback(
+                                1 + completed_features,
+                                estimated_total,
+                                f"Loading features... ({completed_features}/{num_features})",
+                            )
                     except KeyboardInterrupt:
                         # Cancel remaining tasks and re-raise
                         for f in future_to_index:
@@ -204,6 +227,9 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
     check_tasks: list[tuple[Feature, Path, str]] = []  # (feature, file_path, file_type)
     contract_checks: list[tuple[Feature, Path]] = []  # (feature, contract_path)
 
+    num_features_loaded = len(features) if features else 0
+
+    # Collect all file check tasks first
     for feature in features:
         if not feature.source_tracking:
             source_files_changed = True
@@ -218,6 +244,25 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
         if feature.contract:
             contract_path = bundle_dir / feature.contract
             contract_checks.append((feature, contract_path))
+
+    # Calculate actual total for progress tracking
+    # If we loaded features from manifest, we already counted manifest (1) + features (num_features_loaded)
+    # If features were passed directly, we need to account for that differently
+    if num_features_loaded > 0:
+        # Features were loaded from manifest, so we already counted: manifest (1) + features loaded
+        actual_total = 1 + num_features_loaded + len(check_tasks)
+    else:
+        # Features were passed directly, estimate total
+        actual_total = len(check_tasks) if check_tasks else 100
+
+    # Update progress before starting file checks (use actual_total, which may be more accurate than estimated_total)
+    if progress_callback and num_features_loaded > 0:
+        # Update to actual total (this will refine the estimate based on real file count)
+        # This is important: actual_total may be different from estimated_total
+        progress_callback(1 + num_features_loaded, actual_total, f"Checking {len(check_tasks)} file(s) for changes...")
+    elif progress_callback and not num_features_loaded and check_tasks:
+        # Features passed directly, start progress tracking
+        progress_callback(0, actual_total, f"Checking {len(check_tasks)} file(s) for changes...")
 
     # Check files in parallel (early exit if any change detected)
     if check_tasks:
@@ -245,6 +290,7 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
             future_to_task = {executor.submit(check_file_change, task): task for task in check_tasks}
 
             # Check results as they complete (early exit on first change)
+            completed_checks = 0
             try:
                 for future in as_completed(future_to_task):
                     try:
@@ -252,6 +298,15 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
                             source_files_changed = True
                             # Cancel remaining tasks (they'll complete but we won't wait)
                             break
+                        completed_checks += 1
+                        # Update progress as file checks complete
+                        if progress_callback and num_features_loaded > 0:
+                            current_progress = 1 + num_features_loaded + completed_checks
+                            progress_callback(
+                                current_progress,
+                                actual_total,
+                                f"Checking files... ({completed_checks}/{len(check_tasks)})",
+                            )
                     except KeyboardInterrupt:
                         interrupted = True
                         for f in future_to_task:
@@ -304,6 +359,18 @@ def check_incremental_changes(bundle_dir: Path, repo: Path, features: list[Featu
         contract_files = list(contracts_dir.glob("*.openapi.yaml"))
         if contract_files and not contracts_changed:
             result["contracts"] = False
+
+    # Final progress update (use already calculated actual_total)
+    if progress_callback:
+        if num_features_loaded > 0 and actual_total > 0:
+            # Features loaded from manifest: use calculated total
+            progress_callback(actual_total, actual_total, "Change check complete")
+        elif check_tasks:
+            # Features passed directly: use check_tasks count
+            progress_callback(len(check_tasks), len(check_tasks), "Change check complete")
+        else:
+            # No files to check, just mark complete
+            progress_callback(1, 1, "Change check complete")
 
     return result
 

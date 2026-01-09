@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
@@ -34,6 +35,78 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
 )
 console = get_configured_console()
+
+if TYPE_CHECKING:
+    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
+    from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
+
+
+_CONTRACT_WORKER_EXTRACTOR: OpenAPIExtractor | None = None
+_CONTRACT_WORKER_TEST_CONVERTER: OpenAPITestConverter | None = None
+_CONTRACT_WORKER_REPO: Path | None = None
+_CONTRACT_WORKER_CONTRACTS_DIR: Path | None = None
+
+
+def _init_contract_worker(repo_path: str, contracts_dir: str) -> None:
+    """Initialize per-process contract extraction state."""
+    from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
+    from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
+
+    global _CONTRACT_WORKER_CONTRACTS_DIR
+    global _CONTRACT_WORKER_EXTRACTOR
+    global _CONTRACT_WORKER_REPO
+    global _CONTRACT_WORKER_TEST_CONVERTER
+
+    _CONTRACT_WORKER_REPO = Path(repo_path)
+    _CONTRACT_WORKER_CONTRACTS_DIR = Path(contracts_dir)
+    _CONTRACT_WORKER_EXTRACTOR = OpenAPIExtractor(_CONTRACT_WORKER_REPO)
+    _CONTRACT_WORKER_TEST_CONVERTER = OpenAPITestConverter(_CONTRACT_WORKER_REPO)
+
+
+def _extract_contract_worker(feature_data: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+    """Extract a single OpenAPI contract in a worker process."""
+    from specfact_cli.models.plan import Feature
+
+    if (
+        _CONTRACT_WORKER_EXTRACTOR is None
+        or _CONTRACT_WORKER_TEST_CONVERTER is None
+        or _CONTRACT_WORKER_REPO is None
+        or _CONTRACT_WORKER_CONTRACTS_DIR is None
+    ):
+        raise RuntimeError("Contract extraction worker not initialized")
+
+    feature = Feature(**feature_data)
+    try:
+        openapi_spec = _CONTRACT_WORKER_EXTRACTOR.extract_openapi_from_code(_CONTRACT_WORKER_REPO, feature)
+        if openapi_spec.get("paths"):
+            test_examples: dict[str, Any] = {}
+            has_test_functions = any(story.test_functions for story in feature.stories) or (
+                feature.source_tracking and feature.source_tracking.test_functions
+            )
+
+            if has_test_functions:
+                all_test_functions: list[str] = []
+                for story in feature.stories:
+                    if story.test_functions:
+                        all_test_functions.extend(story.test_functions)
+                if feature.source_tracking and feature.source_tracking.test_functions:
+                    all_test_functions.extend(feature.source_tracking.test_functions)
+                if all_test_functions:
+                    test_examples = _CONTRACT_WORKER_TEST_CONVERTER.extract_examples_from_tests(all_test_functions)
+
+            if test_examples:
+                openapi_spec = _CONTRACT_WORKER_EXTRACTOR.add_test_examples(openapi_spec, test_examples)
+
+            contract_filename = f"{feature.key}.openapi.yaml"
+            contract_path = _CONTRACT_WORKER_CONTRACTS_DIR / contract_filename
+            _CONTRACT_WORKER_EXTRACTOR.save_openapi_contract(openapi_spec, contract_path)
+            return (feature.key, openapi_spec)
+    except KeyboardInterrupt:
+        raise
+    except Exception:
+        return (feature.key, None)
+
+    return (feature.key, None)
 
 
 def _is_valid_repo_path(path: Path) -> bool:
@@ -93,8 +166,10 @@ def _check_incremental_changes(
     if force:
         console.print("[yellow]⚠ Force mode enabled - regenerating all artifacts[/yellow]\n")
         return None  # None means regenerate everything
-    if not bundle_dir.exists() or enrichment:
-        return None
+    if not bundle_dir.exists():
+        return None  # No bundle exists, regenerate everything
+    # Note: enrichment doesn't force full regeneration - it only adds/updates features
+    # Contracts should only be regenerated if source files changed, not just because enrichment was applied
 
     from specfact_cli.utils.incremental_check import check_incremental_changes
 
@@ -105,12 +180,73 @@ def _check_incremental_changes(
             console=console,
             **progress_kwargs,
         ) as progress:
-            task = progress.add_task("[cyan]Checking for changes...", total=None)
-            progress.update(task, description="[cyan]Loading manifest and checking file changes...")
+            # Load manifest first to get feature count for determinate progress
+            manifest_path = bundle_dir / "bundle.manifest.yaml"
+            num_features = 0
+            total_ops = 100  # Default estimate for determinate progress
 
-        incremental_changes = check_incremental_changes(bundle_dir, repo, features=None)
+            if manifest_path.exists():
+                try:
+                    from specfact_cli.models.project import BundleManifest
+                    from specfact_cli.utils.structured_io import load_structured_file
 
-        if not any(incremental_changes.values()):
+                    manifest_data = load_structured_file(manifest_path)
+                    manifest = BundleManifest.model_validate(manifest_data)
+                    num_features = len(manifest.features)
+
+                    # Estimate total operations: manifest (1) + loading features (num_features) + file checks (num_features * ~2 avg files)
+                    # Use a reasonable estimate for determinate progress
+                    estimated_file_checks = num_features * 2 if num_features > 0 else 10
+                    total_ops = max(1 + num_features + estimated_file_checks, 10)  # Minimum 10 for visibility
+                except Exception:
+                    # If manifest load fails, use default estimate
+                    pass
+
+            # Create task with estimated total for determinate progress bar
+            task = progress.add_task("[cyan]Loading manifest and checking file changes...", total=total_ops)
+
+            # Create progress callback to update the progress bar
+            def update_progress(current: int, total: int, message: str) -> None:
+                """Update progress bar with current status."""
+                # Always update total when provided (we get better estimates as we progress)
+                # The total from incremental_check may be more accurate than our initial estimate
+                current_total = progress.tasks[task].total
+                if current_total is None:
+                    # No total set yet, use the provided one
+                    progress.update(task, total=total)
+                elif total != current_total:
+                    # Total changed, update it (this handles both increases and decreases)
+                    # We trust the incremental_check calculation as it has more accurate info
+                    progress.update(task, total=total)
+                # Always update completed and description
+                progress.update(task, completed=current, description=f"[cyan]{message}[/cyan]")
+
+            # Call check_incremental_changes with progress callback
+            incremental_changes = check_incremental_changes(
+                bundle_dir, repo, features=None, progress_callback=update_progress
+            )
+
+            # Update progress to completion
+            task_info = progress.tasks[task]
+            final_total = task_info.total if task_info.total and task_info.total > 0 else total_ops
+            progress.update(
+                task,
+                completed=final_total,
+                total=final_total,
+                description="[green]✓[/green] Change check complete",
+            )
+            # Brief pause to show completion
+            time.sleep(0.1)
+
+        # If enrichment is provided, we need to apply it even if no source files changed
+        # Mark bundle as needing regeneration to ensure enrichment is applied
+        if enrichment and incremental_changes and not any(incremental_changes.values()):
+            # Enrichment provided but no source changes - still need to apply enrichment
+            incremental_changes["bundle"] = True  # Force bundle regeneration to apply enrichment
+            console.print(f"[green]✓[/green] Project bundle already exists: {bundle_dir}")
+            console.print("[dim]No source file changes detected, but enrichment will be applied[/dim]")
+        elif not any(incremental_changes.values()):
+            # No changes and no enrichment - can skip everything
             console.print(f"[green]✓[/green] Project bundle already exists: {bundle_dir}")
             console.print("[dim]No changes detected - all artifacts are up-to-date[/dim]")
             console.print("[dim]Skipping regeneration of relationships, contracts, graph, and enrichment context[/dim]")
@@ -590,6 +726,8 @@ def _extract_relationships_and_graph(
         console=console,
         **progress_kwargs,
     ) as progress:
+        import time
+
         # Step 1: Analyze relationships
         relationships_task = progress.add_task(
             f"[cyan]Analyzing relationships in {len(python_files)} files...",
@@ -608,9 +746,11 @@ def _extract_relationships_and_graph(
         progress.update(
             relationships_task,
             completed=len(python_files),
-            description=f"[green]✓[/green] Mapped {len(relationships['imports'])} files with relationships",
+            total=len(python_files),
+            description=f"[green]✓[/green] Relationship analysis complete: {len(relationships['imports'])} files mapped",
         )
-        progress.remove_task(relationships_task)
+        # Keep final progress bar visible instead of removing it
+        time.sleep(0.1)  # Brief pause to show completion
 
     # Graph analysis is optional and can be slow - only run if explicitly needed
     # Skip by default for faster imports (can be enabled with --with-graph flag in future)
@@ -640,9 +780,11 @@ def _extract_relationships_and_graph(
                 progress.update(
                     graph_task,
                     completed=len(python_files) * 2,
-                    description=f"[green]✓[/green] Built dependency graph: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies",
+                    total=len(python_files) * 2,
+                    description=f"[green]✓[/green] Dependency graph complete: {graph_summary.get('nodes', 0)} modules, {graph_summary.get('edges', 0)} dependencies",
                 )
-            progress.remove_task(graph_task)
+                # Keep final progress bar visible instead of removing it
+                time.sleep(0.1)  # Brief pause to show completion
             relationships["dependency_graph"] = graph_summary
             relationships["call_graphs"] = graph_analyzer.call_graphs
     elif should_regenerate_graph and not pyan3_available:
@@ -657,15 +799,15 @@ def _extract_contracts(
     plan_bundle: PlanBundle,
     should_regenerate_contracts: bool,
     record_event: Any,
+    force: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Extract OpenAPI contracts from features."""
     import os
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
     from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
     from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
 
-    openapi_extractor = OpenAPIExtractor(repo)
     contracts_generated = 0
     contracts_dir = bundle_dir / "contracts"
     contracts_dir.mkdir(parents=True, exist_ok=True)
@@ -782,12 +924,73 @@ def _extract_contracts(
                 console.print(f"[green]✓[/green] Loaded {existing_contracts_count} existing contract(s) from bundle")
 
     # Extract contracts if needed
-    test_converter = OpenAPITestConverter(repo)
     if should_regenerate_contracts:
-        # Filter features that need contract regeneration (check file hashes)
-        features_with_files: list[Feature] = []
-        for f in plan_bundle.features:
-            if f.source_tracking and f.source_tracking.implementation_files:
+        # When force=True, skip hash checking and process all features with source files
+        if force:
+            # Force mode: process all features with implementation files
+            features_with_files = [
+                f for f in plan_bundle.features if f.source_tracking and f.source_tracking.implementation_files
+            ]
+        else:
+            # Filter features that need contract regeneration (check file hashes)
+            # Pre-compute all file hashes in parallel to avoid redundant I/O
+            import os
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            # Collect all unique files that need hash checking
+            files_to_check: set[Path] = set()
+            feature_to_files: dict[str, list[Path]] = {}  # Use feature key (str) instead of Feature object
+            feature_objects: dict[str, Feature] = {}  # Keep reference to Feature objects
+
+            for f in plan_bundle.features:
+                if f.source_tracking and f.source_tracking.implementation_files:
+                    feature_files: list[Path] = []
+                    for impl_file in f.source_tracking.implementation_files:
+                        file_path = repo / impl_file
+                        if file_path.exists():
+                            files_to_check.add(file_path)
+                            feature_files.append(file_path)
+                    if feature_files:
+                        feature_to_files[f.key] = feature_files
+                        feature_objects[f.key] = f
+
+            # Pre-compute all file hashes in parallel (batch operation)
+            current_hashes: dict[Path, str] = {}
+            if files_to_check:
+                is_test_mode = os.environ.get("TEST_MODE") == "true"
+
+                def compute_file_hash(file_path: Path) -> tuple[Path, str | None]:
+                    """Compute hash for a single file (thread-safe)."""
+                    try:
+                        import hashlib
+
+                        return (file_path, hashlib.sha256(file_path.read_bytes()).hexdigest())
+                    except Exception:
+                        return (file_path, None)
+
+                if is_test_mode:
+                    # Sequential in test mode
+                    for file_path in files_to_check:
+                        _, hash_value = compute_file_hash(file_path)
+                        if hash_value:
+                            current_hashes[file_path] = hash_value
+                else:
+                    # Parallel in production mode
+                    max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(files_to_check)))
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        futures = {executor.submit(compute_file_hash, fp): fp for fp in files_to_check}
+                        for future in as_completed(futures):
+                            try:
+                                file_path, hash_value = future.result()
+                                if hash_value:
+                                    current_hashes[file_path] = hash_value
+                            except Exception:
+                                pass
+
+            # Now check features using pre-computed hashes (no file I/O)
+            features_with_files = []
+            for feature_key, feature_files in feature_to_files.items():
+                f = feature_objects[feature_key]
                 # Check if contract needs regeneration (file changed or contract missing)
                 needs_regeneration = False
                 if not f.contract:
@@ -798,22 +1001,30 @@ def _extract_contracts(
                     if not contract_path.exists():
                         needs_regeneration = True
                     else:
-                        # Check if any implementation file changed
-                        for impl_file in f.source_tracking.implementation_files:
-                            file_path = repo / impl_file
-                            if file_path.exists() and f.source_tracking.has_changed(file_path):
+                        # Check if any implementation file changed using pre-computed hashes
+                        if f.source_tracking:
+                            for file_path in feature_files:
+                                if file_path in current_hashes:
+                                    stored_hash = f.source_tracking.file_hashes.get(str(file_path))
+                                    if stored_hash != current_hashes[file_path]:
+                                        needs_regeneration = True
+                                        break
+                            else:
+                                # File exists but hash computation failed, assume changed
                                 needs_regeneration = True
                                 break
                 if needs_regeneration:
                     features_with_files.append(f)
     else:
-        features_with_files = []
+        features_with_files: list[Feature] = []
 
     if features_with_files and should_regenerate_contracts:
         import os
 
         # In test mode, use sequential processing to avoid ThreadPoolExecutor deadlocks
         is_test_mode = os.environ.get("TEST_MODE") == "true"
+        pool_mode = os.environ.get("SPECFACT_CONTRACT_POOL", "process").lower()
+        use_process_pool = not is_test_mode and pool_mode != "thread" and len(features_with_files) > 1
         # Define max_workers for non-test mode (always defined to satisfy type checker)
         max_workers = 1
         if is_test_mode:
@@ -822,46 +1033,14 @@ def _extract_contracts(
             )
         else:
             max_workers = max(1, min(multiprocessing.cpu_count() or 4, 16, len(features_with_files)))
+            pool_label = "process" if use_process_pool else "thread"
             console.print(
-                f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} workers)...[/cyan]"
+                f"[cyan]📋 Extracting contracts from {len(features_with_files)} features (using {max_workers} {pool_label} worker(s))...[/cyan]"
             )
 
         from rich.progress import Progress
 
         from specfact_cli.utils.terminal import get_progress_config
-
-        def process_feature(feature: Feature) -> tuple[str, dict[str, Any] | None]:
-            """Process a single feature and return (feature_key, openapi_spec or None)."""
-            try:
-                openapi_spec = openapi_extractor.extract_openapi_from_code(repo, feature)
-                if openapi_spec.get("paths"):
-                    test_examples: dict[str, Any] = {}
-                    has_test_functions = any(story.test_functions for story in feature.stories) or (
-                        feature.source_tracking and feature.source_tracking.test_functions
-                    )
-
-                    if has_test_functions:
-                        all_test_functions: list[str] = []
-                        for story in feature.stories:
-                            if story.test_functions:
-                                all_test_functions.extend(story.test_functions)
-                        if feature.source_tracking and feature.source_tracking.test_functions:
-                            all_test_functions.extend(feature.source_tracking.test_functions)
-                        if all_test_functions:
-                            test_examples = test_converter.extract_examples_from_tests(all_test_functions)
-
-                    if test_examples:
-                        openapi_spec = openapi_extractor.add_test_examples(openapi_spec, test_examples)
-
-                    contract_filename = f"{feature.key}.openapi.yaml"
-                    contract_path = contracts_dir / contract_filename
-                    openapi_extractor.save_openapi_contract(openapi_spec, contract_path)
-                    return (feature.key, openapi_spec)
-            except KeyboardInterrupt:
-                raise
-            except Exception:
-                pass
-            return (feature.key, None)
 
         progress_columns, progress_kwargs = get_progress_config()
         with Progress(
@@ -870,58 +1049,73 @@ def _extract_contracts(
             **progress_kwargs,
         ) as progress:
             task = progress.add_task("[cyan]Extracting contracts...", total=len(features_with_files))
-            if is_test_mode:
-                # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
-                completed_count = 0
-                for feature in features_with_files:
-                    try:
-                        feature_key, openapi_spec = process_feature(feature)
-                        completed_count += 1
-                        progress.update(task, completed=completed_count)
-                        if openapi_spec:
-                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
-                            feature.contract = contract_ref
-                            contracts_data[feature_key] = openapi_spec
-                            contracts_generated += 1
-                    except Exception as e:
-                        completed_count += 1
-                        progress.update(task, completed=completed_count)
-                        console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
-            else:
-                # Create feature lookup dictionary for O(1) access instead of O(n) search
+            if use_process_pool:
                 feature_lookup: dict[str, Feature] = {f.key: f for f in features_with_files}
-                executor = ThreadPoolExecutor(max_workers=max_workers)
+                executor = ProcessPoolExecutor(
+                    max_workers=max_workers,
+                    initializer=_init_contract_worker,
+                    initargs=(str(repo), str(contracts_dir)),
+                )
                 interrupted = False
                 try:
-                    future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+                    future_to_feature_key = {
+                        executor.submit(_extract_contract_worker, f.model_dump()): f.key for f in features_with_files
+                    }
                     completed_count = 0
+                    total_features = len(features_with_files)
+                    pending_count = total_features
                     try:
-                        for future in as_completed(future_to_feature):
+                        for future in as_completed(future_to_feature_key):
                             try:
                                 feature_key, openapi_spec = future.result()
                                 completed_count += 1
-                                progress.update(task, completed=completed_count)
+                                pending_count = total_features - completed_count
+                                feature_display = feature_key[:50] + "..." if len(feature_key) > 50 else feature_key
+
                                 if openapi_spec:
-                                    # O(1) lookup instead of O(n) search
+                                    progress.update(
+                                        task,
+                                        completed=completed_count,
+                                        description=f"[cyan]Extracted contract from {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)",
+                                    )
                                     feature = feature_lookup.get(feature_key)
                                     if feature:
                                         contract_ref = f"contracts/{feature_key}.openapi.yaml"
                                         feature.contract = contract_ref
                                         contracts_data[feature_key] = openapi_spec
                                         contracts_generated += 1
+                                else:
+                                    progress.update(
+                                        task,
+                                        completed=completed_count,
+                                        description=f"[dim]No contract for {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                    )
                             except KeyboardInterrupt:
                                 interrupted = True
-                                for f in future_to_feature:
+                                for f in future_to_feature_key:
                                     if not f.done():
                                         f.cancel()
                                 break
                             except Exception as e:
                                 completed_count += 1
-                                progress.update(task, completed=completed_count)
-                                console.print(f"[dim]⚠ Warning: Failed to process feature: {e}[/dim]")
+                                pending_count = total_features - completed_count
+                                feature_key_for_display = future_to_feature_key.get(future, "unknown")
+                                feature_display = (
+                                    feature_key_for_display[:50] + "..."
+                                    if len(feature_key_for_display) > 50
+                                    else feature_key_for_display
+                                )
+                                progress.update(
+                                    task,
+                                    completed=completed_count,
+                                    description=f"[dim]⚠ Failed: {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                )
+                                console.print(
+                                    f"[dim]⚠ Warning: Failed to process feature {feature_key_for_display}: {e}[/dim]"
+                                )
                     except KeyboardInterrupt:
                         interrupted = True
-                        for f in future_to_feature:
+                        for f in future_to_feature_key:
                             if not f.done():
                                 f.cancel()
                     if interrupted:
@@ -933,8 +1127,172 @@ def _extract_contracts(
                 finally:
                     if not interrupted:
                         executor.shutdown(wait=True)
+                        progress.update(
+                            task,
+                            completed=len(features_with_files),
+                            total=len(features_with_files),
+                            description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
+                        )
+                        time.sleep(0.1)
                     else:
                         executor.shutdown(wait=False)
+            else:
+                openapi_extractor = OpenAPIExtractor(repo)
+                test_converter = OpenAPITestConverter(repo)
+
+                def process_feature(feature: Feature) -> tuple[str, dict[str, Any] | None]:
+                    """Process a single feature and return (feature_key, openapi_spec or None)."""
+                    try:
+                        openapi_spec = openapi_extractor.extract_openapi_from_code(repo, feature)
+                        if openapi_spec.get("paths"):
+                            test_examples: dict[str, Any] = {}
+                            has_test_functions = any(story.test_functions for story in feature.stories) or (
+                                feature.source_tracking and feature.source_tracking.test_functions
+                            )
+
+                            if has_test_functions:
+                                all_test_functions: list[str] = []
+                                for story in feature.stories:
+                                    if story.test_functions:
+                                        all_test_functions.extend(story.test_functions)
+                                if feature.source_tracking and feature.source_tracking.test_functions:
+                                    all_test_functions.extend(feature.source_tracking.test_functions)
+                                if all_test_functions:
+                                    test_examples = test_converter.extract_examples_from_tests(all_test_functions)
+
+                            if test_examples:
+                                openapi_spec = openapi_extractor.add_test_examples(openapi_spec, test_examples)
+
+                            contract_filename = f"{feature.key}.openapi.yaml"
+                            contract_path = contracts_dir / contract_filename
+                            openapi_extractor.save_openapi_contract(openapi_spec, contract_path)
+                            return (feature.key, openapi_spec)
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception:
+                        pass
+                    return (feature.key, None)
+
+                if is_test_mode:
+                    # Sequential processing in test mode - avoids ThreadPoolExecutor deadlocks
+                    completed_count = 0
+                    for idx, feature in enumerate(features_with_files, 1):
+                        try:
+                            feature_display = feature.key[:60] + "..." if len(feature.key) > 60 else feature.key
+                            progress.update(
+                                task,
+                                completed=completed_count,
+                                description=f"[cyan]Extracting contract from {feature_display}... ({idx}/{len(features_with_files)})",
+                            )
+                            feature_key, openapi_spec = process_feature(feature)
+                            completed_count += 1
+                            progress.update(
+                                task,
+                                completed=completed_count,
+                                description=f"[cyan]Extracted contract from {feature_display} ({completed_count}/{len(features_with_files)})",
+                            )
+                            if openapi_spec:
+                                contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                                feature.contract = contract_ref
+                                contracts_data[feature_key] = openapi_spec
+                                contracts_generated += 1
+                        except Exception as e:
+                            completed_count += 1
+                            progress.update(
+                                task,
+                                completed=completed_count,
+                                description=f"[dim]⚠ Failed: {feature.key[:50]}... ({completed_count}/{len(features_with_files)})[/dim]",
+                            )
+                            console.print(f"[dim]⚠ Warning: Failed to process feature {feature.key}: {e}[/dim]")
+                    progress.update(
+                        task,
+                        completed=len(features_with_files),
+                        total=len(features_with_files),
+                        description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
+                    )
+                    time.sleep(0.1)
+                else:
+                    feature_lookup_thread: dict[str, Feature] = {f.key: f for f in features_with_files}
+                    executor = ThreadPoolExecutor(max_workers=max_workers)
+                    interrupted = False
+                    try:
+                        future_to_feature = {executor.submit(process_feature, f): f for f in features_with_files}
+                        completed_count = 0
+                        total_features = len(features_with_files)
+                        pending_count = total_features
+                        try:
+                            for future in as_completed(future_to_feature):
+                                try:
+                                    feature_key, openapi_spec = future.result()
+                                    completed_count += 1
+                                    pending_count = total_features - completed_count
+                                    feature = feature_lookup_thread.get(feature_key)
+                                    feature_display = feature_key[:50] + "..." if len(feature_key) > 50 else feature_key
+
+                                    if openapi_spec:
+                                        progress.update(
+                                            task,
+                                            completed=completed_count,
+                                            description=f"[cyan]Extracted contract from {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)",
+                                        )
+                                        if feature:
+                                            contract_ref = f"contracts/{feature_key}.openapi.yaml"
+                                            feature.contract = contract_ref
+                                            contracts_data[feature_key] = openapi_spec
+                                            contracts_generated += 1
+                                    else:
+                                        progress.update(
+                                            task,
+                                            completed=completed_count,
+                                            description=f"[dim]No contract for {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                        )
+                                except KeyboardInterrupt:
+                                    interrupted = True
+                                    for f in future_to_feature:
+                                        if not f.done():
+                                            f.cancel()
+                                    break
+                                except Exception as e:
+                                    completed_count += 1
+                                    pending_count = total_features - completed_count
+                                    feature_for_error = future_to_feature.get(future)
+                                    feature_key_for_display = feature_for_error.key if feature_for_error else "unknown"
+                                    feature_display = (
+                                        feature_key_for_display[:50] + "..."
+                                        if len(feature_key_for_display) > 50
+                                        else feature_key_for_display
+                                    )
+                                    progress.update(
+                                        task,
+                                        completed=completed_count,
+                                        description=f"[dim]⚠ Failed: {feature_display}... ({completed_count}/{total_features}, {pending_count} pending)[/dim]",
+                                    )
+                                    console.print(
+                                        f"[dim]⚠ Warning: Failed to process feature {feature_key_for_display}: {e}[/dim]"
+                                    )
+                        except KeyboardInterrupt:
+                            interrupted = True
+                            for f in future_to_feature:
+                                if not f.done():
+                                    f.cancel()
+                        if interrupted:
+                            raise KeyboardInterrupt
+                    except KeyboardInterrupt:
+                        interrupted = True
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        raise
+                    finally:
+                        if not interrupted:
+                            executor.shutdown(wait=True)
+                            progress.update(
+                                task,
+                                completed=len(features_with_files),
+                                total=len(features_with_files),
+                                description=f"[green]✓[/green] Contract extraction complete: {contracts_generated} contract(s) generated from {len(features_with_files)} feature(s)",
+                            )
+                            time.sleep(0.1)
+                        else:
+                            executor.shutdown(wait=False)
 
     elif should_regenerate_contracts:
         console.print("[dim]No features with implementation files found for contract extraction[/dim]")
@@ -2291,8 +2649,14 @@ def from_code(
 
             if plan_bundle is None:
                 # Need to run full codebase analysis (either no bundle exists, or features need regeneration)
+                # If enrichment is provided, try to load existing bundle first (enrichment needs existing bundle)
                 if enrichment:
                     plan_bundle = _load_existing_bundle(bundle_dir)
+                    if plan_bundle is None:
+                        console.print(
+                            "[bold red]✗ Cannot apply enrichment: No existing bundle found. Run import without --enrichment first.[/bold red]"
+                        )
+                        raise typer.Exit(1)
 
                 if plan_bundle is None:
                     # Phase 4.9 & 4.10: Track codebase analysis performance
@@ -2341,6 +2705,7 @@ def from_code(
 
             # Enhanced Analysis Phase: Extract relationships, contracts, and graph dependencies
             # Check if we need to regenerate these artifacts
+            # Note: enrichment doesn't force full regeneration - only new features need contracts
             should_regenerate_relationships = incremental_changes is None or incremental_changes.get(
                 "relationships", True
             )
@@ -2349,6 +2714,14 @@ def from_code(
             should_regenerate_enrichment = incremental_changes is None or incremental_changes.get(
                 "enrichment_context", True
             )
+            # If enrichment is provided, ensure bundle is regenerated to apply it
+            # This ensures enrichment is applied even if no source files changed
+            if enrichment and incremental_changes:
+                # Force bundle regeneration to apply enrichment
+                incremental_changes["bundle"] = True
+
+            # Track features before enrichment to detect new ones that need contracts
+            features_before_enrichment = {f.key for f in plan_bundle.features} if enrichment else set()
 
             # Phase 4.10: Track relationship extraction performance
             with perf_monitor.track("extract_relationships_and_graph"):
@@ -2363,10 +2736,30 @@ def from_code(
                     include_tests,
                 )
 
+            # Apply enrichment BEFORE contract extraction so new features get contracts
+            if enrichment:
+                with perf_monitor.track("apply_enrichment"):
+                    plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
+
+                # After enrichment, check if new features were added that need contracts
+                features_after_enrichment = {f.key for f in plan_bundle.features}
+                new_features_added = features_after_enrichment - features_before_enrichment
+
+                # If new features were added, we need to extract contracts for them
+                # Mark contracts for regeneration if new features were added
+                if new_features_added:
+                    console.print(
+                        f"[dim]Note: {len(new_features_added)} new feature(s) from enrichment will get contracts extracted[/dim]"
+                    )
+                    # New features need contracts, so ensure contract extraction runs
+                    if incremental_changes and not incremental_changes.get("contracts", False):
+                        # Only regenerate contracts if we have new features, not all contracts
+                        should_regenerate_contracts = True
+
             # Phase 4.10: Track contract extraction performance
             with perf_monitor.track("extract_contracts"):
                 contracts_data = _extract_contracts(
-                    repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event
+                    repo, bundle_dir, plan_bundle, should_regenerate_contracts, record_event, force=force
                 )
 
             # Phase 4.10: Track enrichment context building performance
@@ -2380,11 +2773,6 @@ def from_code(
                     should_regenerate_enrichment,
                     record_event,
                 )
-
-            # Apply enrichment if provided
-            if enrichment:
-                with perf_monitor.track("apply_enrichment"):
-                    plan_bundle = _apply_enrichment(enrichment, plan_bundle, record_event)
 
             # Save bundle if needed
             with perf_monitor.track("save_bundle"):

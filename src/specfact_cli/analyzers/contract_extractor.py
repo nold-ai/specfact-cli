@@ -260,8 +260,15 @@ class ContractExtractor:
             return repr(node.value)
         if isinstance(node, ast.Name):
             return node.id
-        if isinstance(node, ast.NameConstant):  # Python < 3.8
-            return str(node.value)
+        # Python < 3.8 compatibility - suppress deprecation warning
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            # ast.NameConstant is deprecated in Python 3.8+, removed in 3.14
+            # Keep for backward compatibility with older Python versions
+            if hasattr(ast, "NameConstant") and isinstance(node, ast.NameConstant):
+                return str(node.value)
 
         # Use ast.unparse if available
         if hasattr(ast, "unparse"):
