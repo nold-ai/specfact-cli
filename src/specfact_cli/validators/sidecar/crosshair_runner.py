@@ -6,6 +6,7 @@ This module executes CrossHair symbolic execution on source code and harness.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -43,7 +44,8 @@ def run_crosshair(
     Returns:
         Dictionary with execution results
     """
-    env = {}
+    # Preserve PATH and other environment variables, then override/add PYTHONPATH
+    env = os.environ.copy()
     if pythonpath:
         env["PYTHONPATH"] = pythonpath
 

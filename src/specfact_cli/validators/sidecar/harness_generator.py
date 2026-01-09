@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import re
 import yaml
 from beartype import beartype
 from icontract import ensure, require
@@ -129,7 +130,10 @@ def render_harness(operations: list[dict[str, Any]]) -> str:
         method = op["method"]
         path = op["path"]
 
-        func_name = f"harness_{op_id}".replace("-", "_").replace(".", "_")
+        # Sanitize operation_id to create valid Python function name
+        # Replace all non-identifier characters (/, {, }, -, ., etc.) with underscore
+        sanitized_id = re.sub(r"[^a-zA-Z0-9_]", "_", op_id)
+        func_name = f"harness_{sanitized_id}"
         lines.append("")
         lines.append("@beartype")
         lines.append("@require(lambda *args, **kwargs: True, 'Precondition placeholder')")
