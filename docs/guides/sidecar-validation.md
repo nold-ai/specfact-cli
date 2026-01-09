@@ -231,9 +231,34 @@ Sidecar validation respects the following environment variables:
 - Requires running application server (if `SIDECAR_APP_CMD` configured)
 - Can use Specmatic stub server for testing
 
+**Auto-Skip Behavior:**
+
+Specmatic is automatically skipped when no service configuration is detected. This prevents unnecessary validation attempts when:
+
+- No `test_base_url` is configured
+- No `host` and `port` combination is available
+- No application server command and port are configured
+
+**When Specmatic is Auto-Skipped:**
+
+```bash
+⚠ Skipping Specmatic: No service configuration detected (use --run-specmatic to override)
+```
+
+**Manual Override:**
+
+You can force Specmatic to run even without service configuration using the `--run-specmatic` flag:
+
+```bash
+# Force Specmatic to run (may fail if no service available)
+specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
+```
+
 **Configuration:**
 
-- Base URL for API
+- Base URL for API (`test_base_url`)
+- Host and port (`host`, `port`)
+- Application server command and port (`cmd`, `port` in app config)
 - Timeout settings
 - Auto-stub server options
 
@@ -269,10 +294,20 @@ Validation Results:
 
 CrossHair Results:
   ✓ harness
+  CrossHair: 5 confirmed, 2 not confirmed, 1 violations
+  Summary file: .specfact/projects/legacy-api/reports/sidecar/crosshair-summary-20240109T120000Z.json
 
 Specmatic Results:
   ✓ FEATURE-001.openapi.yaml
 ```
+
+**Note**: If Specmatic is auto-skipped, you'll see:
+
+```
+⚠ Specmatic skipped: No service configuration detected
+```
+
+Instead of the Specmatic Results section.
 
 ### Report Files
 
@@ -322,6 +357,45 @@ Sidecar validation maintains backward compatibility with template-based sidecar 
 - Configure `SPECMATIC_CMD` in sidecar workspace `.env` file
 - Skip Specmatic if not needed: `--no-run-specmatic`
 
+### Specmatic Auto-Skipped
+
+**Issue**: Specmatic is automatically skipped with message "No service configuration detected"
+
+**Explanation:**
+
+Specmatic requires a service endpoint to test against. If no service configuration is detected, Specmatic is automatically skipped to avoid unnecessary validation attempts.
+
+**When This Happens:**
+
+- No `test_base_url` configured in SpecmaticConfig
+- No `host` and `port` combination available
+- No application server command and port configured
+
+**Solutions:**
+
+1. **Configure service endpoint** (recommended):
+   ```bash
+   # Set test_base_url in sidecar workspace .env file
+   SPECMATIC_TEST_BASE_URL=http://localhost:8000
+   ```
+
+2. **Configure application server**:
+   ```bash
+   # Set app command and port
+   SIDECAR_APP_CMD="python manage.py runserver"
+   SIDECAR_APP_PORT=8000
+   ```
+
+3. **Force Specmatic to run** (may fail if no service available):
+   ```bash
+   specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
+   ```
+
+4. **Skip Specmatic explicitly** (if you only need CrossHair):
+   ```bash
+   specfact validate sidecar run legacy-api /path/to/repo --no-run-specmatic
+   ```
+
 ### Module Resolution Errors
 
 **Issue**: CrossHair fails with import errors
@@ -350,9 +424,14 @@ specfact validate sidecar run django-blog /path/to/django-blog
 # Initialize
 specfact validate sidecar init fastapi-api /path/to/fastapi-api
 
-# Run only CrossHair (no HTTP endpoints)
+# Run only CrossHair (no HTTP endpoints - Specmatic auto-skipped)
 specfact validate sidecar run fastapi-api /path/to/fastapi-api --no-run-specmatic
+
+# Or let auto-skip handle it (Specmatic will be skipped automatically)
+specfact validate sidecar run fastapi-api /path/to/fastapi-api
 ```
+
+**Note**: In this example, Specmatic is automatically skipped because no service configuration is provided. The validation will focus on CrossHair analysis only.
 
 ### Example 3: Pure Python Library
 
@@ -362,6 +441,53 @@ specfact validate sidecar init python-lib /path/to/python-library
 
 # Run validation
 specfact validate sidecar run python-lib /path/to/python-library
+```
+
+## Repro Integration
+
+Sidecar validation can be integrated into the `specfact repro` command for validating unannotated code as part of the reproducibility suite.
+
+### Using Sidecar with Repro
+
+```bash
+# Run repro with sidecar validation for unannotated code
+specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
+```
+
+**What it does:**
+
+1. Detects unannotated functions (no icontract/beartype decorators) using AST parsing
+2. Generates sidecar harness for unannotated code paths
+3. Runs CrossHair against the generated harness (not source code)
+4. Applies safe defaults (shorter timeouts, per-path limits) to prevent excessive execution time
+5. Uses deterministic inputs when available
+
+**Safe Defaults for Repro Mode:**
+
+When used with `specfact repro --sidecar`, sidecar validation automatically applies safe defaults:
+
+- **CrossHair timeout**: 30 seconds (vs 60 default)
+- **Per-path timeout**: 5 seconds
+- **Per-condition timeout**: 2 seconds
+- **Deterministic inputs**: Enabled (uses inputs.json from harness)
+
+**Example:**
+
+```bash
+# Initialize sidecar workspace first
+specfact validate sidecar init legacy-api /path/to/repo
+
+# Then run repro with sidecar validation
+specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo --verbose
+```
+
+**Output:**
+
+```
+Running sidecar validation for unannotated code...
+Found 12 unannotated functions
+[sidecar validation runs...]
+Sidecar CrossHair: 8 confirmed, 3 not confirmed, 1 violations
 ```
 
 ## Related Documentation

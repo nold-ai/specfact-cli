@@ -2340,6 +2340,8 @@ specfact repro [OPTIONS]
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
 - `--out PATH` - Output report path (default: bundle-specific `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml`, Phase 8.5, or global `.specfact/reports/enforcement/` if no bundle context)
+- `--sidecar` - Run sidecar validation for unannotated code (no-edit path)
+- `--sidecar-bundle NAME` - Bundle name for sidecar validation (required if --sidecar is used)
 
 **Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
 
@@ -2370,6 +2372,9 @@ specfact repro --fix --budget 120
 
 # Stop on first failure
 specfact repro --fail-fast
+
+# Run repro with sidecar validation for unannotated code
+specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
 ```
 
 **What it runs:**
@@ -2380,6 +2385,7 @@ specfact repro --fail-fast
 4. **Property tests** - Hypothesis
 5. **Smoke tests** - Event loop lag, orphaned tasks
 6. **Plan validation** - Schema compliance
+7. **Sidecar validation** - Optional, for unannotated code (when `--sidecar` flag is used)
 
 **External Repository Support:**
 
@@ -2429,6 +2435,7 @@ Tools are checked for availability and skipped if not found:
 - **semgrep** - Optional, only runs if `tools/semgrep/async.yml` config exists
 - **basedpyright** - Optional, for type checking
 - **crosshair** - Optional, for contract exploration (requires `[tool.crosshair]` config in `pyproject.toml` - use `specfact repro setup` to generate)
+- **sidecar** - Optional, for validating unannotated code without modifying source (use `--sidecar --sidecar-bundle <name>`)
 - **pytest** - Optional, only runs if `tests/contracts/` or `tests/smoke/` directories exist
 
 **Auto-fixes:**
@@ -3467,7 +3474,11 @@ specfact validate sidecar run <bundle-name> <repo-path> [OPTIONS]
 **Options:**
 
 - `--run-crosshair / --no-run-crosshair` - Run CrossHair symbolic execution analysis (default: enabled)
-- `--run-specmatic / --no-run-specmatic` - Run Specmatic contract testing validation (default: enabled)
+- `--run-specmatic / --no-run-specmatic` - Run Specmatic contract testing validation (default: enabled, auto-skipped if no service configuration detected)
+
+**Auto-Skip Behavior:**
+
+Specmatic is automatically skipped when no service configuration is detected (no `test_base_url`, `host`/`port`, or application server configuration). Use `--run-specmatic` to force execution or configure a service endpoint to enable Specmatic validation.
 
 **Workflow steps:**
 
@@ -3489,6 +3500,9 @@ specfact validate sidecar run legacy-api /path/to/django-project --no-run-specma
 
 # Run only Specmatic validation
 specfact validate sidecar run legacy-api /path/to/django-project --no-run-crosshair
+
+# Force Specmatic to run even without service configuration (may fail)
+specfact validate sidecar run legacy-api /path/to/django-project --run-specmatic
 ```
 
 **Output:**

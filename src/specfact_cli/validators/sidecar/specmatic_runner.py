@@ -14,6 +14,33 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.utils.env_manager import build_tool_command, detect_env_manager
+from specfact_cli.validators.sidecar.models import AppConfig, SpecmaticConfig
+
+
+@beartype
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
+def has_service_configuration(specmatic_config: SpecmaticConfig, app_config: AppConfig) -> bool:
+    """
+    Check if service/client configuration is available for Specmatic.
+
+    Args:
+        specmatic_config: Specmatic configuration
+        app_config: Application server configuration
+
+    Returns:
+        True if service configuration is available, False otherwise
+    """
+    # Check for test_base_url (primary indicator)
+    if specmatic_config.test_base_url:
+        return True
+
+    # Check for host and port (Specmatic server configuration)
+    if specmatic_config.host and specmatic_config.port:
+        return True
+
+    # Check for application server configuration
+    # No service configuration found
+    return bool(app_config.cmd and app_config.port)
 
 
 @beartype

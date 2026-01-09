@@ -20,13 +20,17 @@ from specfact_cli.utils.env_manager import detect_env_manager
 from specfact_cli.utils.terminal import get_progress_config
 from specfact_cli.validators.sidecar.contract_populator import populate_contracts
 from specfact_cli.validators.sidecar.crosshair_runner import run_crosshair
+from specfact_cli.validators.sidecar.crosshair_summary import (
+    generate_summary_file,
+    parse_crosshair_output,
+)
 from specfact_cli.validators.sidecar.framework_detector import detect_django_settings_module, detect_framework
 from specfact_cli.validators.sidecar.frameworks.django import DjangoExtractor
 from specfact_cli.validators.sidecar.frameworks.drf import DRFExtractor
 from specfact_cli.validators.sidecar.frameworks.fastapi import FastAPIExtractor
 from specfact_cli.validators.sidecar.harness_generator import generate_harness
 from specfact_cli.validators.sidecar.models import FrameworkType, SidecarConfig
-from specfact_cli.validators.sidecar.specmatic_runner import run_specmatic
+from specfact_cli.validators.sidecar.specmatic_runner import has_service_configuration, run_specmatic
 
 
 def _is_test_mode() -> bool:
@@ -47,13 +51,18 @@ def _should_use_progress(console: Console) -> bool:
 
 
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
-def run_sidecar_validation(config: SidecarConfig, console: Console | None = None) -> dict[str, Any]:
+def run_sidecar_validation(
+    config: SidecarConfig,
+    console: Console | None = None,
+    unannotated_functions: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """
     Run complete sidecar validation workflow.
 
     Args:
         config: Sidecar configuration
         console: Optional console instance for progress reporting
+        unannotated_functions: Optional list of unannotated functions detected (for repro integration)
 
     Returns:
         Dictionary with validation results
@@ -67,7 +76,9 @@ def run_sidecar_validation(config: SidecarConfig, console: Console | None = None
         "contracts_populated": 0,
         "harness_generated": False,
         "crosshair_results": {},
+        "crosshair_summary": None,
         "specmatic_results": {},
+        "unannotated_functions": unannotated_functions,
     }
 
     if use_progress:
@@ -107,6 +118,10 @@ def run_sidecar_validation(config: SidecarConfig, console: Console | None = None
                 if config.tools.run_crosshair and config.paths.contracts_dir.exists():
                     harness_generated = generate_harness(config.paths.contracts_dir, config.paths.harness_path)
                     results["harness_generated"] = harness_generated
+
+                    # If harness was generated, check for unannotated code (for repro integration)
+                    if harness_generated and results.get("unannotated_functions"):
+                        results["harness_for_unannotated"] = True
                 progress.advance(task)
 
                 # Phase 5: Run CrossHair
@@ -118,24 +133,54 @@ def run_sidecar_validation(config: SidecarConfig, console: Console | None = None
                         pythonpath=config.pythonpath,
                         verbose=config.crosshair.verbose,
                         repo_path=config.repo_path,
+                        inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
+                        per_path_timeout=config.timeouts.crosshair_per_path,
+                        per_condition_timeout=config.timeouts.crosshair_per_condition,
                     )
                     results["crosshair_results"]["harness"] = crosshair_result
+
+                    # Parse CrossHair output for summary
+                    if crosshair_result.get("stdout") or crosshair_result.get("stderr"):
+                        summary = parse_crosshair_output(
+                            crosshair_result.get("stdout", ""),
+                            crosshair_result.get("stderr", ""),
+                        )
+                        results["crosshair_summary"] = summary
+
+                        # Generate summary file
+                        summary_file = generate_summary_file(
+                            summary,
+                            config.paths.reports_dir,
+                        )
+                        results["crosshair_summary_file"] = str(summary_file)
                 progress.advance(task)
 
-                # Phase 6: Run Specmatic
+                # Phase 6: Run Specmatic (with auto-skip detection)
                 if config.tools.run_specmatic and config.paths.contracts_dir.exists():
-                    progress.update(task, description="[cyan]Running Specmatic validation...")
-                    contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(
-                        config.paths.contracts_dir.glob("*.yml")
-                    )
-                    for contract_file in contract_files:
-                        specmatic_result = run_specmatic(
-                            contract_file,
-                            base_url=config.specmatic.test_base_url,
-                            timeout=config.timeouts.specmatic,
-                            repo_path=config.repo_path,
+                    # Check if service configuration is available
+                    has_service = has_service_configuration(config.specmatic, config.app)
+                    if not has_service:
+                        # Auto-skip Specmatic when no service configuration detected
+                        display_console.print(
+                            "[yellow]⚠[/yellow] Skipping Specmatic: No service configuration detected "
+                            "(use --run-specmatic to override)"
                         )
-                        results["specmatic_results"][contract_file.name] = specmatic_result
+                        config.tools.run_specmatic = False
+                        results["specmatic_skipped"] = True
+                        results["specmatic_skip_reason"] = "No service configuration detected"
+                    else:
+                        progress.update(task, description="[cyan]Running Specmatic validation...")
+                        contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(
+                            config.paths.contracts_dir.glob("*.yml")
+                        )
+                        for contract_file in contract_files:
+                            specmatic_result = run_specmatic(
+                                contract_file,
+                                base_url=config.specmatic.test_base_url,
+                                timeout=config.timeouts.specmatic,
+                                repo_path=config.repo_path,
+                            )
+                            results["specmatic_results"][contract_file.name] = specmatic_result
                 progress.update(task, completed=6, description="[green]✓ Validation complete")
         except Exception:
             # Fall back to non-progress execution if Progress fails
@@ -169,21 +214,51 @@ def run_sidecar_validation(config: SidecarConfig, console: Console | None = None
                         pythonpath=config.pythonpath,
                         verbose=config.crosshair.verbose,
                         repo_path=config.repo_path,
+                        inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
+                        per_path_timeout=config.timeouts.crosshair_per_path,
+                        per_condition_timeout=config.timeouts.crosshair_per_condition,
                     )
                     results["crosshair_results"]["harness"] = crosshair_result
 
+                    # Parse CrossHair output for summary
+                    if crosshair_result.get("stdout") or crosshair_result.get("stderr"):
+                        summary = parse_crosshair_output(
+                            crosshair_result.get("stdout", ""),
+                            crosshair_result.get("stderr", ""),
+                        )
+                        results["crosshair_summary"] = summary
+
+                        # Generate summary file
+                        summary_file = generate_summary_file(
+                            summary,
+                            config.paths.reports_dir,
+                        )
+                        results["crosshair_summary_file"] = str(summary_file)
+
             if config.tools.run_specmatic and config.paths.contracts_dir.exists():
-                contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(
-                    config.paths.contracts_dir.glob("*.yml")
-                )
-                for contract_file in contract_files:
-                    specmatic_result = run_specmatic(
-                        contract_file,
-                        base_url=config.specmatic.test_base_url,
-                        timeout=config.timeouts.specmatic,
-                        repo_path=config.repo_path,
+                # Check if service configuration is available
+                has_service = has_service_configuration(config.specmatic, config.app)
+                if not has_service:
+                    # Auto-skip Specmatic when no service configuration detected
+                    display_console.print(
+                        "[yellow]⚠[/yellow] Skipping Specmatic: No service configuration detected "
+                        "(use --run-specmatic to override)"
                     )
-                    results["specmatic_results"][contract_file.name] = specmatic_result
+                    config.tools.run_specmatic = False
+                    results["specmatic_skipped"] = True
+                    results["specmatic_skip_reason"] = "No service configuration detected"
+                else:
+                    contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(
+                        config.paths.contracts_dir.glob("*.yml")
+                    )
+                    for contract_file in contract_files:
+                        specmatic_result = run_specmatic(
+                            contract_file,
+                            base_url=config.specmatic.test_base_url,
+                            timeout=config.timeouts.specmatic,
+                            repo_path=config.repo_path,
+                        )
+                        results["specmatic_results"][contract_file.name] = specmatic_result
 
     return results
 

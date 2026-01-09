@@ -26,27 +26,94 @@ All notable changes to this project will be documented in this file.
   - **Progress Reporting**: Rich console progress indicators for long-running operations
   - **Backward Compatibility**: Full compatibility with existing template-based sidecar workspaces
 
+- **CrossHair Summary Reporting**: Enhanced CrossHair output parsing and reporting
+  - **Summary Parser**: New `crosshair_summary.py` module for parsing CrossHair stdout/stderr
+  - **Summary File Generation**: Automatic generation of `crosshair-summary-{timestamp}.json` files
+  - **Console Display**: Formatted summary line showing confirmed/not confirmed/violations counts
+  - **Integration**: Summary parsing integrated into sidecar validation orchestrator
+  - **Testing**: Comprehensive unit tests (15 tests) covering various output scenarios
+
+- **Specmatic Auto-Skip**: Intelligent detection and skipping of Specmatic when no service is available
+  - **Service Detection**: New `has_service_configuration()` function to detect available service endpoints
+  - **Auto-Skip Logic**: Specmatic automatically skipped when no `test_base_url`, `host`/`port`, or app server configuration detected
+  - **Clear Messaging**: User-friendly warning messages when Specmatic is skipped
+  - **Manual Override**: `--run-specmatic` flag to force execution even without service configuration
+  - **Testing**: Unit tests (8 tests) for service detection and auto-skip logic
+  - **Documentation**: Updated sidecar validation guide and command reference with auto-skip behavior
+
+- **Repro Sidecar Integration**: Sidecar validation integrated into `specfact repro` command
+  - **New Options**: `--sidecar` and `--sidecar-bundle <name>` options for repro command
+  - **Unannotated Code Detection**: AST-based detection of functions without icontract/beartype decorators
+    - New `unannotated_detector.py` module with AST parsing
+    - Detects unannotated functions across repositories
+    - Skips test files and harness files automatically
+    - Comprehensive unit tests (7 tests)
+  - **Safe Defaults**: Automatic application of safe timeout defaults for repro mode
+    - `TimeoutConfig.safe_defaults_for_repro()` method with conservative timeouts
+    - CrossHair timeout: 30s (vs 60s default)
+    - Per-path timeout: 5s
+    - Per-condition timeout: 2s
+    - Unit tests (2 tests) for safe defaults
+  - **Deterministic Inputs**: Support for deterministic inputs from harness `inputs.json`
+    - `use_deterministic_inputs` flag in CrossHairConfig
+    - Per-path and per-condition timeout support in CrossHair runner
+    - Automatic application in repro mode
+  - **Integration Tests**: Comprehensive integration tests (3 tests) for repro sidecar workflow
+  - **Documentation**: Updated command reference and sidecar validation guide with repro integration examples
+
 - **New Python Modules**: Complete sidecar validation package
   - `src/specfact_cli/validators/sidecar/` - Sidecar validation orchestrator and utilities
   - `src/specfact_cli/validators/sidecar/frameworks/` - Framework-specific extractors (Django, FastAPI, DRF)
   - `src/specfact_cli/commands/validate.py` - Validation command group with sidecar subcommands
+  - `src/specfact_cli/validators/sidecar/crosshair_summary.py` - CrossHair output parsing and summary generation
+  - `src/specfact_cli/validators/sidecar/unannotated_detector.py` - AST-based unannotated code detection
+  - `tests/unit/specfact_cli/validators/sidecar/test_crosshair_summary.py` - Summary parser tests
+  - `tests/unit/specfact_cli/validators/sidecar/test_specmatic_runner_auto_skip.py` - Auto-skip logic tests
+  - `tests/unit/specfact_cli/validators/sidecar/test_unannotated_detector.py` - Unannotated detection tests
+  - `tests/unit/specfact_cli/validators/sidecar/test_timeout_config_safe_defaults.py` - Safe defaults tests
+  - `tests/integration/commands/test_repro_sidecar.py` - Repro sidecar integration tests
 
 - **Environment Manager Integration**: Enhanced environment detection for sidecar validation
   - Venv detection and Python path configuration
   - PYTHONPATH building with venv site-packages, source directories, and repo root
   - Tool execution with environment manager prefixes (hatch run, poetry run, uv run)
 
-- **Testing**: Comprehensive test coverage (40+ tests, ≥80% coverage)
+- **Testing**: Comprehensive test coverage (69 sidecar-related tests, ≥80% coverage)
   - Unit tests for all framework extractors and core workflow components
   - Integration tests for CLI commands and backward compatibility
   - End-to-end tests for complete validation workflows
   - Verification tests against real-world repositories
+  - 35 new tests for CrossHair summary, Specmatic auto-skip, unannotated detection, safe defaults, and repro integration
 
 ### Changed (0.24.0)
 
 - **Init Command**: Updated `specfact init --install-deps` to include sidecar validation tools
   - Added comment about sidecar validation tools (crosshair-tool already included)
   - Note: specmatic may need separate installation (Java-based tool)
+
+- **CrossHair Runner**: Enhanced with per-path and per-condition timeout support
+  - Added `per_path_timeout` and `per_condition_timeout` parameters
+  - Support for deterministic inputs via `inputs_path` parameter
+  - Improved timeout handling for long-running symbolic execution paths
+
+- **Sidecar Orchestrator**: Extended to support unannotated code detection
+  - Added `unannotated_functions` parameter to `run_sidecar_validation()`
+  - Integration with CrossHair summary generation
+  - Enhanced result dictionary with unannotated function information
+
+- **Repro Command**: Extended with sidecar validation integration
+  - Automatic unannotated code detection when `--sidecar` flag is used
+  - Automatic application of safe defaults for repro mode
+  - Sidecar results displayed in repro output
+
+- **TimeoutConfig Model**: Added safe defaults factory method
+  - New `safe_defaults_for_repro()` class method
+  - Conservative timeout values for repro mode
+  - Per-path and per-condition timeout defaults
+
+- **CrossHairConfig Model**: Added configuration flags
+  - `use_deterministic_inputs` flag for deterministic input support
+  - `safe_defaults` flag for safe default application
 
 ### Fixed (0.24.0)
 
@@ -61,6 +128,17 @@ All notable changes to this project will be documented in this file.
   - `docs/guides/sidecar-validation.md` - Complete user guide with examples
   - `docs/reference/commands.md` - Updated with `validate sidecar` commands
   - Verification and test results documentation
+
+- **Sidecar Validation Guide**: Updated with new features
+  - Auto-skip behavior documentation with examples
+  - Troubleshooting section for Specmatic auto-skip
+  - Repro integration section with usage examples
+  - Safe defaults documentation
+
+- **Command Reference**: Updated with repro sidecar options
+  - Added `--sidecar` and `--sidecar-bundle` options to repro command
+  - Updated examples with sidecar usage
+  - Added sidecar to tool requirements list
 
 ---
 

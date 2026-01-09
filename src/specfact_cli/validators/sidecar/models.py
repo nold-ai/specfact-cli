@@ -56,6 +56,24 @@ class TimeoutConfig(BaseModel):
     crosshair_per_path: int | None = Field(default=None, description="CrossHair per-path timeout")
     crosshair_per_condition: int | None = Field(default=None, description="CrossHair per-condition timeout")
 
+    @classmethod
+    @beartype
+    def safe_defaults_for_repro(cls) -> TimeoutConfig:
+        """
+        Create TimeoutConfig with safe defaults for repro sidecar mode.
+
+        Returns:
+            TimeoutConfig with conservative timeouts to prevent excessive execution time
+        """
+        return cls(
+            crosshair=30,  # Shorter timeout for repro mode
+            specmatic=30,
+            semgrep=30,
+            basedpyright=30,
+            crosshair_per_path=5,  # Per-path timeout to prevent long-running paths
+            crosshair_per_condition=2,  # Per-condition timeout
+        )
+
 
 class SpecmaticConfig(BaseModel):
     """Configuration for Specmatic execution."""
@@ -91,6 +109,8 @@ class CrossHairConfig(BaseModel):
     report_verbose: bool = Field(default=False, description="Verbose reporting")
     max_uninteresting_iterations: int | None = Field(default=None, description="Maximum uninteresting iterations")
     extra_plugin: str | None = Field(default=None, description="Extra CrossHair plugin")
+    use_deterministic_inputs: bool = Field(default=False, description="Use deterministic inputs from inputs.json")
+    safe_defaults: bool = Field(default=True, description="Use safe defaults for timeouts and limits")
 
 
 class SidecarConfig(BaseModel):

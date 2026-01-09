@@ -13,6 +13,7 @@ from beartype import beartype
 from icontract import require
 
 from specfact_cli.runtime import get_configured_console
+from specfact_cli.validators.sidecar.crosshair_summary import format_summary_line
 from specfact_cli.validators.sidecar.models import SidecarConfig
 from specfact_cli.validators.sidecar.orchestrator import initialize_sidecar_workspace, run_sidecar_validation
 
@@ -131,7 +132,21 @@ def run(
             status = "[green]✓[/green]" if success else "[red]✗[/red]"
             console.print(f"  {status} {key}")
 
-    if results.get("specmatic_results"):
+        # Display summary if available
+        if results.get("crosshair_summary"):
+            summary = results["crosshair_summary"]
+            summary_line = format_summary_line(summary)
+            console.print(f"  {summary_line}")
+
+            # Show summary file location if generated
+            if results.get("crosshair_summary_file"):
+                console.print(f"  Summary file: {results['crosshair_summary_file']}")
+
+    if results.get("specmatic_skipped"):
+        console.print(
+            f"\n[yellow]⚠ Specmatic skipped: {results.get('specmatic_skip_reason', 'Unknown reason')}[/yellow]"
+        )
+    elif results.get("specmatic_results"):
         console.print("\n[bold]Specmatic Results:[/bold]")
         for key, value in results["specmatic_results"].items():
             success = value.get("success", False)

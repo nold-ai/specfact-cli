@@ -26,6 +26,9 @@ def run_crosshair(
     pythonpath: str | None = None,
     verbose: bool = False,
     repo_path: Path | None = None,
+    inputs_path: Path | None = None,
+    per_path_timeout: int | None = None,
+    per_condition_timeout: int | None = None,
 ) -> dict[str, Any]:
     """
     Run CrossHair on source code or harness.
@@ -48,6 +51,12 @@ def run_crosshair(
     base_cmd = ["crosshair", "check", str(source_path)]
     if verbose:
         base_cmd.append("--verbose")
+    if per_path_timeout:
+        base_cmd.extend(["--per-path-timeout", str(per_path_timeout)])
+    if per_condition_timeout:
+        base_cmd.extend(["--per-condition-timeout", str(per_condition_timeout)])
+    # Note: CrossHair doesn't directly support inputs.json, but deterministic inputs
+    # can be embedded in the harness file itself
 
     if repo_path:
         env_info = detect_env_manager(repo_path)
