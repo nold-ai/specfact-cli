@@ -157,6 +157,34 @@ specfact spec backward-compat --spec openapi.yaml --previous-spec openapi-v1.yam
 
 ---
 
+### I want to validate an external codebase without modifying source
+
+**Recommended**: [Sidecar Validation Chain](command-chains.md#5-sidecar-validation-chain)
+
+**Command**: `validate sidecar init` → `validate sidecar run`
+
+**Quick Example**:
+
+```bash
+# Initialize sidecar workspace
+specfact validate sidecar init legacy-api /path/to/django-project
+
+# Run validation workflow
+specfact validate sidecar run legacy-api /path/to/django-project
+```
+
+**What it does**:
+
+- Detects framework (Django, FastAPI, DRF, pure Python)
+- Extracts routes and schemas from framework patterns
+- Populates OpenAPI contracts automatically
+- Generates CrossHair harness for symbolic execution
+- Runs CrossHair and Specmatic validation
+
+**Detailed Guide**: [Sidecar Validation Guide](sidecar-validation.md)
+
+---
+
 ### I want to generate tests from API specifications
 
 **Recommended**: `spec generate-tests`

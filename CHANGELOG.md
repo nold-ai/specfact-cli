@@ -9,6 +9,61 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.24.0] - 2026-01-09
+
+### Added (0.24.0)
+
+- **Sidecar Validation CLI Integration**: Native CLI integration for sidecar validation workflow
+  - **New Command**: `specfact validate sidecar init <bundle-name> <repo-path>` - Initialize sidecar workspace for validation
+  - **New Command**: `specfact validate sidecar run <bundle-name> <repo-path>` - Run complete sidecar validation workflow
+  - **Framework Detection**: Automatic detection of Django, FastAPI, DRF, and pure Python frameworks
+  - **Route Extraction**: Framework-specific route and schema extraction (Django URLs, FastAPI routes, DRF serializers)
+  - **Contract Population**: Automatic population of OpenAPI contracts with extracted routes and schemas
+  - **Harness Generation**: CrossHair harness generation from populated contracts
+  - **Tool Execution**: Integration with CrossHair symbolic execution and Specmatic contract testing
+  - **Environment Manager Support**: Automatic detection and use of hatch, poetry, uv, and pip environments
+  - **Venv Detection**: Automatic detection and configuration of `.venv` and `venv` virtual environments
+  - **Progress Reporting**: Rich console progress indicators for long-running operations
+  - **Backward Compatibility**: Full compatibility with existing template-based sidecar workspaces
+
+- **New Python Modules**: Complete sidecar validation package
+  - `src/specfact_cli/validators/sidecar/` - Sidecar validation orchestrator and utilities
+  - `src/specfact_cli/validators/sidecar/frameworks/` - Framework-specific extractors (Django, FastAPI, DRF)
+  - `src/specfact_cli/commands/validate.py` - Validation command group with sidecar subcommands
+
+- **Environment Manager Integration**: Enhanced environment detection for sidecar validation
+  - Venv detection and Python path configuration
+  - PYTHONPATH building with venv site-packages, source directories, and repo root
+  - Tool execution with environment manager prefixes (hatch run, poetry run, uv run)
+
+- **Testing**: Comprehensive test coverage (40+ tests, ≥80% coverage)
+  - Unit tests for all framework extractors and core workflow components
+  - Integration tests for CLI commands and backward compatibility
+  - End-to-end tests for complete validation workflows
+  - Verification tests against real-world repositories
+
+### Changed (0.24.0)
+
+- **Init Command**: Updated `specfact init --install-deps` to include sidecar validation tools
+  - Added comment about sidecar validation tools (crosshair-tool already included)
+  - Note: specmatic may need separate installation (Java-based tool)
+
+### Fixed (0.24.0)
+
+- **Flask Framework Detection**: Fixed incorrect detection of Flask as Django
+  - Added Flask pattern detection before Django `urls.py` check
+  - Framework detection accuracy improved from 85.7% (6/7) to 100% (7/7)
+  - Flask correctly detected as `PURE_PYTHON`
+
+### Documentation (0.24.0)
+
+- **New Guides**: Added comprehensive documentation for sidecar validation
+  - `docs/guides/sidecar-validation.md` - Complete user guide with examples
+  - `docs/reference/commands.md` - Updated with `validate sidecar` commands
+  - Verification and test results documentation
+
+---
+
 ## [0.23.1] - 2026-01-07
 
 ### Fixed (0.23.1)
