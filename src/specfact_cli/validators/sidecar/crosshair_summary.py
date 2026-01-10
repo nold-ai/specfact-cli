@@ -110,10 +110,10 @@ def generate_summary_file(
     Returns:
         Path to generated summary file
     """
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     if timestamp is None:
-        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
     # Ensure reports directory exists (creates parent directories if needed)
     reports_dir.mkdir(parents=True, exist_ok=True)
