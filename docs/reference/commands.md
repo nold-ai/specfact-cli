@@ -22,8 +22,9 @@ Complete reference for all SpecFact CLI commands.
 | **Greenfield Planning** | `plan init`, `plan add-feature`, `plan add-story`, `plan review`, `plan harden`, `generate contracts`, `enforce sdd` | [Greenfield Chain](../guides/command-chains.md#2-greenfield-planning-chain) |
 | **External Tool Integration** | `import from-bridge`, `plan review`, `sync bridge`, `enforce sdd` | [Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain) |
 | **API Contract Development** | `spec validate`, `spec backward-compat`, `spec generate-tests`, `spec mock`, `contract verify` | [API Chain](../guides/command-chains.md#4-api-contract-development-chain) |
-| **Plan Promotion & Release** | `plan review`, `enforce sdd`, `plan promote`, `project version bump` | [Promotion Chain](../guides/command-chains.md#5-plan-promotion--release-chain) |
-| **Code-to-Plan Comparison** | `import from-code`, `plan compare`, `drift detect`, `sync repository` | [Comparison Chain](../guides/command-chains.md#6-code-to-plan-comparison-chain) |
+| **Sidecar Validation** | `validate sidecar init`, `validate sidecar run` | [Sidecar Chain](../guides/command-chains.md#5-sidecar-validation-chain) |
+| **Plan Promotion & Release** | `plan review`, `enforce sdd`, `plan promote`, `project version bump` | [Promotion Chain](../guides/command-chains.md#6-plan-promotion--release-chain) |
+| **Code-to-Plan Comparison** | `import from-code`, `plan compare`, `drift detect`, `sync repository` | [Comparison Chain](../guides/command-chains.md#7-code-to-plan-comparison-chain) |
 | **AI-Assisted Enhancement** | `generate contracts-prompt`, `contracts-apply`, `contract coverage`, `repro` | [AI Enhancement Chain](../guides/command-chains.md#7-ai-assisted-code-enhancement-chain-emerging) |
 | **Test Generation** | `generate test-prompt`, `spec generate-tests`, `pytest` | [Test Generation Chain](../guides/command-chains.md#8-test-generation-from-specifications-chain-emerging) |
 | **Gap Discovery & Fixing** | `repro --verbose`, `generate fix-prompt`, `enforce sdd` | [Gap Discovery Chain](../guides/command-chains.md#9-gap-discovery--fixing-chain-emerging) |
@@ -133,6 +134,12 @@ specfact repro --verbose
   - **Workflow**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
 - `sync repository` - Sync code changes
   - **Workflow**: [Code-to-Plan Comparison Chain](../guides/command-chains.md#6-code-to-plan-comparison-chain)
+
+**Validation & Quality:**
+
+- `validate sidecar init` - Initialize sidecar workspace for validation
+- `validate sidecar run` - Run sidecar validation workflow (CrossHair + Specmatic)
+  - **Workflow**: [Sidecar Validation Chain](../guides/command-chains.md#5-sidecar-validation-chain)
 
 **API Specification Management:**
 
@@ -2333,6 +2340,8 @@ specfact repro [OPTIONS]
 - `--fix` - Apply auto-fixes where available (Semgrep auto-fixes)
 - `--fail-fast` - Stop on first failure
 - `--out PATH` - Output report path (default: bundle-specific `.specfact/projects/<bundle-name>/reports/enforcement/report-<timestamp>.yaml`, Phase 8.5, or global `.specfact/reports/enforcement/` if no bundle context)
+- `--sidecar` - Run sidecar validation for unannotated code (no-edit path)
+- `--sidecar-bundle NAME` - Bundle name for sidecar validation (required if --sidecar is used)
 
 **Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
 
@@ -2363,6 +2372,9 @@ specfact repro --fix --budget 120
 
 # Stop on first failure
 specfact repro --fail-fast
+
+# Run repro with sidecar validation for unannotated code
+specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
 ```
 
 **What it runs:**
@@ -2373,6 +2385,7 @@ specfact repro --fail-fast
 4. **Property tests** - Hypothesis
 5. **Smoke tests** - Event loop lag, orphaned tasks
 6. **Plan validation** - Schema compliance
+7. **Sidecar validation** - Optional, for unannotated code (when `--sidecar` flag is used)
 
 **External Repository Support:**
 
@@ -2422,6 +2435,7 @@ Tools are checked for availability and skipped if not found:
 - **semgrep** - Optional, only runs if `tools/semgrep/async.yml` config exists
 - **basedpyright** - Optional, for type checking
 - **crosshair** - Optional, for contract exploration (requires `[tool.crosshair]` config in `pyproject.toml` - use `specfact repro setup` to generate)
+- **sidecar** - Optional, for validating unannotated code without modifying source (use `--sidecar --sidecar-bundle <name>`)
 - **pytest** - Optional, only runs if `tests/contracts/` or `tests/smoke/` directories exist
 
 **Auto-fixes:**
@@ -3401,6 +3415,110 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 - Feature/story extraction from code
 
 ---
+
+### `validate` - Validation Commands
+
+Validation commands for contract-based validation of codebases.
+
+#### `validate sidecar`
+
+Sidecar validation enables contract-based validation of external codebases without modifying source code.
+
+**Subcommands:**
+
+- `validate sidecar init` - Initialize sidecar workspace
+- `validate sidecar run` - Run sidecar validation workflow
+
+**See**: [Sidecar Validation Guide](../guides/sidecar-validation.md) for complete documentation.
+
+##### `validate sidecar init`
+
+Initialize sidecar workspace for validation.
+
+```bash
+specfact validate sidecar init <bundle-name> <repo-path>
+```
+
+**Arguments:**
+
+- `bundle-name` - Project bundle name (e.g., 'legacy-api')
+- `repo-path` - Path to repository root directory
+
+**What it does:**
+
+- Detects framework type (Django, FastAPI, DRF, pure-python)
+- Creates sidecar workspace directory structure
+- Generates configuration files
+- Detects Python environment (venv, poetry, uv, pip)
+- Sets up framework-specific configuration (e.g., DJANGO_SETTINGS_MODULE)
+
+**Example:**
+
+```bash
+specfact validate sidecar init legacy-api /path/to/django-project
+```
+
+##### `validate sidecar run`
+
+Run sidecar validation workflow.
+
+```bash
+specfact validate sidecar run <bundle-name> <repo-path> [OPTIONS]
+```
+
+**Arguments:**
+
+- `bundle-name` - Project bundle name (e.g., 'legacy-api')
+- `repo-path` - Path to repository root directory
+
+**Options:**
+
+- `--run-crosshair / --no-run-crosshair` - Run CrossHair symbolic execution analysis (default: enabled)
+- `--run-specmatic / --no-run-specmatic` - Run Specmatic contract testing validation (default: enabled, auto-skipped if no service configuration detected)
+
+**Auto-Skip Behavior:**
+
+Specmatic is automatically skipped when no service configuration is detected (no `test_base_url`, `host`/`port`, or application server configuration). Use `--run-specmatic` to force execution or configure a service endpoint to enable Specmatic validation.
+
+**Workflow steps:**
+
+1. Framework detection (Django, FastAPI, DRF, pure-python)
+2. Route extraction from framework-specific patterns
+3. Contract population with extracted routes/schemas
+4. Harness generation from populated contracts
+5. CrossHair analysis on source code and harness (if enabled)
+6. Specmatic validation against API endpoints (if enabled)
+
+**Example:**
+
+```bash
+# Run full validation (CrossHair + Specmatic)
+specfact validate sidecar run legacy-api /path/to/django-project
+
+# Run only CrossHair analysis
+specfact validate sidecar run legacy-api /path/to/django-project --no-run-specmatic
+
+# Run only Specmatic validation
+specfact validate sidecar run legacy-api /path/to/django-project --no-run-crosshair
+
+# Force Specmatic to run even without service configuration (may fail)
+specfact validate sidecar run legacy-api /path/to/django-project --run-specmatic
+```
+
+**Output:**
+
+- Validation results displayed in console
+- Reports saved to `.specfact/projects/<bundle>/reports/sidecar/`
+- Progress indicators for long-running operations
+
+**Supported Frameworks:**
+
+- **Django**: Extracts URL patterns and form schemas
+- **FastAPI**: Extracts routes and Pydantic models
+- **DRF**: Extracts serializers and converts to OpenAPI
+- **Pure Python**: Basic function extraction (if runtime contracts present)
+
+**See**: [Sidecar Validation Guide](../guides/sidecar-validation.md) for detailed documentation and examples.
 
 ### `spec` - API Specification Management (Specmatic Integration)
 

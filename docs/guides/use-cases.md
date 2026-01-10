@@ -10,7 +10,8 @@ Detailed use cases and examples for SpecFact CLI.
 
 > **Primary Use Case**: Brownfield code modernization (Use Case 1)  
 > **Secondary Use Case**: Adding enforcement to Spec-Kit projects (Use Case 2)  
-> **Alternative**: Greenfield spec-first development (Use Case 3)
+> **Alternative**: Greenfield spec-first development (Use Case 3)  
+> **Validation Use Case**: Sidecar validation of external codebases (Use Case 4) 🆕
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
 

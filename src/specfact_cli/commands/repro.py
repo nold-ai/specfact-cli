@@ -167,6 +167,16 @@ def main(
         help="Time budget in seconds (must be > 0)",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
+    sidecar: bool = typer.Option(
+        False,
+        "--sidecar",
+        help="Run sidecar validation for unannotated code (no-edit path)",
+    ),
+    sidecar_bundle: str | None = typer.Option(
+        None,
+        "--sidecar-bundle",
+        help="Bundle name for sidecar validation (required if --sidecar is used)",
+    ),
 ) -> None:
     """
     Run full validation suite for reproducibility.
@@ -182,6 +192,7 @@ def main(
     - Contract exploration (CrossHair) - optional
     - Property tests (pytest tests/contracts/) - optional, only if directory exists
     - Smoke tests (pytest tests/smoke/) - optional, only if directory exists
+    - Sidecar validation (--sidecar) - optional, for unannotated code validation
 
     Works on external repositories without requiring SpecFact CLI adoption.
 
@@ -189,6 +200,7 @@ def main(
         specfact repro --verbose --budget 120
         specfact repro --repo /path/to/external/repo --verbose
         specfact repro --fix --budget 120
+        specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
     """
     # If a subcommand was invoked, don't run the main validation
     if ctx.invoked_subcommand is not None:
@@ -201,6 +213,8 @@ def main(
         raise typer.BadParameter("Budget must be positive")
     if not _is_valid_output_path(out):
         raise typer.BadParameter("Output path must exist if provided")
+    if sidecar and not sidecar_bundle:
+        raise typer.BadParameter("--sidecar-bundle is required when --sidecar is used")
 
     from specfact_cli.utils.yaml_utils import dump_yaml
 
@@ -318,6 +332,37 @@ def main(
         out.parent.mkdir(parents=True, exist_ok=True)
         dump_yaml(report.to_dict(), out)
         console.print(f"\n[dim]Report written to: {out}[/dim]")
+
+        # Run sidecar validation if requested (after main checks)
+        if sidecar and sidecar_bundle:
+            from specfact_cli.validators.sidecar.models import SidecarConfig
+            from specfact_cli.validators.sidecar.orchestrator import run_sidecar_validation
+            from specfact_cli.validators.sidecar.unannotated_detector import detect_unannotated_in_repo
+
+            console.print("\n[bold cyan]Running sidecar validation for unannotated code...[/bold cyan]")
+
+            # Detect unannotated code
+            unannotated = detect_unannotated_in_repo(repo)
+            if unannotated:
+                console.print(f"[dim]Found {len(unannotated)} unannotated functions[/dim]")
+                # Store unannotated functions info for harness generation
+                sidecar_config = SidecarConfig.create(sidecar_bundle, repo)
+                # Pass unannotated info to orchestrator (via results dict)
+            else:
+                console.print("[dim]No unannotated functions detected (all functions have contracts)[/dim]")
+                sidecar_config = SidecarConfig.create(sidecar_bundle, repo)
+
+            # Run sidecar validation (harness will be generated for unannotated code)
+            sidecar_results = run_sidecar_validation(sidecar_config, console=console)
+
+            # Display sidecar results
+            if sidecar_results.get("crosshair_summary"):
+                summary = sidecar_results["crosshair_summary"]
+                console.print(
+                    f"[dim]Sidecar CrossHair: {summary.get('confirmed', 0)} confirmed, "
+                    f"{summary.get('not_confirmed', 0)} not confirmed, "
+                    f"{summary.get('violations', 0)} violations[/dim]"
+                )
 
         # Exit with appropriate code
         exit_code = report.get_exit_code()
