@@ -142,10 +142,6 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-<<<<<<< HEAD
->>>>>>> dev
-=======
->>>>>>> feature/integrate-sidecar-validation
 ## [0.23.1] - 2026-01-07
 
 ### Fixed (0.23.1)
