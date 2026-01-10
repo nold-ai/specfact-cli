@@ -16,9 +16,9 @@ Command chains are sequences of SpecFact CLI commands that work together to achi
 
 **Why use command chains?** Instead of learning individual commands in isolation, command chains show you how to combine commands to solve real-world problems. They provide context, decision points, and links to detailed guides.
 
-This document covers all 9 identified command chains:
+This document covers all 10 identified command chains:
 
-- **6 Mature Chains**: Well-established workflows with comprehensive documentation
+- **7 Mature Chains**: Well-established workflows with comprehensive documentation
 - **3 Emerging Chains**: AI-assisted workflows that integrate with IDE slash commands
 
 ---
@@ -41,6 +41,9 @@ Start: What do you want to accomplish?
 │
 ├─ Develop or validate API contracts?
 │  └─ → API Contract Development Chain
+│
+├─ Validate external codebase without modifying source?
+│  └─ → Sidecar Validation Chain
 │
 ├─ Promote a plan through stages to release?
 │  └─ → Plan Promotion & Release Chain
@@ -298,7 +301,65 @@ graph TD
 
 ---
 
-## 5. Plan Promotion & Release Chain
+## 5. Sidecar Validation Chain
+
+**Goal**: Validate external codebases (libraries, APIs, frameworks) without modifying source code.
+
+**When to use**: You need to validate third-party libraries, legacy codebases, or APIs where you don't control the implementation.
+
+**Command Sequence**:
+
+```bash
+# Step 1: Initialize sidecar workspace
+specfact validate sidecar init <bundle-name> <repo-path>
+
+# Step 2: Run sidecar validation workflow
+specfact validate sidecar run <bundle-name> <repo-path>
+
+# Step 3: Review validation results
+# Results are saved to .specfact/projects/<bundle>/reports/sidecar/
+```
+
+**Workflow Diagram**:
+
+```mermaid
+graph TD
+    A[External Repository] -->|validate sidecar init| B[Initialize Workspace]
+    B --> C[Detect Framework]
+    C --> D[Extract Routes/Schemas]
+    D --> E[Populate Contracts]
+    E --> F[Generate Harness]
+    F -->|CrossHair| G[Symbolic Execution]
+    F -->|Specmatic| H[Contract Testing]
+    G --> I[Validation Results]
+    H --> I
+```
+
+**Decision Points**:
+
+- **After `validate sidecar init`**: Review detected framework and configuration. Adjust if needed.
+- **Framework detection**: System automatically detects Django, FastAPI, DRF, or pure Python. Verify detection is correct.
+- **Tool execution**: Use `--no-run-crosshair` or `--no-run-specmatic` to skip specific tools if not needed.
+- **After `validate sidecar run`**: Review validation results. Fix issues in contracts or harness if needed.
+
+**Expected Outcomes**:
+
+- Sidecar workspace initialized with framework-specific configuration
+- Routes and schemas extracted from framework patterns
+- OpenAPI contracts populated with extracted data
+- CrossHair harness generated from contracts
+- Validation results (CrossHair analysis, Specmatic testing)
+- Reports saved to sidecar reports directory
+
+**Related Guides**:
+
+- [Sidecar Validation Guide](sidecar-validation.md) - Complete sidecar validation walkthrough
+- [Command Reference - Validate Commands](../reference/commands.md#validate---validation-commands) - Command reference
+- [Framework Detection](../reference/commands.md#framework-detection) - Supported frameworks
+
+---
+
+## 6. Plan Promotion & Release Chain
 
 **Goal**: Promote a plan through stages (draft → review → approved → released) and manage versions.
 
@@ -349,7 +410,7 @@ graph LR
 
 ---
 
-## 6. Code-to-Plan Comparison Chain
+## 7. Code-to-Plan Comparison Chain
 
 **Goal**: Detect and resolve drift between code and specifications.
 
@@ -402,7 +463,7 @@ graph TD
 
 ---
 
-## 7. AI-Assisted Code Enhancement Chain (Emerging)
+## 8. AI-Assisted Code Enhancement Chain (Emerging)
 
 **Goal**: Use AI IDE integration to enhance code with contracts and validate them.
 
@@ -453,7 +514,7 @@ graph TD
 
 ---
 
-## 8. Test Generation from Specifications Chain (Emerging)
+## 9. Test Generation from Specifications Chain (Emerging)
 
 **Goal**: Generate tests from specifications using AI assistance.
 
@@ -506,7 +567,7 @@ graph TD
 
 ---
 
-## 9. Gap Discovery & Fixing Chain (Emerging)
+## 10. Gap Discovery & Fixing Chain (Emerging)
 
 **Goal**: Discover gaps in specifications and fix them using AI assistance.
 
@@ -558,7 +619,7 @@ graph TD
 
 ---
 
-## 10. SDD Constitution Management Chain
+## 11. SDD Constitution Management Chain
 
 **Goal**: Manage Spec-Driven Development (SDD) constitutions for Spec-Kit compatibility.
 
@@ -670,6 +731,7 @@ The following commands are now integrated into documented workflows:
 - [Command Reference](../reference/commands.md) - Complete command documentation
 - [Agile/Scrum Workflows](agile-scrum-workflows.md) - Team collaboration patterns
 - [Brownfield Engineer Guide](brownfield-engineer.md) - Legacy modernization guide
+- [Sidecar Validation Guide](sidecar-validation.md) - Validate external codebases
 - [Spec-Kit Journey](speckit-journey.md) - Spec-Kit integration
 - [OpenSpec Journey](openspec-journey.md) - OpenSpec integration
 - [Team Collaboration Workflow](team-collaboration-workflow.md) - Team collaboration guide

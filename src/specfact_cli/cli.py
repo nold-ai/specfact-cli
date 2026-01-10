@@ -68,6 +68,7 @@ from specfact_cli.commands import (
     sdd,
     spec,
     sync,
+    validate,
 )
 from specfact_cli.modes import OperationalMode, detect_mode
 from specfact_cli.runtime import get_configured_console
@@ -350,6 +351,7 @@ app.add_typer(drift.app, name="drift", help="Detect drift between code and speci
 
 # 11.6. Analysis
 app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
+app.add_typer(validate.app, name="validate", help="Validation commands including sidecar validation")
 
 
 def cli_main() -> None:

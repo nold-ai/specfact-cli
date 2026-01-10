@@ -146,6 +146,9 @@ def init(
                 "icontract>=2.7.1",
                 "crosshair-tool>=0.0.97",
                 "pytest>=8.4.2",
+                # Sidecar validation tools
+                # Note: specmatic may need separate installation (Java-based tool)
+                # Users may need to install specmatic separately: https://specmatic.in/documentation/getting_started.html
             ]
             console.print("[dim]Installing packages for contract enhancement:[/dim]")
             for package in required_packages:

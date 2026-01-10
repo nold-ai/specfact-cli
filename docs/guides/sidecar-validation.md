@@ -1,0 +1,502 @@
+---
+layout: default
+title: Sidecar Validation Guide
+permalink: /guides/sidecar-validation/
+---
+
+# Sidecar Validation Guide
+
+Complete guide for using sidecar validation to validate external codebases without modifying source code.
+
+## Overview
+
+Sidecar validation enables contract-based validation of external codebases (libraries, APIs, frameworks) without requiring modifications to the source code. This is particularly useful for:
+
+- **Validating third-party libraries** without forking or modifying them
+- **Testing legacy codebases** where direct modifications are risky
+- **Contract validation** of APIs where you don't control the implementation
+- **Framework validation** (Django, FastAPI, DRF) using extracted routes and schemas
+
+## Quick Start
+
+### 1. Initialize Sidecar Workspace
+
+```bash
+specfact validate sidecar init <bundle-name> <repo-path>
+```
+
+**Example:**
+
+```bash
+specfact validate sidecar init legacy-api /path/to/django-project
+```
+
+This will:
+
+- Detect the framework type (Django, FastAPI, DRF, pure-python)
+- Create sidecar workspace directory structure
+- Generate configuration files
+- Detect Python environment (venv, poetry, uv, pip)
+- Set up framework-specific configuration
+
+### 2. Run Validation
+
+```bash
+specfact validate sidecar run <bundle-name> <repo-path>
+```
+
+**Example:**
+
+```bash
+# Run full validation (CrossHair + Specmatic)
+specfact validate sidecar run legacy-api /path/to/django-project
+
+# Run only CrossHair analysis
+specfact validate sidecar run legacy-api /path/to/django-project --no-run-specmatic
+
+# Run only Specmatic validation
+specfact validate sidecar run legacy-api /path/to/django-project --no-run-crosshair
+```
+
+## Workflow
+
+### Step 1: Framework Detection
+
+The sidecar validation automatically detects the framework type:
+
+- **Django**: Detects `manage.py` or `urls.py` files
+- **FastAPI**: Detects `FastAPI()` or `@app.get()` patterns
+- **DRF**: Detects `rest_framework` imports (if Django is also present)
+- **Pure Python**: No framework detected
+
+### Step 2: Route Extraction
+
+Framework-specific extractors extract routes and schemas:
+
+- **Django**: Extracts URL patterns from `urls.py` and form schemas
+- **FastAPI**: Extracts routes from decorators and Pydantic models
+- **DRF**: Extracts serializers and converts to OpenAPI schemas
+
+### Step 3: Contract Population
+
+OpenAPI contracts are populated with extracted routes and schemas:
+
+- Routes are matched to contract features
+- Request/response schemas are merged
+- Path parameters are extracted and documented
+
+### Step 4: Harness Generation
+
+CrossHair harness files are generated from populated contracts:
+
+- Creates Python harness with `@icontract` decorators
+- Generates test inputs JSON file
+- Creates bindings YAML for framework adapters
+
+### Step 5: Validation Execution
+
+Validation tools are executed:
+
+- **CrossHair**: Symbolic execution on source code and harness
+- **Specmatic**: Contract testing against API endpoints (if available)
+
+## Supported Frameworks
+
+### Django
+
+**Detection:**
+
+- Looks for `manage.py` or `urls.py` files
+- Auto-detects `DJANGO_SETTINGS_MODULE` from `manage.py`
+
+**Extraction:**
+
+- URL patterns from `urlpatterns` in `urls.py`
+- Form schemas from Django form classes
+- View references (function-based and class-based)
+
+**Example:**
+
+```bash
+specfact validate sidecar init django-app /path/to/django-project
+specfact validate sidecar run django-app /path/to/django-project
+```
+
+### FastAPI
+
+**Detection:**
+
+- Looks for `FastAPI()` or `@app.get()` patterns in `main.py` or `app.py`
+
+**Extraction:**
+
+- Route decorators (`@app.get()`, `@app.post()`, etc.)
+- Pydantic models from route signatures
+- Path parameters and request/response schemas
+
+**Example:**
+
+```bash
+specfact validate sidecar init fastapi-app /path/to/fastapi-project
+specfact validate sidecar run fastapi-app /path/to/fastapi-project
+```
+
+### Django REST Framework (DRF)
+
+**Detection:**
+
+- Detects Django + `rest_framework` imports
+
+**Extraction:**
+
+- Serializers from DRF serializer classes
+- OpenAPI schema conversion
+- Route patterns from Django URLs
+
+**Example:**
+
+```bash
+specfact validate sidecar init drf-api /path/to/drf-project
+specfact validate sidecar run drf-api /path/to/drf-project
+```
+
+### Pure Python
+
+**Detection:**
+
+- No framework detected
+
+**Extraction:**
+
+- Basic function extraction (if runtime contracts present)
+- Limited schema extraction
+
+**Example:**
+
+```bash
+specfact validate sidecar init python-lib /path/to/python-library
+specfact validate sidecar run python-lib /path/to/python-library
+```
+
+## Configuration
+
+### Sidecar Workspace Structure
+
+After initialization, the sidecar workspace is created at:
+
+```
+.specfact/projects/<bundle-name>/
+├── contracts/          # OpenAPI contract files
+├── reports/
+│   └── sidecar/        # Validation reports
+└── sidecar/            # Sidecar workspace (if using templates)
+    ├── harness_contracts.py
+    ├── inputs.json
+    └── bindings.yaml
+```
+
+### Environment Variables
+
+Sidecar validation respects the following environment variables:
+
+- `DJANGO_SETTINGS_MODULE`: Django settings module (auto-detected if not set)
+- `PYTHONPATH`: Python path for module resolution
+- `TEST_MODE`: Set to `true` to disable progress bars (for testing)
+
+## Validation Tools
+
+### CrossHair
+
+**Purpose**: Symbolic execution to verify contracts
+
+**Execution:**
+
+- Runs on source code (if runtime contracts present)
+- Runs on generated harness (external contracts)
+- Captures confirmed/not-confirmed/violations
+
+**Configuration:**
+
+- Timeout settings (per-path, per-condition)
+- Verbose output options
+- Module resolution handling
+
+### Specmatic
+
+**Purpose**: Contract testing against API endpoints
+
+**Execution:**
+
+- Validates API responses against OpenAPI contracts
+- Requires running application server (if `SIDECAR_APP_CMD` configured)
+- Can use Specmatic stub server for testing
+
+**Auto-Skip Behavior:**
+
+Specmatic is automatically skipped when no service configuration is detected. This prevents unnecessary validation attempts when:
+
+- No `test_base_url` is configured
+- No `host` and `port` combination is available
+- No application server command and port are configured
+
+**When Specmatic is Auto-Skipped:**
+
+```bash
+⚠ Skipping Specmatic: No service configuration detected (use --run-specmatic to override)
+```
+
+**Manual Override:**
+
+You can force Specmatic to run even without service configuration using the `--run-specmatic` flag:
+
+```bash
+# Force Specmatic to run (may fail if no service available)
+specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
+```
+
+**Configuration:**
+
+- Base URL for API (`test_base_url`)
+- Host and port (`host`, `port`)
+- Application server command and port (`cmd`, `port` in app config)
+- Timeout settings
+- Auto-stub server options
+
+## Progress Reporting
+
+Sidecar validation uses Rich console for progress reporting:
+
+- **Interactive terminals**: Full progress bars with animations
+- **CI/CD environments**: Plain text updates (no animations)
+- **Test mode**: Minimal output (progress bars disabled)
+
+Progress phases:
+
+1. Framework detection
+2. Route extraction
+3. Contract population
+4. Harness generation
+5. CrossHair analysis
+6. Specmatic validation
+
+## Output and Reports
+
+### Console Output
+
+Validation results are displayed in the console:
+
+```
+Validation Results:
+  Framework: django
+  Routes extracted: 15
+  Contracts populated: 3
+  Harness generated: True
+
+CrossHair Results:
+  ✓ harness
+  CrossHair: 5 confirmed, 2 not confirmed, 1 violations
+  Summary file: .specfact/projects/legacy-api/reports/sidecar/crosshair-summary-20240109T120000Z.json
+
+Specmatic Results:
+  ✓ FEATURE-001.openapi.yaml
+```
+
+**Note**: If Specmatic is auto-skipped, you'll see:
+
+```
+⚠ Specmatic skipped: No service configuration detected
+```
+
+Instead of the Specmatic Results section.
+
+### Report Files
+
+Reports are saved to `.specfact/projects/<bundle>/reports/sidecar/`:
+
+- CrossHair output and analysis results
+- Specmatic test results and HTML reports
+- Timestamped execution logs
+
+## Backward Compatibility
+
+Sidecar validation maintains backward compatibility with template-based sidecar workspaces:
+
+- Existing workspaces created via `sidecar-init.sh` continue to work
+- CLI commands detect existing workspaces automatically
+- Template files remain in `resources/templates/sidecar/` for reference
+
+## Troubleshooting
+
+### Framework Not Detected
+
+**Issue**: Framework type shows as `unknown` or `pure-python`
+
+**Solutions:**
+
+- Ensure framework files are present (`manage.py` for Django, `main.py` for FastAPI)
+- Check that framework imports are present in source files
+- Verify repository path is correct
+
+### CrossHair Not Found
+
+**Issue**: Error message "CrossHair not found in PATH"
+
+**Solutions:**
+
+- Install CrossHair: `pip install crosshair-tool`
+- Ensure CrossHair is in PATH
+- Use virtual environment with CrossHair installed
+
+### Specmatic Not Found
+
+**Issue**: Error message "Specmatic not found in PATH"
+
+**Solutions:**
+
+- Install Specmatic (CLI, JAR, npm, or Python module)
+- Configure `SPECMATIC_CMD` in sidecar workspace `.env` file
+- Skip Specmatic if not needed: `--no-run-specmatic`
+
+### Specmatic Auto-Skipped
+
+**Issue**: Specmatic is automatically skipped with message "No service configuration detected"
+
+**Explanation:**
+
+Specmatic requires a service endpoint to test against. If no service configuration is detected, Specmatic is automatically skipped to avoid unnecessary validation attempts.
+
+**When This Happens:**
+
+- No `test_base_url` configured in SpecmaticConfig
+- No `host` and `port` combination available
+- No application server command and port configured
+
+**Solutions:**
+
+1. **Configure service endpoint** (recommended):
+   ```bash
+   # Set test_base_url in sidecar workspace .env file
+   SPECMATIC_TEST_BASE_URL=http://localhost:8000
+   ```
+
+2. **Configure application server**:
+   ```bash
+   # Set app command and port
+   SIDECAR_APP_CMD="python manage.py runserver"
+   SIDECAR_APP_PORT=8000
+   ```
+
+3. **Force Specmatic to run** (may fail if no service available):
+   ```bash
+   specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
+   ```
+
+4. **Skip Specmatic explicitly** (if you only need CrossHair):
+   ```bash
+   specfact validate sidecar run legacy-api /path/to/repo --no-run-specmatic
+   ```
+
+### Module Resolution Errors
+
+**Issue**: CrossHair fails with import errors
+
+**Solutions:**
+
+- Set `PYTHONPATH` correctly for your project structure
+- Ensure source directories are in PYTHONPATH
+- Check that `__init__.py` files are present for packages
+
+## Examples
+
+### Example 1: Django Application
+
+```bash
+# Initialize
+specfact validate sidecar init django-blog /path/to/django-blog
+
+# Run validation
+specfact validate sidecar run django-blog /path/to/django-blog
+```
+
+### Example 2: FastAPI API
+
+```bash
+# Initialize
+specfact validate sidecar init fastapi-api /path/to/fastapi-api
+
+# Run only CrossHair (no HTTP endpoints - Specmatic auto-skipped)
+specfact validate sidecar run fastapi-api /path/to/fastapi-api --no-run-specmatic
+
+# Or let auto-skip handle it (Specmatic will be skipped automatically)
+specfact validate sidecar run fastapi-api /path/to/fastapi-api
+```
+
+**Note**: In this example, Specmatic is automatically skipped because no service configuration is provided. The validation will focus on CrossHair analysis only.
+
+### Example 3: Pure Python Library
+
+```bash
+# Initialize
+specfact validate sidecar init python-lib /path/to/python-library
+
+# Run validation
+specfact validate sidecar run python-lib /path/to/python-library
+```
+
+## Repro Integration
+
+Sidecar validation can be integrated into the `specfact repro` command for validating unannotated code as part of the reproducibility suite.
+
+### Using Sidecar with Repro
+
+```bash
+# Run repro with sidecar validation for unannotated code
+specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
+```
+
+**What it does:**
+
+1. Detects unannotated functions (no icontract/beartype decorators) using AST parsing
+2. Generates sidecar harness for unannotated code paths
+3. Runs CrossHair against the generated harness (not source code)
+4. Applies safe defaults (shorter timeouts, per-path limits) to prevent excessive execution time
+5. Uses deterministic inputs when available
+
+**Safe Defaults for Repro Mode:**
+
+When used with `specfact repro --sidecar`, sidecar validation automatically applies safe defaults:
+
+- **CrossHair timeout**: 30 seconds (vs 60 default)
+- **Per-path timeout**: 5 seconds
+- **Per-condition timeout**: 2 seconds
+- **Deterministic inputs**: Enabled (uses inputs.json from harness)
+
+**Example:**
+
+```bash
+# Initialize sidecar workspace first
+specfact validate sidecar init legacy-api /path/to/repo
+
+# Then run repro with sidecar validation
+specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo --verbose
+```
+
+**Output:**
+
+```
+Running sidecar validation for unannotated code...
+Found 12 unannotated functions
+[sidecar validation runs...]
+Sidecar CrossHair: 8 confirmed, 3 not confirmed, 1 violations
+```
+
+## Related Documentation
+
+- **[Command Reference](../reference/commands.md)** - Complete command documentation
+- **[Contract Testing Workflow](contract-testing-workflow.md)** - Contract testing guide
+- **[Specmatic Integration](specmatic-integration.md)** - Specmatic integration details
+
+## See Also
+
+- **[Brownfield Engineer Guide](brownfield-engineer.md)** - Modernizing legacy code
+- **[Use Cases](use-cases.md)** - Real-world scenarios

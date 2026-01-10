@@ -93,6 +93,10 @@ specfact init --ide cursor --install-deps
 ```bash
 # Analyze legacy codebase (most common use case)
 specfact import from-code my-project --repo .
+
+# Or validate external codebase without modifying source (sidecar validation)
+specfact validate sidecar init my-project /path/to/repo
+specfact validate sidecar run my-project /path/to/repo
 ```
 
 **⏱️ Timing:** Analysis typically takes **10-15 minutes** for typical repositories (e.g., `specfact-cli` itself with several hundred features & contracts). Smaller codebases may complete in 2-5 minutes. Large codebases (3000+ features) may take 15-30 minutes, but progress reporting shows real-time status. The analysis performs AST parsing, Semgrep pattern detection, and Specmatic integration.
@@ -157,8 +161,10 @@ specfact import from-code my-project --repo .
 - **Prevent regressions** with runtime contract validation
 - **CI/CD integration** - Block bad code from merging
 - **Works offline** - No cloud required
+- **Sidecar validation** - Validate external codebases without modifying source code
 
-👉 **[Command Reference](docs/reference/commands.md)** - All enforcement commands
+👉 **[Command Reference](docs/reference/commands.md)** - All enforcement commands  
+👉 **[Sidecar Validation Guide](docs/guides/sidecar-validation.md)** - Validate external codebases
 
 ### 👥 Team Collaboration
 
@@ -187,6 +193,12 @@ specfact import from-code my-project --repo .
 **Problem:** Existing codebase with no specs or outdated documentation
 
 👉 **[Brownfield Modernization Guide](docs/guides/brownfield-engineer.md)** - Complete walkthrough
+
+### 1.5. Validating External Codebases (Sidecar Validation) 🆕
+
+**Problem:** Need to validate third-party libraries or legacy codebases without modifying source code
+
+👉 **[Sidecar Validation Guide](docs/guides/sidecar-validation.md)** - Validate external codebases with contract testing
 
 ### 2. Working with a Team
 
@@ -227,6 +239,7 @@ specfact import from-code my-project --repo .
 - **[AI IDE Workflow](docs/guides/ai-ide-workflow.md)** ⭐ **NEW** - AI-assisted development
 - **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** ⭐ - Team collaboration
 - **[Integrations Overview](docs/guides/integrations-overview.md)** ⭐ **NEW** - All integrations
+- **[Sidecar Validation](docs/guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
 - **[Use Cases](docs/guides/use-cases.md)** - Common scenarios
 
 ### Integration Guides

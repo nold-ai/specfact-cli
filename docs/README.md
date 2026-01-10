@@ -190,6 +190,12 @@ specfact enforce sdd --bundle my-project
 - [Dependency Management](guides/agile-scrum-workflows.md#dependency-management) - Track story and feature dependencies
 - [Conflict Resolution](guides/agile-scrum-workflows.md#conflict-resolution) - Persona-aware merge conflict resolution
 
+#### Validation & Quality
+
+- [Sidecar Validation](guides/sidecar-validation.md) 🆕 - Validate external codebases without modifying source code
+- [Contract Testing Workflow](guides/contract-testing-workflow.md) - Contract testing patterns
+- [Specmatic Integration](guides/specmatic-integration.md) - API contract testing
+
 #### General Guides
 
 - [UX Features](guides/ux-features.md) - Progressive disclosure, context detection, intelligent suggestions, templates
