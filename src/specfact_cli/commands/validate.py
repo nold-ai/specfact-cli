@@ -76,8 +76,12 @@ def init(
 def run(
     bundle_name: str = typer.Argument(..., help="Project bundle name (e.g., 'legacy-api')"),
     repo_path: Path = typer.Argument(..., help="Path to repository root directory"),
-    run_crosshair: bool = typer.Option(True, help="Run CrossHair symbolic execution analysis"),
-    run_specmatic: bool = typer.Option(True, help="Run Specmatic contract testing validation"),
+    run_crosshair: bool = typer.Option(
+        True, "--run-crosshair/--no-run-crosshair", help="Run CrossHair symbolic execution analysis"
+    ),
+    run_specmatic: bool = typer.Option(
+        True, "--run-specmatic/--no-run-specmatic", help="Run Specmatic contract testing validation"
+    ),
 ) -> None:
     """
     Run sidecar validation workflow.
