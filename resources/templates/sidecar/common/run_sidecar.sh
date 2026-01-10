@@ -148,6 +148,54 @@ _filter_crosshair_dirs() {
   echo "${filtered[@]}"
 }
 
+# Convert source directory paths to Python module names for CrossHair
+# CrossHair expects module names (e.g., "sqlalchemy") not paths (e.g., "lib/sqlalchemy")
+# This function extracts the module name and ensures PYTHONPATH includes the parent directory
+_path_to_module() {
+  local source_path="$1"
+  local repo_path="${2:-${REPO_PATH}}"
+  
+  # Remove trailing slash
+  source_path="${source_path%/}"
+  
+  # If it's an absolute path, make it relative to repo
+  if [[ "$source_path" == /* ]]; then
+    source_path="${source_path#${repo_path}/}"
+  fi
+  
+  # Handle common patterns: lib/pkg, src/pkg, backend/app, pkg
+  # Extract the module name (last component that's a valid Python package)
+  local module_name=""
+  local parent_dir=""
+  
+  if [[ "$source_path" == *"/"* ]]; then
+    # Path has directory structure (e.g., lib/sqlalchemy, src/mypackage)
+    parent_dir="${source_path%/*}"  # Everything before last /
+    module_name="${source_path##*/}"  # Last component
+    
+    # Check if the module directory has __init__.py (is a package)
+    local full_module_path="${repo_path}/${source_path}"
+    if [[ -f "${full_module_path}/__init__.py" ]]; then
+      # It's a package - return module name and parent dir
+      echo "${module_name}|${repo_path}/${parent_dir}"
+      return 0
+    fi
+    
+    # Check subdirectories for packages (e.g., lib/sqlalchemy where sqlalchemy is the package)
+    for subdir in "${full_module_path}"/*; do
+      if [[ -d "$subdir" ]] && [[ -f "${subdir}/__init__.py" ]]; then
+        # Found a package subdirectory
+        echo "$(basename "$subdir")|${full_module_path}"
+        return 0
+      fi
+    done
+  fi
+  
+  # No directory structure or no package found - use the path as-is
+  # This handles cases like "mypackage" where PYTHONPATH is already set correctly
+  echo "${source_path}|"
+}
+
 run_with_timeout() {
   local timeout_secs="$1"
   shift
@@ -427,36 +475,68 @@ if [[ "${RUN_CROSSHAIR}" == "1" ]] && command -v crosshair >/dev/null 2>&1; then
     if [[ -z "${CROSSHAIR_FILTERED_DIRS}" ]]; then
       echo "[sidecar] warning: all source directories filtered out (contain tests), skipping source code analysis"
     else
-    if [[ "${FRAMEWORK_TYPE}" == "django" ]]; then
-      # Use Django-aware wrapper for source code analysis
-      CROSSHAIR_WRAPPER="${SIDECAR_DIR}/../frameworks/django/crosshair_django_wrapper.py"
-      if [[ -f "${CROSSHAIR_WRAPPER}" ]]; then
-        echo "[sidecar] using Django-aware CrossHair wrapper for source analysis"
-        # Export environment variables for Django initialization
-        CROSSHAIR_ENV=""
-        if [[ -n "${DJANGO_SETTINGS_MODULE:-}" ]]; then
-          CROSSHAIR_ENV="DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} "
+      # Convert source paths to module names for CrossHair
+      # CrossHair expects module names (e.g., "sqlalchemy") not paths (e.g., "lib/sqlalchemy")
+      CROSSHAIR_MODULES=""
+      CROSSHAIR_EXTRA_PYTHONPATH=""
+      for src_dir in ${CROSSHAIR_FILTERED_DIRS}; do
+        MODULE_INFO=$(_path_to_module "$src_dir" "${REPO_PATH}")
+        MODULE_NAME="${MODULE_INFO%%|*}"
+        MODULE_PARENT="${MODULE_INFO##*|}"
+        
+        if [[ -n "$MODULE_NAME" ]]; then
+          CROSSHAIR_MODULES="${CROSSHAIR_MODULES} ${MODULE_NAME}"
+          if [[ -n "$MODULE_PARENT" ]] && [[ ":${CROSSHAIR_EXTRA_PYTHONPATH}:" != *":${MODULE_PARENT}:"* ]]; then
+            CROSSHAIR_EXTRA_PYTHONPATH="${CROSSHAIR_EXTRA_PYTHONPATH}:${MODULE_PARENT}"
+          fi
         fi
-        if [[ -n "${REPO_PATH:-}" ]]; then
-          CROSSHAIR_ENV="${CROSSHAIR_ENV}REPO_PATH=${REPO_PATH} "
-        fi
-        if [[ -n "${PYTHONPATH:-}" ]]; then
-          CROSSHAIR_ENV="${CROSSHAIR_ENV}PYTHONPATH=${PYTHONPATH} "
-        fi
-        run_and_log "${TIMEOUT_CROSSHAIR}" \
-          "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
-          env ${CROSSHAIR_ENV}"${PYTHON_CMD}" "${CROSSHAIR_WRAPPER}" check "${CROSSHAIR_ARGS[@]}" ${CROSSHAIR_FILTERED_DIRS}
+      done
+      CROSSHAIR_MODULES="${CROSSHAIR_MODULES# }"  # Trim leading space
+      CROSSHAIR_EXTRA_PYTHONPATH="${CROSSHAIR_EXTRA_PYTHONPATH#:}"  # Trim leading colon
+      
+      if [[ -z "${CROSSHAIR_MODULES}" ]]; then
+        echo "[sidecar] warning: could not convert source directories to modules, skipping source code analysis"
       else
-        echo "[sidecar] warning: Django wrapper not found, using standard CrossHair (may fail)"
-        run_and_log "${TIMEOUT_CROSSHAIR}" \
-          "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
-          "${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" ${CROSSHAIR_FILTERED_DIRS}
-      fi
-    else
-      # Standard CrossHair for non-Django projects
-      run_and_log "${TIMEOUT_CROSSHAIR}" \
-        "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
-        "${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" ${CROSSHAIR_FILTERED_DIRS}
+        echo "[sidecar] analyzing modules: ${CROSSHAIR_MODULES}"
+        if [[ -n "${CROSSHAIR_EXTRA_PYTHONPATH}" ]]; then
+          echo "[sidecar] extra PYTHONPATH: ${CROSSHAIR_EXTRA_PYTHONPATH}"
+        fi
+        
+        # Build PYTHONPATH for CrossHair (include extra paths for module resolution)
+        CROSSHAIR_PYTHONPATH="${PYTHONPATH:-}"
+        if [[ -n "${CROSSHAIR_EXTRA_PYTHONPATH}" ]]; then
+          CROSSHAIR_PYTHONPATH="${CROSSHAIR_EXTRA_PYTHONPATH}:${CROSSHAIR_PYTHONPATH}"
+        fi
+        
+        if [[ "${FRAMEWORK_TYPE}" == "django" ]]; then
+          # Use Django-aware wrapper for source code analysis
+          CROSSHAIR_WRAPPER="${SIDECAR_DIR}/../frameworks/django/crosshair_django_wrapper.py"
+          if [[ -f "${CROSSHAIR_WRAPPER}" ]]; then
+            echo "[sidecar] using Django-aware CrossHair wrapper for source analysis"
+            # Export environment variables for Django initialization
+            CROSSHAIR_ENV=""
+            if [[ -n "${DJANGO_SETTINGS_MODULE:-}" ]]; then
+              CROSSHAIR_ENV="DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} "
+            fi
+            if [[ -n "${REPO_PATH:-}" ]]; then
+              CROSSHAIR_ENV="${CROSSHAIR_ENV}REPO_PATH=${REPO_PATH} "
+            fi
+            CROSSHAIR_ENV="${CROSSHAIR_ENV}PYTHONPATH=${CROSSHAIR_PYTHONPATH} "
+            run_and_log "${TIMEOUT_CROSSHAIR}" \
+              "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
+              env ${CROSSHAIR_ENV}"${PYTHON_CMD}" "${CROSSHAIR_WRAPPER}" check "${CROSSHAIR_ARGS[@]}" ${CROSSHAIR_MODULES}
+          else
+            echo "[sidecar] warning: Django wrapper not found, using standard CrossHair (may fail)"
+            run_and_log "${TIMEOUT_CROSSHAIR}" \
+              "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
+              env PYTHONPATH="${CROSSHAIR_PYTHONPATH}" "${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" ${CROSSHAIR_MODULES}
+          fi
+        else
+          # Standard CrossHair for non-Django projects
+          run_and_log "${TIMEOUT_CROSSHAIR}" \
+            "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-source.log" \
+            env PYTHONPATH="${CROSSHAIR_PYTHONPATH}" "${PYTHON_CMD}" -m crosshair check "${CROSSHAIR_ARGS[@]}" ${CROSSHAIR_MODULES}
+        fi
       fi
     fi
   fi
@@ -466,21 +546,30 @@ if [[ "${RUN_CROSSHAIR}" == "1" ]] && command -v crosshair >/dev/null 2>&1; then
   # This is the primary analysis method for frameworks without decorators (Django, etc.)
   if [[ -f "${HARNESS_PATH}" ]]; then
     echo "[sidecar] crosshair (harness - external contracts)..."
+    
+    # Build PYTHONPATH for harness analysis:
+    # 1. Sidecar directory (for harness imports like 'common.adapters')
+    # 2. Original PYTHONPATH (for repo modules)
+    HARNESS_DIR="$(cd "$(dirname "${HARNESS_PATH}")" && pwd)"
+    HARNESS_FILE="$(basename "${HARNESS_PATH}")"
+    HARNESS_MODULE="${HARNESS_FILE%.py}"  # Remove .py extension
+    
+    # Build PYTHONPATH: sidecar dir + original PYTHONPATH
+    HARNESS_PYTHONPATH="${HARNESS_DIR}"
+    if [[ -n "${PYTHONPATH:-}" ]]; then
+      HARNESS_PYTHONPATH="${HARNESS_PYTHONPATH}:${PYTHONPATH}"
+    fi
+    
     # Export environment variables for CrossHair subprocess
-    CROSSHAIR_ENV=""
+    CROSSHAIR_ENV="PYTHONPATH=${HARNESS_PYTHONPATH} "
     if [[ -n "${DJANGO_SETTINGS_MODULE:-}" ]]; then
-      CROSSHAIR_ENV="DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} "
+      CROSSHAIR_ENV="${CROSSHAIR_ENV}DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} "
     fi
     if [[ -n "${REPO_PATH:-}" ]]; then
       CROSSHAIR_ENV="${CROSSHAIR_ENV}REPO_PATH=${REPO_PATH} "
     fi
-    if [[ -n "${PYTHONPATH:-}" ]]; then
-      CROSSHAIR_ENV="${CROSSHAIR_ENV}PYTHONPATH=${PYTHONPATH} "
-    fi
+    
     # Change to harness directory to ensure valid module name (avoids hyphenated directory names in module path)
-    HARNESS_DIR="$(dirname "${HARNESS_PATH}")"
-    HARNESS_FILE="$(basename "${HARNESS_PATH}")"
-    HARNESS_MODULE="${HARNESS_FILE%.py}"  # Remove .py extension
     run_and_log "${TIMEOUT_CROSSHAIR}" \
       "${SIDECAR_REPORTS_DIR}/${TIMESTAMP}-crosshair-harness.log" \
       bash -c "cd '${HARNESS_DIR}' && env ${CROSSHAIR_ENV}${PYTHON_CMD} -m crosshair check ${CROSSHAIR_ARGS[*]} ${HARNESS_MODULE}"

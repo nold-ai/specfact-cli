@@ -19,6 +19,7 @@ from specfact_cli.commands import (
     sdd,
     spec,
     sync,
+    validate,
 )
 
 
@@ -38,4 +39,5 @@ __all__ = [
     "sdd",
     "spec",
     "sync",
+    "validate",
 ]
