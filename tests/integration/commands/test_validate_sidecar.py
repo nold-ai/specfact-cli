@@ -92,9 +92,13 @@ def test_validate_sidecar_init_help(runner: CliRunner) -> None:
 
 def test_validate_sidecar_run_help(runner: CliRunner) -> None:
     """Test validate sidecar run help text."""
+    import re
+
     result = runner.invoke(app, ["validate", "sidecar", "run", "--help"])
 
     assert result.exit_code == 0
     assert "Run sidecar validation workflow" in result.stdout
-    assert "--run-crosshair" in result.stdout
-    assert "--run-specmatic" in result.stdout
+    # Strip ANSI codes for reliable string matching
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+    assert "--run-crosshair" in clean_output
+    assert "--run-specmatic" in clean_output
