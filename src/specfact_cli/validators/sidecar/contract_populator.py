@@ -108,38 +108,38 @@ def populate_contract(
 
     for route in routes:
         route_id = f"{route.method}:{route.path}"
-        if route_id in schemas:
-            # Add route to paths if not already present
-            if route.path not in contract_data["paths"]:
-                contract_data["paths"][route.path] = {}
+        # Add route to paths if not already present
+        if route.path not in contract_data["paths"]:
+            contract_data["paths"][route.path] = {}
 
-            method_lower = route.method.lower()
-            if method_lower not in contract_data["paths"][route.path]:
-                operation = {
-                    "operationId": route.operation_id,
-                    "summary": f"{route.method} {route.path}",
-                    "responses": {
-                        "200": {"description": "Success"},
-                        "400": {"description": "Bad request"},
-                        "500": {"description": "Internal server error"},
-                    },
-                }
+        method_lower = route.method.lower()
+        if method_lower not in contract_data["paths"][route.path]:
+            operation = {
+                "operationId": route.operation_id,
+                "summary": f"{route.method} {route.path}",
+                "responses": {
+                    "200": {"description": "Success"},
+                    "400": {"description": "Bad request"},
+                    "500": {"description": "Internal server error"},
+                },
+            }
 
-                if route.path_params:
-                    operation["parameters"] = route.path_params
+            if route.path_params:
+                operation["parameters"] = route.path_params
 
-                if route.method.upper() in ("POST", "PUT", "PATCH"):
-                    schema = schemas.get(route_id, {})
-                    if schema:
-                        operation["requestBody"] = {
-                            "content": {
-                                "application/json": {
-                                    "schema": schema,
-                                }
+            # Add requestBody only if schema is available for POST/PUT/PATCH methods
+            if route.method.upper() in ("POST", "PUT", "PATCH"):
+                schema = schemas.get(route_id, {})
+                if schema:
+                    operation["requestBody"] = {
+                        "content": {
+                            "application/json": {
+                                "schema": schema,
                             }
                         }
+                    }
 
-                contract_data["paths"][route.path][method_lower] = operation
-                modified = True
+            contract_data["paths"][route.path][method_lower] = operation
+            modified = True
 
     return modified
