@@ -28,6 +28,7 @@ from specfact_cli.validators.sidecar.framework_detector import detect_django_set
 from specfact_cli.validators.sidecar.frameworks.django import DjangoExtractor
 from specfact_cli.validators.sidecar.frameworks.drf import DRFExtractor
 from specfact_cli.validators.sidecar.frameworks.fastapi import FastAPIExtractor
+from specfact_cli.validators.sidecar.frameworks.flask import FlaskExtractor
 from specfact_cli.validators.sidecar.harness_generator import generate_harness
 from specfact_cli.validators.sidecar.models import FrameworkType, SidecarConfig
 from specfact_cli.validators.sidecar.specmatic_runner import has_service_configuration, run_specmatic
@@ -264,7 +265,9 @@ def run_sidecar_validation(
 
 
 @beartype
-def get_extractor(framework_type: FrameworkType) -> DjangoExtractor | FastAPIExtractor | DRFExtractor | None:
+def get_extractor(
+    framework_type: FrameworkType,
+) -> DjangoExtractor | FastAPIExtractor | DRFExtractor | FlaskExtractor | None:
     """
     Get framework extractor for framework type.
 
@@ -280,6 +283,8 @@ def get_extractor(framework_type: FrameworkType) -> DjangoExtractor | FastAPIExt
         return FastAPIExtractor()
     if framework_type == FrameworkType.DRF:
         return DRFExtractor()
+    if framework_type == FrameworkType.FLASK:
+        return FlaskExtractor()
     return None
 
 

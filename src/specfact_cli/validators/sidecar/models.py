@@ -21,6 +21,7 @@ class FrameworkType(str, Enum):
     DJANGO = "django"
     FASTAPI = "fastapi"
     DRF = "drf"
+    FLASK = "flask"
     PURE_PYTHON = "pure-python"
     UNKNOWN = "unknown"
 
