@@ -130,6 +130,7 @@ def test_sidecar_init_run_workflow_fastapi(runner: CliRunner, fastapi_repo: Path
     assert "Running sidecar validation" in run_result.stdout or "Validation Results" in run_result.stdout
 
 
+@pytest.mark.timeout(30)
 def test_sidecar_init_run_workflow_django(runner: CliRunner, django_repo: Path) -> None:
     """Test complete sidecar init → run workflow for Django."""
     bundle_name = "django-test"
