@@ -361,22 +361,30 @@ def _render_operation(op: dict[str, Any], use_flask_app: bool = False) -> str:
             format_vars.append(param_var)
 
         # Build query string from query parameters
+        # Use proper format placeholders that will be replaced by .format()
         query_parts = []
+        query_format_vars = []
         for param in query_params:
             param_name = param.get("name", "")
             param_var = param_name.replace("-", "_")
             if param_var in param_names:
-                query_parts.append(f"{param_name}={{'{param_var}'}}")
+                # Use single braces for format placeholder, will be formatted with actual value
+                query_parts.append(f"{param_name}={{{param_var}}}")
+                query_format_vars.append(param_var)
 
+        # Combine all format variables (path params + query params)
+        all_format_vars = format_vars + query_format_vars
+
+        # Build the path with query string if needed
         if query_parts:
             query_string = "&".join(query_parts)
             full_path = f"'{flask_path}?{query_string}'"
         else:
             full_path = f"'{flask_path}'"
 
-        # Format the Flask test client call
-        if format_vars:
-            format_args = ", ".join(format_vars)
+        # Format the Flask test client call with all variables
+        if all_format_vars:
+            format_args = ", ".join(all_format_vars)
             lines.append(
                 f"                response = _flask_client.{method.lower()}({full_path}.format({format_args}))"
             )
