@@ -338,7 +338,7 @@ graph TD
 **Decision Points**:
 
 - **After `validate sidecar init`**: Review detected framework and configuration. Adjust if needed.
-- **Framework detection**: System automatically detects Django, FastAPI, DRF, or pure Python. Verify detection is correct.
+- **Framework detection**: System automatically detects Django, FastAPI, DRF, Flask, or pure Python. Verify detection is correct.
 - **Tool execution**: Use `--no-run-crosshair` or `--no-run-specmatic` to skip specific tools if not needed.
 - **After `validate sidecar run`**: Review validation results. Fix issues in contracts or harness if needed.
 

@@ -3446,7 +3446,7 @@ specfact validate sidecar init <bundle-name> <repo-path>
 
 **What it does:**
 
-- Detects framework type (Django, FastAPI, DRF, pure-python)
+- Detects framework type (Django, FastAPI, DRF, Flask, pure-python)
 - Creates sidecar workspace directory structure
 - Generates configuration files
 - Detects Python environment (venv, poetry, uv, pip)
@@ -3482,12 +3482,13 @@ Specmatic is automatically skipped when no service configuration is detected (no
 
 **Workflow steps:**
 
-1. Framework detection (Django, FastAPI, DRF, pure-python)
-2. Route extraction from framework-specific patterns
-3. Contract population with extracted routes/schemas
-4. Harness generation from populated contracts
-5. CrossHair analysis on source code and harness (if enabled)
-6. Specmatic validation against API endpoints (if enabled)
+1. Framework detection (Django, FastAPI, DRF, Flask, pure-python)
+2. Dependency installation in isolated venv (`.specfact/venv/`) with framework and project dependencies
+3. Route extraction from framework-specific patterns (all HTTP methods captured for Flask)
+4. Contract population with extracted routes/schemas (expected status codes and response structure validation)
+5. Harness generation from populated contracts
+6. CrossHair analysis on source code and harness (if enabled, using venv Python)
+7. Specmatic validation against API endpoints (if enabled)
 
 **Example:**
 
@@ -3516,6 +3517,7 @@ specfact validate sidecar run legacy-api /path/to/django-project --run-specmatic
 - **Django**: Extracts URL patterns and form schemas
 - **FastAPI**: Extracts routes and Pydantic models
 - **DRF**: Extracts serializers and converts to OpenAPI
+- **Flask**: Extracts routes from `@app.route()` and `@bp.route()` decorators, captures all HTTP methods, preserves parameter names for converter-based paths
 - **Pure Python**: Basic function extraction (if runtime contracts present)
 
 **See**: [Sidecar Validation Guide](../guides/sidecar-validation.md) for detailed documentation and examples.

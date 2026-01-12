@@ -29,5 +29,9 @@ class TestTimeoutConfigSafeDefaults:
         assert safe_config.crosshair < default_config.crosshair
         assert safe_config.crosshair_per_path is not None
         assert safe_config.crosshair_per_condition is not None
-        assert default_config.crosshair_per_path is None
-        assert default_config.crosshair_per_condition is None
+        # Default config now has per-path and per-condition timeouts set (10s and 5s)
+        assert default_config.crosshair_per_path is not None
+        assert default_config.crosshair_per_condition is not None
+        # But safe defaults are still different (shorter)
+        assert safe_config.crosshair_per_path < default_config.crosshair_per_path
+        assert safe_config.crosshair_per_condition < default_config.crosshair_per_condition

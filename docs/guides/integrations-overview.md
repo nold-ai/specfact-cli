@@ -109,7 +109,7 @@ SpecFact CLI integrations fall into four main categories:
 
 **What it provides**:
 
-- ✅ Framework detection (Django, FastAPI, DRF, pure Python)
+- ✅ Framework detection (Django, FastAPI, DRF, Flask, pure Python)
 - ✅ Route and schema extraction from framework patterns
 - ✅ Automatic OpenAPI contract population
 - ✅ CrossHair harness generation for symbolic execution
@@ -122,34 +122,7 @@ SpecFact CLI integrations fall into four main categories:
 - Validating third-party libraries without forking
 - Testing legacy codebases where modifications are risky
 - Contract validation of APIs where you don't control implementation
-- Framework validation (Django, FastAPI, DRF) using extracted routes
-
-**Key difference**: Sidecar validation provides **external codebase validation** without source modification, while standard SpecFact workflows analyze and modify your own codebase.
-
-**See also**: [Sidecar Validation Guide](./sidecar-validation.md) | [Command Chains - Sidecar Validation](./command-chains.md#5-sidecar-validation-chain)
-
----
-
-### Sidecar Validation Integration 🆕
-
-**Purpose**: Validate external codebases without modifying source code
-
-**What it provides**:
-
-- ✅ Framework detection (Django, FastAPI, DRF, pure Python)
-- ✅ Route and schema extraction from framework patterns
-- ✅ Automatic OpenAPI contract population
-- ✅ CrossHair harness generation for symbolic execution
-- ✅ CrossHair and Specmatic validation execution
-- ✅ Environment manager detection (hatch, poetry, uv, pip, venv)
-- ✅ Backward compatibility with template-based sidecar workspaces
-
-**When to use**:
-
-- Validating third-party libraries without forking
-- Testing legacy codebases where modifications are risky
-- Contract validation of APIs where you don't control implementation
-- Framework validation (Django, FastAPI, DRF) using extracted routes
+- Framework validation (Django, FastAPI, DRF, Flask) using extracted routes
 
 **Key difference**: Sidecar validation provides **external codebase validation** without source modification, while standard SpecFact workflows analyze and modify your own codebase.
 

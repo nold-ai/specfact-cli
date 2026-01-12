@@ -21,6 +21,7 @@ class FrameworkType(str, Enum):
     DJANGO = "django"
     FASTAPI = "fastapi"
     DRF = "drf"
+    FLASK = "flask"
     PURE_PYTHON = "pure-python"
     UNKNOWN = "unknown"
 
@@ -44,17 +45,20 @@ class PathConfig(BaseModel):
     bindings_path: Path = Field(default=Path("bindings.yaml"), description="Path to bindings YAML file")
     reports_dir: Path = Field(..., description="Path to reports directory")
     source_dirs: list[Path] = Field(default_factory=list, description="Source directories to analyze")
+    sidecar_venv_path: Path = Field(default=Path(".specfact/venv"), description="Path to sidecar venv directory")
 
 
 class TimeoutConfig(BaseModel):
     """Timeout configuration for validation tools."""
 
-    crosshair: int = Field(default=60, description="CrossHair timeout in seconds")
+    crosshair: int = Field(default=120, description="CrossHair overall timeout in seconds")
     specmatic: int = Field(default=60, description="Specmatic timeout in seconds")
     semgrep: int = Field(default=60, description="Semgrep timeout in seconds")
     basedpyright: int = Field(default=60, description="basedpyright timeout in seconds")
-    crosshair_per_path: int | None = Field(default=None, description="CrossHair per-path timeout")
-    crosshair_per_condition: int | None = Field(default=None, description="CrossHair per-condition timeout")
+    crosshair_per_path: int | None = Field(
+        default=10, description="CrossHair per-path timeout in seconds (prevents single route from blocking)"
+    )
+    crosshair_per_condition: int | None = Field(default=5, description="CrossHair per-condition timeout in seconds")
 
     @classmethod
     @beartype
@@ -170,11 +174,19 @@ class SidecarConfig(BaseModel):
         else:
             source_dirs.append(repo_path)
 
+        # Sidecar venv path relative to repo_path
+        sidecar_venv_path = repo_path / ".specfact" / "venv"
+
+        # Harness path should be in the same directory as contracts
+        harness_path = contracts_dir.parent / "harness" / "harness_contracts.py"
+
         paths = PathConfig(
             repo_path=repo_path,
             contracts_dir=contracts_dir,
             reports_dir=reports_dir,
+            harness_path=harness_path,
             source_dirs=source_dirs,
+            sidecar_venv_path=sidecar_venv_path,
         )
 
         return cls(

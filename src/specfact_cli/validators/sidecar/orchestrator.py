@@ -7,6 +7,7 @@ This module orchestrates the sidecar validation workflow.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -24,10 +25,15 @@ from specfact_cli.validators.sidecar.crosshair_summary import (
     generate_summary_file,
     parse_crosshair_output,
 )
+from specfact_cli.validators.sidecar.dependency_installer import (
+    create_sidecar_venv,
+    install_dependencies,
+)
 from specfact_cli.validators.sidecar.framework_detector import detect_django_settings_module, detect_framework
 from specfact_cli.validators.sidecar.frameworks.django import DjangoExtractor
 from specfact_cli.validators.sidecar.frameworks.drf import DRFExtractor
 from specfact_cli.validators.sidecar.frameworks.fastapi import FastAPIExtractor
+from specfact_cli.validators.sidecar.frameworks.flask import FlaskExtractor
 from specfact_cli.validators.sidecar.harness_generator import generate_harness
 from specfact_cli.validators.sidecar.models import FrameworkType, SidecarConfig
 from specfact_cli.validators.sidecar.specmatic_runner import has_service_configuration, run_specmatic
@@ -85,7 +91,7 @@ def run_sidecar_validation(
         try:
             progress_columns, progress_kwargs = get_progress_config()
             with Progress(*progress_columns, console=display_console, **progress_kwargs) as progress:
-                task = progress.add_task("[cyan]Running sidecar validation...", total=6)
+                task = progress.add_task("[cyan]Running sidecar validation...", total=7)
 
                 # Phase 1: Detect framework
                 progress.update(task, description="[cyan]Detecting framework...")
@@ -93,6 +99,44 @@ def run_sidecar_validation(
                     framework_type = detect_framework(config.repo_path)
                     config.framework_type = framework_type
                 results["framework_detected"] = config.framework_type
+                progress.advance(task)
+
+                # Phase 1.5: Setup sidecar venv and install dependencies
+                progress.update(task, description="[cyan]Setting up sidecar environment...")
+                sidecar_venv_path = config.paths.sidecar_venv_path
+                if not sidecar_venv_path.is_absolute():
+                    sidecar_venv_path = config.repo_path / sidecar_venv_path
+
+                venv_created = create_sidecar_venv(sidecar_venv_path, config.repo_path)
+                if venv_created:
+                    deps_installed = install_dependencies(sidecar_venv_path, config.repo_path, config.framework_type)
+                    results["sidecar_venv_created"] = venv_created
+                    results["dependencies_installed"] = deps_installed
+                    # Update pythonpath to include sidecar venv
+                    if sys.platform == "win32":
+                        site_packages = sidecar_venv_path / "Lib" / "site-packages"
+                    else:
+                        python_dirs = list(sidecar_venv_path.glob("lib/python*/site-packages"))
+                        if python_dirs:
+                            site_packages = python_dirs[0]
+                        else:
+                            site_packages = sidecar_venv_path / "lib" / "python3." / "site-packages"
+
+                    if site_packages.exists():
+                        if config.pythonpath:
+                            config.pythonpath = f"{site_packages}:{config.pythonpath}"
+                        else:
+                            config.pythonpath = str(site_packages)
+                    # Update python_cmd to use venv python
+                    if sys.platform == "win32":
+                        venv_python = sidecar_venv_path / "Scripts" / "python.exe"
+                    else:
+                        venv_python = sidecar_venv_path / "bin" / "python"
+                    if venv_python.exists():
+                        config.python_cmd = str(venv_python)
+                else:
+                    results["sidecar_venv_created"] = False
+                    results["dependencies_installed"] = False
                 progress.advance(task)
 
                 # Phase 2: Extract routes
@@ -116,7 +160,9 @@ def run_sidecar_validation(
                 # Phase 4: Generate harness
                 progress.update(task, description="[cyan]Generating harness...")
                 if config.tools.run_crosshair and config.paths.contracts_dir.exists():
-                    harness_generated = generate_harness(config.paths.contracts_dir, config.paths.harness_path)
+                    harness_generated = generate_harness(
+                        config.paths.contracts_dir, config.paths.harness_path, config.repo_path
+                    )
                     results["harness_generated"] = harness_generated
 
                     # If harness was generated, check for unannotated code (for repro integration)
@@ -136,6 +182,7 @@ def run_sidecar_validation(
                         inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
                         per_path_timeout=config.timeouts.crosshair_per_path,
                         per_condition_timeout=config.timeouts.crosshair_per_condition,
+                        python_cmd=config.python_cmd,
                     )
                     results["crosshair_results"]["harness"] = crosshair_result
 
@@ -181,7 +228,7 @@ def run_sidecar_validation(
                                 repo_path=config.repo_path,
                             )
                             results["specmatic_results"][contract_file.name] = specmatic_result
-                progress.update(task, completed=6, description="[green]✓ Validation complete")
+                progress.update(task, completed=7, description="[green]✓ Validation complete")
         except Exception:
             # Fall back to non-progress execution if Progress fails
             use_progress = False
@@ -192,6 +239,42 @@ def run_sidecar_validation(
             framework_type = detect_framework(config.repo_path)
             config.framework_type = framework_type
         results["framework_detected"] = config.framework_type
+
+        # Setup sidecar venv and install dependencies
+        sidecar_venv_path = config.paths.sidecar_venv_path
+        if not sidecar_venv_path.is_absolute():
+            sidecar_venv_path = config.repo_path / sidecar_venv_path
+
+        venv_created = create_sidecar_venv(sidecar_venv_path, config.repo_path)
+        if venv_created:
+            deps_installed = install_dependencies(sidecar_venv_path, config.repo_path, config.framework_type)
+            results["sidecar_venv_created"] = venv_created
+            results["dependencies_installed"] = deps_installed
+            # Update pythonpath to include sidecar venv
+            if sys.platform == "win32":
+                site_packages = sidecar_venv_path / "Lib" / "site-packages"
+            else:
+                python_dirs = list(sidecar_venv_path.glob("lib/python*/site-packages"))
+                if python_dirs:
+                    site_packages = python_dirs[0]
+                else:
+                    site_packages = sidecar_venv_path / "lib" / "python3." / "site-packages"
+
+            if site_packages.exists():
+                if config.pythonpath:
+                    config.pythonpath = f"{site_packages}:{config.pythonpath}"
+                else:
+                    config.pythonpath = str(site_packages)
+            # Update python_cmd to use venv python
+            if sys.platform == "win32":
+                venv_python = sidecar_venv_path / "Scripts" / "python.exe"
+            else:
+                venv_python = sidecar_venv_path / "bin" / "python"
+            if venv_python.exists():
+                config.python_cmd = str(venv_python)
+        else:
+            results["sidecar_venv_created"] = False
+            results["dependencies_installed"] = False
 
         extractor = get_extractor(config.framework_type)
         if extractor:
@@ -204,7 +287,9 @@ def run_sidecar_validation(
                 results["contracts_populated"] = populated
 
             if config.tools.run_crosshair and config.paths.contracts_dir.exists():
-                harness_generated = generate_harness(config.paths.contracts_dir, config.paths.harness_path)
+                harness_generated = generate_harness(
+                    config.paths.contracts_dir, config.paths.harness_path, config.repo_path
+                )
                 results["harness_generated"] = harness_generated
 
                 if harness_generated:
@@ -217,6 +302,7 @@ def run_sidecar_validation(
                         inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
                         per_path_timeout=config.timeouts.crosshair_per_path,
                         per_condition_timeout=config.timeouts.crosshair_per_condition,
+                        python_cmd=config.python_cmd,
                     )
                     results["crosshair_results"]["harness"] = crosshair_result
 
@@ -264,7 +350,9 @@ def run_sidecar_validation(
 
 
 @beartype
-def get_extractor(framework_type: FrameworkType) -> DjangoExtractor | FastAPIExtractor | DRFExtractor | None:
+def get_extractor(
+    framework_type: FrameworkType,
+) -> DjangoExtractor | FastAPIExtractor | DRFExtractor | FlaskExtractor | None:
     """
     Get framework extractor for framework type.
 
@@ -280,6 +368,8 @@ def get_extractor(framework_type: FrameworkType) -> DjangoExtractor | FastAPIExt
         return FastAPIExtractor()
     if framework_type == FrameworkType.DRF:
         return DRFExtractor()
+    if framework_type == FrameworkType.FLASK:
+        return FlaskExtractor()
     return None
 
 

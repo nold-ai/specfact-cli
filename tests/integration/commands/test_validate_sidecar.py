@@ -27,6 +27,24 @@ def test_repo(tmp_path: Path) -> Path:
     return repo
 
 
+@pytest.fixture
+def flask_test_repo(tmp_path: Path) -> Path:
+    """Create a Flask test repository structure."""
+    repo = tmp_path / "flask-test-repo"
+    repo.mkdir()
+    (repo / "app.py").write_text(
+        """from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/api/users", methods=["GET"])
+def get_users():
+    return {"users": []}
+"""
+    )
+    return repo
+
+
 def test_validate_sidecar_init_command(runner: CliRunner, test_repo: Path, tmp_path: Path) -> None:
     """Test validate sidecar init command."""
     bundle_name = "test-bundle"
@@ -52,6 +70,7 @@ def test_validate_sidecar_init_command_invalid_path(runner: CliRunner, tmp_path:
     assert result.exit_code != 0
 
 
+@pytest.mark.timeout(30)
 def test_validate_sidecar_run_command(runner: CliRunner, test_repo: Path, tmp_path: Path) -> None:
     """Test validate sidecar run command."""
     bundle_name = "test-bundle"
@@ -102,3 +121,42 @@ def test_validate_sidecar_run_help(runner: CliRunner) -> None:
     clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
     assert "--run-crosshair" in clean_output
     assert "--run-specmatic" in clean_output
+
+
+def test_validate_sidecar_init_command_flask(runner: CliRunner, flask_test_repo: Path, tmp_path: Path) -> None:
+    """Test validate sidecar init command with Flask repository."""
+    bundle_name = "flask-bundle"
+    result = runner.invoke(
+        app,
+        ["validate", "sidecar", "init", bundle_name, str(flask_test_repo)],
+    )
+
+    assert result.exit_code == 0
+    assert "Sidecar workspace initialized successfully" in result.stdout
+    assert "Framework detected" in result.stdout
+    # Should detect Flask (not PURE_PYTHON)
+    assert "flask" in result.stdout.lower()
+
+
+@pytest.mark.timeout(30)
+def test_validate_sidecar_run_command_flask(runner: CliRunner, flask_test_repo: Path, tmp_path: Path) -> None:
+    """Test validate sidecar run command with Flask repository."""
+    bundle_name = "flask-bundle"
+
+    # First initialize
+    init_result = runner.invoke(
+        app,
+        ["validate", "sidecar", "init", bundle_name, str(flask_test_repo)],
+    )
+    assert init_result.exit_code == 0
+
+    # Then run validation
+    result = runner.invoke(
+        app,
+        ["validate", "sidecar", "run", bundle_name, str(flask_test_repo), "--no-run-crosshair", "--no-run-specmatic"],
+    )
+
+    # Command should execute (may fail if tools not available, but should not crash)
+    assert "Running sidecar validation" in result.stdout or "Validation Results" in result.stdout
+    # Verify routes were extracted
+    assert "Routes extracted" in result.stdout or "routes extracted" in result.stdout.lower()

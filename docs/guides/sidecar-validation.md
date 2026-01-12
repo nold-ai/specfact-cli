@@ -15,7 +15,7 @@ Sidecar validation enables contract-based validation of external codebases (libr
 - **Validating third-party libraries** without forking or modifying them
 - **Testing legacy codebases** where direct modifications are risky
 - **Contract validation** of APIs where you don't control the implementation
-- **Framework validation** (Django, FastAPI, DRF) using extracted routes and schemas
+- **Framework validation** (Django, FastAPI, DRF, Flask) using extracted routes and schemas
 
 ## Quick Start
 
@@ -67,6 +67,7 @@ The sidecar validation automatically detects the framework type:
 - **Django**: Detects `manage.py` or `urls.py` files
 - **FastAPI**: Detects `FastAPI()` or `@app.get()` patterns
 - **DRF**: Detects `rest_framework` imports (if Django is also present)
+- **Flask**: Detects `Flask()` instantiation or `from flask import Flask` imports
 - **Pure Python**: No framework detected
 
 ### Step 2: Route Extraction
@@ -76,6 +77,7 @@ Framework-specific extractors extract routes and schemas:
 - **Django**: Extracts URL patterns from `urls.py` and form schemas
 - **FastAPI**: Extracts routes from decorators and Pydantic models
 - **DRF**: Extracts serializers and converts to OpenAPI schemas
+- **Flask**: Extracts routes from `@app.route()` and `@bp.route()` decorators, converts path parameters (`<int:id>`, `<slug>`, etc.) to OpenAPI format
 
 ### Step 3: Contract Population
 
@@ -84,6 +86,8 @@ OpenAPI contracts are populated with extracted routes and schemas:
 - Routes are matched to contract features
 - Request/response schemas are merged
 - Path parameters are extracted and documented
+- **Expected status codes** are automatically extracted from OpenAPI `responses` sections
+- **Response structure validation** is added based on OpenAPI schemas (required fields, property types, array items)
 
 ### Step 4: Harness Generation
 
@@ -160,6 +164,44 @@ specfact validate sidecar init drf-api /path/to/drf-project
 specfact validate sidecar run drf-api /path/to/drf-project
 ```
 
+### Flask
+
+**Detection:**
+
+- Looks for `Flask()` instantiation or `from flask import Flask` imports
+- Detects Flask route decorators (`@app.route()`, `@bp.route()`)
+
+**Extraction:**
+
+- Route decorators (`@app.route()`, `@bp.route()`)
+- **All HTTP methods** are captured (e.g., `methods=['GET','POST']` generates separate routes for each method)
+- Path parameters converted to OpenAPI format (`<int:id>` → `{id}` with `type: integer`)
+- **Parameter names preserved** for converter-based paths (e.g., `<uuid:user_id>` → `{user_id}`, not `{uuid}`)
+- HTTP methods from decorators
+- Blueprint routes
+
+**Example:**
+
+```bash
+specfact validate sidecar init flask-app /path/to/flask-project
+specfact validate sidecar run flask-app /path/to/flask-project
+```
+
+**Dependency Installation:**
+
+Flask applications automatically have dependencies installed in an isolated venv (`.specfact/venv/`) to ensure Flask is available for harness execution:
+
+- Framework dependencies: `flask`, `werkzeug`
+- Validation tools: `crosshair-tool`
+- Harness dependencies: `beartype`, `icontract`
+- Project dependencies: Automatically detected and installed from `requirements.txt`, `pyproject.toml`, etc.
+
+**Route Extraction Details:**
+
+- **Multiple HTTP methods**: Routes with `methods=['GET','POST']` generate separate RouteInfo objects for each method
+- **Converter-based paths**: Routes like `<uuid:user_id>` correctly extract `{user_id}` as the parameter name
+- **Custom converters**: Unknown converters (e.g., `uuid`, custom converters) default to `string` type while preserving parameter names
+
 ### Pure Python
 
 **Detection:**
@@ -213,13 +255,24 @@ Sidecar validation respects the following environment variables:
 
 - Runs on source code (if runtime contracts present)
 - Runs on generated harness (external contracts)
+- **Uses venv Python** (`.specfact/venv/bin/python`) when available to ensure framework dependencies are accessible
 - Captures confirmed/not-confirmed/violations
 
 **Configuration:**
 
-- Timeout settings (per-path, per-condition)
+- **Overall timeout**: 120 seconds (default) - allows analysis of multiple routes
+- **Per-path timeout**: 10 seconds (default) - prevents single route from blocking others
+- **Per-condition timeout**: 5 seconds (default) - prevents individual checks from hanging
 - Verbose output options
 - Module resolution handling
+
+**Timeout Behavior:**
+
+For complex applications, timeouts are expected and indicate normal operation:
+
+- **"Not confirmed"** status means analysis is working but couldn't complete within timeout
+- **Partial results** are available in summary files even if overall timeout is reached
+- Per-path timeouts ensure progress even if some routes are slow
 
 ### Specmatic
 
@@ -273,11 +326,12 @@ Sidecar validation uses Rich console for progress reporting:
 Progress phases:
 
 1. Framework detection
-2. Route extraction
-3. Contract population
-4. Harness generation
-5. CrossHair analysis
-6. Specmatic validation
+2. Dependency installation (isolated venv creation and package installation)
+3. Route extraction
+4. Contract population (with expected status codes and response structure validation)
+5. Harness generation
+6. CrossHair analysis (using venv Python)
+7. Specmatic validation
 
 ## Output and Reports
 
@@ -333,8 +387,9 @@ Sidecar validation maintains backward compatibility with template-based sidecar 
 
 **Solutions:**
 
-- Ensure framework files are present (`manage.py` for Django, `main.py` for FastAPI)
+- Ensure framework files are present (`manage.py` for Django, `main.py` for FastAPI, `app.py` for Flask)
 - Check that framework imports are present in source files
+- For Flask: Ensure `from flask import Flask` or `import flask` with `Flask()` instantiation
 - Verify repository path is correct
 
 ### CrossHair Not Found
@@ -374,12 +429,14 @@ Specmatic requires a service endpoint to test against. If no service configurati
 **Solutions:**
 
 1. **Configure service endpoint** (recommended):
+
    ```bash
    # Set test_base_url in sidecar workspace .env file
    SPECMATIC_TEST_BASE_URL=http://localhost:8000
    ```
 
 2. **Configure application server**:
+
    ```bash
    # Set app command and port
    SIDECAR_APP_CMD="python manage.py runserver"
@@ -387,11 +444,13 @@ Specmatic requires a service endpoint to test against. If no service configurati
    ```
 
 3. **Force Specmatic to run** (may fail if no service available):
+
    ```bash
    specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
    ```
 
 4. **Skip Specmatic explicitly** (if you only need CrossHair):
+
    ```bash
    specfact validate sidecar run legacy-api /path/to/repo --no-run-specmatic
    ```
@@ -402,9 +461,29 @@ Specmatic requires a service endpoint to test against. If no service configurati
 
 **Solutions:**
 
-- Set `PYTHONPATH` correctly for your project structure
+- **Automatic**: Sidecar validation automatically sets PYTHONPATH to include venv site-packages
+- **Venv Python**: CrossHair uses venv Python (`.specfact/venv/bin/python`) when available, ensuring framework dependencies are accessible
+- Set `PYTHONPATH` correctly for your project structure (if manual override needed)
 - Ensure source directories are in PYTHONPATH
 - Check that `__init__.py` files are present for packages
+
+### Dependency Installation Issues
+
+**Issue**: Dependencies not installed or venv broken
+
+**Solutions:**
+
+- **Automatic recreation**: The system automatically detects and recreates broken venvs
+- **Check venv**: Verify `.specfact/venv/` exists and contains installed packages
+- **Re-run validation**: Delete `.specfact/venv/` and re-run validation to trigger fresh installation
+- **Manual installation**: If automatic installation fails, manually install dependencies:
+
+  ```bash
+  cd /path/to/repo
+  python3 -m venv .specfact/venv --copies
+  .specfact/venv/bin/pip install flask werkzeug crosshair-tool beartype icontract
+  .specfact/venv/bin/pip install -r requirements.txt
+  ```
 
 ## Examples
 
@@ -433,7 +512,19 @@ specfact validate sidecar run fastapi-api /path/to/fastapi-api
 
 **Note**: In this example, Specmatic is automatically skipped because no service configuration is provided. The validation will focus on CrossHair analysis only.
 
-### Example 3: Pure Python Library
+### Example 3: Flask Application
+
+```bash
+# Initialize
+specfact validate sidecar init flask-app /path/to/flask-project
+
+# Run validation (dependencies automatically installed in isolated venv)
+specfact validate sidecar run flask-app /path/to/flask-project --no-run-specmatic
+```
+
+**Note**: Flask applications automatically have dependencies installed in `.specfact/venv/` during initialization. All HTTP methods are captured (e.g., routes with `methods=['GET','POST']` generate separate routes for each method).
+
+### Example 4: Pure Python Library
 
 ```bash
 # Initialize

@@ -78,6 +78,7 @@ def test_template_workspace_detection(template_sidecar_workspace: Path) -> None:
     assert (template_sidecar_workspace / "harness_contracts.py").exists()
 
 
+@pytest.mark.timeout(30)
 def test_cli_works_with_template_workspace(runner: CliRunner, test_repo_with_template_workspace: Path) -> None:
     """Test that CLI commands work with template-based workspaces."""
     bundle_name = "test-bundle"
