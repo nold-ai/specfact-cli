@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.24.1] - 2026-01-12
+
+### Fixed (0.24.1)
+
+- **Flask Route Extraction**: Fixed Flask extractor to capture all HTTP methods
+  - **Issue**: When a Flask route declared multiple methods (e.g., `methods=['GET','POST']`), only the first method was extracted
+  - **Fix**: Modified `_extract_route_from_function()` to return one `RouteInfo` per HTTP method
+  - **Impact**: All HTTP methods are now properly extracted and included in generated contracts
+  - **Example**: `@app.route('/path', methods=['GET', 'POST'])` now generates both GET and POST routes
+
+- **Flask Path Parameter Names**: Fixed parameter name extraction for converter-based paths
+  - **Issue**: For Flask routes using converters with explicit names (e.g., `<uuid:user_id>`), the parameter name was overwritten with the converter name, resulting in `{uuid}` instead of `{user_id}`
+  - **Fix**: Updated `_extract_path_parameters()` to preserve parameter names from the second regex group when present
+  - **Impact**: Converter-based paths now correctly extract parameter names (e.g., `<uuid:user_id>` → `{user_id}`)
+  - **Example**: Routes like `<uuid:user_id>` and custom converters now preserve the actual parameter name
+
 ## [0.24.0] - 2026-01-09
 
 ### Added (0.24.0)

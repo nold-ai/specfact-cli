@@ -44,13 +44,13 @@ def test_detect_framework_pure_python(tmp_path: Path) -> None:
 
 
 def test_detect_framework_flask(tmp_path: Path) -> None:
-    """Test Flask detection (should return PURE_PYTHON)."""
+    """Test Flask detection (should return FLASK)."""
     # Create Flask app file
     app_py = tmp_path / "app.py"
     app_py.write_text("from flask import Flask\napp = Flask(__name__)\n")
 
     result = detect_framework(tmp_path)
-    assert result == FrameworkType.PURE_PYTHON
+    assert result == FrameworkType.FLASK
 
 
 def test_detect_framework_flask_before_django_urls(tmp_path: Path) -> None:
@@ -64,8 +64,8 @@ def test_detect_framework_flask_before_django_urls(tmp_path: Path) -> None:
     urls_py.write_text("# This should not trigger Django detection if Flask is present\n")
 
     result = detect_framework(tmp_path)
-    # Flask should be detected and return PURE_PYTHON, not DJANGO
-    assert result == FrameworkType.PURE_PYTHON
+    # Flask should be detected and return FLASK, not DJANGO
+    assert result == FrameworkType.FLASK
 
 
 def test_detect_django_settings_module(tmp_path: Path) -> None:

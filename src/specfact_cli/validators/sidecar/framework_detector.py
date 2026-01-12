@@ -92,9 +92,9 @@ def detect_framework(repo_path: Path) -> FrameworkType:
             return FrameworkType.DRF
         return FrameworkType.DJANGO
 
-    # If Flask was detected, return PURE_PYTHON (Flask doesn't use Django patterns)
+    # If Flask was detected, return FLASK
     if flask_detected:
-        return FrameworkType.PURE_PYTHON
+        return FrameworkType.FLASK
 
     # Check for urls.py files (Django pattern)
     # Only check if Flask wasn't detected and manage.py doesn't exist

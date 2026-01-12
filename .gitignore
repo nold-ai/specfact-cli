@@ -124,3 +124,4 @@ findings.json
 answers.json
 questions.json
 docs/project-plans/
+harness_contracts.py

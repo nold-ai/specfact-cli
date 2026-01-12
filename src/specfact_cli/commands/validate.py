@@ -6,6 +6,7 @@ This module provides validation commands including sidecar validation.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import typer
@@ -20,6 +21,92 @@ from specfact_cli.validators.sidecar.orchestrator import initialize_sidecar_work
 
 app = typer.Typer(name="validate", help="Validation commands", suggest_commands=False)
 console = get_configured_console()
+
+
+@beartype
+def _format_crosshair_error(stderr: str, stdout: str) -> str:
+    """
+    Format CrossHair error messages into user-friendly text.
+
+    Filters out technical errors (like Rich markup errors) and provides
+    actionable error messages.
+
+    Args:
+        stderr: CrossHair stderr output
+        stdout: CrossHair stdout output
+
+    Returns:
+        User-friendly error message or empty string if no actionable error
+    """
+    combined = (stderr + "\n" + stdout).strip()
+    if not combined:
+        return ""
+
+    # Filter out Rich markup errors - these are internal errors, not user-facing
+    error_lower = combined.lower()
+    if "closing tag" in error_lower and "doesn't match any open tag" in error_lower:
+        # This is a Rich internal error - ignore it completely
+        return ""
+
+    # Detect common error patterns and provide user-friendly messages
+    # Python shared library issue (venv Python can't load libraries)
+    if "error while loading shared libraries" in error_lower or "libpython" in error_lower:
+        return (
+            "Python environment issue detected. CrossHair is using system Python instead. "
+            "This is usually harmless - validation will continue with system Python."
+        )
+
+    # CrossHair not found
+    if "not found" in error_lower and ("crosshair" in error_lower or "command" in error_lower):
+        return "CrossHair is not installed or not in PATH. Install it with: pip install crosshair-tool"
+
+    # Timeout
+    if "timeout" in error_lower or "timed out" in error_lower:
+        return (
+            "CrossHair analysis timed out. This is expected for complex applications with many routes. "
+            "Some routes were analyzed before timeout. Check the summary file for partial results. "
+            "To analyze more routes, increase --crosshair-timeout or --crosshair-per-path-timeout."
+        )
+
+    # Import errors
+    if "importerror" in error_lower or "module not found" in error_lower:
+        module_match = re.search(r"no module named ['\"]([^'\"]+)['\"]", error_lower)
+        if module_match:
+            module_name = module_match.group(1)
+            return (
+                f"Missing Python module: {module_name}. "
+                "Ensure all dependencies are installed in the sidecar environment."
+            )
+        return "Missing Python module. Ensure all dependencies are installed."
+
+    # Syntax errors in harness
+    if "syntaxerror" in error_lower or "syntax error" in error_lower:
+        return (
+            "Syntax error in generated harness. This may indicate an issue with contract generation. "
+            "Check the harness file for errors."
+        )
+
+    # Generic error - show a sanitized version (remove paths, technical details)
+    # Only show first line and remove technical details
+    lines = combined.split("\n")
+    first_line = lines[0].strip() if lines else ""
+
+    # Remove common technical noise
+    first_line = re.sub(r"Error: closing tag.*", "", first_line, flags=re.IGNORECASE)
+    first_line = re.sub(r"at position \d+", "", first_line, flags=re.IGNORECASE)
+    first_line = re.sub(r"\.specfact/venv/bin/python.*", "", first_line)
+    first_line = re.sub(r"error while loading shared libraries.*", "", first_line, flags=re.IGNORECASE)
+
+    # If we have a clean message, show it (limited length)
+    if first_line and len(first_line) > 10:
+        # Limit to reasonable length
+        if len(first_line) > 150:
+            first_line = first_line[:147] + "..."
+        return first_line
+
+    # Fallback: generic message
+    return "CrossHair execution failed. Check logs for details."
+
 
 # Create sidecar subcommand group
 sidecar_app = typer.Typer(name="sidecar", help="Sidecar validation commands", suggest_commands=False)
@@ -136,15 +223,43 @@ def run(
             status = "[green]✓[/green]" if success else "[red]✗[/red]"
             console.print(f"  {status} {key}")
 
+            # Display user-friendly error messages if CrossHair failed
+            if not success:
+                stderr = value.get("stderr", "")
+                stdout = value.get("stdout", "")
+                error_message = _format_crosshair_error(stderr, stdout)
+                if error_message:
+                    # Use markup=False to prevent Rich from parsing brackets in error messages
+                    # This prevents Rich markup errors when error messages contain brackets
+                    try:
+                        console.print("    [red]Error:[/red]", end=" ")
+                        console.print(error_message, markup=False)
+                    except Exception:
+                        # If Rich itself fails (shouldn't happen with markup=False, but be safe)
+                        # Fall back to plain print
+                        print(f"    Error: {error_message}")
+
         # Display summary if available
         if results.get("crosshair_summary"):
             summary = results["crosshair_summary"]
             summary_line = format_summary_line(summary)
-            console.print(f"  {summary_line}")
+            # Use try/except to catch Rich parsing errors
+            try:
+                console.print(f"  {summary_line}")
+            except Exception:
+                # Fall back to plain print if Rich fails
+                print(f"  {summary_line}")
 
             # Show summary file location if generated
             if results.get("crosshair_summary_file"):
-                console.print(f"  Summary file: {results['crosshair_summary_file']}")
+                summary_file_path = results["crosshair_summary_file"]
+                # Use markup=False for paths to prevent Rich from parsing brackets
+                try:
+                    console.print("  Summary file: ", end="")
+                    console.print(str(summary_file_path), markup=False)
+                except Exception:
+                    # Fall back to plain print if Rich fails
+                    print(f"  Summary file: {summary_file_path}")
 
     if results.get("specmatic_skipped"):
         console.print(

@@ -30,6 +30,7 @@ def run_crosshair(
     inputs_path: Path | None = None,
     per_path_timeout: int | None = None,
     per_condition_timeout: int | None = None,
+    python_cmd: str | None = None,
 ) -> dict[str, Any]:
     """
     Run CrossHair on source code or harness.
@@ -40,6 +41,10 @@ def run_crosshair(
         pythonpath: PYTHONPATH for execution
         verbose: Enable verbose output
         repo_path: Optional repository path for environment manager detection
+        inputs_path: Optional path to deterministic inputs JSON file
+        per_path_timeout: Optional timeout per execution path
+        per_condition_timeout: Optional timeout per condition
+        python_cmd: Optional Python command to use (e.g., venv Python path)
 
     Returns:
         Dictionary with execution results
@@ -49,14 +54,20 @@ def run_crosshair(
     if pythonpath:
         env["PYTHONPATH"] = pythonpath
 
-    # Build command using environment manager detection if repo_path provided
-    base_cmd = ["crosshair", "check", str(source_path)]
+    # Build command using venv Python if available, otherwise use system CrossHair
+    python_cmd_path = Path(python_cmd) if python_cmd else None
+    if python_cmd_path and python_cmd_path.exists():
+        # Use venv Python to run CrossHair module
+        base_cmd = [str(python_cmd_path), "-m", "crosshair", "check", str(source_path)]
+    else:
+        # Fall back to system CrossHair
+        base_cmd = ["crosshair", "check", str(source_path)]
     if verbose:
         base_cmd.append("--verbose")
     if per_path_timeout:
-        base_cmd.extend(["--per-path-timeout", str(per_path_timeout)])
+        base_cmd.extend(["--per_path_timeout", str(per_path_timeout)])
     if per_condition_timeout:
-        base_cmd.extend(["--per-condition-timeout", str(per_condition_timeout)])
+        base_cmd.extend(["--per_condition_timeout", str(per_condition_timeout)])
     # Note: CrossHair doesn't directly support inputs.json, but deterministic inputs
     # can be embedded in the harness file itself
 

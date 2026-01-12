@@ -71,6 +71,33 @@ urlpatterns = [
     return repo
 
 
+@pytest.fixture
+def flask_repo(tmp_path: Path) -> Path:
+    """Create a Flask test repository."""
+    repo = tmp_path / "flask-repo"
+    repo.mkdir()
+
+    # Create Flask app
+    app_py = repo / "app.py"
+    app_py.write_text(
+        """from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/api/users", methods=["GET"])
+def get_users():
+    return {"users": []}
+
+@app.route("/api/posts/<int:post_id>", methods=["GET"])
+def get_post(post_id):
+    return {"post_id": post_id}
+"""
+    )
+
+    return repo
+
+
+@pytest.mark.timeout(30)
 def test_sidecar_init_run_workflow_fastapi(runner: CliRunner, fastapi_repo: Path) -> None:
     """Test complete sidecar init → run workflow for FastAPI."""
     bundle_name = "fastapi-test"
@@ -103,6 +130,7 @@ def test_sidecar_init_run_workflow_fastapi(runner: CliRunner, fastapi_repo: Path
     assert "Running sidecar validation" in run_result.stdout or "Validation Results" in run_result.stdout
 
 
+@pytest.mark.timeout(30)
 def test_sidecar_init_run_workflow_django(runner: CliRunner, django_repo: Path) -> None:
     """Test complete sidecar init → run workflow for Django."""
     bundle_name = "django-test"
@@ -135,6 +163,41 @@ def test_sidecar_init_run_workflow_django(runner: CliRunner, django_repo: Path) 
     assert "Running sidecar validation" in run_result.stdout or "Validation Results" in run_result.stdout
 
 
+@pytest.mark.timeout(30)
+def test_sidecar_init_run_workflow_flask(runner: CliRunner, flask_repo: Path) -> None:
+    """Test complete sidecar init → run workflow for Flask."""
+    bundle_name = "flask-test"
+
+    # Step 1: Initialize
+    init_result = runner.invoke(
+        app,
+        ["validate", "sidecar", "init", bundle_name, str(flask_repo)],
+    )
+
+    assert init_result.exit_code == 0
+    assert "Sidecar workspace initialized successfully" in init_result.stdout
+    assert "flask" in init_result.stdout.lower()
+
+    # Step 2: Run validation (without tools to avoid external dependencies)
+    run_result = runner.invoke(
+        app,
+        [
+            "validate",
+            "sidecar",
+            "run",
+            bundle_name,
+            str(flask_repo),
+            "--no-run-crosshair",
+            "--no-run-specmatic",
+        ],
+    )
+
+    # Should execute workflow steps (framework detection, route extraction, etc.)
+    assert "Running sidecar validation" in run_result.stdout or "Validation Results" in run_result.stdout
+    # Verify Flask routes were extracted
+    assert "Routes extracted" in run_result.stdout or "routes extracted" in run_result.stdout.lower()
+
+
 def test_sidecar_framework_detection(runner: CliRunner, fastapi_repo: Path) -> None:
     """Test framework detection in sidecar workflow."""
     bundle_name = "framework-test"
@@ -147,6 +210,20 @@ def test_sidecar_framework_detection(runner: CliRunner, fastapi_repo: Path) -> N
     assert result.exit_code == 0
     # Should detect FastAPI
     assert "fastapi" in result.stdout.lower() or "Framework detected" in result.stdout
+
+
+def test_sidecar_framework_detection_flask(runner: CliRunner, flask_repo: Path) -> None:
+    """Test Flask framework detection in sidecar workflow."""
+    bundle_name = "flask-framework-test"
+
+    result = runner.invoke(
+        app,
+        ["validate", "sidecar", "init", bundle_name, str(flask_repo)],
+    )
+
+    assert result.exit_code == 0
+    # Should detect Flask (not PURE_PYTHON)
+    assert "flask" in result.stdout.lower() or "Framework detected" in result.stdout
 
 
 def test_sidecar_workflow_with_invalid_repo(runner: CliRunner, tmp_path: Path) -> None:
