@@ -97,6 +97,7 @@ def get_post(post_id):
     return repo
 
 
+@pytest.mark.timeout(30)
 def test_sidecar_init_run_workflow_fastapi(runner: CliRunner, fastapi_repo: Path) -> None:
     """Test complete sidecar init → run workflow for FastAPI."""
     bundle_name = "fastapi-test"
@@ -161,6 +162,7 @@ def test_sidecar_init_run_workflow_django(runner: CliRunner, django_repo: Path) 
     assert "Running sidecar validation" in run_result.stdout or "Validation Results" in run_result.stdout
 
 
+@pytest.mark.timeout(30)
 def test_sidecar_init_run_workflow_flask(runner: CliRunner, flask_repo: Path) -> None:
     """Test complete sidecar init → run workflow for Flask."""
     bundle_name = "flask-test"

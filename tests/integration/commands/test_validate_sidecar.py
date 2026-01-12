@@ -70,6 +70,7 @@ def test_validate_sidecar_init_command_invalid_path(runner: CliRunner, tmp_path:
     assert result.exit_code != 0
 
 
+@pytest.mark.timeout(30)
 def test_validate_sidecar_run_command(runner: CliRunner, test_repo: Path, tmp_path: Path) -> None:
     """Test validate sidecar run command."""
     bundle_name = "test-bundle"
@@ -137,6 +138,7 @@ def test_validate_sidecar_init_command_flask(runner: CliRunner, flask_test_repo:
     assert "flask" in result.stdout.lower()
 
 
+@pytest.mark.timeout(30)
 def test_validate_sidecar_run_command_flask(runner: CliRunner, flask_test_repo: Path, tmp_path: Path) -> None:
     """Test validate sidecar run command with Flask repository."""
     bundle_name = "flask-bundle"

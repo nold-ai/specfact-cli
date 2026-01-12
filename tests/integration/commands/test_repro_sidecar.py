@@ -50,6 +50,7 @@ def unannotated_function(x):
         output = result.stdout + result.stderr
         assert "sidecar-bundle" in output.lower() or "required" in output.lower() or result.exit_code == 2
 
+    @pytest.mark.timeout(30)
     def test_repro_sidecar_detects_unannotated(self, runner: CliRunner, temp_repo: Path) -> None:
         """Test that repro sidecar detects unannotated functions."""
         result = runner.invoke(
