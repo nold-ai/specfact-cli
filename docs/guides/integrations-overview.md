@@ -75,6 +75,8 @@ SpecFact CLI integrations fall into four main categories:
 
 ## Testing & Validation
 
+> **New in v0.24.0**: [Sidecar Validation](./sidecar-validation.md) - Validate external codebases without modifying source code
+
 ### Specmatic Integration
 
 **Purpose**: API contract testing and validation
