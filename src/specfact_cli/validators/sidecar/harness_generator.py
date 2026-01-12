@@ -19,13 +19,14 @@ from icontract import ensure, require
 @require(lambda contracts_dir: contracts_dir.exists(), "Contracts directory must exist")
 @require(lambda harness_path: isinstance(harness_path, Path), "Harness path must be Path")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
-def generate_harness(contracts_dir: Path, harness_path: Path) -> bool:
+def generate_harness(contracts_dir: Path, harness_path: Path, repo_path: Path | None = None) -> bool:
     """
     Generate CrossHair harness from OpenAPI contracts.
 
     Args:
         contracts_dir: Directory containing OpenAPI contract files
         harness_path: Path to output harness file
+        repo_path: Optional path to repository root (for importing application code)
 
     Returns:
         True if harness was generated successfully
@@ -49,7 +50,7 @@ def generate_harness(contracts_dir: Path, harness_path: Path) -> bool:
     if not operations:
         return False
 
-    harness_content = render_harness(operations)
+    harness_content = render_harness(operations, repo_path)
     harness_path.parent.mkdir(parents=True, exist_ok=True)
     harness_path.write_text(harness_content, encoding="utf-8")
 
@@ -99,6 +100,7 @@ def extract_operations(contract_data: dict[str, Any]) -> list[dict[str, Any]]:
             # Extract response schemas (prioritize 200, then others)
             responses = operation.get("responses", {})
             response_schema = _extract_response_schema(responses)
+            expected_status_codes = _extract_expected_status_codes(responses)
 
             operations.append(
                 {
@@ -108,6 +110,7 @@ def extract_operations(contract_data: dict[str, Any]) -> list[dict[str, Any]]:
                     "parameters": all_params,
                     "request_schema": request_schema,
                     "response_schema": response_schema,
+                    "expected_status_codes": expected_status_codes,
                 }
             )
 
@@ -147,14 +150,35 @@ def _extract_response_schema(responses: dict[str, Any]) -> dict[str, Any] | None
 
 
 @beartype
+def _extract_expected_status_codes(responses: dict[str, Any]) -> list[int]:
+    """Extract expected HTTP status codes from OpenAPI responses."""
+    if not responses:
+        return [200]  # Default to 200 if no responses defined
+
+    status_codes = []
+    for status_str, _response_def in responses.items():
+        if isinstance(status_str, str) and status_str.isdigit():
+            status_codes.append(int(status_str))
+        elif isinstance(status_str, int):
+            status_codes.append(status_str)
+
+    # If no explicit status codes, default to 200
+    if not status_codes:
+        status_codes = [200]
+
+    return sorted(status_codes)
+
+
+@beartype
 @require(lambda operations: isinstance(operations, list), "Operations must be a list")
 @ensure(lambda result: isinstance(result, str), "Must return str")
-def render_harness(operations: list[dict[str, Any]]) -> str:
+def render_harness(operations: list[dict[str, Any]], repo_path: Path | None = None) -> str:
     """
     Render harness Python code from operations with meaningful contracts.
 
     Args:
         operations: List of operation dictionaries with parameters and schemas
+        repo_path: Optional path to repository root (for importing application code)
 
     Returns:
         Harness Python code as string
@@ -168,14 +192,22 @@ def render_harness(operations: list[dict[str, Any]]) -> str:
     lines.append("from beartype import beartype")
     lines.append("from icontract import ensure, require")
     lines.append("")
-    lines.append("try:")
-    lines.append("    from common import adapters as sidecar_adapters")
-    lines.append("except ImportError:")
-    lines.append("    sidecar_adapters = None")
-    lines.append("")
+
+    # Try to import Flask app if repo_path provided
+    app_imported = False
+    if repo_path:
+        app_imported = _add_flask_app_import(lines, repo_path)
+
+    # Fallback to sidecar_adapters if app not imported
+    if not app_imported:
+        lines.append("try:")
+        lines.append("    from common import adapters as sidecar_adapters")
+        lines.append("except ImportError:")
+        lines.append("    sidecar_adapters = None")
+        lines.append("")
 
     for op in operations:
-        func_code = _render_operation(op)
+        func_code = _render_operation(op, app_imported)
         lines.append(func_code)
         lines.append("")
 
@@ -183,7 +215,54 @@ def render_harness(operations: list[dict[str, Any]]) -> str:
 
 
 @beartype
-def _render_operation(op: dict[str, Any]) -> str:
+def _add_flask_app_import(lines: list[str], repo_path: Path) -> bool:
+    """Add Flask app import and test client setup."""
+    # Try to detect Flask app entry point
+    app_files = ["microblog.py", "app.py", "main.py", "application.py"]
+    app_module = None
+
+    for app_file in app_files:
+        if (repo_path / app_file).exists():
+            # Try to extract module name from file
+            app_module = app_file.replace(".py", "")
+            break
+
+    # Also check for app/__init__.py with create_app
+    if (repo_path / "app" / "__init__.py").exists():
+        app_module = "app"
+
+    if app_module:
+        lines.append("# Import Flask application")
+        lines.append("import sys")
+        lines.append("from pathlib import Path")
+        lines.append("")
+        lines.append(f"# Add repo to path: {repo_path}")
+        lines.append(f"_repo_path = Path(r'{repo_path}')")
+        lines.append("if _repo_path.exists():")
+        lines.append("    sys.path.insert(0, str(_repo_path))")
+        lines.append("")
+        lines.append("try:")
+        if app_module == "app":
+            lines.append("    from app import create_app")
+            lines.append("    _flask_app = create_app()")
+        elif app_module == "microblog":
+            lines.append("    from microblog import app as _flask_app")
+        else:
+            lines.append(f"    from {app_module} import app as _flask_app")
+        lines.append("    _flask_client = _flask_app.test_client()")
+        lines.append("    _flask_app_available = True")
+        lines.append("except (ImportError, AttributeError, Exception) as e:")
+        lines.append("    _flask_app = None")
+        lines.append("    _flask_client = None")
+        lines.append("    _flask_app_available = False")
+        lines.append("")
+        return True
+
+    return False
+
+
+@beartype
+def _render_operation(op: dict[str, Any], use_flask_app: bool = False) -> str:
     """Render a single operation as a harness function with meaningful contracts."""
     op_id = op["operation_id"]
     method = op["method"]
@@ -191,6 +270,7 @@ def _render_operation(op: dict[str, Any]) -> str:
     parameters = op.get("parameters", [])
     request_schema = op.get("request_schema")
     response_schema = op.get("response_schema")
+    expected_status_codes = op.get("expected_status_codes", [200])
 
     # Sanitize operation_id to create valid Python function name
     sanitized_id = re.sub(r"[^a-zA-Z0-9_]", "_", op_id)
@@ -235,8 +315,8 @@ def _render_operation(op: dict[str, Any]) -> str:
     # Generate preconditions from parameters and request schema
     preconditions = _generate_preconditions(path_params, query_params, request_schema, param_types)
 
-    # Generate postconditions from response schema
-    postconditions = _generate_postconditions(response_schema)
+    # Generate postconditions from response schema and status codes
+    postconditions = _generate_postconditions(response_schema, expected_status_codes)
 
     # Build function code
     lines = []
@@ -253,25 +333,120 @@ def _render_operation(op: dict[str, Any]) -> str:
     lines.append(sig)
     lines.append(f'    """Harness for {method} {path}."""')
 
-    # Build call arguments
-    if path_params:
-        # For path params, we need to pass them in order
-        call_args = ", ".join(param_names[: len(path_params)])
-        if query_params:
-            call_kwargs = ", ".join(f"{name}={name}" for name in param_names[len(path_params) :])
-            lines.append("    if sidecar_adapters:")
+    # Build path with parameters substituted
+    actual_path = path
+    for param in path_params:
+        param_name = param.get("name", "")
+        param_var = param_name.replace("-", "_")
+        # Replace {param} or <param> with actual value
+        actual_path = actual_path.replace(f"{{{param_name}}}", f"{{{param_var}}}")
+        actual_path = actual_path.replace(f"<{param_name}>", f"{{{param_var}}}")
+
+    # Build call to Flask test client or sidecar_adapters
+    if use_flask_app:
+        # Use Flask test client to call real routes
+        lines.append("    if _flask_app_available and _flask_client:")
+        lines.append("        # Call real Flask route using test client")
+        lines.append("        with _flask_app.app_context():")
+        lines.append("            try:")
+
+        # Build Flask path - Flask uses <param> format in routes, but we have {param} in OpenAPI
+        # Convert {param} to <param> for Flask, or use format() with {param}
+        flask_path = path
+        format_vars = []
+        for param in path_params:
+            param_name = param.get("name", "")
+            param_var = param_name.replace("-", "_")
+            # Keep {param} format for .format() call
+            format_vars.append(param_var)
+
+        # Build query string from query parameters
+        query_parts = []
+        for param in query_params:
+            param_name = param.get("name", "")
+            param_var = param_name.replace("-", "_")
+            if param_var in param_names:
+                query_parts.append(f"{param_name}={{'{param_var}'}}")
+
+        if query_parts:
+            query_string = "&".join(query_parts)
+            full_path = f"'{flask_path}?{query_string}'"
+        else:
+            full_path = f"'{flask_path}'"
+
+        # Format the Flask test client call
+        if format_vars:
+            format_args = ", ".join(format_vars)
             lines.append(
-                f"        return sidecar_adapters.call_endpoint('{method}', '{path}', {call_args}, {call_kwargs})"
+                f"                response = _flask_client.{method.lower()}({full_path}.format({format_args}))"
             )
         else:
-            lines.append("    if sidecar_adapters:")
-            lines.append(f"        return sidecar_adapters.call_endpoint('{method}', '{path}', {call_args})")
-    else:
-        # Fallback to *args, **kwargs
-        lines.append("    if sidecar_adapters:")
-        lines.append(f"        return sidecar_adapters.call_endpoint('{method}', '{path}', *args, **kwargs)")
+            lines.append(f"                response = _flask_client.{method.lower()}({full_path})")
 
-    lines.append("    return None")
+        lines.append("                # Extract response data and status code")
+        lines.append("                response_status = response.status_code")
+        lines.append("                try:")
+        lines.append("                    if response.is_json:")
+        lines.append("                        response_data = response.get_json()")
+        lines.append("                    else:")
+        lines.append("                        response_data = response.data.decode('utf-8') if response.data else None")
+        lines.append("                except Exception:")
+        lines.append("                    response_data = response.data if response.data else None")
+        lines.append("                # Return dict with status_code and data for contract validation")
+        lines.append("                return {'status_code': response_status, 'data': response_data}")
+        lines.append("            except Exception:")
+        lines.append(
+            "                # If Flask route fails, return error response (violates postcondition if expecting success - this is a bug!)"
+        )
+        lines.append("                return {'status_code': 500, 'data': None}")
+        lines.append("    ")
+        lines.append("    # Fallback to sidecar_adapters if Flask app not available")
+        lines.append("    try:")
+        lines.append("        from common import adapters as sidecar_adapters")
+        lines.append("        if sidecar_adapters:")
+        if path_params:
+            call_args = ", ".join(param_names[: len(path_params)])
+            if query_params:
+                call_kwargs = ", ".join(f"{name}={name}" for name in param_names[len(path_params) :])
+                lines.append(
+                    f"            return sidecar_adapters.call_endpoint('{method}', '{path}', {call_args}, {call_kwargs})"
+                )
+            else:
+                lines.append(f"            return sidecar_adapters.call_endpoint('{method}', '{path}', {call_args})")
+        else:
+            lines.append(f"            return sidecar_adapters.call_endpoint('{method}', '{path}', *args, **kwargs)")
+        lines.append("    except ImportError:")
+        lines.append("        pass")
+        lines.append("    return {'status_code': 503, 'data': None}  # Service unavailable")
+    else:
+        # Original sidecar_adapters approach
+        if path_params:
+            call_args = ", ".join(param_names[: len(path_params)])
+            if query_params:
+                call_kwargs = ", ".join(f"{name}={name}" for name in param_names[len(path_params) :])
+                lines.append("    try:")
+                lines.append("        from common import adapters as sidecar_adapters")
+                lines.append("        if sidecar_adapters:")
+                lines.append(
+                    f"            return sidecar_adapters.call_endpoint('{method}', '{path}', {call_args}, {call_kwargs})"
+                )
+                lines.append("    except ImportError:")
+                lines.append("        pass")
+            else:
+                lines.append("    try:")
+                lines.append("        from common import adapters as sidecar_adapters")
+                lines.append("        if sidecar_adapters:")
+                lines.append(f"            return sidecar_adapters.call_endpoint('{method}', '{path}', {call_args})")
+                lines.append("    except ImportError:")
+                lines.append("        pass")
+        else:
+            lines.append("    try:")
+            lines.append("        from common import adapters as sidecar_adapters")
+            lines.append("        if sidecar_adapters:")
+            lines.append(f"            return sidecar_adapters.call_endpoint('{method}', '{path}', *args, **kwargs)")
+            lines.append("    except ImportError:")
+            lines.append("        pass")
+        lines.append("    return None")
 
     return "\n".join(lines)
 
@@ -383,39 +558,133 @@ def _generate_preconditions(
 
 
 @beartype
-def _generate_postconditions(response_schema: dict[str, Any] | None) -> list[str]:
-    """Generate @ensure postconditions from response schema."""
+def _generate_postconditions(
+    response_schema: dict[str, Any] | None, expected_status_codes: list[int] | None = None
+) -> list[str]:
+    """Generate @ensure postconditions from response schema and expected status codes."""
     postconditions = []
 
+    # Always check that result is a dict with status_code and data
+    postconditions.append(
+        "@ensure(lambda result: isinstance(result, dict) and 'status_code' in result and 'data' in result, 'Response must be dict with status_code and data')"
+    )
+
+    # Check status code matches expected codes
+    # For GET requests, also allow 302 (redirects) and 404 (not found) as they're common in Flask
+    # For POST/PUT/PATCH, allow 201 (created) and 204 (no content)
+    if expected_status_codes:
+        # Expand expected codes based on HTTP method context
+        # Note: We don't have method here, so we'll use all expected codes plus common ones
+        expanded_codes = set(expected_status_codes)
+        # Always allow 200, 201, 204 for success
+        expanded_codes.update([200, 201, 204])
+        # For GET requests, also allow 302 (redirect) and 404 (not found) - these are common
+        # We'll be permissive to avoid false positives, but still catch 500 errors
+        expanded_codes.update([302, 404])  # Add 302 and 404 as they're common Flask responses
+        expanded_codes.discard(500)  # Remove 500 from valid codes - that's a real error
+
+        status_codes_str = ", ".join(map(str, sorted(expanded_codes)))
+        if len(expanded_codes) == 1:
+            single_code = next(iter(expanded_codes))
+            postconditions.append(
+                f"@ensure(lambda result: result.get('status_code') == {single_code}, 'Response status code must be {single_code}')"
+            )
+        else:
+            postconditions.append(
+                f"@ensure(lambda result: result.get('status_code') in [{status_codes_str}], 'Response status code must be one of [{status_codes_str}]')"
+            )
+    else:
+        # Default: expect 200, 201, 204, 302, 404 (common Flask responses)
+        # But NOT 500 (server error) - that's a real bug
+        postconditions.append(
+            "@ensure(lambda result: result.get('status_code') in [200, 201, 204, 302, 404], 'Response status code must be valid (200, 201, 204, 302, or 404)')"
+        )
+        postconditions.append(
+            "@ensure(lambda result: result.get('status_code') != 500, 'Response status code must not be 500 (server error)')"
+        )
+
+    # Check response data structure based on schema
     if response_schema:
         schema_type = response_schema.get("type")
         if schema_type == "object":
-            postconditions.append("@ensure(lambda result: isinstance(result, dict), 'Response must be a dict')")
+            postconditions.append(
+                "@ensure(lambda result: isinstance(result.get('data'), dict), 'Response data must be a dict')"
+            )
         elif schema_type == "array":
-            postconditions.append("@ensure(lambda result: isinstance(result, list), 'Response must be a list')")
+            postconditions.append(
+                "@ensure(lambda result: isinstance(result.get('data'), list), 'Response data must be a list')"
+            )
         elif schema_type == "string":
-            postconditions.append("@ensure(lambda result: isinstance(result, str), 'Response must be a string')")
+            postconditions.append(
+                "@ensure(lambda result: isinstance(result.get('data'), str), 'Response data must be a string')"
+            )
         elif schema_type == "integer":
-            postconditions.append("@ensure(lambda result: isinstance(result, int), 'Response must be an integer')")
+            postconditions.append(
+                "@ensure(lambda result: isinstance(result.get('data'), int), 'Response data must be an integer')"
+            )
         elif schema_type == "number":
             postconditions.append(
-                "@ensure(lambda result: isinstance(result, (int, float)), 'Response must be a number')"
+                "@ensure(lambda result: isinstance(result.get('data'), (int, float)), 'Response data must be a number')"
             )
         elif schema_type == "boolean":
-            postconditions.append("@ensure(lambda result: isinstance(result, bool), 'Response must be a boolean')")
+            postconditions.append(
+                "@ensure(lambda result: isinstance(result.get('data'), bool), 'Response data must be a boolean')"
+            )
 
-        # Check required properties in response
+        # Check required properties in response data
         if schema_type == "object":
             required_props = response_schema.get("required", [])
             for prop in required_props:
                 postconditions.append(
-                    f"@ensure(lambda result: '{prop}' in result if isinstance(result, dict) else True, 'Response must contain {prop}')"
+                    f"@ensure(lambda result: '{prop}' in result.get('data', {{}}) if isinstance(result.get('data'), dict) else True, 'Response data must contain {prop}')"
                 )
 
-    # Always ensure result is not None (unless sidecar_adapters unavailable)
-    if not postconditions:
-        postconditions.append(
-            "@ensure(lambda result: result is not None or sidecar_adapters is None, 'Response must not be None when adapters available')"
-        )
+            # Check property types if properties are defined
+            properties = response_schema.get("properties", {})
+            for prop_name, prop_schema in properties.items():
+                if isinstance(prop_schema, dict):
+                    prop_type = prop_schema.get("type")
+                    if prop_type:
+                        if prop_type == "string":
+                            postconditions.append(
+                                f"@ensure(lambda result: isinstance(result.get('data', {{}}).get('{prop_name}'), str) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be a string')"
+                            )
+                        elif prop_type == "integer":
+                            postconditions.append(
+                                f"@ensure(lambda result: isinstance(result.get('data', {{}}).get('{prop_name}'), int) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be an integer')"
+                            )
+                        elif prop_type == "number":
+                            postconditions.append(
+                                f"@ensure(lambda result: isinstance(result.get('data', {{}}).get('{prop_name}'), (int, float)) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be a number')"
+                            )
+                        elif prop_type == "boolean":
+                            postconditions.append(
+                                f"@ensure(lambda result: isinstance(result.get('data', {{}}).get('{prop_name}'), bool) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be a boolean')"
+                            )
+                        elif prop_type == "array":
+                            postconditions.append(
+                                f"@ensure(lambda result: isinstance(result.get('data', {{}}).get('{prop_name}'), list) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be an array')"
+                            )
+
+        # Check array item types
+        elif schema_type == "array":
+            items_schema = response_schema.get("items", {})
+            if isinstance(items_schema, dict):
+                item_type = items_schema.get("type")
+                if item_type == "object":
+                    postconditions.append(
+                        "@ensure(lambda result: all(isinstance(item, dict) for item in result.get('data', [])) if isinstance(result.get('data'), list) else True, 'Response data array items must be objects')"
+                    )
+                elif item_type == "string":
+                    postconditions.append(
+                        "@ensure(lambda result: all(isinstance(item, str) for item in result.get('data', [])) if isinstance(result.get('data'), list) else True, 'Response data array items must be strings')"
+                    )
+
+    # Ensure data is not None when status is success
+    success_codes = expected_status_codes or [200]
+    success_codes_str = ", ".join(map(str, success_codes))
+    postconditions.append(
+        f"@ensure(lambda result: result.get('data') is not None if result.get('status_code') in [{success_codes_str}] else True, 'Response data must not be None for success status codes')"
+    )
 
     return postconditions

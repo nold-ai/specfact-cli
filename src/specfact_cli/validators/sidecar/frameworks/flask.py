@@ -145,9 +145,9 @@ class FlaskExtractor(BaseFrameworkExtractor):
         # Second pass: Extract routes from functions with decorators
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
-                route_info = self._extract_route_from_function(node, imports, py_file, app_names, bp_names)
-                if route_info:
-                    results.append(route_info)
+                route_infos = self._extract_route_from_function(node, imports, py_file, app_names, bp_names)
+                if route_infos:
+                    results.extend(route_infos)
 
         return results
 
@@ -175,7 +175,7 @@ class FlaskExtractor(BaseFrameworkExtractor):
         py_file: Path,
         app_names: set[str],
         bp_names: set[str],
-    ) -> RouteInfo | None:
+    ) -> list[RouteInfo]:
         """Extract route information from a function with Flask decorators."""
         path = None
         methods = ["GET"]  # Default method
@@ -200,18 +200,25 @@ class FlaskExtractor(BaseFrameworkExtractor):
                         methods = self._extract_methods_list(keyword.value)
 
         if path is None:
-            return None
+            return []
 
         # Convert Flask path parameters to OpenAPI format
         normalized_path, path_params = self._extract_path_parameters(path)
 
-        return RouteInfo(
-            path=normalized_path,
-            method=methods[0] if methods else "GET",
-            operation_id=func_node.name,
-            function=func_node.name,
-            path_params=path_params,
-        )
+        # Return one RouteInfo per method to capture all HTTP methods
+        results: list[RouteInfo] = []
+        for method in methods:
+            results.append(
+                RouteInfo(
+                    path=normalized_path,
+                    method=method,
+                    operation_id=func_node.name,
+                    function=func_node.name,
+                    path_params=path_params,
+                )
+            )
+
+        return results
 
     @beartype
     def _extract_string_literal(self, node: ast.AST) -> str | None:
@@ -260,17 +267,19 @@ class FlaskExtractor(BaseFrameworkExtractor):
 
         for match in matches:
             param_type = match.group(1)  # type or name
-            param_name = match.group(2) if match.group(2) else match.group(1)  # name or type
+            param_name_from_group2 = match.group(2)  # name (if present)
 
-            # If first group is a type, second is name; otherwise first is name
-            if param_type in type_map:
-                # Format: <int:id> or <float:value>
-                openapi_type = type_map[param_type]
-                param_name = param_name
+            # If second group exists, it's the parameter name (converter:name format)
+            # If not, first group is the parameter name (<name> format)
+            if param_name_from_group2:
+                # Format: <converter:name> or <type:name>
+                param_name = param_name_from_group2
+                # Use known converter type or default to string for unknown converters
+                openapi_type = type_map.get(param_type, "string")
             else:
-                # Format: <slug> or <id>
-                openapi_type = "string"
+                # Format: <slug> or <id> (no converter)
                 param_name = param_type
+                openapi_type = "string"
 
             path_params.append(
                 {
@@ -282,7 +291,8 @@ class FlaskExtractor(BaseFrameworkExtractor):
             )
 
             # Replace Flask format with OpenAPI format
-            flask_pattern = f"<{match.group(1)}:{match.group(2)}>" if match.group(2) else f"<{match.group(1)}>"
+            # Reconstruct the original Flask pattern for replacement
+            flask_pattern = f"<{param_type}:{param_name_from_group2}>" if param_name_from_group2 else f"<{param_type}>"
             normalized_path = normalized_path.replace(flask_pattern, f"{{{param_name}}}")
 
         return normalized_path, path_params

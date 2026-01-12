@@ -175,10 +175,11 @@ specfact validate sidecar run legacy-api /path/to/django-project
 
 **What it does**:
 
-- Detects framework (Django, FastAPI, DRF, pure Python)
-- Extracts routes and schemas from framework patterns
-- Populates OpenAPI contracts automatically
-- Generates CrossHair harness for symbolic execution
+- Detects framework (Django, FastAPI, DRF, Flask, pure Python)
+- Automatically installs dependencies in isolated venv (`.specfact/venv/`)
+- Extracts routes and schemas from framework patterns (all HTTP methods captured for Flask)
+- Populates OpenAPI contracts automatically (with expected status codes and response structure validation)
+- Generates CrossHair harness for symbolic execution (using venv Python)
 - Runs CrossHair and Specmatic validation
 
 **Detailed Guide**: [Sidecar Validation Guide](sidecar-validation.md)

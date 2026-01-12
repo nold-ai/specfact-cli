@@ -37,6 +37,7 @@ def populate_contracts(contracts_dir: Path, routes: list[RouteInfo], schemas: di
         return 0
 
     populated_count = 0
+    total_paths = 0
 
     for contract_file in contract_files:
         try:
@@ -44,11 +45,16 @@ def populate_contracts(contracts_dir: Path, routes: list[RouteInfo], schemas: di
             if populate_contract(contract_data, routes, schemas):
                 save_contract(contract_file, contract_data)
                 populated_count += 1
+            paths_after = len(contract_data.get("paths", {}))
+            # Count total paths in contract (whether newly added or already existed)
+            total_paths = max(total_paths, paths_after)
         except Exception:
             # Skip contracts that can't be processed
             continue
 
-    return populated_count
+    # Return total number of paths in contracts (gives better indication of what was populated)
+    # If no paths found, return number of contracts modified as fallback
+    return total_paths if total_paths > 0 else populated_count
 
 
 @beartype
