@@ -191,13 +191,14 @@ graph TD
 
 ## 3. External Tool Integration Chain
 
-**Goal**: Integrate SpecFact with external tools like Spec-Kit, OpenSpec, Linear, or Jira.
+**Goal**: Integrate SpecFact with external tools like Spec-Kit, OpenSpec, or DevOps backlog tools (GitHub Issues, Linear, Jira).
 
-**When to use**: You want to sync specifications between SpecFact and other tools, or import from external sources.
+**When to use**: You want to sync specifications between SpecFact and other tools, import from external sources, or integrate SpecFact into your agile DevOps workflows.
 
 **Command Sequence**:
 
 ```bash
+# For Code/Spec Adapters (Spec-Kit, OpenSpec, generic-markdown):
 # Step 1: Import from external tool via bridge adapter
 specfact import from-bridge --repo . --adapter speckit --write
 
@@ -209,6 +210,16 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --
 
 # Step 4: Enforce SDD compliance
 specfact enforce sdd --bundle <bundle-name>
+
+# For Backlog Adapters (GitHub Issues, ADO, Linear, Jira) - NEW FEATURE:
+# Step 1: Export OpenSpec change proposals to GitHub Issues
+specfact sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo
+
+# Step 2: Import GitHub Issues as change proposals (if needed)
+# (Automatic when using --bidirectional)
+
+# Step 3: Track code changes automatically
+specfact sync bridge --adapter github --track-code-changes --repo-owner owner --repo-name repo
 ```
 
 **Workflow Diagram**:
@@ -226,7 +237,10 @@ graph LR
 
 - **After `import from-bridge`**: Review the imported plan. If it needs refinement, use `plan update-feature`.
 - **Bidirectional sync**: Use `--watch` mode for continuous synchronization, or run sync manually as needed.
-- **Adapter selection**: Choose the appropriate adapter (`speckit`, `openspec`, `github`, `linear`, `jira`).
+- **Adapter selection**: 
+  - **Code/Spec adapters** (use `import from-bridge`): `speckit`, `openspec`, `generic-markdown`
+  - **Backlog adapters** (use `sync bridge`): `github`, `ado`, `linear`, `jira`
+  - **Note**: Backlog adapters (GitHub Issues, ADO, Linear, Jira) use `sync bridge` for bidirectional synchronization, not `import from-bridge`. The `import from-bridge` command is specifically for importing entire code/spec projects.
 
 **Expected Outcomes**:
 

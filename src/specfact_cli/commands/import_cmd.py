@@ -1928,15 +1928,12 @@ def from_bridge(
     (e.g., Spec-Kit, OpenSpec, Linear, Jira), parse its structure, and generate equivalent
     SpecFact contracts, protocols, and plans.
 
-    Supported adapters:
+    Supported adapters (code/spec adapters only):
     - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
     - openspec: OpenSpec integration (openspec/) - read-only sync (Phase 1)
     - generic-markdown: Generic markdown-based specifications - import & sync
-    - github: GitHub Issues (export-only, no import) - DevOps backlog tracking only
-    - ado: Azure DevOps Work Items (future) - planned
-    - linear: Linear Issues (future) - planned
-    - jira: Jira Issues (future) - planned
-    - notion: Notion pages (future) - planned
+
+    Note: For backlog synchronization (GitHub Issues, ADO, Linear, Jira), use 'specfact sync bridge' instead.
 
     **Parameter Groups:**
     - **Target/Input**: --repo
@@ -2009,6 +2006,20 @@ def from_bridge(
 
     with telemetry.track_command("import.from_bridge", telemetry_metadata) as record:
         console.print(f"[bold cyan]Importing {adapter_lower} project from:[/bold cyan] {repo}")
+
+        # Reject backlog adapters - they should use 'sync bridge' instead
+        backlog_adapters = {"github", "ado", "linear", "jira", "notion"}
+        if adapter_lower in backlog_adapters:
+            console.print(
+                f"[bold yellow]⚠[/bold yellow] '{adapter_lower}' is a backlog adapter, not a code/spec adapter"
+            )
+            console.print(
+                f"[dim]Use 'specfact sync bridge --adapter {adapter_lower}' for backlog synchronization[/dim]"
+            )
+            console.print(
+                "[dim]The 'import from-bridge' command is for importing code/spec projects (Spec-Kit, OpenSpec, generic-markdown)[/dim]"
+            )
+            raise typer.Exit(1)
 
         # Use adapter for feature discovery (adapter-agnostic)
         if dry_run:

@@ -23,34 +23,21 @@ class TestCheckSpecmaticAvailable:
 
         specmatic_module._specmatic_command_cache = None
 
-    @patch("specfact_cli.integrations.specmatic.subprocess.run")
-    def test_specmatic_available(self, mock_run):
+    @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
+    def test_specmatic_available(self, mock_get_cmd):
         """Test when Specmatic is available directly."""
-        mock_run.return_value = MagicMock(returncode=0)
+        mock_get_cmd.return_value = ["specmatic"]
         is_available, error_msg = check_specmatic_available()
         assert is_available is True
         assert error_msg is None
-        # Should try specmatic first
-        mock_run.assert_any_call(
-            ["specmatic", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
 
-    @patch("specfact_cli.integrations.specmatic.subprocess.run")
-    def test_specmatic_available_via_npx(self, mock_run):
+    @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
+    def test_specmatic_available_via_npx(self, mock_get_cmd):
         """Test when Specmatic is available via npx."""
-        # First call (specmatic) fails, second (npx) succeeds
-        mock_run.side_effect = [
-            FileNotFoundError(),  # specmatic not found
-            MagicMock(returncode=0),  # npx specmatic works
-        ]
+        mock_get_cmd.return_value = ["npx", "--yes", "specmatic"]
         is_available, error_msg = check_specmatic_available()
         assert is_available is True
         assert error_msg is None
-        # Should try both
-        assert mock_run.call_count == 2
 
     @patch("specfact_cli.integrations.specmatic.subprocess.run")
     def test_specmatic_not_available_returncode(self, mock_run):

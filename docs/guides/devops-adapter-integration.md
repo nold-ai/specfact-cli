@@ -1,10 +1,15 @@
 # DevOps Adapter Integration Guide
 
+> **🆕 NEW FEATURE: Integrate SpecFact into Agile DevOps Workflows**  
+> Bidirectional synchronization between OpenSpec change proposals and DevOps backlog tools enables seamless integration of specification-driven development into your existing agile workflows.
+
 This guide explains how to integrate SpecFact CLI with DevOps backlog tools (GitHub Issues, Azure DevOps, Linear, Jira) to sync OpenSpec change proposals and track implementation progress through automated comment annotations.
 
 ## Overview
 
-SpecFact CLI supports exporting OpenSpec change proposals to DevOps tools and tracking implementation progress:
+**Why This Matters**: This feature bridges the gap between specification management (OpenSpec) and backlog management (GitHub Issues, ADO, Linear, Jira), allowing you to use SpecFact's specification-driven development approach while working within your existing agile DevOps workflows.
+
+SpecFact CLI supports **bidirectional synchronization** between OpenSpec change proposals and DevOps backlog tools:
 
 - **Issue Creation**: Export OpenSpec change proposals as GitHub Issues (or other DevOps backlog items)
 - **Progress Tracking**: Automatically detect code changes and add progress comments to issues
@@ -396,7 +401,57 @@ specfact sync bridge --adapter github --mode export-only \
 
 ### Update Existing Issues
 
-Update issue bodies when proposal content changes:
+When a change proposal already has a linked GitHub issue (via `source_tracking` metadata in the proposal), you can update the issue with the latest proposal content.
+
+#### Prerequisites
+
+The change proposal must have `source_tracking` metadata linking it to the GitHub issue. This is automatically added when:
+
+- You first export a proposal to create an issue
+- You import an existing issue as a change proposal (using bidirectional sync)
+- You manually add it to the proposal's `proposal.md` file
+
+**Example `source_tracking` in `proposal.md`:**
+
+```markdown
+## Source Tracking
+
+- **GitHub Issue**: #105
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/105>
+- **Repository**: nold-ai/specfact-cli
+- **Last Synced Status**: proposed
+<!-- content_hash: e628d8468669ebfc -->
+```
+
+#### Update a Specific Issue
+
+To update a specific change proposal's linked issue:
+
+```bash
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --change-ids your-change-id \
+  --update-existing \
+  --repo /path/to/openspec-repo
+```
+
+**Example: Update issue #105 for change proposal `implement-adapter-enhancement-recommendations`:**
+
+```bash
+cd /path/to/openspec-repo
+
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids implement-adapter-enhancement-recommendations \
+  --update-existing \
+  --repo .
+```
+
+#### Update All Linked Issues
+
+To update all change proposals that have linked GitHub issues:
 
 ```bash
 specfact sync bridge --adapter github --mode export-only \
@@ -406,7 +461,93 @@ specfact sync bridge --adapter github --mode export-only \
   --repo /path/to/openspec-repo
 ```
 
-**Note**: Uses content hash to detect changes. Default: `False` for safety.
+#### What Gets Updated
+
+When `--update-existing` is used, the GitHub adapter will:
+
+1. **Read `source_tracking` metadata** from the change proposal to find the linked issue number
+2. **Compare content hash** to detect if the proposal has changed since last sync
+3. **Update issue body** with the latest proposal content (if content changed)
+4. **Update issue title** if the proposal title changed
+5. **Sync status labels** (OpenSpec status ↔ GitHub labels)
+6. **Add/update OpenSpec metadata footer** in the issue body
+
+#### Content Hash Detection
+
+The adapter uses a content hash to detect changes. The hash is stored in the proposal's `source_tracking` section:
+
+```markdown
+<!-- content_hash: e628d8468669ebfc -->
+```
+
+If the proposal content hasn't changed, the issue won't be updated (even with `--update-existing`), preventing unnecessary API calls.
+
+#### Best Practices
+
+- **Use `--change-ids`** to update specific proposals instead of all proposals
+- **Use `--update-existing` sparingly** (only when proposal content changes significantly)
+- **Verify before updating** by checking the proposal's `source_tracking` metadata
+- **Review changes** in the proposal before syncing to ensure accuracy
+
+### Updating Archived Change Proposals
+
+When you improve comment logic or branch detection algorithms, you may want to update existing GitHub issues for archived change proposals with the new improvements.
+
+#### Use Case
+
+- **New comment logic**: When you add new features to status comments (e.g., branch detection improvements)
+- **Branch detection improvements**: When you enhance branch detection algorithms
+- **Comment format updates**: When you change how comments are formatted
+
+#### How It Works
+
+By default, archived change proposals (in `openspec/changes/archive/`) are excluded from sync. Use `--include-archived` to include them:
+
+```bash
+# Update all archived proposals with new comment logic
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+
+# Update specific archived proposal
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --change-ids add-code-change-tracking \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+```
+
+#### What Gets Updated
+
+When `--include-archived` is used with `--update-existing`:
+
+1. **Archived proposals are included** in the sync (normally excluded)
+2. **Comments are always updated** for applied status (even if content hash hasn't changed)
+3. **Branch detection runs** with the latest improvements
+4. **Issue state is verified** and updated if needed
+
+#### Example: Updating Issue #107
+
+```bash
+# Update issue #107 with improved branch detection
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids add-code-change-tracking \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/specfact-cli-internal
+```
+
+This will:
+- Find the archived proposal `add-code-change-tracking` in `openspec/changes/archive/`
+- Detect the implementation branch using the latest branch detection logic
+- Add/update a comment on issue #107 with the correct branch information
 
 ### Proposal Filtering
 

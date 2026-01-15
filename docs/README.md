@@ -16,7 +16,10 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 **Each role works in their own Markdown files** (no YAML editing), and SpecFact syncs everything together automatically. Perfect for teams using agile/scrum practices with clear role separation.
 
-👉 **[Agile/Scrum Workflows Guide](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Complete guide to persona-based team collaboration
+**🆕 NEW: DevOps Backlog Integration** - SpecFact now integrates directly into your agile DevOps workflows! Bidirectionally sync OpenSpec change proposals with GitHub Issues, track implementation progress automatically, and keep your backlog in sync with your specifications.
+
+👉 **[Agile/Scrum Workflows Guide](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Complete guide to persona-based team collaboration  
+👉 **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows
 
 ---
 
@@ -32,7 +35,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - ✅ **Brownfield-first** → Spec-Kit/OpenSpec excel at new features; SpecFact understands existing code
 - ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
 - ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
-- ✅ **DevOps integration** → Bridge adapters sync change proposals to GitHub Issues, ADO, Linear, Jira
+- ✅ **DevOps integration** 🆕 → **Bidirectional backlog sync** - Sync change proposals to GitHub Issues (and future: ADO, Linear, Jira) with automatic progress tracking
 - ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
 
 **Perfect together:**
@@ -93,14 +96,15 @@ specfact enforce sdd --bundle my-project
 
 ### Working with an Agile/Scrum Team?
 
-**Primary Goal**: Enable team collaboration with role-based workflows
+**Primary Goal**: Enable team collaboration with role-based workflows and DevOps integration
 
 1. **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Persona-based team collaboration
-2. **[Command Reference - Project Commands](reference/commands.md#project---project-bundle-management)** - `project export` and `project import` commands
-3. **[Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows)** - How Product Owners, Architects, and Developers work together
-4. **[Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor)** - DoR validation and sprint planning
+2. **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into your agile DevOps workflows with bidirectional GitHub Issues sync
+3. **[Command Reference - Project Commands](reference/commands.md#project---project-bundle-management)** - `project export` and `project import` commands
+4. **[Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows)** - How Product Owners, Architects, and Developers work together
+5. **[Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor)** - DoR validation and sprint planning
 
-**Time**: 15-30 minutes | **Result**: Understanding how your team can collaborate with SpecFact
+**Time**: 15-30 minutes | **Result**: Understanding how your team can collaborate with SpecFact and integrate with your DevOps backlog
 
 ---
 
@@ -178,8 +182,8 @@ specfact enforce sdd --bundle my-project
 
 - [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
-- [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ⏳)
-- [DevOps Adapter Integration](guides/devops-adapter-integration.md) - GitHub Issues, backlog tracking, and progress comments
+- [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ✅)
+- [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW FEATURE** - Bidirectional GitHub Issues sync, automatic progress tracking, and agile DevOps workflow integration
 - [Bridge Adapters](reference/commands.md#sync-bridge) - OpenSpec and DevOps integration
 
 #### Team Collaboration & Agile/Scrum
