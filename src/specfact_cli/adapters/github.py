@@ -1393,6 +1393,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             # Try to extract branch information from source_tracking
             # If we have a target_repo, only check entries for that repository
             # Otherwise, check all entries (for backward compatibility)
+            branch_info = None
             if target_repo and isinstance(source_tracking, list):
                 # Find entry for target repository
                 target_entry = next(
@@ -1401,8 +1402,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                 )
                 if target_entry:
                     branch_info = self._extract_branch_from_source_tracking(target_entry, code_repo_path)
-                else:
-                    branch_info = self._extract_branch_from_source_tracking(source_tracking, code_repo_path)
+                # If no target_entry found, don't fall back to other repos - this prevents
+                # attaching branch info from unrelated repositories to the wrong GitHub issue
             else:
                 # Check branch in code repository (where implementation is stored)
                 branch_info = self._extract_branch_from_source_tracking(source_tracking, code_repo_path)
@@ -1562,9 +1563,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             )
             if result.returncode == 0:
                 # Extract branch name from remote branch format (origin/branch-name)
-                remote_branches = [
-                    line.strip().split("/")[-1] for line in result.stdout.split("\n") if line.strip() and "/" in line
-                ]
+                # Preserve full branch path after remote prefix (e.g., origin/feature/foo -> feature/foo)
+                remote_branches = []
+                for line in result.stdout.split("\n"):
+                    line = line.strip()
+                    if line and "/" in line:
+                        # Remove remote prefix (e.g., "origin/" or "upstream/") but keep full branch path
+                        parts = line.split("/", 1)  # Split only on first "/"
+                        if len(parts) == 2:
+                            remote_branches.append(parts[1])  # Keep everything after remote prefix
                 if branch_name in remote_branches:
                     return True
 
