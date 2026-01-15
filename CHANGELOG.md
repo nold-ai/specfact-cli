@@ -13,6 +13,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added (0.25.0)
 
+- **Archived Change Proposal Sync**: New `--include-archived` flag for `sync bridge` command
+  - **Purpose**: Include archived change proposals in sync to update existing GitHub issues with new comment logic and branch detection improvements
+  - **Use Case**: When you improve comment formatting or branch detection algorithms, update historical issues retroactively
+  - **Behavior**: When `--include-archived` is set with `--update-existing`, archived proposals are included and comments are always updated for applied status
+  - **Example**: `specfact sync bridge --adapter github --mode export-only --include-archived --update-existing`
+  - **Documentation**: See `docs/guides/devops-adapter-integration.md#updating-archived-change-proposals`
+
+- **Improved Branch Detection**: Enhanced branch detection algorithm for GitHub issue comments
+  - **Prioritization**: Branches matching the change_id in their name are now prioritized
+  - **Flexible Matching**: Uses both exact substring matching and key words matching (e.g., "change" and "tracking" from "add-code-change-tracking")
+  - **Accuracy**: Correctly identifies implementation branches even when multiple branches contain the same commits
+  - **Use Case**: Ensures GitHub issue comments show the correct implementation branch for applied changes
+
 - **Backlog Adapter Import Capability**: GitHub adapter now supports importing GitHub Issues as OpenSpec change proposals
   - **New Method**: `import_artifact("github_issue", issue_data, project_bundle, bridge_config)` in `GitHubAdapter`
   - **Parsing**: Parses GitHub issue body/markdown to extract change proposal data (Why, What Changes sections)

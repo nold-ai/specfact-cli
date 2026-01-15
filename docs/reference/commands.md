@@ -3026,6 +3026,7 @@ See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md) 
 - `--target-repo OWNER/REPO` - Target repository for issue creation (format: owner/repo). Default: same as code repository
 - `--interactive` - Interactive mode for AI-assisted sanitization (requires slash command)
 - `--change-ids ID1,ID2` - Comma-separated list of change proposal IDs to export (default: all active proposals)
+- `--include-archived/--no-include-archived` - Include archived change proposals in sync (default: False). Useful for updating existing issues with new comment logic or branch detection improvements
 
 **Environment Variables:**
 
@@ -3103,6 +3104,21 @@ specfact sync bridge --adapter github --mode export-only \
 specfact sync bridge --adapter github --mode export-only \
   --repo-owner owner --repo-name repo \
   --change-ids implement-adapter-enhancement-recommendations \
+  --update-existing \
+  --repo /path/to/openspec-repo
+
+# Update archived change proposals with new comment logic and branch detection
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+
+# Update specific archived change proposal
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo \
+  --change-ids add-code-change-tracking \
+  --include-archived \
   --update-existing \
   --repo /path/to/openspec-repo
 

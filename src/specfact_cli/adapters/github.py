@@ -523,7 +523,69 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             if not issue_number:
                 msg = "Issue number required for content update (missing in source_tracking for this repository)"
                 raise ValueError(msg)
-            return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number))
+            # Get code repository path for branch verification
+            code_repo_path_str = artifact_data.get("_code_repo_path")
+            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+            return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number), code_repo_path)
+        if artifact_key == "change_proposal_comment":
+            # Add comment only (no body/state update) - used for adding branch info to already-closed issues
+            source_tracking = artifact_data.get("source_tracking", {})
+            issue_number = None
+
+            # Handle list of entries (multi-repository support)
+            if isinstance(source_tracking, list):
+                target_repo = f"{repo_owner}/{repo_name}"
+                for entry in source_tracking:
+                    if isinstance(entry, dict):
+                        entry_repo = entry.get("source_repo")
+                        if entry_repo == target_repo:
+                            issue_number = entry.get("source_id")
+                            break
+                        if not entry_repo:
+                            source_url = entry.get("source_url", "")
+                            if source_url and target_repo in source_url:
+                                issue_number = entry.get("source_id")
+                                break
+            elif isinstance(source_tracking, dict):
+                issue_number = source_tracking.get("source_id")
+
+            if not issue_number:
+                msg = "Issue number required for comment (missing in source_tracking for this repository)"
+                raise ValueError(msg)
+
+            status = artifact_data.get("status", "proposed")
+            title = artifact_data.get("title", "Untitled Change Proposal")
+            change_id = artifact_data.get("change_id", "")
+            # Get OpenSpec repository path for branch verification
+            code_repo_path_str = artifact_data.get("_code_repo_path")
+            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+
+            # Add change_id to source_tracking entries for branch inference
+            # Create a copy to avoid modifying the original
+            if isinstance(source_tracking, list):
+                source_tracking_with_id = []
+                for entry in source_tracking:
+                    entry_copy = dict(entry) if isinstance(entry, dict) else entry
+                    if isinstance(entry_copy, dict) and not entry_copy.get("change_id"):
+                        entry_copy["change_id"] = change_id
+                    source_tracking_with_id.append(entry_copy)
+            elif isinstance(source_tracking, dict):
+                source_tracking_with_id = dict(source_tracking)
+                if not source_tracking_with_id.get("change_id"):
+                    source_tracking_with_id["change_id"] = change_id
+            else:
+                source_tracking_with_id = source_tracking
+            comment_text = self._get_status_comment(status, title, source_tracking_with_id, code_repo_path)
+            if comment_text:
+                comment_note = (
+                    f"{comment_text}\n\n"
+                    f"*Note: This comment was added from an OpenSpec change proposal with status `{status}`.*"
+                )
+                self._add_issue_comment(repo_owner, repo_name, int(issue_number), comment_note)
+            return {
+                "issue_number": int(issue_number),
+                "comment_added": True,
+            }
         if artifact_key == "code_change_progress":
             # Extract issue number from source_tracking (support list or dict for backward compatibility)
             source_tracking = artifact_data.get("source_tracking", {})
@@ -767,7 +829,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             # If issue was created as closed, add a comment explaining why
             if issue_state == "closed":
                 source_tracking = proposal_data.get("source_tracking", {})
-                comment_text = self._get_status_comment(status, title, source_tracking)
+                # Note: openspec_repo_path not available in _create_issue_from_proposal context
+                comment_text = self._get_status_comment(status, title, source_tracking, None)
                 if comment_text:
                     # Add note that this was closed immediately upon creation
                     immediate_close_note = (
@@ -842,7 +905,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Map status to GitHub issue state and comment
         should_close = status in ("applied", "deprecated", "discarded")
         source_tracking = proposal_data.get("source_tracking", {})
-        comment_text = self._get_status_comment(status, title, source_tracking)
+        # Note: code_repo_path not available in _update_issue_status context
+        comment_text = self._get_status_comment(status, title, source_tracking, None)
 
         # Map status to GitHub state_reason
         state_reason = None
@@ -910,6 +974,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         repo_owner: str,
         repo_name: str,
         issue_number: int,
+        code_repo_path: Path | None = None,
     ) -> dict[str, Any]:
         """
         Update GitHub issue body with new proposal content.
@@ -1068,17 +1133,35 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             response.raise_for_status()
             issue_data = response.json()
 
-            # Add comment if issue was closed due to status change
+            # Add comment if issue was closed due to status change, or if already closed with applied status
+            should_add_comment = False
             if "state" in payload and payload["state"] == "closed" and current_state == "open":
+                # Issue was just closed
+                should_add_comment = True
+            elif status == "applied" and current_state == "closed":
+                # Issue is already closed with applied status - check if we need to add/update comment with branch info
+                # Only add if we're updating and status is applied (to include branch info)
+                should_add_comment = True
+
+            if should_add_comment:
                 source_tracking = proposal_data.get("source_tracking", {})
-                comment_text = self._get_status_comment(status, title, source_tracking)
+                # Pass target_repo to filter source_tracking to only check entries for this repository
+                target_repo = f"{repo_owner}/{repo_name}"
+                comment_text = self._get_status_comment(status, title, source_tracking, code_repo_path, target_repo)
                 if comment_text:
-                    # Add note that this was closed due to status change
-                    status_change_note = (
-                        f"{comment_text}\n\n"
-                        f"*Note: This issue was automatically closed because the change proposal "
-                        f"status changed to `{status}`. This issue was updated from an OpenSpec change proposal.*"
-                    )
+                    if "state" in payload and payload["state"] == "closed" and current_state == "open":
+                        # Add note that this was closed due to status change
+                        status_change_note = (
+                            f"{comment_text}\n\n"
+                            f"*Note: This issue was automatically closed because the change proposal "
+                            f"status changed to `{status}`. This issue was updated from an OpenSpec change proposal.*"
+                        )
+                    else:
+                        # Issue already closed - just add status comment with branch info
+                        status_change_note = (
+                            f"{comment_text}\n\n"
+                            f"*Note: This issue was updated from an OpenSpec change proposal with status `{status}`.*"
+                        )
                     self._add_issue_comment(repo_owner, repo_name, issue_number, status_change_note)
 
             # Optionally add comment for significant changes
@@ -1286,7 +1369,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         return self.resolve_status_conflict(openspec_status, openspec_status_from_github, strategy)
 
     def _get_status_comment(
-        self, status: str, title: str, source_tracking: dict[str, Any] | list[dict[str, Any]] | None = None
+        self,
+        status: str,
+        title: str,
+        source_tracking: dict[str, Any] | list[dict[str, Any]] | None = None,
+        code_repo_path: Path | None = None,
+        target_repo: str | None = None,
     ) -> str:
         """
         Get comment text for status change.
@@ -1295,13 +1383,29 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             status: Change proposal status
             title: Change proposal title
             source_tracking: Source tracking entry (dict) or list of entries to extract branch info
+            code_repo_path: Path to code repository (where implementation branches are stored) for branch verification
+            target_repo: Target repository identifier (e.g., "nold-ai/specfact-cli") to filter source_tracking entries
 
         Returns:
             Comment text or empty string if no comment needed
         """
         if status == "applied":
             # Try to extract branch information from source_tracking
-            branch_info = self._extract_branch_from_source_tracking(source_tracking)
+            # If we have a target_repo, only check entries for that repository
+            # Otherwise, check all entries (for backward compatibility)
+            if target_repo and isinstance(source_tracking, list):
+                # Find entry for target repository
+                target_entry = next(
+                    (e for e in source_tracking if isinstance(e, dict) and e.get("source_repo") == target_repo),
+                    None,
+                )
+                if target_entry:
+                    branch_info = self._extract_branch_from_source_tracking(target_entry, code_repo_path)
+                else:
+                    branch_info = self._extract_branch_from_source_tracking(source_tracking, code_repo_path)
+            else:
+                # Check branch in code repository (where implementation is stored)
+                branch_info = self._extract_branch_from_source_tracking(source_tracking, code_repo_path)
             branch_text = f"\n\n**Implementation Branch**: `{branch_info}`" if branch_info else ""
             return f"✅ Change applied: {title}\n\nThis change proposal has been implemented and applied.{branch_text}"
         if status == "deprecated":
@@ -1315,16 +1419,19 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         return ""
 
     def _extract_branch_from_source_tracking(
-        self, source_tracking: dict[str, Any] | list[dict[str, Any]] | None
+        self,
+        source_tracking: dict[str, Any] | list[dict[str, Any]] | None,
+        code_repo_path: Path | None = None,
     ) -> str | None:
         """
         Extract branch information from source tracking entry.
 
         Args:
             source_tracking: Source tracking entry (dict) or list of entries
+            code_repo_path: Path to code repository (where implementation branches are stored) for branch verification
 
         Returns:
-            Branch name if found, None otherwise
+            Branch name if found and verified, None otherwise
         """
         if not source_tracking:
             return None
@@ -1333,40 +1440,70 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         if isinstance(source_tracking, list):
             for entry in source_tracking:
                 if isinstance(entry, dict):
-                    branch = self._get_branch_from_entry(entry)
+                    branch = self._get_branch_from_entry(entry, code_repo_path)
                     if branch:
                         return branch
             return None
 
         # Handle single dict entry
         if isinstance(source_tracking, dict):
-            return self._get_branch_from_entry(source_tracking)
+            return self._get_branch_from_entry(source_tracking, code_repo_path)
 
         return None
 
-    def _get_branch_from_entry(self, entry: dict[str, Any]) -> str | None:
+    def _get_branch_from_entry(self, entry: dict[str, Any], code_repo_path: Path | None = None) -> str | None:
         """
         Extract branch from a single source tracking entry.
 
         Args:
             entry: Source tracking entry dict
+            code_repo_path: Path to code repository (where implementation branches are stored)
 
         Returns:
-            Branch name if found, None otherwise
+            Branch name if found and verified, None otherwise
         """
+        # Determine which repository to check based on source_repo
+        # If code_repo_path is provided, use it; otherwise try to find it from source_repo
+        repo_path_to_check = code_repo_path
+        if not repo_path_to_check:
+            source_repo = entry.get("source_repo")
+            if source_repo:
+                # Try to find local path to code repository
+                repo_path_to_check = self._find_code_repo_path(source_repo)
+
         # Check source_metadata for branch
         source_metadata = entry.get("source_metadata", {})
         if isinstance(source_metadata, dict):
             branch = source_metadata.get("branch") or source_metadata.get("source_branch")
             if branch:
-                return branch
+                # Verify branch exists in code repo if path available
+                if repo_path_to_check:
+                    if self._verify_branch_exists(branch, repo_path_to_check):
+                        return branch
+                else:
+                    # No repo path available, return branch as-is
+                    return branch
 
         # Check for branch field directly in entry
         branch = entry.get("branch") or entry.get("source_branch")
         if branch:
-            return branch
+            # Verify branch exists in code repo if path available
+            if repo_path_to_check:
+                if self._verify_branch_exists(branch, repo_path_to_check):
+                    return branch
+            else:
+                # No repo path available, return branch as-is
+                return branch
 
-        # Try to infer from change_id (common pattern: feature/<change-id>)
+        # Try to detect branch from actual implementation (files changed, commits)
+        # This is more accurate than inferring from change_id
+        if repo_path_to_check:
+            detected_branch = self._detect_implementation_branch(entry, repo_path_to_check)
+            if detected_branch:
+                return detected_branch
+
+        # Fallback: Try to infer from change_id (common pattern: feature/<change-id>)
+        # Only use this if we couldn't detect the actual branch
         change_id = entry.get("change_id")
         if change_id:
             # Common branch naming patterns
@@ -1375,8 +1512,534 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                 f"bugfix/{change_id}",
                 f"hotfix/{change_id}",
             ]
-            # Return the first one as a reasonable default (could be enhanced to check git)
-            return possible_branches[0]
+            # Check each possible branch in code repo
+            if repo_path_to_check:
+                for branch in possible_branches:
+                    if self._verify_branch_exists(branch, repo_path_to_check):
+                        return branch
+            else:
+                # No repo path available, return first as reasonable default
+                return possible_branches[0]
+
+        return None
+
+    def _verify_branch_exists(self, branch_name: str, repo_path: Path) -> bool:
+        """
+        Verify that a branch exists in the given repository.
+
+        Args:
+            branch_name: Branch name to check
+            repo_path: Path to git repository
+
+        Returns:
+            True if branch exists, False otherwise
+        """
+        try:
+            import subprocess
+
+            result = subprocess.run(
+                ["git", "branch", "--list", branch_name],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            # Check if branch exists locally (strip whitespace and check exact match)
+            if result.returncode == 0:
+                branches = [line.strip().replace("*", "").strip() for line in result.stdout.split("\n") if line.strip()]
+                if branch_name in branches:
+                    return True
+
+            # Also check remote branches
+            result = subprocess.run(
+                ["git", "branch", "-r", "--list", f"*/{branch_name}"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0:
+                # Extract branch name from remote branch format (origin/branch-name)
+                remote_branches = [
+                    line.strip().split("/")[-1] for line in result.stdout.split("\n") if line.strip() and "/" in line
+                ]
+                if branch_name in remote_branches:
+                    return True
+
+            return False
+        except Exception:
+            # If we can't check (git not available, etc.), return False to be safe
+            return False
+
+    def _find_code_repo_path(self, source_repo: str) -> Path | None:
+        """
+        Find local path to code repository based on source_repo identifier.
+
+        Args:
+            source_repo: Repository identifier in format "owner/repo-name" (e.g., "nold-ai/specfact-cli")
+
+        Returns:
+            Path to code repository if found, None otherwise
+        """
+        if not source_repo or "/" not in source_repo:
+            return None
+
+        _, repo_name = source_repo.split("/", 1)
+
+        # Strategy 1: Check if current working directory is the code repository
+        try:
+            cwd = Path.cwd()
+            if cwd.name == repo_name and (cwd / ".git").exists():
+                # Verify it's the right repo by checking remote
+                result = subprocess.run(
+                    ["git", "remote", "get-url", "origin"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                if result.returncode == 0 and repo_name in result.stdout:
+                    return cwd
+        except Exception:
+            pass
+
+        # Strategy 2: Check parent directory (common structure: parent/repo-name)
+        try:
+            cwd = Path.cwd()
+            parent = cwd.parent
+            repo_path = parent / repo_name
+            if repo_path.exists() and (repo_path / ".git").exists():
+                return repo_path
+        except Exception:
+            pass
+
+        # Strategy 3: Check sibling directories (common structure: sibling/repo-name)
+        try:
+            cwd = Path.cwd()
+            grandparent = cwd.parent.parent if cwd.parent != Path("/") else None
+            if grandparent:
+                for sibling in grandparent.iterdir():
+                    if sibling.is_dir() and sibling.name == repo_name and (sibling / ".git").exists():
+                        return sibling
+        except Exception:
+            pass
+
+        return None
+
+    def _detect_implementation_branch(self, entry: dict[str, Any], repo_path: Path) -> str | None:
+        """
+        Detect the actual branch where files from this change were implemented.
+
+        This method looks at the actual implementation (files changed, commits) to find
+        which branch contains those changes, rather than inferring from change_id.
+
+        Args:
+            entry: Source tracking entry dict
+            repo_path: Path to code repository
+
+        Returns:
+            Branch name if detected, None otherwise
+        """
+        if not repo_path.exists() or not (repo_path / ".git").exists():
+            return None
+
+        try:
+            change_id = entry.get("change_id")
+            issue_number = entry.get("source_id")  # GitHub issue number
+
+            # Store change_id for use in _find_branch_containing_files
+            if change_id:
+                self._current_change_id = change_id
+
+            # Strategy 1: Check source_metadata for commit hash or file paths
+            source_metadata = entry.get("source_metadata", {})
+            if isinstance(source_metadata, dict):
+                # Check for commit hash
+                commit_hash = source_metadata.get("commit") or source_metadata.get("commit_hash")
+                if commit_hash:
+                    branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                    if branch:
+                        return branch
+
+                # Check for file paths
+                files_changed = source_metadata.get("files") or source_metadata.get("files_changed")
+                if files_changed:
+                    branch = self._find_branch_containing_files(files_changed, repo_path, issue_number)
+                    if branch:
+                        return branch
+
+            # Strategy 2: Check for commit hash or file paths directly in entry
+            commit_hash = entry.get("commit") or entry.get("commit_hash")
+            if commit_hash:
+                branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                if branch:
+                    return branch
+
+            files_changed = entry.get("files") or entry.get("files_changed")
+            if files_changed:
+                branch = self._find_branch_containing_files(files_changed, repo_path, issue_number)
+                if branch:
+                    return branch
+
+            # Strategy 3: Look for commits that mention the change_id or issue number in commit messages
+            # This is the most reliable method when we have an issue number
+            if issue_number:
+                # Prefer issue number search - it's more specific
+                branch = self._find_branch_by_change_id_in_commits("", repo_path, issue_number)
+                if branch:
+                    return branch
+                # If issue number search fails, fall back to change_id search
+                # This handles cases where commits mention the change_id but not the issue number
+                if change_id:
+                    branch = self._find_branch_by_change_id_in_commits(change_id, repo_path, None)
+                    if branch:
+                        return branch
+            elif change_id:
+                # Only search by change_id if we don't have an issue number
+                # This is less reliable as change_id might match unrelated commits
+                branch = self._find_branch_by_change_id_in_commits(change_id, repo_path, None)
+                if branch:
+                    return branch
+
+        except Exception:
+            # If detection fails, return None (will fall back to inference)
+            pass
+        finally:
+            # Clean up temporary attribute
+            if hasattr(self, "_current_change_id"):
+                delattr(self, "_current_change_id")
+
+        return None
+
+    def _find_branch_containing_commit(self, commit_hash: str, repo_path: Path) -> str | None:
+        """
+        Find which branch contains a specific commit.
+
+        Args:
+            commit_hash: Git commit hash (full or short)
+            repo_path: Path to git repository
+
+        Returns:
+            Branch name if found, None otherwise
+        """
+        try:
+            # First, verify the commit exists
+            result = subprocess.run(
+                ["git", "rev-parse", "--verify", f"{commit_hash}^{{commit}}"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode != 0:
+                return None
+
+            # Find branches that contain this commit
+            # Use --all to include remote branches
+            result = subprocess.run(
+                ["git", "branch", "-a", "--contains", commit_hash, "--format=%(refname:short)"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                branches = [b.strip() for b in result.stdout.strip().split("\n") if b.strip()]
+                # Remove 'origin/' prefix from remote branches for comparison
+                local_branches = []
+                seen_branches = set()
+                for branch in branches:
+                    clean_branch = branch.replace("origin/", "") if branch.startswith("origin/") else branch
+                    # Deduplicate (remote and local branches might both be present)
+                    if clean_branch not in seen_branches:
+                        local_branches.append(clean_branch)
+                        seen_branches.add(clean_branch)
+
+                # Get change_id from instance attribute if available (set by _detect_implementation_branch)
+                change_id = getattr(self, "_current_change_id", None)
+
+                # Strategy 1: Prefer branches that match the change_id in their name
+                # This is the most reliable - the branch name often matches the change_id
+                if change_id:
+                    # Normalize change_id for matching (remove hyphens, underscores, convert to lowercase)
+                    normalized_change_id = change_id.lower().replace("-", "").replace("_", "")
+                    # Extract key words from change_id (split by common separators and filter out short words)
+                    change_id_words = [
+                        word
+                        for word in change_id.lower().replace("-", "_").split("_")
+                        if len(word) > 3  # Only consider words longer than 3 characters
+                    ]
+                    for branch in local_branches:
+                        if any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                            # Normalize branch name for comparison
+                            normalized_branch = branch.lower().replace("-", "").replace("_", "").replace("/", "")
+                            # Check if change_id is a substring of branch name
+                            if normalized_change_id in normalized_branch:
+                                return branch
+                            # Also check if key words from change_id appear in branch name
+                            # This handles cases where branch name has additional words (e.g., "datamodel")
+                            if change_id_words:
+                                branch_words = [
+                                    word
+                                    for word in branch.lower().replace("-", "_").replace("/", "_").split("_")
+                                    if len(word) > 3
+                                ]
+                                # Check if at least 2 key words from change_id appear in branch
+                                matching_words = sum(1 for word in change_id_words if word in branch_words)
+                                if matching_words >= 2:
+                                    return branch
+
+                # Strategy 2: Prefer feature/bugfix/hotfix branches over main/master
+                for branch in local_branches:
+                    if any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                        return branch
+                # Return first branch if no feature branch found
+                return local_branches[0] if local_branches else None
+
+        except Exception:
+            pass
+
+        return None
+
+    def _find_branch_containing_files(
+        self, files: list[str] | str, repo_path: Path, issue_number: str | None = None
+    ) -> str | None:
+        """
+        Find which branch contains changes to specific files.
+
+        This method looks for the actual implementation branch by:
+        1. Finding commits that touch these files
+        2. Looking for commits that are NOT on main/master (implementation branches)
+        3. Preferring commits that are in feature/bugfix/hotfix branches
+
+        Args:
+            files: List of file paths or single file path string
+            repo_path: Path to git repository
+            issue_number: Optional GitHub issue number to filter commits (e.g., "107")
+
+        Returns:
+            Branch name if found, None otherwise
+        """
+        try:
+            if isinstance(files, str):
+                files = [files]
+
+            file_args = files[:10]  # Limit to first 10 files to avoid command line length issues
+
+            # If we have an issue number, try to find commits that reference it
+            # This helps avoid matching commits from the current working branch
+            if issue_number:
+                # Search for commits that touch these files AND mention the issue
+                patterns = [f"#{issue_number}", f"fixes #{issue_number}", f"closes #{issue_number}"]
+                for pattern in patterns:
+                    result = subprocess.run(
+                        ["git", "log", "--all", "--grep", pattern, "--format=%H", "--", *file_args],
+                        cwd=repo_path,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                        check=False,
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        # Get the most recent commit (first line)
+                        commit_hash = result.stdout.strip().split("\n")[0]
+                        branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                        if branch:
+                            return branch
+
+            # Find commits that touched these files AND mention the change_id in commit message
+            # This is the most specific search - finds the actual implementation commit
+            change_id = getattr(self, "_current_change_id", None)
+            if change_id:
+                result = subprocess.run(
+                    [
+                        "git",
+                        "log",
+                        "--all",
+                        "--grep",
+                        change_id,
+                        "--format=%H|%s",
+                        "-i",
+                        "--no-merges",
+                        "--",
+                        *file_args,
+                    ],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    # Try each commit until we find one in a feature branch
+                    # Skip merge commits - they're not the actual implementation
+                    for line in result.stdout.strip().split("\n")[:10]:
+                        if "|" in line:
+                            commit_hash, subject = line.split("|", 1)
+                        else:
+                            commit_hash = line
+                            subject = ""
+
+                        # Skip merge commits and chore commits - look for actual implementation
+                        if any(word in subject.lower() for word in ["merge", "chore:", "docs:"]):
+                            continue
+
+                        branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                        # Prefer feature/bugfix/hotfix branches
+                        if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                            return branch
+
+            # Find commits that touched these files, but exclude main/master
+            # This helps find the actual implementation branch, not just merged commits
+            result = subprocess.run(
+                [
+                    "git",
+                    "log",
+                    "--all",
+                    "--format=%H",
+                    "--not",
+                    "--remotes=origin/main",
+                    "--not",
+                    "--remotes=origin/master",
+                    "--",
+                    *file_args,
+                ],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                # Try each commit until we find one in a feature branch
+                for commit_hash in result.stdout.strip().split("\n")[:20]:  # Limit to first 20 commits
+                    branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                    # Prefer feature/bugfix/hotfix branches
+                    if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                        return branch
+
+            # Fallback: Find commits that touched these files (including main/master)
+            # This might match the current working branch, so use with caution
+            result = subprocess.run(
+                ["git", "log", "--all", "--format=%H", "-30", "--", *file_args],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                # Try each commit until we find one in a feature branch (not current working branch)
+                for commit_hash in result.stdout.strip().split("\n"):
+                    branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                    # Prefer feature/bugfix/hotfix branches
+                    if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                        return branch
+                # If no feature branch found, return None (don't guess)
+                return None
+
+        except Exception:
+            pass
+
+        return None
+
+    def _find_branch_by_change_id_in_commits(
+        self, change_id: str, repo_path: Path, issue_number: str | None = None
+    ) -> str | None:
+        """
+        Find branch by searching commit messages for change_id or issue number.
+
+        Args:
+            change_id: Change proposal ID to search for
+            repo_path: Path to git repository
+            issue_number: Optional GitHub issue number to search for (e.g., "107")
+
+        Returns:
+            Branch name if found, None otherwise
+        """
+        try:
+            # Strategy 1: Search for commits that reference the issue number
+            # This is the most reliable method - issue numbers are specific
+            if issue_number:
+                # Search for patterns like "#107", "fixes #107", "closes #107", etc.
+                patterns = [f"#{issue_number}", f"fixes #{issue_number}", f"closes #{issue_number}"]
+                for pattern in patterns:
+                    result = subprocess.run(
+                        ["git", "log", "--all", "--grep", pattern, "--format=%H", "-n", "10"],
+                        cwd=repo_path,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                        check=False,
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        # Try each commit until we find one in a feature branch
+                        for commit_hash in result.stdout.strip().split("\n"):
+                            branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                            # Prefer feature/bugfix/hotfix branches
+                            if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                                return branch
+                        # If no feature branch found, return the first one
+                        commit_hash = result.stdout.strip().split("\n")[0]
+                        branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                        if branch:
+                            return branch
+                # If no commits found with issue number, return None
+                # Don't fall back to change_id search - it's too unreliable
+                return None
+
+            # Strategy 2: Search for commits mentioning the change_id in commit messages
+            # Only use this if we don't have an issue number, or if issue number search failed
+            # This is less reliable as change_id might match unrelated commits
+            if change_id:
+                # Search with --no-merges to avoid merge commits, and get commit subjects too
+                result = subprocess.run(
+                    ["git", "log", "--all", "--grep", change_id, "--format=%H|%s", "-i", "--no-merges", "-n", "20"],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    # First pass: Look for commits that are clearly implementation commits
+                    # These have "implement" or "feat:" AND the change_id in the subject
+                    for line in result.stdout.strip().split("\n"):
+                        if "|" in line:
+                            commit_hash, subject = line.split("|", 1)
+                        else:
+                            commit_hash = line
+                            subject = ""
+
+                        # Skip merge, chore, and docs commits - look for actual implementation
+                        if any(word in subject.lower() for word in ["merge", "chore:", "docs:"]):
+                            continue
+
+                        # Check if this is clearly an implementation commit
+                        # Look for "implement" or "feat:" AND the change_id in the subject
+                        # This ensures we find the actual implementation commit, not just any commit mentioning the change_id
+                        has_implementation_keyword = any(word in subject.lower() for word in ["implement", "feat:"])
+                        has_change_id = change_id.lower() in subject.lower()
+                        is_implementation = has_implementation_keyword and has_change_id
+
+                        # Only process commits that are clearly implementation commits
+                        if is_implementation:
+                            branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                            if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
+                                # This is the implementation commit - return its branch immediately
+                                return branch
+
+                    # If we didn't find an implementation commit, return None (don't guess)
+                    # This is safer than returning a branch from a non-implementation commit
+                    return None
+
+        except Exception:
+            pass
 
         return None
 

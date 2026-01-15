@@ -489,6 +489,66 @@ If the proposal content hasn't changed, the issue won't be updated (even with `-
 - **Verify before updating** by checking the proposal's `source_tracking` metadata
 - **Review changes** in the proposal before syncing to ensure accuracy
 
+### Updating Archived Change Proposals
+
+When you improve comment logic or branch detection algorithms, you may want to update existing GitHub issues for archived change proposals with the new improvements.
+
+#### Use Case
+
+- **New comment logic**: When you add new features to status comments (e.g., branch detection improvements)
+- **Branch detection improvements**: When you enhance branch detection algorithms
+- **Comment format updates**: When you change how comments are formatted
+
+#### How It Works
+
+By default, archived change proposals (in `openspec/changes/archive/`) are excluded from sync. Use `--include-archived` to include them:
+
+```bash
+# Update all archived proposals with new comment logic
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+
+# Update specific archived proposal
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --change-ids add-code-change-tracking \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+```
+
+#### What Gets Updated
+
+When `--include-archived` is used with `--update-existing`:
+
+1. **Archived proposals are included** in the sync (normally excluded)
+2. **Comments are always updated** for applied status (even if content hash hasn't changed)
+3. **Branch detection runs** with the latest improvements
+4. **Issue state is verified** and updated if needed
+
+#### Example: Updating Issue #107
+
+```bash
+# Update issue #107 with improved branch detection
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids add-code-change-tracking \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/specfact-cli-internal
+```
+
+This will:
+- Find the archived proposal `add-code-change-tracking` in `openspec/changes/archive/`
+- Detect the implementation branch using the latest branch detection logic
+- Add/update a comment on issue #107 with the correct branch information
+
 ### Proposal Filtering
 
 Proposals are filtered based on target repository type:

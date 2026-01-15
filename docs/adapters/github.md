@@ -314,6 +314,39 @@ When validation completes, results are automatically reported to GitHub Issues:
 - Check API token has write permissions
 - Ensure issue number is correct in `source_tracking`
 
+## CLI Usage
+
+### Updating Archived Change Proposals
+
+When you improve comment logic or branch detection, use `--include-archived` to update existing GitHub issues for archived proposals:
+
+```bash
+# Update all archived proposals with new comment logic
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+
+# Update specific archived proposal
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --change-ids add-code-change-tracking \
+  --include-archived \
+  --update-existing \
+  --repo /path/to/openspec-repo
+```
+
+This ensures archived issues get updated with:
+
+- Improved branch detection algorithms
+- Enhanced comment formatting
+- Latest status information
+
+See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md#updating-archived-change-proposals) for complete documentation.
+
 ## Related Documentation
 
 - **[Backlog Adapter Patterns](./backlog-adapter-patterns.md)** - Patterns for future backlog adapters

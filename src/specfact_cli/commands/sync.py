@@ -1060,6 +1060,12 @@ def sync_bridge(
         help="Path to source code repository for code change detection (default: same as --repo). Required when OpenSpec repository differs from source code repository.",
         hidden=True,
     ),
+    include_archived: bool = typer.Option(
+        False,
+        "--include-archived/--no-include-archived",
+        help="Include archived change proposals in sync (default: False). Useful for updating existing issues with new comment logic or branch detection improvements.",
+        hidden=True,
+    ),
     interval: int = typer.Option(
         5,
         "--interval",
@@ -1238,6 +1244,7 @@ def sync_bridge(
                 code_repo_path_for_export = Path(code_repo).resolve() if code_repo else repo.resolve()
 
                 result = bridge_sync.export_change_proposals_to_devops(
+                    include_archived=include_archived,
                     adapter_type=adapter_value,
                     repo_owner=repo_owner,
                     repo_name=repo_name,
