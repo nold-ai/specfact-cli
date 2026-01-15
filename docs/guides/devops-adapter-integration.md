@@ -1,10 +1,15 @@
 # DevOps Adapter Integration Guide
 
+> **🆕 NEW FEATURE: Integrate SpecFact into Agile DevOps Workflows**  
+> Bidirectional synchronization between OpenSpec change proposals and DevOps backlog tools enables seamless integration of specification-driven development into your existing agile workflows.
+
 This guide explains how to integrate SpecFact CLI with DevOps backlog tools (GitHub Issues, Azure DevOps, Linear, Jira) to sync OpenSpec change proposals and track implementation progress through automated comment annotations.
 
 ## Overview
 
-SpecFact CLI supports exporting OpenSpec change proposals to DevOps tools and tracking implementation progress:
+**Why This Matters**: This feature bridges the gap between specification management (OpenSpec) and backlog management (GitHub Issues, ADO, Linear, Jira), allowing you to use SpecFact's specification-driven development approach while working within your existing agile DevOps workflows.
+
+SpecFact CLI supports **bidirectional synchronization** between OpenSpec change proposals and DevOps backlog tools:
 
 - **Issue Creation**: Export OpenSpec change proposals as GitHub Issues (or other DevOps backlog items)
 - **Progress Tracking**: Automatically detect code changes and add progress comments to issues
@@ -396,7 +401,57 @@ specfact sync bridge --adapter github --mode export-only \
 
 ### Update Existing Issues
 
-Update issue bodies when proposal content changes:
+When a change proposal already has a linked GitHub issue (via `source_tracking` metadata in the proposal), you can update the issue with the latest proposal content.
+
+#### Prerequisites
+
+The change proposal must have `source_tracking` metadata linking it to the GitHub issue. This is automatically added when:
+
+- You first export a proposal to create an issue
+- You import an existing issue as a change proposal (using bidirectional sync)
+- You manually add it to the proposal's `proposal.md` file
+
+**Example `source_tracking` in `proposal.md`:**
+
+```markdown
+## Source Tracking
+
+- **GitHub Issue**: #105
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/105>
+- **Repository**: nold-ai/specfact-cli
+- **Last Synced Status**: proposed
+<!-- content_hash: e628d8468669ebfc -->
+```
+
+#### Update a Specific Issue
+
+To update a specific change proposal's linked issue:
+
+```bash
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --change-ids your-change-id \
+  --update-existing \
+  --repo /path/to/openspec-repo
+```
+
+**Example: Update issue #105 for change proposal `implement-adapter-enhancement-recommendations`:**
+
+```bash
+cd /path/to/openspec-repo
+
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids implement-adapter-enhancement-recommendations \
+  --update-existing \
+  --repo .
+```
+
+#### Update All Linked Issues
+
+To update all change proposals that have linked GitHub issues:
 
 ```bash
 specfact sync bridge --adapter github --mode export-only \
@@ -406,7 +461,33 @@ specfact sync bridge --adapter github --mode export-only \
   --repo /path/to/openspec-repo
 ```
 
-**Note**: Uses content hash to detect changes. Default: `False` for safety.
+#### What Gets Updated
+
+When `--update-existing` is used, the GitHub adapter will:
+
+1. **Read `source_tracking` metadata** from the change proposal to find the linked issue number
+2. **Compare content hash** to detect if the proposal has changed since last sync
+3. **Update issue body** with the latest proposal content (if content changed)
+4. **Update issue title** if the proposal title changed
+5. **Sync status labels** (OpenSpec status ↔ GitHub labels)
+6. **Add/update OpenSpec metadata footer** in the issue body
+
+#### Content Hash Detection
+
+The adapter uses a content hash to detect changes. The hash is stored in the proposal's `source_tracking` section:
+
+```markdown
+<!-- content_hash: e628d8468669ebfc -->
+```
+
+If the proposal content hasn't changed, the issue won't be updated (even with `--update-existing`), preventing unnecessary API calls.
+
+#### Best Practices
+
+- **Use `--change-ids`** to update specific proposals instead of all proposals
+- **Use `--update-existing` sparingly** (only when proposal content changes significantly)
+- **Verify before updating** by checking the proposal's `source_tracking` metadata
+- **Review changes** in the proposal before syncing to ensure accuracy
 
 ### Proposal Filtering
 

@@ -1078,7 +1078,7 @@ def sync_bridge(
     - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
     - generic-markdown: Generic markdown-based specifications - import & sync
     - openspec: OpenSpec integration (openspec/) - read-only sync (Phase 1)
-    - github: GitHub Issues (DevOps backlog tracking, export-only mode) - export-only sync
+    - github: GitHub Issues - bidirectional sync (import issues as change proposals, export proposals as issues)
     - ado: Azure DevOps Work Items (future) - planned
     - linear: Linear Issues (future) - planned
     - jira: Jira Issues (future) - planned
@@ -1086,9 +1086,11 @@ def sync_bridge(
 
     **Sync Modes:**
     - read-only: OpenSpec → SpecFact (read specs, no writes) - OpenSpec adapter only
-    - export-only: SpecFact → DevOps (create/update issues, no import) - GitHub/ADO/Linear/Jira adapters
+    - bidirectional: Full two-way sync (tool ↔ SpecFact) - Spec-Kit and GitHub adapters
+      - GitHub: Import issues as change proposals, export proposals as issues
+      - Spec-Kit: Full bidirectional sync of specs and plans
+    - export-only: SpecFact → DevOps (create/update issues, no import) - ADO/Linear/Jira adapters (future)
     - import-annotation: DevOps → SpecFact (import issues, annotate with findings) - future
-    - bidirectional: Full two-way sync (tool ↔ SpecFact) - Spec-Kit adapter only
 
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle
@@ -1101,10 +1103,11 @@ def sync_bridge(
         specfact sync bridge --adapter openspec --repo . --external-base-path ../other-repo  # Cross-repo OpenSpec
         specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
         specfact sync bridge --repo . --watch --interval 10
-        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo  # SpecFact → GitHub Issues
-        specfact sync bridge --adapter github --mode export-only --update-existing  # Update existing issues when content changes
-        specfact sync bridge --adapter github --mode export-only --track-code-changes  # Detect code changes and add progress comments
-        specfact sync bridge --adapter github --mode export-only --add-progress-comment  # Add manual progress comment
+        specfact sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo  # Bidirectional sync (import issues, export proposals)
+        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo  # SpecFact → GitHub Issues (export only)
+        specfact sync bridge --adapter github --update-existing  # Update existing issues when content changes
+        specfact sync bridge --adapter github --track-code-changes  # Detect code changes and add progress comments
+        specfact sync bridge --adapter github --add-progress-comment  # Add manual progress comment
     """
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe

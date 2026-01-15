@@ -251,7 +251,9 @@ Convert external project formats to SpecFact format.
 
 #### `import from-bridge`
 
-Convert external tool projects (Spec-Kit, Linear, Jira, etc.) to SpecFact format using the bridge architecture.
+Convert external tool projects (code/spec adapters only) to SpecFact format using the bridge architecture.
+
+**Note**: This command is for **code/spec adapters only** (Spec-Kit, OpenSpec, generic-markdown). For backlog adapters (GitHub Issues, ADO, Linear, Jira), use [`sync bridge`](#sync-bridge) instead.
 
 ```bash
 specfact import from-bridge [OPTIONS]
@@ -268,7 +270,9 @@ specfact import from-bridge [OPTIONS]
 
 **Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
 
-- `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown` (default: auto-detect)
+- `--adapter ADAPTER` - Adapter type: `speckit`, `openspec`, `generic-markdown` (default: auto-detect)
+  - **Code/Spec adapters**: `speckit`, `openspec`, `generic-markdown` - Use `import from-bridge`
+  - **Backlog adapters**: `github`, `ado`, `linear`, `jira` - Use `sync bridge` instead (see [DevOps Adapter Integration](../guides/devops-adapter-integration.md))
 
 **Example:**
 
@@ -2942,28 +2946,42 @@ Bidirectional synchronization for consistent change management.
 
 #### `sync bridge`
 
-Sync changes between external tool artifacts (Spec-Kit, Linear, Jira, etc.) and SpecFact using the bridge architecture:
+Sync changes between external tool artifacts and SpecFact using the bridge architecture. Supports both code/spec adapters (Spec-Kit, OpenSpec) and backlog adapters (GitHub Issues, ADO, Linear, Jira).
 
 ```bash
 specfact sync bridge [OPTIONS]
 ```
+
+**Adapter Types:**
+
+- **Code/Spec adapters** (`speckit`, `openspec`, `generic-markdown`): Bidirectional sync of specifications and plans
+- **Backlog adapters** (`github`, `ado`, `linear`, `jira`) 🆕: Bidirectional sync of change proposals with backlog items (import issues as proposals, export proposals as issues)
 
 **Options:**
 
 - `--repo PATH` - Path to repository (default: `.`)
 - `--adapter ADAPTER` - Adapter type: `speckit`, `generic-markdown`, `openspec`, `github`, `ado`, `linear`, `jira`, `notion` (default: auto-detect)
 - `--bundle BUNDLE_NAME` - Project bundle name for SpecFact → tool conversion (default: auto-detect)
-- `--mode MODE` - Sync mode: `read-only` (OpenSpec → SpecFact), `export-only` (OpenSpec → DevOps), `import-annotation` (DevOps → SpecFact). Default: bidirectional if `--bidirectional`, else unidirectional
+- `--mode MODE` - Sync mode: `read-only` (OpenSpec → SpecFact), `export-only` (SpecFact → DevOps), `bidirectional` (tool ↔ SpecFact). Default: bidirectional if `--bidirectional`, else unidirectional
 - `--external-base-path PATH` - Base path for external tool repository (for cross-repo integrations, e.g., OpenSpec in different repo)
 - `--bidirectional` - Enable bidirectional sync (default: one-way import)
+  - **For backlog adapters**: Enables import (GitHub Issues → change proposals) AND export (change proposals → GitHub Issues)
 - `--overwrite` - Overwrite existing tool artifacts (delete all existing before sync)
 - `--watch` - Watch mode for continuous sync (monitors file changes in real-time)
 - `--interval INT` - Watch interval in seconds (default: 5, minimum: 1)
 - `--ensure-compliance` - Validate and auto-enrich plan bundle for tool compliance before sync
 
-**DevOps Backlog Tracking (export-only mode):**
+**DevOps Backlog Integration** 🆕 **NEW FEATURE**:
 
-When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira), the command exports OpenSpec change proposals to DevOps backlog tools, creating GitHub issues and tracking implementation progress through automated comment annotations.
+When using backlog adapters (GitHub, ADO, Linear, Jira), the command provides bidirectional synchronization:
+
+- **Export**: OpenSpec change proposals → GitHub Issues (or other backlog tools)
+- **Import**: GitHub Issues → OpenSpec change proposals
+- **Status Sync**: Keep OpenSpec change proposal status in sync with backlog item status
+- **Progress Tracking**: Automatically detect code changes and add progress comments to issues
+- **Validation Reporting**: Report validation results to backlog items
+
+See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md) for complete documentation.
 
 **Quick Start:**
 
@@ -2978,13 +2996,21 @@ When using `--mode export-only` with DevOps adapters (GitHub, ADO, Linear, Jira)
 
 3. **Track code changes** by adding progress comments:
 
-   ```bash
-   specfact sync bridge --adapter github --mode export-only \
-     --repo-owner owner --repo-name repo \
-     --track-code-changes \
-     --repo /path/to/openspec-repo \
-     --code-repo /path/to/source-code-repo  # If different from OpenSpec repo
-   ```
+  ```bash
+  specfact sync bridge --adapter github --mode export-only \
+    --repo-owner owner --repo-name repo \
+    --track-code-changes \
+    --repo /path/to/openspec-repo \
+    --code-repo /path/to/source-code-repo  # If different from OpenSpec repo
+
+  # Update existing issue with latest proposal content
+
+  specfact sync bridge --adapter github --mode export-only \
+    --repo-owner owner --repo-name repo \
+    --change-ids your-change-id \
+    --update-existing \
+    --repo /path/to/openspec-repo
+  ```
 
 **Basic Options:**
 
@@ -3038,9 +3064,16 @@ specfact sync bridge --adapter openspec --mode read-only --bundle my-project --r
 specfact sync bridge --adapter openspec --mode read-only --bundle my-project --repo . --external-base-path ../specfact-cli-internal
 ```
 
-# Export OpenSpec change proposals to GitHub issues (auto-detect sanitization)
+**Backlog Adapter Examples:**
 
-specfact sync bridge --adapter github --mode export-only
+```bash
+# Bidirectional sync with GitHub Issues (import AND export)
+specfact sync bridge --adapter github --bidirectional \
+  --repo-owner your-org --repo-name your-repo
+
+# Export OpenSpec change proposals to GitHub issues (auto-detect sanitization)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo
 
 # Export with explicit repository and sanitization
 
@@ -3064,6 +3097,13 @@ specfact sync bridge --adapter github --mode export-only \
 specfact sync bridge --adapter github --mode export-only \
   --repo-owner owner --repo-name repo \
   --change-ids add-feature-x,update-api \
+  --repo /path/to/openspec-repo
+
+# Update existing GitHub issue (when proposal already linked via source_tracking)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner owner --repo-name repo \
+  --change-ids implement-adapter-enhancement-recommendations \
+  --update-existing \
   --repo /path/to/openspec-repo
 
 ```

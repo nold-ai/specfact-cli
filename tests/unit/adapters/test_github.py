@@ -510,3 +510,298 @@ class TestGitHubAdapter:
                 repo_name="test-repo",
                 issue_number=999,  # Non-existent issue
             )
+
+    @beartype
+    def test_map_backlog_status_to_openspec(self, github_adapter: GitHubAdapter) -> None:
+        """Test mapping GitHub labels to OpenSpec status."""
+        assert github_adapter.map_backlog_status_to_openspec("enhancement") == "proposed"
+        assert github_adapter.map_backlog_status_to_openspec("new") == "proposed"
+        assert github_adapter.map_backlog_status_to_openspec("in-progress") == "in-progress"
+        assert github_adapter.map_backlog_status_to_openspec("in progress") == "in-progress"
+        assert github_adapter.map_backlog_status_to_openspec("active") == "in-progress"
+        assert github_adapter.map_backlog_status_to_openspec("done") == "applied"
+        assert github_adapter.map_backlog_status_to_openspec("completed") == "applied"
+        assert github_adapter.map_backlog_status_to_openspec("closed") == "applied"
+        assert github_adapter.map_backlog_status_to_openspec("deprecated") == "deprecated"
+        assert github_adapter.map_backlog_status_to_openspec("wontfix") == "deprecated"
+        assert github_adapter.map_backlog_status_to_openspec("discarded") == "discarded"
+        assert github_adapter.map_backlog_status_to_openspec("unknown") == "proposed"  # Default
+
+    @beartype
+    def test_map_openspec_status_to_backlog(self, github_adapter: GitHubAdapter) -> None:
+        """Test mapping OpenSpec status to GitHub labels."""
+        labels = github_adapter.map_openspec_status_to_backlog("proposed")
+        assert "openspec" in labels
+        assert len(labels) == 1
+
+        labels = github_adapter.map_openspec_status_to_backlog("in-progress")
+        assert "openspec" in labels
+        assert "in-progress" in labels
+
+        labels = github_adapter.map_openspec_status_to_backlog("applied")
+        assert "openspec" in labels
+        assert "completed" in labels
+
+        labels = github_adapter.map_openspec_status_to_backlog("deprecated")
+        assert "openspec" in labels
+        assert "deprecated" in labels
+
+        labels = github_adapter.map_openspec_status_to_backlog("discarded")
+        assert "openspec" in labels
+        assert "wontfix" in labels
+
+    @beartype
+    def test_extract_change_proposal_data(self, github_adapter: GitHubAdapter) -> None:
+        """Test extracting change proposal data from GitHub issue."""
+        issue_data = {
+            "number": 123,
+            "title": "Add Feature X",
+            "body": "## Why\n\nNeeded for user workflow\n\n## What Changes\n\nImplement feature X",
+            "labels": [{"name": "enhancement"}, {"name": "openspec"}],
+            "state": "open",
+            "created_at": "2025-01-01T10:00:00Z",
+            "assignees": [{"login": "user1"}],
+            "html_url": "https://github.com/test-owner/test-repo/issues/123",
+        }
+
+        result = github_adapter.extract_change_proposal_data(issue_data)
+
+        assert result["change_id"] == "123"
+        assert result["title"] == "Add Feature X"
+        assert result["rationale"] == "Needed for user workflow"
+        assert result["description"] == "Implement feature X"
+        assert result["status"] == "proposed"
+        assert result["owner"] == "user1"
+        assert "user1" in result["stakeholders"]
+
+    @beartype
+    def test_extract_change_proposal_data_with_openspec_metadata(self, github_adapter: GitHubAdapter) -> None:
+        """Test extracting change proposal data with OpenSpec metadata footer."""
+        issue_data = {
+            "number": 456,
+            "title": "Update Feature Y",
+            "body": "## Why\n\nImprove performance\n\n## What Changes\n\nOptimize code\n\n---\n*OpenSpec Change Proposal: `update-feature-y`*",
+            "labels": [{"name": "in-progress"}],
+            "state": "open",
+            "created_at": "2025-01-02T10:00:00Z",
+        }
+
+        result = github_adapter.extract_change_proposal_data(issue_data)
+
+        assert result["change_id"] == "update-feature-y"
+        assert result["status"] == "in-progress"
+
+    @beartype
+    def test_extract_change_proposal_data_missing_title(self, github_adapter: GitHubAdapter) -> None:
+        """Test error when GitHub issue has no title."""
+        issue_data = {
+            "number": 123,
+            "title": "",
+            "body": "Test body",
+            "labels": [],
+            "state": "open",
+        }
+
+        with pytest.raises(ValueError, match="GitHub issue must have a title"):
+            github_adapter.extract_change_proposal_data(issue_data)
+
+    @beartype
+    def test_extract_change_proposal_data_malformed_body(self, github_adapter: GitHubAdapter) -> None:
+        """Test extracting data from issue with malformed body."""
+        issue_data = {
+            "number": 123,
+            "title": "Test Issue",
+            "body": "No sections here, just plain text",
+            "labels": [{"name": "enhancement"}],
+            "state": "open",
+            "created_at": "2025-01-01T10:00:00Z",
+        }
+
+        result = github_adapter.extract_change_proposal_data(issue_data)
+
+        assert result["title"] == "Test Issue"
+        assert result["description"] == "No sections here, just plain text"
+        assert result["rationale"] == ""
+
+    @beartype
+    def test_import_artifact_github_issue(self, github_adapter: GitHubAdapter, tmp_path: Path) -> None:
+        """Test importing GitHub issue as change proposal."""
+        from unittest.mock import MagicMock
+
+        from specfact_cli.models.change import ChangeTracking
+
+        # Create mock project bundle
+        project_bundle = MagicMock()
+        project_bundle.change_tracking = ChangeTracking()
+        project_bundle.bundle_dir = tmp_path
+
+        issue_data = {
+            "number": 123,
+            "title": "Add Feature X",
+            "body": "## Why\n\nNeeded\n\n## What Changes\n\nImplement",
+            "labels": [{"name": "enhancement"}],
+            "state": "open",
+            "created_at": "2025-01-01T10:00:00Z",
+            "html_url": "https://github.com/test-owner/test-repo/issues/123",
+        }
+
+        github_adapter.import_artifact(
+            artifact_key="github_issue",
+            artifact_path=issue_data,
+            project_bundle=project_bundle,
+        )
+
+        assert "123" in project_bundle.change_tracking.proposals
+        proposal = project_bundle.change_tracking.proposals["123"]
+        assert proposal.title == "Add Feature X"
+        assert proposal.status == "proposed"
+        assert proposal.source_tracking is not None
+        assert proposal.source_tracking.tool == "github"
+
+    @beartype
+    def test_import_artifact_unsupported_key(self, github_adapter: GitHubAdapter) -> None:
+        """Test error when importing unsupported artifact key."""
+        with pytest.raises(NotImplementedError, match="Unsupported artifact key"):
+            github_adapter.import_artifact(
+                artifact_key="unsupported",
+                artifact_path={},
+                project_bundle=MagicMock(),
+            )
+
+    @beartype
+    def test_import_artifact_invalid_path_type(self, github_adapter: GitHubAdapter) -> None:
+        """Test error when artifact_path is not dict for GitHub issue."""
+        with pytest.raises(ValueError, match="GitHub issue import requires dict"):
+            github_adapter.import_artifact(
+                artifact_key="github_issue",
+                artifact_path=Path("/tmp/test"),
+                project_bundle=MagicMock(),
+            )
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
+    @patch("specfact_cli.adapters.github.requests.patch")
+    def test_sync_status_to_github(
+        self,
+        mock_patch: MagicMock,
+        mock_get: MagicMock,
+        github_adapter: GitHubAdapter,
+    ) -> None:
+        """Test syncing OpenSpec status to GitHub issue labels."""
+        # Mock get current issue
+        mock_get_response = MagicMock()
+        mock_get_response.json.return_value = {
+            "number": 123,
+            "html_url": "https://github.com/test-owner/test-repo/issues/123",
+            "labels": [{"name": "openspec"}, {"name": "enhancement"}],
+        }
+        mock_get_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_get_response
+
+        # Mock patch labels
+        mock_patch_response = MagicMock()
+        mock_patch_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_patch_response
+
+        proposal = {
+            "status": "in-progress",
+            "source_tracking": {"source_id": "123"},
+        }
+
+        result = github_adapter.sync_status_to_github(
+            proposal=proposal,
+            repo_owner="test-owner",
+            repo_name="test-repo",
+        )
+
+        assert result["issue_number"] == 123  # API returns int
+        assert result["labels_updated"] is True
+        assert "in-progress" in result["new_labels"]
+        mock_patch.assert_called_once()
+
+    @beartype
+    def test_sync_status_to_github_missing_source_tracking(self, github_adapter: GitHubAdapter) -> None:
+        """Test error when source_tracking is missing."""
+        proposal = {"status": "in-progress"}
+
+        with pytest.raises(ValueError, match="Source tracking required"):
+            github_adapter.sync_status_to_github(
+                proposal=proposal,
+                repo_owner="test-owner",
+                repo_name="test-repo",
+            )
+
+    @beartype
+    def test_sync_status_from_github(self, github_adapter: GitHubAdapter) -> None:
+        """Test syncing GitHub issue status to OpenSpec."""
+        issue_data = {
+            "labels": [{"name": "in-progress"}, {"name": "openspec"}],
+        }
+
+        proposal = {"status": "proposed"}
+
+        resolved_status = github_adapter.sync_status_from_github(
+            issue_data=issue_data,
+            proposal=proposal,
+            strategy="prefer_openspec",
+        )
+
+        # With prefer_openspec strategy, should keep OpenSpec status
+        assert resolved_status == "proposed"
+
+    @beartype
+    def test_sync_status_from_github_prefer_backlog(self, github_adapter: GitHubAdapter) -> None:
+        """Test syncing with prefer_backlog strategy."""
+        issue_data = {
+            "labels": [{"name": "in-progress"}],
+        }
+
+        proposal = {"status": "proposed"}
+
+        resolved_status = github_adapter.sync_status_from_github(
+            issue_data=issue_data,
+            proposal=proposal,
+            strategy="prefer_backlog",
+        )
+
+        # With prefer_backlog strategy, should use GitHub status
+        assert resolved_status == "in-progress"
+
+    @beartype
+    def test_resolve_status_conflict(self, github_adapter: GitHubAdapter) -> None:
+        """Test conflict resolution strategies."""
+        # Test prefer_openspec (default)
+        result = github_adapter.resolve_status_conflict("in-progress", "proposed", "prefer_openspec")
+        assert result == "in-progress"
+
+        # Test prefer_backlog
+        result = github_adapter.resolve_status_conflict("proposed", "in-progress", "prefer_backlog")
+        assert result == "in-progress"
+
+        # Test merge (most advanced)
+        result = github_adapter.resolve_status_conflict("proposed", "in-progress", "merge")
+        assert result == "in-progress"  # in-progress is more advanced
+
+        result = github_adapter.resolve_status_conflict("in-progress", "applied", "merge")
+        assert result == "applied"  # applied is more advanced
+
+    @beartype
+    def test_create_source_tracking(self, github_adapter: GitHubAdapter) -> None:
+        """Test creating source tracking from backlog item."""
+        item_data = {
+            "id": "123",
+            "number": 123,
+            "url": "https://api.github.com/repos/test-owner/test-repo/issues/123",
+            "html_url": "https://github.com/test-owner/test-repo/issues/123",
+            "state": "open",
+            "assignees": [{"login": "user1"}],
+        }
+
+        source_tracking = github_adapter.create_source_tracking(item_data, "github")
+
+        assert source_tracking.tool == "github"
+        assert source_tracking.source_metadata["source_id"] == "123"
+        # Prefer html_url over url (user-friendly URL)
+        assert source_tracking.source_metadata["source_url"] == "https://github.com/test-owner/test-repo/issues/123"
+        assert source_tracking.source_metadata["source_state"] == "open"
+        assert len(source_tracking.source_metadata["assignees"]) == 1

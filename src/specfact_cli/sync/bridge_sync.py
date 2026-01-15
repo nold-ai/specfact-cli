@@ -758,8 +758,49 @@ class BridgeSync:
                                 if isinstance(source_metadata, dict):
                                     stored_hash = source_metadata.get("content_hash")
 
-                            if stored_hash != current_hash:
-                                # Content changed - update issue body
+                            # Check if title or state needs update (get current issue data)
+                            current_issue_title = None
+                            current_issue_state = None
+                            needs_title_update = False
+                            needs_state_update = False
+                            if target_entry:
+                                issue_number = target_entry.get("source_id")
+                                if issue_number:
+                                    # Fetch current issue to check title and state
+                                    try:
+                                        from specfact_cli.adapters.registry import AdapterRegistry
+
+                                        adapter_instance = AdapterRegistry.get_adapter(adapter_type)
+                                        if adapter_instance and hasattr(adapter_instance, "api_token"):
+                                            import requests
+
+                                            url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+                                            headers = {
+                                                "Authorization": f"token {adapter_instance.api_token}",
+                                                "Accept": "application/vnd.github.v3+json",
+                                            }
+                                            response = requests.get(url, headers=headers, timeout=30)
+                                            response.raise_for_status()
+                                            issue_data = response.json()
+                                            current_issue_title = issue_data.get("title", "")
+                                            current_issue_state = issue_data.get("state", "open")
+                                            proposal_title = proposal.get("title", "")
+                                            proposal_status = proposal.get("status", "proposed")
+                                            needs_title_update = (
+                                                current_issue_title
+                                                and proposal_title
+                                                and current_issue_title != proposal_title
+                                            )
+                                            # Check if state needs update (applied/deprecated/discarded should be closed)
+                                            should_close = proposal_status in ("applied", "deprecated", "discarded")
+                                            desired_state = "closed" if should_close else "open"
+                                            needs_state_update = current_issue_state != desired_state
+                                    except Exception:
+                                        # If we can't fetch, proceed without title/state check
+                                        pass
+
+                            if stored_hash != current_hash or needs_title_update or needs_state_update:
+                                # Content changed or title needs update - update issue body and/or title
                                 try:
                                     # If using sanitized content, update proposal with sanitized content
                                     if import_from_tmp:
@@ -1300,6 +1341,7 @@ class BridgeSync:
                     for line in lines:
                         line_stripped = line.strip()
                         if line_stripped.startswith("# Change:"):
+                            title = line_stripped.replace("# Change:", "").strip()
                             continue
                         if line_stripped == "## Why":
                             in_why = True
@@ -1327,8 +1369,6 @@ class BridgeSync:
                             if description and not description.endswith("\n"):
                                 description += "\n"
                             description += line + "\n"
-                        elif not title and line_stripped and not line_stripped.startswith("#"):
-                            title = line_stripped
 
                     # Parse source tracking (same logic as active changes)
                     archive_source_tracking_list: list[dict[str, Any]] = []

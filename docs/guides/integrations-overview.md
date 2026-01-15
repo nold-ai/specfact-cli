@@ -132,35 +132,41 @@ SpecFact CLI integrations fall into four main categories:
 
 ## DevOps & Backlog
 
-### DevOps Adapter Integration
+### DevOps Adapter Integration 🆕 **NEW FEATURE**
 
-**Purpose**: Sync change proposals to DevOps backlog tools and track progress
+**Purpose**: Integrate SpecFact into agile DevOps workflows with bidirectional backlog synchronization
 
 **What it provides**:
 
-- ✅ Export OpenSpec change proposals to GitHub Issues (or other DevOps tools)
-- ✅ Automatic progress tracking via code change detection
-- ✅ Content sanitization for public repositories
-- ✅ Separate repository support (OpenSpec proposals and code in different repos)
-- ✅ Automated comment annotations on issues
+- ✅ **Bidirectional sync** - Export OpenSpec change proposals to GitHub Issues AND import GitHub Issues as change proposals
+- ✅ **Automatic progress tracking** - Detect code changes and automatically add progress comments to issues
+- ✅ **Status synchronization** - Keep OpenSpec change proposal status in sync with GitHub issue labels
+- ✅ **Content sanitization** - Protect internal information when syncing to public repositories
+- ✅ **Separate repository support** - Handle cases where OpenSpec proposals and code are in different repos
+- ✅ **Validation reporting** - Automatically report validation results to GitHub Issues
+- ✅ **Conflict resolution** - Smart conflict resolution when status differs between OpenSpec and backlog
 
 **Supported adapters**:
 
-- **GitHub Issues** (`--adapter github`) - ✅ Full support
+- **GitHub Issues** (`--adapter github`) - ✅ Full bidirectional support
 - **Azure DevOps** (`--adapter ado`) - Planned
 - **Linear** (`--adapter linear`) - Planned
 - **Jira** (`--adapter jira`) - Planned
 
 **When to use**:
 
-- Syncing OpenSpec change proposals to GitHub Issues
-- Tracking implementation progress automatically
-- Managing change proposals in DevOps backlog tools
+- **Integrating SpecFact into agile DevOps workflows** - Keep your backlog in sync with your specifications
+- Syncing OpenSpec change proposals to GitHub Issues for sprint planning
+- Importing GitHub Issues as change proposals to track work in OpenSpec
+- Tracking implementation progress automatically via code change detection
+- Managing change proposals in DevOps backlog tools alongside your code
 - Coordinating between OpenSpec repositories and code repositories
 
-**Key difference**: DevOps adapters provide **backlog integration and progress tracking**, while OpenSpec provides **specification management**.
+**Key difference**: DevOps adapters provide **backlog integration and progress tracking**, enabling SpecFact to integrate seamlessly into agile DevOps workflows. This bridges the gap between specification management (OpenSpec) and backlog management (GitHub Issues, ADO, Linear, Jira).
 
-**See also**: [DevOps Adapter Integration Guide](./devops-adapter-integration.md)
+**Why this matters**: This feature allows you to use SpecFact's specification-driven development approach while working within your existing agile DevOps workflows. Change proposals become backlog items, and backlog items become change proposals—keeping everything in sync automatically.
+
+**See also**: [DevOps Adapter Integration Guide](./devops-adapter-integration.md) | [GitHub Adapter Reference](../adapters/github.md) | [Backlog Adapter Patterns](../adapters/backlog-adapter-patterns.md)
 
 ---
 
@@ -210,8 +216,8 @@ Start: What do you need?
 ├─ Need API contract testing?
 │  └─ ✅ Use Specmatic integration (API-level contracts)
 │
-├─ Need to sync change proposals to backlog?
-│  └─ ✅ Use DevOps adapter integration (GitHub Issues, etc.)
+├─ Need to integrate SpecFact into agile DevOps workflows?
+│  └─ ✅ Use DevOps adapter integration (GitHub Issues, etc.) - Bidirectional sync with backlog
 │
 └─ Need AI-assisted development?
    └─ ✅ Use AI IDE integration (slash commands, AI workflows)
@@ -223,12 +229,14 @@ Start: What do you need?
 
 ### Common Workflows
 
-#### 1. Brownfield Modernization with OpenSpec
+#### 1. Brownfield Modernization with OpenSpec and DevOps Integration
 
 - Use SpecFact CLI `import from-code` to analyze existing code
 - Export to OpenSpec for specification anchoring
 - Use OpenSpec change proposals for tracking improvements
-- Sync proposals to GitHub Issues via DevOps adapter
+- **Sync proposals to GitHub Issues via DevOps adapter** - Integrate into agile DevOps workflows
+- **Import GitHub Issues as change proposals** - Keep backlog and specs in sync
+- **Automatic progress tracking** - Code changes automatically update GitHub Issues
 
 #### 2. Greenfield Development with Spec-Kit
 
