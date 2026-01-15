@@ -38,6 +38,9 @@ class TestChangeProposalValidationIntegration:
     @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
     def test_validation_with_active_proposals(self, mock_registry: MagicMock, openspec_repo: Path) -> None:
         """Test validation workflow with active change proposals."""
+        # Reset mock to ensure clean state
+        mock_registry.reset_mock()
+
         # Setup OpenSpec with active proposal
         openspec_path = openspec_repo / "openspec"
         changes_dir = openspec_path / "changes" / "add-feature-x"
@@ -74,12 +77,10 @@ class TestChangeProposalValidationIntegration:
             feature_deltas={"add-feature-x": [feature_delta]},
         )
 
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
         mock_adapter.detect.return_value = True
         mock_adapter.load_change_tracking.return_value = change_tracking
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         # Load active proposals
         active_tracking = load_active_change_proposals(openspec_repo)
@@ -165,6 +166,9 @@ class TestChangeProposalValidationIntegration:
     @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
     def test_validation_status_updates(self, mock_registry: MagicMock, openspec_repo: Path) -> None:
         """Test validation status updates in change proposals."""
+        # Reset mock to ensure clean state
+        mock_registry.reset_mock()
+
         openspec_path = openspec_repo / "openspec"
         openspec_path.mkdir(exist_ok=True)
 
@@ -202,10 +206,8 @@ class TestChangeProposalValidationIntegration:
             "feature-1": {"success": True, "contracts_validated": 5, "deviations": []},
         }
 
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         update_validation_status(change_tracking, validation_results, openspec_repo)
 
@@ -218,6 +220,10 @@ class TestChangeProposalValidationIntegration:
     @patch("specfact_cli.validators.change_proposal_integration.requests")
     def test_validation_result_reporting_to_github(self, mock_requests: MagicMock, mock_registry: MagicMock) -> None:
         """Test reporting validation results to GitHub Issues."""
+        # Reset mocks to ensure clean state
+        mock_registry.reset_mock()
+        mock_requests.reset_mock()
+
         from specfact_cli.models.source_tracking import SourceTracking
 
         feature_delta = FeatureDelta(
@@ -260,13 +266,11 @@ class TestChangeProposalValidationIntegration:
             "feature-1": {"success": False, "error": "Contract violation detected"},
         }
 
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
         mock_adapter.base_url = "https://api.github.com"
         mock_adapter.api_token = "test-token"
         mock_adapter._add_issue_comment = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         # Mock GitHub API responses
         mock_get_response = MagicMock()

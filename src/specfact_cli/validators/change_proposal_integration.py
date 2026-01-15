@@ -300,15 +300,15 @@ def report_validation_results_to_backlog(
             continue
 
         # Extract GitHub issue info from source_tracking
-        source_metadata = source_tracking.source_metadata if hasattr(source_tracking, "source_metadata") else {}
-        issue_number = source_metadata.get("source_id")
-        source_url = source_metadata.get("source_url", "")
+        source_metadata = getattr(source_tracking, "source_metadata", {}) if source_tracking else {}
+        issue_number = source_metadata.get("source_id") if isinstance(source_metadata, dict) else None
+        source_url = source_metadata.get("source_url", "") if isinstance(source_metadata, dict) else ""
 
         if not issue_number and source_url:
             # Try to extract issue number from URL
             match = re.search(r"/issues/(\d+)", source_url)
             if match:
-                issue_number = int(match.group(1))
+                issue_number = match.group(1)  # Keep as string, convert to int when needed
 
         if not issue_number:
             continue  # No GitHub issue linked
@@ -375,9 +375,15 @@ def report_validation_results_to_backlog(
         comment_text = "\n".join(comment_parts)
 
         # Add comment to GitHub issue
+        # Convert issue_number to int if it's a string
+        try:
+            issue_number_int = int(issue_number) if isinstance(issue_number, str) else issue_number
+        except (ValueError, TypeError):
+            continue  # Invalid issue number
+
         with suppress(Exception):
             # Log but don't fail - reporting is non-critical
-            adapter_instance._add_issue_comment(repo_owner, repo_name, int(issue_number), comment_text)
+            adapter_instance._add_issue_comment(repo_owner, repo_name, issue_number_int, comment_text)
 
         # Update issue labels based on validation status
         if proposal_validation_status == "failed":
@@ -385,7 +391,7 @@ def report_validation_results_to_backlog(
             with suppress(Exception):
                 # Log but don't fail - label update is non-critical
                 # Get current issue
-                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"
                 headers = {
                     "Authorization": f"token {adapter_instance.api_token}",
                     "Accept": "application/vnd.github.v3+json",
@@ -400,7 +406,7 @@ def report_validation_results_to_backlog(
                 # Add validation-failed label if not present
                 if "validation-failed" not in current_labels:
                     all_labels = [*current_labels, "validation-failed"]
-                    patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+                    patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"
                     patch_payload = {"labels": all_labels}
                     patch_response = requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30)
                     patch_response.raise_for_status()

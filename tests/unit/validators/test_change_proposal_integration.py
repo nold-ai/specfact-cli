@@ -29,7 +29,7 @@ class TestLoadActiveChangeProposals:
     @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
     def test_load_active_proposals_openspec_not_found(self, mock_registry: MagicMock, tmp_path: Path) -> None:
         """Test when OpenSpec repository is not found."""
-        mock_registry.get.return_value = None
+        mock_registry.get_adapter.side_effect = ValueError("Adapter not registered")
 
         result = load_active_change_proposals(tmp_path)
 
@@ -39,11 +39,9 @@ class TestLoadActiveChangeProposals:
     @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
     def test_load_active_proposals_no_openspec_dir(self, mock_registry: MagicMock, tmp_path: Path) -> None:
         """Test when openspec directory doesn't exist."""
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
         mock_adapter.detect.return_value = False
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         result = load_active_change_proposals(tmp_path)
 
@@ -56,7 +54,6 @@ class TestLoadActiveChangeProposals:
         openspec_path = tmp_path / "openspec"
         openspec_path.mkdir()
 
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
         mock_adapter.detect.return_value = True
         mock_adapter.load_change_tracking.return_value = ChangeTracking(
@@ -102,8 +99,7 @@ class TestLoadActiveChangeProposals:
                 ),
             }
         )
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         result = load_active_change_proposals(tmp_path)
 
@@ -347,10 +343,8 @@ class TestUpdateValidationStatus:
             "feature-1": {"success": True, "details": "Validation passed"},
         }
 
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         update_validation_status(change_tracking, validation_results, tmp_path)
 
@@ -460,13 +454,11 @@ class TestReportValidationResultsToBacklog:
             "feature-1": {"success": True},
         }
 
-        mock_adapter_class = MagicMock()
         mock_adapter = MagicMock()
         mock_adapter.base_url = "https://api.github.com"
         mock_adapter.api_token = "test-token"
         mock_adapter._add_issue_comment = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
-        mock_registry.get.return_value = mock_adapter_class
+        mock_registry.get_adapter.return_value = mock_adapter
 
         # Mock GitHub API responses
         mock_get_response = MagicMock()
