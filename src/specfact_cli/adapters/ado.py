@@ -1806,6 +1806,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         try:
             import subprocess
 
+            # Use git show-ref for more reliable branch checking
+            result = subprocess.run(
+                ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0:
+                return True
+
+            # Fallback: check using git branch --list (for compatibility)
             result = subprocess.run(
                 ["git", "branch", "--list", branch_name],
                 cwd=repo_path,
@@ -1815,8 +1828,17 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                 check=False,
             )
             # Check if branch exists locally
-            if result.returncode == 0:
-                branches = [line.strip().replace("*", "").strip() for line in result.stdout.split("\n") if line.strip()]
+            if result.returncode == 0 and result.stdout.strip():
+                # Parse branch names from output (handles both "* branch" and "  branch" formats)
+                branches = []
+                for line in result.stdout.split("\n"):
+                    line = line.strip()
+                    if line:
+                        # Remove asterisk and any leading/trailing whitespace
+                        branch = line.replace("*", "").strip()
+                        if branch:
+                            branches.append(branch)
+                # Check if exact branch name matches (after normalization)
                 if branch_name in branches:
                     return True
 
@@ -1829,7 +1851,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                 timeout=5,
                 check=False,
             )
-            if result.returncode == 0:
+            if result.returncode == 0 and result.stdout.strip():
                 # Extract branch name from remote branch format
                 remote_branches = []
                 for line in result.stdout.split("\n"):
