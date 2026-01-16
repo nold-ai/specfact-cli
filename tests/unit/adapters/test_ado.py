@@ -735,7 +735,9 @@ class TestAdoAdapter:
         subprocess.run(["git", "init"], cwd=tmp_path, check=False, capture_output=True)
         # Configure git user (required for commits in CI)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True
+        )
         # Create a commit so branch is visible
         (tmp_path / "test.txt").write_text("test")
         subprocess.run(["git", "add", "test.txt"], cwd=tmp_path, check=False, capture_output=True)
@@ -755,7 +757,9 @@ class TestAdoAdapter:
         subprocess.run(["git", "init"], cwd=tmp_path, check=False, capture_output=True)
         # Configure git user (required for commits in CI)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True
+        )
         # Create a commit so branch is visible
         (tmp_path / "test.txt").write_text("test")
         subprocess.run(["git", "add", "test.txt"], cwd=tmp_path, check=False, capture_output=True)
@@ -775,7 +779,9 @@ class TestAdoAdapter:
         subprocess.run(["git", "init"], cwd=tmp_path, check=False, capture_output=True)
         # Configure git user (required for commits in CI)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True
+        )
         # Create a commit so branch is visible
         (tmp_path / "test.txt").write_text("test")
         subprocess.run(["git", "add", "test.txt"], cwd=tmp_path, check=False, capture_output=True)
