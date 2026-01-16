@@ -1894,10 +1894,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                         elif line.startswith("remotes/"):
                             # Extract branch name from remote format: remotes/origin/branch
                             parts = line.split("/")
-                            if len(parts) >= 3:
-                                branch = "/".join(parts[2:])  # Get everything after origin/
-                            else:
-                                branch = line.replace("remotes/", "").strip()
+                            branch = "/".join(parts[2:]) if len(parts) >= 3 else line.replace("remotes/", "").strip()
                         else:
                             branch = line.strip()
                         if branch and branch not in all_branches:
