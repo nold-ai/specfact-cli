@@ -558,13 +558,36 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                                 work_item_id = entry.get("source_id")
                                 break
 
-                    # Tertiary match: for ADO, if source_repo is set but doesn't match exactly,
-                    # try matching by org only (project name might have changed or be encoded differently)
-                    if entry_repo and entry_type == "ado":
+                    # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
+                    # This prevents cross-project matches when both entry_repo and target_repo have project names
+                    if entry_repo and target_repo and entry_type == "ado":
                         entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
                         target_org = target_repo.split("/")[0] if "/" in target_repo else None
-                        # Org matches and source_id exists - this is likely the same ADO organization/work item
-                        if entry_org and target_org and entry_org == target_org and entry.get("source_id"):
+                        entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
+                        target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
+                        
+                        # Only use org-only match when:
+                        # 1. Org matches
+                        # 2. source_id exists
+                        # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
+                        # This prevents matching org/project-a with org/project-b when both have known project names
+                        source_url = entry.get("source_url", "")
+                        entry_has_guid = source_url and re.search(r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE)
+                        project_unknown = (
+                            not entry_project  # Entry has no project part
+                            or not target_project  # Target has no project part
+                            or entry_has_guid  # Entry URL contains GUID (project name unknown)
+                            or (entry_project and len(entry_project) == 36 and "-" in entry_project)  # Entry project is a GUID
+                            or (target_project and len(target_project) == 36 and "-" in target_project)  # Target project is a GUID
+                        )
+                        
+                        if (
+                            entry_org
+                            and target_org
+                            and entry_org == target_org
+                            and entry.get("source_id")
+                            and project_unknown
+                        ):
                             work_item_id = entry.get("source_id")
                             break
 

@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file.
     - `specfact sync bridge --adapter ado --bidirectional --ado-org myorg --ado-project myproject` (bidirectional)
     - `specfact sync bridge --adapter ado --mode export-only --ado-org myorg --ado-project myproject` (export-only)
     - `specfact sync bridge --adapter ado --mode export-only --bundle main --change-ids <id>` (bundle export)
-  - **Documentation**: 
+  - **Documentation**:
     - `docs/guides/devops-adapter-integration.md#azure-devops-integration` - Complete integration guide
     - `docs/guides/devops-adapter-integration.md#cross-adapter-sync-lossless-round-trip-migration` - Cross-adapter sync scenarios
     - `docs/adapters/azuredevops.md` - Azure DevOps adapter reference
