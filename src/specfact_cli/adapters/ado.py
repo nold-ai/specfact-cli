@@ -1812,7 +1812,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         try:
             import subprocess
 
-            # Method 1: Use git rev-parse to check if branch exists (most reliable)
+            # Method 1: Check if we're currently on this branch (fastest check)
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip() == branch_name:
+                return True
+
+            # Method 2: Use git rev-parse to check if branch exists (most reliable)
             result = subprocess.run(
                 ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch_name}"],
                 cwd=repo_path,
@@ -1824,7 +1836,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             if result.returncode == 0:
                 return True
 
-            # Method 2: Use git show-ref for branch checking
+            # Method 3: Use git show-ref for branch checking
             result = subprocess.run(
                 ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
                 cwd=repo_path,
@@ -1836,7 +1848,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             if result.returncode == 0:
                 return True
 
-            # Method 3: Fallback - check using git branch --list (for compatibility)
+            # Method 4: Fallback - check using git branch --list (for compatibility)
             result = subprocess.run(
                 ["git", "branch", "--list", branch_name],
                 cwd=repo_path,
@@ -1860,7 +1872,41 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                 if branch_name in branches:
                     return True
 
-            # Also check remote branches
+            # Method 5: Use git branch -a to list all branches (including current)
+            result = subprocess.run(
+                ["git", "branch", "-a"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                # Parse all branch names from output
+                all_branches = []
+                for line in result.stdout.split("\n"):
+                    line = line.strip()
+                    if line:
+                        # Remove markers like "*", "remotes/", etc.
+                        # Handle formats: "* branch", "  branch", "remotes/origin/branch"
+                        if line.startswith("*"):
+                            branch = line[1:].strip()
+                        elif line.startswith("remotes/"):
+                            # Extract branch name from remote format: remotes/origin/branch
+                            parts = line.split("/")
+                            if len(parts) >= 3:
+                                branch = "/".join(parts[2:])  # Get everything after origin/
+                            else:
+                                branch = line.replace("remotes/", "").strip()
+                        else:
+                            branch = line.strip()
+                        if branch and branch not in all_branches:
+                            all_branches.append(branch)
+                # Check if branch name matches
+                if branch_name in all_branches:
+                    return True
+
+            # Also check remote branches explicitly
             result = subprocess.run(
                 ["git", "branch", "-r", "--list", f"*/{branch_name}"],
                 cwd=repo_path,
@@ -1883,8 +1929,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                     return True
 
             return False
-        except Exception:
+        except Exception as e:
             # If we can't check (git not available, etc.), return False to be safe
+            self.console.log(f"[bold yellow]Warning:[/bold yellow] Error checking branch existence: {e}")
             return False
 
     @beartype
