@@ -1812,7 +1812,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         try:
             import subprocess
 
-            # Use git show-ref for more reliable branch checking
+            # Method 1: Use git rev-parse to check if branch exists (most reliable)
+            result = subprocess.run(
+                ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0:
+                return True
+
+            # Method 2: Use git show-ref for branch checking
             result = subprocess.run(
                 ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
                 cwd=repo_path,
@@ -1824,7 +1836,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             if result.returncode == 0:
                 return True
 
-            # Fallback: check using git branch --list (for compatibility)
+            # Method 3: Fallback - check using git branch --list (for compatibility)
             result = subprocess.run(
                 ["git", "branch", "--list", branch_name],
                 cwd=repo_path,
