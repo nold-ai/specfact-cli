@@ -221,9 +221,9 @@ def update_validation_status(
             feature_key = delta.feature_key
 
             # Get validation result for this feature
-            feature_result = validation_results.get(feature_key)
-
-            if feature_result:
+            # Check for key presence to handle False and empty dict results correctly
+            if feature_key in validation_results:
+                feature_result = validation_results[feature_key]
                 # Update validation status
                 if isinstance(feature_result, dict):
                     success = feature_result.get("success", False)
@@ -340,9 +340,9 @@ def report_validation_results_to_backlog(
         if change_name in change_tracking.feature_deltas:
             for delta in change_tracking.feature_deltas[change_name]:
                 feature_key = delta.feature_key
-                feature_result = validation_results.get(feature_key)
-
-                if feature_result:
+                # Check for key presence to handle False and empty dict results correctly
+                if feature_key in validation_results:
+                    feature_result = validation_results[feature_key]
                     if isinstance(feature_result, dict):
                         success = feature_result.get("success", False)
                         if not success:

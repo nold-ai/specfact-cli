@@ -403,6 +403,108 @@ class TestUpdateValidationStatus:
         assert feature_delta.validation_status == "failed"
         assert feature_delta.validation_results == {"success": False, "error": "Validation failed"}
 
+    @beartype
+    @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
+    def test_update_validation_status_boolean_false(self, mock_registry: MagicMock, tmp_path: Path) -> None:
+        """Test updating validation status with boolean False (should be treated as failed, not pending)."""
+        openspec_path = tmp_path / "openspec"
+        openspec_path.mkdir()
+
+        feature_delta = FeatureDelta(
+            feature_key="feature-1",
+            change_type=ChangeType.ADDED,
+            original_feature=None,
+            proposed_feature=Feature(key="feature-1", title="Feature 1", outcomes=[]),
+            change_rationale=None,
+            change_date=None,
+            validation_status=None,
+            validation_results=None,
+            source_tracking=None,
+        )
+
+        change_tracking = ChangeTracking(
+            proposals={
+                "change-1": ChangeProposal(
+                    name="change-1",
+                    title="Add Feature 1",
+                    description="Test",
+                    rationale="Test",
+                    created_at="2025-01-01T10:00:00Z",
+                    timeline=None,
+                    owner=None,
+                    applied_at=None,
+                    archived_at=None,
+                    source_tracking=None,
+                )
+            },
+            feature_deltas={"change-1": [feature_delta]},
+        )
+
+        # Test with boolean False - should be treated as failed, not pending
+        validation_results = {
+            "feature-1": False,
+        }
+
+        mock_adapter = MagicMock()
+        mock_registry.get_adapter.return_value = mock_adapter
+
+        update_validation_status(change_tracking, validation_results, tmp_path)
+
+        assert feature_delta.validation_status == "failed"
+        assert feature_delta.validation_results == {"success": False}
+        mock_adapter.save_change_tracking.assert_called_once()
+
+    @beartype
+    @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
+    def test_update_validation_status_empty_dict(self, mock_registry: MagicMock, tmp_path: Path) -> None:
+        """Test updating validation status with empty dict (should be treated as failed, not pending)."""
+        openspec_path = tmp_path / "openspec"
+        openspec_path.mkdir()
+
+        feature_delta = FeatureDelta(
+            feature_key="feature-1",
+            change_type=ChangeType.ADDED,
+            original_feature=None,
+            proposed_feature=Feature(key="feature-1", title="Feature 1", outcomes=[]),
+            change_rationale=None,
+            change_date=None,
+            validation_status=None,
+            validation_results=None,
+            source_tracking=None,
+        )
+
+        change_tracking = ChangeTracking(
+            proposals={
+                "change-1": ChangeProposal(
+                    name="change-1",
+                    title="Add Feature 1",
+                    description="Test",
+                    rationale="Test",
+                    created_at="2025-01-01T10:00:00Z",
+                    timeline=None,
+                    owner=None,
+                    applied_at=None,
+                    archived_at=None,
+                    source_tracking=None,
+                )
+            },
+            feature_deltas={"change-1": [feature_delta]},
+        )
+
+        # Test with empty dict - should be treated as failed (success defaults to False)
+        validation_results = {
+            "feature-1": {},
+        }
+
+        mock_adapter = MagicMock()
+        mock_registry.get_adapter.return_value = mock_adapter
+
+        update_validation_status(change_tracking, validation_results, tmp_path)
+
+        assert feature_delta.validation_status == "failed"
+        assert feature_delta.validation_results == {}
+        mock_adapter.save_change_tracking.assert_called_once()
+
 
 class TestReportValidationResultsToBacklog:
     """Test reporting validation results to backlog."""
@@ -477,6 +579,82 @@ class TestReportValidationResultsToBacklog:
 
         # Verify comment was added
         mock_adapter._add_issue_comment.assert_called_once()
+
+    @beartype
+    @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
+    @patch("specfact_cli.validators.change_proposal_integration.requests")
+    def test_report_to_github_boolean_false(self, mock_requests: MagicMock, mock_registry: MagicMock) -> None:
+        """Test reporting boolean False validation results to GitHub issue (should show FAILED, not PENDING)."""
+        from specfact_cli.models.source_tracking import SourceTracking
+
+        feature_delta = FeatureDelta(
+            feature_key="feature-1",
+            change_type=ChangeType.ADDED,
+            original_feature=None,
+            proposed_feature=Feature(key="feature-1", title="Feature 1", outcomes=[]),
+            change_rationale=None,
+            change_date=None,
+            validation_status=None,
+            validation_results=None,
+            source_tracking=None,
+        )
+
+        proposal = ChangeProposal(
+            name="change-1",
+            title="Add Feature 1",
+            description="Test",
+            rationale="Test",
+            created_at="2025-01-01T10:00:00Z",
+            timeline=None,
+            owner=None,
+            applied_at=None,
+            archived_at=None,
+            source_tracking=SourceTracking(
+                tool="github",
+                source_metadata={
+                    "source_id": "123",
+                    "source_url": "https://github.com/test-owner/test-repo/issues/123",
+                },
+            ),
+        )
+
+        change_tracking = ChangeTracking(
+            proposals={"change-1": proposal},
+            feature_deltas={"change-1": [feature_delta]},
+        )
+
+        # Test with boolean False - should trigger failed status and label update
+        validation_results = {
+            "feature-1": False,
+        }
+
+        mock_adapter = MagicMock()
+        mock_adapter.base_url = "https://api.github.com"
+        mock_adapter.api_token = "test-token"
+        mock_adapter._add_issue_comment = MagicMock()
+        mock_registry.get_adapter.return_value = mock_adapter
+
+        # Mock GitHub API responses
+        mock_get_response = MagicMock()
+        mock_get_response.json.return_value = {
+            "number": 123,
+            "labels": [{"name": "openspec"}],
+        }
+        mock_get_response.raise_for_status = MagicMock()
+        mock_requests.get.return_value = mock_get_response
+
+        mock_patch_response = MagicMock()
+        mock_patch_response.raise_for_status = MagicMock()
+        mock_requests.patch.return_value = mock_patch_response
+
+        report_validation_results_to_backlog(change_tracking, validation_results)
+
+        # Verify comment was added with FAILED status
+        mock_adapter._add_issue_comment.assert_called_once()
+        call_args = mock_adapter._add_issue_comment.call_args
+        comment_text = call_args[0][3]
+        assert "Validation Results" in comment_text
+        assert "FAILED" in comment_text
 
     @beartype
     @patch("specfact_cli.validators.change_proposal_integration.AdapterRegistry")
