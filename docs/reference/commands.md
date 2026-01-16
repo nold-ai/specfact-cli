@@ -2981,7 +2981,82 @@ When using backlog adapters (GitHub, ADO, Linear, Jira), the command provides bi
 - **Progress Tracking**: Automatically detect code changes and add progress comments to issues
 - **Validation Reporting**: Report validation results to backlog items
 
-See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md) for complete documentation.
+**Beyond export/update capabilities:**
+
+- **Selective backlog import into bundles**: `--mode bidirectional` with `--backlog-ids` or `--backlog-ids-file`
+- **Status sync**: Align proposal status with backlog state for linked items
+- **Progress notes**: Add code progress comments via `--track-code-changes` or `--add-progress-comment`
+- **Cross-adapter bundle export**: Use `--bundle` to export stored backlog content 1:1 across adapters
+
+**🚀 Cross-Adapter Sync: Lossless Round-Trip Migration** (Advanced Feature):
+
+One of SpecFact's most powerful capabilities for DevOps teams. Enables **lossless round-trip synchronization** between different backlog adapters (GitHub ↔ Azure DevOps ↔ others):
+
+- **Tool Migration**: Migrate between backlog tools without losing content or metadata
+- **Multi-Tool Workflows**: Sync proposals across different tools used by different teams
+- **Content Fidelity**: Preserve exact formatting, sections, and metadata across adapter boundaries
+- **Day-to-Day Developer Experience**: Keep backlogs in sync with feature branches, code changes, and validations
+
+**How it works**: When importing from any backlog adapter, the original raw content (title, body) is stored in the project bundle's `source_tracking` metadata. Exporting from stored bundles preserves the original content exactly as it was imported, enabling 100% fidelity round-trips.
+
+**Example: GitHub → ADO Migration**
+
+```bash
+# Step 1: Import GitHub issue into bundle (stores lossless content)
+# Output shows: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle main \
+  --backlog-ids 123
+
+# Step 2: Find change_id (if you missed it in output)
+# Option A: Check bundle directory
+ls .specfact/projects/main/change_tracking/proposals/
+# Option B: Check OpenSpec changes directory
+ls /path/to/openspec-repo/openspec/changes/
+
+# Step 3: Export from bundle to ADO (uses stored lossless content)
+# Use the change_id from Step 1 output (e.g., "add-feature-x")
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project your-project \
+  --bundle main \
+  --change-ids add-feature-x  # Replace with actual change_id from Step 1
+```
+
+**Example: Multi-Tool Sync Workflow**
+
+```bash
+# Day 1: Create proposal, export to GitHub (public, sanitized)
+# Change ID: "add-feature-x" (from openspec/changes/add-feature-x/proposal.md)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name public-repo \
+  --sanitize \
+  --change-ids add-feature-x
+# Output: "✓ Exported to GitHub" with issue number (e.g., #123)
+
+# Day 2: Import GitHub issue into bundle (for internal team)
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name public-repo \
+  --bundle internal \
+  --backlog-ids 123
+# Output: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
+
+# Day 3: Export to ADO for internal tracking (full content, no sanitization)
+# Use change_id from Day 2 output
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project internal-project \
+  --bundle internal \
+  --change-ids add-feature-x  # Same change_id across all adapters
+# Output: "✓ Exported to ADO" with work item ID (e.g., 456)
+```
+
+**Key Points:**
+- Change IDs are shown in import/export output
+- Same change_id is used across all adapters for the same proposal
+- Bundle preserves lossless content for cross-adapter sync
+- See [DevOps Integration Guide](../guides/devops-adapter-integration.md#cross-adapter-sync-lossless-round-trip-migration) for detailed step-by-step instructions
+
+See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md#cross-adapter-sync-lossless-round-trip-migration) for complete cross-adapter sync documentation.
 
 **Quick Start:**
 
@@ -3026,6 +3101,8 @@ See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md) 
 - `--target-repo OWNER/REPO` - Target repository for issue creation (format: owner/repo). Default: same as code repository
 - `--interactive` - Interactive mode for AI-assisted sanitization (requires slash command)
 - `--change-ids ID1,ID2` - Comma-separated list of change proposal IDs to export (default: all active proposals)
+- `--backlog-ids ID1,ID2` - Comma-separated list of backlog item IDs/URLs to import (GitHub/ADO)
+- `--backlog-ids-file PATH` - File with backlog item IDs/URLs (one per line or comma-separated)
 - `--include-archived/--no-include-archived` - Include archived change proposals in sync (default: False). Useful for updating existing issues with new comment logic or branch detection improvements
 
 **Environment Variables:**
@@ -3066,6 +3143,8 @@ specfact sync bridge --adapter openspec --mode read-only --bundle my-project --r
 ```
 
 **Backlog Adapter Examples:**
+
+**GitHub Issues:**
 
 ```bash
 # Bidirectional sync with GitHub Issues (import AND export)

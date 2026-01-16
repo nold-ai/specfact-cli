@@ -1,0 +1,1946 @@
+"""
+Azure DevOps bridge adapter for DevOps backlog tracking.
+
+This adapter implements the BridgeAdapter interface to sync OpenSpec change proposals
+with Azure DevOps work items, enabling bidirectional sync (OpenSpec ↔ ADO Work Items) for
+project planning alignment with specifications.
+
+This follows the backlog adapter patterns established by the GitHub adapter.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import requests
+from beartype import beartype
+from icontract import ensure, require
+from rich.console import Console
+
+from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
+from specfact_cli.adapters.base import BridgeAdapter
+from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.capabilities import ToolCapabilities
+from specfact_cli.models.change import ChangeProposal, ChangeTracking
+
+
+console = Console()
+
+
+class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
+    """
+    Azure DevOps bridge adapter implementing BridgeAdapter interface.
+
+    This adapter provides bidirectional sync (OpenSpec ↔ ADO Work Items) for
+    DevOps backlog tracking. It creates and updates ADO work items from
+    OpenSpec change proposals, and imports ADO work items as OpenSpec change proposals.
+
+    This follows the backlog adapter patterns established by the GitHub adapter.
+    """
+
+    def __init__(
+        self,
+        org: str | None = None,
+        project: str | None = None,
+        base_url: str | None = None,
+        api_token: str | None = None,
+        work_item_type: str | None = None,
+    ) -> None:
+        """
+        Initialize Azure DevOps adapter.
+
+        Args:
+            org: Azure DevOps organization name (optional, can be provided via env/CLI)
+            project: Azure DevOps project name (optional, can be provided via env/CLI)
+            base_url: Azure DevOps base URL (optional, defaults to https://dev.azure.com)
+            api_token: Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var)
+            work_item_type: Work item type (optional, derived from process template if not provided)
+        """
+        self.org = org
+        self.project = project
+
+        # Token resolution: explicit token > env var
+        if api_token:
+            self.api_token = api_token
+        elif os.environ.get("AZURE_DEVOPS_TOKEN"):
+            self.api_token = os.environ.get("AZURE_DEVOPS_TOKEN")
+        else:
+            self.api_token = None
+
+        # Base URL defaults to Azure DevOps Services (cloud)
+        self.base_url = base_url or "https://dev.azure.com"
+        self.work_item_type = work_item_type
+
+    # BacklogAdapterMixin abstract method implementations
+
+    @beartype
+    @require(lambda status: isinstance(status, str) and len(status) > 0, "Status must be non-empty string")
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty status string")
+    def map_backlog_status_to_openspec(self, status: str) -> str:
+        """
+        Map ADO work item state to OpenSpec change status.
+
+        Args:
+            status: ADO work item state (e.g., "New", "Active", "Closed", "Removed", "Rejected")
+
+        Returns:
+            OpenSpec change status (proposed, in-progress, applied, deprecated, discarded)
+
+        Note:
+            This implements the tool-agnostic status mapping pattern for Azure DevOps.
+        """
+        status_lower = status.lower()
+
+        # Map ADO states to OpenSpec status
+        if status_lower in ("new", "proposed"):
+            return "proposed"
+        if status_lower in ("active", "in progress", "in-progress", "committed"):
+            return "in-progress"
+        if status_lower in ("closed", "done", "completed", "resolved"):
+            return "applied"
+        if status_lower in ("removed", "deprecated"):
+            return "deprecated"
+        if status_lower in ("rejected", "discarded"):
+            return "discarded"
+
+        # Default: treat as proposed
+        return "proposed"
+
+    @beartype
+    @require(lambda status: isinstance(status, str) and len(status) > 0, "Status must be non-empty string")
+    @ensure(lambda result: isinstance(result, str), "Must return status string")
+    def map_openspec_status_to_backlog(self, status: str) -> str:
+        """
+        Map OpenSpec change status to ADO work item state.
+
+        Args:
+            status: OpenSpec change status (proposed, in-progress, applied, deprecated, discarded)
+
+        Returns:
+            ADO work item state string
+
+        Note:
+            This implements the tool-agnostic status mapping pattern for Azure DevOps.
+        """
+        if status == "proposed":
+            return "New"
+        if status == "in-progress":
+            return "Active"
+        if status == "applied":
+            return "Closed"
+        if status == "deprecated":
+            return "Removed"
+        if status == "discarded":
+            return "Rejected"
+
+        # Default: New
+        return "New"
+
+    def _normalize_description(self, fields: dict[str, Any]) -> str:
+        """
+        Normalize ADO description field to markdown.
+
+        Args:
+            fields: ADO work item fields dict
+
+        Returns:
+            Markdown-formatted description string
+        """
+        description_raw = fields.get("System.Description", "") or ""
+        if description_raw and ("<" in description_raw and ">" in description_raw):
+            description_raw = self._html_to_markdown(description_raw)
+        if description_raw:
+            import html
+
+            description_raw = html.unescape(description_raw)
+        return description_raw
+
+    @beartype
+    @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
+    @ensure(lambda result: isinstance(result, dict), "Must return dict with extracted fields")
+    def extract_change_proposal_data(self, item_data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Extract change proposal data from ADO work item.
+
+        Parses ADO work item fields to extract:
+        - Title (from System.Title)
+        - Description (from System.Description)
+        - Rationale (from Why section in description)
+        - Other optional fields (timeline, owner, stakeholders, dependencies)
+
+        Args:
+            item_data: ADO work item data (dict from API response)
+
+        Returns:
+            Dict with change proposal fields:
+            - title: str
+            - description: str (What Changes section)
+            - rationale: str (Why section)
+            - status: str (mapped to OpenSpec status)
+            - Other optional fields
+
+        Raises:
+            ValueError: If required fields are missing or data is malformed
+
+        Note:
+            This implements the tool-agnostic metadata extraction pattern for Azure DevOps.
+        """
+        if not isinstance(item_data, dict):
+            msg = "ADO work item data must be dict"
+            raise ValueError(msg)
+
+        # Extract fields from ADO work item
+        fields = item_data.get("fields", {})
+        if not fields:
+            msg = "ADO work item must have fields"
+            raise ValueError(msg)
+
+        # Extract title
+        title = fields.get("System.Title", "Untitled Change Proposal")
+        if not title:
+            msg = "ADO work item must have System.Title"
+            raise ValueError(msg)
+
+        # Extract description (normalize HTML → Markdown if needed)
+        description_raw = self._normalize_description(fields)
+
+        description = ""
+        rationale = ""
+
+        # Parse markdown sections (Why, What Changes)
+        if description_raw:
+            # Extract "Why" section (stop at What Changes or OpenSpec footer)
+            why_match = re.search(
+                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                description_raw,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if why_match:
+                rationale = why_match.group(1).strip()
+
+            # Extract "What Changes" section (stop at OpenSpec footer)
+            what_match = re.search(
+                r"##\s+What\s+Changes\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                description_raw,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if what_match:
+                description = what_match.group(1).strip()
+            elif not why_match:
+                # If no sections found, use entire description (but remove footer)
+                body_clean = re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", description_raw, flags=re.DOTALL)
+                description = body_clean.strip()
+
+        # Extract change ID from OpenSpec metadata footer or work item ID
+        change_id = None
+        if description_raw:
+            # Look for OpenSpec metadata footer: *OpenSpec Change Proposal: `{change_id}`*
+            change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", description_raw, re.IGNORECASE)
+            if change_id_match:
+                change_id = change_id_match.group(1)
+        if not change_id:
+            # Use work item ID as fallback
+            change_id = str(item_data.get("id", "unknown"))
+
+        # Extract status from System.State
+        ado_state = fields.get("System.State", "New")
+        status = self.map_backlog_status_to_openspec(ado_state)
+
+        # Extract created_at timestamp
+        created_at = fields.get("System.CreatedDate")
+        if created_at:
+            # Parse ISO format and convert to ISO string
+            try:
+                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                created_at = dt.isoformat()
+            except (ValueError, AttributeError):
+                created_at = datetime.now(UTC).isoformat()
+        else:
+            created_at = datetime.now(UTC).isoformat()
+
+        # Extract optional fields (timeline, owner, stakeholders, dependencies)
+        timeline = None
+        owner = None
+        stakeholders = []
+        dependencies = []
+
+        # Try to extract from description sections
+        if description_raw:
+            # Extract "When" section (timeline)
+            when_match = re.search(r"##\s+When\s*\n(.*?)(?=\n##|\Z)", description_raw, re.DOTALL | re.IGNORECASE)
+            if when_match:
+                timeline = when_match.group(1).strip()
+
+            # Extract "Who" section (owner, stakeholders)
+            who_match = re.search(r"##\s+Who\s*\n(.*?)(?=\n##|\Z)", description_raw, re.DOTALL | re.IGNORECASE)
+            if who_match:
+                who_content = who_match.group(1).strip()
+                # Try to extract owner (first line or "Owner:" field)
+                owner_match = re.search(r"(?:Owner|owner):\s*(.+)", who_content, re.IGNORECASE)
+                if owner_match:
+                    owner = owner_match.group(1).strip()
+                # Extract stakeholders (list items or comma-separated)
+                stakeholders_match = re.search(r"(?:Stakeholders|stakeholders):\s*(.+)", who_content, re.IGNORECASE)
+                if stakeholders_match:
+                    stakeholders_str = stakeholders_match.group(1).strip()
+                    stakeholders = [s.strip() for s in re.split(r"[,\n]", stakeholders_str) if s.strip()]
+
+        # Extract assignees as potential owner/stakeholders
+        assigned_to = fields.get("System.AssignedTo")
+        if assigned_to:
+            if isinstance(assigned_to, dict):
+                assignee_name = assigned_to.get("displayName") or assigned_to.get("uniqueName", "")
+            else:
+                assignee_name = str(assigned_to)
+            if assignee_name and not owner:
+                owner = assignee_name
+            if assignee_name:
+                stakeholders.append(assignee_name)
+
+        return {
+            "change_id": change_id,
+            "title": title,
+            "description": description,
+            "rationale": rationale,
+            "status": status,
+            "created_at": created_at,
+            "timeline": timeline,
+            "owner": owner,
+            "stakeholders": list(set(stakeholders)),  # Remove duplicates
+            "dependencies": dependencies,
+        }
+
+    @beartype
+    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
+    def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
+        """
+        Detect if this is an Azure DevOps repository.
+
+        Args:
+            repo_path: Path to repository root
+            bridge_config: Optional bridge configuration (for cross-repo detection)
+
+        Returns:
+            True if Azure DevOps repository detected, False otherwise
+        """
+        # Check bridge config for external ADO repo
+        return bool(bridge_config and bridge_config.adapter.value == "ado")
+
+    @beartype
+    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
+    def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
+        """
+        Get Azure DevOps adapter capabilities.
+
+        Args:
+            repo_path: Path to repository root
+            bridge_config: Optional bridge configuration (for cross-repo detection)
+
+        Returns:
+            ToolCapabilities instance for Azure DevOps adapter
+        """
+        return ToolCapabilities(
+            tool="ado",
+            version=None,  # ADO version not applicable
+            layout="api",  # Azure DevOps uses API-based integration
+            specs_dir="",  # Not applicable for Azure DevOps
+            has_external_config=True,  # Uses API tokens
+            has_custom_hooks=False,
+            supported_sync_modes=[
+                "bidirectional",
+                "export-only",
+            ],  # Azure DevOps adapter: bidirectional sync (OpenSpec ↔ ADO Work Items) and export-only for change proposals
+        )
+
+    @beartype
+    @require(
+        lambda artifact_key: isinstance(artifact_key, str) and len(artifact_key) > 0, "Artifact key must be non-empty"
+    )
+    @require(lambda artifact_path: isinstance(artifact_path, (Path, dict)), "Artifact path must be Path or dict")
+    @ensure(lambda result: result is None, "Must return None")
+    def import_artifact(
+        self,
+        artifact_key: str,
+        artifact_path: Path | dict[str, Any],
+        project_bundle: Any,  # ProjectBundle - avoid circular import
+        bridge_config: BridgeConfig | None = None,
+    ) -> None:
+        """
+        Import artifact from Azure DevOps.
+
+        Supports importing ADO work items as OpenSpec change proposals.
+
+        Args:
+            artifact_key: Artifact key ("ado_work_item" for importing work items)
+            artifact_path: ADO work item data (dict from API response)
+            project_bundle: Project bundle to update
+            bridge_config: Bridge configuration (may contain external_base_path for cross-repo support)
+
+        Raises:
+            ValueError: If artifact_key is not "ado_work_item" or if required data is missing
+            NotImplementedError: If artifact_key is not supported
+
+        Note:
+            This method implements the backlog adapter import pattern.
+        """
+        if artifact_key != "ado_work_item":
+            msg = f"Unsupported artifact key for import: {artifact_key}. Supported: ado_work_item"
+            raise NotImplementedError(msg)
+
+        if not isinstance(artifact_path, dict):
+            msg = "ADO work item import requires dict (API response), not Path"
+            raise ValueError(msg)
+
+        # Check bridge_config.external_base_path for cross-repo support
+        if bridge_config and bridge_config.external_base_path:
+            # Cross-repo import: use external_base_path for OpenSpec repository
+            pass  # Path operations will respect external_base_path in OpenSpec adapter
+
+        # Import ADO work item as change proposal using backlog adapter pattern
+        proposal = self.import_backlog_item_as_proposal(artifact_path, "ado", bridge_config)
+
+        if not proposal:
+            msg = "Failed to import ADO work item as change proposal"
+            raise ValueError(msg)
+
+        # Enhance source_tracking with ADO-specific metadata
+        if proposal.source_tracking and isinstance(proposal.source_tracking.source_metadata, dict):
+            fields = artifact_path.get("fields", {})
+            # Add ADO-specific metadata to source_metadata
+            proposal.source_tracking.source_metadata.update(
+                {
+                    "org": self.org or "",
+                    "project": self.project or "",
+                    "work_item_type": fields.get("System.WorkItemType", ""),
+                    "state": fields.get("System.State", ""),
+                }
+            )
+            # Also update source_state if not already set
+            if "source_state" not in proposal.source_tracking.source_metadata:
+                proposal.source_tracking.source_metadata["source_state"] = fields.get("System.State", "")
+
+            raw_title = fields.get("System.Title", "") or ""
+            raw_body = self._normalize_description(fields)
+            proposal.source_tracking.source_metadata["raw_title"] = raw_title
+            proposal.source_tracking.source_metadata["raw_body"] = raw_body
+            proposal.source_tracking.source_metadata["raw_format"] = "markdown"
+            proposal.source_tracking.source_metadata.setdefault("source_type", "ado")
+
+            source_repo = ""
+            if self.org and self.project:
+                source_repo = f"{self.org}/{self.project}"
+                proposal.source_tracking.source_metadata.setdefault("source_repo", source_repo)
+
+            entry_id = artifact_path.get("id")
+            entry = {
+                "source_id": str(entry_id) if entry_id is not None else None,
+                "source_url": artifact_path.get("_links", {}).get("html", {}).get("href", ""),
+                "source_type": "ado",
+                "source_repo": source_repo,
+                "source_metadata": {"last_synced_status": proposal.status},
+            }
+            entries = proposal.source_tracking.source_metadata.get("backlog_entries")
+            if not isinstance(entries, list):
+                entries = []
+            if entry.get("source_id"):
+                updated = False
+                for existing in entries:
+                    if not isinstance(existing, dict):
+                        continue
+                    if source_repo and existing.get("source_repo") == source_repo:
+                        existing.update(entry)
+                        updated = True
+                        break
+                    if not source_repo and existing.get("source_id") == entry.get("source_id"):
+                        existing.update(entry)
+                        updated = True
+                        break
+                if not updated:
+                    entries.append(entry)
+                proposal.source_tracking.source_metadata["backlog_entries"] = entries
+
+        # Add proposal to project bundle change tracking
+        if hasattr(project_bundle, "change_tracking"):
+            if not project_bundle.change_tracking:
+                from specfact_cli.models.change import ChangeTracking
+
+                project_bundle.change_tracking = ChangeTracking()
+            project_bundle.change_tracking.proposals[proposal.name] = proposal
+
+    @beartype
+    @require(
+        lambda artifact_key: isinstance(artifact_key, str) and len(artifact_key) > 0, "Artifact key must be non-empty"
+    )
+    @ensure(lambda result: isinstance(result, dict), "Must return dict with work item data")
+    def export_artifact(
+        self,
+        artifact_key: str,
+        artifact_data: Any,  # ChangeProposal - TODO: use proper type when dependency implemented
+        bridge_config: BridgeConfig | None = None,
+    ) -> dict[str, Any]:
+        """
+        Export artifact to Azure DevOps (create or update work item).
+
+        Args:
+            artifact_key: Artifact key ("change_proposal" or "change_status")
+            artifact_data: Change proposal data (dict for now, ChangeProposal type when dependency implemented)
+            bridge_config: Bridge configuration (may contain org, project)
+
+        Returns:
+            Dict with work item data: {"work_item_id": int, "work_item_url": str, "state": str}
+
+        Raises:
+            ValueError: If required configuration is missing
+            requests.RequestException: If Azure DevOps API call fails
+        """
+        if not self.api_token:
+            msg = (
+                "Azure DevOps API token required. Options:\n"
+                "  1. Set AZURE_DEVOPS_TOKEN environment variable\n"
+                "  2. Provide via --ado-token option"
+            )
+            raise ValueError(msg)
+
+        # Resolve organization/project from instance (not stored in bridge_config for security)
+        org = self.org
+        project = self.project
+
+        if not org or not project:
+            msg = (
+                "Azure DevOps organization and project required. "
+                "Provide via --ado-org and --ado-project or bridge config"
+            )
+            raise ValueError(msg)
+
+        if artifact_key == "change_proposal":
+            return self._create_work_item_from_proposal(artifact_data, org, project)
+        if artifact_key == "change_status":
+            return self._update_work_item_status(artifact_data, org, project)
+        if artifact_key == "change_proposal_update":
+            # Extract work item ID from source_tracking (support list or dict for backward compatibility)
+            # Use three-level matching to handle ADO URL GUIDs and project name differences
+            source_tracking = artifact_data.get("source_tracking", {})
+            work_item_id = None
+            target_repo = f"{org}/{project}"
+
+            # Handle list of entries (multi-repository support)
+            if isinstance(source_tracking, list):
+                # Find entry for this repository using three-level matching
+                for entry in source_tracking:
+                    if not isinstance(entry, dict):
+                        continue
+
+                    entry_repo = entry.get("source_repo")
+                    entry_type = entry.get("source_type", "").lower()
+
+                    # Primary match: exact source_repo match
+                    if entry_repo == target_repo:
+                        work_item_id = entry.get("source_id")
+                        break
+
+                    # Secondary match: extract from source_url if source_repo not set
+                    if not entry_repo:
+                        source_url = entry.get("source_url", "")
+                        # Try ADO URL pattern - match by org (GUIDs in URLs)
+                        if source_url and "dev.azure.com" in source_url and "/" in target_repo:
+                            target_org = target_repo.split("/")[0]
+                            ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                            if ado_org_match and ado_org_match.group(1) == target_org:
+                                # Org matches - this is likely the same ADO organization
+                                work_item_id = entry.get("source_id")
+                                break
+
+                    # Tertiary match: for ADO, if source_repo is set but doesn't match exactly,
+                    # try matching by org only (project name might have changed or be encoded differently)
+                    if entry_repo and entry_type == "ado":
+                        entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
+                        target_org = target_repo.split("/")[0] if "/" in target_repo else None
+                        # Org matches and source_id exists - this is likely the same ADO organization/work item
+                        if entry_org and target_org and entry_org == target_org and entry.get("source_id"):
+                            work_item_id = entry.get("source_id")
+                            break
+
+            # Handle single dict (backward compatibility)
+            elif isinstance(source_tracking, dict):
+                work_item_id = source_tracking.get("source_id")
+
+            if not work_item_id:
+                msg = (
+                    f"Work item ID required for content update (missing in source_tracking for repository {target_repo}). "
+                    "Work item must be created first."
+                )
+                raise ValueError(msg)
+
+            # Ensure work_item_id is an integer for API call
+            if isinstance(work_item_id, str):
+                try:
+                    work_item_id = int(work_item_id)
+                except ValueError:
+                    msg = f"Invalid work item ID format: {work_item_id}"
+                    raise ValueError(msg) from None
+
+            return self._update_work_item_body(artifact_data, org, project, work_item_id)
+        if artifact_key == "change_proposal_comment":
+            # Add comment only (no body/state update) - used for adding status info to work items
+            source_tracking = artifact_data.get("source_tracking", {})
+            work_item_id = None
+
+            # Handle list of entries (multi-repository support)
+            if isinstance(source_tracking, list):
+                target_repo = f"{org}/{project}"
+                for entry in source_tracking:
+                    if isinstance(entry, dict):
+                        entry_repo = entry.get("source_repo")
+                        if entry_repo == target_repo:
+                            work_item_id = entry.get("source_id")
+                            break
+                        if not entry_repo:
+                            source_url = entry.get("source_url", "")
+                            if source_url and target_repo in source_url:
+                                work_item_id = entry.get("source_id")
+                                break
+            elif isinstance(source_tracking, dict):
+                work_item_id = source_tracking.get("source_id")
+
+            if not work_item_id:
+                msg = "Work item ID required for comment (missing in source_tracking for this repository)"
+                raise ValueError(msg)
+
+            # Ensure work_item_id is an integer for API call
+            if isinstance(work_item_id, str):
+                try:
+                    work_item_id = int(work_item_id)
+                except ValueError:
+                    msg = f"Invalid work item ID format: {work_item_id}"
+                    raise ValueError(msg) from None
+
+            status = artifact_data.get("status", "proposed")
+            title = artifact_data.get("title", "Untitled Change Proposal")
+            change_id = artifact_data.get("change_id", "")
+            # Get OpenSpec repository path for branch verification
+            code_repo_path_str = artifact_data.get("_code_repo_path")
+            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+
+            # Add change_id to source_tracking entries for branch inference
+            # Create a copy to avoid modifying the original
+            if isinstance(source_tracking, list):
+                source_tracking_with_id = []
+                for entry in source_tracking:
+                    entry_copy = dict(entry) if isinstance(entry, dict) else entry
+                    if isinstance(entry_copy, dict) and not entry_copy.get("change_id"):
+                        entry_copy["change_id"] = change_id
+                    source_tracking_with_id.append(entry_copy)
+            elif isinstance(source_tracking, dict):
+                source_tracking_with_id = dict(source_tracking)
+                if not source_tracking_with_id.get("change_id"):
+                    source_tracking_with_id["change_id"] = change_id
+            else:
+                source_tracking_with_id = source_tracking
+            comment_text = self._get_status_comment(status, title, source_tracking_with_id, code_repo_path)
+            if comment_text:
+                comment_note = (
+                    f"{comment_text}\n\n"
+                    f"*Note: This comment was added from an OpenSpec change proposal with status `{status}`.*"
+                )
+                self._add_work_item_comment(org, project, work_item_id, comment_note)
+            return {
+                "work_item_id": work_item_id,
+                "comment_added": True,
+            }
+        if artifact_key == "code_change_progress":
+            # Extract work item ID from source_tracking (support list or dict for backward compatibility)
+            source_tracking = artifact_data.get("source_tracking", {})
+            work_item_id = None
+
+            # Handle list of entries (multi-repository support)
+            if isinstance(source_tracking, list):
+                # Find entry for this repository
+                target_repo = f"{org}/{project}"
+                for entry in source_tracking:
+                    if isinstance(entry, dict):
+                        entry_repo = entry.get("source_repo")
+                        if entry_repo == target_repo:
+                            work_item_id = entry.get("source_id")
+                            break
+                        # Backward compatibility: if no source_repo, try to extract from source_url
+                        if not entry_repo:
+                            source_url = entry.get("source_url", "")
+                            if source_url and target_repo in source_url:
+                                work_item_id = entry.get("source_id")
+                                break
+            # Handle single dict (backward compatibility)
+            elif isinstance(source_tracking, dict):
+                work_item_id = source_tracking.get("source_id")
+
+            if not work_item_id:
+                msg = "Work item ID required for progress comment (missing in source_tracking for this repository)"
+                raise ValueError(msg)
+
+            # Ensure work_item_id is an integer for API call
+            if isinstance(work_item_id, str):
+                try:
+                    work_item_id = int(work_item_id)
+                except ValueError:
+                    msg = f"Invalid work item ID format: {work_item_id}"
+                    raise ValueError(msg) from None
+
+            # Extract sanitize flag from artifact_data or bridge_config
+            sanitize = artifact_data.get("sanitize", False)
+            if bridge_config and hasattr(bridge_config, "sanitize"):
+                sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize
+
+            return self._add_progress_comment(artifact_data, org, project, work_item_id, sanitize=sanitize)
+        msg = (
+            f"Unsupported artifact key: {artifact_key}. "
+            "Supported: change_proposal, change_status, change_proposal_update, change_proposal_comment, code_change_progress"
+        )
+        raise ValueError(msg)
+
+    @beartype
+    @require(lambda item_ref: isinstance(item_ref, str) and len(item_ref) > 0, "Item reference must be non-empty")
+    @ensure(lambda result: isinstance(result, dict), "Must return dict with work item data")
+    def fetch_backlog_item(self, item_ref: str) -> dict[str, Any]:
+        """
+        Fetch ADO work item data by ID or URL.
+
+        Args:
+            item_ref: Work item ID or URL
+
+        Returns:
+            Work item data dict from Azure DevOps API
+        """
+        org, project, work_item_id = self._parse_work_item_reference(item_ref)
+        work_item_data = self._get_work_item_data(work_item_id, org, project)
+        if not work_item_data:
+            msg = f"Work item not found: {item_ref}"
+            raise ValueError(msg)
+        return work_item_data
+
+    @beartype
+    @require(lambda item_ref: isinstance(item_ref, str) and len(item_ref) > 0, "Item reference must be non-empty")
+    @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "Must return org, project, work item ID")
+    def _parse_work_item_reference(self, item_ref: str) -> tuple[str, str, int]:
+        """
+        Parse work item reference into org, project, and ID.
+
+        Args:
+            item_ref: Work item ID or URL
+
+        Returns:
+            Tuple of (org, project, work_item_id)
+        """
+        cleaned = item_ref.strip().lstrip("#")
+        url_match = re.search(r"dev\.azure\.com/([^/]+)/([^/]+)/.*?/(\d+)", cleaned, re.IGNORECASE)
+        if url_match:
+            return url_match.group(1), url_match.group(2), int(url_match.group(3))
+
+        if cleaned.isdigit():
+            if not self.org or not self.project:
+                msg = "org and project required when work item reference is numeric"
+                raise ValueError(msg)
+            return self.org, self.project, int(cleaned)
+
+        msg = f"Unsupported ADO work item reference format: {item_ref}"
+        raise ValueError(msg)
+
+    def _extract_raw_fields(self, proposal_data: dict[str, Any]) -> tuple[str | None, str | None]:
+        """
+        Extract lossless title/body content from proposal data.
+
+        Args:
+            proposal_data: Change proposal data dict
+
+        Returns:
+            Tuple of (raw_title, raw_body)
+        """
+        raw_title = proposal_data.get("raw_title")
+        raw_body = proposal_data.get("raw_body")
+        if raw_title and raw_body:
+            return raw_title, raw_body
+
+        source_tracking = proposal_data.get("source_tracking")
+        source_metadata = None
+        if isinstance(source_tracking, dict):
+            source_metadata = source_tracking.get("source_metadata")
+        elif source_tracking is not None and hasattr(source_tracking, "source_metadata"):
+            source_metadata = source_tracking.source_metadata
+
+        if isinstance(source_metadata, dict):
+            raw_title = raw_title or source_metadata.get("raw_title")
+            raw_body = raw_body or source_metadata.get("raw_body")
+
+        return raw_title, raw_body
+
+    @beartype
+    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
+        """
+        Generate bridge configuration for Azure DevOps adapter.
+
+        Args:
+            repo_path: Path to repository root
+
+        Returns:
+            BridgeConfig instance for Azure DevOps adapter
+        """
+        from specfact_cli.models.bridge import BridgeConfig
+
+        return BridgeConfig.preset_ado()
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @ensure(lambda result: result is None, "Azure DevOps adapter does not support change tracking loading")
+    def load_change_tracking(
+        self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
+    ) -> ChangeTracking | None:
+        """
+        Load change tracking (not supported by Azure DevOps adapter).
+
+        Azure DevOps adapter uses `import_artifact` with artifact_key="ado_work_item" to
+        import individual work items as change proposals. Use that method instead.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            bridge_config: Optional bridge configuration
+
+        Returns:
+            None (not supported - use import_artifact instead)
+        """
+        return None
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(
+        lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
+    )
+    @ensure(lambda result: result is None, "Must return None")
+    def save_change_tracking(
+        self, bundle_dir: Path, change_tracking: ChangeTracking, bridge_config: BridgeConfig | None = None
+    ) -> None:
+        """
+        Save change tracking (not supported by Azure DevOps adapter).
+
+        Azure DevOps adapter uses `export_artifact` to sync individual proposals to ADO
+        work items. Use that method instead.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            change_tracking: ChangeTracking instance to save
+            bridge_config: Optional bridge configuration
+        """
+        # Not supported - Azure DevOps adapter uses export_artifact for individual proposals
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
+    @ensure(lambda result: result is None, "Azure DevOps adapter does not support change proposal loading")
+    def load_change_proposal(
+        self, bundle_dir: Path, change_name: str, bridge_config: BridgeConfig | None = None
+    ) -> ChangeProposal | None:
+        """
+        Load change proposal (not supported by Azure DevOps adapter).
+
+        Azure DevOps adapter uses `import_artifact` with artifact_key="ado_work_item" to
+        import work items as change proposals. Use that method instead.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            change_name: Change identifier
+            bridge_config: Optional bridge configuration
+
+        Returns:
+            None (not supported - use import_artifact instead)
+        """
+        return None
+
+    @beartype
+    @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
+    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
+    @ensure(lambda result: result is None, "Must return None")
+    def save_change_proposal(
+        self, bundle_dir: Path, proposal: ChangeProposal, bridge_config: BridgeConfig | None = None
+    ) -> None:
+        """
+        Save change proposal (not supported by Azure DevOps adapter).
+
+        Azure DevOps adapter uses `export_artifact` and `import_artifact` for bidirectional
+        sync. Use `export_artifact` with artifact_key="change_proposal" to create
+        ADO work items, or `import_artifact` with artifact_key="ado_work_item" to
+        import work items as change proposals.
+
+        Args:
+            bundle_dir: Path to bundle directory
+            proposal: ChangeProposal instance to save
+            bridge_config: Optional bridge configuration
+        """
+        # Not supported - Azure DevOps adapter uses export_artifact/import_artifact for sync
+        # Use export_artifact(artifact_key="change_proposal", ...) to create ADO work items
+
+    def _get_work_item_type(self, org: str, project: str) -> str:
+        """
+        Get default work item type for the project.
+
+        Derives work item type from process template (Scrum/Kanban/Agile) or uses override.
+
+        Args:
+            org: Azure DevOps organization
+            project: Azure DevOps project
+
+        Returns:
+            Work item type string (e.g., "Product Backlog Item", "User Story")
+        """
+        # If work item type is explicitly provided, use it
+        if self.work_item_type:
+            return self.work_item_type
+
+        # Try to derive from process template
+        try:
+            # Ensure API token is available
+            if not self.api_token:
+                # Can't derive from process template without token, use default
+                return "User Story"
+
+            # Get process template from project
+            url = f"{self.base_url}/{org}/_apis/projects/{project}?api-version=7.1"
+            headers = {
+                "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+                "Content-Type": "application/json",
+            }
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            project_data = response.json()
+
+            # Get process template ID
+            process_template_id = project_data.get("processTemplate", {}).get("templateTypeId")
+            if process_template_id:
+                # Map template ID to work item type
+                # Scrum template ID: 6b724908-ef14-45cf-84f8-768b5384da45
+                # Agile template ID: adcc42ab-9882-485e-a3e4-38fb9b8c5e4e
+                # Kanban template ID: 27450541-8e31-4150-ab7e-3f4854565ce3
+                template_id_str = str(process_template_id).lower()
+                # Check for Scrum template (exact match or contains scrum)
+                if "6b724908" in template_id_str or "scrum" in template_id_str:
+                    return "Product Backlog Item"
+                # Default to User Story for Agile/Kanban
+                return "User Story"
+        except Exception:
+            # If we can't determine, default to User Story
+            pass
+
+        # Default: User Story (works for Agile and Kanban)
+        return "User Story"
+
+    def _html_to_markdown(self, html_content: str) -> str:
+        """
+        Convert basic HTML to markdown for ADO work items.
+
+        This is a simple converter for common HTML patterns. For full HTML-to-markdown
+        conversion, consider using a library like html2text or markdownify.
+
+        Args:
+            html_content: HTML content from ADO work item
+
+        Returns:
+            Markdown-formatted content
+        """
+        # Simple HTML-to-markdown conversion for common patterns
+        # Replace common HTML tags with markdown equivalents
+        import html
+        import re
+
+        # Remove HTML comments
+        html_content = re.sub(r"<!--.*?-->", "", html_content, flags=re.DOTALL)
+
+        # Convert headings (h1-h6)
+        def replace_heading(match: re.Match) -> str:
+            level = int(match.group(1))
+            content = match.group(2)
+            return f"\n{'#' * level} {content}\n"
+
+        html_content = re.sub(
+            r"<h([1-6])[^>]*>(.*?)</h[1-6]>",
+            replace_heading,
+            html_content,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+
+        # Convert bold
+        html_content = re.sub(r"<strong>(.*?)</strong>", r"**\1**", html_content, flags=re.DOTALL)
+        html_content = re.sub(r"<b>(.*?)</b>", r"**\1**", html_content, flags=re.DOTALL)
+
+        # Convert italic
+        html_content = re.sub(r"<em>(.*?)</em>", r"*\1*", html_content, flags=re.DOTALL)
+        html_content = re.sub(r"<i>(.*?)</i>", r"*\1*", html_content, flags=re.DOTALL)
+
+        # Convert code blocks
+        html_content = re.sub(r"<pre><code>(.*?)</code></pre>", r"```\n\1\n```", html_content, flags=re.DOTALL)
+        html_content = re.sub(r"<code>(.*?)</code>", r"`\1`", html_content, flags=re.DOTALL)
+
+        # Convert links
+        html_content = re.sub(r'<a href="([^"]+)">(.*?)</a>', r"[\2](\1)", html_content, flags=re.DOTALL)
+
+        # Convert lists (basic support)
+        html_content = re.sub(r"<li>(.*?)</li>", r"- \1", html_content, flags=re.DOTALL)
+        html_content = re.sub(r"<ul>|</ul>|<ol>|</ol>", "", html_content)
+
+        # Convert paragraphs
+        html_content = re.sub(r"<p>(.*?)</p>", r"\1\n\n", html_content, flags=re.DOTALL)
+
+        # Convert line breaks
+        html_content = re.sub(r"<br\s*/?>", "\n", html_content)
+
+        # Remove remaining HTML tags
+        html_content = re.sub(r"<[^>]+>", "", html_content)
+
+        # Clean up extra whitespace
+        html_content = re.sub(r"\n{3,}", "\n\n", html_content)
+
+        return html.unescape(html_content.strip())
+
+    def _encode_pat(self, token: str) -> str:
+        """
+        Encode PAT for Basic authentication.
+
+        Args:
+            token: Azure DevOps PAT
+
+        Returns:
+            Base64-encoded token for Basic auth
+        """
+        import base64
+
+        return base64.b64encode(f":{token}".encode()).decode()
+
+    def _work_item_exists(self, work_item_id: int | str, org: str, project: str) -> bool:
+        """
+        Check if a work item exists in Azure DevOps.
+
+        Args:
+            work_item_id: Work item ID to check
+            org: Azure DevOps organization
+            project: Azure DevOps project
+
+        Returns:
+            True if work item exists, False otherwise (including if deleted)
+        """
+        if not self.api_token:
+            return False
+
+        # Ensure work_item_id is an integer
+        if isinstance(work_item_id, str):
+            try:
+                work_item_id = int(work_item_id)
+            except ValueError:
+                return False
+
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Accept": "application/json",
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            # 200 = exists, 404 = doesn't exist (including deleted)
+            if response.status_code == 200:
+                # Check if work item is deleted (System.State == "Removed")
+                work_item_data = response.json()
+                fields = work_item_data.get("fields", {})
+                state = fields.get("System.State", "")
+                # Consider "Removed" as non-existent for our purposes
+                return state != "Removed"
+            return False
+        except requests.RequestException:
+            # On any error, assume it doesn't exist (safer to allow creation)
+            return False
+
+    def _get_work_item_data(self, work_item_id: int | str, org: str, project: str) -> dict[str, Any] | None:
+        """
+        Get current work item data from Azure DevOps.
+
+        Args:
+            work_item_id: Work item ID to fetch
+            org: Azure DevOps organization
+            project: Azure DevOps project
+
+        Returns:
+            Work item data dict with fields (title, state, etc.) or None if not found
+        """
+        if not self.api_token:
+            return None
+
+        # Ensure work_item_id is an integer
+        if isinstance(work_item_id, str):
+            try:
+                work_item_id = int(work_item_id)
+            except ValueError:
+                return None
+
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Accept": "application/json",
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                work_item_data = response.json()
+                fields = work_item_data.get("fields", {})
+                return {
+                    "title": fields.get("System.Title", ""),
+                    "state": fields.get("System.State", ""),
+                    "description": fields.get("System.Description", ""),
+                }
+            return None
+        except requests.RequestException:
+            return None
+
+    def _find_work_item_by_change_id(self, change_id: str, org: str, project: str) -> dict[str, Any] | None:
+        """
+        Find an existing ADO work item by OpenSpec change_id embedded in the description.
+
+        Args:
+            change_id: OpenSpec change ID (used in footer marker)
+            org: Azure DevOps organization
+            project: Azure DevOps project
+
+        Returns:
+            Source tracking entry dict if found, otherwise None.
+        """
+        if not self.api_token or not change_id:
+            return None
+
+        project_escaped = project.replace("'", "''")
+        change_id_escaped = change_id.replace("'", "''")
+        wiql = {
+            "query": (
+                "Select [System.Id] From WorkItems "
+                f"Where [System.TeamProject] = '{project_escaped}' "
+                f"And [System.Description] Contains 'OpenSpec Change Proposal: `{change_id_escaped}`'"
+            )
+        }
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = requests.post(url, json=wiql, headers=headers, timeout=10)
+            if response.status_code != 200:
+                return None
+            work_items = response.json().get("workItems", [])
+            work_item_ids = [item.get("id") for item in work_items if item.get("id")]
+            if not work_item_ids:
+                return None
+            work_item_id = min(work_item_ids)
+            work_item_url = f"{self.base_url}/{org}/{project}/_workitems/edit/{work_item_id}"
+            return {
+                "source_id": str(work_item_id),
+                "source_url": work_item_url,
+                "source_type": "ado",
+                "source_repo": f"{org}/{project}",
+            }
+        except requests.RequestException:
+            return None
+
+    def _create_work_item_from_proposal(
+        self,
+        proposal_data: dict[str, Any],  # ChangeProposal - TODO: use proper type
+        org: str,
+        project: str,
+    ) -> dict[str, Any]:
+        """
+        Create ADO work item from change proposal.
+
+        Args:
+            proposal_data: Change proposal data (dict with title, description, rationale, status, etc.)
+            org: Azure DevOps organization
+            project: Azure DevOps project
+
+        Returns:
+            Dict with work item data: {"work_item_id": int, "work_item_url": str, "state": str}
+        """
+        title = proposal_data.get("title", "Untitled Change Proposal")
+        description = proposal_data.get("description", "")
+        rationale = proposal_data.get("rationale", "")
+        status = proposal_data.get("status", "proposed")
+        change_id = proposal_data.get("change_id", "unknown")
+        raw_title, raw_body = self._extract_raw_fields(proposal_data)
+        if raw_title:
+            title = raw_title
+
+        # Build properly formatted work item description (prefer raw content when available)
+        if raw_body:
+            body = raw_body
+        else:
+            body_parts = []
+
+            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+            if display_title:
+                body_parts.append(f"# {display_title}")
+                body_parts.append("")
+
+            # Add Why section (rationale) - preserve markdown formatting
+            if rationale:
+                body_parts.append("## Why")
+                body_parts.append("")
+                rationale_lines = rationale.strip().split("\n")
+                for line in rationale_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
+
+            # Add What Changes section (description) - preserve markdown formatting
+            if description:
+                body_parts.append("## What Changes")
+                body_parts.append("")
+                description_lines = description.strip().split("\n")
+                for line in description_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
+
+            # If no content, add placeholder
+            if not body_parts or (not rationale and not description):
+                body_parts.append("No description provided.")
+                body_parts.append("")
+
+            # Add OpenSpec metadata footer
+            body_parts.append("---")
+            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+
+            body = "\n".join(body_parts)
+
+        # Get work item type
+        work_item_type = self._get_work_item_type(org, project)
+
+        # Map status to ADO state
+        ado_state = self.map_openspec_status_to_backlog(status)
+
+        # Ensure API token is available
+        if not self.api_token:
+            msg = "Azure DevOps API token is required"
+            raise ValueError(msg)
+
+        # Create work item via Azure DevOps API
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Content-Type": "application/json-patch+json",
+        }
+
+        # Build JSON Patch document for work item creation
+        # Set multilineFieldsFormat to Markdown for proper rendering (ADO supports Markdown as of July 2025)
+        patch_document = [
+            {"op": "add", "path": "/fields/System.Title", "value": title},
+            {"op": "add", "path": "/fields/System.Description", "value": body},
+            {"op": "add", "path": "/fields/System.State", "value": ado_state},
+            {
+                "op": "add",
+                "path": "/multilineFieldsFormat/System.Description",
+                "value": "Markdown",
+            },  # Set format to Markdown
+        ]
+
+        try:
+            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            response.raise_for_status()
+            work_item_data = response.json()
+
+            work_item_id = work_item_data.get("id")
+            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+
+            # Store ADO metadata in source_tracking if provided
+            source_tracking = proposal_data.get("source_tracking")
+            if source_tracking:
+                if isinstance(source_tracking, dict):
+                    source_tracking.update(
+                        {
+                            "source_id": work_item_id,
+                            "source_url": work_item_url,
+                            "source_repo": f"{org}/{project}",
+                            "source_metadata": {
+                                "org": org,
+                                "project": project,
+                                "work_item_type": work_item_type,
+                                "state": ado_state,
+                            },
+                        }
+                    )
+                elif isinstance(source_tracking, list):
+                    # Add new entry to list
+                    source_tracking.append(
+                        {
+                            "source_id": work_item_id,
+                            "source_url": work_item_url,
+                            "source_repo": f"{org}/{project}",
+                            "source_metadata": {
+                                "org": org,
+                                "project": project,
+                                "work_item_type": work_item_type,
+                                "state": ado_state,
+                            },
+                        }
+                    )
+
+            return {
+                "work_item_id": work_item_id,
+                "work_item_url": work_item_url,
+                "state": ado_state,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to create Azure DevOps work item: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise
+
+    def _update_work_item_status(
+        self,
+        proposal_data: dict[str, Any],  # ChangeProposal with source_tracking
+        org: str,
+        project: str,
+    ) -> dict[str, Any]:
+        """
+        Update ADO work item status based on change proposal status.
+
+        Args:
+            proposal_data: Change proposal data with source_tracking containing work item ID
+            org: Azure DevOps organization
+            project: Azure DevOps project
+
+        Returns:
+            Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
+        """
+        # Get work item ID from source_tracking
+        source_tracking = proposal_data.get("source_tracking", {})
+
+        # Normalize to find the entry for this repository
+        target_repo = f"{org}/{project}"
+        work_item_id = None
+
+        if isinstance(source_tracking, dict):
+            # Single dict entry (backward compatibility)
+            work_item_id = source_tracking.get("source_id")
+        elif isinstance(source_tracking, list):
+            # List of entries - find the one matching this repository
+            for entry in source_tracking:
+                if isinstance(entry, dict):
+                    entry_repo = entry.get("source_repo")
+                    if entry_repo == target_repo:
+                        work_item_id = entry.get("source_id")
+                        break
+                    # Backward compatibility: if no source_repo, try to extract from source_url
+                    if not entry_repo:
+                        source_url = entry.get("source_url", "")
+                        if source_url and target_repo in source_url:
+                            work_item_id = entry.get("source_id")
+                            break
+
+        if not work_item_id:
+            msg = (
+                f"Work item ID not found in source_tracking for repository {target_repo}. "
+                "Work item must be created first."
+            )
+            raise ValueError(msg)
+
+        # Ensure work_item_id is an integer for API call
+        if isinstance(work_item_id, str):
+            try:
+                work_item_id = int(work_item_id)
+            except ValueError:
+                msg = f"Invalid work item ID format: {work_item_id}"
+                raise ValueError(msg) from None
+
+        status = proposal_data.get("status", "proposed")
+
+        # Map status to ADO state
+        ado_state = self.map_openspec_status_to_backlog(status)
+
+        # Ensure API token is available
+        if not self.api_token:
+            msg = "Azure DevOps API token is required"
+            raise ValueError(msg)
+
+        # Update work item state via Azure DevOps API
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Content-Type": "application/json-patch+json",
+        }
+        patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
+
+        try:
+            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            response.raise_for_status()
+            work_item_data = response.json()
+
+            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+
+            return {
+                "work_item_id": work_item_id,
+                "work_item_url": work_item_url,
+                "state": ado_state,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to update Azure DevOps work item #{work_item_id}: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise
+
+    def _update_work_item_body(
+        self,
+        proposal_data: dict[str, Any],  # ChangeProposal - TODO: use proper type
+        org: str,
+        project: str,
+        work_item_id: int,
+    ) -> dict[str, Any]:
+        """
+        Update ADO work item body/description from change proposal.
+
+        Args:
+            proposal_data: Change proposal data (dict with title, description, rationale, status, etc.)
+            org: Azure DevOps organization
+            project: Azure DevOps project
+            work_item_id: Work item ID to update
+
+        Returns:
+            Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
+        """
+        title = proposal_data.get("title", "Untitled Change Proposal")
+        description = proposal_data.get("description", "")
+        rationale = proposal_data.get("rationale", "")
+        status = proposal_data.get("status", "proposed")
+        change_id = proposal_data.get("change_id", "unknown")
+        raw_title, raw_body = self._extract_raw_fields(proposal_data)
+        if raw_title:
+            title = raw_title
+
+        # Build properly formatted work item description (same format as creation)
+        if raw_body:
+            body = raw_body
+        else:
+            body_parts = []
+
+            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+            if display_title:
+                body_parts.append(f"# {display_title}")
+                body_parts.append("")
+
+            # Add Why section (rationale) - preserve markdown formatting
+            if rationale:
+                body_parts.append("## Why")
+                body_parts.append("")
+                rationale_lines = rationale.strip().split("\n")
+                for line in rationale_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
+
+            # Add What Changes section (description) - preserve markdown formatting
+            if description:
+                body_parts.append("## What Changes")
+                body_parts.append("")
+                description_lines = description.strip().split("\n")
+                for line in description_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
+
+            # If no content, add placeholder
+            if not body_parts or (not rationale and not description):
+                body_parts.append("No description provided.")
+                body_parts.append("")
+
+            # Add OpenSpec metadata footer
+            body_parts.append("---")
+            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+
+            body = "\n".join(body_parts)
+
+        # Map status to ADO state
+        ado_state = self.map_openspec_status_to_backlog(status)
+
+        # Ensure API token is available
+        if not self.api_token:
+            msg = "Azure DevOps API token is required"
+            raise ValueError(msg)
+
+        # Update work item body and state via Azure DevOps API
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Content-Type": "application/json-patch+json",
+        }
+
+        # Build JSON Patch document for work item update
+        # Set multilineFieldsFormat to Markdown for proper rendering
+        patch_document = [
+            {"op": "replace", "path": "/fields/System.Title", "value": title},
+            {"op": "replace", "path": "/fields/System.Description", "value": body},
+            {"op": "replace", "path": "/fields/System.State", "value": ado_state},
+            {
+                "op": "add",
+                "path": "/multilineFieldsFormat/System.Description",
+                "value": "Markdown",
+            },  # Set format to Markdown
+        ]
+
+        try:
+            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            response.raise_for_status()
+            work_item_data = response.json()
+
+            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+
+            return {
+                "work_item_id": work_item_id,
+                "work_item_url": work_item_url,
+                "state": ado_state,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to update Azure DevOps work item #{work_item_id}: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise
+
+    @beartype
+    @require(lambda proposal: isinstance(proposal, (dict, ChangeProposal)), "Proposal must be dict or ChangeProposal")
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
+    def sync_status_to_ado(
+        self,
+        proposal: dict[str, Any] | ChangeProposal,
+        org: str,
+        project: str,
+        bridge_config: BridgeConfig | None = None,
+    ) -> dict[str, Any]:
+        """
+        Sync OpenSpec change status to ADO work item state.
+
+        Updates ADO work item state based on OpenSpec change proposal status.
+
+        Args:
+            proposal: Change proposal (dict or ChangeProposal instance)
+            org: Azure DevOps organization
+            project: Azure DevOps project
+            bridge_config: Optional bridge configuration (for cross-repo support)
+
+        Returns:
+            Dict with sync result: {"work_item_id": int, "work_item_url": str, "state_updated": bool}
+
+        Raises:
+            ValueError: If work item ID not found in source_tracking
+            requests.RequestException: If Azure DevOps API call fails
+        """
+        # Extract status and source_tracking
+        if isinstance(proposal, ChangeProposal):
+            status = proposal.status
+            source_tracking = proposal.source_tracking
+        else:
+            status = proposal.get("status", "proposed")
+            source_tracking = proposal.get("source_tracking")
+
+        if not source_tracking:
+            msg = "Source tracking required for status sync (work item must be created first)"
+            raise ValueError(msg)
+
+        # Get work item ID from source_tracking (handle both dict and list formats)
+        work_item_id = None
+        target_repo = f"{org}/{project}"
+
+        if isinstance(source_tracking, dict):
+            work_item_id = source_tracking.get("source_id")
+        elif isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if isinstance(entry, dict):
+                    entry_repo = entry.get("source_repo")
+                    if entry_repo == target_repo:
+                        work_item_id = entry.get("source_id")
+                        break
+                    if not entry_repo:
+                        source_url = entry.get("source_url", "")
+                        if source_url and target_repo in source_url:
+                            work_item_id = entry.get("source_id")
+                            break
+
+        if not work_item_id:
+            msg = f"Work item ID not found in source_tracking for repository {target_repo}"
+            raise ValueError(msg)
+
+        # Ensure work_item_id is an integer
+        if isinstance(work_item_id, str):
+            try:
+                work_item_id = int(work_item_id)
+            except ValueError:
+                msg = f"Invalid work item ID format: {work_item_id}"
+                raise ValueError(msg) from None
+
+        # Map OpenSpec status to ADO state
+        ado_state = self.map_openspec_status_to_backlog(status)
+
+        # Ensure API token is available
+        if not self.api_token:
+            msg = "Azure DevOps API token is required"
+            raise ValueError(msg)
+
+        # Update work item state via Azure DevOps API
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Content-Type": "application/json-patch+json",
+        }
+
+        # Build JSON Patch document for state update
+        patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
+
+        try:
+            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            response.raise_for_status()
+            work_item_data = response.json()
+
+            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+
+            return {
+                "work_item_id": work_item_id,
+                "work_item_url": work_item_url,
+                "state_updated": True,
+                "new_state": ado_state,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to sync status to Azure DevOps work item #{work_item_id}: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise
+
+    @beartype
+    @require(lambda work_item_data: isinstance(work_item_data, dict), "Work item data must be dict")
+    @require(lambda proposal: isinstance(proposal, (dict, ChangeProposal)), "Proposal must be dict or ChangeProposal")
+    @ensure(lambda result: isinstance(result, str), "Must return resolved status string")
+    def sync_status_from_ado(
+        self,
+        work_item_data: dict[str, Any],
+        proposal: dict[str, Any] | ChangeProposal,
+        strategy: str = "prefer_openspec",
+    ) -> str:
+        """
+        Sync ADO work item state to OpenSpec change proposal.
+
+        Maps ADO work item state to OpenSpec status and resolves conflicts if status differs.
+
+        Args:
+            work_item_data: ADO work item data (dict from API response)
+            proposal: Change proposal (dict or ChangeProposal instance)
+            strategy: Conflict resolution strategy (prefer_openspec, prefer_backlog, merge)
+
+        Returns:
+            Resolved OpenSpec status string
+        """
+        # Extract ADO state from work item fields
+        fields = work_item_data.get("fields", {})
+        ado_state = fields.get("System.State", "New")
+
+        # Map ADO state to OpenSpec status
+        openspec_status_from_ado = self.map_backlog_status_to_openspec(ado_state)
+
+        # Get current OpenSpec status
+        if isinstance(proposal, ChangeProposal):
+            openspec_status = proposal.status
+        else:
+            openspec_status = proposal.get("status", "proposed")
+
+        # Resolve conflict if status differs
+        return self.resolve_status_conflict(openspec_status, openspec_status_from_ado, strategy)
+
+    def _get_status_comment(
+        self,
+        status: str,
+        title: str,
+        source_tracking: dict[str, Any] | list[dict[str, Any]] | None = None,
+        code_repo_path: Path | None = None,
+        target_repo: str | None = None,
+    ) -> str:
+        """
+        Get comment text for status change.
+
+        Args:
+            status: Change proposal status
+            title: Change proposal title
+            source_tracking: Source tracking entry (dict) or list of entries to extract branch info
+            code_repo_path: Path to code repository (where implementation branches are stored) for branch verification
+            target_repo: Target repository identifier (e.g., "org/project") to filter source_tracking entries
+
+        Returns:
+            Comment text or empty string if no comment needed
+        """
+        if status == "applied":
+            # Try to extract branch information from source_tracking
+            branch_info = None
+            if target_repo and isinstance(source_tracking, list):
+                # Find entry for target repository
+                target_entry = next(
+                    (e for e in source_tracking if isinstance(e, dict) and e.get("source_repo") == target_repo),
+                    None,
+                )
+                if target_entry:
+                    branch_info = self._extract_branch_from_source_tracking(target_entry, code_repo_path)
+            else:
+                # Check branch in code repository (where implementation is stored)
+                branch_info = self._extract_branch_from_source_tracking(source_tracking, code_repo_path)
+            branch_text = f"\n\n**Implementation Branch**: `{branch_info}`" if branch_info else ""
+            return f"✅ Change applied: {title}\n\nThis change proposal has been implemented and applied.{branch_text}"
+        if status == "deprecated":
+            return (
+                f"⚠️ Change deprecated: {title}\n\nThis change proposal has been deprecated and will not be implemented."
+            )
+        if status == "discarded":
+            return f"❌ Change discarded: {title}\n\nThis change proposal has been discarded."
+        if status == "in-progress":
+            return f"🔄 Change in progress: {title}\n\nImplementation of this change proposal has started."
+        return ""
+
+    def _extract_branch_from_source_tracking(
+        self,
+        source_tracking: dict[str, Any] | list[dict[str, Any]] | None,
+        code_repo_path: Path | None = None,
+    ) -> str | None:
+        """
+        Extract branch information from source tracking entry.
+
+        Args:
+            source_tracking: Source tracking entry (dict) or list of entries
+            code_repo_path: Path to code repository (where implementation branches are stored) for branch verification
+
+        Returns:
+            Branch name if found and verified, None otherwise
+        """
+        if not source_tracking:
+            return None
+
+        # Handle list of entries - try to find one with branch info
+        if isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if isinstance(entry, dict):
+                    branch = self._get_branch_from_entry(entry, code_repo_path)
+                    if branch:
+                        return branch
+            return None
+
+        # Handle single dict entry
+        if isinstance(source_tracking, dict):
+            return self._get_branch_from_entry(source_tracking, code_repo_path)
+
+        return None
+
+    def _get_branch_from_entry(self, entry: dict[str, Any], code_repo_path: Path | None = None) -> str | None:
+        """
+        Extract branch from a single source tracking entry.
+
+        Args:
+            entry: Source tracking entry dict
+            code_repo_path: Path to code repository for branch verification
+
+        Returns:
+            Branch name if found, None otherwise
+        """
+        # Try to infer from change_id (common pattern: feature/<change-id>)
+        change_id = entry.get("change_id")
+        if change_id:
+            # Common branch naming patterns
+            possible_branches = [
+                f"feature/{change_id}",
+                f"bugfix/{change_id}",
+                f"hotfix/{change_id}",
+            ]
+            # Check each possible branch in code repo
+            if code_repo_path:
+                for branch in possible_branches:
+                    if self._verify_branch_exists(branch, code_repo_path):
+                        return branch
+            else:
+                # No repo path available, return first as reasonable default
+                return possible_branches[0]
+
+        return None
+
+    def _verify_branch_exists(self, branch_name: str, repo_path: Path) -> bool:
+        """
+        Verify that a branch exists in the given repository.
+
+        Args:
+            branch_name: Branch name to check
+            repo_path: Path to git repository
+
+        Returns:
+            True if branch exists, False otherwise
+        """
+        try:
+            import subprocess
+
+            result = subprocess.run(
+                ["git", "branch", "--list", branch_name],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            # Check if branch exists locally
+            if result.returncode == 0:
+                branches = [line.strip().replace("*", "").strip() for line in result.stdout.split("\n") if line.strip()]
+                if branch_name in branches:
+                    return True
+
+            # Also check remote branches
+            result = subprocess.run(
+                ["git", "branch", "-r", "--list", f"*/{branch_name}"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0:
+                # Extract branch name from remote branch format
+                remote_branches = []
+                for line in result.stdout.split("\n"):
+                    line = line.strip()
+                    if line and "/" in line:
+                        # Remove remote prefix but keep full branch path
+                        parts = line.split("/", 1)
+                        if len(parts) == 2:
+                            remote_branches.append(parts[1])
+                if branch_name in remote_branches:
+                    return True
+
+            return False
+        except Exception:
+            # If we can't check (git not available, etc.), return False to be safe
+            return False
+
+    @beartype
+    @require(lambda org: isinstance(org, str) and org, "Organization must be non-empty string")
+    @require(lambda project: isinstance(project, str) and project, "Project must be non-empty string")
+    @require(
+        lambda work_item_id: isinstance(work_item_id, int) and work_item_id > 0, "Work item ID must be positive int"
+    )
+    @require(
+        lambda comment_text: isinstance(comment_text, str) and comment_text, "Comment text must be non-empty string"
+    )
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
+    def _add_work_item_comment(
+        self,
+        org: str,
+        project: str,
+        work_item_id: int,
+        comment_text: str,
+    ) -> dict[str, Any]:
+        """
+        Add a comment to an Azure DevOps work item.
+
+        Args:
+            org: Azure DevOps organization
+            project: Azure DevOps project
+            work_item_id: Work item ID
+            comment_text: Comment text (markdown supported)
+
+        Returns:
+            Dict with comment data: {"work_item_id": int, "comment_id": int, "comment_added": bool}
+
+        Raises:
+            ValueError: If API token is missing
+            requests.RequestException: If Azure DevOps API call fails
+        """
+        if not self.api_token:
+            msg = "Azure DevOps API token is required"
+            raise ValueError(msg)
+
+        # Azure DevOps API for adding comments to work items
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1"
+        headers = {
+            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
+            "Content-Type": "application/json",
+        }
+
+        # Build request body for comment
+        comment_body = {"text": comment_text}
+
+        try:
+            response = requests.post(url, json=comment_body, headers=headers, timeout=30)
+            response.raise_for_status()
+            comment_data = response.json()
+
+            comment_id = comment_data.get("id")
+
+            return {
+                "work_item_id": work_item_id,
+                "comment_id": comment_id,
+                "comment_added": True,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to add comment to Azure DevOps work item #{work_item_id}: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise
+
+    @beartype
+    @require(lambda proposal_data: isinstance(proposal_data, dict), "Proposal data must be dict")
+    @require(lambda org: isinstance(org, str) and org, "Organization must be non-empty string")
+    @require(lambda project: isinstance(project, str) and project, "Project must be non-empty string")
+    @require(
+        lambda work_item_id: isinstance(work_item_id, int) and work_item_id > 0, "Work item ID must be positive int"
+    )
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
+    def _add_progress_comment(
+        self,
+        proposal_data: dict[str, Any],  # ChangeProposal with progress_data
+        org: str,
+        project: str,
+        work_item_id: int,
+        sanitize: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Add progress comment to Azure DevOps work item based on code changes.
+
+        Args:
+            proposal_data: Change proposal data with progress_data (dict with code change info)
+            org: Azure DevOps organization
+            project: Azure DevOps project
+            work_item_id: Azure DevOps work item ID
+            sanitize: If True, sanitize sensitive information in progress comment (for public repos)
+
+        Returns:
+            Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "comment_added": bool}
+
+        Raises:
+            requests.RequestException: If Azure DevOps API call fails
+        """
+        progress_data = proposal_data.get("progress_data", {})
+        if not progress_data:
+            # No progress data provided
+            return {
+                "work_item_id": work_item_id,
+                "work_item_url": f"{self.base_url}/{org}/{project}/_workitems/edit/{work_item_id}",
+                "comment_added": False,
+            }
+
+        from specfact_cli.utils.code_change_detector import format_progress_comment
+
+        comment_text = format_progress_comment(progress_data, sanitize=sanitize)
+
+        try:
+            self._add_work_item_comment(org, project, work_item_id, comment_text)
+            return {
+                "work_item_id": work_item_id,
+                "work_item_url": f"{self.base_url}/{org}/{project}/_workitems/edit/{work_item_id}",
+                "comment_added": True,
+            }
+        except requests.RequestException as e:
+            msg = f"Failed to add progress comment to Azure DevOps work item #{work_item_id}: {e}"
+            console.print(f"[bold red]✗[/bold red] {msg}")
+            raise

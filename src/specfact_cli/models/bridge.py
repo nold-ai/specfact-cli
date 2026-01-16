@@ -460,6 +460,38 @@ class BridgeConfig(BaseModel):
     @beartype
     @classmethod
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    def preset_ado(cls) -> BridgeConfig:
+        """
+        Create Azure DevOps bridge preset for DevOps backlog tracking.
+
+        Azure DevOps-specific configuration (org, project, base_url, api_token, work_item_type)
+        should be provided via environment variables (AZURE_DEVOPS_TOKEN) or CLI options,
+        not stored in bridge config for security reasons.
+
+        Returns:
+            BridgeConfig for Azure DevOps adapter (export-only mode for change proposals)
+        """
+        artifacts = {
+            "change_proposal": ArtifactMapping(
+                path_pattern="api/{org}/{project}/workitems",
+                format="api",
+                sync_target="ado_work_items",
+            ),
+            "change_status": ArtifactMapping(
+                path_pattern="api/{org}/{project}/workitems/{work_item_id}",
+                format="api",
+                sync_target="ado_work_items",
+            ),
+        }
+
+        return cls(
+            adapter=AdapterType.ADO,
+            artifacts=artifacts,
+        )
+
+    @beartype
+    @classmethod
+    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def preset_openspec(cls) -> BridgeConfig:
         """
         Create OpenSpec bridge preset.

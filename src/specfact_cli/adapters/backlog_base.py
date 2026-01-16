@@ -129,8 +129,13 @@ class BacklogAdapterMixin(ABC):
         source_metadata: dict[str, Any] = {}
 
         # Extract common fields (ID, URL) if present
-        if "id" in item_data or "number" in item_data:
-            source_metadata["source_id"] = item_data.get("id") or item_data.get("number")
+        source_id = None
+        if tool_name.lower() == "github":
+            source_id = item_data.get("number") or item_data.get("id")
+        else:
+            source_id = item_data.get("id") or item_data.get("number")
+        if source_id is not None:
+            source_metadata["source_id"] = source_id
         # Prefer html_url (user-friendly) over url (API URL)
         if "html_url" in item_data:
             source_metadata["source_url"] = item_data.get("html_url")

@@ -21,11 +21,11 @@ SpecFact CLI supports **bidirectional synchronization** between OpenSpec change 
 Currently supported DevOps adapters:
 
 - **GitHub Issues** (`--adapter github`) - Full support for issue creation and progress comments
-- **Azure DevOps** (`--adapter ado`) - Planned
+- **Azure DevOps** (`--adapter ado`) - ✅ Available - Work item creation, status sync, and progress tracking
 - **Linear** (`--adapter linear`) - Planned
 - **Jira** (`--adapter jira`) - Planned
 
-This guide focuses on GitHub Issues integration. Other adapters will follow similar patterns.
+This guide focuses on GitHub Issues integration. Azure DevOps integration follows similar patterns with ADO-specific configuration.
 
 ---
 
@@ -399,6 +399,403 @@ specfact sync bridge --adapter github --mode export-only \
 
 ## Advanced Features
 
+### Beyond Export/Update Capabilities
+
+SpecFact supports more than exporting and updating backlog items:
+
+- **Selective backlog import into bundles**: Import only the issues/work items you select (no bulk import by default).
+  - Use `--mode bidirectional` with `--backlog-ids` or `--backlog-ids-file` and `--bundle`.
+- **Status synchronization**: Keep OpenSpec/bundle proposal status aligned with backlog item state.
+- **Validation reporting**: Attach validation outcomes (e.g., contract checks) as backlog comments when enabled.
+- **Progress notes**: Add progress updates via `--track-code-changes` or `--add-progress-comment`.
+- **Cross-adapter export**: Export stored bundle content 1:1 to another backlog adapter (GitHub ↔ ADO) with `--bundle`.
+
+Example: Import selected GitHub issues into a bundle and keep them in sync:
+
+```bash
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle main \
+  --backlog-ids 111,112
+```
+
+### Cross-Adapter Sync: Lossless Round-Trip Migration
+
+> **🚀 Advanced Feature**: One of SpecFact's most powerful capabilities for DevOps teams working with multiple backlog tools.
+
+SpecFact enables **lossless round-trip synchronization** between different backlog adapters (GitHub ↔ Azure DevOps ↔ others), allowing you to:
+
+- **Migrate between backlog tools** without losing content or metadata
+- **Sync across teams** using different tools (e.g., GitHub for open source, ADO for enterprise)
+- **Maintain consistency** when working with multiple backlog systems
+- **Preserve full content fidelity** across adapter boundaries
+
+#### How It Works
+
+The system uses **lossless content preservation** to ensure 100% fidelity during cross-adapter syncs:
+
+1. **Content Storage**: When importing from any backlog adapter, the original raw content (title, body, metadata) is stored in the project bundle's `source_tracking` metadata
+2. **Bundle Export**: Export from stored bundles preserves the original content exactly as it was imported
+3. **Round-Trip Safety**: Content can be synced GitHub → OpenSpec → ADO → OpenSpec → GitHub with no data loss
+
+#### Example: GitHub → ADO Migration
+
+Migrate a GitHub issue to Azure DevOps while preserving all content:
+
+**Step-by-Step Guide:**
+
+```bash
+# Step 1: Import GitHub issue into bundle (stores lossless content)
+# This creates a change proposal in the bundle and stores raw content
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle main \
+  --backlog-ids 123
+
+# After Step 1, the CLI will show the change_id that was created
+# Example output: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
+# Note the change_id from the output (e.g., "add-feature-x")
+
+# Step 2: Find the change_id (if you missed it in the output)
+# Option A: Check the bundle directory
+ls .specfact/projects/main/change_tracking/proposals/
+# Lists all proposal files - the filename is the change_id
+
+# Option B: Check OpenSpec changes directory (if external_base_path is set)
+ls /path/to/openspec-repo/openspec/changes/
+# Lists all change directories - the directory name is the change_id
+
+# Step 3: Export from bundle to ADO (uses stored lossless content)
+# Replace <change-id> with the actual change_id from Step 1
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project your-project \
+  --bundle main \
+  --change-ids add-feature-x  # Use the actual change_id from Step 1
+
+# Step 4: Verify the export worked
+# The CLI will show: "✓ Exported to ADO" with work item ID and URL
+# Example: "✓ Work item created: https://dev.azure.com/your-org/your-project/_workitems/edit/456"
+```
+
+**What Happens Behind the Scenes:**
+
+1. **Step 1 (Import)**: 
+   - Fetches GitHub issue #123
+   - Creates change proposal in bundle `main`
+   - Stores raw content (title, body) in `source_tracking.source_metadata`
+   - Creates OpenSpec proposal in `openspec/changes/<change-id>/proposal.md`
+   - Returns change_id (e.g., `add-feature-x`)
+
+2. **Step 3 (Export)**:
+   - Loads proposal from bundle `main`
+   - Uses stored raw content (not reconstructed from sections)
+   - Creates ADO work item with exact same content
+   - Stores ADO work item ID in `source_tracking` for future updates
+
+**Finding the Change ID:**
+
+The change_id is derived from the GitHub issue:
+- **If issue has OpenSpec footer**: Uses the change_id from footer (e.g., `*OpenSpec Change Proposal: `add-feature-x`*`)
+- **If no footer**: Uses issue number as change_id (e.g., `123`)
+
+**Verification:**
+
+After export, verify content matches:
+
+```bash
+# Check the exported ADO work item
+# Visit the work item URL shown in Step 4 output
+# Compare content with original GitHub issue
+# Both should have identical content (Why, What Changes sections)
+```
+
+The exported ADO work item will contain the exact same content as the original GitHub issue, including:
+- Full markdown formatting
+- All sections (Why, What Changes, etc.)
+- Metadata and source tracking
+- Status and labels (mapped appropriately)
+
+#### Example: Multi-Tool Sync Workflow
+
+Keep proposals in sync across GitHub (public) and ADO (internal):
+
+**Complete Workflow with Change IDs:**
+
+```bash
+# Day 1: Create proposal in OpenSpec, export to GitHub (public)
+# Assume change_id is "add-feature-x" (from openspec/changes/add-feature-x/proposal.md)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name public-repo \
+  --sanitize \
+  --repo /path/to/openspec-repo \
+  --change-ids add-feature-x
+
+# Output shows: "✓ Exported to GitHub" with issue number (e.g., #123)
+# Note the GitHub issue number: 123
+
+# Day 2: Import GitHub issue into bundle (for internal team)
+# This stores lossless content in the bundle
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name public-repo \
+  --bundle internal \
+  --backlog-ids 123
+
+# Output shows: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
+# Note the change_id: add-feature-x
+
+# Day 3: Export to ADO for internal tracking (full content, no sanitization)
+# Uses the change_id from Day 2
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project internal-project \
+  --bundle internal \
+  --change-ids add-feature-x
+
+# Output shows: "✓ Exported to ADO" with work item ID (e.g., 456)
+# Note the ADO work item ID: 456
+
+# Day 4: Update in ADO, sync back to GitHub (status sync)
+# Import ADO work item to update bundle with latest status
+specfact sync bridge --adapter ado --mode bidirectional \
+  --ado-org your-org --ado-project internal-project \
+  --bundle internal \
+  --backlog-ids 456
+
+# Output shows: "✓ Imported ADO work item #456 as change proposal: add-feature-x"
+# Bundle now has latest status from ADO
+
+# Then sync status back to GitHub
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name public-repo \
+  --update-existing \
+  --repo /path/to/openspec-repo \
+  --change-ids add-feature-x
+
+# Output shows: "✓ Updated GitHub issue #123"
+```
+
+**Key Points:**
+
+- **Change IDs are consistent**: The same change_id (`add-feature-x`) is used across all adapters
+- **Bundle preserves content**: The `internal` bundle stores lossless content from GitHub, which is then exported to ADO
+- **Status sync**: Bidirectional sync updates the bundle, then export-only syncs status to other adapters
+- **No content loss**: Raw content stored in bundle ensures 100% fidelity across all syncs
+
+#### Lossless Content Preservation
+
+SpecFact ensures **zero data loss** during cross-adapter syncs by:
+
+- **Storing raw content**: Original title and body stored in `source_tracking.source_metadata.raw_title` and `raw_body`
+- **Preserving formatting**: Markdown formatting, sections, and structure maintained exactly
+- **Metadata preservation**: Source tracking, timestamps, and adapter-specific metadata preserved
+- **Round-trip validation**: Content can be verified to match original after multiple sync cycles
+
+#### Use Cases
+
+**1. Tool Migration**
+- Migrate from GitHub Issues to Azure DevOps without losing any content
+- Move from ADO to GitHub for open source projects
+- Transition between backlog tools as team needs change
+
+**2. Multi-Tool Workflows**
+- Public GitHub issues (sanitized) + Internal ADO work items (full content)
+- Open source tracking (GitHub) + Enterprise tracking (ADO)
+- Cross-team collaboration with different tool preferences
+
+**3. Feature Branch Integration**
+- Sync proposals with feature branches across different backlog tools
+- Track code changes in one tool, sync status to another
+- Maintain consistency when teams use different tools
+
+**4. Validation & Code Change Tracking**
+- Attach validation results to backlog items in any adapter
+- Track code changes across multiple backlog systems
+- Maintain audit trail across tool boundaries
+
+#### Step-by-Step: Complete Cross-Adapter Sync Workflow
+
+**Scenario**: Migrate a GitHub issue to Azure DevOps with full content preservation.
+
+```bash
+# Prerequisites: Set up authentication
+export GITHUB_TOKEN='your-github-token'
+export AZURE_DEVOPS_TOKEN='your-ado-token'
+
+# Step 1: Import GitHub issue into bundle
+# This stores the issue in a bundle with lossless content preservation
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle migration-bundle \
+  --backlog-ids 123
+
+# Expected output:
+# ✓ Imported GitHub issue #123 as change proposal: add-feature-x
+# Note the change_id: "add-feature-x"
+
+# Step 2: Verify the import (optional but recommended)
+# Check that the proposal was created in the bundle
+ls .specfact/projects/migration-bundle/change_tracking/proposals/
+# Should show: add-feature-x.yaml (or similar)
+
+# Step 3: Export to Azure DevOps
+# Use the change_id from Step 1
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project your-project \
+  --bundle migration-bundle \
+  --change-ids add-feature-x
+
+# Expected output:
+# ✓ Exported to ADO
+# ✓ Work item created: https://dev.azure.com/your-org/your-project/_workitems/edit/456
+# Note the work item ID: 456
+
+# Step 4: Verify content preservation
+# Visit the ADO work item URL and compare with original GitHub issue
+# Content should match exactly (Why, What Changes sections, formatting)
+
+# Step 5: Optional - Round-trip back to GitHub to verify
+specfact sync bridge --adapter ado --mode bidirectional \
+  --ado-org your-org --ado-project your-project \
+  --bundle migration-bundle \
+  --backlog-ids 456
+
+# Then export back to GitHub
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle migration-bundle \
+  --change-ids add-feature-x \
+  --update-existing
+
+# Verify GitHub issue content matches original
+```
+
+#### Complete Round-Trip Example: GitHub → ADO → GitHub
+
+**Scenario**: Full bidirectional sync workflow demonstrating lossless content preservation across GitHub and Azure DevOps.
+
+This example demonstrates the complete cross-adapter sync workflow, showing how to:
+1. Import a GitHub issue into a bundle
+2. Export to Azure DevOps
+3. Import back from Azure DevOps
+4. Export back to GitHub
+5. Verify content preservation throughout
+
+```bash
+# Prerequisites: Set up authentication
+export GITHUB_TOKEN='your-github-token'
+export AZURE_DEVOPS_TOKEN='your-ado-token'
+
+# ============================================================
+# STEP 1: Import GitHub Issue → SpecFact Bundle
+# ============================================================
+# Import GitHub issue #110 into bundle 'cross-sync-test'
+# Note: Bundle will be auto-created if it doesn't exist
+# This stores lossless content in the bundle
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --bundle cross-sync-test \
+  --backlog-ids 110
+
+# Expected output:
+# ✓ Imported GitHub issue #110 as change proposal: <change-id>
+# Note the change_id from output (e.g., "add-ado-backlog-adapter" or "110")
+
+# Find change_id if you missed it:
+# Option A: Check bundle directory
+ls .specfact/projects/cross-sync-test/change_tracking/proposals/
+
+# Option B: Check OpenSpec directory (if using external repo)
+ls /path/to/openspec-repo/openspec/changes/
+
+# ============================================================
+# STEP 2: Export SpecFact Bundle → Azure DevOps
+# ============================================================
+# Export the proposal to ADO using the change_id from Step 1
+# Replace <change-id> with the actual change_id from Step 1
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project your-project \
+  --bundle cross-sync-test \
+  --change-ids <change-id>
+
+# Expected output:
+# ✓ Exported to ADO
+# ✓ Exported 1 backlog item(s)
+# Note the ADO work item ID from the output (e.g., 456)
+
+# ============================================================
+# STEP 3: Import Azure DevOps → SpecFact Bundle
+# ============================================================
+# Import the ADO work item back into the bundle
+# This updates the bundle with ADO's version of the content
+# Replace <ado-work-item-id> with the ID from Step 2
+specfact sync bridge --adapter ado --mode bidirectional \
+  --ado-org your-org --ado-project your-project \
+  --bundle cross-sync-test \
+  --backlog-ids <ado-work-item-id>
+
+# Expected output:
+# ✓ Imported ADO work item #<ado-work-item-id> as change proposal: <change-id>
+# The change_id should match the one from Step 1
+
+# ============================================================
+# STEP 4: Export SpecFact Bundle → GitHub (Round-Trip)
+# ============================================================
+# Export back to GitHub to complete the round-trip
+# This updates the original GitHub issue with any changes from ADO
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --bundle cross-sync-test \
+  --change-ids <change-id> \
+  --update-existing
+
+# Expected output:
+# ✓ Exported to GitHub
+# ✓ Updated GitHub issue #110
+
+# ============================================================
+# STEP 5: Verification
+# ============================================================
+# Verify content preservation:
+# 1. Visit the original GitHub issue: https://github.com/nold-ai/specfact-cli/issues/110
+# 2. Visit the ADO work item URL from Step 2
+# 3. Compare content - both should have identical:
+#    - Why section
+#    - What Changes section
+#    - Formatting and structure
+#    - Metadata (status, labels mapped appropriately)
+```
+
+**What This Demonstrates:**
+
+- **Lossless Content Preservation**: Content is preserved exactly through GitHub → ADO → GitHub round-trip
+- **Bundle as Storage**: The bundle stores raw content, ensuring 100% fidelity
+- **Bidirectional Sync**: Both adapters can import and export, maintaining consistency
+- **Change ID Consistency**: The same change_id is used across all adapters
+- **Status Synchronization**: Status changes in one adapter are reflected in others
+
+**Key Points:**
+
+- **Bundle is required**: Without `--bundle`, content may be reconstructed and lose formatting
+- **Change IDs are persistent**: The same change_id is used throughout the workflow
+- **Content verification**: Always verify content matches after each step
+- **Update existing**: Use `--update-existing` when exporting back to GitHub to update the original issue
+
+**Important Notes:**
+
+- **Bundle is required**: Without `--bundle`, content is reconstructed from sections (may lose formatting)
+- **Change IDs**: The change_id is shown in the import output, or check the bundle directory
+- **Work Item IDs**: ADO work item IDs are shown in export output, or check `source_tracking` in proposal.md
+- **Content verification**: Always verify content matches after cross-adapter sync
+
+#### Best Practices
+
+- **Use bundles for cross-adapter sync**: Always use `--bundle` when syncing between adapters to preserve lossless content
+- **Verify content preservation**: After cross-adapter sync, verify content matches original
+- **Handle sanitization carefully**: Public repos may need sanitization, internal repos can use full content
+- **Track source origins**: Use `source_tracking` metadata to understand where content originated
+- **Test round-trips**: Validate lossless sync by syncing back to original adapter and comparing content
+- **Note change IDs**: Save change IDs from import output for use in export commands
+- **Check bundle contents**: Use `ls .specfact/projects/<bundle-name>/change_tracking/proposals/` to list all proposals in a bundle
+
 ### Update Existing Issues
 
 When a change proposal already has a linked GitHub issue (via `source_tracking` metadata in the proposal), you can update the issue with the latest proposal content.
@@ -727,15 +1124,120 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
 ---
 
+## Azure DevOps Integration
+
+Azure DevOps adapter (`--adapter ado`) is now available and supports:
+
+- **Bidirectional Sync**: Import ADO work items as OpenSpec change proposals AND export proposals as work items
+- **Work Item Creation**: Export OpenSpec change proposals as ADO work items
+- **Work Item Import**: Import ADO work items as OpenSpec change proposals
+- **Status Synchronization**: Bidirectional status sync (OpenSpec ↔ ADO state) with conflict resolution
+- **Status Comments**: Automatic status change comments (applied, deprecated, discarded, in-progress)
+- **Progress Tracking**: Code change detection and progress comments (same as GitHub)
+- **Work Item Type Derivation**: Automatically detects work item type from process template (Scrum/Kanban/Agile)
+- **Work Item Updates**: Update existing work items with `--update-existing` flag
+- **Markdown Format Support**: Proper markdown rendering in work item descriptions
+
+### Prerequisites
+
+- Azure DevOps organization and project
+- Personal Access Token (PAT) with work item read/write permissions
+- OpenSpec change proposals in `openspec/changes/<change-id>/proposal.md`
+
+### Authentication
+
+```bash
+# Option 1: Environment Variable
+export AZURE_DEVOPS_TOKEN=your_pat_token
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org \
+  --ado-project your-project \
+  --repo /path/to/openspec-repo
+
+# Option 2: Command Line Flag
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org \
+  --ado-project your-project \
+  --ado-token your_pat_token \
+  --repo /path/to/openspec-repo
+```
+
+### Basic Usage
+
+```bash
+# Bidirectional sync (import work items AND export proposals)
+specfact sync bridge --adapter ado --bidirectional \
+  --ado-org your-org \
+  --ado-project your-project \
+  --repo /path/to/openspec-repo
+
+# Export-only (one-way: OpenSpec → ADO)
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org \
+  --ado-project your-project \
+  --repo /path/to/openspec-repo
+
+# Export with explicit work item type
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org \
+  --ado-project your-project \
+  --ado-work-item-type "User Story" \
+  --repo /path/to/openspec-repo
+
+# Track code changes and add progress comments
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org \
+  --ado-project your-project \
+  --track-code-changes \
+  --repo /path/to/openspec-repo \
+  --code-repo /path/to/source-code-repo
+```
+
+### Work Item Type Derivation
+
+The ADO adapter automatically derives work item type from your project's process template:
+
+- **Scrum**: `Product Backlog Item`
+- **Agile**: `User Story`
+- **Kanban**: `User Story` (default)
+
+You can override with `--ado-work-item-type`:
+
+```bash
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org \
+  --ado-project your-project \
+  --ado-work-item-type "Bug" \
+  --repo /path/to/openspec-repo
+```
+
+### Status Mapping
+
+ADO states map to OpenSpec status as follows:
+
+| ADO State | OpenSpec Status |
+|-----------|----------------|
+| `New` | `proposed` |
+| `Active` / `In Progress` | `in-progress` |
+| `Closed` / `Done` | `applied` |
+| `Removed` | `deprecated` |
+| `Rejected` | `discarded` |
+
+### Configuration
+
+All ADO-specific configuration can be provided via:
+
+- **CLI flags**: `--ado-org`, `--ado-project`, `--ado-base-url`, `--ado-token`, `--ado-work-item-type`
+- **Environment variables**: `AZURE_DEVOPS_TOKEN`, `ADO_BASE_URL` (defaults to `https://dev.azure.com`)
+
 ## Future Adapters
 
 Additional DevOps adapters are planned:
 
-- **Azure DevOps** (`--adapter ado`) - Work items and progress tracking
 - **Linear** (`--adapter linear`) - Issues and progress updates
 - **Jira** (`--adapter jira`) - Issues, epics, and sprint tracking
 
-These will follow similar patterns to GitHub Issues integration. Check the [Commands Reference](../reference/commands.md) for the latest adapter support.
+These will follow similar patterns to GitHub Issues and Azure DevOps integration. Check the [Commands Reference](../reference/commands.md) for the latest adapter support.
 
 ---
 

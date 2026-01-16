@@ -9,6 +9,104 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.25.1] - 2026-01-16
+
+### Added (0.25.1)
+
+- **Azure DevOps Backlog Adapter**: New `--adapter ado` option for `sync bridge` command
+  - **Purpose**: Bidirectional synchronization between OpenSpec change proposals and Azure DevOps work items
+  - **Features**:
+    - **Bidirectional Sync**: Import ADO work items as OpenSpec change proposals AND export proposals as work items
+    - **Export Mode**: Export OpenSpec change proposals as ADO work items (`--mode export-only`)
+    - **Import Mode**: Import ADO work items as OpenSpec change proposals (via `--bidirectional`)
+    - Bidirectional status synchronization (OpenSpec ↔ ADO state) with conflict resolution
+    - Automatic work item type derivation from process templates (Scrum/Kanban/Agile)
+    - Code change tracking and progress comments (same as GitHub adapter)
+    - **Lossless Content Preservation**: Stores raw content (title, body) in `source_tracking.source_metadata` for round-trip syncs
+    - **Cross-Adapter Sync**: Export stored bundle content to any backlog adapter (GitHub ↔ ADO) with 100% fidelity
+    - **Markdown Format Support**: Sets `multilineFieldsFormat` to "Markdown" when creating/updating work items (ADO supports Markdown as of July 2025)
+    - **HTML to Markdown Conversion**: Automatically converts HTML-formatted work items to markdown when importing
+    - **Three-Level Source Tracking Matching**: Prevents duplicate work items using exact match → org+type match → org-only match (handles ADO URL GUIDs and project name changes)
+    - **Work Item Body Updates**: Support for `change_proposal_update` artifact key to update work item descriptions
+    - **Bundle Export**: Export stored backlog items from project bundles to ADO with lossless content preservation
+  - **Configuration**: `--ado-org`, `--ado-project`, `--ado-base-url`, `--ado-token`, `--ado-work-item-type`
+  - **Status Mapping**: Maps ADO states (New/Active/Closed/Removed/Rejected) to OpenSpec status (proposed/in-progress/applied/deprecated/discarded)
+  - **Work Item Types**: Automatically detects from process template (Scrum → Product Backlog Item, Agile → User Story, Kanban → User Story)
+  - **Examples**:
+    - `specfact sync bridge --adapter ado --bidirectional --ado-org myorg --ado-project myproject` (bidirectional)
+    - `specfact sync bridge --adapter ado --mode export-only --ado-org myorg --ado-project myproject` (export-only)
+    - `specfact sync bridge --adapter ado --mode export-only --bundle main --change-ids <id>` (bundle export)
+  - **Documentation**: 
+    - `docs/guides/devops-adapter-integration.md#azure-devops-integration` - Complete integration guide
+    - `docs/guides/devops-adapter-integration.md#cross-adapter-sync-lossless-round-trip-migration` - Cross-adapter sync scenarios
+    - `docs/adapters/azuredevops.md` - Azure DevOps adapter reference
+    - `docs/adapters/backlog-adapter-patterns.md` - Backlog adapter patterns
+
+- **Cross-Adapter Sync Capabilities**: Lossless round-trip synchronization between backlog adapters
+  - **Purpose**: Enable tool migration and multi-tool workflows without losing content
+  - **Features**:
+    - **Lossless Content Preservation**: Original raw content (title, body) stored in project bundles for 100% fidelity
+    - **Cross-Adapter Export**: Export stored bundle content to any backlog adapter (GitHub ↔ ADO ↔ others)
+    - **Round-Trip Safety**: Content can be synced GitHub → OpenSpec → ADO → OpenSpec → GitHub with no data loss
+    - **Bundle-Based Workflow**: Use `--bundle` flag to preserve lossless content during cross-adapter syncs
+  - **Use Cases**:
+    - Tool migration (GitHub → ADO, ADO → GitHub)
+    - Multi-tool workflows (public GitHub + internal ADO)
+    - Cross-team collaboration with different tool preferences
+    - Feature branch integration across different backlog tools
+  - **Documentation**: See `docs/guides/devops-adapter-integration.md#cross-adapter-sync-lossless-round-trip-migration`
+
+### Changed (0.25.1)
+
+- **Enhanced Source Tracking Matching**: Improved duplicate prevention logic for backlog adapters
+  - **Three-Level Matching**: Exact `source_repo` match → org+type match (for ADO) → org-only match (for ADO)
+  - **ADO GUID Support**: Handles ADO URLs containing GUIDs instead of project names (e.g., `dominikusnold/69b5d0c2-2400-470d-b937-b5205503a679`)
+  - **Backward Compatibility**: Works with both single dict format and multi-repo list format
+  - **Duplicate Prevention**: If `source_tracking` entry exists but `source_id` is missing, skip creation and warn user (prevents duplicates from corrupted entries)
+  - **Project Name Changes**: Updates existing entries instead of creating duplicates when org matches (handles project name changes)
+
+- **Enhanced Lossless Content Preservation**: Improved raw content storage and retrieval
+  - **Storage**: Both GitHub and ADO adapters now store `raw_title`, `raw_body`, and `raw_format` in `source_tracking.source_metadata`
+  - **Retrieval**: `_extract_raw_fields()` helper method extracts raw content from proposal data or source_metadata
+  - **Usage**: Raw content is used when exporting from stored bundles to preserve 100% fidelity across adapters
+
+### Documentation (0.25.1)
+
+- **Azure DevOps Adapter Documentation**: New comprehensive adapter reference
+  - `docs/adapters/azuredevops.md` - Complete Azure DevOps adapter documentation with examples, troubleshooting, and best practices
+  - Includes lossless content preservation, cross-adapter sync, markdown support, and source tracking matching details
+
+- **Enhanced DevOps Integration Guide**: Updated with cross-adapter sync scenarios
+  - Added "Cross-Adapter Sync: Lossless Round-Trip Migration" section with examples and use cases
+  - Documented GitHub → ADO migration workflow
+  - Added multi-tool sync workflow examples
+  - Included best practices for cross-adapter sync
+
+- **Enhanced GitHub Adapter Documentation**: Updated with lossless content preservation
+  - Added lossless content preservation section
+  - Documented cross-adapter sync capabilities
+  - Added cross-reference to Azure DevOps adapter
+
+- **Enhanced Backlog Adapter Patterns**: Updated with lossless content preservation patterns
+  - Added lossless content preservation implementation guidance
+  - Documented `_extract_raw_fields()` helper method pattern
+  - Added examples for storing and retrieving raw content
+
+- **Updated Command Reference**: Enhanced `sync bridge` command documentation
+  - Added "Cross-Adapter Sync: Lossless Round-Trip Migration" section
+  - Included GitHub → ADO migration examples
+  - Added multi-tool sync workflow examples
+
+- **Updated Documentation Navigation**: Added DevOps & Backlog Sync section
+  - Added "DevOps & Backlog Sync" section to Jekyll sidebar menu (`docs/_layouts/default.html`)
+  - Added "DevOps & Backlog Sync" section to homepage (`docs/index.md`) with quick start examples
+  - Added "Integrations Overview" to Reference section
+
+- **Updated Integrations Overview**: Added Azure DevOps adapter reference
+  - Added cross-reference to Azure DevOps adapter documentation
+
+---
+
 ## [0.25.0] - 2026-01-15
 
 ### Added (0.25.0)

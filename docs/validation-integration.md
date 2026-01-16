@@ -221,11 +221,11 @@ The validation integration integrates with:
 - **OpenSpec adapter**: Loads change proposals and spec deltas
 - **Spec-Kit adapter**: Loads current specifications
 - **SpecFact validation**: Validates against merged specs
-- **Backlog adapters**: Reports results (GitHub first, future: ADO, Jira, Linear)
+- **Backlog adapters**: Reports results (GitHub and ADO available, future: Jira, Linear)
 
 ## Future Enhancements
 
-Future backlog adapters (Azure DevOps, Jira, Linear) will follow the same reporting pattern:
+Future backlog adapters (Jira, Linear) will follow the same reporting pattern. Azure DevOps (ADO) is now available and follows this pattern.
 
 - Tool-agnostic status mapping
 - Tool-agnostic metadata extraction
