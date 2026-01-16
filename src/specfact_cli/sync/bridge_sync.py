@@ -1439,22 +1439,28 @@ class BridgeSync:
                     target_org = target_repo.split("/")[0] if "/" in target_repo else None
                     entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
                     target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
-                    
+
                     # Only use org-only match when:
                     # 1. Org matches
                     # 2. source_id exists (for single dict, check source_tracking dict)
                     # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
                     # This prevents matching org/project-a with org/project-b when both have known project names
                     source_url = source_tracking.get("source_url", "") if isinstance(source_tracking, dict) else ""
-                    entry_has_guid = source_url and re.search(r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE)
+                    entry_has_guid = source_url and re.search(
+                        r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
+                    )
                     project_unknown = (
                         not entry_project  # Entry has no project part
                         or not target_project  # Target has no project part
                         or entry_has_guid  # Entry URL contains GUID (project name unknown)
-                        or (entry_project and len(entry_project) == 36 and "-" in entry_project)  # Entry project is a GUID
-                        or (target_project and len(target_project) == 36 and "-" in target_project)  # Target project is a GUID
+                        or (
+                            entry_project and len(entry_project) == 36 and "-" in entry_project
+                        )  # Entry project is a GUID
+                        or (
+                            target_project and len(target_project) == 36 and "-" in target_project
+                        )  # Target project is a GUID
                     )
-                    
+
                     if (
                         entry_org
                         and target_org
@@ -1511,22 +1517,28 @@ class BridgeSync:
                         target_org = target_repo.split("/")[0] if "/" in target_repo else None
                         entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
                         target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
-                        
+
                         # Only use org-only match when:
                         # 1. Org matches
                         # 2. source_id exists
                         # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
                         # This prevents matching org/project-a with org/project-b when both have known project names
                         source_url = entry.get("source_url", "")
-                        entry_has_guid = source_url and re.search(r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE)
+                        entry_has_guid = source_url and re.search(
+                            r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
+                        )
                         project_unknown = (
                             not entry_project  # Entry has no project part
                             or not target_project  # Target has no project part
                             or entry_has_guid  # Entry URL contains GUID (project name unknown)
-                            or (entry_project and len(entry_project) == 36 and "-" in entry_project)  # Entry project is a GUID
-                            or (target_project and len(target_project) == 36 and "-" in target_project)  # Target project is a GUID
+                            or (
+                                entry_project and len(entry_project) == 36 and "-" in entry_project
+                            )  # Entry project is a GUID
+                            or (
+                                target_project and len(target_project) == 36 and "-" in target_project
+                            )  # Target project is a GUID
                         )
-                        
+
                         if (
                             entry_org
                             and target_org
