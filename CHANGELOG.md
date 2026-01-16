@@ -9,6 +9,75 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.25.0] - 2026-01-15
+
+### Added (0.25.0)
+
+- **Archived Change Proposal Sync**: New `--include-archived` flag for `sync bridge` command
+  - **Purpose**: Include archived change proposals in sync to update existing GitHub issues with new comment logic and branch detection improvements
+  - **Use Case**: When you improve comment formatting or branch detection algorithms, update historical issues retroactively
+  - **Behavior**: When `--include-archived` is set with `--update-existing`, archived proposals are included and comments are always updated for applied status
+  - **Example**: `specfact sync bridge --adapter github --mode export-only --include-archived --update-existing`
+  - **Documentation**: See `docs/guides/devops-adapter-integration.md#updating-archived-change-proposals`
+
+- **Improved Branch Detection**: Enhanced branch detection algorithm for GitHub issue comments
+  - **Prioritization**: Branches matching the change_id in their name are now prioritized
+  - **Flexible Matching**: Uses both exact substring matching and key words matching (e.g., "change" and "tracking" from "add-code-change-tracking")
+  - **Accuracy**: Correctly identifies implementation branches even when multiple branches contain the same commits
+  - **Use Case**: Ensures GitHub issue comments show the correct implementation branch for applied changes
+
+- **Backlog Adapter Import Capability**: GitHub adapter now supports importing GitHub Issues as OpenSpec change proposals
+  - **New Method**: `import_artifact("github_issue", issue_data, project_bundle, bridge_config)` in `GitHubAdapter`
+  - **Parsing**: Parses GitHub issue body/markdown to extract change proposal data (Why, What Changes sections)
+  - **Status Mapping**: Maps GitHub labels to OpenSpec change status (tool-agnostic pattern)
+  - **Metadata Storage**: Stores GitHub issue metadata in `source_tracking` (tool-agnostic pattern)
+  - **Extensibility**: Reusable patterns for future backlog adapters (ADO, Jira, Linear)
+  - **Documentation**: See `docs/adapters/github.md` and `docs/adapters/backlog-adapter-patterns.md`
+
+- **Bidirectional Status Synchronization**: GitHub adapter now supports bidirectional status sync
+  - **New Methods**: `sync_status_to_github()` and `sync_status_from_github()` in `GitHubAdapter`
+  - **Conflict Resolution**: Three strategies: `prefer_openspec`, `prefer_backlog`, `merge` (most advanced)
+  - **Label Updates**: Automatically updates GitHub issue labels based on OpenSpec change status
+  - **Status Mapping**: Tool-agnostic status mapping interface for future backlog adapters
+  - **Documentation**: See `docs/adapters/github.md` for usage examples
+
+- **Backlog Adapter Extensibility Pattern**: Reusable base class for implementing backlog adapters
+  - **New Module**: `src/specfact_cli/adapters/backlog_base.py` with `BacklogAdapterMixin`
+  - **Abstract Methods**: Tool-agnostic interfaces for status mapping and metadata extraction
+  - **Reusable Utilities**: Conflict resolution, source tracking creation, import workflow
+  - **Documentation**: See `docs/adapters/backlog-adapter-patterns.md` for implementation guide
+  - **Future Adapters**: Patterns documented for ADO, Jira, Linear implementations
+
+- **Validation Integration with Change Proposals**: SpecFact validation now integrates with OpenSpec change proposals
+  - **New Module**: `src/specfact_cli/validators/change_proposal_integration.py`
+  - **Change Proposal Loading**: `load_active_change_proposals()` loads active proposals (proposed/in-progress)
+  - **Spec Merging**: `merge_specs_with_change_proposals()` merges current Spec-Kit specs with proposed OpenSpec changes
+  - **Status Updates**: `update_validation_status()` updates validation status in change proposals
+  - **Result Reporting**: `report_validation_results_to_backlog()` reports validation results to GitHub Issues
+  - **Conflict Detection**: Detects and reports conflicts when same requirement modified in multiple proposals
+  - **Cross-Repo Support**: Supports external OpenSpec repositories via `bridge_config.external_base_path`
+  - **Documentation**: See `docs/validation-integration.md` for complete integration guide
+
+- **Integration Test Suite**: Comprehensive integration tests for adapter workflows
+  - **Backlog Sync Tests**: `tests/integration/sync/test_backlog_sync.py` - Bidirectional backlog sync (GitHub)
+  - **Validation Integration Tests**: `tests/integration/specfact_cli/validators/test_change_proposal_validation.py` - Validation with change proposals
+  - **Test Patterns**: Reusable test patterns for future backlog adapters (ADO, Jira, Linear)
+  - **Coverage**: Tests cover export, import, status sync, conflict resolution, and validation integration
+
+### Changed (0.25.0)
+
+- **GitHub Adapter Capabilities**: Updated `get_capabilities()` to reflect bidirectional sync support
+  - **Before**: `supported_sync_modes=["export-only"]`
+  - **After**: `supported_sync_modes=["bidirectional"]`
+  - **Impact**: Adapter now supports both export and import operations
+
+### Documentation (0.25.0)
+
+- **New Documentation**: `docs/validation-integration.md` - Complete guide for validation integration with change proposals
+- **New Documentation**: `docs/adapters/backlog-adapter-patterns.md` - Patterns for implementing future backlog adapters
+- **New Documentation**: `docs/adapters/github.md` - GitHub adapter reference with usage examples
+- **Updated Documentation**: Adapter documentation updated with import capability and bidirectional sync
+
 ## [0.24.1] - 2026-01-12
 
 ### Fixed (0.24.1)

@@ -383,19 +383,92 @@ specfact spec generate-tests --spec <spec-file> --output tests/
 
 ---
 
-## DevOps Integration
+## DevOps Integration 🆕 **NEW FEATURE**
 
-### I want to sync change proposals to GitHub Issues
+### I want to integrate SpecFact into my agile DevOps workflows
 
-**Recommended**: `sync bridge --mode export-only`
+**Recommended**: [DevOps Adapter Integration](devops-adapter-integration.md) - Bidirectional backlog sync
+
+**Command**: `sync bridge --adapter github --bidirectional`
 
 **Quick Example**:
 
 ```bash
-specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo
+# Export OpenSpec change proposals to GitHub Issues
+specfact sync bridge --adapter github --bidirectional \
+  --repo-owner your-org --repo-name your-repo
+
+# Import GitHub Issues as change proposals (automatic with --bidirectional)
+# Track code changes automatically
+specfact sync bridge --adapter github --track-code-changes \
+  --repo-owner your-org --repo-name your-repo
 ```
 
 **Detailed Guide**: [DevOps Adapter Integration](devops-adapter-integration.md)
+
+---
+
+### I want to sync change proposals to GitHub Issues
+
+**Recommended**: DevOps bridge adapter with bidirectional sync 🆕
+
+**Command**: `sync bridge --adapter github --bidirectional` (or `--mode export-only` for export-only)
+
+**Quick Example**:
+
+```bash
+# Bidirectional sync (export AND import)
+specfact sync bridge --adapter github --bidirectional \
+  --repo-owner your-org --repo-name your-repo
+
+# Export-only (one-way: OpenSpec → GitHub)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name your-repo
+
+# Update existing issue (when proposal already linked to issue)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name your-repo \
+  --change-ids your-change-id \
+  --update-existing
+```
+
+**Detailed Guide**: [DevOps Adapter Integration](devops-adapter-integration.md)
+
+---
+
+### I want to update an existing GitHub issue with my change proposal
+
+**Recommended**: Use `--update-existing` flag with `--change-ids` to update a specific linked issue
+
+**Command**: `sync bridge --adapter github --mode export-only --update-existing --change-ids <change-id>`
+
+**Prerequisites**:
+
+- Change proposal must have `source_tracking` metadata linking it to the GitHub issue
+- The issue number should be in the proposal's `proposal.md` file under "Source Tracking" section
+
+**Quick Example**:
+
+```bash
+# Update issue #105 for change proposal 'implement-adapter-enhancement-recommendations'
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids implement-adapter-enhancement-recommendations \
+  --update-existing \
+  --repo /path/to/openspec-repo
+```
+
+**What Gets Updated**:
+
+- Issue body with latest proposal content (if content changed)
+- Issue title (if proposal title changed)
+- Status labels (OpenSpec status ↔ GitHub labels)
+- OpenSpec metadata footer in issue body
+
+**Note**: The adapter uses content hash detection - if proposal hasn't changed, issue won't be updated (prevents unnecessary API calls).
+
+**Detailed Guide**: [DevOps Adapter Integration - Update Existing Issues](devops-adapter-integration.md#update-existing-issues)
 
 ---
 

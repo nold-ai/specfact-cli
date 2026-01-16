@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -88,6 +89,58 @@ class BridgeSync:
         if self.bridge_config is None:
             # Auto-detect and load bridge config
             self.bridge_config = self._load_or_generate_bridge_config()
+
+    def _find_code_repo_path(self, repo_owner: str, repo_name: str) -> Path | None:
+        """
+        Find local path to code repository based on repo_owner and repo_name.
+
+        Args:
+            repo_owner: Repository owner (e.g., "nold-ai")
+            repo_name: Repository name (e.g., "specfact-cli")
+
+        Returns:
+            Path to code repository if found, None otherwise
+        """
+        # Strategy 1: Check if current working directory is the code repository
+        try:
+            cwd = Path.cwd()
+            if cwd.name == repo_name and (cwd / ".git").exists():
+                # Verify it's the right repo by checking remote
+                result = subprocess.run(
+                    ["git", "remote", "get-url", "origin"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                if result.returncode == 0 and repo_name in result.stdout:
+                    return cwd
+        except Exception:
+            pass
+
+        # Strategy 2: Check parent directory (common structure: parent/repo-name)
+        try:
+            cwd = Path.cwd()
+            parent = cwd.parent
+            repo_path = parent / repo_name
+            if repo_path.exists() and (repo_path / ".git").exists():
+                return repo_path
+        except Exception:
+            pass
+
+        # Strategy 3: Check sibling directories (common structure: sibling/repo-name)
+        try:
+            cwd = Path.cwd()
+            grandparent = cwd.parent.parent if cwd.parent != Path("/") else None
+            if grandparent:
+                for sibling in grandparent.iterdir():
+                    if sibling.is_dir() and sibling.name == repo_name and (sibling / ".git").exists():
+                        return sibling
+        except Exception:
+            pass
+
+        return None
 
     @beartype
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
@@ -465,6 +518,7 @@ class BridgeSync:
         track_code_changes: bool = False,
         add_progress_comment: bool = False,
         code_repo_path: Path | None = None,
+        include_archived: bool = False,
     ) -> SyncResult:
         """
         Export OpenSpec change proposals to DevOps tools (export-only mode).
@@ -527,7 +581,7 @@ class BridgeSync:
             try:
                 # Attempt to read OpenSpec change proposals
                 # This will fail gracefully if OpenSpec adapter is not available
-                change_proposals = self._read_openspec_change_proposals()
+                change_proposals = self._read_openspec_change_proposals(include_archived=include_archived)
             except Exception as e:
                 warnings.append(f"OpenSpec adapter not available: {e}. Skipping change proposal sync.")
                 return SyncResult(
@@ -758,8 +812,90 @@ class BridgeSync:
                                 if isinstance(source_metadata, dict):
                                     stored_hash = source_metadata.get("content_hash")
 
-                            if stored_hash != current_hash:
-                                # Content changed - update issue body
+                            # Check if title or state needs update (get current issue data)
+                            current_issue_title = None
+                            current_issue_state = None
+                            needs_title_update = False
+                            needs_state_update = False
+                            if target_entry:
+                                issue_number = target_entry.get("source_id")
+                                if issue_number:
+                                    # Fetch current issue to check title and state
+                                    try:
+                                        from specfact_cli.adapters.registry import AdapterRegistry
+
+                                        adapter_instance = AdapterRegistry.get_adapter(adapter_type)
+                                        if adapter_instance and hasattr(adapter_instance, "api_token"):
+                                            import requests
+
+                                            url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+                                            headers = {
+                                                "Authorization": f"token {adapter_instance.api_token}",
+                                                "Accept": "application/vnd.github.v3+json",
+                                            }
+                                            response = requests.get(url, headers=headers, timeout=30)
+                                            response.raise_for_status()
+                                            issue_data = response.json()
+                                            current_issue_title = issue_data.get("title", "")
+                                            current_issue_state = issue_data.get("state", "open")
+                                            proposal_title = proposal.get("title", "")
+                                            proposal_status = proposal.get("status", "proposed")
+                                            needs_title_update = (
+                                                current_issue_title
+                                                and proposal_title
+                                                and current_issue_title != proposal_title
+                                            )
+                                            # Check if state needs update (applied/deprecated/discarded should be closed)
+                                            should_close = proposal_status in ("applied", "deprecated", "discarded")
+                                            desired_state = "closed" if should_close else "open"
+                                            needs_state_update = current_issue_state != desired_state
+                                    except Exception:
+                                        # If we can't fetch, proceed without title/state check
+                                        pass
+
+                            # Check if we need to add a comment for applied status (even if no update needed)
+                            needs_comment_for_applied = False
+                            if update_existing and proposal.get("status") == "applied" and target_entry:
+                                # Always add a comment for applied status when include_archived is set
+                                # This ensures archived issues get updated with new comment logic and branch detection
+                                if include_archived:
+                                    needs_comment_for_applied = True
+                                else:
+                                    # For non-archived, only add comment if issue is closed
+                                    issue_number = target_entry.get("source_id")
+                                    if issue_number:
+                                        try:
+                                            from specfact_cli.adapters.registry import AdapterRegistry
+
+                                            adapter_instance = AdapterRegistry.get_adapter(adapter_type)
+                                            if adapter_instance and hasattr(adapter_instance, "api_token"):
+                                                import requests
+
+                                                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+                                                headers = {
+                                                    "Authorization": f"token {adapter_instance.api_token}",
+                                                    "Accept": "application/vnd.github.v3+json",
+                                                }
+                                                response = requests.get(url, headers=headers, timeout=30)
+                                                response.raise_for_status()
+                                                issue_data = response.json()
+                                                current_issue_state = issue_data.get("state", "open")
+                                                # Check if issue is closed and needs comment with branch info
+                                                if current_issue_state == "closed":
+                                                    # Always add a comment for applied status to ensure branch info is up-to-date
+                                                    # (branch detection may improve over time, so we refresh the comment)
+                                                    needs_comment_for_applied = True
+                                        except Exception:
+                                            # If we can't fetch, proceed without comment check
+                                            pass
+
+                            if (
+                                stored_hash != current_hash
+                                or needs_title_update
+                                or needs_state_update
+                                or needs_comment_for_applied
+                            ):
+                                # Content changed, title needs update, state needs update, or need to add comment for applied status
                                 try:
                                     # If using sanitized content, update proposal with sanitized content
                                     if import_from_tmp:
@@ -780,11 +916,38 @@ class BridgeSync:
                                     else:
                                         proposal_for_update = proposal
 
-                                    result = adapter.export_artifact(
-                                        artifact_key="change_proposal_update",
-                                        artifact_data=proposal_for_update,
-                                        bridge_config=self.bridge_config,
-                                    )
+                                    # If we only need to add a comment (no other updates), use a special artifact key
+                                    # Determine code repository path for branch verification
+                                    # Branches are in the code repository (where implementation is), not OpenSpec repo
+                                    code_repo_path = None
+                                    if repo_owner and repo_name:
+                                        code_repo_path = self._find_code_repo_path(repo_owner, repo_name)
+
+                                    if needs_comment_for_applied and not (
+                                        stored_hash != current_hash or needs_title_update or needs_state_update
+                                    ):
+                                        # Only add comment, no body/state update
+                                        # Add code repository path to artifact_data for branch verification
+                                        proposal_with_repo = {
+                                            **proposal_for_update,
+                                            "_code_repo_path": str(code_repo_path) if code_repo_path else None,
+                                        }
+                                        result = adapter.export_artifact(
+                                            artifact_key="change_proposal_comment",
+                                            artifact_data=proposal_with_repo,
+                                            bridge_config=self.bridge_config,
+                                        )
+                                    else:
+                                        # Add code repository path to artifact_data for branch verification
+                                        proposal_with_repo = {
+                                            **proposal_for_update,
+                                            "_code_repo_path": str(code_repo_path) if code_repo_path else None,
+                                        }
+                                        result = adapter.export_artifact(
+                                            artifact_key="change_proposal_update",
+                                            artifact_data=proposal_with_repo,
+                                            bridge_config=self.bridge_config,
+                                        )
                                     # Update stored hash in target repository entry
                                     if target_entry:
                                         source_metadata = target_entry.get("source_metadata", {})
@@ -1105,9 +1268,12 @@ class BridgeSync:
             warnings=warnings,
         )
 
-    def _read_openspec_change_proposals(self) -> list[dict[str, Any]]:
+    def _read_openspec_change_proposals(self, include_archived: bool = True) -> list[dict[str, Any]]:
         """
         Read OpenSpec change proposals from openspec/changes/ directory.
+
+        Args:
+            include_archived: If True, include archived changes (default: True for backward compatibility)
 
         Returns:
             List of change proposal dicts with keys: change_id, title, description, rationale, status, source_tracking
@@ -1263,127 +1429,127 @@ class BridgeSync:
                 logger.warning(f"Failed to parse proposal from {proposal_file}: {e}")
 
         # Also scan archived changes (treat as "applied" status for status updates)
-        archive_dir = openspec_changes_dir / "archive"
-        if archive_dir.exists() and archive_dir.is_dir():
-            for archive_subdir in archive_dir.iterdir():
-                if not archive_subdir.is_dir():
-                    continue
+        if include_archived:
+            archive_dir = openspec_changes_dir / "archive"
+            if archive_dir.exists() and archive_dir.is_dir():
+                for archive_subdir in archive_dir.iterdir():
+                    if not archive_subdir.is_dir():
+                        continue
 
-                # Extract change ID from archive directory name (format: YYYY-MM-DD-<change-id>)
-                archive_name = archive_subdir.name
-                if "-" in archive_name:
-                    # Extract change_id from "2025-12-29-add-devops-backlog-tracking"
-                    parts = archive_name.split("-", 3)
-                    change_id = parts[3] if len(parts) >= 4 else archive_subdir.name
-                else:
-                    change_id = archive_subdir.name
+                    # Extract change ID from archive directory name (format: YYYY-MM-DD-<change-id>)
+                    archive_name = archive_subdir.name
+                    if "-" in archive_name:
+                        # Extract change_id from "2025-12-29-add-devops-backlog-tracking"
+                        parts = archive_name.split("-", 3)
+                        change_id = parts[3] if len(parts) >= 4 else archive_subdir.name
+                    else:
+                        change_id = archive_subdir.name
 
-                proposal_file = archive_subdir / "proposal.md"
-                if not proposal_file.exists():
-                    continue
+                    proposal_file = archive_subdir / "proposal.md"
+                    if not proposal_file.exists():
+                        continue
 
-                try:
-                    # Parse proposal.md (reuse same parsing logic)
-                    proposal_content = proposal_file.read_text(encoding="utf-8")
+                    try:
+                        # Parse proposal.md (reuse same parsing logic)
+                        proposal_content = proposal_file.read_text(encoding="utf-8")
 
-                    # Extract title, description, rationale (same parsing logic)
-                    title = ""
-                    description = ""
-                    rationale = ""
-                    status = "applied"  # Archived changes are treated as "applied"
+                        # Extract title, description, rationale (same parsing logic)
+                        title = ""
+                        description = ""
+                        rationale = ""
+                        status = "applied"  # Archived changes are treated as "applied"
 
-                    lines = proposal_content.split("\n")
-                    in_why = False
-                    in_what = False
-                    in_source_tracking = False
+                        lines = proposal_content.split("\n")
+                        in_why = False
+                        in_what = False
+                        in_source_tracking = False
 
-                    for line in lines:
-                        line_stripped = line.strip()
-                        if line_stripped.startswith("# Change:"):
-                            continue
-                        if line_stripped == "## Why":
-                            in_why = True
-                            in_what = False
-                            in_source_tracking = False
-                        elif line_stripped == "## What Changes":
-                            in_why = False
-                            in_what = True
-                            in_source_tracking = False
-                        elif line_stripped == "## Impact":
-                            in_why = False
-                            in_what = False
-                            in_source_tracking = False
-                        elif line_stripped == "## Source Tracking":
-                            in_why = False
-                            in_what = False
-                            in_source_tracking = True
-                        elif in_source_tracking:
-                            continue
-                        elif in_why and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
-                            if rationale and not rationale.endswith("\n"):
-                                rationale += "\n"
-                            rationale += line + "\n"
-                        elif in_what and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
-                            if description and not description.endswith("\n"):
-                                description += "\n"
-                            description += line + "\n"
-                        elif not title and line_stripped and not line_stripped.startswith("#"):
-                            title = line_stripped
+                        for line in lines:
+                            line_stripped = line.strip()
+                            if line_stripped.startswith("# Change:"):
+                                title = line_stripped.replace("# Change:", "").strip()
+                                continue
+                            if line_stripped == "## Why":
+                                in_why = True
+                                in_what = False
+                                in_source_tracking = False
+                            elif line_stripped == "## What Changes":
+                                in_why = False
+                                in_what = True
+                                in_source_tracking = False
+                            elif line_stripped == "## Impact":
+                                in_why = False
+                                in_what = False
+                                in_source_tracking = False
+                            elif line_stripped == "## Source Tracking":
+                                in_why = False
+                                in_what = False
+                                in_source_tracking = True
+                            elif in_source_tracking:
+                                continue
+                            elif in_why and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                                if rationale and not rationale.endswith("\n"):
+                                    rationale += "\n"
+                                rationale += line + "\n"
+                            elif in_what and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                                if description and not description.endswith("\n"):
+                                    description += "\n"
+                                description += line + "\n"
 
-                    # Parse source tracking (same logic as active changes)
-                    archive_source_tracking_list: list[dict[str, Any]] = []
-                    if "## Source Tracking" in proposal_content:
-                        source_tracking_match = re.search(
-                            r"## Source Tracking\s*\n(.*?)(?=\n## |\Z)", proposal_content, re.DOTALL
+                        # Parse source tracking (same logic as active changes)
+                        archive_source_tracking_list: list[dict[str, Any]] = []
+                        if "## Source Tracking" in proposal_content:
+                            source_tracking_match = re.search(
+                                r"## Source Tracking\s*\n(.*?)(?=\n## |\Z)", proposal_content, re.DOTALL
+                            )
+                            if source_tracking_match:
+                                tracking_content = source_tracking_match.group(1)
+                                repo_sections = re.split(r"###\s+Repository:\s*([^\n]+)\s*\n", tracking_content)
+                                if len(repo_sections) > 1:
+                                    for i in range(1, len(repo_sections), 2):
+                                        if i + 1 < len(repo_sections):
+                                            repo_name = repo_sections[i].strip()
+                                            entry_content = repo_sections[i + 1]
+                                            entry = self._parse_source_tracking_entry(entry_content, repo_name)
+                                            if entry:
+                                                archive_source_tracking_list.append(entry)
+                                else:
+                                    entry = self._parse_source_tracking_entry(tracking_content, None)
+                                    if entry:
+                                        archive_source_tracking_list.append(entry)
+
+                        # Convert to single dict for backward compatibility if only one entry
+                        archive_source_tracking_final: list[dict[str, Any]] | dict[str, Any] = (
+                            (
+                                archive_source_tracking_list[0]
+                                if len(archive_source_tracking_list) == 1
+                                else archive_source_tracking_list
+                            )
+                            if archive_source_tracking_list
+                            else {}
                         )
-                        if source_tracking_match:
-                            tracking_content = source_tracking_match.group(1)
-                            repo_sections = re.split(r"###\s+Repository:\s*([^\n]+)\s*\n", tracking_content)
-                            if len(repo_sections) > 1:
-                                for i in range(1, len(repo_sections), 2):
-                                    if i + 1 < len(repo_sections):
-                                        repo_name = repo_sections[i].strip()
-                                        entry_content = repo_sections[i + 1]
-                                        entry = self._parse_source_tracking_entry(entry_content, repo_name)
-                                        if entry:
-                                            archive_source_tracking_list.append(entry)
-                            else:
-                                entry = self._parse_source_tracking_entry(tracking_content, None)
-                                if entry:
-                                    archive_source_tracking_list.append(entry)
 
-                    # Convert to single dict for backward compatibility if only one entry
-                    archive_source_tracking_final: list[dict[str, Any]] | dict[str, Any] = (
-                        (
-                            archive_source_tracking_list[0]
-                            if len(archive_source_tracking_list) == 1
-                            else archive_source_tracking_list
-                        )
-                        if archive_source_tracking_list
-                        else {}
-                    )
+                        # Clean up description and rationale
+                        description_clean = description.strip() if description else ""
+                        rationale_clean = rationale.strip() if rationale else ""
 
-                    # Clean up description and rationale
-                    description_clean = description.strip() if description else ""
-                    rationale_clean = rationale.strip() if rationale else ""
+                        proposal = {
+                            "change_id": change_id,
+                            "title": title or change_id,
+                            "description": description_clean or "No description provided.",
+                            "rationale": rationale_clean or "No rationale provided.",
+                            "status": status,  # "applied" for archived changes
+                            "source_tracking": archive_source_tracking_final,
+                        }
 
-                    proposal = {
-                        "change_id": change_id,
-                        "title": title or change_id,
-                        "description": description_clean or "No description provided.",
-                        "rationale": rationale_clean or "No rationale provided.",
-                        "status": status,  # "applied" for archived changes
-                        "source_tracking": archive_source_tracking_final,
-                    }
+                        proposals.append(proposal)
 
-                    proposals.append(proposal)
+                    except Exception as e:
+                        # Log error but continue processing other proposals
+                        import logging
 
-                except Exception as e:
-                    # Log error but continue processing other proposals
-                    import logging
-
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Failed to parse archived proposal from {proposal_file}: {e}")
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Failed to parse archived proposal from {proposal_file}: {e}")
 
         return proposals
 
