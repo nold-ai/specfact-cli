@@ -1,3 +1,9 @@
+---
+layout: default
+title: Backlog Adapter Patterns
+permalink: /adapters/backlog-adapter-patterns/
+---
+
 # Backlog Adapter Patterns
 
 This document describes the extensible patterns for implementing backlog adapters (GitHub, Azure DevOps, Jira, Linear, etc.) that support bidirectional sync between backlog management tools and OpenSpec change proposals.
