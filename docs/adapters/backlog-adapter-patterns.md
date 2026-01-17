@@ -9,8 +9,23 @@ Backlog adapters enable bidirectional synchronization between OpenSpec change pr
 - **Export**: OpenSpec change proposals → Backlog items (issues, work items, tickets)
 - **Import**: Backlog items → OpenSpec change proposals
 - **Status Sync**: Bidirectional status synchronization with conflict resolution
+- **Lossless Content Preservation**: Store raw content for round-trip syncs across adapters
+- **Cross-Adapter Sync**: Export stored bundle content to any backlog adapter with 100% fidelity
 
-The GitHub adapter is the first implementation. Future backlog adapters (ADO, Jira, Linear) should follow the same patterns.
+The GitHub adapter is the first implementation. The Azure DevOps (ADO) adapter is now available with full feature parity and follows these patterns. Future backlog adapters (Jira, Linear) should follow the same patterns.
+
+### Key Capability: Lossless Round-Trip Sync
+
+> **🚀 Advanced Feature**: One of SpecFact's most powerful capabilities for DevOps teams.
+
+Backlog adapters support **lossless round-trip synchronization** between different backlog tools (GitHub ↔ ADO ↔ others). This enables:
+
+- **Tool Migration**: Migrate between backlog tools without losing content
+- **Multi-Tool Workflows**: Sync proposals across different tools used by different teams
+- **Content Fidelity**: Preserve exact formatting, sections, and metadata across adapter boundaries
+- **Day-to-Day Developer Experience**: Keep backlogs in sync with feature branches, code changes, and validations
+
+**How it works**: When importing from any backlog adapter, the original raw content (title, body) is stored in `source_tracking.source_metadata` as `raw_title` and `raw_body`. When exporting from stored bundles, this raw content is used to ensure 100% fidelity, even when syncing to a different adapter than the original source.
 
 ## Architecture
 
@@ -169,7 +184,16 @@ def import_artifact(
         project_bundle: Project bundle to update
         bridge_config: Bridge configuration
     """
-    if artifact_key != "my_backlog_item":  # Your tool's artifact key
+    # Supported artifact keys for backlog adapters:
+    # - "change_proposal": Create new backlog item from change proposal
+    # - "change_status": Update backlog item status only
+    # - "change_proposal_update": Update backlog item body/content
+    # - "change_proposal_comment": Add status comment to backlog item
+    # - "code_change_progress": Add progress comment based on code changes
+    # - "my_backlog_item": Import backlog item as change proposal (tool-specific)
+    
+    if artifact_key not in ["change_proposal", "change_status", "change_proposal_update", 
+                            "change_proposal_comment", "code_change_progress", "my_backlog_item"]:
         raise NotImplementedError(f"Unsupported artifact key: {artifact_key}")
     
     if not isinstance(artifact_path, dict):
@@ -236,8 +260,8 @@ def sync_status_from_backlog(
 | OpenSpec Status | GitHub Labels | ADO State | Jira Status | Linear State |
 |----------------|---------------|-----------|-------------|--------------|
 | `proposed` | `enhancement`, `new` | `New` | `To Do` | `Backlog` |
-| `in-progress` | `in-progress` | `Active` | `In Progress` | `In Progress` |
-| `applied` | `completed` | `Closed` | `Done` | `Done` |
+| `in-progress` | `in-progress` | `Active`, `In Progress` | `In Progress` | `In Progress` |
+| `applied` | `completed` | `Closed`, `Done` | `Done` | `Done` |
 | `deprecated` | `deprecated` | `Removed` | `Won't Do` | `Canceled` |
 | `discarded` | `wontfix` | `Rejected` | `Rejected` | `Canceled` |
 
@@ -281,6 +305,84 @@ source_tracking = self.create_source_tracking(item_data, "my_backlog_tool", brid
 # Add tool-specific fields
 source_tracking.source_metadata["my_tool_field"] = item_data.get("my_tool_field")
 source_tracking.source_metadata["my_tool_id"] = item_data.get("id")
+```
+
+### Lossless Content Preservation
+
+**Critical for cross-adapter sync**: Always store raw content when importing backlog items:
+
+```python
+def import_artifact(
+    self,
+    artifact_key: str,
+    artifact_path: Path | dict[str, Any],
+    project_bundle: Any,
+    bridge_config: BridgeConfig | None = None,
+) -> None:
+    """Import backlog item with lossless content preservation."""
+    # ... import logic ...
+    
+    # CRITICAL: Store raw content for lossless round-trip sync
+    if proposal.source_tracking and isinstance(proposal.source_tracking.source_metadata, dict):
+        source_metadata = proposal.source_tracking.source_metadata
+        raw_title = item_data.get("title") or ""
+        raw_body = item_data.get("body") or item_data.get("description") or ""
+        source_metadata["raw_title"] = raw_title
+        source_metadata["raw_body"] = raw_body
+        source_metadata["raw_format"] = "markdown"  # or "html" if applicable
+```
+
+**When exporting**, check for raw content first to preserve fidelity:
+
+```python
+def export_artifact(
+    self,
+    artifact_key: str,
+    artifact_data: Any,
+    bridge_config: BridgeConfig | None = None,
+) -> dict[str, Any] | Path:
+    """Export with lossless content preservation."""
+    # Extract raw content if available
+    raw_title, raw_body = self._extract_raw_fields(artifact_data)
+    
+    # Use raw content if available, otherwise construct from proposal data
+    if raw_title:
+        title = raw_title
+    else:
+        title = artifact_data.get("title", "Untitled")
+    
+    if raw_body:
+        body = raw_body
+    else:
+        # Construct body from proposal sections
+        body = self._construct_body_from_proposal(artifact_data)
+    
+    # ... export logic using title and body ...
+```
+
+**Helper method** for extracting raw content:
+
+```python
+def _extract_raw_fields(self, proposal_data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Extract lossless title/body content from proposal data."""
+    raw_title = proposal_data.get("raw_title")
+    raw_body = proposal_data.get("raw_body")
+    if raw_title and raw_body:
+        return raw_title, raw_body
+    
+    # Check source_tracking metadata
+    source_tracking = proposal_data.get("source_tracking")
+    source_metadata = None
+    if isinstance(source_tracking, dict):
+        source_metadata = source_tracking.get("source_metadata")
+    elif hasattr(source_tracking, "source_metadata"):
+        source_metadata = getattr(source_tracking, "source_metadata")
+    
+    if isinstance(source_metadata, dict):
+        raw_title = raw_title or source_metadata.get("raw_title")
+        raw_body = raw_body or source_metadata.get("raw_body")
+    
+    return raw_title, raw_body
 ```
 
 ## Testing Patterns
@@ -336,7 +438,9 @@ class TestBidirectionalBacklogSync:
         pass
 ```
 
-## GitHub Adapter Reference
+## Reference Implementations
+
+### GitHub Adapter
 
 The GitHub adapter (`src/specfact_cli/adapters/github.py`) serves as the reference implementation:
 
@@ -344,6 +448,18 @@ The GitHub adapter (`src/specfact_cli/adapters/github.py`) serves as the referen
 - **Data Extraction**: See `extract_change_proposal_data()`
 - **Import**: See `import_artifact()` with `artifact_key="github_issue"`
 - **Status Sync**: See `sync_status_to_github()` and `sync_status_from_github()`
+
+### Azure DevOps Adapter
+
+The Azure DevOps adapter (`src/specfact_cli/adapters/ado.py`) demonstrates:
+
+- **Status Mapping**: ADO state mapping (New/Active/Closed ↔ OpenSpec status)
+- **Work Item Type Derivation**: Automatic detection from process template (Scrum/Kanban/Agile)
+- **Data Extraction**: Parsing ADO work item fields (System.Title, System.Description, System.State)
+- **Import**: See `import_artifact()` with `artifact_key="ado_work_item"`
+- **Export**: See `export_artifact()` with `artifact_key="change_proposal"`, `"change_status"`, `"change_proposal_update"`, `"change_proposal_comment"`, or `"code_change_progress"`
+- **Status Sync**: See `sync_status_to_ado()` and `sync_status_from_ado()` methods
+- **Comments**: See `_add_work_item_comment()` and `_add_progress_comment()` methods
 
 ## Best Practices
 
@@ -368,5 +484,7 @@ When implementing new backlog adapters:
 ## Related Documentation
 
 - **[GitHub Adapter Documentation](./github.md)** - GitHub adapter reference
+- **[Azure DevOps Adapter Documentation](./azuredevops.md)** - Azure DevOps adapter reference
+- **[DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md)** - Complete integration guide for GitHub and ADO
 - **[Validation Integration](../validation-integration.md)** - Validation with change proposals
 - **[Bridge Adapter Interface](../bridge-adapter-interface.md)** - Base adapter interface

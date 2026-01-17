@@ -228,13 +228,21 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
 
         # Parse markdown sections (Why, What Changes)
         if body:
-            # Extract "Why" section (stop at next section or footer)
-            why_match = re.search(r"##\s+Why\s*\n(.*?)(?=\n##|\n---|\Z)", body, re.DOTALL | re.IGNORECASE)
+            # Extract "Why" section (stop at What Changes or OpenSpec footer)
+            why_match = re.search(
+                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                body,
+                re.DOTALL | re.IGNORECASE,
+            )
             if why_match:
                 rationale = why_match.group(1).strip()
 
-            # Extract "What Changes" section (stop at next section or footer)
-            what_match = re.search(r"##\s+What\s+Changes\s*\n(.*?)(?=\n##|\n---|\Z)", body, re.DOTALL | re.IGNORECASE)
+            # Extract "What Changes" section (stop at OpenSpec footer)
+            what_match = re.search(
+                r"##\s+What\s+Changes\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                body,
+                re.DOTALL | re.IGNORECASE,
+            )
             if what_match:
                 description = what_match.group(1).strip()
             elif not why_match:
@@ -287,12 +295,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Try to extract from body sections
         if body:
             # Extract "When" section (timeline)
-            when_match = re.search(r"##\s+When\s*\n(.*?)(?=\n##|\Z)", body, re.DOTALL | re.IGNORECASE)
+            when_match = re.search(r"##\s+When\s*\n(.*?)(?=\n##\s|\Z)", body, re.DOTALL | re.IGNORECASE)
             if when_match:
                 timeline = when_match.group(1).strip()
 
             # Extract "Who" section (owner, stakeholders)
-            who_match = re.search(r"##\s+Who\s*\n(.*?)(?=\n##|\Z)", body, re.DOTALL | re.IGNORECASE)
+            who_match = re.search(r"##\s+Who\s*\n(.*?)(?=\n##\s|\Z)", body, re.DOTALL | re.IGNORECASE)
             if who_match:
                 who_content = who_match.group(1).strip()
                 # Try to extract owner (first line or "Owner:" field)
@@ -438,6 +446,48 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         if not proposal:
             msg = "Failed to import GitHub issue as change proposal"
             raise ValueError(msg)
+
+        # Persist lossless issue content and backlog metadata for round-trip sync
+        if proposal.source_tracking and isinstance(proposal.source_tracking.source_metadata, dict):
+            source_metadata = proposal.source_tracking.source_metadata
+            raw_title = artifact_path.get("title") or ""
+            raw_body = artifact_path.get("body") or ""
+            source_metadata["raw_title"] = raw_title
+            source_metadata["raw_body"] = raw_body
+            source_metadata["raw_format"] = "markdown"
+            source_metadata.setdefault("source_type", "github")
+
+            source_repo = self._extract_repo_from_issue(artifact_path)
+            if source_repo:
+                source_metadata.setdefault("source_repo", source_repo)
+
+            entry_id = artifact_path.get("number") or artifact_path.get("id")
+            entry = {
+                "source_id": str(entry_id) if entry_id is not None else None,
+                "source_url": artifact_path.get("html_url") or artifact_path.get("url") or "",
+                "source_type": "github",
+                "source_repo": source_repo or "",
+                "source_metadata": {"last_synced_status": proposal.status},
+            }
+            entries = source_metadata.get("backlog_entries")
+            if not isinstance(entries, list):
+                entries = []
+            if entry.get("source_id"):
+                updated = False
+                for existing in entries:
+                    if not isinstance(existing, dict):
+                        continue
+                    if source_repo and existing.get("source_repo") == source_repo:
+                        existing.update(entry)
+                        updated = True
+                        break
+                    if not source_repo and existing.get("source_id") == entry.get("source_id"):
+                        existing.update(entry)
+                        updated = True
+                        break
+                if not updated:
+                    entries.append(entry)
+                source_metadata["backlog_entries"] = entries
 
         # Add proposal to project bundle change tracking
         if hasattr(project_bundle, "change_tracking"):
@@ -627,6 +677,121 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         raise ValueError(msg)
 
     @beartype
+    @require(lambda item_ref: isinstance(item_ref, str) and len(item_ref) > 0, "Item reference must be non-empty")
+    @ensure(lambda result: isinstance(result, dict), "Must return dict with issue data")
+    def fetch_backlog_item(self, item_ref: str) -> dict[str, Any]:
+        """
+        Fetch GitHub issue data by ID or URL.
+
+        Args:
+            item_ref: Issue number, owner/repo#number, or issue URL
+
+        Returns:
+            Issue data dict from GitHub API
+        """
+        if not self.api_token:
+            msg = "GitHub API token required to fetch backlog items"
+            raise ValueError(msg)
+
+        repo_owner, repo_name, issue_number = self._parse_issue_reference(item_ref)
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.json()
+
+    def _extract_repo_from_issue(self, issue_data: dict[str, Any]) -> str | None:
+        """
+        Extract repository identifier (owner/repo) from GitHub issue data.
+
+        Args:
+            issue_data: GitHub issue data dict
+
+        Returns:
+            Repository identifier string or None if not found
+        """
+        candidates = [
+            issue_data.get("repository_url"),
+            issue_data.get("html_url"),
+            issue_data.get("url"),
+        ]
+        for url in candidates:
+            if not url:
+                continue
+            match = re.search(r"github\.com/(?:repos/)?([^/]+)/([^/]+)", url)
+            if match:
+                return f"{match.group(1)}/{match.group(2)}"
+        if self.repo_owner and self.repo_name:
+            return f"{self.repo_owner}/{self.repo_name}"
+        return None
+
+    @beartype
+    @require(lambda item_ref: isinstance(item_ref, str) and len(item_ref) > 0, "Item reference must be non-empty")
+    @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "Must return owner, repo, issue number")
+    def _parse_issue_reference(self, item_ref: str) -> tuple[str, str, int]:
+        """
+        Parse issue reference into owner, repo, and issue number.
+
+        Args:
+            item_ref: Issue number, owner/repo#number, or URL
+
+        Returns:
+            Tuple of (owner, repo, issue_number)
+        """
+        cleaned = item_ref.strip().lstrip("#")
+        url_match = re.search(
+            r"github\.com/(?:repos/)?([^/]+)/([^/]+)/issues/(\d+)",
+            cleaned,
+            re.IGNORECASE,
+        )
+        if url_match:
+            return url_match.group(1), url_match.group(2), int(url_match.group(3))
+
+        shorthand_match = re.search(r"([^/\s]+)/([^#\s]+)#(\d+)", cleaned)
+        if shorthand_match:
+            return shorthand_match.group(1), shorthand_match.group(2), int(shorthand_match.group(3))
+
+        if cleaned.isdigit():
+            if not self.repo_owner or not self.repo_name:
+                msg = "repo_owner and repo_name required when issue reference is numeric"
+                raise ValueError(msg)
+            return self.repo_owner, self.repo_name, int(cleaned)
+
+        msg = f"Unsupported GitHub issue reference format: {item_ref}"
+        raise ValueError(msg)
+
+    def _extract_raw_fields(self, proposal_data: dict[str, Any]) -> tuple[str | None, str | None]:
+        """
+        Extract lossless title/body content from proposal data.
+
+        Args:
+            proposal_data: Change proposal data dict
+
+        Returns:
+            Tuple of (raw_title, raw_body)
+        """
+        raw_title = proposal_data.get("raw_title")
+        raw_body = proposal_data.get("raw_body")
+        if raw_title and raw_body:
+            return raw_title, raw_body
+
+        source_tracking = proposal_data.get("source_tracking")
+        source_metadata = None
+        if isinstance(source_tracking, dict):
+            source_metadata = source_tracking.get("source_metadata")
+        elif source_tracking is not None and hasattr(source_tracking, "source_metadata"):
+            source_metadata = source_tracking.source_metadata
+
+        if isinstance(source_metadata, dict):
+            raw_title = raw_title or source_metadata.get("raw_title")
+            raw_body = raw_body or source_metadata.get("raw_body")
+
+        return raw_title, raw_body
+
+    @beartype
     @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
     @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
@@ -759,40 +924,51 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         rationale = proposal_data.get("rationale", "")
         status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
+        raw_title, raw_body = self._extract_raw_fields(proposal_data)
+        if raw_title:
+            title = raw_title
 
-        # Build properly formatted issue body
-        body_parts = []
+        # Build properly formatted issue body (prefer raw content when available)
+        if raw_body:
+            body = raw_body
+        else:
+            body_parts = []
 
-        # Add Why section (rationale) - preserve markdown formatting
-        if rationale:
-            body_parts.append("## Why")
-            body_parts.append("")
-            # Preserve markdown formatting from rationale
-            rationale_lines = rationale.strip().split("\n")
-            for line in rationale_lines:
-                body_parts.append(line)
-            body_parts.append("")  # Blank line
+            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+            if display_title:
+                body_parts.append(f"# {display_title}")
+                body_parts.append("")
 
-        # Add What Changes section (description) - preserve markdown formatting
-        if description:
-            body_parts.append("## What Changes")
-            body_parts.append("")
-            # Preserve markdown formatting from description
-            description_lines = description.strip().split("\n")
-            for line in description_lines:
-                body_parts.append(line)
-            body_parts.append("")  # Blank line
+            # Add Why section (rationale) - preserve markdown formatting
+            if rationale:
+                body_parts.append("## Why")
+                body_parts.append("")
+                # Preserve markdown formatting from rationale
+                rationale_lines = rationale.strip().split("\n")
+                for line in rationale_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
 
-        # If no content, add placeholder
-        if not body_parts or (not rationale and not description):
-            body_parts.append("No description provided.")
-            body_parts.append("")
+            # Add What Changes section (description) - preserve markdown formatting
+            if description:
+                body_parts.append("## What Changes")
+                body_parts.append("")
+                # Preserve markdown formatting from description
+                description_lines = description.strip().split("\n")
+                for line in description_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
 
-        # Add OpenSpec metadata footer
-        body_parts.append("---")
-        body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+            # If no content, add placeholder
+            if not body_parts or (not rationale and not description):
+                body_parts.append("No description provided.")
+                body_parts.append("")
 
-        body = "\n".join(body_parts)
+            # Add OpenSpec metadata footer
+            body_parts.append("---")
+            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+
+            body = "\n".join(body_parts)
 
         # Create issue via GitHub API
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues"
@@ -998,6 +1174,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         rationale = proposal_data.get("rationale", "")
         change_id = proposal_data.get("change_id", "unknown")
         status = proposal_data.get("status", "proposed")
+        raw_title, raw_body = self._extract_raw_fields(proposal_data)
+        if raw_title:
+            title = raw_title
 
         # Get current issue body, title, and state to preserve sections and check if updates needed
         current_body = ""
@@ -1019,83 +1198,65 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             # If we can't fetch current issue, proceed without preserving sections
             pass
 
-        # Extract sections to preserve (anything after the OpenSpec metadata footer or sections not in proposal)
-        preserved_sections = []
-        if current_body:
-            # Split body by OpenSpec metadata footer
-            parts = current_body.split("---")
-            if len(parts) > 1:
-                # Everything after the first "---" (metadata footer) should be preserved
-                # But we need to be careful - the footer might appear in the proposal content
-                # Look for the OpenSpec Change Proposal marker
+        # Build properly formatted issue body (same format as creation, unless raw content is present)
+        if raw_body:
+            body = raw_body
+        else:
+            # Extract sections to preserve (anything after the OpenSpec metadata footer)
+            preserved_sections = []
+            if current_body:
                 metadata_marker = f"*OpenSpec Change Proposal: `{change_id}`*"
                 if metadata_marker in current_body:
-                    # Split at the metadata marker
                     _, after_marker = current_body.split(metadata_marker, 1)
-                    # Preserve sections that come after the marker
                     if after_marker.strip():
-                        # Extract sections that should be preserved (acceptance criteria, etc.)
                         preserved_content = after_marker.strip()
-                        # Only preserve if it looks like additional content (has headers or checklists)
                         if "##" in preserved_content or "- [" in preserved_content or "* [" in preserved_content:
                             preserved_sections.append(preserved_content)
-                else:
-                    # No marker found - check for acceptance criteria or other sections
-                    # Look for sections that aren't "Why" or "What Changes"
-                    lines = current_body.split("\n")
-                    in_preserved_section = False
-                    preserved_lines = []
-                    for line in lines:
-                        line_stripped = line.strip()
-                        # Start preserving after we've seen the metadata footer or if we see acceptance criteria
-                        if (
-                            line_stripped.startswith("---")
-                            or "acceptance" in line_stripped.lower()
-                            or "criteria" in line_stripped.lower()
-                        ):
-                            in_preserved_section = True
-                        if in_preserved_section and not line_stripped.startswith("*OpenSpec Change Proposal"):
-                            preserved_lines.append(line)
-                    if preserved_lines:
-                        preserved_sections.append("\n".join(preserved_lines).strip())
 
-        # Build properly formatted issue body (same format as _create_issue_from_proposal)
-        body_parts = []
+            body_parts = []
 
-        # Add Why section (rationale) - preserve markdown formatting
-        if rationale:
-            body_parts.append("## Why")
-            body_parts.append("")
-            rationale_lines = rationale.strip().split("\n")
-            for line in rationale_lines:
-                body_parts.append(line)
-            body_parts.append("")  # Blank line
+            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+            if display_title:
+                body_parts.append(f"# {display_title}")
+                body_parts.append("")
 
-        # Add What Changes section (description) - preserve markdown formatting
-        if description:
-            body_parts.append("## What Changes")
-            body_parts.append("")
-            description_lines = description.strip().split("\n")
-            for line in description_lines:
-                body_parts.append(line)
-            body_parts.append("")  # Blank line
+            # Add Why section (rationale) - preserve markdown formatting
+            if rationale:
+                body_parts.append("## Why")
+                body_parts.append("")
+                rationale_lines = rationale.strip().split("\n")
+                for line in rationale_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
 
-        # If no content, add placeholder
-        if not body_parts or (not rationale and not description):
-            body_parts.append("No description provided.")
-            body_parts.append("")
+            # Add What Changes section (description) - preserve markdown formatting
+            if description:
+                body_parts.append("## What Changes")
+                body_parts.append("")
+                description_lines = description.strip().split("\n")
+                for line in description_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
 
-        # Add preserved sections (acceptance criteria, etc.)
-        for preserved in preserved_sections:
-            if preserved.strip():
-                body_parts.append("")  # Blank line before preserved section
-                body_parts.append(preserved.strip())
+            # If no content, add placeholder
+            if not body_parts or (not rationale and not description):
+                body_parts.append("No description provided.")
+                body_parts.append("")
 
-        # Add OpenSpec metadata footer
-        body_parts.append("---")
-        body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+            # Add preserved sections (acceptance criteria, etc.)
+            current_body_preview = "\n".join(body_parts)
+            for preserved in preserved_sections:
+                if preserved.strip():
+                    preserved_clean = preserved.strip()
+                    if preserved_clean not in current_body_preview:
+                        body_parts.append("")  # Blank line before preserved section
+                        body_parts.append(preserved_clean)
 
-        body = "\n".join(body_parts)
+            # Add OpenSpec metadata footer
+            body_parts.append("---")
+            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+
+            body = "\n".join(body_parts)
 
         # Update issue body via GitHub API PATCH
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"

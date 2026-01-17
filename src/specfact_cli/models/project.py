@@ -399,6 +399,10 @@ class ProjectBundle(BaseModel):
                 # This is fine - change tracking is optional even for v1.1 bundles
                 pass
 
+            # Fall back to manifest change_tracking if adapter didn't load it
+            if change_tracking is None and manifest.change_tracking is not None:
+                change_tracking = manifest.change_tracking
+
         return cls(
             manifest=manifest,
             bundle_name=bundle_name,
@@ -442,6 +446,15 @@ class ProjectBundle(BaseModel):
             + (1 if self.clarifications else 0)
             + num_features
         )
+
+        # Sync change tracking into manifest for persistence (v1.1+)
+        # Preserve manifest.change_tracking if it's set but self.change_tracking is None
+        # This allows setting change_tracking via manifest directly
+        if self.change_tracking is not None:
+            self.manifest.change_tracking = self.change_tracking
+        elif self.manifest.change_tracking is None:
+            # Only set to None if both are None (don't overwrite existing manifest.change_tracking)
+            pass
 
         # Update manifest bundle metadata
         now = datetime.now(UTC).isoformat()
