@@ -1603,6 +1603,57 @@ class BridgeSync:
             try:
                 item_data = adapter.fetch_backlog_item(item_ref)
                 adapter.import_artifact(artifact_key, item_data, project_bundle, bridge_config)
+
+                # Get the imported proposal from bundle to create OpenSpec files
+                if hasattr(project_bundle, "change_tracking") and project_bundle.change_tracking:
+                    # Find the proposal that was just imported
+                    # The adapter stores it with proposal.name as the key
+                    imported_proposal = None
+
+                    # Try to find by matching source tracking (backlog entry ID)
+                    item_ref_clean = str(item_ref).split("/")[-1]  # Extract number from URL if needed
+
+                    for proposal in project_bundle.change_tracking.proposals.values():
+                        if proposal.source_tracking:
+                            source_metadata = proposal.source_tracking.source_metadata
+                            if isinstance(source_metadata, dict):
+                                backlog_entries = source_metadata.get("backlog_entries", [])
+                                for entry in backlog_entries:
+                                    if isinstance(entry, dict):
+                                        entry_id = entry.get("source_id")
+                                        # Match by issue number (item_ref could be "111" or full URL)
+                                        if entry_id and (
+                                            str(entry_id) == str(item_ref) or str(entry_id) == item_ref_clean
+                                        ):
+                                            imported_proposal = proposal
+                                            break
+                        if imported_proposal:
+                            break
+
+                    # If not found by ID, use the most recently added proposal
+                    # (the one we just imported should be the last one)
+                    if not imported_proposal and project_bundle.change_tracking.proposals:
+                        # Get proposals as list and take the last one
+                        proposal_list = list(project_bundle.change_tracking.proposals.values())
+                        if proposal_list:
+                            imported_proposal = proposal_list[-1]
+
+                    # Create OpenSpec files from proposal
+                    if imported_proposal:
+                        file_warnings = self._write_openspec_change_from_proposal(imported_proposal, bridge_config)
+                        warnings.extend(file_warnings)
+                    else:
+                        # Log warning if proposal not found
+                        import logging
+
+                        logger = logging.getLogger(__name__)
+                        warning_msg = (
+                            f"Could not find imported proposal for backlog item '{item_ref}'. "
+                            f"OpenSpec files will not be created."
+                        )
+                        logger.warning(warning_msg)
+                        warnings.append(warning_msg)
+
                 operations.append(
                     SyncOperation(
                         artifact_key=artifact_key,
@@ -3065,6 +3116,328 @@ class BridgeSync:
             proposal["description"] = what_match.group(1).strip()
 
         return proposal
+
+    def _get_openspec_changes_dir(self) -> Path | None:
+        """
+        Get OpenSpec changes directory path.
+
+        Checks repo_path first, then external_base_path if available.
+
+        Returns:
+            Path to openspec/changes directory, or None if not found
+        """
+        # Check if openspec/changes exists in repo
+        openspec_dir = self.repo_path / "openspec" / "changes"
+        if openspec_dir.exists() and openspec_dir.is_dir():
+            return openspec_dir
+
+        # Check for external base path in bridge config
+        if self.bridge_config and hasattr(self.bridge_config, "external_base_path"):
+            external_path = getattr(self.bridge_config, "external_base_path", None)
+            if external_path:
+                openspec_changes_dir = Path(external_path) / "openspec" / "changes"
+                if openspec_changes_dir.exists():
+                    return openspec_changes_dir
+
+        return None
+
+    def _determine_affected_specs(self, proposal: Any) -> list[str]:
+        """
+        Determine affected specs from proposal content.
+
+        Args:
+            proposal: ChangeProposal instance
+
+        Returns:
+            List of affected spec IDs (e.g., ["devops-sync", "bridge-adapter"])
+        """
+        # Search proposal description and rationale for spec references
+        content = f"{proposal.description} {proposal.rationale}".lower()
+
+        affected_specs: list[str] = []
+        known_specs = ["devops-sync", "bridge-adapter", "auth-management", "backlog-analysis"]
+
+        for spec_id in known_specs:
+            if spec_id.replace("-", " ") in content or spec_id in content:
+                affected_specs.append(spec_id)
+
+        # Default to devops-sync if no specs found (since most backlog imports affect devops-sync)
+        if not affected_specs:
+            affected_specs = ["devops-sync"]
+
+        return affected_specs
+
+    def _generate_tasks_from_proposal(self, proposal: Any) -> str:
+        """
+        Generate tasks.md content from proposal.
+
+        Args:
+            proposal: ChangeProposal instance
+
+        Returns:
+            Markdown content for tasks.md file
+        """
+        lines = ["# Tasks: " + proposal.title, ""]
+
+        # Try to extract tasks from description
+        description = proposal.description or ""
+        tasks_found = False
+
+        # Look for markdown lists or acceptance criteria
+        if "- [ ]" in description or "- [x]" in description:
+            # Found task list, convert to hierarchical format
+            task_lines = []
+            section_num = 1
+            task_num = 1
+
+            for line in description.split("\n"):
+                stripped = line.strip()
+                if stripped.startswith(("- [ ]", "- [x]")):
+                    task_lines.append(f"- [ ] {section_num}.{task_num} {stripped[5:].strip()}")
+                    task_num += 1
+                elif stripped.startswith("##") and task_lines:
+                    # New section, start new section
+                    section_num += 1
+                    task_num = 1
+                    lines.append(f"## {section_num}. {stripped[2:].strip()}")
+                    lines.append("")
+                    lines.extend(task_lines)
+                    lines.append("")
+                    task_lines = []
+                elif stripped.startswith("###") and not task_lines:
+                    # Section header
+                    lines.append(f"## {section_num}. {stripped[3:].strip()}")
+                    lines.append("")
+                    section_num += 1
+                    task_num = 1
+
+            if task_lines:
+                if section_num == 1:
+                    lines.append("## 1. Implementation")
+                    lines.append("")
+                lines.extend(task_lines)
+                tasks_found = True
+
+        # If no tasks found, create placeholder structure
+        if not tasks_found:
+            lines.append("## 1. Implementation")
+            lines.append("")
+            lines.append("- [ ] 1.1 Implement changes as described in proposal")
+            lines.append("")
+            lines.append("## 2. Testing")
+            lines.append("")
+            lines.append("- [ ] 2.1 Add unit tests")
+            lines.append("- [ ] 2.2 Add integration tests")
+            lines.append("")
+            lines.append("## 3. Code Quality")
+            lines.append("")
+            lines.append("- [ ] 3.1 Run linting: `hatch run format`")
+            lines.append("- [ ] 3.2 Run type checking: `hatch run type-check`")
+
+        return "\n".join(lines)
+
+    def _format_proposal_title(self, title: str) -> str:
+        """
+        Format proposal title for OpenSpec (remove [Change] prefix if present).
+
+        Args:
+            title: Original title
+
+        Returns:
+            Formatted title
+        """
+        # Remove [Change] prefix if present
+        if title.startswith("[Change]"):
+            title = title.replace("[Change]", "").strip()
+        if title.startswith("[Change] "):
+            title = title.replace("[Change] ", "").strip()
+
+        return title
+
+    def _write_openspec_change_from_proposal(self, proposal: Any, bridge_config: Any) -> list[str]:
+        """
+        Write OpenSpec change files from imported ChangeProposal.
+
+        Args:
+            proposal: ChangeProposal instance
+            bridge_config: Bridge configuration
+
+        Returns:
+            List of warnings (empty if successful)
+        """
+        warnings: list[str] = []
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # Get OpenSpec changes directory
+        openspec_changes_dir = self._get_openspec_changes_dir()
+        if not openspec_changes_dir:
+            warning = "OpenSpec changes directory not found. Skipping file creation."
+            warnings.append(warning)
+            logger.warning(warning)
+            console.print(f"[yellow]⚠[/yellow] {warning}")
+            return warnings
+
+        # Validate and generate change ID
+        change_id = proposal.name
+        if change_id == "unknown" or not change_id:
+            # Generate from title
+            title_clean = self._format_proposal_title(proposal.title)
+            change_id = re.sub(r"[^a-z0-9]+", "-", title_clean.lower()).strip("-")
+            if not change_id:
+                change_id = "imported-change"
+
+        # Check if change directory already exists (for updates)
+        change_dir = openspec_changes_dir / change_id
+
+        # If directory exists with proposal.md, update it (don't create duplicate)
+        # Only create new directory if it doesn't exist or is empty
+        if change_dir.exists() and change_dir.is_dir() and (change_dir / "proposal.md").exists():
+            # Existing change - we'll update the files
+            logger.info(f"Updating existing OpenSpec change: {change_id}")
+        else:
+            # New change or empty directory - handle duplicates only if directory exists but is different change
+            counter = 1
+            original_change_id = change_id
+            while change_dir.exists() and change_dir.is_dir():
+                change_id = f"{original_change_id}-{counter}"
+                change_dir = openspec_changes_dir / change_id
+                counter += 1
+
+        try:
+            # Create change directory (or use existing)
+            change_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write proposal.md
+            proposal_lines = []
+            proposal_lines.append(f"# Change: {self._format_proposal_title(proposal.title)}")
+            proposal_lines.append("")
+            proposal_lines.append("## Why")
+            proposal_lines.append("")
+            proposal_lines.append(proposal.rationale or "No rationale provided.")
+            proposal_lines.append("")
+            proposal_lines.append("## What Changes")
+            proposal_lines.append("")
+            description = proposal.description or "No description provided."
+            # Check if already bullet list
+            if not description.strip().startswith("-"):
+                # Try to convert to bullet list
+                lines = description.split("\n")
+                bullet_lines = []
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped:
+                        if not stripped.startswith(("- [ ]", "- [x]", "-")):
+                            bullet_lines.append(f"- {stripped}")
+                        else:
+                            bullet_lines.append(line)
+                    else:
+                        bullet_lines.append("")
+                description = "\n".join(bullet_lines)
+            proposal_lines.append(description)
+            proposal_lines.append("")
+
+            # Generate Impact section
+            affected_specs = self._determine_affected_specs(proposal)
+            proposal_lines.append("## Impact")
+            proposal_lines.append("")
+            proposal_lines.append(f"- **Affected specs**: {', '.join(f'`{s}`' for s in affected_specs)}")
+            proposal_lines.append("- **Affected code**: See implementation tasks")
+            proposal_lines.append("- **Integration points**: See spec deltas")
+            proposal_lines.append("")
+
+            # Write Source Tracking section
+            if proposal.source_tracking:
+                proposal_lines.append("---")
+                proposal_lines.append("")
+                proposal_lines.append("## Source Tracking")
+                proposal_lines.append("")
+
+                # Extract source tracking info
+                source_metadata = (
+                    proposal.source_tracking.source_metadata if proposal.source_tracking.source_metadata else {}
+                )
+                if isinstance(source_metadata, dict):
+                    backlog_entries = source_metadata.get("backlog_entries", [])
+                    if backlog_entries:
+                        for entry in backlog_entries:
+                            if isinstance(entry, dict):
+                                source_repo = entry.get("source_repo", "")
+                                source_id = entry.get("source_id", "")
+                                source_url = entry.get("source_url", "")
+                                source_type = entry.get("source_type", "unknown")
+
+                                if source_repo:
+                                    proposal_lines.append(f"<!-- source_repo: {source_repo} -->")
+
+                                # Map source types to proper capitalization (MD034 compliance for URLs)
+                                source_type_capitalization = {
+                                    "github": "GitHub",
+                                    "ado": "ADO",
+                                    "linear": "Linear",
+                                    "jira": "Jira",
+                                    "unknown": "Unknown",
+                                }
+                                source_type_display = source_type_capitalization.get(source_type.lower(), "Unknown")
+                                if source_id:
+                                    proposal_lines.append(f"- **{source_type_display} Issue**: #{source_id}")
+                                if source_url:
+                                    proposal_lines.append(f"- **Issue URL**: <{source_url}>")
+                                proposal_lines.append(f"- **Last Synced Status**: {proposal.status}")
+                                proposal_lines.append("")
+
+            proposal_file = change_dir / "proposal.md"
+            proposal_file.write_text("\n".join(proposal_lines), encoding="utf-8")
+            logger.info(f"Created proposal.md: {proposal_file}")
+
+            # Write tasks.md
+            tasks_content = self._generate_tasks_from_proposal(proposal)
+            tasks_file = change_dir / "tasks.md"
+            tasks_file.write_text(tasks_content, encoding="utf-8")
+            logger.info(f"Created tasks.md: {tasks_file}")
+
+            # Write spec deltas
+            specs_dir = change_dir / "specs"
+            specs_dir.mkdir(exist_ok=True)
+
+            for spec_id in affected_specs:
+                spec_dir = specs_dir / spec_id
+                spec_dir.mkdir(exist_ok=True)
+
+                spec_lines = []
+                spec_lines.append(f"# {spec_id} Specification")
+                spec_lines.append("")
+                spec_lines.append("## Purpose")
+                spec_lines.append("")
+                spec_lines.append("TBD - created by importing backlog item")
+                spec_lines.append("")
+                spec_lines.append("## Requirements")
+                spec_lines.append("")
+                spec_lines.append("## MODIFIED Requirements")
+                spec_lines.append("")
+                spec_lines.append("### Requirement: [Requirement name from proposal]")
+                spec_lines.append("")
+                spec_lines.append("The system SHALL [requirement description]")
+                spec_lines.append("")
+                spec_lines.append("#### Scenario: [Scenario name]")
+                spec_lines.append("")
+                spec_lines.append("- **WHEN** [condition]")
+                spec_lines.append("- **THEN** [expected result]")
+                spec_lines.append("")
+
+                spec_file = spec_dir / "spec.md"
+                spec_file.write_text("\n".join(spec_lines), encoding="utf-8")
+                logger.info(f"Created spec delta: {spec_file}")
+
+            console.print(f"[green]✓[/green] Created OpenSpec change: {change_id} at {change_dir}")
+
+        except Exception as e:
+            warning = f"Failed to create OpenSpec files for change '{change_id}': {e}"
+            warnings.append(warning)
+            logger.warning(warning, exc_info=True)
+
+        return warnings
 
     @beartype
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
