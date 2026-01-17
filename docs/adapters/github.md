@@ -10,8 +10,10 @@ The GitHub adapter supports:
 - **Import**: GitHub Issues → OpenSpec change proposals
 - **Status Sync**: Bidirectional status synchronization (OpenSpec ↔ GitHub labels)
 - **Validation Reporting**: Validation results reported to GitHub Issues
+- **Lossless Content Preservation**: Stores raw content for round-trip syncs across adapters
+- **Cross-Adapter Sync**: Export stored bundle content to any backlog adapter with 100% fidelity
 
-This is the first backlog adapter implementation. Future backlog adapters (Azure DevOps, Jira, Linear) follow the same patterns documented in [Backlog Adapter Patterns](./backlog-adapter-patterns.md).
+This is the first backlog adapter implementation. The Azure DevOps (ADO) adapter is now available with full feature parity. Future backlog adapters (Jira, Linear) follow the same patterns documented in [Backlog Adapter Patterns](./backlog-adapter-patterns.md).
 
 ## Features
 
@@ -20,6 +22,7 @@ This is the first backlog adapter implementation. Future backlog adapters (Azure
 - **Export**: Create or update GitHub issues from OpenSpec change proposals
 - **Import**: Import GitHub issues as OpenSpec change proposals
 - **Status Sync**: Keep OpenSpec and GitHub status in sync with conflict resolution
+- **Lossless Content Preservation**: Original issue content (title, body) stored in `source_tracking.source_metadata` for round-trip syncs
 
 ### Supported Artifact Keys
 
@@ -347,8 +350,27 @@ This ensures archived issues get updated with:
 
 See [DevOps Adapter Integration Guide](../guides/devops-adapter-integration.md#updating-archived-change-proposals) for complete documentation.
 
+## Lossless Content Preservation
+
+The GitHub adapter stores raw content when importing issues to enable lossless round-trip syncs:
+
+```python
+# When importing, raw content is automatically stored
+proposal = adapter.import_backlog_item_as_proposal(issue_data, "github", bridge_config)
+
+# Raw content stored in source_tracking.source_metadata
+raw_title = proposal.source_tracking.source_metadata.get("raw_title")
+raw_body = proposal.source_tracking.source_metadata.get("raw_body")
+raw_format = proposal.source_tracking.source_metadata.get("raw_format")  # "markdown"
+```
+
+When exporting from stored bundles, the adapter uses raw content if available to preserve 100% fidelity, even when syncing to a different adapter (e.g., GitHub → ADO).
+
+**See**: [Cross-Adapter Sync Guide](../guides/devops-adapter-integration.md#cross-adapter-sync-lossless-round-trip-migration) for complete documentation.
+
 ## Related Documentation
 
-- **[Backlog Adapter Patterns](./backlog-adapter-patterns.md)** - Patterns for future backlog adapters
+- **[Backlog Adapter Patterns](./backlog-adapter-patterns.md)** - Patterns for backlog adapters
+- **[Azure DevOps Adapter](./azuredevops.md)** - Azure DevOps adapter documentation
 - **[Validation Integration](../validation-integration.md)** - Validation with change proposals
 - **[DevOps Adapter Integration](../guides/devops-adapter-integration.md)** - DevOps workflow integration

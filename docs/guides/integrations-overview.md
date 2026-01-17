@@ -149,7 +149,7 @@ SpecFact CLI integrations fall into four main categories:
 **Supported adapters**:
 
 - **GitHub Issues** (`--adapter github`) - ✅ Full bidirectional support
-- **Azure DevOps** (`--adapter ado`) - Planned
+- **Azure DevOps** (`--adapter ado`) - ✅ Full bidirectional support
 - **Linear** (`--adapter linear`) - Planned
 - **Jira** (`--adapter jira`) - Planned
 
@@ -166,7 +166,7 @@ SpecFact CLI integrations fall into four main categories:
 
 **Why this matters**: This feature allows you to use SpecFact's specification-driven development approach while working within your existing agile DevOps workflows. Change proposals become backlog items, and backlog items become change proposals—keeping everything in sync automatically.
 
-**See also**: [DevOps Adapter Integration Guide](./devops-adapter-integration.md) | [GitHub Adapter Reference](../adapters/github.md) | [Backlog Adapter Patterns](../adapters/backlog-adapter-patterns.md)
+**See also**: [DevOps Adapter Integration Guide](./devops-adapter-integration.md) | [GitHub Adapter Reference](../adapters/github.md) | [Azure DevOps Adapter Reference](../adapters/azuredevops.md) | [Backlog Adapter Patterns](../adapters/backlog-adapter-patterns.md)
 
 ---
 

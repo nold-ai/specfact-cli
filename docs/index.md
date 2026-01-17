@@ -37,7 +37,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 - **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
 - **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
-- **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional GitHub Issues sync
+- **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
 - **[Sidecar Validation](guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
 - **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
@@ -45,6 +45,37 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 - **[CoPilot Mode](guides/copilot-mode.md)** - Using `--mode copilot` on CLI
 - **[Troubleshooting](guides/troubleshooting.md)** - Common issues and solutions
 - **[Competitive Analysis](guides/competitive-analysis.md)** - How SpecFact compares
+
+### DevOps & Backlog Sync 🚀
+
+**For Developers & DevOps Teams**: Keep your backlogs in sync with feature branches, code changes, and validations.
+
+- **[DevOps Integration Guide](guides/devops-adapter-integration.md)** ⭐ - Complete guide for GitHub Issues and Azure DevOps integration
+  - **Cross-Adapter Sync**: Lossless round-trip migration between backlog tools (GitHub ↔ ADO)
+  - **Bidirectional Sync**: Import backlog items as proposals, export proposals as backlog items
+  - **Code Change Tracking**: Automatically detect commits and add progress comments
+  - **Status Synchronization**: Keep OpenSpec and backlog status in sync
+- **[GitHub Adapter](adapters/github.md)** - GitHub Issues adapter reference
+- **[Azure DevOps Adapter](adapters/azuredevops.md)** - Azure DevOps work items adapter reference
+- **[Backlog Adapter Patterns](adapters/backlog-adapter-patterns.md)** - Patterns for implementing backlog adapters
+
+**Quick Start for DevOps Teams:**
+
+```bash
+# Export OpenSpec proposals to GitHub Issues
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name your-repo
+
+# Export to Azure DevOps work items
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project your-project
+
+# Cross-adapter sync: GitHub → ADO (lossless round-trip)
+specfact sync bridge --adapter github --mode bidirectional \
+  --bundle main --backlog-ids 123
+specfact sync bridge --adapter ado --mode export-only \
+  --bundle main --change-ids <change-id>
+```
 
 ### Reference
 

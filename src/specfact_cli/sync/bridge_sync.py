@@ -13,7 +13,6 @@ import hashlib
 import re
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
 
 
 try:
@@ -519,6 +518,10 @@ class BridgeSync:
         add_progress_comment: bool = False,
         code_repo_path: Path | None = None,
         include_archived: bool = False,
+        ado_org: str | None = None,
+        ado_project: str | None = None,
+        ado_base_url: str | None = None,
+        ado_work_item_type: str | None = None,
     ) -> SyncResult:
         """
         Export OpenSpec change proposals to DevOps tools (export-only mode).
@@ -564,14 +567,24 @@ class BridgeSync:
 
             # Build adapter kwargs based on adapter type (adapter-agnostic)
             # TODO: Move kwargs determination to adapter capabilities or adapter-specific method
-            adapter_kwargs: dict[str, Any] = {
-                "repo_owner": repo_owner,
-                "repo_name": repo_name,
-                "api_token": api_token,
-            }
-            # GitHub adapter requires use_gh_cli flag
+            adapter_kwargs: dict[str, Any] = {}
             if adapter_type.lower() == "github":
-                adapter_kwargs["use_gh_cli"] = use_gh_cli
+                # GitHub adapter requires repo_owner, repo_name, api_token, use_gh_cli
+                adapter_kwargs = {
+                    "repo_owner": repo_owner,
+                    "repo_name": repo_name,
+                    "api_token": api_token,
+                    "use_gh_cli": use_gh_cli,
+                }
+            elif adapter_type.lower() == "ado":
+                # ADO adapter requires org, project, base_url, api_token, work_item_type
+                adapter_kwargs = {
+                    "org": ado_org,
+                    "project": ado_project,
+                    "base_url": ado_base_url,
+                    "api_token": api_token,
+                    "work_item_type": ado_work_item_type,
+                }
 
             adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)
 
@@ -609,9 +622,12 @@ class BridgeSync:
                 user_preference=sanitize,
             )
 
-            # Derive target_repo from repo_owner and repo_name if not provided
-            if not target_repo and repo_owner and repo_name:
-                target_repo = f"{repo_owner}/{repo_name}"
+            # Derive target_repo from repo_owner/repo_name or ado_org/ado_project if not provided
+            if not target_repo:
+                if adapter_type == "ado" and ado_org and ado_project:
+                    target_repo = f"{ado_org}/{ado_project}"
+                elif repo_owner and repo_name:
+                    target_repo = f"{repo_owner}/{repo_name}"
 
             # Filter proposals based on target repo type and source tracking:
             # - For each proposal, check if it should be synced to the target repo
@@ -699,553 +715,293 @@ class BridgeSync:
 
                     # Check if issue exists for target repository
                     issue_number = target_entry.get("source_id") if target_entry else None
+                    work_item_was_deleted = False  # Track if we detected a deleted work item
+
+                    # If issue_number exists, verify the work item/issue actually exists in the external tool
+                    # This handles cases where work items were deleted but source_tracking still references them
+                    # Do this BEFORE duplicate prevention check to allow recreation of deleted work items
+                    if issue_number and target_entry:
+                        entry_type = target_entry.get("source_type", "").lower()
+
+                        # For ADO, verify work item exists (it might have been deleted)
+                        if (
+                            entry_type == "ado"
+                            and adapter_type.lower() == "ado"
+                            and ado_org
+                            and ado_project
+                            and hasattr(adapter, "_work_item_exists")
+                        ):
+                            try:
+                                work_item_exists = adapter._work_item_exists(issue_number, ado_org, ado_project)
+                                if not work_item_exists:
+                                    # Work item was deleted - clear source_id to allow recreation
+                                    warnings.append(
+                                        f"Work item #{issue_number} for '{proposal.get('change_id', 'unknown')}' "
+                                        f"no longer exists in ADO (may have been deleted). "
+                                        f"Will create a new work item."
+                                    )
+                                    # Clear source_id to allow creation of new work item
+                                    issue_number = None
+                                    work_item_was_deleted = True
+                                    # Also clear it from target_entry for this sync operation
+                                    target_entry = {**target_entry, "source_id": None}
+                            except Exception as e:
+                                # On error checking existence, log warning but allow creation (safer)
+                                warnings.append(
+                                    f"Could not verify work item #{issue_number} existence: {e}. Proceeding with sync."
+                                )
+
+                        # For GitHub, we could add similar verification, but GitHub issues are rarely deleted
+                        # (they're usually closed, not deleted), so we skip verification for now
+
+                    # Prevent duplicates: if target_entry exists but has no source_id, skip creation
+                    # EXCEPT if we just detected that the work item was deleted (work_item_was_deleted = True)
+                    # OR if update_existing is True (clear corrupted entry and create fresh)
+                    # This handles cases where source_tracking was partially saved
+                    if target_entry and not issue_number and not work_item_was_deleted:
+                        if update_existing:
+                            # Clear corrupted entry to allow fresh creation
+                            # If target_entry was found by _find_source_tracking_entry, it matches target_repo
+                            # So we can safely clear it when update_existing=True
+                            if isinstance(source_tracking_raw, dict):
+                                # Single entry - clear it completely (it's the corrupted one)
+                                proposal["source_tracking"] = {}
+                                target_entry = None
+                            elif isinstance(source_tracking_raw, list):
+                                # Multiple entries - remove the specific corrupted entry (target_entry)
+                                # Use identity check to remove the exact entry object
+                                source_tracking_list = [
+                                    entry for entry in source_tracking_list if entry is not target_entry
+                                ]
+                                proposal["source_tracking"] = source_tracking_list
+                                target_entry = None
+                            # Continue to creation logic below (target_entry is now None)
+                        else:
+                            warnings.append(
+                                f"Skipping sync for '{proposal.get('change_id', 'unknown')}': "
+                                f"source_tracking entry exists for '{target_repo}' but missing source_id. "
+                                f"Use --update-existing to force update or manually fix source_tracking."
+                            )
+                            continue
 
                     if issue_number and target_entry:
-                        # Issue exists - check if status changed or metadata needs update
-                        source_metadata = target_entry.get("source_metadata", {})
-                        if not isinstance(source_metadata, dict):
-                            source_metadata = {}
-                        last_synced_status = source_metadata.get("last_synced_status")
-                        current_status = proposal.get("status")
+                        # Issue exists - update it
+                        self._update_existing_issue(
+                            proposal=proposal,
+                            target_entry=target_entry,
+                            issue_number=issue_number,
+                            adapter=adapter,
+                            adapter_type=adapter_type,
+                            target_repo=target_repo,
+                            source_tracking_list=source_tracking_list,
+                            source_tracking_raw=source_tracking_raw,
+                            repo_owner=repo_owner,
+                            repo_name=repo_name,
+                            ado_org=ado_org,
+                            ado_project=ado_project,
+                            update_existing=update_existing,
+                            import_from_tmp=import_from_tmp,
+                            tmp_file=tmp_file,
+                            should_sanitize=should_sanitize,
+                            track_code_changes=track_code_changes,
+                            add_progress_comment=add_progress_comment,
+                            code_repo_path=code_repo_path,
+                            operations=operations,
+                            errors=errors,
+                            warnings=warnings,
+                        )
+                        # Save updated proposal
+                        self._save_openspec_change_proposal(proposal)
+                        continue
+                    # No issue exists in source_tracking OR work item was deleted (work_item_was_deleted = True)
+                    # Verify it doesn't exist before creating (unless we detected it was deleted)
+                    change_id = proposal.get("change_id", "unknown")
 
-                        if last_synced_status != current_status:
-                            # Status changed - update issue
-                            result = adapter.export_artifact(
-                                artifact_key="change_status",
-                                artifact_data=proposal,
-                                bridge_config=self.bridge_config,
-                            )
-                            # Track status update operation
-                            operations.append(
-                                SyncOperation(
-                                    artifact_key="change_status",
-                                    feature_id=proposal.get("change_id", "unknown"),
-                                    direction="export",
-                                    bundle_name="openspec",
+                    # Check if target_entry exists but doesn't have source_id (corrupted source_tracking)
+                    # EXCEPT if we just detected that the work item was deleted (work_item_was_deleted = True)
+                    if target_entry and not target_entry.get("source_id") and not work_item_was_deleted:
+                        # Source tracking entry exists but missing source_id - don't create duplicate
+                        # This could happen if source_tracking was partially saved
+                        warnings.append(
+                            f"Skipping sync for '{change_id}': source_tracking entry exists for "
+                            f"'{target_repo}' but missing source_id. Use --update-existing to force update."
+                        )
+                        continue
+
+                    # Search for existing issue/work item by change proposal ID if no source_tracking entry exists
+                    # This prevents duplicates when a proposal was synced to one tool but not another
+                    if not target_entry and adapter_type.lower() == "github" and repo_owner and repo_name:
+                        found_entry, found_issue_number = self._search_existing_github_issue(
+                            change_id, repo_owner, repo_name, target_repo, warnings
+                        )
+                        if found_entry and found_issue_number:
+                            target_entry = found_entry
+                            issue_number = found_issue_number
+                            # Add to source_tracking_list
+                            source_tracking_list.append(target_entry)
+                            proposal["source_tracking"] = source_tracking_list
+                    if (
+                        not target_entry
+                        and adapter_type.lower() == "ado"
+                        and ado_org
+                        and ado_project
+                        and hasattr(adapter, "_find_work_item_by_change_id")
+                    ):
+                        found_entry = adapter._find_work_item_by_change_id(change_id, ado_org, ado_project)
+                        if found_entry:
+                            target_entry = found_entry
+                            issue_number = found_entry.get("source_id")
+                            source_tracking_list.append(found_entry)
+                            proposal["source_tracking"] = source_tracking_list
+
+                    # If we found an existing issue via search, update it instead of creating a new one
+                    if issue_number and target_entry:
+                        # Use the same update logic as above
+                        self._update_existing_issue(
+                            proposal=proposal,
+                            target_entry=target_entry,
+                            issue_number=issue_number,
+                            adapter=adapter,
+                            adapter_type=adapter_type,
+                            target_repo=target_repo,
+                            source_tracking_list=source_tracking_list,
+                            source_tracking_raw=source_tracking_raw,
+                            repo_owner=repo_owner,
+                            repo_name=repo_name,
+                            ado_org=ado_org,
+                            ado_project=ado_project,
+                            update_existing=update_existing,
+                            import_from_tmp=import_from_tmp,
+                            tmp_file=tmp_file,
+                            should_sanitize=should_sanitize,
+                            track_code_changes=track_code_changes,
+                            add_progress_comment=add_progress_comment,
+                            code_repo_path=code_repo_path,
+                            operations=operations,
+                            errors=errors,
+                            warnings=warnings,
+                        )
+                        # Save updated proposal
+                        self._save_openspec_change_proposal(proposal)
+                        continue
+
+                    # Handle temporary file workflow if requested
+                    if export_to_tmp:
+                        # Export proposal content to temporary file for LLM review
+                        tmp_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}.md")
+                        try:
+                            # Create markdown content from proposal
+                            proposal_content = self._format_proposal_for_export(proposal)
+                            tmp_file_path.parent.mkdir(parents=True, exist_ok=True)
+                            tmp_file_path.write_text(proposal_content, encoding="utf-8")
+                            warnings.append(f"Exported proposal '{change_id}' to {tmp_file_path} for LLM review")
+                            # Skip issue creation when exporting to tmp
+                            continue
+                        except Exception as e:
+                            errors.append(f"Failed to export proposal '{change_id}' to temporary file: {e}")
+                            continue
+
+                    if import_from_tmp:
+                        # Import sanitized content from temporary file
+                        sanitized_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+                        try:
+                            if not sanitized_file_path.exists():
+                                errors.append(
+                                    f"Sanitized file not found: {sanitized_file_path}. "
+                                    f"Please run LLM sanitization first."
                                 )
-                            )
+                                continue
+                            # Read sanitized content
+                            sanitized_content = sanitized_file_path.read_text(encoding="utf-8")
+                            # Parse sanitized content back into proposal structure
+                            proposal_to_export = self._parse_sanitized_proposal(sanitized_content, proposal)
+                            # Cleanup temporary files after import
+                            try:
+                                original_tmp = Path(f"/tmp/specfact-proposal-{change_id}.md")
+                                if original_tmp.exists():
+                                    original_tmp.unlink()
+                                if sanitized_file_path.exists():
+                                    sanitized_file_path.unlink()
+                            except Exception as cleanup_error:
+                                warnings.append(f"Failed to cleanup temporary files: {cleanup_error}")
+                        except Exception as e:
+                            errors.append(f"Failed to import sanitized content for '{change_id}': {e}")
+                            continue
+                    else:
+                        # Normal flow: use proposal as-is or sanitize if needed
+                        proposal_to_export = proposal.copy()
+                        if should_sanitize:
+                            # Sanitize description and rationale separately
+                            # (they're already extracted sections, sanitizer will remove unwanted patterns)
+                            original_description = proposal.get("description", "")
+                            original_rationale = proposal.get("rationale", "")
 
-                        # Always update metadata to ensure it reflects the current sync operation
-                        # (even if status hasn't changed, we want to update sanitized flag, etc.)
-                        source_metadata = target_entry.get("source_metadata", {})
-                        if not isinstance(source_metadata, dict):
-                            source_metadata = {}
-                        updated_entry = {
-                            **target_entry,
+                            # Combine into full markdown for sanitization
+                            combined_markdown = ""
+                            if original_rationale:
+                                combined_markdown += f"## Why\n\n{original_rationale}\n\n"
+                            if original_description:
+                                combined_markdown += f"## What Changes\n\n{original_description}\n\n"
+
+                            if combined_markdown:
+                                sanitized_markdown = sanitizer.sanitize_proposal(combined_markdown)
+
+                                # Parse sanitized content back into description/rationale
+                                # Extract Why section
+                                why_match = re.search(r"##\s*Why\s*\n\n(.*?)(?=\n##|\Z)", sanitized_markdown, re.DOTALL)
+                                sanitized_rationale = why_match.group(1).strip() if why_match else ""
+
+                                # Extract What Changes section
+                                what_match = re.search(
+                                    r"##\s*What\s+Changes\s*\n\n(.*?)(?=\n##|\Z)", sanitized_markdown, re.DOTALL
+                                )
+                                sanitized_description = what_match.group(1).strip() if what_match else ""
+
+                                # Update proposal with sanitized content
+                                proposal_to_export["description"] = sanitized_description or original_description
+                                proposal_to_export["rationale"] = sanitized_rationale or original_rationale
+
+                    result = adapter.export_artifact(
+                        artifact_key="change_proposal",
+                        artifact_data=proposal_to_export,
+                        bridge_config=self.bridge_config,
+                    )
+                    # Store issue info in source_tracking (proposal is a dict)
+                    if isinstance(proposal, dict) and isinstance(result, dict):
+                        # Normalize existing source_tracking to list
+                        source_tracking_list = self._normalize_source_tracking(proposal.get("source_tracking", {}))
+                        # Create new entry for this repository
+                        # For ADO, use ado_org/ado_project; for GitHub, use repo_owner/repo_name
+                        if adapter_type == "ado" and ado_org and ado_project:
+                            repo_identifier = target_repo or f"{ado_org}/{ado_project}"
+                            source_id = str(result.get("work_item_id", result.get("issue_number", "")))
+                            source_url = str(result.get("work_item_url", result.get("issue_url", "")))
+                        else:
+                            repo_identifier = target_repo or f"{repo_owner}/{repo_name}"
+                            source_id = str(result.get("issue_number", result.get("work_item_id", "")))
+                            source_url = str(result.get("issue_url", result.get("work_item_url", "")))
+                        new_entry = {
+                            "source_id": source_id,
+                            "source_url": source_url,
+                            "source_type": adapter_type,
+                            "source_repo": repo_identifier,
                             "source_metadata": {
-                                **source_metadata,
-                                "last_synced_status": current_status,
+                                "last_synced_status": proposal.get("status"),
                                 "sanitized": should_sanitize if should_sanitize is not None else False,
                             },
                         }
-
-                        # Always update source_tracking metadata to reflect current sync operation
-                        # This ensures sanitized flag and other metadata are always up-to-date
-                        if target_repo:
-                            source_tracking_list = self._update_source_tracking_entry(
-                                source_tracking_list, target_repo, updated_entry
-                            )
-                            proposal["source_tracking"] = source_tracking_list
-                        else:
-                            # Backward compatibility: update single dict entry directly
-                            # If original was a dict, keep it as a dict; otherwise use list
-                            if isinstance(source_tracking_raw, dict):
-                                # Single dict entry - update and keep as dict
-                                proposal["source_tracking"] = updated_entry
-                            else:
-                                # List of entries - update the matching entry
-                                for i, entry in enumerate(source_tracking_list):
-                                    if isinstance(entry, dict):
-                                        # Find entry matching this repository (by source_id or source_repo)
-                                        entry_id = entry.get("source_id")
-                                        entry_repo = entry.get("source_repo")
-                                        updated_id = updated_entry.get("source_id")
-                                        updated_repo = updated_entry.get("source_repo")
-
-                                        if (entry_id and entry_id == updated_id) or (
-                                            entry_repo and entry_repo == updated_repo
-                                        ):
-                                            # Update matching entry with new metadata
-                                            source_tracking_list[i] = updated_entry
-                                            break
-                                proposal["source_tracking"] = source_tracking_list
-
-                        # Track metadata update operation (even if status didn't change)
-                        # This ensures we record that a sync operation occurred
-                        if last_synced_status == current_status:
-                            # Status didn't change, but metadata was updated (sanitized flag, etc.)
-                            operations.append(
-                                SyncOperation(
-                                    artifact_key="change_proposal_metadata",
-                                    feature_id=proposal.get("change_id", "unknown"),
-                                    direction="export",
-                                    bundle_name="openspec",
-                                )
-                            )
-
-                        # Check if content changed (when update_existing is enabled)
-                        if update_existing:
-                            # Handle sanitized content updates (when import_from_tmp is used)
-                            if import_from_tmp:
-                                change_id = proposal.get("change_id", "unknown")
-                                sanitized_file = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
-                                if sanitized_file.exists():
-                                    # Read sanitized content and use it for hash calculation
-                                    sanitized_content = sanitized_file.read_text(encoding="utf-8")
-                                    # Parse sanitized content to extract rationale and description
-                                    # For now, use the sanitized content directly as description
-                                    proposal_for_hash = {
-                                        "rationale": "",  # Sanitized content typically doesn't have separate rationale
-                                        "description": sanitized_content,
-                                    }
-                                    current_hash = self._calculate_content_hash(proposal_for_hash)
-                                else:
-                                    # Fallback to original proposal content
-                                    current_hash = self._calculate_content_hash(proposal)
-                            else:
-                                current_hash = self._calculate_content_hash(proposal)
-
-                            # Get stored hash from target repository entry
-                            stored_hash = None
-                            if target_entry:
-                                source_metadata = target_entry.get("source_metadata", {})
-                                if isinstance(source_metadata, dict):
-                                    stored_hash = source_metadata.get("content_hash")
-
-                            # Check if title or state needs update (get current issue data)
-                            current_issue_title = None
-                            current_issue_state = None
-                            needs_title_update = False
-                            needs_state_update = False
-                            if target_entry:
-                                issue_number = target_entry.get("source_id")
-                                if issue_number:
-                                    # Fetch current issue to check title and state
-                                    try:
-                                        from specfact_cli.adapters.registry import AdapterRegistry
-
-                                        adapter_instance = AdapterRegistry.get_adapter(adapter_type)
-                                        if adapter_instance and hasattr(adapter_instance, "api_token"):
-                                            import requests
-
-                                            url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-                                            headers = {
-                                                "Authorization": f"token {adapter_instance.api_token}",
-                                                "Accept": "application/vnd.github.v3+json",
-                                            }
-                                            response = requests.get(url, headers=headers, timeout=30)
-                                            response.raise_for_status()
-                                            issue_data = response.json()
-                                            current_issue_title = issue_data.get("title", "")
-                                            current_issue_state = issue_data.get("state", "open")
-                                            proposal_title = proposal.get("title", "")
-                                            proposal_status = proposal.get("status", "proposed")
-                                            needs_title_update = (
-                                                current_issue_title
-                                                and proposal_title
-                                                and current_issue_title != proposal_title
-                                            )
-                                            # Check if state needs update (applied/deprecated/discarded should be closed)
-                                            should_close = proposal_status in ("applied", "deprecated", "discarded")
-                                            desired_state = "closed" if should_close else "open"
-                                            needs_state_update = current_issue_state != desired_state
-                                    except Exception:
-                                        # If we can't fetch, proceed without title/state check
-                                        pass
-
-                            # Check if we need to add a comment for applied status (even if no update needed)
-                            needs_comment_for_applied = False
-                            if update_existing and proposal.get("status") == "applied" and target_entry:
-                                # Always add a comment for applied status when include_archived is set
-                                # This ensures archived issues get updated with new comment logic and branch detection
-                                if include_archived:
-                                    needs_comment_for_applied = True
-                                else:
-                                    # For non-archived, only add comment if issue is closed
-                                    issue_number = target_entry.get("source_id")
-                                    if issue_number:
-                                        try:
-                                            from specfact_cli.adapters.registry import AdapterRegistry
-
-                                            adapter_instance = AdapterRegistry.get_adapter(adapter_type)
-                                            if adapter_instance and hasattr(adapter_instance, "api_token"):
-                                                import requests
-
-                                                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-                                                headers = {
-                                                    "Authorization": f"token {adapter_instance.api_token}",
-                                                    "Accept": "application/vnd.github.v3+json",
-                                                }
-                                                response = requests.get(url, headers=headers, timeout=30)
-                                                response.raise_for_status()
-                                                issue_data = response.json()
-                                                current_issue_state = issue_data.get("state", "open")
-                                                # Check if issue is closed and needs comment with branch info
-                                                if current_issue_state == "closed":
-                                                    # Always add a comment for applied status to ensure branch info is up-to-date
-                                                    # (branch detection may improve over time, so we refresh the comment)
-                                                    needs_comment_for_applied = True
-                                        except Exception:
-                                            # If we can't fetch, proceed without comment check
-                                            pass
-
-                            if (
-                                stored_hash != current_hash
-                                or needs_title_update
-                                or needs_state_update
-                                or needs_comment_for_applied
-                            ):
-                                # Content changed, title needs update, state needs update, or need to add comment for applied status
-                                try:
-                                    # If using sanitized content, update proposal with sanitized content
-                                    if import_from_tmp:
-                                        change_id = proposal.get("change_id", "unknown")
-                                        sanitized_file = tmp_file or Path(
-                                            f"/tmp/specfact-proposal-{change_id}-sanitized.md"
-                                        )
-                                        if sanitized_file.exists():
-                                            sanitized_content = sanitized_file.read_text(encoding="utf-8")
-                                            # Update proposal with sanitized content for issue update
-                                            proposal_for_update = {
-                                                **proposal,
-                                                "description": sanitized_content,
-                                                "rationale": "",  # Sanitized content typically doesn't have separate rationale
-                                            }
-                                        else:
-                                            proposal_for_update = proposal
-                                    else:
-                                        proposal_for_update = proposal
-
-                                    # If we only need to add a comment (no other updates), use a special artifact key
-                                    # Determine code repository path for branch verification
-                                    # Branches are in the code repository (where implementation is), not OpenSpec repo
-                                    code_repo_path = None
-                                    if repo_owner and repo_name:
-                                        code_repo_path = self._find_code_repo_path(repo_owner, repo_name)
-
-                                    if needs_comment_for_applied and not (
-                                        stored_hash != current_hash or needs_title_update or needs_state_update
-                                    ):
-                                        # Only add comment, no body/state update
-                                        # Add code repository path to artifact_data for branch verification
-                                        proposal_with_repo = {
-                                            **proposal_for_update,
-                                            "_code_repo_path": str(code_repo_path) if code_repo_path else None,
-                                        }
-                                        result = adapter.export_artifact(
-                                            artifact_key="change_proposal_comment",
-                                            artifact_data=proposal_with_repo,
-                                            bridge_config=self.bridge_config,
-                                        )
-                                    else:
-                                        # Add code repository path to artifact_data for branch verification
-                                        proposal_with_repo = {
-                                            **proposal_for_update,
-                                            "_code_repo_path": str(code_repo_path) if code_repo_path else None,
-                                        }
-                                        result = adapter.export_artifact(
-                                            artifact_key="change_proposal_update",
-                                            artifact_data=proposal_with_repo,
-                                            bridge_config=self.bridge_config,
-                                        )
-                                    # Update stored hash in target repository entry
-                                    if target_entry:
-                                        source_metadata = target_entry.get("source_metadata", {})
-                                        if not isinstance(source_metadata, dict):
-                                            source_metadata = {}
-                                        updated_entry = {
-                                            **target_entry,
-                                            "source_metadata": {
-                                                **source_metadata,
-                                                "content_hash": current_hash,
-                                            },
-                                        }
-                                        if target_repo:
-                                            source_tracking_list = self._update_source_tracking_entry(
-                                                source_tracking_list, target_repo, updated_entry
-                                            )
-                                            proposal["source_tracking"] = source_tracking_list
-                                    else:
-                                        # Create new entry for this repository
-                                        if target_repo:
-                                            new_entry = {
-                                                "source_repo": target_repo,
-                                                "source_metadata": {"content_hash": current_hash},
-                                            }
-                                            source_tracking_list = self._update_source_tracking_entry(
-                                                source_tracking_list, target_repo, new_entry
-                                            )
-                                            proposal["source_tracking"] = source_tracking_list
-                                    operations.append(
-                                        SyncOperation(
-                                            artifact_key="change_proposal_update",
-                                            feature_id=proposal.get("change_id", "unknown"),
-                                            direction="export",
-                                            bundle_name="openspec",
-                                        )
-                                    )
-                                except Exception as e:
-                                    # Log error but don't fail entire sync
-                                    errors.append(
-                                        f"Failed to update issue body for {proposal.get('change_id', 'unknown')}: {e}"
-                                    )
-
-                        # Code change tracking and progress comments (when enabled)
-                        if track_code_changes or add_progress_comment:
-                            from specfact_cli.utils.code_change_detector import (
-                                calculate_comment_hash,
-                                detect_code_changes,
-                                format_progress_comment,
-                            )
-
-                            change_id = proposal.get("change_id", "unknown")
-                            progress_data: dict[str, Any] = {}
-
-                            if track_code_changes:
-                                # Detect code changes via git
-                                try:
-                                    # Get last detection timestamp from source tracking
-                                    last_detection = None
-                                    if target_entry:
-                                        source_metadata = target_entry.get("source_metadata", {})
-                                        if isinstance(source_metadata, dict):
-                                            last_detection = source_metadata.get("last_code_change_detected")
-
-                                    # Detect code changes
-                                    # Use code_repo_path if provided (for separate source code repo),
-                                    # otherwise fall back to self.repo_path (OpenSpec repo)
-                                    code_repo = code_repo_path if code_repo_path else self.repo_path
-                                    code_changes = detect_code_changes(
-                                        repo_path=code_repo,
-                                        change_id=change_id,
-                                        since_timestamp=last_detection,
-                                    )
-
-                                    if code_changes.get("has_changes"):
-                                        progress_data = code_changes
-                                    else:
-                                        # No code changes detected
-                                        continue
-                                except Exception as e:
-                                    # Log error but don't fail entire sync
-                                    errors.append(f"Failed to detect code changes for {change_id}: {e}")
-                                    continue
-
-                            if add_progress_comment and not progress_data:
-                                # Manual progress comment (no code change detection)
-                                progress_data = {
-                                    "summary": "Manual progress update",
-                                    "detection_timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                                }
-
-                            if progress_data:
-                                # Check for duplicate comments
-                                # Calculate hash on sanitized version if sanitization is enabled
-                                # (to detect duplicates based on what will actually be posted)
-                                comment_text = format_progress_comment(
-                                    progress_data, sanitize=should_sanitize if should_sanitize is not None else False
-                                )
-                                comment_hash = calculate_comment_hash(comment_text)
-
-                                # Get existing progress comments from source tracking
-                                progress_comments = []
-                                if target_entry:
-                                    source_metadata = target_entry.get("source_metadata", {})
-                                    if isinstance(source_metadata, dict):
-                                        progress_comments = source_metadata.get("progress_comments", [])
-
-                                # Check if this comment already exists
-                                is_duplicate = False
-                                if isinstance(progress_comments, list):
-                                    for existing_comment in progress_comments:
-                                        if isinstance(existing_comment, dict):
-                                            existing_hash = existing_comment.get("comment_hash")
-                                            if existing_hash == comment_hash:
-                                                is_duplicate = True
-                                                break
-
-                                if not is_duplicate:
-                                    try:
-                                        # Add progress comment to issue
-                                        # Ensure source_tracking is included for adapter to extract issue number
-                                        proposal_with_progress = {
-                                            **proposal,
-                                            "source_tracking": source_tracking_list,  # Ensure source_tracking is available
-                                            "progress_data": progress_data,
-                                            "sanitize": should_sanitize if should_sanitize is not None else False,
-                                        }
-                                        result = adapter.export_artifact(
-                                            artifact_key="code_change_progress",
-                                            artifact_data=proposal_with_progress,
-                                            bridge_config=self.bridge_config,
-                                        )
-
-                                        # Update source tracking with progress comment
-                                        if target_entry:
-                                            source_metadata = target_entry.get("source_metadata", {})
-                                            if not isinstance(source_metadata, dict):
-                                                source_metadata = {}
-                                            progress_comments = source_metadata.get("progress_comments", [])
-                                            if not isinstance(progress_comments, list):
-                                                progress_comments = []
-
-                                            # Add new comment to history
-                                            progress_comments.append(
-                                                {
-                                                    "comment_hash": comment_hash,
-                                                    "timestamp": progress_data.get("detection_timestamp"),
-                                                    "summary": progress_data.get("summary", ""),
-                                                }
-                                            )
-
-                                            updated_entry = {
-                                                **target_entry,
-                                                "source_metadata": {
-                                                    **source_metadata,
-                                                    "progress_comments": progress_comments,
-                                                    "last_code_change_detected": progress_data.get(
-                                                        "detection_timestamp"
-                                                    ),
-                                                },
-                                            }
-
-                                            if target_repo:
-                                                source_tracking_list = self._update_source_tracking_entry(
-                                                    source_tracking_list, target_repo, updated_entry
-                                                )
-                                                proposal["source_tracking"] = source_tracking_list
-
-                                        operations.append(
-                                            SyncOperation(
-                                                artifact_key="code_change_progress",
-                                                feature_id=change_id,
-                                                direction="export",
-                                                bundle_name="openspec",
-                                            )
-                                        )
-
-                                        # Save updated proposal with progress comment metadata
-                                        self._save_openspec_change_proposal(proposal)
-                                    except Exception as e:
-                                        # Log error but don't fail entire sync
-                                        errors.append(f"Failed to add progress comment for {change_id}: {e}")
-                                else:
-                                    # Duplicate comment - skip
-                                    warnings.append(f"Skipped duplicate progress comment for {change_id}")
-                    else:
-                        # No issue exists - create one
-                        # Handle temporary file workflow if requested
-                        change_id = proposal.get("change_id", "unknown")
-                        if export_to_tmp:
-                            # Export proposal content to temporary file for LLM review
-                            tmp_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}.md")
-                            try:
-                                # Create markdown content from proposal
-                                proposal_content = self._format_proposal_for_export(proposal)
-                                tmp_file_path.parent.mkdir(parents=True, exist_ok=True)
-                                tmp_file_path.write_text(proposal_content, encoding="utf-8")
-                                warnings.append(f"Exported proposal '{change_id}' to {tmp_file_path} for LLM review")
-                                # Skip issue creation when exporting to tmp
-                                continue
-                            except Exception as e:
-                                errors.append(f"Failed to export proposal '{change_id}' to temporary file: {e}")
-                                continue
-
-                        if import_from_tmp:
-                            # Import sanitized content from temporary file
-                            sanitized_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
-                            try:
-                                if not sanitized_file_path.exists():
-                                    errors.append(
-                                        f"Sanitized file not found: {sanitized_file_path}. "
-                                        f"Please run LLM sanitization first."
-                                    )
-                                    continue
-                                # Read sanitized content
-                                sanitized_content = sanitized_file_path.read_text(encoding="utf-8")
-                                # Parse sanitized content back into proposal structure
-                                proposal_to_export = self._parse_sanitized_proposal(sanitized_content, proposal)
-                                # Cleanup temporary files after import
-                                try:
-                                    original_tmp = Path(f"/tmp/specfact-proposal-{change_id}.md")
-                                    if original_tmp.exists():
-                                        original_tmp.unlink()
-                                    if sanitized_file_path.exists():
-                                        sanitized_file_path.unlink()
-                                except Exception as cleanup_error:
-                                    warnings.append(f"Failed to cleanup temporary files: {cleanup_error}")
-                            except Exception as e:
-                                errors.append(f"Failed to import sanitized content for '{change_id}': {e}")
-                                continue
-                        else:
-                            # Normal flow: use proposal as-is or sanitize if needed
-                            proposal_to_export = proposal.copy()
-                            if should_sanitize:
-                                # Sanitize description and rationale separately
-                                # (they're already extracted sections, sanitizer will remove unwanted patterns)
-                                original_description = proposal.get("description", "")
-                                original_rationale = proposal.get("rationale", "")
-
-                                # Combine into full markdown for sanitization
-                                combined_markdown = ""
-                                if original_rationale:
-                                    combined_markdown += f"## Why\n\n{original_rationale}\n\n"
-                                if original_description:
-                                    combined_markdown += f"## What Changes\n\n{original_description}\n\n"
-
-                                if combined_markdown:
-                                    sanitized_markdown = sanitizer.sanitize_proposal(combined_markdown)
-
-                                    # Parse sanitized content back into description/rationale
-                                    # Extract Why section
-                                    why_match = re.search(
-                                        r"##\s*Why\s*\n\n(.*?)(?=\n##|\Z)", sanitized_markdown, re.DOTALL
-                                    )
-                                    sanitized_rationale = why_match.group(1).strip() if why_match else ""
-
-                                    # Extract What Changes section
-                                    what_match = re.search(
-                                        r"##\s*What\s+Changes\s*\n\n(.*?)(?=\n##|\Z)", sanitized_markdown, re.DOTALL
-                                    )
-                                    sanitized_description = what_match.group(1).strip() if what_match else ""
-
-                                    # Update proposal with sanitized content
-                                    proposal_to_export["description"] = sanitized_description or original_description
-                                    proposal_to_export["rationale"] = sanitized_rationale or original_rationale
-
-                        result = adapter.export_artifact(
+                        source_tracking_list = self._update_source_tracking_entry(
+                            source_tracking_list, repo_identifier, new_entry
+                        )
+                        proposal["source_tracking"] = source_tracking_list
+                    operations.append(
+                        SyncOperation(
                             artifact_key="change_proposal",
-                            artifact_data=proposal_to_export,
-                            bridge_config=self.bridge_config,
+                            feature_id=proposal.get("change_id", "unknown"),
+                            direction="export",
+                            bundle_name="openspec",
                         )
-                        # Store issue info in source_tracking (proposal is a dict)
-                        if isinstance(proposal, dict) and isinstance(result, dict):
-                            # Normalize existing source_tracking to list
-                            source_tracking_list = self._normalize_source_tracking(proposal.get("source_tracking", {}))
-                            # Create new entry for this repository
-                            repo_identifier = target_repo or f"{repo_owner}/{repo_name}"
-                            new_entry = {
-                                "source_id": str(result.get("issue_number", "")),
-                                "source_url": str(result.get("issue_url", "")),
-                                "source_type": adapter_type,
-                                "source_repo": repo_identifier,
-                                "source_metadata": {
-                                    "last_synced_status": proposal.get("status"),
-                                    "sanitized": should_sanitize if should_sanitize is not None else False,
-                                },
-                            }
-                            source_tracking_list = self._update_source_tracking_entry(
-                                source_tracking_list, repo_identifier, new_entry
-                            )
-                            proposal["source_tracking"] = source_tracking_list
-                        operations.append(
-                            SyncOperation(
-                                artifact_key="change_proposal",
-                                feature_id=proposal.get("change_id", "unknown"),
-                                direction="export",
-                                bundle_name="openspec",
-                            )
-                        )
+                    )
 
                     # Save updated change proposals back to OpenSpec
                     # Store issue IDs in proposal.md metadata section
@@ -1330,7 +1086,7 @@ class BridgeSync:
                 in_what = False
                 in_source_tracking = False
 
-                for line in lines:
+                for line_idx, line in enumerate(lines):
                     line_stripped = line.strip()
                     if line_stripped.startswith("# Change:"):
                         title = line_stripped.replace("# Change:", "").strip()
@@ -1342,11 +1098,6 @@ class BridgeSync:
                         in_why = False
                         in_what = True
                         in_source_tracking = False
-                    elif line_stripped == "## Impact":
-                        # Skip Impact section (not used in current implementation)
-                        in_why = False
-                        in_what = False
-                        in_source_tracking = False
                     elif line_stripped == "## Source Tracking":
                         in_why = False
                         in_what = False
@@ -1354,13 +1105,49 @@ class BridgeSync:
                     elif in_source_tracking:
                         # Skip source tracking section (we'll parse it separately)
                         continue
-                    elif in_why and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
-                        # Preserve line breaks in rationale
+                    elif in_why:
+                        if line_stripped == "## What Changes":
+                            in_why = False
+                            in_what = True
+                            in_source_tracking = False
+                            continue
+                        if line_stripped == "## Source Tracking":
+                            in_why = False
+                            in_what = False
+                            in_source_tracking = True
+                            continue
+                        # Stop at --- separator only if it's followed by Source Tracking
+                        if line_stripped == "---":
+                            # Check if next non-empty line is Source Tracking
+                            remaining_lines = lines[line_idx + 1 : line_idx + 5]  # Check next 5 lines
+                            if any("## Source Tracking" in line for line in remaining_lines):
+                                in_why = False
+                                in_source_tracking = True
+                                continue
+                        # Preserve all content including empty lines and formatting
                         if rationale and not rationale.endswith("\n"):
                             rationale += "\n"
                         rationale += line + "\n"
-                    elif in_what and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
-                        # Preserve line breaks in description
+                    elif in_what:
+                        if line_stripped == "## Why":
+                            in_what = False
+                            in_why = True
+                            in_source_tracking = False
+                            continue
+                        if line_stripped == "## Source Tracking":
+                            in_what = False
+                            in_why = False
+                            in_source_tracking = True
+                            continue
+                        # Stop at --- separator only if it's followed by Source Tracking
+                        if line_stripped == "---":
+                            # Check if next non-empty line is Source Tracking
+                            remaining_lines = lines[line_idx + 1 : line_idx + 5]  # Check next 5 lines
+                            if any("## Source Tracking" in line for line in remaining_lines):
+                                in_what = False
+                                in_source_tracking = True
+                                continue
+                        # Preserve all content including empty lines and formatting
                         if description and not description.endswith("\n"):
                             description += "\n"
                         description += line + "\n"
@@ -1389,8 +1176,24 @@ class BridgeSync:
                                         source_tracking_list.append(entry)
                         else:
                             # Single entry (backward compatibility - no repository header)
+                            # Check if source_repo is in a hidden comment first
                             entry = self._parse_source_tracking_entry(tracking_content, None)
                             if entry:
+                                # If source_repo was extracted from hidden comment, ensure it's set
+                                if not entry.get("source_repo"):
+                                    # Try to extract from URL as fallback
+                                    source_url = entry.get("source_url", "")
+                                    if source_url:
+                                        # Try GitHub URL pattern
+                                        url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
+                                        if url_repo_match:
+                                            entry["source_repo"] = url_repo_match.group(1)
+                                        # Try ADO URL pattern - extract org, but we need project name from elsewhere
+                                        elif "dev.azure.com" in source_url:
+                                            # For ADO, we can't reliably extract project name from URL (GUID)
+                                            # The source_repo should have been saved in the hidden comment
+                                            # If not, we'll need to match by org only later
+                                            pass
                                 source_tracking_list.append(entry)
 
                 # Check for status indicators in proposal content or directory name
@@ -1398,7 +1201,7 @@ class BridgeSync:
                 # For now, default to "proposed" - can be enhanced later
 
                 # Clean up description and rationale (remove extra newlines)
-                description_clean = description.strip() if description else ""
+                description_clean = self._dedupe_duplicate_sections(description.strip()) if description else ""
                 rationale_clean = rationale.strip() if rationale else ""
 
                 # Create proposal dict
@@ -1464,7 +1267,7 @@ class BridgeSync:
                         in_what = False
                         in_source_tracking = False
 
-                        for line in lines:
+                        for line_idx, line in enumerate(lines):
                             line_stripped = line.strip()
                             if line_stripped.startswith("# Change:"):
                                 title = line_stripped.replace("# Change:", "").strip()
@@ -1477,21 +1280,49 @@ class BridgeSync:
                                 in_why = False
                                 in_what = True
                                 in_source_tracking = False
-                            elif line_stripped == "## Impact":
-                                in_why = False
-                                in_what = False
-                                in_source_tracking = False
                             elif line_stripped == "## Source Tracking":
                                 in_why = False
                                 in_what = False
                                 in_source_tracking = True
                             elif in_source_tracking:
                                 continue
-                            elif in_why and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                            elif in_why:
+                                if line_stripped == "## What Changes":
+                                    in_why = False
+                                    in_what = True
+                                    in_source_tracking = False
+                                    continue
+                                if line_stripped == "## Source Tracking":
+                                    in_why = False
+                                    in_what = False
+                                    in_source_tracking = True
+                                    continue
+                                if line_stripped == "---":
+                                    remaining_lines = lines[line_idx + 1 : line_idx + 5]
+                                    if any("## Source Tracking" in line for line in remaining_lines):
+                                        in_why = False
+                                        in_source_tracking = True
+                                        continue
                                 if rationale and not rationale.endswith("\n"):
                                     rationale += "\n"
                                 rationale += line + "\n"
-                            elif in_what and not line_stripped.startswith("#") and not line_stripped.startswith("---"):
+                            elif in_what:
+                                if line_stripped == "## Why":
+                                    in_what = False
+                                    in_why = True
+                                    in_source_tracking = False
+                                    continue
+                                if line_stripped == "## Source Tracking":
+                                    in_what = False
+                                    in_why = False
+                                    in_source_tracking = True
+                                    continue
+                                if line_stripped == "---":
+                                    remaining_lines = lines[line_idx + 1 : line_idx + 5]
+                                    if any("## Source Tracking" in line for line in remaining_lines):
+                                        in_what = False
+                                        in_source_tracking = True
+                                        continue
                                 if description and not description.endswith("\n"):
                                     description += "\n"
                                 description += line + "\n"
@@ -1530,7 +1361,7 @@ class BridgeSync:
                         )
 
                         # Clean up description and rationale
-                        description_clean = description.strip() if description else ""
+                        description_clean = self._dedupe_duplicate_sections(description.strip()) if description else ""
                         rationale_clean = rationale.strip() if rationale else ""
 
                         proposal = {
@@ -1571,15 +1402,74 @@ class BridgeSync:
 
         # Handle backward compatibility: single dict -> convert to list
         if isinstance(source_tracking, dict):
+            entry_type = source_tracking.get("source_type", "").lower()
+            entry_repo = source_tracking.get("source_repo")
+
+            # Primary match: exact source_repo match
+            if entry_repo == target_repo:
+                return source_tracking
+
             # Check if it matches target_repo (extract from source_url if available)
             if target_repo:
                 source_url = source_tracking.get("source_url", "")
                 if source_url:
+                    # Try GitHub URL pattern
                     url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
                     if url_repo_match:
                         source_repo = url_repo_match.group(1)
                         if source_repo == target_repo:
                             return source_tracking
+                    # Try ADO URL pattern (ADO URLs contain GUIDs, not project names)
+                    # For ADO, match by org if target_repo contains the org
+                    elif "dev.azure.com" in source_url and "/" in target_repo:
+                        target_org = target_repo.split("/")[0]
+                        ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                        # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
+                        if (
+                            ado_org_match
+                            and ado_org_match.group(1) == target_org
+                            and (entry_type == "ado" or entry_type == "")
+                        ):
+                            return source_tracking
+
+                # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
+                # This prevents cross-project matches when both entry_repo and target_repo have project names
+                if entry_repo and target_repo and entry_type == "ado":
+                    entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
+                    target_org = target_repo.split("/")[0] if "/" in target_repo else None
+                    entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
+                    target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
+
+                    # Only use org-only match when:
+                    # 1. Org matches
+                    # 2. source_id exists (for single dict, check source_tracking dict)
+                    # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
+                    # This prevents matching org/project-a with org/project-b when both have known project names
+                    source_url = source_tracking.get("source_url", "") if isinstance(source_tracking, dict) else ""
+                    entry_has_guid = source_url and re.search(
+                        r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
+                    )
+                    project_unknown = (
+                        not entry_project  # Entry has no project part
+                        or not target_project  # Target has no project part
+                        or entry_has_guid  # Entry URL contains GUID (project name unknown)
+                        or (
+                            entry_project and len(entry_project) == 36 and "-" in entry_project
+                        )  # Entry project is a GUID
+                        or (
+                            target_project and len(target_project) == 36 and "-" in target_project
+                        )  # Target project is a GUID
+                    )
+
+                    if (
+                        entry_org
+                        and target_org
+                        and entry_org == target_org
+                        and (isinstance(source_tracking, dict) and source_tracking.get("source_id"))
+                        and project_unknown
+                    ):
+                        return source_tracking
+
             # If no target_repo specified or doesn't match, return the single entry
             # (for backward compatibility when no target_repo is specified)
             if not target_repo:
@@ -1591,19 +1481,415 @@ class BridgeSync:
             for entry in source_tracking:
                 if isinstance(entry, dict):
                     entry_repo = entry.get("source_repo")
+                    entry_type = entry.get("source_type", "").lower()
+
+                    # Primary match: exact source_repo match
                     if entry_repo == target_repo:
                         return entry
-                    # Backward compatibility: if no source_repo, try to extract from source_url
+
+                    # Secondary match: extract from source_url if source_repo not set
                     if not entry_repo and target_repo:
                         source_url = entry.get("source_url", "")
                         if source_url:
+                            # Try GitHub URL pattern
                             url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
                             if url_repo_match:
                                 source_repo = url_repo_match.group(1)
                                 if source_repo == target_repo:
                                     return entry
+                            # Try ADO URL pattern (but note: ADO URLs contain GUIDs, not project names)
+                            # For ADO, match by org if target_repo contains the org
+                            elif "dev.azure.com" in source_url and "/" in target_repo:
+                                target_org = target_repo.split("/")[0]
+                                ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                                # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
+                                if (
+                                    ado_org_match
+                                    and ado_org_match.group(1) == target_org
+                                    and (entry_type == "ado" or entry_type == "")
+                                ):
+                                    return entry
+
+                    # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
+                    # This prevents cross-project matches when both entry_repo and target_repo have project names
+                    if entry_repo and target_repo and entry_type == "ado":
+                        entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
+                        target_org = target_repo.split("/")[0] if "/" in target_repo else None
+                        entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
+                        target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
+
+                        # Only use org-only match when:
+                        # 1. Org matches
+                        # 2. source_id exists
+                        # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
+                        # This prevents matching org/project-a with org/project-b when both have known project names
+                        source_url = entry.get("source_url", "")
+                        entry_has_guid = source_url and re.search(
+                            r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
+                        )
+                        project_unknown = (
+                            not entry_project  # Entry has no project part
+                            or not target_project  # Target has no project part
+                            or entry_has_guid  # Entry URL contains GUID (project name unknown)
+                            or (
+                                entry_project and len(entry_project) == 36 and "-" in entry_project
+                            )  # Entry project is a GUID
+                            or (
+                                target_project and len(target_project) == 36 and "-" in target_project
+                            )  # Target project is a GUID
+                        )
+
+                        if (
+                            entry_org
+                            and target_org
+                            and entry_org == target_org
+                            and entry.get("source_id")
+                            and project_unknown
+                        ):
+                            return entry
 
         return None
+
+    @beartype
+    @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
+    @require(lambda backlog_items: isinstance(backlog_items, list), "Backlog items must be list")
+    @ensure(lambda result: isinstance(result, SyncResult), "Must return SyncResult")
+    def import_backlog_items_to_bundle(
+        self,
+        adapter_type: str,
+        bundle_name: str,
+        backlog_items: list[str],
+        adapter_kwargs: dict[str, Any] | None = None,
+    ) -> SyncResult:
+        """
+        Import selected backlog items into a project bundle.
+
+        Args:
+            adapter_type: Backlog adapter type (github, ado)
+            bundle_name: Project bundle name
+            backlog_items: Backlog item identifiers (IDs or URLs)
+            adapter_kwargs: Adapter-specific kwargs for initialization
+
+        Returns:
+            SyncResult with operation details
+        """
+        operations: list[SyncOperation] = []
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        adapter_kwargs = adapter_kwargs or {}
+        adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)
+        artifact_key_map = {"github": "github_issue", "ado": "ado_work_item"}
+        artifact_key = artifact_key_map.get(adapter_type)
+        if not artifact_key:
+            errors.append(f"Unsupported backlog adapter: {adapter_type}")
+            return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
+
+        if not hasattr(adapter, "fetch_backlog_item"):
+            errors.append(f"Adapter '{adapter_type}' does not support backlog fetch operations")
+            return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
+
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=self.repo_path, bundle_name=bundle_name)
+        if not bundle_dir.exists():
+            errors.append(f"Project bundle not found: {bundle_dir}")
+            return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
+
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        bridge_config = adapter.generate_bridge_config(self.repo_path)
+
+        for item_ref in backlog_items:
+            try:
+                item_data = adapter.fetch_backlog_item(item_ref)
+                adapter.import_artifact(artifact_key, item_data, project_bundle, bridge_config)
+                operations.append(
+                    SyncOperation(
+                        artifact_key=artifact_key,
+                        feature_id=str(item_ref),
+                        direction="import",
+                        bundle_name=bundle_name,
+                    )
+                )
+            except Exception as e:
+                errors.append(f"Failed to import backlog item '{item_ref}': {e}")
+
+        if operations:
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+        return SyncResult(
+            success=len(errors) == 0,
+            operations=operations,
+            errors=errors,
+            warnings=warnings,
+        )
+
+    @beartype
+    @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
+    @ensure(lambda result: isinstance(result, SyncResult), "Must return SyncResult")
+    def export_backlog_from_bundle(
+        self,
+        adapter_type: str,
+        bundle_name: str,
+        adapter_kwargs: dict[str, Any] | None = None,
+        update_existing: bool = False,
+        change_ids: list[str] | None = None,
+    ) -> SyncResult:
+        """
+        Export backlog items stored in a project bundle to a backlog adapter.
+
+        Args:
+            adapter_type: Backlog adapter type (github, ado)
+            bundle_name: Project bundle name
+            adapter_kwargs: Adapter-specific kwargs for initialization
+            update_existing: If True, update existing backlog items with stored content
+            change_ids: Optional list of change IDs to export (filter)
+
+        Returns:
+            SyncResult with operation details
+        """
+        from specfact_cli.models.source_tracking import SourceTracking
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        operations: list[SyncOperation] = []
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        adapter_kwargs = adapter_kwargs or {}
+        adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)
+        bridge_config = adapter.generate_bridge_config(self.repo_path)
+
+        bundle_dir = SpecFactStructure.project_dir(base_path=self.repo_path, bundle_name=bundle_name)
+        if not bundle_dir.exists():
+            errors.append(f"Project bundle not found: {bundle_dir}")
+            return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
+
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        change_tracking = project_bundle.change_tracking or project_bundle.manifest.change_tracking
+        if not change_tracking or not change_tracking.proposals:
+            warnings.append(f"No change proposals found in bundle '{bundle_name}'")
+            return SyncResult(success=True, operations=operations, errors=errors, warnings=warnings)
+
+        target_repo = None
+        if adapter_type == "github":
+            repo_owner = getattr(adapter, "repo_owner", None)
+            repo_name = getattr(adapter, "repo_name", None)
+            if repo_owner and repo_name:
+                target_repo = f"{repo_owner}/{repo_name}"
+        elif adapter_type == "ado":
+            org = getattr(adapter, "org", None)
+            project = getattr(adapter, "project", None)
+            if org and project:
+                target_repo = f"{org}/{project}"
+
+        for proposal in change_tracking.proposals.values():
+            if change_ids and proposal.name not in change_ids:
+                continue
+
+            if proposal.source_tracking is None:
+                proposal.source_tracking = SourceTracking(tool=adapter_type, source_metadata={})
+
+            entries = self._get_backlog_entries(proposal)
+            if isinstance(proposal.source_tracking.source_metadata, dict):
+                proposal.source_tracking.source_metadata["backlog_entries"] = entries
+            target_entry = None
+            if target_repo:
+                target_entry = next(
+                    (entry for entry in entries if isinstance(entry, dict) and entry.get("source_repo") == target_repo),
+                    None,
+                )
+            if not target_entry:
+                target_entry = next(
+                    (
+                        entry
+                        for entry in entries
+                        if isinstance(entry, dict)
+                        and entry.get("source_type") == adapter_type
+                        and entry.get("source_id")
+                    ),
+                    None,
+                )
+
+            proposal_dict: dict[str, Any] = {
+                "change_id": proposal.name,
+                "title": proposal.title,
+                "description": proposal.description,
+                "rationale": proposal.rationale,
+                "status": proposal.status,
+                "source_tracking": entries,
+            }
+
+            if isinstance(proposal.source_tracking.source_metadata, dict):
+                raw_title = proposal.source_tracking.source_metadata.get("raw_title")
+                raw_body = proposal.source_tracking.source_metadata.get("raw_body")
+                if raw_title:
+                    proposal_dict["raw_title"] = raw_title
+                if raw_body:
+                    proposal_dict["raw_body"] = raw_body
+
+            try:
+                if target_entry and target_entry.get("source_id"):
+                    last_synced = target_entry.get("source_metadata", {}).get("last_synced_status")
+                    if last_synced != proposal.status:
+                        adapter.export_artifact("change_status", proposal_dict, bridge_config)
+                        operations.append(
+                            SyncOperation(
+                                artifact_key="change_status",
+                                feature_id=proposal.name,
+                                direction="export",
+                                bundle_name=bundle_name,
+                            )
+                        )
+                        target_entry.setdefault("source_metadata", {})["last_synced_status"] = proposal.status
+
+                    if update_existing:
+                        export_result = adapter.export_artifact("change_proposal_update", proposal_dict, bridge_config)
+                        operations.append(
+                            SyncOperation(
+                                artifact_key="change_proposal_update",
+                                feature_id=proposal.name,
+                                direction="export",
+                                bundle_name=bundle_name,
+                            )
+                        )
+                    else:
+                        export_result = {}
+                else:
+                    export_result = adapter.export_artifact("change_proposal", proposal_dict, bridge_config)
+                    operations.append(
+                        SyncOperation(
+                            artifact_key="change_proposal",
+                            feature_id=proposal.name,
+                            direction="export",
+                            bundle_name=bundle_name,
+                        )
+                    )
+
+                # Only build backlog entry if export_result is a dict (backlog adapters return dicts)
+                # Non-backlog adapters (like SpecKit) return Path, which we skip
+                if isinstance(export_result, dict):
+                    entry_update = self._build_backlog_entry_from_result(
+                        adapter_type,
+                        target_repo,
+                        export_result,
+                        proposal.status,
+                    )
+                    if entry_update:
+                        entries = self._upsert_backlog_entry(entries, entry_update)
+                        proposal.source_tracking.source_metadata["backlog_entries"] = entries
+            except Exception as e:
+                errors.append(f"Failed to export '{proposal.name}' to {adapter_type}: {e}")
+
+        if operations:
+            save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+        return SyncResult(
+            success=len(errors) == 0,
+            operations=operations,
+            errors=errors,
+            warnings=warnings,
+        )
+
+    def _build_backlog_entry_from_result(
+        self,
+        adapter_type: str,
+        target_repo: str | None,
+        export_result: dict[str, Any],
+        status: str,
+    ) -> dict[str, Any] | None:
+        """
+        Build a backlog entry from adapter export result.
+
+        Args:
+            adapter_type: Backlog adapter type
+            target_repo: Target repository identifier
+            export_result: Adapter export response dict
+            status: Proposal status for sync metadata
+
+        Returns:
+            Backlog entry dict or None if no IDs were returned
+        """
+        if adapter_type == "github":
+            source_id = export_result.get("issue_number")
+            source_url = export_result.get("issue_url")
+        elif adapter_type == "ado":
+            source_id = export_result.get("work_item_id")
+            source_url = export_result.get("work_item_url")
+        else:
+            return None
+
+        if source_id is None:
+            return None
+
+        return {
+            "source_id": str(source_id),
+            "source_url": source_url or "",
+            "source_type": adapter_type,
+            "source_repo": target_repo or "",
+            "source_metadata": {"last_synced_status": status},
+        }
+
+    def _get_backlog_entries(self, proposal: Any) -> list[dict[str, Any]]:
+        """
+        Retrieve backlog entries stored on a change proposal.
+
+        Args:
+            proposal: ChangeProposal instance
+
+        Returns:
+            List of backlog entry dicts
+        """
+        if not hasattr(proposal, "source_tracking") or not proposal.source_tracking:
+            return []
+        source_metadata = proposal.source_tracking.source_metadata
+        if not isinstance(source_metadata, dict):
+            return []
+        entries = source_metadata.get("backlog_entries")
+        if isinstance(entries, list):
+            return [entry for entry in entries if isinstance(entry, dict)]
+
+        fallback_id = source_metadata.get("source_id")
+        fallback_url = source_metadata.get("source_url")
+        fallback_repo = source_metadata.get("source_repo", "")
+        fallback_type = source_metadata.get("source_type") or getattr(proposal.source_tracking, "tool", None)
+        if fallback_id or fallback_url:
+            return [
+                {
+                    "source_id": str(fallback_id) if fallback_id is not None else None,
+                    "source_url": fallback_url or "",
+                    "source_type": fallback_type or "",
+                    "source_repo": fallback_repo,
+                    "source_metadata": {},
+                }
+            ]
+
+        return []
+
+    def _upsert_backlog_entry(self, entries: list[dict[str, Any]], new_entry: dict[str, Any]) -> list[dict[str, Any]]:
+        """
+        Insert or update a backlog entry in the entries list.
+
+        Args:
+            entries: Existing backlog entries
+            new_entry: New or updated backlog entry
+
+        Returns:
+            Updated backlog entries list
+        """
+        new_repo = new_entry.get("source_repo")
+        new_type = new_entry.get("source_type")
+        new_id = new_entry.get("source_id")
+        for idx, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            if new_repo and entry.get("source_repo") == new_repo and entry.get("source_type") == new_type:
+                entries[idx] = {**entry, **new_entry}
+                return entries
+            if new_id and entry.get("source_id") == new_id and entry.get("source_type") == new_type:
+                entries[idx] = {**entry, **new_entry}
+                return entries
+        entries.append(new_entry)
+        return entries
 
     def _normalize_source_tracking(
         self, source_tracking: list[dict[str, Any]] | dict[str, Any] | None
@@ -1625,6 +1911,666 @@ class BridgeSync:
             return source_tracking
         return []
 
+    def _dedupe_duplicate_sections(self, text: str) -> str:
+        """
+        Remove duplicated level-2 sections (##) while preserving the first occurrence.
+
+        Args:
+            text: Markdown content to de-duplicate
+
+        Returns:
+            De-duplicated markdown content
+        """
+        if not text:
+            return text
+        parts = re.split(r"(?m)^##\s+([^\n]+)\s*\n", text)
+        if len(parts) < 3:
+            return text
+        preamble = parts[0].rstrip()
+        seen: set[str] = set()
+        blocks: list[str] = []
+        if preamble.strip():
+            blocks.append(preamble.rstrip())
+        for i in range(1, len(parts), 2):
+            header = parts[i].strip()
+            body = parts[i + 1].rstrip()
+            if header in seen:
+                continue
+            seen.add(header)
+            blocks.append(f"## {header}\n{body}".rstrip())
+        return "\n\n".join(blocks).strip()
+
+    def _verify_work_item_exists(
+        self,
+        issue_number: str | int | None,
+        target_entry: dict[str, Any] | None,
+        adapter_type: str,
+        adapter: Any,
+        ado_org: str | None,
+        ado_project: str | None,
+        proposal: dict[str, Any],
+        warnings: list[str],
+    ) -> tuple[str | int | None, bool]:
+        """
+        Verify if work item/issue exists in external tool (handles deleted items).
+
+        Args:
+            issue_number: Current issue/work item number
+            target_entry: Source tracking entry
+            adapter_type: Adapter type (github, ado, etc.)
+            adapter: Adapter instance
+            ado_org: ADO organization (for ADO adapter)
+            ado_project: ADO project (for ADO adapter)
+            proposal: Change proposal dict
+            warnings: Warnings list to append to
+
+        Returns:
+            Tuple of (issue_number, work_item_was_deleted)
+        """
+        work_item_was_deleted = False
+
+        if issue_number and target_entry:
+            entry_type = target_entry.get("source_type", "").lower()
+
+            # For ADO, verify work item exists (it might have been deleted)
+            if (
+                entry_type == "ado"
+                and adapter_type.lower() == "ado"
+                and ado_org
+                and ado_project
+                and hasattr(adapter, "_work_item_exists")
+            ):
+                try:
+                    work_item_exists = adapter._work_item_exists(issue_number, ado_org, ado_project)
+                    if not work_item_exists:
+                        # Work item was deleted - clear source_id to allow recreation
+                        warnings.append(
+                            f"Work item #{issue_number} for '{proposal.get('change_id', 'unknown')}' "
+                            f"no longer exists in ADO (may have been deleted). "
+                            f"Will create a new work item."
+                        )
+                        # Clear source_id to allow creation of new work item
+                        issue_number = None
+                        work_item_was_deleted = True
+                except Exception as e:
+                    # On error checking existence, log warning but allow creation (safer)
+                    warnings.append(f"Could not verify work item #{issue_number} existence: {e}. Proceeding with sync.")
+
+        return issue_number, work_item_was_deleted
+
+    def _search_existing_github_issue(
+        self,
+        change_id: str,
+        repo_owner: str,
+        repo_name: str,
+        target_repo: str | None,
+        warnings: list[str],
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        """
+        Search for existing GitHub issue by change proposal ID.
+
+        Args:
+            change_id: Change proposal ID
+            repo_owner: GitHub repository owner
+            repo_name: GitHub repository name
+            target_repo: Target repository identifier
+            warnings: Warnings list to append to
+
+        Returns:
+            Tuple of (target_entry, issue_number) if found, (None, None) otherwise
+        """
+        try:
+            import requests
+
+            from specfact_cli.adapters.registry import AdapterRegistry
+
+            adapter_instance = AdapterRegistry.get_adapter("github")
+            if adapter_instance and hasattr(adapter_instance, "api_token") and adapter_instance.api_token:
+                # Search for issues containing the change proposal ID in the footer
+                search_url = f"{adapter_instance.base_url}/search/issues"
+                search_query = f'repo:{repo_owner}/{repo_name} "OpenSpec Change Proposal: `{change_id}`" in:body'
+                headers = {
+                    "Authorization": f"token {adapter_instance.api_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                }
+                params = {"q": search_query}
+                search_response = requests.get(search_url, headers=headers, params=params, timeout=30)
+                if search_response.status_code == 200:
+                    search_results = search_response.json()
+                    items = search_results.get("items", [])
+                    if items:
+                        # Found existing issue - use it instead of creating a new one
+                        existing_issue = items[0]  # Use the first match
+                        existing_issue_number = existing_issue.get("number")
+                        existing_issue_url = existing_issue.get("html_url", "")
+                        warnings.append(
+                            f"Found existing GitHub issue #{existing_issue_number} for change proposal '{change_id}'. "
+                            f"Will update it instead of creating a new issue."
+                        )
+                        # Create source_tracking entry for the found issue
+                        target_entry = {
+                            "source_type": "github",
+                            "source_id": str(existing_issue_number),
+                            "source_url": existing_issue_url,
+                            "source_repo": target_repo or f"{repo_owner}/{repo_name}",
+                            "source_metadata": {},
+                        }
+                        return target_entry, str(existing_issue_number)
+        except Exception as e:
+            # If search fails, proceed with creation (safer than blocking)
+            warnings.append(
+                f"Could not search for existing GitHub issue for '{change_id}': {e}. Proceeding with creation."
+            )
+
+        return None, None
+
+    def _update_existing_issue(
+        self,
+        proposal: dict[str, Any],
+        target_entry: dict[str, Any],
+        issue_number: str | int,
+        adapter: Any,
+        adapter_type: str,
+        target_repo: str | None,
+        source_tracking_list: list[dict[str, Any]],
+        source_tracking_raw: dict[str, Any] | list[dict[str, Any]],
+        repo_owner: str | None,
+        repo_name: str | None,
+        ado_org: str | None,
+        ado_project: str | None,
+        update_existing: bool,
+        import_from_tmp: bool,
+        tmp_file: Path | None,
+        should_sanitize: bool | None,
+        track_code_changes: bool,
+        add_progress_comment: bool,
+        code_repo_path: Path | None,
+        operations: list[Any],
+        errors: list[str],
+        warnings: list[str],
+    ) -> None:
+        """
+        Update existing issue/work item with new status, metadata, and content.
+
+        Args:
+            proposal: Change proposal dict
+            target_entry: Source tracking entry for this repository
+            issue_number: Issue/work item number
+            adapter: Adapter instance
+            adapter_type: Adapter type (github, ado, etc.)
+            target_repo: Target repository identifier
+            source_tracking_list: Normalized source tracking list
+            source_tracking_raw: Original source tracking (dict or list)
+            repo_owner: Repository owner (for GitHub)
+            repo_name: Repository name (for GitHub)
+            ado_org: ADO organization (for ADO)
+            ado_project: ADO project (for ADO)
+            update_existing: Whether to update content when hash changes
+            import_from_tmp: Whether importing from temporary file
+            tmp_file: Temporary file path
+            should_sanitize: Whether to sanitize content
+            operations: Operations list to append to
+            errors: Errors list to append to
+            warnings: Warnings list to append to
+        """
+        # Issue exists - check if status changed or metadata needs update
+        source_metadata = target_entry.get("source_metadata", {})
+        if not isinstance(source_metadata, dict):
+            source_metadata = {}
+        last_synced_status = source_metadata.get("last_synced_status")
+        current_status = proposal.get("status")
+
+        if last_synced_status != current_status:
+            # Status changed - update issue
+            adapter.export_artifact(
+                artifact_key="change_status",
+                artifact_data=proposal,
+                bridge_config=self.bridge_config,
+            )
+            # Track status update operation
+            operations.append(
+                SyncOperation(
+                    artifact_key="change_status",
+                    feature_id=proposal.get("change_id", "unknown"),
+                    direction="export",
+                    bundle_name="openspec",
+                )
+            )
+
+        # Always update metadata to ensure it reflects the current sync operation
+        source_metadata = target_entry.get("source_metadata", {})
+        if not isinstance(source_metadata, dict):
+            source_metadata = {}
+        updated_entry = {
+            **target_entry,
+            "source_metadata": {
+                **source_metadata,
+                "last_synced_status": current_status,
+                "sanitized": should_sanitize if should_sanitize is not None else False,
+            },
+        }
+
+        # Always update source_tracking metadata to reflect current sync operation
+        if target_repo:
+            source_tracking_list = self._update_source_tracking_entry(source_tracking_list, target_repo, updated_entry)
+            proposal["source_tracking"] = source_tracking_list
+        else:
+            # Backward compatibility: update single dict entry directly
+            if isinstance(source_tracking_raw, dict):
+                proposal["source_tracking"] = updated_entry
+            else:
+                # List of entries - update the matching entry
+                for i, entry in enumerate(source_tracking_list):
+                    if isinstance(entry, dict):
+                        entry_id = entry.get("source_id")
+                        entry_repo = entry.get("source_repo")
+                        updated_id = updated_entry.get("source_id")
+                        updated_repo = updated_entry.get("source_repo")
+
+                        if (entry_id and entry_id == updated_id) or (entry_repo and entry_repo == updated_repo):
+                            source_tracking_list[i] = updated_entry
+                            break
+                proposal["source_tracking"] = source_tracking_list
+
+        # Track metadata update operation (even if status didn't change)
+        if last_synced_status == current_status:
+            operations.append(
+                SyncOperation(
+                    artifact_key="change_proposal_metadata",
+                    feature_id=proposal.get("change_id", "unknown"),
+                    direction="export",
+                    bundle_name="openspec",
+                )
+            )
+
+        # Check if content changed (when update_existing is enabled)
+        if update_existing:
+            self._update_issue_content_if_needed(
+                proposal,
+                target_entry,
+                issue_number,
+                adapter,
+                adapter_type,
+                target_repo,
+                source_tracking_list,
+                repo_owner,
+                repo_name,
+                ado_org,
+                ado_project,
+                import_from_tmp,
+                tmp_file,
+                operations,
+                errors,
+            )
+
+        # Code change tracking and progress comments (when enabled)
+        if track_code_changes or add_progress_comment:
+            self._handle_code_change_tracking(
+                proposal,
+                target_entry,
+                target_repo,
+                source_tracking_list,
+                adapter,
+                track_code_changes,
+                add_progress_comment,
+                code_repo_path,
+                should_sanitize,
+                operations,
+                errors,
+                warnings,
+            )
+
+    def _update_issue_content_if_needed(
+        self,
+        proposal: dict[str, Any],
+        target_entry: dict[str, Any],
+        issue_number: str | int,
+        adapter: Any,
+        adapter_type: str,
+        target_repo: str | None,
+        source_tracking_list: list[dict[str, Any]],
+        repo_owner: str | None,
+        repo_name: str | None,
+        ado_org: str | None,
+        ado_project: str | None,
+        import_from_tmp: bool,
+        tmp_file: Path | None,
+        operations: list[Any],
+        errors: list[str],
+    ) -> None:
+        """
+        Update issue/work item content if hash changed or title needs update.
+
+        Args:
+            proposal: Change proposal dict
+            target_entry: Source tracking entry
+            issue_number: Issue/work item number
+            adapter: Adapter instance
+            adapter_type: Adapter type
+            target_repo: Target repository identifier
+            source_tracking_list: Source tracking list
+            repo_owner: Repository owner (for GitHub)
+            repo_name: Repository name (for GitHub)
+            ado_org: ADO organization (for ADO)
+            ado_project: ADO project (for ADO)
+            import_from_tmp: Whether importing from temporary file
+            tmp_file: Temporary file path
+            operations: Operations list to append to
+            errors: Errors list to append to
+        """
+        # Handle sanitized content updates (when import_from_tmp is used)
+        if import_from_tmp:
+            change_id = proposal.get("change_id", "unknown")
+            sanitized_file = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+            if sanitized_file.exists():
+                sanitized_content = sanitized_file.read_text(encoding="utf-8")
+                proposal_for_hash = {
+                    "rationale": "",
+                    "description": sanitized_content,
+                }
+                current_hash = self._calculate_content_hash(proposal_for_hash)
+            else:
+                current_hash = self._calculate_content_hash(proposal)
+        else:
+            current_hash = self._calculate_content_hash(proposal)
+
+        # Get stored hash from target repository entry
+        stored_hash = None
+        source_metadata = target_entry.get("source_metadata", {})
+        if isinstance(source_metadata, dict):
+            stored_hash = source_metadata.get("content_hash")
+
+        # Check if title or state needs update
+        current_issue_title = None
+        current_issue_state = None
+        needs_title_update = False
+        needs_state_update = False
+        if target_entry:
+            issue_num = target_entry.get("source_id")
+            if issue_num:
+                try:
+                    from specfact_cli.adapters.registry import AdapterRegistry
+
+                    adapter_instance = AdapterRegistry.get_adapter(adapter_type)
+                    if adapter_instance and hasattr(adapter_instance, "api_token"):
+                        proposal_title = proposal.get("title", "")
+                        proposal_status = proposal.get("status", "proposed")
+
+                        if adapter_type.lower() == "github":
+                            import requests
+
+                            url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_num}"
+                            headers = {
+                                "Authorization": f"token {adapter_instance.api_token}",
+                                "Accept": "application/vnd.github.v3+json",
+                            }
+                            response = requests.get(url, headers=headers, timeout=30)
+                            response.raise_for_status()
+                            issue_data = response.json()
+                            current_issue_title = issue_data.get("title", "")
+                            current_issue_state = issue_data.get("state", "open")
+                            needs_title_update = (
+                                current_issue_title and proposal_title and current_issue_title != proposal_title
+                            )
+                            should_close = proposal_status in ("applied", "deprecated", "discarded")
+                            desired_state = "closed" if should_close else "open"
+                            needs_state_update = current_issue_state != desired_state
+                        elif adapter_type.lower() == "ado":
+                            if hasattr(adapter_instance, "_get_work_item_data") and ado_org and ado_project:
+                                work_item_data = adapter_instance._get_work_item_data(issue_num, ado_org, ado_project)
+                                if work_item_data:
+                                    current_issue_title = work_item_data.get("title", "")
+                                    current_issue_state = work_item_data.get("state", "")
+                                    needs_title_update = (
+                                        current_issue_title and proposal_title and current_issue_title != proposal_title
+                                    )
+                                    desired_ado_state = adapter_instance.map_openspec_status_to_backlog(proposal_status)
+                                    needs_state_update = current_issue_state != desired_ado_state
+                except Exception:
+                    pass
+
+        # Check if we need to add a comment for applied status
+        needs_comment_for_applied = False
+        if proposal.get("status") == "applied" and target_entry:
+            issue_num = target_entry.get("source_id")
+            if issue_num and adapter_type.lower() == "github":
+                try:
+                    import requests
+
+                    from specfact_cli.adapters.registry import AdapterRegistry
+
+                    adapter_instance = AdapterRegistry.get_adapter(adapter_type)
+                    if adapter_instance and hasattr(adapter_instance, "api_token") and adapter_instance.api_token:
+                        url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_num}"
+                        headers = {
+                            "Authorization": f"token {adapter_instance.api_token}",
+                            "Accept": "application/vnd.github.v3+json",
+                        }
+                        response = requests.get(url, headers=headers, timeout=30)
+                        response.raise_for_status()
+                        issue_data = response.json()
+                        current_issue_state = issue_data.get("state", "open")
+                        if current_issue_state == "closed":
+                            needs_comment_for_applied = True
+                except Exception:
+                    pass
+
+        if stored_hash != current_hash or needs_title_update or needs_state_update or needs_comment_for_applied:
+            # Content changed, title needs update, state needs update, or need to add comment
+            try:
+                if import_from_tmp:
+                    change_id = proposal.get("change_id", "unknown")
+                    sanitized_file = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+                    if sanitized_file.exists():
+                        sanitized_content = sanitized_file.read_text(encoding="utf-8")
+                        proposal_for_update = {
+                            **proposal,
+                            "description": sanitized_content,
+                            "rationale": "",
+                        }
+                    else:
+                        proposal_for_update = proposal
+                else:
+                    proposal_for_update = proposal
+
+                # Determine code repository path for branch verification
+                code_repo_path = None
+                if repo_owner and repo_name:
+                    code_repo_path = self._find_code_repo_path(repo_owner, repo_name)
+
+                if needs_comment_for_applied and not (
+                    stored_hash != current_hash or needs_title_update or needs_state_update
+                ):
+                    # Only add comment, no body/state update
+                    proposal_with_repo = {
+                        **proposal_for_update,
+                        "_code_repo_path": str(code_repo_path) if code_repo_path else None,
+                    }
+                    adapter.export_artifact(
+                        artifact_key="change_proposal_comment",
+                        artifact_data=proposal_with_repo,
+                        bridge_config=self.bridge_config,
+                    )
+                else:
+                    # Add code repository path to artifact_data for branch verification
+                    proposal_with_repo = {
+                        **proposal_for_update,
+                        "_code_repo_path": str(code_repo_path) if code_repo_path else None,
+                    }
+                    adapter.export_artifact(
+                        artifact_key="change_proposal_update",
+                        artifact_data=proposal_with_repo,
+                        bridge_config=self.bridge_config,
+                    )
+
+                # Update stored hash in target repository entry
+                if target_entry:
+                    source_metadata = target_entry.get("source_metadata", {})
+                    if not isinstance(source_metadata, dict):
+                        source_metadata = {}
+                    updated_entry = {
+                        **target_entry,
+                        "source_metadata": {
+                            **source_metadata,
+                            "content_hash": current_hash,
+                        },
+                    }
+                    if target_repo:
+                        source_tracking_list = self._update_source_tracking_entry(
+                            source_tracking_list, target_repo, updated_entry
+                        )
+                        proposal["source_tracking"] = source_tracking_list
+
+                operations.append(
+                    SyncOperation(
+                        artifact_key="change_proposal_update",
+                        feature_id=proposal.get("change_id", "unknown"),
+                        direction="export",
+                        bundle_name="openspec",
+                    )
+                )
+            except Exception as e:
+                errors.append(f"Failed to update issue body for {proposal.get('change_id', 'unknown')}: {e}")
+
+    def _handle_code_change_tracking(
+        self,
+        proposal: dict[str, Any],
+        target_entry: dict[str, Any] | None,
+        target_repo: str | None,
+        source_tracking_list: list[dict[str, Any]],
+        adapter: Any,
+        track_code_changes: bool,
+        add_progress_comment: bool,
+        code_repo_path: Path | None,
+        should_sanitize: bool | None,
+        operations: list[Any],
+        errors: list[str],
+        warnings: list[str],
+    ) -> None:
+        """
+        Handle code change tracking and add progress comments if enabled.
+        """
+        from specfact_cli.utils.code_change_detector import (
+            calculate_comment_hash,
+            detect_code_changes,
+            format_progress_comment,
+        )
+
+        change_id = proposal.get("change_id", "unknown")
+        progress_data: dict[str, Any] = {}
+
+        if track_code_changes:
+            try:
+                last_detection = None
+                if target_entry:
+                    source_metadata = target_entry.get("source_metadata", {})
+                    if isinstance(source_metadata, dict):
+                        last_detection = source_metadata.get("last_code_change_detected")
+
+                code_repo = code_repo_path if code_repo_path else self.repo_path
+                code_changes = detect_code_changes(
+                    repo_path=code_repo,
+                    change_id=change_id,
+                    since_timestamp=last_detection,
+                )
+
+                if code_changes.get("has_changes"):
+                    progress_data = code_changes
+                else:
+                    return  # No code changes detected
+
+            except Exception as e:
+                errors.append(f"Failed to detect code changes for {change_id}: {e}")
+                return
+
+        if add_progress_comment and not progress_data:
+            from datetime import UTC, datetime
+
+            progress_data = {
+                "summary": "Manual progress update",
+                "detection_timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            }
+
+        if progress_data:
+            comment_text = format_progress_comment(
+                progress_data, sanitize=should_sanitize if should_sanitize is not None else False
+            )
+            comment_hash = calculate_comment_hash(comment_text)
+
+            progress_comments = []
+            if target_entry:
+                source_metadata = target_entry.get("source_metadata", {})
+                if isinstance(source_metadata, dict):
+                    progress_comments = source_metadata.get("progress_comments", [])
+
+            is_duplicate = False
+            if isinstance(progress_comments, list):
+                for existing_comment in progress_comments:
+                    if isinstance(existing_comment, dict):
+                        existing_hash = existing_comment.get("comment_hash")
+                        if existing_hash == comment_hash:
+                            is_duplicate = True
+                            break
+
+            if not is_duplicate:
+                try:
+                    proposal_with_progress = {
+                        **proposal,
+                        "source_tracking": source_tracking_list,
+                        "progress_data": progress_data,
+                        "sanitize": should_sanitize if should_sanitize is not None else False,
+                    }
+                    adapter.export_artifact(
+                        artifact_key="code_change_progress",
+                        artifact_data=proposal_with_progress,
+                        bridge_config=self.bridge_config,
+                    )
+
+                    if target_entry:
+                        source_metadata = target_entry.get("source_metadata", {})
+                        if not isinstance(source_metadata, dict):
+                            source_metadata = {}
+                        progress_comments = source_metadata.get("progress_comments", [])
+                        if not isinstance(progress_comments, list):
+                            progress_comments = []
+
+                        progress_comments.append(
+                            {
+                                "comment_hash": comment_hash,
+                                "timestamp": progress_data.get("detection_timestamp"),
+                                "summary": progress_data.get("summary", ""),
+                            }
+                        )
+
+                        updated_entry = {
+                            **target_entry,
+                            "source_metadata": {
+                                **source_metadata,
+                                "progress_comments": progress_comments,
+                                "last_code_change_detected": progress_data.get("detection_timestamp"),
+                            },
+                        }
+
+                        if target_repo:
+                            source_tracking_list = self._update_source_tracking_entry(
+                                source_tracking_list, target_repo, updated_entry
+                            )
+                            proposal["source_tracking"] = source_tracking_list
+
+                    operations.append(
+                        SyncOperation(
+                            artifact_key="code_change_progress",
+                            feature_id=change_id,
+                            direction="export",
+                            bundle_name="openspec",
+                        )
+                    )
+                    self._save_openspec_change_proposal(proposal)
+                except Exception as e:
+                    errors.append(f"Failed to add progress comment for {change_id}: {e}")
+            else:
+                warnings.append(f"Skipped duplicate progress comment for {change_id}")
+
     def _update_source_tracking_entry(
         self,
         source_tracking_list: list[dict[str, Any]],
@@ -1642,15 +2588,46 @@ class BridgeSync:
         Returns:
             Updated list of source tracking entries
         """
-        # Ensure source_repo is set
-        entry_data["source_repo"] = target_repo
+        # Ensure source_repo is set in entry_data
+        if "source_repo" not in entry_data:
+            entry_data["source_repo"] = target_repo
+
+        entry_type = entry_data.get("source_type", "").lower()
+        new_source_id = entry_data.get("source_id")
 
         # Find existing entry for this repo
         for i, entry in enumerate(source_tracking_list):
-            if isinstance(entry, dict) and entry.get("source_repo") == target_repo:
+            if not isinstance(entry, dict):
+                continue
+
+            entry_repo = entry.get("source_repo")
+            entry_type_existing = entry.get("source_type", "").lower()
+
+            # Primary match: exact source_repo match
+            if entry_repo == target_repo:
                 # Update existing entry
                 source_tracking_list[i] = {**entry, **entry_data}
                 return source_tracking_list
+
+            # Secondary match: for ADO, match by org + source_id if project name differs
+            # This handles cases where ADO URLs contain GUIDs instead of project names
+            if entry_type == "ado" and entry_type_existing == "ado" and entry_repo and target_repo:
+                entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
+                target_org = target_repo.split("/")[0] if "/" in target_repo else None
+                entry_source_id = entry.get("source_id")
+
+                if entry_org and target_org and entry_org == target_org:
+                    # Org matches
+                    if entry_source_id and new_source_id and entry_source_id == new_source_id:
+                        # Same work item - update existing entry
+                        source_tracking_list[i] = {**entry, **entry_data}
+                        return source_tracking_list
+                    # Org matches but different/no source_id - update repo identifier to match target
+                    # This handles project name changes or encoding differences
+                    updated_entry = {**entry, **entry_data}
+                    updated_entry["source_repo"] = target_repo  # Update to correct repo identifier
+                    source_tracking_list[i] = updated_entry
+                    return source_tracking_list
 
         # No existing entry found - add new one
         source_tracking_list.append(entry_data)
@@ -1682,9 +2659,15 @@ class BridgeSync:
             entry["source_url"] = url_match.group(1)
             # If no repo_name provided, try to extract from URL
             if not repo_name:
+                # Try GitHub URL pattern
                 url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", entry["source_url"])
                 if url_repo_match:
                     entry["source_repo"] = url_repo_match.group(1)
+                else:
+                    # Try ADO URL pattern: dev.azure.com/{org}/{project}/...
+                    ado_repo_match = re.search(r"dev\.azure\.com/([^/]+)/([^/]+)/", entry["source_url"])
+                    if ado_repo_match:
+                        entry["source_repo"] = f"{ado_repo_match.group(1)}/{ado_repo_match.group(2)}"
 
         # Extract source type
         type_match = re.search(r"\*\*(\w+)\s+Issue\*\*:", entry_content)
@@ -1732,6 +2715,18 @@ class BridgeSync:
             if "source_metadata" not in entry:
                 entry["source_metadata"] = {}
             entry["source_metadata"]["last_code_change_detected"] = last_detection_match.group(1)
+
+        # Extract source_repo from hidden comment (for single entries)
+        # This is critical for ADO where URLs contain GUIDs instead of project names
+        source_repo_match = re.search(r"<!--\s*source_repo:\s*([^>]+?)\s*-->", entry_content)
+        if source_repo_match:
+            entry["source_repo"] = source_repo_match.group(1).strip()
+        # Also check for source_repo in the content itself (might be in a comment or elsewhere)
+        elif not entry.get("source_repo"):
+            # Try to find it in the content as a fallback
+            source_repo_in_content = re.search(r"source_repo[:\s]+([^\n]+)", entry_content, re.IGNORECASE)
+            if source_repo_in_content:
+                entry["source_repo"] = source_repo_in_content.group(1).strip()
 
         # Only return entry if it has at least source_id or source_url
         if entry.get("source_id") or entry.get("source_url"):
@@ -1839,10 +2834,15 @@ class BridgeSync:
                     continue
 
                 # Add repository header if multiple entries or if source_repo is present
+                # Always include source_repo for ADO to ensure proper matching (ADO URLs contain GUIDs, not project names)
                 source_repo = entry.get("source_repo")
-                if source_repo and (len(source_tracking_list) > 1 or i > 0):
-                    metadata_lines.append(f"### Repository: {source_repo}")
-                    metadata_lines.append("")
+                if source_repo:
+                    if len(source_tracking_list) > 1 or i > 0:
+                        metadata_lines.append(f"### Repository: {source_repo}")
+                        metadata_lines.append("")
+                    # For single entries, save source_repo as a hidden comment for matching
+                    elif len(source_tracking_list) == 1:
+                        metadata_lines.append(f"<!-- source_repo: {source_repo} -->")
 
                 source_type_raw = entry.get("source_type", "unknown")
                 source_type_display = source_type_capitalization.get(source_type_raw.lower(), "Unknown")
@@ -1892,6 +2892,96 @@ class BridgeSync:
 
             metadata_lines.append("")
             metadata_section = "\n".join(metadata_lines)
+
+            # Update title, description, and rationale if they're provided in the proposal
+            # This ensures the proposal.md file stays in sync with the proposal data
+            title = proposal.get("title")
+            description = proposal.get("description", "")
+            rationale = proposal.get("rationale", "")
+
+            if title:
+                # Update title line (# Change: ...)
+                title_pattern = r"^#\s+Change:\s*.*$"
+                if re.search(title_pattern, content, re.MULTILINE):
+                    content = re.sub(title_pattern, f"# Change: {title}", content, flags=re.MULTILINE)
+                else:
+                    # Title line doesn't exist, add it at the beginning
+                    content = f"# Change: {title}\n\n{content}"
+
+            # Update Why section - use more precise pattern to stop at correct boundaries
+            if rationale:
+                rationale_clean = rationale.strip()
+                if "## Why" in content:
+                    # Replace existing Why section - stop at next ## section (not Why) or ---\n\n## Source Tracking
+                    # Pattern: ## Why\n...content... until next ## (excluding Why) or ---\n\n## Source Tracking
+                    why_pattern = r"(##\s+Why\s*\n)(.*?)(?=\n##\s+(?!Why\s)|(?:\n---\s*\n\s*##\s+Source\s+Tracking)|\Z)"
+                    if re.search(why_pattern, content, re.DOTALL | re.IGNORECASE):
+                        # Replace content but preserve header
+                        content = re.sub(
+                            why_pattern, r"\1\n" + rationale_clean + r"\n", content, flags=re.DOTALL | re.IGNORECASE
+                        )
+                    else:
+                        # Fallback: simpler pattern
+                        why_pattern_simple = r"(##\s+Why\s*\n)(.*?)(?=\n##\s+|\Z)"
+                        content = re.sub(
+                            why_pattern_simple,
+                            r"\1\n" + rationale_clean + r"\n",
+                            content,
+                            flags=re.DOTALL | re.IGNORECASE,
+                        )
+                else:
+                    # Why section doesn't exist, add it before What Changes or Source Tracking
+                    insert_before = re.search(r"(##\s+(What Changes|Source Tracking))", content, re.IGNORECASE)
+                    if insert_before:
+                        insert_pos = insert_before.start()
+                        content = content[:insert_pos] + f"## Why\n\n{rationale_clean}\n\n" + content[insert_pos:]
+                    else:
+                        # No sections found, add at end (before Source Tracking if it exists)
+                        if "## Source Tracking" in content:
+                            content = content.replace(
+                                "## Source Tracking", f"## Why\n\n{rationale_clean}\n\n## Source Tracking"
+                            )
+                        else:
+                            content = f"{content}\n\n## Why\n\n{rationale_clean}\n"
+
+            # Update What Changes section - use more precise pattern to stop at correct boundaries
+            if description:
+                description_clean = self._dedupe_duplicate_sections(description.strip())
+                if "## What Changes" in content:
+                    # Replace existing What Changes section - stop at Source Tracking or end
+                    what_pattern = r"(##\s+What\s+Changes\s*\n)(.*?)(?=(?:\n---\s*\n\s*##\s+Source\s+Tracking)|\Z)"
+                    if re.search(what_pattern, content, re.DOTALL | re.IGNORECASE):
+                        content = re.sub(
+                            what_pattern,
+                            r"\1\n" + description_clean + r"\n",
+                            content,
+                            flags=re.DOTALL | re.IGNORECASE,
+                        )
+                    else:
+                        what_pattern_simple = (
+                            r"(##\s+What\s+Changes\s*\n)(.*?)(?=(?:\n---\s*\n\s*##\s+Source\s+Tracking)|\Z)"
+                        )
+                        content = re.sub(
+                            what_pattern_simple,
+                            r"\1\n" + description_clean + r"\n",
+                            content,
+                            flags=re.DOTALL | re.IGNORECASE,
+                        )
+                else:
+                    # What Changes section doesn't exist, add it after Why or before Source Tracking
+                    insert_after_why = re.search(r"(##\s+Why\s*\n.*?\n)(?=##\s+|$)", content, re.DOTALL | re.IGNORECASE)
+                    if insert_after_why:
+                        insert_pos = insert_after_why.end()
+                        content = (
+                            content[:insert_pos] + f"## What Changes\n\n{description_clean}\n\n" + content[insert_pos:]
+                        )
+                    elif "## Source Tracking" in content:
+                        content = content.replace(
+                            "## Source Tracking",
+                            f"## What Changes\n\n{description_clean}\n\n## Source Tracking",
+                        )
+                    else:
+                        content = f"{content}\n\n## What Changes\n\n{description_clean}\n"
 
             # Check if metadata section already exists
             if "## Source Tracking" in content:

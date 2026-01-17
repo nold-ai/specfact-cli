@@ -9,6 +9,7 @@ bridge architecture.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,41 @@ def _is_test_mode() -> bool:
     import sys
 
     return any("pytest" in arg or "test" in arg.lower() for arg in sys.argv) or "pytest" in sys.modules
+
+
+@beartype
+@require(lambda selection: isinstance(selection, str), "Selection must be string")
+@ensure(lambda result: isinstance(result, list), "Must return list")
+def _parse_backlog_selection(selection: str) -> list[str]:
+    """Parse backlog selection string into a list of IDs/URLs."""
+    if not selection:
+        return []
+    parts = re.split(r"[,\n\r]+", selection)
+    return [part.strip() for part in parts if part.strip()]
+
+
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repo must be Path")
+@ensure(lambda result: result is None or isinstance(result, str), "Must return None or string")
+def _infer_bundle_name(repo: Path) -> str | None:
+    """Infer bundle name from active config or single bundle directory."""
+    from specfact_cli.utils.structure import SpecFactStructure
+
+    active_bundle = SpecFactStructure.get_active_bundle_name(repo)
+    if active_bundle:
+        return active_bundle
+
+    projects_dir = repo / SpecFactStructure.PROJECTS
+    if projects_dir.exists():
+        candidates = [
+            bundle_dir.name
+            for bundle_dir in projects_dir.iterdir()
+            if bundle_dir.is_dir() and (bundle_dir / "bundle.manifest.yaml").exists()
+        ]
+        if len(candidates) == 1:
+            return candidates[0]
+
+    return None
 
 
 @beartype
@@ -928,7 +964,7 @@ def sync_bridge(
     bundle: str | None = typer.Option(
         None,
         "--bundle",
-        help="Project bundle name for SpecFact → tool conversion (default: auto-detect)",
+        help="Project bundle name for SpecFact → tool conversion (default: auto-detect). Required for cross-adapter sync to preserve lossless content.",
     ),
     # Behavior/Options
     bidirectional: bool = typer.Option(
@@ -939,7 +975,7 @@ def sync_bridge(
     mode: str | None = typer.Option(
         None,
         "--mode",
-        help="Sync mode: 'read-only' (OpenSpec → SpecFact), 'export-only' (SpecFact → DevOps), 'import-annotation' (DevOps → SpecFact). Default: bidirectional if --bidirectional, else unidirectional",
+        help="Sync mode: 'read-only' (OpenSpec → SpecFact), 'export-only' (SpecFact → DevOps), 'bidirectional' (tool ↔ SpecFact). Default: bidirectional if --bidirectional, else unidirectional. For backlog adapters (github/ado), use 'export-only' with --bundle for cross-adapter sync.",
     ),
     overwrite: bool = typer.Option(
         False,
@@ -960,19 +996,19 @@ def sync_bridge(
     adapter: str = typer.Option(
         "speckit",
         "--adapter",
-        help="Adapter type: speckit, openspec, generic-markdown, github (available), ado, linear, jira, notion (future). Default: auto-detect",
+        help="Adapter type: speckit, openspec, generic-markdown, github (available), ado (available), linear, jira, notion (future). Default: auto-detect. Use 'github' or 'ado' for backlog sync with cross-adapter capabilities (requires --bundle for lossless sync).",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
     repo_owner: str | None = typer.Option(
         None,
         "--repo-owner",
-        help="GitHub repository owner (for GitHub adapter)",
+        help="GitHub repository owner (for GitHub adapter). Required for GitHub backlog sync.",
         hidden=True,
     ),
     repo_name: str | None = typer.Option(
         None,
         "--repo-name",
-        help="GitHub repository name (for GitHub adapter)",
+        help="GitHub repository name (for GitHub adapter). Required for GitHub backlog sync.",
         hidden=True,
     ),
     external_base_path: Path | None = typer.Option(
@@ -992,6 +1028,36 @@ def sync_bridge(
         True,
         "--use-gh-cli/--no-gh-cli",
         help="Use GitHub CLI (`gh auth token`) to get token automatically (default: True). Useful in enterprise environments where PAT creation is restricted.",
+        hidden=True,
+    ),
+    ado_org: str | None = typer.Option(
+        None,
+        "--ado-org",
+        help="Azure DevOps organization (for ADO adapter). Required for ADO backlog sync.",
+        hidden=True,
+    ),
+    ado_project: str | None = typer.Option(
+        None,
+        "--ado-project",
+        help="Azure DevOps project (for ADO adapter). Required for ADO backlog sync.",
+        hidden=True,
+    ),
+    ado_base_url: str | None = typer.Option(
+        None,
+        "--ado-base-url",
+        help="Azure DevOps base URL (for ADO adapter, defaults to https://dev.azure.com). Use for Azure DevOps Server (on-prem).",
+        hidden=True,
+    ),
+    ado_token: str | None = typer.Option(
+        None,
+        "--ado-token",
+        help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided). Requires Work Items (Read & Write) permissions.",
+        hidden=True,
+    ),
+    ado_work_item_type: str | None = typer.Option(
+        None,
+        "--ado-work-item-type",
+        help="Azure DevOps work item type (for ADO adapter, derived from process template if not provided). Examples: 'User Story', 'Product Backlog Item', 'Bug'.",
         hidden=True,
     ),
     sanitize: bool | None = typer.Option(
@@ -1015,8 +1081,20 @@ def sync_bridge(
     change_ids: str | None = typer.Option(
         None,
         "--change-ids",
-        help="Comma-separated list of change proposal IDs to export (default: all active proposals). Example: 'add-feature-x,update-api'",
-        hidden=True,
+        help="Comma-separated list of change proposal IDs to export (default: all active proposals). Use with --bundle for cross-adapter export. Example: 'add-feature-x,update-api'. Find change IDs in import output or bundle directory.",
+    ),
+    backlog_ids: str | None = typer.Option(
+        None,
+        "--backlog-ids",
+        help="Comma-separated list of backlog item IDs or URLs to import (GitHub/ADO). Use with --bundle to store lossless content for cross-adapter sync. Example: '123,456' or 'https://github.com/org/repo/issues/123'",
+    ),
+    backlog_ids_file: Path | None = typer.Option(
+        None,
+        "--backlog-ids-file",
+        help="Path to file containing backlog item IDs/URLs (one per line or comma-separated).",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
     ),
     export_to_tmp: bool = typer.Option(
         False,
@@ -1085,35 +1163,70 @@ def sync_bridge(
     - generic-markdown: Generic markdown-based specifications - import & sync
     - openspec: OpenSpec integration (openspec/) - read-only sync (Phase 1)
     - github: GitHub Issues - bidirectional sync (import issues as change proposals, export proposals as issues)
-    - ado: Azure DevOps Work Items (future) - planned
+    - ado: Azure DevOps Work Items - bidirectional sync (import work items as change proposals, export proposals as work items)
     - linear: Linear Issues (future) - planned
     - jira: Jira Issues (future) - planned
     - notion: Notion pages (future) - planned
 
     **Sync Modes:**
     - read-only: OpenSpec → SpecFact (read specs, no writes) - OpenSpec adapter only
-    - bidirectional: Full two-way sync (tool ↔ SpecFact) - Spec-Kit and GitHub adapters
+    - bidirectional: Full two-way sync (tool ↔ SpecFact) - Spec-Kit, GitHub, and ADO adapters
       - GitHub: Import issues as change proposals, export proposals as issues
+      - ADO: Import work items as change proposals, export proposals as work items
       - Spec-Kit: Full bidirectional sync of specs and plans
-    - export-only: SpecFact → DevOps (create/update issues, no import) - ADO/Linear/Jira adapters (future)
+    - export-only: SpecFact → DevOps (create/update issues/work items, no import) - GitHub and ADO adapters
     - import-annotation: DevOps → SpecFact (import issues, annotate with findings) - future
+
+    **🚀 Cross-Adapter Sync (Advanced Feature):**
+    Enable lossless round-trip synchronization between different backlog adapters (GitHub ↔ ADO):
+    - Use --bundle to preserve lossless content during cross-adapter syncs
+    - Import from one adapter (e.g., GitHub) into a bundle, then export to another (e.g., ADO)
+    - Content is preserved exactly as imported, enabling 100% fidelity migrations
+    - Example: Import GitHub issue → bundle → export to ADO (no content loss)
 
     **Parameter Groups:**
     - **Target/Input**: --repo, --bundle
     - **Behavior/Options**: --bidirectional, --mode, --overwrite, --watch, --ensure-compliance
     - **Advanced/Configuration**: --adapter, --interval, --repo-owner, --repo-name, --github-token
+    - **GitHub Options**: --repo-owner, --repo-name, --github-token, --use-gh-cli, --sanitize
+    - **ADO Options**: --ado-org, --ado-project, --ado-base-url, --ado-token, --ado-work-item-type
 
-    **Examples:**
+    **Basic Examples:**
         specfact sync bridge --adapter speckit --repo . --bidirectional
         specfact sync bridge --adapter openspec --repo . --mode read-only  # OpenSpec → SpecFact (read-only)
         specfact sync bridge --adapter openspec --repo . --external-base-path ../other-repo  # Cross-repo OpenSpec
         specfact sync bridge --repo . --bidirectional  # Auto-detect adapter
         specfact sync bridge --repo . --watch --interval 10
-        specfact sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo  # Bidirectional sync (import issues, export proposals)
-        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo  # SpecFact → GitHub Issues (export only)
+
+    **GitHub Examples:**
+        specfact sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo  # Bidirectional sync
+        specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo  # Export only
         specfact sync bridge --adapter github --update-existing  # Update existing issues when content changes
         specfact sync bridge --adapter github --track-code-changes  # Detect code changes and add progress comments
         specfact sync bridge --adapter github --add-progress-comment  # Add manual progress comment
+
+    **Azure DevOps Examples:**
+        specfact sync bridge --adapter ado --bidirectional --ado-org myorg --ado-project myproject  # Bidirectional sync
+        specfact sync bridge --adapter ado --mode export-only --ado-org myorg --ado-project myproject  # Export only
+        specfact sync bridge --adapter ado --mode export-only --ado-org myorg --ado-project myproject --bundle main  # Bundle export
+
+    **Cross-Adapter Sync Examples:**
+        # GitHub → ADO Migration (lossless round-trip)
+        specfact sync bridge --adapter github --mode bidirectional --bundle migration --backlog-ids 123
+        # Output shows: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
+        specfact sync bridge --adapter ado --mode export-only --bundle migration --change-ids add-feature-x
+
+        # Multi-Tool Workflow (public GitHub + internal ADO)
+        specfact sync bridge --adapter github --mode export-only --sanitize  # Export to public GitHub
+        specfact sync bridge --adapter github --mode bidirectional --bundle internal --backlog-ids 123  # Import to bundle
+        specfact sync bridge --adapter ado --mode export-only --bundle internal --change-ids <change-id>  # Export to ADO
+
+    **Finding Change IDs:**
+    - Change IDs are shown in import output: "✓ Imported as change proposal: <change-id>"
+    - Or check bundle directory: ls .specfact/projects/<bundle>/change_tracking/proposals/
+    - Or check OpenSpec directory: ls openspec/changes/
+
+    See docs/guides/devops-adapter-integration.md for complete documentation.
     """
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe
@@ -1206,6 +1319,14 @@ def sync_bridge(
     if change_ids:
         change_ids_list = [cid.strip() for cid in change_ids.split(",") if cid.strip()]
 
+    backlog_items: list[str] = []
+    if backlog_ids:
+        backlog_items.extend(_parse_backlog_selection(backlog_ids))
+    if backlog_ids_file:
+        backlog_items.extend(_parse_backlog_selection(backlog_ids_file.read_text(encoding="utf-8")))
+    if backlog_items:
+        backlog_items = list(dict.fromkeys(backlog_items))
+
     telemetry_metadata = {
         "adapter": adapter_value,
         "mode": sync_mode,
@@ -1231,6 +1352,54 @@ def sync_bridge(
             # Create bridge sync instance
             bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
 
+            # If bundle is provided for backlog adapters, export stored backlog items from bundle
+            if adapter_value in ("github", "ado") and bundle:
+                resolved_bundle = bundle or _infer_bundle_name(repo)
+                if not resolved_bundle:
+                    console.print("[bold red]✗[/bold red] Bundle name required for backlog export")
+                    console.print("[dim]Provide --bundle or set an active bundle in .specfact/config.yaml[/dim]")
+                    raise typer.Exit(1)
+
+                console.print(
+                    f"[bold cyan]Exporting bundle backlog items to {adapter_value} ({resolved_bundle})...[/bold cyan]"
+                )
+                if adapter_value == "github":
+                    adapter_kwargs = {
+                        "repo_owner": repo_owner,
+                        "repo_name": repo_name,
+                        "api_token": github_token,
+                        "use_gh_cli": use_gh_cli,
+                    }
+                else:
+                    adapter_kwargs = {
+                        "org": ado_org,
+                        "project": ado_project,
+                        "base_url": ado_base_url,
+                        "api_token": ado_token,
+                        "work_item_type": ado_work_item_type,
+                    }
+                result = bridge_sync.export_backlog_from_bundle(
+                    adapter_type=adapter_value,
+                    bundle_name=resolved_bundle,
+                    adapter_kwargs=adapter_kwargs,
+                    update_existing=update_existing,
+                    change_ids=change_ids_list,
+                )
+
+                if result.success:
+                    console.print(
+                        f"[bold green]✓[/bold green] Exported {len(result.operations)} backlog item(s) from bundle"
+                    )
+                    for warning in result.warnings:
+                        console.print(f"[yellow]⚠[/yellow] {warning}")
+                else:
+                    console.print(f"[bold red]✗[/bold red] Export failed with {len(result.errors)} errors")
+                    for error in result.errors:
+                        console.print(f"[red]  • {error}[/red]")
+                    raise typer.Exit(1)
+
+                return
+
             # Export change proposals
             progress_columns, progress_kwargs = get_progress_config()
             with Progress(
@@ -1248,7 +1417,7 @@ def sync_bridge(
                     adapter_type=adapter_value,
                     repo_owner=repo_owner,
                     repo_name=repo_name,
-                    api_token=github_token,
+                    api_token=github_token if adapter_value == "github" else ado_token,
                     use_gh_cli=use_gh_cli,
                     sanitize=sanitize,
                     target_repo=target_repo,
@@ -1261,6 +1430,10 @@ def sync_bridge(
                     track_code_changes=track_code_changes,
                     add_progress_comment=add_progress_comment,
                     code_repo_path=code_repo_path_for_export,
+                    ado_org=ado_org,
+                    ado_project=ado_project,
+                    ado_base_url=ado_base_url,
+                    ado_work_item_type=ado_work_item_type,
                 )
                 progress.update(task, description="[green]✓[/green] Sync complete")
 
@@ -1446,6 +1619,103 @@ def sync_bridge(
         if not resolved_repo.is_dir():
             console.print(f"[red]Error:[/red] Repository path is not a directory: {resolved_repo}")
             raise typer.Exit(1)
+
+        if adapter_value in ("github", "ado") and sync_mode == "bidirectional":
+            from specfact_cli.sync.bridge_sync import BridgeSync
+
+            resolved_bundle = bundle or _infer_bundle_name(resolved_repo)
+            if not resolved_bundle:
+                console.print("[bold red]✗[/bold red] Bundle name required for backlog sync")
+                console.print("[dim]Provide --bundle or set an active bundle in .specfact/config.yaml[/dim]")
+                raise typer.Exit(1)
+
+            if not backlog_items and interactive and runtime.is_interactive():
+                prompt = typer.prompt(
+                    "Enter backlog item IDs/URLs to import (comma-separated, leave blank to skip)",
+                    default="",
+                )
+                backlog_items = _parse_backlog_selection(prompt)
+                backlog_items = list(dict.fromkeys(backlog_items))
+
+            if backlog_items:
+                console.print(f"[dim]Selected backlog items ({len(backlog_items)}): {', '.join(backlog_items)}[/dim]")
+            else:
+                console.print("[yellow]⚠[/yellow] No backlog items selected; import skipped")
+
+            adapter_instance = AdapterRegistry.get_adapter(adapter_value)
+            bridge_config = adapter_instance.generate_bridge_config(resolved_repo)
+            bridge_sync = BridgeSync(resolved_repo, bridge_config=bridge_config)
+
+            if backlog_items:
+                if adapter_value == "github":
+                    adapter_kwargs = {
+                        "repo_owner": repo_owner,
+                        "repo_name": repo_name,
+                        "api_token": github_token,
+                        "use_gh_cli": use_gh_cli,
+                    }
+                else:
+                    adapter_kwargs = {
+                        "org": ado_org,
+                        "project": ado_project,
+                        "base_url": ado_base_url,
+                        "api_token": ado_token,
+                        "work_item_type": ado_work_item_type,
+                    }
+
+                import_result = bridge_sync.import_backlog_items_to_bundle(
+                    adapter_type=adapter_value,
+                    bundle_name=resolved_bundle,
+                    backlog_items=backlog_items,
+                    adapter_kwargs=adapter_kwargs,
+                )
+                if import_result.success:
+                    console.print(
+                        f"[bold green]✓[/bold green] Imported {len(import_result.operations)} backlog item(s)"
+                    )
+                    for warning in import_result.warnings:
+                        console.print(f"[yellow]⚠[/yellow] {warning}")
+                else:
+                    console.print(f"[bold red]✗[/bold red] Import failed with {len(import_result.errors)} errors")
+                    for error in import_result.errors:
+                        console.print(f"[red]  • {error}[/red]")
+                    raise typer.Exit(1)
+
+            if adapter_value == "github":
+                export_adapter_kwargs = {
+                    "repo_owner": repo_owner,
+                    "repo_name": repo_name,
+                    "api_token": github_token,
+                    "use_gh_cli": use_gh_cli,
+                }
+            else:
+                export_adapter_kwargs = {
+                    "org": ado_org,
+                    "project": ado_project,
+                    "base_url": ado_base_url,
+                    "api_token": ado_token,
+                    "work_item_type": ado_work_item_type,
+                }
+
+            export_result = bridge_sync.export_backlog_from_bundle(
+                adapter_type=adapter_value,
+                bundle_name=resolved_bundle,
+                adapter_kwargs=export_adapter_kwargs,
+                update_existing=update_existing,
+                change_ids=change_ids_list,
+            )
+
+            if export_result.success:
+                console.print(f"[bold green]✓[/bold green] Exported {len(export_result.operations)} backlog item(s)")
+                for warning in export_result.warnings:
+                    console.print(f"[yellow]⚠[/yellow] {warning}")
+            else:
+                console.print(f"[bold red]✗[/bold red] Export failed with {len(export_result.errors)} errors")
+                for error in export_result.errors:
+                    console.print(f"[red]  • {error}[/red]")
+                raise typer.Exit(1)
+
+            return
 
         # Watch mode implementation (using bridge-based watch)
         if watch:

@@ -35,7 +35,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - ✅ **Brownfield-first** → Spec-Kit/OpenSpec excel at new features; SpecFact understands existing code
 - ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
 - ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
-- ✅ **DevOps integration** 🆕 → **Bidirectional backlog sync** - Sync change proposals to GitHub Issues (and future: ADO, Linear, Jira) with automatic progress tracking
+- ✅ **DevOps integration** 🆕 → **Bidirectional backlog sync** - Sync change proposals to GitHub Issues and Azure DevOps Work Items (and future: Linear, Jira) with automatic progress tracking
 - ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
 
 **Perfect together:**
