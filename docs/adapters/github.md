@@ -1,3 +1,9 @@
+---
+layout: default
+title: GitHub Adapter
+permalink: /adapters/github/
+---
+
 # GitHub Adapter
 
 The GitHub adapter provides bidirectional synchronization between OpenSpec change proposals and GitHub Issues, enabling agile DevOps-driven workflow support.

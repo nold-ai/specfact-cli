@@ -1,3 +1,9 @@
+---
+layout: default
+title: Azure DevOps Adapter
+permalink: /adapters/azuredevops/
+---
+
 # Azure DevOps Adapter
 
 The Azure DevOps adapter provides bidirectional synchronization between OpenSpec change proposals and Azure DevOps work items, enabling agile DevOps-driven workflow support for enterprise teams.

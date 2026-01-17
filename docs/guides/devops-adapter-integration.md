@@ -1,3 +1,9 @@
+---
+layout: default
+title: DevOps Adapter Integration Guide
+permalink: /guides/devops-adapter-integration/
+---
+
 # DevOps Adapter Integration Guide
 
 > **🆕 NEW FEATURE: Integrate SpecFact into Agile DevOps Workflows**  
