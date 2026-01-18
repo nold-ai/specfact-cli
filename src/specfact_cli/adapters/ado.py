@@ -210,12 +210,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
 
         description = ""
         rationale = ""
+        impact = ""
 
         # Parse markdown sections (Why, What Changes)
         if description_raw:
             # Extract "Why" section (stop at What Changes or OpenSpec footer)
             why_match = re.search(
-                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
                 description_raw,
                 re.DOTALL | re.IGNORECASE,
             )
@@ -224,7 +225,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
 
             # Extract "What Changes" section (stop at OpenSpec footer)
             what_match = re.search(
-                r"##\s+What\s+Changes\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                r"##\s+What\s+Changes\s*\n(.*?)(?=\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
                 description_raw,
                 re.DOTALL | re.IGNORECASE,
             )
@@ -234,6 +235,14 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                 # If no sections found, use entire description (but remove footer)
                 body_clean = re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", description_raw, flags=re.DOTALL)
                 description = body_clean.strip()
+
+            impact_match = re.search(
+                r"##\s+Impact\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                description_raw,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if impact_match:
+                impact = impact_match.group(1).strip()
 
         # Extract change ID from OpenSpec metadata footer or work item ID
         change_id = None
@@ -306,6 +315,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             "title": title,
             "description": description,
             "rationale": rationale,
+            "impact": impact,
             "status": status,
             "created_at": created_at,
             "timeline": timeline,
