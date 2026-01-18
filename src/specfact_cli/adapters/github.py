@@ -225,12 +225,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         body = item_data.get("body", "") or ""
         description = ""
         rationale = ""
+        impact = ""
 
         # Parse markdown sections (Why, What Changes)
         if body:
             # Extract "Why" section (stop at What Changes or OpenSpec footer)
             why_match = re.search(
-                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
                 body,
                 re.DOTALL | re.IGNORECASE,
             )
@@ -239,7 +240,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
 
             # Extract "What Changes" section (stop at OpenSpec footer)
             what_match = re.search(
-                r"##\s+What\s+Changes\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                r"##\s+What\s+Changes\s*\n(.*?)(?=\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
                 body,
                 re.DOTALL | re.IGNORECASE,
             )
@@ -249,6 +250,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                 # If no sections found, use entire body as description (but remove footer)
                 body_clean = re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", body, flags=re.DOTALL)
                 description = body_clean.strip()
+
+            impact_match = re.search(
+                r"##\s+Impact\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+                body,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if impact_match:
+                impact = impact_match.group(1).strip()
 
         # Extract change ID from OpenSpec metadata footer or issue number
         change_id = None
@@ -330,6 +339,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             "title": title,
             "description": description,
             "rationale": rationale,
+            "impact": impact,
             "status": status,
             "created_at": created_at,
             "timeline": timeline,
@@ -922,6 +932,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
+        impact = proposal_data.get("impact", "")
         status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
@@ -959,14 +970,24 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                     body_parts.append(line)
                 body_parts.append("")  # Blank line
 
+            # Add Impact section if present
+            if impact:
+                body_parts.append("## Impact")
+                body_parts.append("")
+                impact_lines = impact.strip().split("\n")
+                for line in impact_lines:
+                    body_parts.append(line)
+                body_parts.append("")
+
             # If no content, add placeholder
             if not body_parts or (not rationale and not description):
                 body_parts.append("No description provided.")
                 body_parts.append("")
 
-            # Add OpenSpec metadata footer
-            body_parts.append("---")
-            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+            # Add OpenSpec metadata footer (avoid duplicates)
+            if not any("OpenSpec Change Proposal:" in line for line in body_parts):
+                body_parts.append("---")
+                body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
 
             body = "\n".join(body_parts)
 
@@ -1172,6 +1193,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
+        impact = proposal_data.get("impact", "")
         change_id = proposal_data.get("change_id", "unknown")
         status = proposal_data.get("status", "proposed")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
@@ -1238,6 +1260,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                     body_parts.append(line)
                 body_parts.append("")  # Blank line
 
+            # Add Impact section if present
+            if impact:
+                body_parts.append("## Impact")
+                body_parts.append("")
+                impact_lines = impact.strip().split("\n")
+                for line in impact_lines:
+                    body_parts.append(line)
+                body_parts.append("")  # Blank line
+
             # If no content, add placeholder
             if not body_parts or (not rationale and not description):
                 body_parts.append("No description provided.")
@@ -1252,9 +1283,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                         body_parts.append("")  # Blank line before preserved section
                         body_parts.append(preserved_clean)
 
-            # Add OpenSpec metadata footer
-            body_parts.append("---")
-            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
+            # Add OpenSpec metadata footer (avoid duplicates)
+            if not any("OpenSpec Change Proposal:" in line for line in body_parts):
+                body_parts.append("---")
+                body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
 
             body = "\n".join(body_parts)
 

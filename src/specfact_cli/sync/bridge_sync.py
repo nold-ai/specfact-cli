@@ -1079,11 +1079,13 @@ class BridgeSync:
                 title = ""
                 description = ""
                 rationale = ""
+                impact = ""
                 status = "proposed"  # Default status
 
                 lines = proposal_content.split("\n")
                 in_why = False
                 in_what = False
+                in_impact = False
                 in_source_tracking = False
 
                 for line_idx, line in enumerate(lines):
@@ -1093,14 +1095,22 @@ class BridgeSync:
                     elif line_stripped == "## Why":
                         in_why = True
                         in_what = False
+                        in_impact = False
                         in_source_tracking = False
                     elif line_stripped == "## What Changes":
                         in_why = False
                         in_what = True
+                        in_impact = False
+                        in_source_tracking = False
+                    elif line_stripped == "## Impact":
+                        in_why = False
+                        in_what = False
+                        in_impact = True
                         in_source_tracking = False
                     elif line_stripped == "## Source Tracking":
                         in_why = False
                         in_what = False
+                        in_impact = False
                         in_source_tracking = True
                     elif in_source_tracking:
                         # Skip source tracking section (we'll parse it separately)
@@ -1109,11 +1119,19 @@ class BridgeSync:
                         if line_stripped == "## What Changes":
                             in_why = False
                             in_what = True
+                            in_impact = False
+                            in_source_tracking = False
+                            continue
+                        if line_stripped == "## Impact":
+                            in_why = False
+                            in_what = False
+                            in_impact = True
                             in_source_tracking = False
                             continue
                         if line_stripped == "## Source Tracking":
                             in_why = False
                             in_what = False
+                            in_impact = False
                             in_source_tracking = True
                             continue
                         # Stop at --- separator only if it's followed by Source Tracking
@@ -1122,6 +1140,7 @@ class BridgeSync:
                             remaining_lines = lines[line_idx + 1 : line_idx + 5]  # Check next 5 lines
                             if any("## Source Tracking" in line for line in remaining_lines):
                                 in_why = False
+                                in_impact = False
                                 in_source_tracking = True
                                 continue
                         # Preserve all content including empty lines and formatting
@@ -1132,11 +1151,19 @@ class BridgeSync:
                         if line_stripped == "## Why":
                             in_what = False
                             in_why = True
+                            in_impact = False
+                            in_source_tracking = False
+                            continue
+                        if line_stripped == "## Impact":
+                            in_what = False
+                            in_why = False
+                            in_impact = True
                             in_source_tracking = False
                             continue
                         if line_stripped == "## Source Tracking":
                             in_what = False
                             in_why = False
+                            in_impact = False
                             in_source_tracking = True
                             continue
                         # Stop at --- separator only if it's followed by Source Tracking
@@ -1145,12 +1172,41 @@ class BridgeSync:
                             remaining_lines = lines[line_idx + 1 : line_idx + 5]  # Check next 5 lines
                             if any("## Source Tracking" in line for line in remaining_lines):
                                 in_what = False
+                                in_impact = False
                                 in_source_tracking = True
                                 continue
                         # Preserve all content including empty lines and formatting
                         if description and not description.endswith("\n"):
                             description += "\n"
                         description += line + "\n"
+                    elif in_impact:
+                        if line_stripped == "## Why":
+                            in_impact = False
+                            in_why = True
+                            in_what = False
+                            in_source_tracking = False
+                            continue
+                        if line_stripped == "## What Changes":
+                            in_impact = False
+                            in_why = False
+                            in_what = True
+                            in_source_tracking = False
+                            continue
+                        if line_stripped == "## Source Tracking":
+                            in_impact = False
+                            in_why = False
+                            in_what = False
+                            in_source_tracking = True
+                            continue
+                        if line_stripped == "---":
+                            remaining_lines = lines[line_idx + 1 : line_idx + 5]
+                            if any("## Source Tracking" in line for line in remaining_lines):
+                                in_impact = False
+                                in_source_tracking = True
+                                continue
+                        if impact and not impact.endswith("\n"):
+                            impact += "\n"
+                        impact += line + "\n"
 
                 # Check for existing source tracking in proposal.md
                 source_tracking_list: list[dict[str, Any]] = []
@@ -1202,6 +1258,7 @@ class BridgeSync:
 
                 # Clean up description and rationale (remove extra newlines)
                 description_clean = self._dedupe_duplicate_sections(description.strip()) if description else ""
+                impact_clean = impact.strip() if impact else ""
                 rationale_clean = rationale.strip() if rationale else ""
 
                 # Create proposal dict
@@ -1218,6 +1275,7 @@ class BridgeSync:
                     "title": title or change_dir.name,
                     "description": description_clean or "No description provided.",
                     "rationale": rationale_clean or "No rationale provided.",
+                    "impact": impact_clean,
                     "status": status,
                     "source_tracking": source_tracking_final,
                 }
@@ -1260,11 +1318,13 @@ class BridgeSync:
                         title = ""
                         description = ""
                         rationale = ""
+                        impact = ""
                         status = "applied"  # Archived changes are treated as "applied"
 
                         lines = proposal_content.split("\n")
                         in_why = False
                         in_what = False
+                        in_impact = False
                         in_source_tracking = False
 
                         for line_idx, line in enumerate(lines):
@@ -1275,14 +1335,22 @@ class BridgeSync:
                             if line_stripped == "## Why":
                                 in_why = True
                                 in_what = False
+                                in_impact = False
                                 in_source_tracking = False
                             elif line_stripped == "## What Changes":
                                 in_why = False
                                 in_what = True
+                                in_impact = False
+                                in_source_tracking = False
+                            elif line_stripped == "## Impact":
+                                in_why = False
+                                in_what = False
+                                in_impact = True
                                 in_source_tracking = False
                             elif line_stripped == "## Source Tracking":
                                 in_why = False
                                 in_what = False
+                                in_impact = False
                                 in_source_tracking = True
                             elif in_source_tracking:
                                 continue
@@ -1290,17 +1358,26 @@ class BridgeSync:
                                 if line_stripped == "## What Changes":
                                     in_why = False
                                     in_what = True
+                                    in_impact = False
+                                    in_source_tracking = False
+                                    continue
+                                if line_stripped == "## Impact":
+                                    in_why = False
+                                    in_what = False
+                                    in_impact = True
                                     in_source_tracking = False
                                     continue
                                 if line_stripped == "## Source Tracking":
                                     in_why = False
                                     in_what = False
+                                    in_impact = False
                                     in_source_tracking = True
                                     continue
                                 if line_stripped == "---":
                                     remaining_lines = lines[line_idx + 1 : line_idx + 5]
                                     if any("## Source Tracking" in line for line in remaining_lines):
                                         in_why = False
+                                        in_impact = False
                                         in_source_tracking = True
                                         continue
                                 if rationale and not rationale.endswith("\n"):
@@ -1310,22 +1387,59 @@ class BridgeSync:
                                 if line_stripped == "## Why":
                                     in_what = False
                                     in_why = True
+                                    in_impact = False
+                                    in_source_tracking = False
+                                    continue
+                                if line_stripped == "## Impact":
+                                    in_what = False
+                                    in_why = False
+                                    in_impact = True
                                     in_source_tracking = False
                                     continue
                                 if line_stripped == "## Source Tracking":
                                     in_what = False
                                     in_why = False
+                                    in_impact = False
                                     in_source_tracking = True
                                     continue
                                 if line_stripped == "---":
                                     remaining_lines = lines[line_idx + 1 : line_idx + 5]
                                     if any("## Source Tracking" in line for line in remaining_lines):
                                         in_what = False
+                                        in_impact = False
                                         in_source_tracking = True
                                         continue
                                 if description and not description.endswith("\n"):
                                     description += "\n"
                                 description += line + "\n"
+                            elif in_impact:
+                                if line_stripped == "## Why":
+                                    in_impact = False
+                                    in_why = True
+                                    in_what = False
+                                    in_source_tracking = False
+                                    continue
+                                if line_stripped == "## What Changes":
+                                    in_impact = False
+                                    in_why = False
+                                    in_what = True
+                                    in_source_tracking = False
+                                    continue
+                                if line_stripped == "## Source Tracking":
+                                    in_impact = False
+                                    in_why = False
+                                    in_what = False
+                                    in_source_tracking = True
+                                    continue
+                                if line_stripped == "---":
+                                    remaining_lines = lines[line_idx + 1 : line_idx + 5]
+                                    if any("## Source Tracking" in line for line in remaining_lines):
+                                        in_impact = False
+                                        in_source_tracking = True
+                                        continue
+                                if impact and not impact.endswith("\n"):
+                                    impact += "\n"
+                                impact += line + "\n"
 
                         # Parse source tracking (same logic as active changes)
                         archive_source_tracking_list: list[dict[str, Any]] = []
@@ -1362,6 +1476,7 @@ class BridgeSync:
 
                         # Clean up description and rationale
                         description_clean = self._dedupe_duplicate_sections(description.strip()) if description else ""
+                        impact_clean = impact.strip() if impact else ""
                         rationale_clean = rationale.strip() if rationale else ""
 
                         proposal = {
@@ -1369,6 +1484,7 @@ class BridgeSync:
                             "title": title or change_id,
                             "description": description_clean or "No description provided.",
                             "rationale": rationale_clean or "No rationale provided.",
+                            "impact": impact_clean,
                             "status": status,  # "applied" for archived changes
                             "source_tracking": archive_source_tracking_final,
                         }
@@ -1612,6 +1728,12 @@ class BridgeSync:
 
                     # Try to find by matching source tracking (backlog entry ID)
                     item_ref_clean = str(item_ref).split("/")[-1]  # Extract number from URL if needed
+                    item_ref_str = str(item_ref)
+
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Looking for proposal matching backlog item '{item_ref}' (clean: '{item_ref_clean}')")
 
                     for proposal in project_bundle.change_tracking.proposals.values():
                         if proposal.source_tracking:
@@ -1622,11 +1744,15 @@ class BridgeSync:
                                     if isinstance(entry, dict):
                                         entry_id = entry.get("source_id")
                                         # Match by issue number (item_ref could be "111" or full URL)
-                                        if entry_id and (
-                                            str(entry_id) == str(item_ref) or str(entry_id) == item_ref_clean
-                                        ):
-                                            imported_proposal = proposal
-                                            break
+                                        if entry_id:
+                                            entry_id_str = str(entry_id)
+                                            # Try multiple matching strategies
+                                            if entry_id_str in (item_ref_str, item_ref_clean) or item_ref_str.endswith(
+                                                (f"/{entry_id_str}", f"#{entry_id_str}")
+                                            ):
+                                                imported_proposal = proposal
+                                                logger.debug(f"Found proposal '{proposal.name}' by source_id match")
+                                                break
                         if imported_proposal:
                             break
 
@@ -1637,6 +1763,19 @@ class BridgeSync:
                         proposal_list = list(project_bundle.change_tracking.proposals.values())
                         if proposal_list:
                             imported_proposal = proposal_list[-1]
+                            # Verify this proposal was just imported by checking if it has source_tracking
+                            # and matches the adapter type
+                            if imported_proposal.source_tracking:
+                                source_tool = imported_proposal.source_tracking.tool
+                                if source_tool != adapter_type:
+                                    # Tool mismatch - might not be the right one, but log and use as fallback
+                                    import logging
+
+                                    logger = logging.getLogger(__name__)
+                                    logger.debug(
+                                        f"Fallback proposal has different source tool ({source_tool} vs {adapter_type}), "
+                                        f"but using it anyway as it's the most recent proposal"
+                                    )
 
                     # Create OpenSpec files from proposal
                     if imported_proposal:
@@ -1649,7 +1788,8 @@ class BridgeSync:
                         logger = logging.getLogger(__name__)
                         warning_msg = (
                             f"Could not find imported proposal for backlog item '{item_ref}'. "
-                            f"OpenSpec files will not be created."
+                            f"OpenSpec files will not be created. "
+                            f"Proposals in bundle: {list(project_bundle.change_tracking.proposals.keys()) if project_bundle.change_tracking.proposals else 'none'}"
                         )
                         logger.warning(warning_msg)
                         warnings.append(warning_msg)
@@ -3167,9 +3307,570 @@ class BridgeSync:
 
         return affected_specs
 
+    def _extract_requirement_from_proposal(self, proposal: Any, spec_id: str) -> str:
+        """
+        Extract requirement text from proposal content.
+
+        Args:
+            proposal: ChangeProposal instance
+            spec_id: Spec ID to extract requirement for
+
+        Returns:
+            Requirement text in OpenSpec format, or empty string if extraction fails
+        """
+        description = proposal.description or ""
+        rationale = proposal.rationale or ""
+
+        # Try to extract meaningful requirement from "What Changes" section
+        # Look for bullet points that describe what the system should do
+        requirement_lines = []
+
+        def _extract_section_details(section_content: str | None) -> list[str]:
+            if not section_content:
+                return []
+
+            details: list[str] = []
+            in_code_block = False
+
+            for raw_line in section_content.splitlines():
+                stripped = raw_line.strip()
+                if stripped.startswith("```"):
+                    in_code_block = not in_code_block
+                    continue
+                if not stripped:
+                    continue
+
+                if in_code_block:
+                    cleaned = re.sub(r"^[-*]\s*", "", stripped).strip()
+                    if cleaned.startswith("#") or not cleaned:
+                        continue
+                    cleaned = re.sub(r"^\[\s*[xX]?\s*\]\s*", "", cleaned).strip()
+                    details.append(cleaned)
+                    continue
+
+                if stripped.startswith(("#", "---")):
+                    continue
+
+                cleaned = re.sub(r"^[-*]\s*", "", stripped)
+                cleaned = re.sub(r"^\d+\.\s*", "", cleaned)
+                cleaned = cleaned.strip()
+                cleaned = re.sub(r"^\[\s*[xX]?\s*\]\s*", "", cleaned).strip()
+                if cleaned:
+                    details.append(cleaned)
+
+            return details
+
+        def _normalize_detail_for_and(detail: str) -> str:
+            cleaned = detail.strip()
+            if not cleaned:
+                return ""
+
+            cleaned = cleaned.replace("**", "").strip()
+            cleaned = cleaned.lstrip("*").strip()
+            if cleaned.lower() in {"commands:", "commands"}:
+                return ""
+
+            cleaned = re.sub(r"^\d+\.\s*", "", cleaned).strip()
+            cleaned = re.sub(r"^\[\s*[xX]?\s*\]\s*", "", cleaned).strip()
+            lower = cleaned.lower()
+
+            if lower.startswith("new command group"):
+                rest = re.sub(r"^new\s+command\s+group\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+                cleaned = f"provides command group {rest}".strip()
+                lower = cleaned.lower()
+            elif lower.startswith("location:"):
+                rest = re.sub(r"^location\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+                cleaned = f"stores tokens at {rest}".strip()
+                lower = cleaned.lower()
+            elif lower.startswith("format:"):
+                rest = re.sub(r"^format\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+                cleaned = f"uses format {rest}".strip()
+                lower = cleaned.lower()
+            elif lower.startswith("permissions:"):
+                rest = re.sub(r"^permissions\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+                cleaned = f"enforces permissions {rest}".strip()
+                lower = cleaned.lower()
+            elif ":" in cleaned:
+                _prefix, rest = cleaned.split(":", 1)
+                if rest.strip():
+                    cleaned = rest.strip()
+                    lower = cleaned.lower()
+
+            if lower.startswith("users can"):
+                cleaned = f"allows users to {cleaned[10:].lstrip()}".strip()
+                lower = cleaned.lower()
+            elif re.match(r"^specfact\s+", cleaned):
+                cleaned = f"supports `{cleaned}` command"
+                lower = cleaned.lower()
+
+            if cleaned:
+                first_word = cleaned.split()[0].rstrip(".,;:!?")
+                verbs_to_lower = {
+                    "uses",
+                    "use",
+                    "provides",
+                    "provide",
+                    "stores",
+                    "store",
+                    "supports",
+                    "support",
+                    "enforces",
+                    "enforce",
+                    "allows",
+                    "allow",
+                    "leverages",
+                    "leverage",
+                    "adds",
+                    "add",
+                    "can",
+                    "custom",
+                    "supported",
+                    "zero-configuration",
+                }
+                if first_word.lower() in verbs_to_lower and cleaned[0].isupper():
+                    cleaned = cleaned[0].lower() + cleaned[1:]
+
+            if cleaned and not cleaned.endswith("."):
+                cleaned += "."
+
+            return cleaned
+
+        def _parse_formatted_sections(text: str) -> list[dict[str, str]]:
+            sections: list[dict[str, str]] = []
+            current: dict[str, Any] | None = None
+            marker_pattern = re.compile(
+                r"^-\s*\*\*(NEW|EXTEND|FIX|ADD|MODIFY|UPDATE|REMOVE|REFACTOR)\*\*:\s*(.+)$",
+                re.IGNORECASE,
+            )
+
+            for raw_line in text.splitlines():
+                stripped = raw_line.strip()
+                marker_match = marker_pattern.match(stripped)
+                if marker_match:
+                    if current:
+                        sections.append(
+                            {
+                                "title": current["title"],
+                                "content": "\n".join(current["content"]).strip(),
+                            }
+                        )
+                    current = {"title": marker_match.group(2).strip(), "content": []}
+                    continue
+                if current is not None:
+                    current["content"].append(raw_line)
+
+            if current:
+                sections.append(
+                    {
+                        "title": current["title"],
+                        "content": "\n".join(current["content"]).strip(),
+                    }
+                )
+
+            return sections
+
+        formatted_sections = _parse_formatted_sections(description)
+
+        requirement_index = 0
+        seen_sections: set[str] = set()
+
+        if formatted_sections:
+            for section in formatted_sections:
+                section_title = section["title"]
+                section_content = section["content"] or None
+                section_title_lower = section_title.lower()
+                normalized_title = re.sub(r"\([^)]*\)", "", section_title_lower).strip()
+                normalized_title = re.sub(r"^\d+\.\s*", "", normalized_title).strip()
+                if normalized_title in seen_sections:
+                    continue
+                seen_sections.add(normalized_title)
+                section_details = _extract_section_details(section_content)
+
+                # Skip generic section titles that don't represent requirements
+                skip_titles = [
+                    "architecture overview",
+                    "purpose",
+                    "introduction",
+                    "overview",
+                    "documentation",
+                    "testing",
+                    "security & quality",
+                    "security and quality",
+                    "non-functional requirements",
+                    "three-phase delivery",
+                    "additional context",
+                    "platform roadmap",
+                    "similar implementations",
+                    "required python packages",
+                    "optional packages",
+                    "known limitations & mitigations",
+                    "known limitations and mitigations",
+                    "security model",
+                    "update required",
+                ]
+                if normalized_title in skip_titles:
+                    continue
+
+                # Generate requirement name from section title
+                req_name = section_title.strip()
+                req_name = re.sub(r"^(new|add|implement|support|provide|enable)\s+", "", req_name, flags=re.IGNORECASE)
+                req_name = re.sub(r"\([^)]*\)", "", req_name, flags=re.IGNORECASE).strip()
+                req_name = re.sub(r"^\d+\.\s*", "", req_name).strip()
+                req_name = re.sub(r"\s+", " ", req_name)[:60].strip()
+
+                # Ensure req_name is meaningful (at least 8 chars)
+                if not req_name or len(req_name) < 8:
+                    req_name = self._format_proposal_title(proposal.title)
+                    req_name = re.sub(r"^(feat|fix|add|update|remove|refactor):\s*", "", req_name, flags=re.IGNORECASE)
+                    req_name = req_name.replace("[Change]", "").strip()
+                    if requirement_index > 0:
+                        req_name = f"{req_name} ({requirement_index + 1})"
+
+                title_lower = section_title_lower
+
+                if spec_id == "devops-sync":
+                    if "device code" in title_lower:
+                        if "azure" in title_lower or "devops" in title_lower:
+                            change_desc = (
+                                "use Azure DevOps device code authentication for sync operations with Azure DevOps"
+                            )
+                        elif "github" in title_lower:
+                            change_desc = "use GitHub device code authentication for sync operations with GitHub"
+                        else:
+                            change_desc = f"use device code authentication for {section_title.lower()} sync operations"
+                    elif "token" in title_lower or "storage" in title_lower or "management" in title_lower:
+                        change_desc = "use stored authentication tokens for DevOps sync operations when available"
+                    elif "cli" in title_lower or "command" in title_lower or "integration" in title_lower:
+                        change_desc = "provide CLI authentication commands for DevOps sync operations"
+                    elif "architectural" in title_lower or "decision" in title_lower:
+                        change_desc = (
+                            "follow documented authentication architecture decisions for DevOps sync operations"
+                        )
+                    else:
+                        change_desc = f"support {section_title.lower()} for DevOps sync operations"
+                elif spec_id == "auth-management":
+                    if "device code" in title_lower:
+                        if "azure" in title_lower or "devops" in title_lower:
+                            change_desc = "support Azure DevOps device code authentication using Entra ID"
+                        elif "github" in title_lower:
+                            change_desc = "support GitHub device code authentication using RFC 8628 OAuth device authorization flow"
+                        else:
+                            change_desc = f"support device code authentication for {section_title.lower()}"
+                    elif "token" in title_lower or "storage" in title_lower or "management" in title_lower:
+                        change_desc = (
+                            "store and manage authentication tokens securely with appropriate file permissions"
+                        )
+                    elif "cli" in title_lower or "command" in title_lower:
+                        change_desc = "provide CLI commands for authentication operations"
+                    else:
+                        change_desc = f"support {section_title.lower()}"
+                else:
+                    if "device code" in title_lower:
+                        change_desc = f"support {section_title.lower()} authentication"
+                    elif "token" in title_lower or "storage" in title_lower:
+                        change_desc = "store and manage authentication tokens securely"
+                    elif "architectural" in title_lower or "decision" in title_lower:
+                        change_desc = "follow documented architecture decisions"
+                    else:
+                        change_desc = f"support {section_title.lower()}"
+
+                if not change_desc.endswith("."):
+                    change_desc = change_desc + "."
+                if change_desc and change_desc[0].isupper():
+                    change_desc = change_desc[0].lower() + change_desc[1:]
+
+                requirement_lines.append(f"### Requirement: {req_name}")
+                requirement_lines.append("")
+                requirement_lines.append(f"The system SHALL {change_desc}")
+                requirement_lines.append("")
+
+                scenario_name = (
+                    req_name.split(":")[0]
+                    if ":" in req_name
+                    else req_name.split()[0]
+                    if req_name.split()
+                    else "Implementation"
+                )
+                requirement_lines.append(f"#### Scenario: {scenario_name}")
+                requirement_lines.append("")
+                when_action = req_name.lower().replace("device code", "device code authentication")
+                when_clause = f"a user requests {when_action}"
+                if "architectural" in title_lower or "decision" in title_lower:
+                    when_clause = "the system performs authentication operations"
+                requirement_lines.append(f"- **WHEN** {when_clause}")
+
+                then_response = change_desc
+                verbs_to_fix = {
+                    "support": "supports",
+                    "store": "stores",
+                    "manage": "manages",
+                    "provide": "provides",
+                    "implement": "implements",
+                    "enable": "enables",
+                    "allow": "allows",
+                    "use": "uses",
+                    "create": "creates",
+                    "handle": "handles",
+                    "follow": "follows",
+                }
+                words = then_response.split()
+                if words:
+                    first_word = words[0].rstrip(".,;:!?")
+                    if first_word.lower() in verbs_to_fix:
+                        words[0] = verbs_to_fix[first_word.lower()] + words[0][len(first_word) :]
+                    for i in range(1, len(words) - 1):
+                        if words[i].lower() == "and" and i + 1 < len(words):
+                            next_word = words[i + 1].rstrip(".,;:!?")
+                            if next_word.lower() in verbs_to_fix:
+                                words[i + 1] = verbs_to_fix[next_word.lower()] + words[i + 1][len(next_word) :]
+                    then_response = " ".join(words)
+                requirement_lines.append(f"- **THEN** the system {then_response}")
+                if section_details:
+                    for detail in section_details:
+                        normalized_detail = _normalize_detail_for_and(detail)
+                        if normalized_detail:
+                            requirement_lines.append(f"- **AND** {normalized_detail}")
+                requirement_lines.append("")
+
+                requirement_index += 1
+        else:
+            # If no formatted markers found, try extracting from raw description structure
+            change_patterns = re.finditer(
+                r"(?i)(?:^|\n)(?:-\s*)?###\s*([^\n]+)\s*\n(.*?)(?=\n(?:-\s*)?###\s+|\n(?:-\s*)?##\s+|\Z)",
+                description,
+                re.MULTILINE | re.DOTALL,
+            )
+            for match in change_patterns:
+                section_title = match.group(1).strip()
+                section_content = match.group(2).strip() if match.lastindex >= 2 else None
+
+                section_title_lower = section_title.lower()
+                normalized_title = re.sub(r"\([^)]*\)", "", section_title_lower).strip()
+                normalized_title = re.sub(r"^\d+\.\s*", "", normalized_title).strip()
+                if normalized_title in seen_sections:
+                    continue
+                seen_sections.add(normalized_title)
+                section_details = _extract_section_details(section_content)
+
+                skip_titles = [
+                    "architecture overview",
+                    "purpose",
+                    "introduction",
+                    "overview",
+                    "documentation",
+                    "testing",
+                    "security & quality",
+                    "security and quality",
+                    "non-functional requirements",
+                    "three-phase delivery",
+                    "additional context",
+                    "platform roadmap",
+                    "similar implementations",
+                    "required python packages",
+                    "optional packages",
+                    "known limitations & mitigations",
+                    "known limitations and mitigations",
+                    "security model",
+                    "update required",
+                ]
+                if normalized_title in skip_titles:
+                    continue
+
+                req_name = section_title.strip()
+                req_name = re.sub(r"^(new|add|implement|support|provide|enable)\s+", "", req_name, flags=re.IGNORECASE)
+                req_name = re.sub(r"\([^)]*\)", "", req_name, flags=re.IGNORECASE).strip()
+                req_name = re.sub(r"^\d+\.\s*", "", req_name).strip()
+                req_name = re.sub(r"\s+", " ", req_name)[:60].strip()
+
+                if not req_name or len(req_name) < 8:
+                    req_name = self._format_proposal_title(proposal.title)
+                    req_name = re.sub(r"^(feat|fix|add|update|remove|refactor):\s*", "", req_name, flags=re.IGNORECASE)
+                    req_name = req_name.replace("[Change]", "").strip()
+                    if requirement_index > 0:
+                        req_name = f"{req_name} ({requirement_index + 1})"
+
+                title_lower = section_title_lower
+
+                if spec_id == "devops-sync":
+                    if "device code" in title_lower:
+                        if "azure" in title_lower or "devops" in title_lower:
+                            change_desc = (
+                                "use Azure DevOps device code authentication for sync operations with Azure DevOps"
+                            )
+                        elif "github" in title_lower:
+                            change_desc = "use GitHub device code authentication for sync operations with GitHub"
+                        else:
+                            change_desc = f"use device code authentication for {section_title.lower()} sync operations"
+                    elif "token" in title_lower or "storage" in title_lower or "management" in title_lower:
+                        change_desc = "use stored authentication tokens for DevOps sync operations when available"
+                    elif "cli" in title_lower or "command" in title_lower or "integration" in title_lower:
+                        change_desc = "provide CLI authentication commands for DevOps sync operations"
+                    elif "architectural" in title_lower or "decision" in title_lower:
+                        change_desc = (
+                            "follow documented authentication architecture decisions for DevOps sync operations"
+                        )
+                    else:
+                        change_desc = f"support {section_title.lower()} for DevOps sync operations"
+                elif spec_id == "auth-management":
+                    if "device code" in title_lower:
+                        if "azure" in title_lower or "devops" in title_lower:
+                            change_desc = "support Azure DevOps device code authentication using Entra ID"
+                        elif "github" in title_lower:
+                            change_desc = "support GitHub device code authentication using RFC 8628 OAuth device authorization flow"
+                        else:
+                            change_desc = f"support device code authentication for {section_title.lower()}"
+                    elif "token" in title_lower or "storage" in title_lower or "management" in title_lower:
+                        change_desc = (
+                            "store and manage authentication tokens securely with appropriate file permissions"
+                        )
+                    elif "cli" in title_lower or "command" in title_lower:
+                        change_desc = "provide CLI commands for authentication operations"
+                    else:
+                        change_desc = f"support {section_title.lower()}"
+                else:
+                    if "device code" in title_lower:
+                        change_desc = f"support {section_title.lower()} authentication"
+                    elif "token" in title_lower or "storage" in title_lower:
+                        change_desc = "store and manage authentication tokens securely"
+                    elif "architectural" in title_lower or "decision" in title_lower:
+                        change_desc = "follow documented architecture decisions"
+                    else:
+                        change_desc = f"support {section_title.lower()}"
+
+                if not change_desc.endswith("."):
+                    change_desc = change_desc + "."
+                if change_desc and change_desc[0].isupper():
+                    change_desc = change_desc[0].lower() + change_desc[1:]
+
+                requirement_lines.append(f"### Requirement: {req_name}")
+                requirement_lines.append("")
+                requirement_lines.append(f"The system SHALL {change_desc}")
+                requirement_lines.append("")
+
+                scenario_name = (
+                    req_name.split(":")[0]
+                    if ":" in req_name
+                    else req_name.split()[0]
+                    if req_name.split()
+                    else "Implementation"
+                )
+                requirement_lines.append(f"#### Scenario: {scenario_name}")
+                requirement_lines.append("")
+                when_action = req_name.lower().replace("device code", "device code authentication")
+                when_clause = f"a user requests {when_action}"
+                if "architectural" in title_lower or "decision" in title_lower:
+                    when_clause = "the system performs authentication operations"
+                requirement_lines.append(f"- **WHEN** {when_clause}")
+
+                then_response = change_desc
+                verbs_to_fix = {
+                    "support": "supports",
+                    "store": "stores",
+                    "manage": "manages",
+                    "provide": "provides",
+                    "implement": "implements",
+                    "enable": "enables",
+                    "allow": "allows",
+                    "use": "uses",
+                    "create": "creates",
+                    "handle": "handles",
+                    "follow": "follows",
+                }
+                words = then_response.split()
+                if words:
+                    first_word = words[0].rstrip(".,;:!?")
+                    if first_word.lower() in verbs_to_fix:
+                        words[0] = verbs_to_fix[first_word.lower()] + words[0][len(first_word) :]
+                    for i in range(1, len(words) - 1):
+                        if words[i].lower() == "and" and i + 1 < len(words):
+                            next_word = words[i + 1].rstrip(".,;:!?")
+                            if next_word.lower() in verbs_to_fix:
+                                words[i + 1] = verbs_to_fix[next_word.lower()] + words[i + 1][len(next_word) :]
+                    then_response = " ".join(words)
+                requirement_lines.append(f"- **THEN** the system {then_response}")
+                if section_details:
+                    for detail in section_details:
+                        normalized_detail = _normalize_detail_for_and(detail)
+                        if normalized_detail:
+                            requirement_lines.append(f"- **AND** {normalized_detail}")
+                requirement_lines.append("")
+
+                requirement_index += 1
+
+        # If no structured changes found, try to extract from "What Changes" section
+        # Look for subsections like "- ### Architecture Overview", "- ### Azure DevOps Device Code"
+        if not requirement_lines and description:
+            # Extract first meaningful subsection or bullet point
+            # Pattern: "- ### Title" followed by "- Content" on next line
+            # The description may have been converted to bullet list, so everything has "- " prefix
+            # Match: "- ### Architecture Overview\n- This change adds device code authentication flows..."
+            subsection_match = re.search(r"-\s*###\s*([^\n]+)\s*\n\s*-\s*([^\n]+)", description, re.MULTILINE)
+            if subsection_match:
+                subsection_title = subsection_match.group(1).strip()
+                first_line = subsection_match.group(2).strip()
+                # Remove leading "- " if still present
+                if first_line.startswith("- "):
+                    first_line = first_line[2:].strip()
+
+                # Skip if first_line is just the subsection title or too short
+                if first_line.lower() != subsection_title.lower() and len(first_line) > 10:
+                    # Take first sentence (up to 200 chars)
+                    if "." in first_line:
+                        first_line = first_line.split(".")[0].strip() + "."
+                    if len(first_line) > 200:
+                        first_line = first_line[:200] + "..."
+
+                    req_name = self._format_proposal_title(proposal.title)
+                    req_name = re.sub(r"^(feat|fix|add|update|remove|refactor):\s*", "", req_name, flags=re.IGNORECASE)
+                    req_name = req_name.replace("[Change]", "").strip()
+
+                    requirement_lines.append(f"### Requirement: {req_name}")
+                    requirement_lines.append("")
+                    requirement_lines.append(f"The system SHALL {first_line}")
+                    requirement_lines.append("")
+                    requirement_lines.append(f"#### Scenario: {subsection_title}")
+                    requirement_lines.append("")
+                    requirement_lines.append("- **WHEN** the system processes the change")
+                    requirement_lines.append(f"- **THEN** {first_line.lower()}")
+                    requirement_lines.append("")
+
+        # If still no requirement extracted, create from title and description
+        if not requirement_lines and (description or rationale):
+            req_name = self._format_proposal_title(proposal.title)
+            req_name = re.sub(r"^(feat|fix|add|update|remove|refactor):\s*", "", req_name, flags=re.IGNORECASE)
+            req_name = req_name.replace("[Change]", "").strip()
+
+            # Extract first sentence or meaningful phrase from description
+            first_sentence = (
+                description.split(".")[0].strip()
+                if description
+                else rationale.split(".")[0].strip()
+                if rationale
+                else "implement the change"
+            )
+            # Remove leading "- " or "### " if present
+            first_sentence = re.sub(r"^[-#\s]+", "", first_sentence).strip()
+            if len(first_sentence) > 200:
+                first_sentence = first_sentence[:200] + "..."
+
+            requirement_lines.append(f"### Requirement: {req_name}")
+            requirement_lines.append("")
+            requirement_lines.append(f"The system SHALL {first_sentence}")
+            requirement_lines.append("")
+            requirement_lines.append(f"#### Scenario: {req_name}")
+            requirement_lines.append("")
+            requirement_lines.append("- **WHEN** the change is applied")
+            requirement_lines.append(f"- **THEN** {first_sentence.lower()}")
+            requirement_lines.append("")
+
+        return "\n".join(requirement_lines) if requirement_lines else ""
+
     def _generate_tasks_from_proposal(self, proposal: Any) -> str:
         """
         Generate tasks.md content from proposal.
+
+        Extracts tasks from "Acceptance Criteria" section if present,
+        otherwise creates placeholder structure.
 
         Args:
             proposal: ChangeProposal instance
@@ -3177,45 +3878,215 @@ class BridgeSync:
         Returns:
             Markdown content for tasks.md file
         """
-        lines = ["# Tasks: " + proposal.title, ""]
+        lines = ["# Tasks: " + self._format_proposal_title(proposal.title), ""]
 
-        # Try to extract tasks from description
+        # Try to extract tasks from description, focusing on "Acceptance Criteria" section
         description = proposal.description or ""
         tasks_found = False
+        marker_pattern = re.compile(
+            r"^-\s*\*\*(NEW|EXTEND|FIX|ADD|MODIFY|UPDATE|REMOVE|REFACTOR)\*\*:\s*(.+)$",
+            re.IGNORECASE | re.MULTILINE,
+        )
 
-        # Look for markdown lists or acceptance criteria
-        if "- [ ]" in description or "- [x]" in description:
-            # Found task list, convert to hierarchical format
-            task_lines = []
-            section_num = 1
+        def _extract_section_tasks(text: str) -> list[dict[str, Any]]:
+            sections: list[dict[str, Any]] = []
+            current: dict[str, Any] | None = None
+            in_code_block = False
+
+            for raw_line in text.splitlines():
+                stripped = raw_line.strip()
+                marker_match = marker_pattern.match(stripped)
+                if marker_match:
+                    if current:
+                        sections.append(current)
+                    current = {"title": marker_match.group(2).strip(), "tasks": []}
+                    in_code_block = False
+                    continue
+
+                if current is None:
+                    continue
+
+                if stripped.startswith("```"):
+                    in_code_block = not in_code_block
+                    continue
+
+                if in_code_block:
+                    if stripped and not stripped.startswith("#"):
+                        if stripped.startswith("specfact "):
+                            current["tasks"].append(f"Support `{stripped}` command")
+                        else:
+                            current["tasks"].append(stripped)
+                    continue
+
+                if not stripped:
+                    continue
+
+                content = stripped[2:].strip() if stripped.startswith("- ") else stripped
+                content = re.sub(r"^\d+\.\s*", "", content).strip()
+                if content.lower() in {"**commands:**", "commands:", "commands"}:
+                    continue
+                if content:
+                    current["tasks"].append(content)
+
+            if current:
+                sections.append(current)
+
+            return sections
+
+        # Look for "Acceptance Criteria" section first
+        # Pattern may have leading "- " (when converted to bullet list format)
+        # Match: "- ## Acceptance Criteria\n...content..." or "## Acceptance Criteria\n...content..."
+        acceptance_criteria_match = re.search(
+            r"(?i)(?:-\s*)?##\s*Acceptance\s+Criteria\s*\n(.*?)(?=\n\s*(?:-\s*)?##|\Z)",
+            description,
+            re.DOTALL,
+        )
+
+        if acceptance_criteria_match:
+            # Found Acceptance Criteria section, extract tasks
+            criteria_content = acceptance_criteria_match.group(1)
+
+            # Map acceptance criteria subsections to main task sections
+            # Some subsections like "Testing", "Documentation", "Security & Quality" should be separate main sections
+            section_mapping = {
+                "testing": 2,
+                "documentation": 3,
+                "security": 4,
+                "security & quality": 4,
+                "code quality": 5,
+            }
+
+            section_num = 1  # Start with Implementation
+            subsection_num = 1
             task_num = 1
+            current_subsection = None
+            first_subsection = True
+            current_section_name = "Implementation"
 
+            # Add main section header
+            lines.append("## 1. Implementation")
+            lines.append("")
+
+            for line in criteria_content.split("\n"):
+                stripped = line.strip()
+
+                # Check for subsection header (###) - may have leading "- "
+                # Pattern: "- ### Title" or "### Title"
+                if stripped.startswith("- ###") or (stripped.startswith("###") and not stripped.startswith("####")):
+                    # Extract subsection title
+                    subsection_title = stripped[5:].strip() if stripped.startswith("- ###") else stripped[3:].strip()
+
+                    # Remove any item count like "(11 items)"
+                    subsection_title_clean = re.sub(r"\(.*?\)", "", subsection_title).strip()
+                    # Remove leading "#" if present
+                    subsection_title_clean = re.sub(r"^#+\s*", "", subsection_title_clean).strip()
+                    # Remove leading numbers if present
+                    subsection_title_clean = re.sub(r"^\d+\.\s*", "", subsection_title_clean).strip()
+
+                    # Check if this subsection should be in a different main section
+                    subsection_lower = subsection_title_clean.lower()
+                    new_section_num = section_mapping.get(subsection_lower)
+
+                    if new_section_num and new_section_num != section_num:
+                        # Switch to new main section
+                        section_num = new_section_num
+                        subsection_num = 1
+                        task_num = 1
+
+                        # Map section number to name
+                        section_names = {
+                            1: "Implementation",
+                            2: "Testing",
+                            3: "Documentation",
+                            4: "Security & Quality",
+                            5: "Code Quality",
+                        }
+                        current_section_name = section_names.get(section_num, "Implementation")
+
+                        # Close previous section and start new one
+                        if not first_subsection:
+                            lines.append("")
+                        lines.append(f"## {section_num}. {current_section_name}")
+                        lines.append("")
+                        first_subsection = True
+
+                    # Start new subsection
+                    if current_subsection is not None and not first_subsection:
+                        # Close previous subsection (add blank line)
+                        lines.append("")
+                        subsection_num += 1
+                        task_num = 1
+
+                    current_subsection = subsection_title_clean
+                    lines.append(f"### {section_num}.{subsection_num} {current_subsection}")
+                    lines.append("")
+                    task_num = 1
+                    first_subsection = False
+                # Check for task items (may have leading "- " or be standalone)
+                elif stripped.startswith(("- [ ]", "- [x]", "[ ]", "[x]")):
+                    # Remove checkbox and extract task text
+                    task_text = re.sub(r"^[-*]\s*\[[ x]\]\s*", "", stripped).strip()
+                    if task_text:
+                        if current_subsection is None:
+                            # No subsection, create default
+                            current_subsection = "Tasks"
+                            lines.append(f"### {section_num}.{subsection_num} {current_subsection}")
+                            lines.append("")
+                            task_num = 1
+                            first_subsection = False
+
+                        lines.append(f"- [ ] {section_num}.{subsection_num}.{task_num} {task_text}")
+                        task_num += 1
+                        tasks_found = True
+
+        # If no Acceptance Criteria found, look for any task lists in description
+        if not tasks_found and ("- [ ]" in description or "- [x]" in description or "[ ]" in description):
+            # Extract all task-like items
+            task_items = []
             for line in description.split("\n"):
                 stripped = line.strip()
-                if stripped.startswith(("- [ ]", "- [x]")):
-                    task_lines.append(f"- [ ] {section_num}.{task_num} {stripped[5:].strip()}")
-                    task_num += 1
-                elif stripped.startswith("##") and task_lines:
-                    # New section, start new section
-                    section_num += 1
-                    task_num = 1
-                    lines.append(f"## {section_num}. {stripped[2:].strip()}")
-                    lines.append("")
-                    lines.extend(task_lines)
-                    lines.append("")
-                    task_lines = []
-                elif stripped.startswith("###") and not task_lines:
-                    # Section header
-                    lines.append(f"## {section_num}. {stripped[3:].strip()}")
-                    lines.append("")
-                    section_num += 1
-                    task_num = 1
+                if stripped.startswith(("- [ ]", "- [x]", "[ ]", "[x]")):
+                    task_text = re.sub(r"^[-*]\s*\[[ x]\]\s*", "", stripped).strip()
+                    if task_text:
+                        task_items.append(task_text)
 
-            if task_lines:
-                if section_num == 1:
-                    lines.append("## 1. Implementation")
+            if task_items:
+                lines.append("## 1. Implementation")
+                lines.append("")
+                for idx, task in enumerate(task_items, start=1):
+                    lines.append(f"- [ ] 1.{idx} {task}")
+                lines.append("")
+                tasks_found = True
+
+        # If no explicit tasks, build from "What Changes" sections
+        if not tasks_found and description and marker_pattern.search(description):
+            sections = _extract_section_tasks(description)
+            if sections:
+                lines.append("## 1. Implementation")
+                lines.append("")
+                subsection_num = 1
+                for section in sections:
+                    section_title = section.get("title", "").strip()
+                    if not section_title:
+                        continue
+
+                    section_title_clean = re.sub(r"\([^)]*\)", "", section_title).strip()
+                    if not section_title_clean:
+                        continue
+
+                    lines.append(f"### 1.{subsection_num} {section_title_clean}")
                     lines.append("")
-                lines.extend(task_lines)
+                    task_num = 1
+                    tasks = section.get("tasks") or [f"Implement {section_title_clean.lower()}"]
+                    for task in tasks:
+                        task_text = str(task).strip()
+                        if not task_text:
+                            continue
+                        lines.append(f"- [ ] 1.{subsection_num}.{task_num} {task_text}")
+                        task_num += 1
+                    lines.append("")
+                    subsection_num += 1
+
                 tasks_found = True
 
         # If no tasks found, create placeholder structure
@@ -3238,7 +4109,7 @@ class BridgeSync:
 
     def _format_proposal_title(self, title: str) -> str:
         """
-        Format proposal title for OpenSpec (remove [Change] prefix if present).
+        Format proposal title for OpenSpec (remove [Change] prefix and conventional commit prefixes).
 
         Args:
             title: Original title
@@ -3252,7 +4123,308 @@ class BridgeSync:
         if title.startswith("[Change] "):
             title = title.replace("[Change] ", "").strip()
 
-        return title
+        # Remove conventional commit prefixes (feat:, fix:, etc.)
+        return re.sub(
+            r"^(feat|fix|add|update|remove|refactor|docs|test|chore|style|perf|ci|build|revert):\s*",
+            "",
+            title,
+            flags=re.IGNORECASE,
+        ).strip()
+
+    def _format_what_changes_section(self, description: str) -> str:
+        """
+        Format "What Changes" section with NEW/EXTEND/MODIFY markers per OpenSpec conventions.
+
+        Args:
+            description: Original description text
+
+        Returns:
+            Formatted description with proper markers
+        """
+        if not description or not description.strip():
+            return "No description provided."
+
+        if re.search(
+            r"^-\s*\*\*(NEW|EXTEND|FIX|ADD|MODIFY|UPDATE|REMOVE|REFACTOR)\*\*:",
+            description,
+            re.MULTILINE | re.IGNORECASE,
+        ):
+            return description.strip()
+
+        lines = description.split("\n")
+        formatted_lines = []
+
+        # Keywords that indicate NEW functionality
+        new_keywords = ["new", "add", "introduce", "create", "implement", "support"]
+        # Keywords that indicate EXTEND functionality
+        extend_keywords = ["extend", "enhance", "improve", "expand", "additional"]
+        # Keywords that indicate MODIFY functionality
+        modify_keywords = ["modify", "update", "change", "refactor", "fix", "correct"]
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
+
+            # Check for subsection headers (###)
+            if stripped.startswith("- ###") or (stripped.startswith("###") and not stripped.startswith("####")):
+                # Extract subsection title
+                section_title = stripped[5:].strip() if stripped.startswith("- ###") else stripped[3:].strip()
+
+                # Determine change type based on section title and content
+                section_lower = section_title.lower()
+                change_type = "MODIFY"  # Default
+
+                # Check section title for keywords
+                if any(keyword in section_lower for keyword in new_keywords):
+                    change_type = "NEW"
+                elif any(keyword in section_lower for keyword in extend_keywords):
+                    change_type = "EXTEND"
+                elif any(keyword in section_lower for keyword in modify_keywords):
+                    change_type = "MODIFY"
+
+                # Also check if section title contains "New" explicitly
+                if "new" in section_lower or section_title.startswith("New "):
+                    change_type = "NEW"
+
+                # Check section content for better detection
+                # Look ahead a few lines to see if content suggests NEW
+                lookahead = "\n".join(lines[i + 1 : min(i + 5, len(lines))]).lower()
+                if (
+                    any(
+                        keyword in lookahead
+                        for keyword in ["new command", "new feature", "add ", "introduce", "create"]
+                    )
+                    and "extend" not in lookahead
+                    and "modify" not in lookahead
+                ):
+                    change_type = "NEW"
+
+                # Format as bullet with marker
+                formatted_lines.append(f"- **{change_type}**: {section_title}")
+                i += 1
+
+                # Process content under this subsection
+                subsection_content = []
+                while i < len(lines):
+                    next_line = lines[i]
+                    next_stripped = next_line.strip()
+
+                    # Stop at next subsection or section
+                    if (
+                        next_stripped.startswith("- ###")
+                        or (next_stripped.startswith("###") and not next_stripped.startswith("####"))
+                        or (next_stripped.startswith("##") and not next_stripped.startswith("###"))
+                    ):
+                        break
+
+                    # Skip empty lines at start of subsection
+                    if not subsection_content and not next_stripped:
+                        i += 1
+                        continue
+
+                    # Process content line
+                    if next_stripped:
+                        # Remove leading "- " if present (from previous bullet conversion)
+                        content = next_stripped[2:].strip() if next_stripped.startswith("- ") else next_stripped
+
+                        # Format as sub-bullet under the change marker
+                        if content:
+                            # Check if it's a code block or special formatting
+                            if content.startswith(("```", "**", "*")):
+                                subsection_content.append(f"  {content}")
+                            else:
+                                subsection_content.append(f"  - {content}")
+                    else:
+                        subsection_content.append("")
+
+                    i += 1
+
+                # Add subsection content
+                if subsection_content:
+                    formatted_lines.extend(subsection_content)
+                    formatted_lines.append("")  # Blank line after subsection
+
+                continue
+
+            # Handle regular bullet points (already formatted)
+            if stripped.startswith(("- [ ]", "- [x]", "-")):
+                # Check if it needs a marker
+                if not any(marker in stripped for marker in ["**NEW**", "**EXTEND**", "**MODIFY**", "**FIX**"]):
+                    # Try to infer marker from content
+                    line_lower = stripped.lower()
+                    if any(keyword in line_lower for keyword in new_keywords):
+                        # Replace first "- " with "- **NEW**: "
+                        if stripped.startswith("- "):
+                            formatted_lines.append(f"- **NEW**: {stripped[2:].strip()}")
+                        else:
+                            formatted_lines.append(f"- **NEW**: {stripped}")
+                    elif any(keyword in line_lower for keyword in extend_keywords):
+                        if stripped.startswith("- "):
+                            formatted_lines.append(f"- **EXTEND**: {stripped[2:].strip()}")
+                        else:
+                            formatted_lines.append(f"- **EXTEND**: {stripped}")
+                    elif any(keyword in line_lower for keyword in modify_keywords):
+                        if stripped.startswith("- "):
+                            formatted_lines.append(f"- **MODIFY**: {stripped[2:].strip()}")
+                        else:
+                            formatted_lines.append(f"- **MODIFY**: {stripped}")
+                    else:
+                        formatted_lines.append(line)
+                else:
+                    formatted_lines.append(line)
+
+            # Handle regular text lines
+            elif stripped:
+                # Check for explicit "New" patterns first
+                line_lower = stripped.lower()
+                # Look for patterns like "New command group", "New feature", etc.
+                if re.search(
+                    r"\bnew\s+(command|feature|capability|functionality|system|module|component)", line_lower
+                ) or any(keyword in line_lower for keyword in new_keywords):
+                    formatted_lines.append(f"- **NEW**: {stripped}")
+                elif any(keyword in line_lower for keyword in extend_keywords):
+                    formatted_lines.append(f"- **EXTEND**: {stripped}")
+                elif any(keyword in line_lower for keyword in modify_keywords):
+                    formatted_lines.append(f"- **MODIFY**: {stripped}")
+                else:
+                    # Default to bullet without marker (will be treated as continuation)
+                    formatted_lines.append(f"- {stripped}")
+            else:
+                # Empty line
+                formatted_lines.append("")
+
+            i += 1
+
+        result = "\n".join(formatted_lines)
+
+        # If no markers were added, ensure at least basic formatting
+        if "**NEW**" not in result and "**EXTEND**" not in result and "**MODIFY**" not in result:
+            # Try to add marker to first meaningful line
+            lines_list = result.split("\n")
+            for idx, line in enumerate(lines_list):
+                if line.strip() and not line.strip().startswith("#"):
+                    # Check content for new functionality
+                    line_lower = line.lower()
+                    if any(keyword in line_lower for keyword in ["new", "add", "introduce", "create"]):
+                        lines_list[idx] = f"- **NEW**: {line.strip().lstrip('- ')}"
+                    elif any(keyword in line_lower for keyword in ["extend", "enhance", "improve"]):
+                        lines_list[idx] = f"- **EXTEND**: {line.strip().lstrip('- ')}"
+                    else:
+                        lines_list[idx] = f"- **MODIFY**: {line.strip().lstrip('- ')}"
+                    break
+            result = "\n".join(lines_list)
+
+        return result
+
+    def _extract_what_changes_content(self, description: str) -> str:
+        """
+        Extract only the "What Changes" content from description, excluding sections
+        that should be separate (Acceptance Criteria, Dependencies, etc.).
+
+        Args:
+            description: Full proposal description
+
+        Returns:
+            Only the "What Changes" portion of the description
+        """
+        if not description or not description.strip():
+            return "No description provided."
+
+        # Sections that mark the end of "What Changes" content
+        # Check for both "## Section" and "- ## Section" patterns
+        end_section_keywords = [
+            "acceptance criteria",
+            "dependencies",
+            "related issues",
+            "related prs",
+            "related issues/prs",
+            "additional context",
+            "testing",
+            "documentation",
+            "security",
+            "quality",
+            "non-functional",
+            "three-phase",
+            "known limitations",
+            "security model",
+        ]
+
+        lines = description.split("\n")
+        what_changes_lines = []
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Check if this line starts a section that should be excluded
+            # Handle both "## Section" and "- ## Section" patterns
+            if stripped.startswith("##") or (stripped.startswith("-") and "##" in stripped):
+                # Extract section title (remove leading "- " and "## ")
+                # Handle patterns like "- ## Section", "## Section", "- ### Section"
+                section_title = re.sub(r"^-\s*#+\s*|^#+\s*", "", stripped).strip().lower()
+
+                # Check if this is an excluded section
+                if any(keyword in section_title for keyword in end_section_keywords):
+                    break
+
+                # If it's a major section (##) that's not "What Changes" or "Why", we're done
+                # But allow subsections (###) within What Changes
+                # Check if it starts with ## (not ###)
+                if (
+                    stripped.startswith(("##", "- ##"))
+                    and not stripped.startswith(("###", "- ###"))
+                    and section_title not in ["what changes", "why"]
+                ):
+                    break
+
+            what_changes_lines.append(line)
+
+        result = "\n".join(what_changes_lines).strip()
+
+        # If we didn't extract anything meaningful, return the original
+        # (but this shouldn't happen if description is well-formed)
+        if not result or len(result) < 20:
+            return description
+
+        return result
+
+    def _extract_dependencies_section(self, description: str) -> str:
+        """
+        Extract Dependencies section from proposal description.
+
+        Args:
+            description: Proposal description text
+
+        Returns:
+            Dependencies section content, or empty string if not found
+        """
+        if not description:
+            return ""
+
+        # Look for Dependencies section (may have leading "- " from bullet conversion)
+        # Pattern: "- ## Dependencies" or "## Dependencies"
+        deps_match = re.search(
+            r"(?i)(?:-\s*)?##\s*Dependencies\s*\n(.*?)(?=\n\s*(?:-\s*)?##|\Z)",
+            description,
+            re.DOTALL,
+        )
+
+        if deps_match:
+            deps_content = deps_match.group(1).strip()
+            # Remove leading "- " from lines if present (from bullet conversion)
+            lines = deps_content.split("\n")
+            cleaned_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("- "):
+                    cleaned_lines.append(stripped[2:])
+                elif stripped.startswith("-"):
+                    cleaned_lines.append(stripped[1:].lstrip())
+                else:
+                    cleaned_lines.append(line)
+            return "\n".join(cleaned_lines)
+
+        return ""
 
     def _write_openspec_change_from_proposal(self, proposal: Any, bridge_config: Any) -> list[str]:
         """
@@ -3320,22 +4492,11 @@ class BridgeSync:
             proposal_lines.append("## What Changes")
             proposal_lines.append("")
             description = proposal.description or "No description provided."
-            # Check if already bullet list
-            if not description.strip().startswith("-"):
-                # Try to convert to bullet list
-                lines = description.split("\n")
-                bullet_lines = []
-                for line in lines:
-                    stripped = line.strip()
-                    if stripped:
-                        if not stripped.startswith(("- [ ]", "- [x]", "-")):
-                            bullet_lines.append(f"- {stripped}")
-                        else:
-                            bullet_lines.append(line)
-                    else:
-                        bullet_lines.append("")
-                description = "\n".join(bullet_lines)
-            proposal_lines.append(description)
+            # Extract only the "What Changes" content (exclude Acceptance Criteria, Dependencies, etc.)
+            what_changes_content = self._extract_what_changes_content(description)
+            # Format description with NEW/EXTEND/MODIFY markers
+            formatted_description = self._format_what_changes_section(what_changes_content)
+            proposal_lines.append(formatted_description)
             proposal_lines.append("")
 
             # Generate Impact section
@@ -3346,6 +4507,16 @@ class BridgeSync:
             proposal_lines.append("- **Affected code**: See implementation tasks")
             proposal_lines.append("- **Integration points**: See spec deltas")
             proposal_lines.append("")
+
+            # Extract and add Dependencies section if present
+            dependencies_section = self._extract_dependencies_section(proposal.description or "")
+            if dependencies_section:
+                proposal_lines.append("---")
+                proposal_lines.append("")
+                proposal_lines.append("## Dependencies")
+                proposal_lines.append("")
+                proposal_lines.append(dependencies_section)
+                proposal_lines.append("")
 
             # Write Source Tracking section
             if proposal.source_tracking:
@@ -3414,17 +4585,41 @@ class BridgeSync:
                 spec_lines.append("")
                 spec_lines.append("## Requirements")
                 spec_lines.append("")
-                spec_lines.append("## MODIFIED Requirements")
-                spec_lines.append("")
-                spec_lines.append("### Requirement: [Requirement name from proposal]")
-                spec_lines.append("")
-                spec_lines.append("The system SHALL [requirement description]")
-                spec_lines.append("")
-                spec_lines.append("#### Scenario: [Scenario name]")
-                spec_lines.append("")
-                spec_lines.append("- **WHEN** [condition]")
-                spec_lines.append("- **THEN** [expected result]")
-                spec_lines.append("")
+
+                # Extract requirements from proposal content
+                requirement_text = self._extract_requirement_from_proposal(proposal, spec_id)
+                if requirement_text:
+                    # Determine if this is ADDED or MODIFIED based on proposal content
+                    change_type = "MODIFIED"
+                    if any(
+                        keyword in proposal.description.lower()
+                        for keyword in ["new", "add", "introduce", "create", "implement"]
+                    ):
+                        # Check if it's clearly a new feature vs modification
+                        if any(
+                            keyword in proposal.description.lower()
+                            for keyword in ["extend", "modify", "update", "fix", "improve"]
+                        ):
+                            change_type = "MODIFIED"
+                        else:
+                            change_type = "ADDED"
+
+                    spec_lines.append(f"## {change_type} Requirements")
+                    spec_lines.append("")
+                    spec_lines.append(requirement_text)
+                else:
+                    # Fallback to placeholder
+                    spec_lines.append("## MODIFIED Requirements")
+                    spec_lines.append("")
+                    spec_lines.append("### Requirement: [Requirement name from proposal]")
+                    spec_lines.append("")
+                    spec_lines.append("The system SHALL [requirement description]")
+                    spec_lines.append("")
+                    spec_lines.append("#### Scenario: [Scenario name]")
+                    spec_lines.append("")
+                    spec_lines.append("- **WHEN** [condition]")
+                    spec_lines.append("- **THEN** [expected result]")
+                    spec_lines.append("")
 
                 spec_file = spec_dir / "spec.md"
                 spec_file.write_text("\n".join(spec_lines), encoding="utf-8")

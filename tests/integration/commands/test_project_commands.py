@@ -169,7 +169,10 @@ class TestProjectExportImport:
 
         # Dry-run may pass or fail depending on template validation strictness
         # The important thing is that it attempts validation
-        output = (import_result.stdout + import_result.stderr).lower()
+        output = import_result.stdout
+        if import_result.stderr_bytes is not None:
+            output += import_result.stderr
+        output = output.lower()
         assert (
             "validation" in output
             or "dry-run" in output
