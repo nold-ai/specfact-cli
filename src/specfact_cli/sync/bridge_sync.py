@@ -3642,7 +3642,7 @@ class BridgeSync:
             )
             for match in change_patterns:
                 section_title = match.group(1).strip()
-                section_content = match.group(2).strip() if match.lastindex >= 2 else None
+                section_content = match.group(2).strip()
 
                 section_title_lower = section_title.lower()
                 normalized_title = re.sub(r"\([^)]*\)", "", section_title_lower).strip()
