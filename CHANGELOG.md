@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - **OpenSpec bridge import completeness**: Parse formatted `- **ADD/MODIFY/REMOVE**` sections line-by-line to avoid greedy regex; extract requirements for all sections and prevent Impact text leaking into Why/What
 - **Backlog adapter parsing parity**: GitHub + Azure DevOps now parse `Impact` separately and stop Why/What at Impact; exported issues avoid duplicate OpenSpec footer
 - **Task generation**: When acceptance criteria are missing, generate tasks from formatted What Changes sections, including subsections and command bullets
+- **OpenSpec re-import safety**: Avoid overwriting existing `tasks.md` and spec deltas on repeated imports
 
 ### Changed (0.25.2)
 

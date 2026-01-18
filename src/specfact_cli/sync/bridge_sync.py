@@ -4562,11 +4562,16 @@ class BridgeSync:
             proposal_file.write_text("\n".join(proposal_lines), encoding="utf-8")
             logger.info(f"Created proposal.md: {proposal_file}")
 
-            # Write tasks.md
-            tasks_content = self._generate_tasks_from_proposal(proposal)
+            # Write tasks.md (avoid overwriting existing curated tasks)
             tasks_file = change_dir / "tasks.md"
-            tasks_file.write_text(tasks_content, encoding="utf-8")
-            logger.info(f"Created tasks.md: {tasks_file}")
+            if tasks_file.exists():
+                warning = f"tasks.md already exists for change '{change_id}', leaving it untouched."
+                warnings.append(warning)
+                logger.info(warning)
+            else:
+                tasks_content = self._generate_tasks_from_proposal(proposal)
+                tasks_file.write_text(tasks_content, encoding="utf-8")
+                logger.info(f"Created tasks.md: {tasks_file}")
 
             # Write spec deltas
             specs_dir = change_dir / "specs"
@@ -4622,8 +4627,15 @@ class BridgeSync:
                     spec_lines.append("")
 
                 spec_file = spec_dir / "spec.md"
-                spec_file.write_text("\n".join(spec_lines), encoding="utf-8")
-                logger.info(f"Created spec delta: {spec_file}")
+                if spec_file.exists():
+                    warning = (
+                        f"Spec delta already exists for change '{change_id}' ({spec_id}), leaving it untouched."
+                    )
+                    warnings.append(warning)
+                    logger.info(warning)
+                else:
+                    spec_file.write_text("\n".join(spec_lines), encoding="utf-8")
+                    logger.info(f"Created spec delta: {spec_file}")
 
             console.print(f"[green]✓[/green] Created OpenSpec change: {change_id} at {change_dir}")
 
