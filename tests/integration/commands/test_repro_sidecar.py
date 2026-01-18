@@ -47,7 +47,9 @@ def unannotated_function(x):
 
         # Should fail with error about missing bundle
         assert result.exit_code != 0
-        output = result.stdout + result.stderr
+        output = result.stdout
+        if result.stderr_bytes is not None:
+            output += result.stderr
         assert "sidecar-bundle" in output.lower() or "required" in output.lower() or result.exit_code == 2
 
     @pytest.mark.timeout(30)
