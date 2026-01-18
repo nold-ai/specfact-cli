@@ -26,6 +26,7 @@ from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.utils.auth_tokens import get_token
 
 
 console = Console()
@@ -57,17 +58,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             org: Azure DevOps organization name (optional, can be provided via env/CLI)
             project: Azure DevOps project name (optional, can be provided via env/CLI)
             base_url: Azure DevOps base URL (optional, defaults to https://dev.azure.com)
-            api_token: Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var)
+            api_token: Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var or stored auth token)
             work_item_type: Work item type (optional, derived from process template if not provided)
         """
         self.org = org
         self.project = project
 
-        # Token resolution: explicit token > env var
+        # Token resolution: explicit token > env var > stored token
         if api_token:
             self.api_token = api_token
         elif os.environ.get("AZURE_DEVOPS_TOKEN"):
             self.api_token = os.environ.get("AZURE_DEVOPS_TOKEN")
+        elif stored_token := get_token("azure-devops"):
+            self.api_token = stored_token.get("access_token")
         else:
             self.api_token = None
 
@@ -515,7 +518,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             msg = (
                 "Azure DevOps API token required. Options:\n"
                 "  1. Set AZURE_DEVOPS_TOKEN environment variable\n"
-                "  2. Provide via --ado-token option"
+                "  2. Provide via --ado-token option\n"
+                "  3. Run `specfact auth azure-devops` for device code authentication"
             )
             raise ValueError(msg)
 

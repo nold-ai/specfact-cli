@@ -9,7 +9,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.25.3] - 2026-01-18
+
+### Added (0.25.3)
+
+- **Authentication documentation**: New auth reference page plus homepage/sidebar links for device code flows
+- **Auth test coverage**: Integration/e2e tests for GitHub/Azure device code flows and Enterprise client-id guard
+
+### Changed (0.25.3)
+
+- **GitHub device code defaults**: Ship SpecFact OAuth client ID and require explicit client ID for GitHub Enterprise hosts
+
+---
+
 ## [0.25.2] - 2026-01-18
+
+### Added (0.25.2)
+
+- **Device code authentication**: New `specfact auth` commands for GitHub and Azure DevOps with token storage in `~/.specfact/tokens.json`
 
 ### Fixed (0.25.2)
 
