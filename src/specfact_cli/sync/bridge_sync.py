@@ -4628,9 +4628,7 @@ class BridgeSync:
 
                 spec_file = spec_dir / "spec.md"
                 if spec_file.exists():
-                    warning = (
-                        f"Spec delta already exists for change '{change_id}' ({spec_id}), leaving it untouched."
-                    )
+                    warning = f"Spec delta already exists for change '{change_id}' ({spec_id}), leaving it untouched."
                     warnings.append(warning)
                     logger.info(warning)
                 else:
