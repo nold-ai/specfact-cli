@@ -4058,9 +4058,13 @@ class BridgeSync:
                 lines.append("")
                 tasks_found = True
 
+        formatted_description = description
+        if description and not marker_pattern.search(description):
+            formatted_description = self._format_what_changes_section(self._extract_what_changes_content(description))
+
         # If no explicit tasks, build from "What Changes" sections
-        if not tasks_found and description and marker_pattern.search(description):
-            sections = _extract_section_tasks(description)
+        if not tasks_found and formatted_description and marker_pattern.search(formatted_description):
+            sections = _extract_section_tasks(formatted_description)
             if sections:
                 lines.append("## 1. Implementation")
                 lines.append("")

@@ -1218,6 +1218,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
+        impact = proposal_data.get("impact", "")
         status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
@@ -1253,8 +1254,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                     body_parts.append(line)
                 body_parts.append("")  # Blank line
 
+            if impact:
+                body_parts.append("## Impact")
+                body_parts.append("")
+                impact_lines = impact.strip().split("\n")
+                for line in impact_lines:
+                    body_parts.append(line)
+                body_parts.append("")
+
             # If no content, add placeholder
-            if not body_parts or (not rationale and not description):
+            if not body_parts or (not rationale and not description and not impact):
                 body_parts.append("No description provided.")
                 body_parts.append("")
 
@@ -1460,6 +1469,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
+        impact = proposal_data.get("impact", "")
         status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
@@ -1495,8 +1505,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
                     body_parts.append(line)
                 body_parts.append("")  # Blank line
 
+            if impact:
+                body_parts.append("## Impact")
+                body_parts.append("")
+                impact_lines = impact.strip().split("\n")
+                for line in impact_lines:
+                    body_parts.append(line)
+                body_parts.append("")
+
             # If no content, add placeholder
-            if not body_parts or (not rationale and not description):
+            if not body_parts or (not rationale and not description and not impact):
                 body_parts.append("No description provided.")
                 body_parts.append("")
 
