@@ -311,7 +311,7 @@ app.add_typer(auth.app, name="auth", help="Authenticate with DevOps providers (G
 app.add_typer(
     import_cmd.app,
     name="import",
-    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira)",
+    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)",
 )
 
 # 2.5. Migration
