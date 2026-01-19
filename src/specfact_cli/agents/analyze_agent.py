@@ -400,6 +400,7 @@ Dependencies: {len(dependencies)} dependency files found
 
 
 # CrossHair property-based test functions
+# CrossHair: skip (side-effectful imports via GitPython)
 # These functions are designed for CrossHair symbolic execution analysis
 @beartype
 def test_generate_prompt_property(command: str, context: dict[str, Any] | None) -> None:

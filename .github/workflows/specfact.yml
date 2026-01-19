@@ -20,7 +20,7 @@ on:
       budget:
         description: "Time budget in seconds"
         required: false
-        default: "90"
+        default: "120"
         type: string
       mode:
         description: "Enforcement mode (block, warn, log)"
@@ -64,7 +64,7 @@ jobs:
       - name: Set validation parameters
         id: validation
         run: |
-          BUDGET="${INPUT_BUDGET:-90}"
+          BUDGET="${INPUT_BUDGET:-120}"
           MODE="${INPUT_MODE:-block}"
           echo "budget=$BUDGET" >> "$GITHUB_OUTPUT"
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"

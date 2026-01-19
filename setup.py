@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.25.2",
+        version="0.25.3",
         description="SpecFact CLI - Spec -> Contract -> Sentinel tool for contract-driven development",
         packages=find_packages(where="src"),
         package_dir={"": "src"},
@@ -15,6 +15,8 @@ if __name__ == "__main__":
             "pydantic>=2.11.5",
             "python-dotenv>=1.1.0",
             "PyYAML>=6.0.2",
+            "requests>=2.32.3",
+            "azure-identity>=1.17.1",
             "typer>=0.15.0",
             "rich>=14.0.0",
             "jinja2>=3.1.0",

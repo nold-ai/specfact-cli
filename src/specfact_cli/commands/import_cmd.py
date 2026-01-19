@@ -2,7 +2,7 @@
 Import command - Import codebases and external tool projects to contract-driven format.
 
 This module provides commands for importing existing codebases (brownfield) and
-external tool projects (e.g., Spec-Kit, OpenSpec, Linear, Jira) and converting them to
+external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown) and converting them to
 SpecFact contract-driven format using the bridge architecture.
 """
 
@@ -31,7 +31,7 @@ from specfact_cli.utils.terminal import get_progress_config
 
 
 app = typer.Typer(
-    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, Linear, Jira) to contract format",
+    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown) to contract format",
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
 )
 console = get_configured_console()
@@ -1917,7 +1917,7 @@ def from_bridge(
     adapter: str = typer.Option(
         "speckit",
         "--adapter",
-        help="Adapter type: speckit, openspec, generic-markdown (available), github, ado, linear, jira, notion (future). Default: auto-detect",
+        help="Adapter type: speckit, openspec, generic-markdown (available). Default: auto-detect",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
 ) -> None:
@@ -1925,7 +1925,7 @@ def from_bridge(
     Convert external tool project to SpecFact contract format using bridge architecture.
 
     This command uses bridge configuration to scan an external tool repository
-    (e.g., Spec-Kit, OpenSpec, Linear, Jira), parse its structure, and generate equivalent
+    (e.g., Spec-Kit, OpenSpec, generic-markdown), parse its structure, and generate equivalent
     SpecFact contracts, protocols, and plans.
 
     Supported adapters (code/spec adapters only):

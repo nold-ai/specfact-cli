@@ -115,7 +115,6 @@ SpecFact CLI integrations fall into four main categories:
 - ✅ CrossHair harness generation for symbolic execution
 - ✅ CrossHair and Specmatic validation execution
 - ✅ Environment manager detection (hatch, poetry, uv, pip, venv)
-- ✅ Backward compatibility with template-based sidecar workspaces
 
 **When to use**:
 

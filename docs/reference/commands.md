@@ -58,6 +58,11 @@ specfact repro setup
 
 # Validate everything
 specfact repro --verbose
+
+# Authenticate with DevOps providers (device code)
+specfact auth github
+specfact auth azure-devops
+specfact auth status
 ```
 
 ### Global Flags
@@ -244,6 +249,76 @@ specfact --mode copilot import from-code --bundle legacy-api --repo .
 ```
 
 ## Commands
+
+### `auth` - Authenticate with DevOps Providers
+
+Authenticate to GitHub or Azure DevOps using device code flows and store tokens locally for adapter sync. See [Authentication](authentication.md) for full details.
+
+```bash
+specfact auth [COMMAND] [OPTIONS]
+```
+
+#### `auth github`
+
+Authenticate to GitHub via device code flow (supports GitHub Enterprise).
+
+```bash
+specfact auth github [OPTIONS]
+```
+
+**Options:**
+
+- `--client-id TEXT` - GitHub OAuth client ID (defaults to SpecFact GitHub App or `SPECFACT_GITHUB_CLIENT_ID`)
+- `--base-url TEXT` - GitHub base URL (default: `https://github.com`, use your enterprise host)
+
+**Examples:**
+
+```bash
+# Default GitHub device code flow
+specfact auth github
+
+# Custom OAuth app
+specfact auth github --client-id YOUR_CLIENT_ID
+
+# GitHub Enterprise
+specfact auth github --base-url https://github.example.com
+```
+
+**Note:** The default client ID works only for `https://github.com`. For GitHub Enterprise, provide `--client-id` or set `SPECFACT_GITHUB_CLIENT_ID`.
+
+#### `auth azure-devops`
+
+Authenticate to Azure DevOps via device code flow.
+
+```bash
+specfact auth azure-devops
+```
+
+#### `auth status`
+
+Show stored authentication tokens.
+
+```bash
+specfact auth status
+```
+
+#### `auth clear`
+
+Clear stored authentication tokens.
+
+```bash
+# Clear one provider
+specfact auth clear --provider github
+
+# Clear all providers
+specfact auth clear
+```
+
+**Options:**
+
+- `--provider TEXT` - Provider to clear (`github` or `azure-devops`)
+
+---
 
 ### `import` - Import from External Formats
 

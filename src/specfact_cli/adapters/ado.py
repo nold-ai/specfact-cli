@@ -26,6 +26,7 @@ from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.utils.auth_tokens import get_token
 
 
 console = Console()
@@ -57,19 +58,27 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             org: Azure DevOps organization name (optional, can be provided via env/CLI)
             project: Azure DevOps project name (optional, can be provided via env/CLI)
             base_url: Azure DevOps base URL (optional, defaults to https://dev.azure.com)
-            api_token: Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var)
+            api_token: Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var or stored auth token)
             work_item_type: Work item type (optional, derived from process template if not provided)
         """
         self.org = org
         self.project = project
+        self.auth_scheme: str | None = None
 
-        # Token resolution: explicit token > env var
+        # Token resolution: explicit token > env var > stored token
         if api_token:
             self.api_token = api_token
+            self.auth_scheme = "basic"
         elif os.environ.get("AZURE_DEVOPS_TOKEN"):
             self.api_token = os.environ.get("AZURE_DEVOPS_TOKEN")
+            self.auth_scheme = "basic"
+        elif stored_token := get_token("azure-devops"):
+            self.api_token = stored_token.get("access_token")
+            token_type = (stored_token.get("token_type") or "bearer").lower()
+            self.auth_scheme = "bearer" if token_type == "bearer" else "basic"
         else:
             self.api_token = None
+            self.auth_scheme = None
 
         # Base URL defaults to Azure DevOps Services (cloud)
         self.base_url = base_url or "https://dev.azure.com"
@@ -515,7 +524,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             msg = (
                 "Azure DevOps API token required. Options:\n"
                 "  1. Set AZURE_DEVOPS_TOKEN environment variable\n"
-                "  2. Provide via --ado-token option"
+                "  2. Provide via --ado-token option\n"
+                "  3. Run `specfact auth azure-devops` for device code authentication"
             )
             raise ValueError(msg)
 
@@ -956,8 +966,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             # Get process template from project
             url = f"{self.base_url}/{org}/_apis/projects/{project}?api-version=7.1"
             headers = {
-                "Authorization": f"Basic {self._encode_pat(self.api_token)}",
                 "Content-Type": "application/json",
+                **self._auth_headers(),
             }
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
@@ -1064,6 +1074,14 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
 
         return base64.b64encode(f":{token}".encode()).decode()
 
+    def _auth_headers(self) -> dict[str, str]:
+        """Return authorization headers based on token type."""
+        if not self.api_token:
+            return {}
+        if self.auth_scheme == "bearer":
+            return {"Authorization": f"Bearer {self.api_token}"}
+        return {"Authorization": f"Basic {self._encode_pat(self.api_token)}"}
+
     def _work_item_exists(self, work_item_id: int | str, org: str, project: str) -> bool:
         """
         Check if a work item exists in Azure DevOps.
@@ -1088,8 +1106,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
 
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Accept": "application/json",
+            **self._auth_headers(),
         }
 
         try:
@@ -1131,8 +1149,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
 
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Accept": "application/json",
+            **self._auth_headers(),
         }
 
         try:
@@ -1175,8 +1193,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         }
         url = f"{self.base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Content-Type": "application/json",
+            **self._auth_headers(),
         }
 
         try:
@@ -1287,8 +1305,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Create work item via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Content-Type": "application/json-patch+json",
+            **self._auth_headers(),
         }
 
         # Build JSON Patch document for work item creation
@@ -1425,8 +1443,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Update work item state via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Content-Type": "application/json-patch+json",
+            **self._auth_headers(),
         }
         patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
 
@@ -1535,8 +1553,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Update work item body and state via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Content-Type": "application/json-patch+json",
+            **self._auth_headers(),
         }
 
         # Build JSON Patch document for work item update
@@ -1651,8 +1669,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Update work item state via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Content-Type": "application/json-patch+json",
+            **self._auth_headers(),
         }
 
         # Build JSON Patch document for state update
@@ -1999,8 +2017,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
         # Azure DevOps API for adding comments to work items
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1"
         headers = {
-            "Authorization": f"Basic {self._encode_pat(self.api_token)}",
             "Content-Type": "application/json",
+            **self._auth_headers(),
         }
 
         # Build request body for comment

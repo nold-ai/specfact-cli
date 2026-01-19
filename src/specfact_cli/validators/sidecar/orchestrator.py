@@ -399,7 +399,7 @@ def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
     env_info = detect_env_manager(config.repo_path)
 
     # Set Python command based on detected environment
-    # Check for .venv or venv first (like old sidecar-init.sh)
+    # Check for .venv or venv first
     venv_python = None
     if (config.repo_path / ".venv" / "bin" / "python").exists():
         venv_python = str(config.repo_path / ".venv" / "bin" / "python")
@@ -413,7 +413,7 @@ def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
         # The command prefix will be used when building tool commands
         config.python_cmd = "python3"  # Will be prefixed with env manager
 
-    # Set PYTHONPATH based on detected environment (like old sidecar-init.sh)
+    # Set PYTHONPATH based on detected environment
     pythonpath_parts = []
 
     # Add venv site-packages if venv exists

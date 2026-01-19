@@ -74,7 +74,10 @@ The adapter supports multiple authentication methods (in order of precedence):
 
 1. **Explicit token**: `api_token` parameter
 2. **Environment variable**: `GITHUB_TOKEN`
-3. **GitHub CLI**: `gh auth token` (if `use_gh_cli=True`)
+3. **Stored auth token**: `specfact auth github` (device code flow)
+4. **GitHub CLI**: `gh auth token` (if `use_gh_cli=True`)
+
+**Note:** The default device-code client ID is only valid for `https://github.com`. For GitHub Enterprise, supply `--client-id` or set `SPECFACT_GITHUB_CLIENT_ID`.
 
 **Example:**
 

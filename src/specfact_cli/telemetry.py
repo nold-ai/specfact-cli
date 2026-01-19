@@ -545,6 +545,7 @@ __all__ = ["TelemetryManager", "TelemetrySettings", "telemetry"]
 
 
 # CrossHair property-based test functions
+# CrossHair: skip (side-effectful imports in YAML utils)
 # These functions are designed for CrossHair symbolic execution analysis
 @beartype
 def test_coerce_bool_property(value: str | None) -> None:
