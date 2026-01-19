@@ -858,15 +858,15 @@ class ReproChecker:
                             "Contract exploration (CrossHair)",
                             "crosshair",
                             crosshair_command,
-                            60,
+                            self.budget,
                             True,
                             crosshair_env,
                         )
                     )
                 else:
-                    checks.append(("Contract exploration (CrossHair)", "crosshair", [], 60, True, None))
+                    checks.append(("Contract exploration (CrossHair)", "crosshair", [], self.budget, True, None))
             else:
-                checks.append(("Contract exploration (CrossHair)", "crosshair", [], 60, True, None))
+                checks.append(("Contract exploration (CrossHair)", "crosshair", [], self.budget, True, None))
 
         # Property tests - optional, only if directory exists
         if contracts_tests.exists():
