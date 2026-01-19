@@ -106,20 +106,29 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         stored_token = get_token("github")
 
         # Token resolution order: explicit token > env var > stored token > gh CLI (if enabled)
+        token_source = "none"
         if api_token:
             self.api_token = api_token
+            token_source = "explicit"
         elif os.environ.get("GITHUB_TOKEN"):
             self.api_token = os.environ.get("GITHUB_TOKEN")
+            token_source = "env"
         elif stored_token:
             self.api_token = stored_token.get("access_token")
+            token_source = "stored"
         elif use_gh_cli:
             self.api_token = _get_github_token_from_gh_cli()
+            if self.api_token:
+                token_source = "gh_cli"
         else:
             self.api_token = None
 
         env_api_url = os.environ.get("GITHUB_API_URL")
         stored_api_url = stored_token.get("api_base_url") if stored_token else None
-        self.base_url = stored_api_url or env_api_url or "https://api.github.com"
+        if token_source == "stored":
+            self.base_url = stored_api_url or env_api_url or "https://api.github.com"
+        else:
+            self.base_url = env_api_url or stored_api_url or "https://api.github.com"
 
     # BacklogAdapterMixin abstract method implementations
 
