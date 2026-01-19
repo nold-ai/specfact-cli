@@ -114,7 +114,19 @@ specfact sync bridge --adapter github --mode export-only \
 
 SpecFact CLI supports multiple authentication methods:
 
-**Option 1: GitHub CLI (Recommended)**
+> **Auth Reference**: See [Authentication](../reference/authentication.md) for device code flows, token storage, and adapter token precedence.
+
+**Option 1: Device Code (SSO-friendly)**
+
+```bash
+specfact auth github
+# or use a custom OAuth app
+specfact auth github --client-id YOUR_CLIENT_ID
+```
+
+**Note:** The default client ID works only for `https://github.com`. For GitHub Enterprise, provide `--client-id` or set `SPECFACT_GITHUB_CLIENT_ID`.
+
+**Option 2: GitHub CLI (Recommended)**
 
 ```bash
 # Uses gh auth token automatically
@@ -124,7 +136,7 @@ specfact sync bridge --adapter github --mode export-only \
   --use-gh-cli
 ```
 
-**Option 2: Environment Variable**
+**Option 3: Environment Variable**
 
 ```bash
 export GITHUB_TOKEN=ghp_your_token_here
@@ -133,7 +145,7 @@ specfact sync bridge --adapter github --mode export-only \
   --repo-name your-repo
 ```
 
-**Option 3: Command Line Flag**
+**Option 4: Command Line Flag**
 
 ```bash
 specfact sync bridge --adapter github --mode export-only \
@@ -175,6 +187,119 @@ specfact sync bridge --adapter github --mode export-only \
   --change-ids add-feature-x,update-api \
   --repo /path/to/openspec-repo
 ```
+
+---
+
+## When to Use `--bundle` vs Direct Export
+
+> **⚠️ Important**: Understanding when to use `--bundle` is crucial for successful exports. Using `--bundle` incorrectly will result in "0 backlog items exported" errors.
+
+### Direct Export (No `--bundle`) - Most Common Use Case ✅
+
+**Use this for**: Exporting OpenSpec change proposals directly to GitHub/ADO from your `openspec/changes/` directory.
+
+**How it works**: Reads proposals directly from `openspec/changes/<change-id>/proposal.md` files.
+
+**Example**:
+
+```bash
+# ✅ CORRECT: Direct export from OpenSpec to GitHub
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org \
+  --repo-name your-repo \
+  --change-ids add-feature-x \
+  --repo /path/to/openspec-repo
+```
+
+**When to use**:
+
+- ✅ Exporting OpenSpec change proposals to backlog tools (GitHub, ADO)
+- ✅ First-time export of a change proposal
+- ✅ Updating existing issues from OpenSpec proposals
+- ✅ Most common workflow for OpenSpec → GitHub/ADO sync
+
+**What happens**:
+
+1. Reads `openspec/changes/<change-id>/proposal.md`
+2. Creates/updates GitHub issue or ADO work item
+3. Updates `source_tracking` in proposal.md with issue/work item ID
+
+### Bundle Export (With `--bundle`) - Cross-Adapter Sync Only 🚀
+
+**Use this for**: Migrating backlog items between different adapters (GitHub → ADO, ADO → GitHub) with lossless content preservation.
+
+**How it works**: Exports from stored bundle content (not from OpenSpec directly). Requires proposals to be imported into bundle first.
+
+**Example**:
+
+```bash
+# Step 1: Import GitHub issue into bundle (stores lossless content)
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle migration-bundle \
+  --backlog-ids 123
+
+# Output: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
+# Note the change_id from output
+
+# Step 2: Export from bundle to ADO (uses stored content)
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org your-org --ado-project your-project \
+  --bundle migration-bundle \
+  --change-ids add-feature-x  # Use change_id from Step 1
+```
+
+**When to use**:
+
+- ✅ Cross-adapter sync (GitHub → ADO, ADO → GitHub)
+- ✅ Migrating backlog items between tools
+- ✅ Preserving lossless content during migrations
+- ✅ Multi-tool workflows (public GitHub + internal ADO)
+
+**What happens**:
+
+1. **Step 1 (Import)**: Fetches backlog item, stores raw content in bundle, creates proposal
+2. **Step 2 (Export)**: Loads proposal from bundle, uses stored raw content, creates new backlog item
+
+### Common Mistake: Using `--bundle` for Direct Export ❌
+
+**Problem**: Using `--bundle` when exporting directly from OpenSpec:
+
+```bash
+# ❌ WRONG: This will show "0 backlog items exported"
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name your-repo \
+  --bundle some-bundle \
+  --change-ids add-feature-x \
+  --repo /path/to/openspec-repo
+```
+
+**Why it fails**: With `--bundle`, the system looks for proposals in the bundle's `change_tracking.proposals`, not in `openspec/changes/`. If the bundle doesn't have the proposal (because it was never imported), you get "0 backlog items exported".
+
+**Solution**: Remove `--bundle` for direct OpenSpec exports:
+
+```bash
+# ✅ CORRECT: Direct export (no --bundle)
+specfact sync bridge --adapter github --mode export-only \
+  --repo-owner your-org --repo-name your-repo \
+  --change-ids add-feature-x \
+  --repo /path/to/openspec-repo
+```
+
+### Quick Decision Guide
+
+| Scenario | Use `--bundle`? | Command Pattern |
+|----------|----------------|-----------------|
+| Export OpenSpec proposal → GitHub | ❌ No | `--adapter github --mode export-only --change-ids <id> --repo <openspec-repo>` |
+| Export OpenSpec proposal → ADO | ❌ No | `--adapter ado --mode export-only --change-ids <id> --repo <openspec-repo>` |
+| Import GitHub issue → Bundle → Export to ADO | ✅ Yes | Step 1: `--bundle <name> --backlog-ids <id>`<br>Step 2: `--bundle <name> --change-ids <id>` |
+| Migrate ADO work item → GitHub | ✅ Yes | Step 1: `--bundle <name> --backlog-ids <id>`<br>Step 2: `--bundle <name> --change-ids <id>` |
+
+### Summary
+
+- **Direct Export** (no `--bundle`): OpenSpec → GitHub/ADO - reads from `openspec/changes/` directly
+- **Bundle Export** (with `--bundle`): Cross-adapter sync only - exports from stored bundle content
+- **Rule of thumb**: Only use `--bundle` when migrating between different backlog adapters
 
 ---
 
@@ -485,7 +610,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 **What Happens Behind the Scenes:**
 
-1. **Step 1 (Import)**: 
+1. **Step 1 (Import)**:
    - Fetches GitHub issue #123
    - Creates change proposal in bundle `main`
    - Stores raw content (title, body) in `source_tracking.source_metadata`
@@ -501,7 +626,8 @@ specfact sync bridge --adapter ado --mode export-only \
 **Finding the Change ID:**
 
 The change_id is derived from the GitHub issue:
-- **If issue has OpenSpec footer**: Uses the change_id from footer (e.g., `*OpenSpec Change Proposal: `add-feature-x`*`)
+
+- **If issue has OpenSpec footer**: Uses the change_id from footer (e.g., `*OpenSpec Change Proposal:`add-feature-x`*`)
 - **If no footer**: Uses issue number as change_id (e.g., `123`)
 
 **Verification:**
@@ -516,6 +642,7 @@ After export, verify content matches:
 ```
 
 The exported ADO work item will contain the exact same content as the original GitHub issue, including:
+
 - Full markdown formatting
 - All sections (Why, What Changes, etc.)
 - Metadata and source tracking
@@ -598,21 +725,25 @@ SpecFact ensures **zero data loss** during cross-adapter syncs by:
 #### Use Cases
 
 **1. Tool Migration**
+
 - Migrate from GitHub Issues to Azure DevOps without losing any content
 - Move from ADO to GitHub for open source projects
 - Transition between backlog tools as team needs change
 
 **2. Multi-Tool Workflows**
+
 - Public GitHub issues (sanitized) + Internal ADO work items (full content)
 - Open source tracking (GitHub) + Enterprise tracking (ADO)
 - Cross-team collaboration with different tool preferences
 
 **3. Feature Branch Integration**
+
 - Sync proposals with feature branches across different backlog tools
 - Track code changes in one tool, sync status to another
 - Maintain consistency when teams use different tools
 
 **4. Validation & Code Change Tracking**
+
 - Attach validation results to backlog items in any adapter
 - Track code changes across multiple backlog systems
 - Maintain audit trail across tool boundaries
@@ -679,6 +810,7 @@ specfact sync bridge --adapter github --mode export-only \
 **Scenario**: Full bidirectional sync workflow demonstrating lossless content preservation across GitHub and Azure DevOps.
 
 This example demonstrates the complete cross-adapter sync workflow, showing how to:
+
 1. Import a GitHub issue into a bundle
 2. Export to Azure DevOps
 3. Import back from Azure DevOps
@@ -948,6 +1080,7 @@ specfact sync bridge --adapter github --mode export-only \
 ```
 
 This will:
+
 - Find the archived proposal `add-code-change-tracking` in `openspec/changes/archive/`
 - Detect the implementation branch using the latest branch detection logic
 - Add/update a comment on issue #107 with the correct branch information
@@ -1014,6 +1147,68 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 ---
 
 ## Troubleshooting
+
+### "0 backlog items exported" Error
+
+**Problem**: Export command shows "✓ Exported 0 backlog item(s) from bundle" even though change proposals exist.
+
+**Common Causes**:
+
+1. **Using `--bundle` for direct OpenSpec export** (most common):
+
+   ```bash
+   # ❌ WRONG: Using --bundle when exporting from OpenSpec
+   specfact sync bridge --adapter github --mode export-only \
+     --repo-owner your-org --repo-name your-repo \
+     --bundle some-bundle \
+     --change-ids add-feature-x \
+     --repo /path/to/openspec-repo
+   ```
+
+2. **Bundle doesn't contain the proposal**:
+   - Proposal was never imported into the bundle
+   - Bundle name is incorrect
+   - Proposal was created in OpenSpec but not imported to bundle
+
+**Solutions**:
+
+- **For direct OpenSpec export** (most common): Remove `--bundle` flag:
+
+  ```bash
+  # ✅ CORRECT: Direct export from OpenSpec
+  specfact sync bridge --adapter github --mode export-only \
+    --repo-owner your-org --repo-name your-repo \
+    --change-ids add-feature-x \
+    --repo /path/to/openspec-repo
+  ```
+
+- **For bundle export** (cross-adapter sync): Import proposal into bundle first:
+
+  ```bash
+  # Step 1: Import from backlog into bundle
+  specfact sync bridge --adapter github --mode bidirectional \
+    --repo-owner your-org --repo-name your-repo \
+    --bundle your-bundle \
+    --backlog-ids 123
+  
+  # Step 2: Export from bundle (now it will work)
+  specfact sync bridge --adapter ado --mode export-only \
+    --ado-org your-org --ado-project your-project \
+    --bundle your-bundle \
+    --change-ids <change-id-from-step-1>
+  ```
+
+- **Verify proposal exists**:
+
+  ```bash
+  # Check OpenSpec directory
+  ls openspec/changes/<change-id>/
+  
+  # Check bundle directory (if using --bundle)
+  ls .specfact/projects/<bundle-name>/change_tracking/proposals/
+  ```
+
+**See also**: [When to Use `--bundle` vs Direct Export](#when-to-use---bundle-vs-direct-export) section above.
 
 ### No Commits Detected
 
@@ -1147,20 +1342,23 @@ Azure DevOps adapter (`--adapter ado`) is now available and supports:
 ### Prerequisites
 
 - Azure DevOps organization and project
-- Personal Access Token (PAT) with work item read/write permissions
+- Personal Access Token (PAT) with work item read/write permissions **or** device code auth via `specfact auth azure-devops`
 - OpenSpec change proposals in `openspec/changes/<change-id>/proposal.md`
 
 ### Authentication
 
 ```bash
-# Option 1: Environment Variable
+# Option 1: Device Code (SSO-friendly)
+specfact auth azure-devops
+
+# Option 2: Environment Variable
 export AZURE_DEVOPS_TOKEN=your_pat_token
 specfact sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --repo /path/to/openspec-repo
 
-# Option 2: Command Line Flag
+# Option 3: Command Line Flag
 specfact sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \

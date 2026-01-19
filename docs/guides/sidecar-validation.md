@@ -224,17 +224,15 @@ specfact validate sidecar run python-lib /path/to/python-library
 
 ### Sidecar Workspace Structure
 
-After initialization, the sidecar workspace is created at:
+After initialization, the sidecar project structure is created at:
 
 ```
 .specfact/projects/<bundle-name>/
 ├── contracts/          # OpenAPI contract files
+├── harness/            # Generated CrossHair harness files
+│   └── harness_contracts.py
 ├── reports/
 │   └── sidecar/        # Validation reports
-└── sidecar/            # Sidecar workspace (if using templates)
-    ├── harness_contracts.py
-    ├── inputs.json
-    └── bindings.yaml
 ```
 
 ### Environment Variables
@@ -371,14 +369,6 @@ Reports are saved to `.specfact/projects/<bundle>/reports/sidecar/`:
 - Specmatic test results and HTML reports
 - Timestamped execution logs
 
-## Backward Compatibility
-
-Sidecar validation maintains backward compatibility with template-based sidecar workspaces:
-
-- Existing workspaces created via `sidecar-init.sh` continue to work
-- CLI commands detect existing workspaces automatically
-- Template files remain in `resources/templates/sidecar/` for reference
-
 ## Troubleshooting
 
 ### Framework Not Detected
@@ -409,7 +399,7 @@ Sidecar validation maintains backward compatibility with template-based sidecar 
 **Solutions:**
 
 - Install Specmatic (CLI, JAR, npm, or Python module)
-- Configure `SPECMATIC_CMD` in sidecar workspace `.env` file
+- Ensure `specmatic` is available on PATH
 - Skip Specmatic if not needed: `--no-run-specmatic`
 
 ### Specmatic Auto-Skipped
@@ -417,7 +407,6 @@ Sidecar validation maintains backward compatibility with template-based sidecar 
 **Issue**: Specmatic is automatically skipped with message "No service configuration detected"
 
 **Explanation:**
-
 Specmatic requires a service endpoint to test against. If no service configuration is detected, Specmatic is automatically skipped to avoid unnecessary validation attempts.
 
 **When This Happens:**
@@ -428,22 +417,9 @@ Specmatic requires a service endpoint to test against. If no service configurati
 
 **Solutions:**
 
-1. **Configure service endpoint** (recommended):
-
-   ```bash
-   # Set test_base_url in sidecar workspace .env file
-   SPECMATIC_TEST_BASE_URL=http://localhost:8000
-   ```
-
-2. **Configure application server**:
-
-   ```bash
-   # Set app command and port
-   SIDECAR_APP_CMD="python manage.py runserver"
-   SIDECAR_APP_PORT=8000
-   ```
-
-3. **Force Specmatic to run** (may fail if no service available):
+1. **Ensure Specmatic is installed and on PATH**
+2. **Make sure your Specmatic configuration/service is available** (e.g., config file in the repo or a running service)
+3. **Re-run with Specmatic enabled**:
 
    ```bash
    specfact validate sidecar run legacy-api /path/to/repo --run-specmatic

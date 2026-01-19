@@ -30,6 +30,7 @@ from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.utils.auth_tokens import get_token
 
 
 console = Console()
@@ -96,23 +97,29 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
         Args:
             repo_owner: GitHub repository owner (optional, can be auto-detected)
             repo_name: GitHub repository name (optional, can be auto-detected)
-            api_token: GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI)
+            api_token: GitHub API token (optional, uses GITHUB_TOKEN env var, stored auth token, or gh CLI)
             use_gh_cli: If True, try to get token from GitHub CLI (`gh auth token`)
         """
         self.repo_owner = repo_owner
         self.repo_name = repo_name
 
-        # Token resolution order: explicit token > env var > gh CLI (if enabled)
+        stored_token = get_token("github")
+
+        # Token resolution order: explicit token > env var > stored token > gh CLI (if enabled)
         if api_token:
             self.api_token = api_token
         elif os.environ.get("GITHUB_TOKEN"):
             self.api_token = os.environ.get("GITHUB_TOKEN")
+        elif stored_token:
+            self.api_token = stored_token.get("access_token")
         elif use_gh_cli:
             self.api_token = _get_github_token_from_gh_cli()
         else:
             self.api_token = None
 
-        self.base_url = "https://api.github.com"
+        env_api_url = os.environ.get("GITHUB_API_URL")
+        stored_api_url = stored_token.get("api_base_url") if stored_token else None
+        self.base_url = stored_api_url or env_api_url or "https://api.github.com"
 
     # BacklogAdapterMixin abstract method implementations
 
@@ -539,7 +546,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
                 "  1. Set GITHUB_TOKEN environment variable\n"
                 "  2. Provide via --github-token option\n"
                 "  3. Use GitHub CLI: `gh auth login` (auto-detected if available)\n"
-                "  4. Use --use-gh-cli flag to explicitly use GitHub CLI token"
+                "  4. Use --use-gh-cli flag to explicitly use GitHub CLI token\n"
+                "  5. Run `specfact auth github` for device code authentication"
             )
             raise ValueError(msg)
 

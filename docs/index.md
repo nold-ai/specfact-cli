@@ -55,6 +55,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
   - **Bidirectional Sync**: Import backlog items as proposals, export proposals as backlog items
   - **Code Change Tracking**: Automatically detect commits and add progress comments
   - **Status Synchronization**: Keep OpenSpec and backlog status in sync
+- **[Authentication](reference/authentication.md)** - Device code auth for GitHub and Azure DevOps
 - **[GitHub Adapter](adapters/github.md)** - GitHub Issues adapter reference
 - **[Azure DevOps Adapter](adapters/azuredevops.md)** - Azure DevOps work items adapter reference
 - **[Backlog Adapter Patterns](adapters/backlog-adapter-patterns.md)** - Patterns for implementing backlog adapters
@@ -81,6 +82,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 - **[Reference Documentation](reference/)** - Complete technical reference index
 - **[Command Reference](reference/commands.md)** - Complete command documentation
+- **[Authentication](reference/authentication.md)** - Device code auth flows and token storage
 - **[Architecture](reference/architecture.md)** - Technical design and principles
 - **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
 - **[Directory Structure](reference/directory-structure.md)** - Project structure

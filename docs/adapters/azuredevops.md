@@ -96,6 +96,7 @@ The adapter supports multiple authentication methods (in order of precedence):
 
 1. **Explicit token**: `api_token` parameter or `--ado-token` CLI flag
 2. **Environment variable**: `AZURE_DEVOPS_TOKEN` (also accepts `ADO_TOKEN` or `AZURE_DEVOPS_PAT`)
+3. **Stored auth token**: `specfact auth azure-devops` (device code flow)
 
 **Example:**
 

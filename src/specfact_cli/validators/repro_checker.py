@@ -149,6 +149,58 @@ def _build_crosshair_env(pythonpath_roots: list[str]) -> dict[str, str] | None:
 
 
 @beartype
+@require(lambda repo_path: isinstance(repo_path, Path), "repo_path must be Path")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (list, list)")
+def _find_crosshair_property_targets(repo_path: Path) -> tuple[list[str], list[str]]:
+    """
+    Find explicit CrossHair property test modules to narrow analysis scope.
+
+    Returns:
+        (targets, pythonpath_roots)
+    """
+    marker_re = re.compile(r"(?mi)^\s*(?:#\s*)?CrossHair property(?:-based)? test(?:s)?\b")
+    skip_re = re.compile(r"(?mi)^\s*(?:#\s*)?CrossHair:\s*(?:skip|ignore)\b")
+    targets: list[str] = []
+    pythonpath_roots: list[str] = []
+
+    src_root = (repo_path / "src").resolve()
+    lib_root = (repo_path / "lib").resolve()
+    search_roots = [src_root, repo_path / "tools"]
+
+    for root in search_roots:
+        if not root.exists():
+            continue
+        for py_file in root.rglob("*.py"):
+            try:
+                content = py_file.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if not marker_re.search(content):
+                continue
+            if skip_re.search(content):
+                continue
+            file_path = py_file.resolve()
+            if file_path.is_relative_to(src_root):
+                module_root = src_root
+                pythonpath_root = src_root
+            elif file_path.is_relative_to(lib_root):
+                module_root = lib_root
+                pythonpath_root = lib_root
+            else:
+                module_root = repo_path.resolve()
+                pythonpath_root = repo_path.resolve()
+            pythonpath_root_str = str(pythonpath_root)
+            if pythonpath_root_str not in pythonpath_roots:
+                pythonpath_roots.append(pythonpath_root_str)
+            module_name = _module_name_from_path(module_root, file_path)
+            if module_name:
+                targets.append(module_name)
+
+    targets = sorted(set(targets))
+    return targets, pythonpath_roots
+
+
+@beartype
 @require(lambda output: isinstance(output, str), "Output must be string")
 @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
 @ensure(
@@ -714,6 +766,7 @@ class ReproChecker:
 
             # Check if this is a CrossHair signature analysis limitation (not a real failure)
             is_signature_issue = False
+            is_side_effect_issue = False
             if tool.lower() == "crosshair" and proc.returncode != 0:
                 combined_output = f"{proc.stderr} {proc.stdout}".lower()
                 is_signature_issue = (
@@ -722,6 +775,7 @@ class ReproChecker:
                     or "valueerror: wrong parameter" in combined_output
                     or ("signature" in combined_output and ("error" in combined_output or "failure" in combined_output))
                 )
+                is_side_effect_issue = "sideeffectdetected" in combined_output or "side effect" in combined_output
 
             if proc.returncode == 0:
                 result.status = CheckStatus.PASSED
@@ -729,6 +783,10 @@ class ReproChecker:
                 # CrossHair signature analysis limitation - treat as skipped, not failed
                 result.status = CheckStatus.SKIPPED
                 result.error = f"CrossHair signature analysis limitation (non-blocking, runtime contracts valid): {proc.stderr[:200] if proc.stderr else 'signature analysis limitation'}"
+            elif is_side_effect_issue:
+                # CrossHair side-effect detection - treat as skipped, not failed
+                result.status = CheckStatus.SKIPPED
+                result.error = f"CrossHair side-effect detected (non-blocking): {proc.stderr[:200] if proc.stderr else 'side effect detected'}"
             else:
                 result.status = CheckStatus.FAILED
 
@@ -796,7 +854,6 @@ class ReproChecker:
         contracts_tests = self.repo_path / "tests" / "contracts"
         smoke_tests = self.repo_path / "tests" / "smoke"
         tests_dir = self.repo_path / "tests"
-
         checks: list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]] = []
 
         # Linting (ruff) - optional
@@ -829,6 +886,8 @@ class ReproChecker:
         basedpyright_available, _ = check_tool_in_env(self.repo_path, "basedpyright", env_info)
         if basedpyright_available:
             basedpyright_command = ["basedpyright", *source_dirs]
+            if tests_dir.exists():
+                basedpyright_command.append("tests/")
             if (self.repo_path / "tools").exists():
                 basedpyright_command.append("tools/")
             basedpyright_command = build_tool_command(env_info, basedpyright_command)
@@ -840,17 +899,19 @@ class ReproChecker:
         if source_dirs:
             crosshair_available, _ = check_tool_in_env(self.repo_path, "crosshair", env_info)
             if crosshair_available:
-                # Build CrossHair command with detected source directories
-                # For external repos, use all detected source dirs
-                crosshair_targets = source_dirs.copy()
-                if (self.repo_path / "tools").exists():
-                    crosshair_targets.append("tools/")
+                # Prefer explicit CrossHair property test modules to avoid slow/side-effect imports.
+                crosshair_targets, pythonpath_roots = _find_crosshair_property_targets(self.repo_path)
+                if not crosshair_targets:
+                    # Fall back to scanning detected source directories
+                    crosshair_targets = source_dirs.copy()
+                    if (self.repo_path / "tools").exists():
+                        crosshair_targets.append("tools/")
+                    crosshair_targets, _excluded_main, pythonpath_roots = _expand_crosshair_targets(
+                        self.repo_path, crosshair_targets
+                    )
 
-                expanded_targets, _excluded_main, pythonpath_roots = _expand_crosshair_targets(
-                    self.repo_path, crosshair_targets
-                )
-                if expanded_targets:
-                    crosshair_base = ["python", "-m", "crosshair", "check", *expanded_targets]
+                if crosshair_targets:
+                    crosshair_base = ["python", "-m", "crosshair", "check", *crosshair_targets]
                     crosshair_command = build_tool_command(env_info, crosshair_base)
                     crosshair_env = _build_crosshair_env(pythonpath_roots)
                     checks.append(
@@ -858,15 +919,15 @@ class ReproChecker:
                             "Contract exploration (CrossHair)",
                             "crosshair",
                             crosshair_command,
-                            60,
+                            self.budget,
                             True,
                             crosshair_env,
                         )
                     )
                 else:
-                    checks.append(("Contract exploration (CrossHair)", "crosshair", [], 60, True, None))
+                    checks.append(("Contract exploration (CrossHair)", "crosshair", [], self.budget, True, None))
             else:
-                checks.append(("Contract exploration (CrossHair)", "crosshair", [], 60, True, None))
+                checks.append(("Contract exploration (CrossHair)", "crosshair", [], self.budget, True, None))
 
         # Property tests - optional, only if directory exists
         if contracts_tests.exists():

@@ -55,6 +55,7 @@ from specfact_cli import __version__, runtime
 # Import command modules
 from specfact_cli.commands import (
     analyze,
+    auth,
     contract_cmd,
     drift,
     enforce,
@@ -303,11 +304,14 @@ def main(
 # 1. Setup & Initialization
 app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integration")
 
+# 1.5. Authentication
+app.add_typer(auth.app, name="auth", help="Authenticate with DevOps providers (GitHub, Azure DevOps)")
+
 # 2. Import & Analysis
 app.add_typer(
     import_cmd.app,
     name="import",
-    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira)",
+    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)",
 )
 
 # 2.5. Migration
