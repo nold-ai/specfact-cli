@@ -37,7 +37,8 @@ def test_ado_adapter_uses_stored_token(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("AZURE_DEVOPS_TOKEN", raising=False)
 
     expires_at = (datetime.now(tz=UTC) + timedelta(hours=1)).isoformat()
-    save_tokens({"azure-devops": {"access_token": "stored-ado", "expires_at": expires_at}})
+    save_tokens({"azure-devops": {"access_token": "stored-ado", "expires_at": expires_at, "token_type": "bearer"}})
 
     adapter = AdoAdapter(api_token=None)
     assert adapter.api_token == "stored-ado"
+    assert adapter._auth_headers().get("Authorization") == "Bearer stored-ado"
