@@ -170,11 +170,13 @@ specfact backlog refine github --search "is:open"
 Once validated, the refinement can be previewed or applied:
 
 **Preview Mode (Default - Safe)**:
+
 - Shows what will be updated (title, body) vs preserved (assignees, tags, state, priority, etc.)
 - Displays original vs refined content diff
 - **Does NOT write to remote backlog** (safe by default)
 
 **Write Mode (Explicit Opt-in)**:
+
 - Requires `--write` flag to explicitly opt-in
 - Updates `BacklogItem.body_markdown` with refined content
 - Sets `refinement_applied = True`
@@ -183,6 +185,7 @@ Once validated, the refinement can be previewed or applied:
 - **Preserves all other fields** (assignees, tags, state, priority, due_date, story_points, etc.)
 
 **Field Preservation Policy**:
+
 - **Updated**: `title`, `body_markdown`
 - **Preserved**: `assignees`, `tags`, `state`, `priority`, `due_date`, `story_points`, and all other metadata
 
@@ -484,23 +487,32 @@ title_patterns:
   - "^Feature:"
 ```
 
-Save templates to:
+Save custom templates to your project directory:
 
-- **Corporate scope**: `src/specfact_cli/templates/defaults/` (included in package)
-- **Framework-specific**: `src/specfact_cli/templates/frameworks/<framework>/` (e.g., `scrum/`, `safe/`)
-- **Persona-specific**: `src/specfact_cli/templates/personas/<persona>/` (e.g., `product-owner/`, `developer/`)
-- **Provider-specific**: `src/specfact_cli/templates/providers/<provider>/` (e.g., `github/`, `ado/`)
-- **Team scope**: `.specfact/templates/` (project-specific)
+- **Default templates**: `.specfact/templates/backlog/defaults/`
+- **Framework-specific**: `.specfact/templates/backlog/frameworks/<framework>/` (e.g., `scrum/`, `safe/`)
+- **Persona-specific**: `.specfact/templates/backlog/personas/<persona>/` (e.g., `product-owner/`, `developer/`)
+- **Provider-specific**: `.specfact/templates/backlog/providers/<provider>/` (e.g., `github/`, `ado/`)
+
+**Built-in templates** (included with SpecFact CLI):
+
+- Location: `resources/templates/backlog/` (in the SpecFact CLI package)
+- Same subdirectory structure: `defaults/`, `frameworks/`, `personas/`, `providers/`
 
 ### Loading Custom Templates
 
-Templates are automatically loaded from:
+Templates are automatically loaded in priority order (custom templates override built-in):
 
-1. Default templates directory (`src/specfact_cli/templates/defaults/`)
-2. Framework-specific directories (`src/specfact_cli/templates/frameworks/<framework>/`)
-3. Persona-specific directories (`src/specfact_cli/templates/personas/<persona>/`)
-4. Provider-specific directories (`src/specfact_cli/templates/providers/<provider>/`)
-5. Project templates directory (`.specfact/templates/`)
+1. **Project templates** (`.specfact/templates/backlog/`) - Highest priority, overrides built-in
+2. **Built-in templates** (`resources/templates/backlog/`) - Included with package
+3. **Legacy location** (`src/specfact_cli/templates/`) - Fallback for backward compatibility
+
+Within each location, templates are loaded from:
+
+- `defaults/` subdirectory
+- `frameworks/<framework>/` subdirectories
+- `personas/<persona>/` subdirectories
+- `providers/<provider>/` subdirectories
 
 **Template Resolution**:
 

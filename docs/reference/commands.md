@@ -3678,6 +3678,16 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 - `--bundle`, `-b` - OpenSpec bundle path to import refined items
 - `--auto-bundle` - Auto-import refined items to OpenSpec bundle
+- `--openspec-comment` - Add OpenSpec change proposal reference as comment (preserves original body)
+
+**Adapter Configuration:**
+
+- `--repo-owner` - GitHub repository owner (required for GitHub adapter)
+- `--repo-name` - GitHub repository name (required for GitHub adapter)
+- `--github-token` - GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)
+- `--ado-org` - Azure DevOps organization (required for ADO adapter)
+- `--ado-project` - Azure DevOps project (required for ADO adapter)
+- `--ado-token` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)
 
 **Architecture Note**: SpecFact CLI follows a CLI-first architecture:
 
@@ -3691,37 +3701,48 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 ```bash
 # Refine GitHub issues (auto-detect template)
-specfact backlog refine github --search "is:open label:feature"
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --state open
+
+# Refine GitHub issues with search query
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --search "is:open label:feature"
 
 # Filter by labels and state
-specfact backlog refine github --labels feature,enhancement --state open
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --labels feature,enhancement --state open
 
 # Filter by sprint and assignee
-specfact backlog refine github --sprint "Sprint 1" --assignee dev1
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --sprint "Sprint 1" --assignee dev1
 
 # Filter by framework and persona (Scrum + Product Owner)
-specfact backlog refine github --framework scrum --persona product-owner --labels feature
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --framework scrum --persona product-owner --labels feature
 
 # Refine with specific template
-specfact backlog refine github --template user_story_v1 --search "is:open"
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --template user_story_v1 --state open
 
 # Check Definition of Ready before refinement
-specfact backlog refine github --check-dor --labels feature
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --check-dor --labels feature
 
 # Preview refinement without writing (default)
-specfact backlog refine github --preview --labels feature
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --preview --labels feature
 
 # Write refinement to backlog (explicit opt-in)
-specfact backlog refine github --write --labels feature
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --write --labels feature
 
 # Auto-accept high-confidence refinements
-specfact backlog refine github --auto-accept-high-confidence --search "is:open"
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --auto-accept-high-confidence --state open
 
 # Refine and import to OpenSpec bundle
 specfact backlog refine github \
+  --repo-owner "nold-ai" \
+  --repo-name "specfact-cli" \
   --bundle my-project \
   --auto-bundle \
-  --search "is:open label:enhancement"
+  --state open
+
+# Refine and add OpenSpec comment (preserves original body)
+specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --write --openspec-comment --state open
+
+# Refine ADO work items
+specfact backlog refine ado --ado-org "my-org" --ado-project "my-project" --state Active
 
 # Refine ADO work items with sprint filter
 specfact backlog refine ado --sprint "Sprint 1" --state Active

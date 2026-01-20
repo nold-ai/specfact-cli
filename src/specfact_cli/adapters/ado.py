@@ -23,6 +23,9 @@ from rich.console import Console
 
 from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
 from specfact_cli.adapters.base import BridgeAdapter
+from specfact_cli.backlog.adapters.base import BacklogAdapter
+from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
@@ -32,7 +35,7 @@ from specfact_cli.utils.auth_tokens import get_token
 console = Console()
 
 
-class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
+class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     """
     Azure DevOps bridge adapter implementing BridgeAdapter interface.
 
@@ -2097,3 +2100,198 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin):
             msg = f"Failed to add progress comment to Azure DevOps work item #{work_item_id}: {e}"
             console.print(f"[bold red]✗[/bold red] {msg}")
             raise
+
+    # BacklogAdapter interface implementations
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty adapter name")
+    def name(self) -> str:
+        """Get the adapter name."""
+        return "ado"
+
+    @beartype
+    @require(lambda format_type: isinstance(format_type, str) and len(format_type) > 0, "Format type must be non-empty")
+    @ensure(lambda result: isinstance(result, bool), "Must return boolean")
+    def supports_format(self, format_type: str) -> bool:
+        """Check if adapter supports the specified format."""
+        return format_type.lower() == "markdown"
+
+    @beartype
+    @require(lambda filters: isinstance(filters, BacklogFilters), "Filters must be BacklogFilters instance")
+    @ensure(lambda result: isinstance(result, list), "Must return list of BacklogItem")
+    @ensure(
+        lambda result, filters: all(isinstance(item, BacklogItem) for item in result), "All items must be BacklogItem"
+    )
+    def fetch_backlog_items(self, filters: BacklogFilters) -> list[BacklogItem]:
+        """
+        Fetch Azure DevOps work items matching the specified filters.
+
+        Uses ADO Work Items API to query work items.
+        """
+        if not self.api_token:
+            msg = "Azure DevOps API token required to fetch backlog items"
+            raise ValueError(msg)
+
+        if not self.org or not self.project:
+            msg = "org and project required to fetch backlog items"
+            raise ValueError(msg)
+
+        # Build WIQL (Work Item Query Language) query
+        wiql_parts = ["SELECT [System.Id], [System.Title], [System.State]"]
+        wiql_parts.append("FROM WorkItems")
+        wiql_parts.append("WHERE [System.TeamProject] = @project")
+
+        conditions = []
+
+        if filters.state:
+            conditions.append(f"[System.State] = '{filters.state}'")
+
+        if filters.assignee:
+            conditions.append(f"[System.AssignedTo] = '{filters.assignee}'")
+
+        if filters.area:
+            conditions.append(f"[System.AreaPath] = '{filters.area}'")
+
+        if filters.iteration:
+            conditions.append(f"[System.IterationPath] = '{filters.iteration}'")
+
+        if conditions:
+            wiql_parts.append("AND " + " AND ".join(conditions))
+
+        wiql = " ".join(wiql_parts)
+
+        # Execute WIQL query
+        url = f"{self.base_url}/{self.org}/{self.project}/_apis/wit/wiql"
+        headers = {
+            "Authorization": f"{self.auth_scheme} {self.api_token}" if self.auth_scheme else f"Basic {self.api_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {"query": wiql}
+
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        query_result = response.json()
+
+        work_item_ids = [item["id"] for item in query_result.get("workItems", [])]
+
+        if not work_item_ids:
+            return []
+
+        # Fetch work item details
+        items: list[BacklogItem] = []
+        batch_size = 200  # ADO API limit
+
+        for i in range(0, len(work_item_ids), batch_size):
+            batch = work_item_ids[i : i + batch_size]
+            ids_str = ",".join(str(wi_id) for wi_id in batch)
+
+            url = f"{self.base_url}/{self.org}/{self.project}/_apis/wit/workitems"
+            params = {"ids": ids_str, "$expand": "all"}
+
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            work_items_data = response.json()
+
+            # Convert ADO work items to BacklogItem
+            from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+            for work_item in work_items_data.get("value", []):
+                backlog_item = convert_ado_work_item_to_backlog_item(work_item, provider="ado")
+                items.append(backlog_item)
+
+        # Apply post-fetch filters that ADO API doesn't support directly
+        filtered_items = items
+
+        if filters.labels:
+            filtered_items = [item for item in filtered_items if any(label in item.tags for label in filters.labels)]
+
+        if filters.sprint:
+            filtered_items = [item for item in filtered_items if item.sprint and item.sprint == filters.sprint]
+
+        if filters.release:
+            filtered_items = [item for item in filtered_items if item.release and item.release == filters.release]
+
+        if filters.search:
+            # Search filtering not directly supported by ADO WIQL, skip for now
+            pass
+
+        return filtered_items
+
+    @beartype
+    def add_comment(self, item: BacklogItem, comment: str) -> bool:
+        """
+        Add a comment to an Azure DevOps work item.
+
+        Args:
+            item: BacklogItem to add comment to
+            comment: Comment text to add
+
+        Returns:
+            True if comment was added successfully, False otherwise
+        """
+        if not self.api_token:
+            return False
+
+        if not self.org or not self.project:
+            return False
+
+        work_item_id = int(item.id)
+        try:
+            self._add_work_item_comment(self.org, self.project, work_item_id, comment)
+            return True
+        except Exception:
+            return False
+
+    @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
+    @require(
+        lambda update_fields: update_fields is None or isinstance(update_fields, list),
+        "Update fields must be None or list",
+    )
+    @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
+    @ensure(
+        lambda result, item: result.id == item.id and result.provider == item.provider,
+        "Updated item must preserve id and provider",
+    )
+    def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
+        """
+        Update an Azure DevOps work item.
+
+        Updates the work item title and/or description based on update_fields.
+        """
+        if not self.api_token:
+            msg = "Azure DevOps API token required to update backlog items"
+            raise ValueError(msg)
+
+        if not self.org or not self.project:
+            msg = "org and project required to update backlog items"
+            raise ValueError(msg)
+
+        work_item_id = int(item.id)
+        url = f"{self.base_url}/{self.org}/{self.project}/_apis/wit/workitems/{work_item_id}"
+        headers = {
+            "Authorization": f"{self.auth_scheme} {self.api_token}" if self.auth_scheme else f"Basic {self.api_token}",
+            "Content-Type": "application/json-patch+json",
+        }
+
+        # Build update operations
+        operations = []
+
+        if update_fields is None or "title" in update_fields:
+            operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
+
+        if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
+            operations.append({"op": "replace", "path": "/fields/System.Description", "value": item.body_markdown})
+
+        if update_fields is None or "state" in update_fields:
+            operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})
+
+        # Update work item
+        response = requests.patch(url, headers=headers, json=operations, timeout=30)
+        response.raise_for_status()
+        updated_work_item = response.json()
+
+        # Convert back to BacklogItem
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        return convert_ado_work_item_to_backlog_item(updated_work_item, provider="ado")

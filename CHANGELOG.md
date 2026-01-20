@@ -9,36 +9,42 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.26.0] - 2026-01-20
+## [0.26.0] - 2026-01-21
 
 ### Added (0.26.0)
 
 - **Template-Driven Backlog Refinement**: New `specfact backlog refine` command for AI-assisted backlog refinement
   - **Purpose**: Standardize and refine backlog items using template-driven workflows with AI assistance
   - **Features**:
-    - **Template Detection**: Automatic template matching with confidence scoring
-    - **Priority-Based Template Resolution**: Supports framework-specific, persona-specific, and provider-specific templates
+    - **Template Detection**: Automatic template matching with confidence scoring (structural + pattern-based)
+    - **Priority-Based Template Resolution**: Supports framework-specific, persona-specific, and provider-specific templates with fallback chain
     - **Comprehensive Filtering**: Filter by state, labels/tags, assignee, iteration, sprint, release, persona, and framework
     - **Definition of Ready (DoR) Validation**: Configurable DoR rules with repo-level configuration (`.specfact/dor.yaml`)
     - **Preview/Write Safety**: Preview mode by default, explicit `--write` flag required for backlog updates
     - **CLI-First Architecture**: Generates prompts for IDE AI copilots (Cursor, Claude Code, etc.) instead of direct LLM calls
-    - **Field Preservation**: Preserves additional fields (priority, assignee, due date, story points) during refinement
-    - **OpenSpec Integration**: Optional import of refined items to OpenSpec bundles
+    - **Field Preservation**: Preserves additional fields (priority, assignee, due date, story points, sprint, release) during refinement
+    - **OpenSpec Integration**: Optional import of refined items to OpenSpec bundles with `--bundle` and `--auto-bundle` flags
+    - **OpenSpec Comments**: Optional `--openspec-comment` flag to add OpenSpec change proposals as comments (preserves original body)
   - **Template System**:
-    - **Directory Organization**: Templates organized by `frameworks/`, `personas/`, and `providers/`
-    - **Template Matching**: Structural and pattern-based template detection
-    - **Priority Resolution**: Framework > Persona > Provider > Default templates
+    - **Template Location**: Built-in templates in `resources/templates/backlog/` (defaults/, frameworks/, personas/, providers/)
+    - **Custom Templates**: Project-specific templates in `.specfact/templates/backlog/` (overrides built-in)
+    - **Template Matching**: Structural (60% weight) and pattern-based (40% weight) template detection
+    - **Priority Resolution**: provider+framework+persona → provider+framework → framework+persona → framework → provider+persona → persona → provider → default
     - **Template Customization**: Support for custom templates with persona, framework, and provider metadata
+    - **Pre-built Templates**: user_story_v1, defect_v1, spike_v1, enabler_v1 (defaults), scrum user story (frameworks), product-owner user story (personas), ADO work item (providers)
+  - **Adapter Configuration**:
+    - **GitHub Adapter**: `--repo-owner`, `--repo-name`, `--github-token` options
+    - **Azure DevOps Adapter**: `--ado-org`, `--ado-project`, `--ado-token`, `--ado-base-url`, `--ado-work-item-type` options
   - **Filtering Options**:
     - `--state`: Filter by state (open, closed, etc.)
     - `--labels`, `--tags`: Filter by labels/tags (multiple labels supported with OR logic)
     - `--assignee`: Filter by assignee username
     - `--iteration`: Filter by iteration path
-    - `--sprint`: Filter by sprint identifier
-    - `--release`: Filter by release identifier
+    - `--sprint`: Filter by sprint identifier (extracted from GitHub milestones, ADO iteration paths)
+    - `--release`: Filter by release identifier (extracted from GitHub milestones, ADO iteration paths)
     - `--persona`: Filter templates by persona (product-owner, architect, developer)
     - `--framework`: Filter templates by framework (agile, scrum, safe, kanban)
-    - `--search`: Provider-specific search query
+    - `--search`: Provider-specific search query (GitHub search syntax, ADO WIQL)
   - **Refinement Options**:
     - `--template`: Target template ID (default: auto-detect)
     - `--auto-accept-high-confidence`: Auto-accept refinements with confidence >= 0.85
@@ -49,35 +55,65 @@ All notable changes to this project will be documented in this file.
   - **OpenSpec Integration**:
     - `--bundle`: OpenSpec bundle path to import refined items
     - `--auto-bundle`: Auto-import refined items to OpenSpec bundle
+    - `--openspec-comment`: Add OpenSpec change proposal as comment (preserves original body)
   - **Configuration**:
-    - DoR configuration: `.specfact/dor.yaml` with configurable rules (story_points, priority, business_value, acceptance_criteria, etc.)
-    - Template directories: `templates/frameworks/`, `templates/personas/`, `templates/providers/`
+    - DoR configuration: `.specfact/dor.yaml` with configurable rules (story_points, priority, business_value, acceptance_criteria, dependencies, etc.)
+    - Template directories: Built-in in `resources/templates/backlog/`, custom in `.specfact/templates/backlog/`
   - **Examples**:
-    - `specfact backlog refine github --state open --labels feature --preview` (preview open feature issues)
-    - `specfact backlog refine github --sprint "Sprint 1" --persona product-owner --framework scrum --check-dor` (refine sprint items with DoR validation)
-    - `specfact backlog refine ado --state open --write` (refine and write ADO work items)
+    - `specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --state open --labels feature --preview` (preview open feature issues)
+    - `specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --sprint "Sprint 1" --persona product-owner --framework scrum --check-dor` (refine sprint items with DoR validation)
+    - `specfact backlog refine ado --ado-org "my-org" --ado-project "my-project" --state open --write` (refine and write ADO work items)
   - **Documentation**:
     - `docs/guides/backlog-refinement.md` - Complete backlog refinement guide
-    - `docs/guides/agile-scrum-workflows.md` - Agile/scrum workflow integration
-    - `docs/guides/integrations-overview.md` - Integration overview with backlog refinement
+    - `docs/guides/template-customization.md` - Template customization guide
     - `docs/reference/commands.md` - Complete command reference
   - **Testing**:
-    - 36 filtering tests (unit + integration) covering all filter combinations
-    - Full E2E refinement flow tests
-    - Converter tests for GitHub/ADO issue conversion
+    - 106 backlog tests (82 unit + 19 integration + 5 E2E) covering all functionality
     - Template detection and resolution tests
     - DoR validation tests
-  - **Pending (depends on adapter methods)**:
-    - Actual fetching from GitHub/ADO (requires `adapter.search_issues()` / `adapter.list_work_items()`)
-    - Writeback to remote backlog (requires adapter update methods)
+    - Converter tests for GitHub/ADO issue conversion with sprint/release extraction
 
-- **BacklogItem Domain Model**: Unified domain model for backlog items from any provider
+- **Generic Backlog Abstraction**: Extensible adapter interface and format abstraction
+  - **BacklogAdapter Interface** (`src/specfact_cli/backlog/adapters/base.py`): Abstract base class for all backlog sources
+    - **Standard Methods**: `name()`, `supports_format()`, `fetch_backlog_items()`, `update_backlog_item()`
+    - **Optional Methods**: `create_backlog_item_from_spec()`, `add_comment()`
+    - **Validation**: `validate_round_trip()` method with default implementation
+    - **Extensibility**: Easy to add new backlog providers (Jira, Linear, GitLab, etc.)
+  - **BacklogFilters Dataclass** (`src/specfact_cli/backlog/filters.py`): Standardized filtering interface
+    - **Fields**: assignee, state, labels, search, area, iteration, sprint, release
+    - **Extensible**: All fields optional for future additions
+  - **Format Abstraction** (`src/specfact_cli/backlog/formats/`):
+    - **BacklogFormat Base Class**: Abstract interface for serialization
+    - **MarkdownFormat**: Markdown serialization with optional YAML frontmatter
+    - **StructuredFormat**: YAML/JSON serialization with provider_fields preservation
+    - **FormatDetector**: Heuristic format detection (JSON, YAML, Markdown)
+  - **LocalYAMLBacklogAdapter**: Example extensible adapter for local YAML files
+    - **Purpose**: Demonstrates adapter extensibility pattern
+    - **Location**: `.specfact/backlog.yaml`
+    - **Format**: Uses StructuredFormat for serialization
+  - **Adapter Refactoring**:
+    - **GitHub Adapter**: Now implements BacklogAdapter interface (backward compatible)
+    - **ADO Adapter**: Now implements BacklogAdapter interface (backward compatible)
+    - **Preserved Behavior**: All existing bridge sync functionality unchanged
+  - **Testing**:
+    - 19 adapter tests (GitHub + ADO BacklogAdapter interface tests)
+    - Format abstraction tests (Markdown, Structured, FormatDetector)
+    - LocalYAMLAdapter tests (11 tests)
+
+- **BacklogItem Domain Model** (`src/specfact_cli/models/backlog_item.py`): Unified domain model for backlog items from any provider
   - **Lossless Data Preservation**: Preserves all provider-specific fields in `provider_fields`
   - **Refinement State Tracking**: Tracks template detection, AI refinement, and confidence scores
   - **Sprint/Release Support**: Extracts sprint and release information from GitHub milestones and ADO iteration paths
   - **Source Tracking**: Integrated with `SourceTracking` for cross-sync capabilities
+  - **Fields**: id, provider, url, title, body_markdown, state, assignees, tags, iteration, area, sprint, release, created_at, updated_at, source_tracking, provider_fields, detected_template, template_confidence, template_missing_fields, refined_body, refinement_applied, refinement_timestamp
 
-- **DefinitionOfReady Model**: Configurable Definition of Ready validation
+- **TemplateRegistry** (`src/specfact_cli/templates/registry.py`): Centralized template management
+  - **Template Loading**: Loads from `resources/templates/backlog/` (built-in) and `.specfact/templates/backlog/` (custom)
+  - **Template Scoping**: Corporate, team, and user scope support
+  - **Template Resolution**: Priority-based template matching with fallback chain
+  - **YAML Loading**: Loads templates from files and directories (defaults/, frameworks/, personas/, providers/)
+
+- **DefinitionOfReady Model** (`src/specfact_cli/models/dor_config.py`): Configurable Definition of Ready validation
   - **Repo-Level Configuration**: `.specfact/dor.yaml` with configurable rules
   - **Rule Validation**: Validates story_points, priority, business_value, acceptance_criteria, dependencies
   - **Default Rules**: Fallback to default DoR rules when config not found
@@ -85,17 +121,40 @@ All notable changes to this project will be documented in this file.
 - **IDE AI Copilot Integration**: Slash command prompt for IDE AI copilots
   - **Prompt Template**: `resources/prompts/specfact.backlog-refine.md`
   - **Integration**: Integrated into `ide_setup.py` for automatic IDE setup
+  - **Updated Prompts**: Enhanced `specfact.sync-backlog.md` and `specfact.06-sync.md` with adapter configuration options
 
 ### Changed (0.26.0)
 
+- **Template Location**: Moved template YAML files from `src/specfact_cli/templates/` to `resources/templates/backlog/`
+  - **Built-in Templates**: Now in `resources/templates/backlog/defaults/`, `frameworks/`, `personas/`, `providers/`
+  - **Custom Templates**: Project-specific templates in `.specfact/templates/backlog/` (overrides built-in)
+  - **Backward Compatibility**: Loading logic supports both old and new locations with fallback
+  - **Python Code**: TemplateRegistry class remains in `src/specfact_cli/templates/registry.py`
+
+- **GitHub Adapter**: Refactored to implement BacklogAdapter interface
+  - **New Methods**: `fetch_backlog_items()`, `update_backlog_item()` using BacklogFilters
+  - **Preserved Behavior**: All existing bridge sync functionality unchanged
+  - **Provider Fields**: Preserves GitHub-specific data in `provider_fields`
+
+- **ADO Adapter**: Refactored to implement BacklogAdapter interface
+  - **New Methods**: `fetch_backlog_items()`, `update_backlog_item()` using BacklogFilters
+  - **Preserved Behavior**: All existing bridge sync functionality unchanged
+  - **Provider Fields**: Preserves ADO-specific data in `provider_fields`
+  - **Sprint/Release Extraction**: Extracts from `System.IterationPath`
+
 - **CLI Help Text**: Updated main CLI help and command help text to mention backlog refinement
 - **Documentation Structure**: Enhanced documentation with backlog refinement features across all guides
+  - **New Guide**: `docs/guides/template-customization.md` - Template customization guide
+  - **Updated Guides**: `docs/guides/backlog-refinement.md` - Enhanced with template location and customization info
 - **Sync Command**: Updated `specfact sync` command help to reference backlog refinement
+- **Prompt Templates**: Updated all backlog-related prompt templates with adapter configuration options
 
 ### Fixed (0.26.0)
 
 - **Python 3.11 Compatibility**: Fixed `datetime.UTC` import for Python versions < 3.11 in `bridge_sync.py`
 - **Type Annotations**: Fixed type annotations in test files (replaced `any` with `Any` from typing)
+- **Template Loading**: Fixed template loading to support `defaults/` subdirectory in `load_templates_from_directory()`
+- **Template Loading**: Fixed template loading to support `defaults/` subdirectory in `load_templates_from_directory()`
 
 ---
 

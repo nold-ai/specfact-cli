@@ -44,6 +44,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
 - **[IDE Integration](guides/ide-integration.md)** - Set up slash commands in your IDE
 - **[CoPilot Mode](guides/copilot-mode.md)** - Using `--mode copilot` on CLI
+- **[Template Customization](guides/template-customization.md)** 🆕 **NEW** - Create and customize backlog templates for your team
 - **[Troubleshooting](guides/troubleshooting.md)** - Common issues and solutions
 - **[Competitive Analysis](guides/competitive-analysis.md)** - How SpecFact compares
 
@@ -65,6 +66,8 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
   - **Persona/Framework Support** 🆕: Filter templates by persona (product-owner, architect, developer) and framework (scrum, safe, kanban)
   - **Definition of Ready (DoR)** 🆕: Validate sprint readiness with repo-level DoR configuration
   - **Preview/Write Safety** 🆕: Preview mode by default, explicit `--write` flag for writeback
+  - **OpenSpec Integration** 🆕: Add OpenSpec reference comments with `--openspec-comment` flag (preserves original body)
+  - **Template Customization** 🆕: Create custom templates for your team - see [Template Customization Guide](guides/template-customization.md)
 - **[Authentication](reference/authentication.md)** - Device code auth for GitHub and Azure DevOps
 - **[GitHub Adapter](adapters/github.md)** - GitHub Issues adapter reference
 - **[Azure DevOps Adapter](adapters/azuredevops.md)** - Azure DevOps work items adapter reference

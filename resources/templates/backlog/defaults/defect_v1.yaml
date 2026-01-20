@@ -1,0 +1,22 @@
+template_id: defect_v1
+name: Defect
+description: Standard defect/bug template with reproduction steps and expected behavior
+scope: corporate
+required_sections:
+  - Description
+  - Steps to Reproduce
+  - Expected Behavior
+  - Actual Behavior
+optional_sections:
+  - Environment
+  - Screenshots
+  - Related Issues
+body_patterns:
+  steps_to_reproduce: "[Ss]teps? to [Rr]eproduce"
+  expected_behavior: "[Ee]xpected [Bb]ehavior"
+  actual_behavior: "[Aa]ctual [Bb]ehavior"
+title_patterns:
+  - "^.*[Bb]ug.*$"
+  - "^.*[Dd]efect.*$"
+  - "^.*[Ii]ssue.*$"
+schema_ref: openspec/templates/defect_v1/

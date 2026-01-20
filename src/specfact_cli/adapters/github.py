@@ -27,6 +27,9 @@ from rich.console import Console
 
 from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
 from specfact_cli.adapters.base import BridgeAdapter
+from specfact_cli.backlog.adapters.base import BacklogAdapter
+from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
@@ -71,7 +74,7 @@ def _get_github_token_from_gh_cli() -> str | None:
     return None
 
 
-class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
+class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     """
     GitHub bridge adapter implementing BridgeAdapter interface.
 
@@ -2308,3 +2311,195 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin):
             msg = f"Failed to add progress comment to GitHub issue #{issue_number}: {e}"
             console.print(f"[bold red]✗[/bold red] {msg}")
             raise
+
+    # BacklogAdapter interface implementations
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty adapter name")
+    def name(self) -> str:
+        """Get the adapter name."""
+        return "github"
+
+    @beartype
+    @require(lambda format_type: isinstance(format_type, str) and len(format_type) > 0, "Format type must be non-empty")
+    @ensure(lambda result: isinstance(result, bool), "Must return boolean")
+    def supports_format(self, format_type: str) -> bool:
+        """Check if adapter supports the specified format."""
+        return format_type.lower() == "markdown"
+
+    @beartype
+    @require(lambda filters: isinstance(filters, BacklogFilters), "Filters must be BacklogFilters instance")
+    @ensure(lambda result: isinstance(result, list), "Must return list of BacklogItem")
+    @ensure(
+        lambda result, filters: all(isinstance(item, BacklogItem) for item in result), "All items must be BacklogItem"
+    )
+    def fetch_backlog_items(self, filters: BacklogFilters) -> list[BacklogItem]:
+        """
+        Fetch GitHub issues matching the specified filters.
+
+        Uses GitHub Search API to find issues matching the filters.
+        """
+        if not self.api_token:
+            msg = "GitHub API token required to fetch backlog items"
+            raise ValueError(msg)
+
+        if not self.repo_owner or not self.repo_name:
+            msg = "repo_owner and repo_name required to fetch backlog items"
+            raise ValueError(msg)
+
+        # Build GitHub search query
+        query_parts = [f"repo:{self.repo_owner}/{self.repo_name}", "type:issue"]
+
+        if filters.state:
+            query_parts.append(f"state:{filters.state}")
+
+        if filters.assignee:
+            query_parts.append(f"assignee:{filters.assignee}")
+
+        if filters.labels:
+            for label in filters.labels:
+                query_parts.append(f"label:{label}")
+
+        if filters.search:
+            query_parts.append(f"{filters.search}")
+
+        query = " ".join(query_parts)
+
+        # Fetch issues using GitHub Search API
+        url = f"{self.base_url}/search/issues"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        params = {"q": query, "per_page": 100}
+
+        items: list[BacklogItem] = []
+        page = 1
+
+        while True:
+            params["page"] = page
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+
+            issues = data.get("items", [])
+            if not issues:
+                break
+
+            # Convert GitHub issues to BacklogItem
+            from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
+
+            for issue in issues:
+                backlog_item = convert_github_issue_to_backlog_item(issue, provider="github")
+                items.append(backlog_item)
+
+            # Check if there are more pages
+            if len(issues) < 100:
+                break
+            page += 1
+
+        # Apply post-fetch filters that GitHub API doesn't support directly
+        filtered_items = items
+
+        if filters.iteration:
+            filtered_items = [item for item in filtered_items if item.iteration and item.iteration == filters.iteration]
+
+        if filters.sprint:
+            filtered_items = [item for item in filtered_items if item.sprint and item.sprint == filters.sprint]
+
+        if filters.release:
+            filtered_items = [item for item in filtered_items if item.release and item.release == filters.release]
+
+        if filters.area:
+            # Area filtering not directly supported by GitHub, skip for now
+            pass
+
+        return filtered_items
+
+    @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
+    @require(
+        lambda update_fields: update_fields is None or isinstance(update_fields, list),
+        "Update fields must be None or list",
+    )
+    @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
+    @ensure(
+        lambda result, item: result.id == item.id and result.provider == item.provider,
+        "Updated item must preserve id and provider",
+    )
+    @beartype
+    def add_comment(self, item: BacklogItem, comment: str) -> bool:
+        """
+        Add a comment to a GitHub issue.
+
+        Args:
+            item: BacklogItem to add comment to
+            comment: Comment text to add
+
+        Returns:
+            True if comment was added successfully, False otherwise
+        """
+        if not self.api_token:
+            return False
+
+        if not self.repo_owner or not self.repo_name:
+            return False
+
+        # Extract issue number from item ID or URL
+        issue_number: int | None = None
+        if item.id.isdigit():
+            issue_number = int(item.id)
+        elif item.url:
+            # Extract from URL like https://github.com/owner/repo/issues/123
+            match = re.search(r"/issues/(\d+)", item.url)
+            if match:
+                issue_number = int(match.group(1))
+
+        if not issue_number:
+            return False
+
+        try:
+            self._add_issue_comment(self.repo_owner, self.repo_name, issue_number, comment)
+            return True
+        except Exception:
+            return False
+
+    def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
+        """
+        Update a GitHub issue.
+
+        Updates the issue title and/or body based on update_fields.
+        """
+        if not self.api_token:
+            msg = "GitHub API token required to update backlog items"
+            raise ValueError(msg)
+
+        if not self.repo_owner or not self.repo_name:
+            msg = "repo_owner and repo_name required to update backlog items"
+            raise ValueError(msg)
+
+        issue_number = int(item.id)
+        url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/issues/{issue_number}"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+        # Build update payload
+        payload: dict[str, Any] = {}
+        if update_fields is None or "title" in update_fields:
+            payload["title"] = item.title
+        if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
+            payload["body"] = item.body_markdown
+        if update_fields is None or "state" in update_fields:
+            payload["state"] = item.state
+
+        # Update issue
+        response = requests.patch(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        updated_issue = response.json()
+
+        # Convert back to BacklogItem
+        from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
+
+        return convert_github_issue_to_backlog_item(updated_issue, provider="github")

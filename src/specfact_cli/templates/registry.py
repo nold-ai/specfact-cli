@@ -186,11 +186,19 @@ class TemplateRegistry:
             msg = f"Template directory not found: {template_dir}"
             raise FileNotFoundError(msg)
 
-        # Load templates from defaults/ directory
-        for template_file in template_dir.glob("*.yaml"):
-            self.load_template_from_file(template_file)
-        for template_file in template_dir.glob("*.yml"):
-            self.load_template_from_file(template_file)
+        # Load templates from defaults/ subdirectory (if it exists)
+        defaults_dir = template_dir / "defaults"
+        if defaults_dir.exists():
+            for template_file in defaults_dir.glob("*.yaml"):
+                self.load_template_from_file(template_file)
+            for template_file in defaults_dir.glob("*.yml"):
+                self.load_template_from_file(template_file)
+        else:
+            # Fallback: Load templates directly from directory root (for backward compatibility)
+            for template_file in template_dir.glob("*.yaml"):
+                self.load_template_from_file(template_file)
+            for template_file in template_dir.glob("*.yml"):
+                self.load_template_from_file(template_file)
 
         # Load templates from frameworks/ subdirectory
         frameworks_dir = template_dir / "frameworks"

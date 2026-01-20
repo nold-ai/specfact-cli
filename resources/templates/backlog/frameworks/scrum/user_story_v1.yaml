@@ -1,0 +1,23 @@
+template_id: scrum_user_story_v1
+name: Scrum User Story
+description: User story template optimized for Scrum framework with story points and sprint planning
+scope: corporate
+framework: scrum
+required_sections:
+  - As a
+  - I want
+  - So that
+  - Acceptance Criteria
+  - Story Points
+optional_sections:
+  - Notes
+  - Dependencies
+  - Definition of Done
+body_patterns:
+  as_a: "As a [^,]+ I want"
+  so_that: "So that [^,]+"
+  story_points: "Story Points?:\\s*\\d+"
+title_patterns:
+  - "^.*[Uu]ser [Ss]tory.*$"
+  - "^.*[Uu]ser.*[Ss]tory.*$"
+schema_ref: openspec/templates/frameworks/scrum/user_story_v1/

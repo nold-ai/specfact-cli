@@ -20,7 +20,7 @@ try:
 except ImportError:
     from datetime import datetime
 
-    UTC = UTC  # type: ignore
+    UTC = UTC  # type: ignore  # python3.10 backport of UTC
 from pathlib import Path
 from typing import Any
 

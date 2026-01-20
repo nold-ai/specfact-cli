@@ -13,7 +13,9 @@ SpecFact CLI Architecture:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from typing import Any
 
 import typer
 from beartype import beartype
@@ -23,7 +25,9 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
 from specfact_cli.adapters.registry import AdapterRegistry
+from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.ai_refiner import BacklogAIRefiner
+from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.dor_config import DefinitionOfReady
@@ -93,6 +97,48 @@ def _apply_filters(
     return filtered
 
 
+def _build_adapter_kwargs(
+    adapter: str,
+    repo_owner: str | None = None,
+    repo_name: str | None = None,
+    github_token: str | None = None,
+    ado_org: str | None = None,
+    ado_project: str | None = None,
+    ado_token: str | None = None,
+) -> dict[str, Any]:
+    """
+    Build adapter kwargs based on adapter type and provided configuration.
+
+    Args:
+        adapter: Adapter name (github, ado, etc.)
+        repo_owner: GitHub repository owner
+        repo_name: GitHub repository name
+        github_token: GitHub API token
+        ado_org: Azure DevOps organization
+        ado_project: Azure DevOps project
+        ado_token: Azure DevOps PAT
+
+    Returns:
+        Dictionary of adapter kwargs
+    """
+    kwargs: dict[str, Any] = {}
+    if adapter.lower() == "github":
+        if repo_owner:
+            kwargs["repo_owner"] = repo_owner
+        if repo_name:
+            kwargs["repo_name"] = repo_name
+        if github_token:
+            kwargs["api_token"] = github_token
+    elif adapter.lower() == "ado":
+        if ado_org:
+            kwargs["org"] = ado_org
+        if ado_project:
+            kwargs["project"] = ado_project
+        if ado_token:
+            kwargs["api_token"] = ado_token
+    return kwargs
+
+
 def _fetch_backlog_items(
     adapter_name: str,
     search_query: str | None = None,
@@ -103,6 +149,12 @@ def _fetch_backlog_items(
     sprint: str | None = None,
     release: str | None = None,
     limit: int = 100,
+    repo_owner: str | None = None,
+    repo_name: str | None = None,
+    github_token: str | None = None,
+    ado_org: str | None = None,
+    ado_project: str | None = None,
+    ado_token: str | None = None,
 ) -> list[BacklogItem]:
     """
     Fetch backlog items using the specified adapter with filtering support.
@@ -121,38 +173,47 @@ def _fetch_backlog_items(
     Returns:
         List of BacklogItem instances (filtered)
     """
+    from specfact_cli.backlog.adapters.base import BacklogAdapter
+
     registry = AdapterRegistry()
-    _adapter = registry.get_adapter(adapter_name)  # Adapter fetched but not yet used for search
 
-    items: list[BacklogItem] = []
+    # Build adapter kwargs based on adapter type
+    adapter_kwargs = _build_adapter_kwargs(
+        adapter_name,
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        github_token=github_token,
+        ado_org=ado_org,
+        ado_project=ado_project,
+        ado_token=ado_token,
+    )
 
-    if adapter_name.lower() == "github":
-        # Convert GitHub issues to BacklogItem
-        # Note: Actual fetching will be implemented when adapter.search_issues() is available
-        # For now, this is a placeholder that shows the conversion pattern
-        console.print("[yellow]Note: GitHub issue fetching requires adapter.search_issues() implementation[/yellow]")
-        # When implemented, would do:
-        # issues = adapter.search_issues(query=search_query, limit=limit)
-        # items = [convert_github_issue_to_backlog_item(issue) for issue in issues]
-        # Then apply post-fetch filters
-        return _apply_filters(
-            items, labels=labels, state=state, assignee=assignee, iteration=iteration, sprint=sprint, release=release
-        )
+    adapter = registry.get_adapter(adapter_name, **adapter_kwargs)
 
-    if adapter_name.lower() == "ado":
-        # Convert ADO work items to BacklogItem
-        # Note: Actual fetching will be implemented when adapter.list_work_items() is available
-        console.print("[yellow]Note: ADO work item fetching requires adapter.list_work_items() implementation[/yellow]")
-        # When implemented, would do:
-        # work_items = adapter.list_work_items(query=search_query, limit=limit)
-        # items = [convert_ado_work_item_to_backlog_item(wi) for wi in work_items]
-        # Then apply post-fetch filters
-        return _apply_filters(
-            items, labels=labels, state=state, assignee=assignee, iteration=iteration, sprint=sprint, release=release
-        )
+    # Check if adapter implements BacklogAdapter interface
+    if not isinstance(adapter, BacklogAdapter):
+        msg = f"Adapter {adapter_name} does not implement BacklogAdapter interface"
+        raise NotImplementedError(msg)
 
-    msg = f"Adapter {adapter_name} is not yet supported. Supported: github, ado"
-    raise NotImplementedError(msg)
+    # Create BacklogFilters from parameters
+    filters = BacklogFilters(
+        assignee=assignee,
+        state=state,
+        labels=labels,
+        search=search_query,
+        iteration=iteration,
+        sprint=sprint,
+        release=release,
+    )
+
+    # Fetch items using the adapter
+    items = adapter.fetch_backlog_items(filters)
+
+    # Apply limit
+    if limit and len(items) > limit:
+        items = items[:limit]
+
+    return items
 
 
 @beartype
@@ -190,6 +251,9 @@ def refine(
     ),
     bundle: str | None = typer.Option(None, "--bundle", "-b", help="OpenSpec bundle path to import refined items"),
     auto_bundle: bool = typer.Option(False, "--auto-bundle", help="Auto-import refined items to OpenSpec bundle"),
+    openspec_comment: bool = typer.Option(
+        False, "--openspec-comment", help="Add OpenSpec change proposal reference as comment (preserves original body)"
+    ),
     # Preview/write flags (production safety)
     preview: bool = typer.Option(
         True,
@@ -202,6 +266,24 @@ def refine(
     # DoR validation
     check_dor: bool = typer.Option(
         False, "--check-dor", help="Check Definition of Ready (DoR) rules before refinement"
+    ),
+    # Adapter configuration (GitHub)
+    repo_owner: str | None = typer.Option(
+        None, "--repo-owner", help="GitHub repository owner (required for GitHub adapter)"
+    ),
+    repo_name: str | None = typer.Option(
+        None, "--repo-name", help="GitHub repository name (required for GitHub adapter)"
+    ),
+    github_token: str | None = typer.Option(
+        None, "--github-token", help="GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)"
+    ),
+    # Adapter configuration (ADO)
+    ado_org: str | None = typer.Option(None, "--ado-org", help="Azure DevOps organization (required for ADO adapter)"),
+    ado_project: str | None = typer.Option(
+        None, "--ado-project", help="Azure DevOps project (required for ADO adapter)"
+    ),
+    ado_token: str | None = typer.Option(
+        None, "--ado-token", help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)"
     ),
 ) -> None:
     """
@@ -223,17 +305,44 @@ def refine(
     - This command validates and processes the refined content
     """
     try:
-        # Initialize template registry and load default templates
+        # Initialize template registry and load templates
         registry = TemplateRegistry()
-        defaults_dir = Path(__file__).parent.parent / "templates" / "defaults"
-        if defaults_dir.exists():
-            registry.load_templates_from_directory(defaults_dir)
+
+        # Determine template directories (in priority order: custom > built-in)
+        from specfact_cli.utils.ide_setup import find_package_resources_path
+
+        current_dir = Path.cwd()
+
+        # 1. Load custom templates from project directory (highest priority)
+        project_templates_dir = current_dir / ".specfact" / "templates" / "backlog"
+        if project_templates_dir.exists():
+            registry.load_templates_from_directory(project_templates_dir)
+
+        # 2. Load built-in templates from resources/templates/backlog/ (preferred location)
+        # Try to find resources directory using package resource finder (for installed packages)
+        resources_path = find_package_resources_path("specfact_cli", "resources/templates/backlog")
+        if resources_path and resources_path.exists():
+            registry.load_templates_from_directory(resources_path)
+        else:
+            # Fallback: Try relative to repo root (development mode)
+            repo_root = Path(__file__).parent.parent.parent.parent
+            resources_templates_dir = repo_root / "resources" / "templates" / "backlog"
+            if resources_templates_dir.exists():
+                registry.load_templates_from_directory(resources_templates_dir)
+            else:
+                # 3. Fallback to src/specfact_cli/templates/ for backward compatibility
+                src_templates_dir = Path(__file__).parent.parent / "templates"
+                if src_templates_dir.exists():
+                    registry.load_templates_from_directory(src_templates_dir)
 
         # Initialize template detector
         detector = TemplateDetector(registry)
 
         # Initialize AI refiner (prompt generator and validator)
         refiner = BacklogAIRefiner()
+
+        # Get adapter registry for writeback
+        adapter_registry = AdapterRegistry()
 
         # Load DoR configuration (if --check-dor flag set)
         dor_config: DefinitionOfReady | None = None
@@ -256,6 +365,20 @@ def refine(
                     }
                 )
 
+        # Validate adapter-specific required parameters
+        if adapter.lower() == "github" and (not repo_owner or not repo_name):
+            console.print("[red]Error:[/red] GitHub adapter requires both --repo-owner and --repo-name options")
+            console.print(
+                "[yellow]Example:[/yellow] specfact backlog refine github --repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
+            )
+            sys.exit(1)
+        if adapter.lower() == "ado" and (not ado_org or not ado_project):
+            console.print("[red]Error:[/red] Azure DevOps adapter requires both --ado-org and --ado-project options")
+            console.print(
+                "[yellow]Example:[/yellow] specfact backlog refine ado --ado-org 'my-org' --ado-project 'my-project' --state Active"
+            )
+            sys.exit(1)
+
         # Fetch backlog items with filters
         console.print(f"[bold]Fetching backlog items from {adapter}...[/bold]")
         items = _fetch_backlog_items(
@@ -267,6 +390,12 @@ def refine(
             iteration=iteration,
             sprint=sprint,
             release=release,
+            repo_owner=repo_owner,
+            repo_name=repo_name,
+            github_token=github_token,
+            ado_org=ado_org,
+            ado_project=ado_project,
+            ado_token=ado_token,
         )
 
         if not items:
@@ -419,20 +548,94 @@ def refine(
                     if auto_accept_high_confidence and refinement_result.confidence >= 0.85:
                         console.print("[green]Auto-accepting high-confidence refinement and writing to backlog[/green]")
                         item.apply_refinement()
-                        # TODO: Implement writeback to remote backlog using adapter methods
-                        console.print(
-                            "[yellow]Note: Writeback to remote backlog requires adapter update methods[/yellow]"
+
+                        # Writeback to remote backlog using adapter
+                        # Build adapter kwargs for writeback
+                        writeback_kwargs = _build_adapter_kwargs(
+                            adapter,
+                            repo_owner=repo_owner,
+                            repo_name=repo_name,
+                            github_token=github_token,
+                            ado_org=ado_org,
+                            ado_project=ado_project,
+                            ado_token=ado_token,
                         )
+
+                        adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
+                        if isinstance(adapter_instance, BacklogAdapter):
+                            updated_item = adapter_instance.update_backlog_item(
+                                item, update_fields=["title", "body_markdown"]
+                            )
+                            console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
+
+                            # Add OpenSpec comment if requested
+                            if openspec_comment:
+                                # Generate OpenSpec change proposal reference
+                                change_id = f"backlog-refine-{item.id}"
+                                comment_text = (
+                                    f"## OpenSpec Change Proposal Reference\n\n"
+                                    f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
+                                    f"- **Change ID**: `{change_id}`\n"
+                                    f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
+                                    f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
+                                    f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
+                                    f"*Note: Original body preserved. This comment provides OpenSpec reference for cross-sync.*"
+                                )
+                                if adapter_instance.add_comment(updated_item, comment_text):
+                                    console.print("[green]✓ Added OpenSpec reference comment[/green]")
+                                else:
+                                    console.print(
+                                        "[yellow]⚠ Failed to add comment (adapter may not support comments)[/yellow]"
+                                    )
+                        else:
+                            console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
                         refined_count += 1
                     else:
                         # Interactive prompt
                         accept = Confirm.ask("Accept refinement and write to backlog?", default=False)
                         if accept:
                             item.apply_refinement()
-                            # TODO: Implement writeback to remote backlog using adapter methods
-                            console.print(
-                                "[yellow]Note: Writeback to remote backlog requires adapter update methods[/yellow]"
+
+                            # Writeback to remote backlog using adapter
+                            # Build adapter kwargs for writeback
+                            writeback_kwargs = _build_adapter_kwargs(
+                                adapter,
+                                repo_owner=repo_owner,
+                                repo_name=repo_name,
+                                github_token=github_token,
+                                ado_org=ado_org,
+                                ado_project=ado_project,
+                                ado_token=ado_token,
                             )
+
+                            adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
+                            if isinstance(adapter_instance, BacklogAdapter):
+                                updated_item = adapter_instance.update_backlog_item(
+                                    item, update_fields=["title", "body_markdown"]
+                                )
+                                console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
+
+                                # Add OpenSpec comment if requested
+                                if openspec_comment:
+                                    # Generate OpenSpec change proposal reference
+                                    change_id = f"backlog-refine-{item.id}"
+                                    comment_text = (
+                                        f"## OpenSpec Change Proposal Reference\n\n"
+                                        f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
+                                        f"- **Change ID**: `{change_id}`\n"
+                                        f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
+                                        f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
+                                        f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
+                                        f"*Note: Original body preserved. This comment provides OpenSpec reference for cross-sync.*"
+                                    )
+                                    if adapter_instance.add_comment(updated_item, comment_text):
+                                        console.print("[green]✓ Added OpenSpec reference comment[/green]")
+                                    else:
+                                        console.print(
+                                            "[yellow]⚠ Failed to add comment (adapter may not support comments)[/yellow]"
+                                        )
+                            else:
+                                console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
                             refined_count += 1
                         else:
                             console.print("[yellow]Refinement rejected - not writing to backlog[/yellow]")
@@ -448,13 +651,40 @@ def refine(
                 skipped_count += 1
                 continue
 
+        # OpenSpec bundle import (if requested)
+        if (bundle or auto_bundle) and refined_count > 0:
+            console.print("\n[bold]OpenSpec Bundle Import:[/bold]")
+            try:
+                # Determine bundle path
+                bundle_path: Path | None = None
+                if bundle:
+                    bundle_path = Path(bundle)
+                elif auto_bundle:
+                    # Auto-detect bundle from current directory
+                    current_dir = Path.cwd()
+                    bundle_path = current_dir / ".specfact" / "bundle.yaml"
+                    if not bundle_path.exists():
+                        bundle_path = current_dir / "bundle.yaml"
+
+                if bundle_path and bundle_path.exists():
+                    console.print(
+                        f"[green]Importing {refined_count} refined items to OpenSpec bundle: {bundle_path}[/green]"
+                    )
+                    # TODO: Implement actual import logic using import command functionality
+                    console.print(
+                        "[yellow]⚠ OpenSpec bundle import integration pending (use import command separately)[/yellow]"
+                    )
+                else:
+                    console.print("[yellow]⚠ Bundle path not found. Skipping import.[/yellow]")
+            except Exception as e:
+                console.print(f"[yellow]⚠ Failed to import to OpenSpec bundle: {e}[/yellow]")
+
         # Summary
         console.print("\n[bold]Summary:[/bold]")
         console.print(f"[green]Refined: {refined_count}[/green]")
         console.print(f"[yellow]Skipped: {skipped_count}[/yellow]")
 
-        # TODO: Update remote backlog with refined items
-        # TODO: Import to OpenSpec bundle if specified
+        # Note: Writeback is handled per-item above when --write flag is set
 
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")

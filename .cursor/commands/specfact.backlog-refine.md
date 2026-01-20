@@ -1,7 +1,3 @@
----
-description: "Refine backlog items using template-driven AI assistance"
----
-
 # SpecFact Backlog Refinement Command
 
 ## User Input
