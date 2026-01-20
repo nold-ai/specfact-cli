@@ -56,6 +56,7 @@ from specfact_cli import __version__, runtime
 from specfact_cli.commands import (
     analyze,
     auth,
+    backlog_commands,
     contract_cmd,
     drift,
     enforce,
@@ -265,6 +266,9 @@ def main(
     Transform your development workflow with automated quality gates,
     runtime contract validation, and state machine workflows.
 
+    **Backlog Management**: Use `specfact backlog refine` for AI-assisted template-driven
+    refinement of backlog items from GitHub Issues, Azure DevOps, and other tools.
+
     Mode Detection:
     - Explicit --mode flag (highest priority)
     - Auto-detect from environment (CoPilot API, IDE integration)
@@ -306,6 +310,9 @@ app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integrati
 
 # 1.5. Authentication
 app.add_typer(auth.app, name="auth", help="Authenticate with DevOps providers (GitHub, Azure DevOps)")
+
+# 1.6. Backlog Management
+app.add_typer(backlog_commands.app, name="backlog", help="Backlog refinement and template management")
 
 # 2. Import & Analysis
 app.add_typer(

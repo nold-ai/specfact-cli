@@ -33,6 +33,8 @@ Currently supported DevOps adapters:
 
 This guide focuses on GitHub Issues integration. Azure DevOps integration follows similar patterns with ADO-specific configuration.
 
+**Related**: See [Backlog Refinement Guide](../guides/backlog-refinement.md) 🆕 **NEW FEATURE** for AI-assisted template-driven refinement of backlog items with persona/framework filtering, sprint/iteration support, DoR validation, and preview/write safety.
+
 ---
 
 ## Quick Start

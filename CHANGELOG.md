@@ -9,6 +9,96 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.0] - 2026-01-20
+
+### Added (0.26.0)
+
+- **Template-Driven Backlog Refinement**: New `specfact backlog refine` command for AI-assisted backlog refinement
+  - **Purpose**: Standardize and refine backlog items using template-driven workflows with AI assistance
+  - **Features**:
+    - **Template Detection**: Automatic template matching with confidence scoring
+    - **Priority-Based Template Resolution**: Supports framework-specific, persona-specific, and provider-specific templates
+    - **Comprehensive Filtering**: Filter by state, labels/tags, assignee, iteration, sprint, release, persona, and framework
+    - **Definition of Ready (DoR) Validation**: Configurable DoR rules with repo-level configuration (`.specfact/dor.yaml`)
+    - **Preview/Write Safety**: Preview mode by default, explicit `--write` flag required for backlog updates
+    - **CLI-First Architecture**: Generates prompts for IDE AI copilots (Cursor, Claude Code, etc.) instead of direct LLM calls
+    - **Field Preservation**: Preserves additional fields (priority, assignee, due date, story points) during refinement
+    - **OpenSpec Integration**: Optional import of refined items to OpenSpec bundles
+  - **Template System**:
+    - **Directory Organization**: Templates organized by `frameworks/`, `personas/`, and `providers/`
+    - **Template Matching**: Structural and pattern-based template detection
+    - **Priority Resolution**: Framework > Persona > Provider > Default templates
+    - **Template Customization**: Support for custom templates with persona, framework, and provider metadata
+  - **Filtering Options**:
+    - `--state`: Filter by state (open, closed, etc.)
+    - `--labels`, `--tags`: Filter by labels/tags (multiple labels supported with OR logic)
+    - `--assignee`: Filter by assignee username
+    - `--iteration`: Filter by iteration path
+    - `--sprint`: Filter by sprint identifier
+    - `--release`: Filter by release identifier
+    - `--persona`: Filter templates by persona (product-owner, architect, developer)
+    - `--framework`: Filter templates by framework (agile, scrum, safe, kanban)
+    - `--search`: Provider-specific search query
+  - **Refinement Options**:
+    - `--template`: Target template ID (default: auto-detect)
+    - `--auto-accept-high-confidence`: Auto-accept refinements with confidence >= 0.85
+    - `--check-dor`: Check Definition of Ready rules before refinement
+  - **Preview and Writeback**:
+    - `--preview`: Preview mode (default) - show what will be written without updating backlog
+    - `--write`: Write mode - explicitly opt-in to update remote backlog
+  - **OpenSpec Integration**:
+    - `--bundle`: OpenSpec bundle path to import refined items
+    - `--auto-bundle`: Auto-import refined items to OpenSpec bundle
+  - **Configuration**:
+    - DoR configuration: `.specfact/dor.yaml` with configurable rules (story_points, priority, business_value, acceptance_criteria, etc.)
+    - Template directories: `templates/frameworks/`, `templates/personas/`, `templates/providers/`
+  - **Examples**:
+    - `specfact backlog refine github --state open --labels feature --preview` (preview open feature issues)
+    - `specfact backlog refine github --sprint "Sprint 1" --persona product-owner --framework scrum --check-dor` (refine sprint items with DoR validation)
+    - `specfact backlog refine ado --state open --write` (refine and write ADO work items)
+  - **Documentation**:
+    - `docs/guides/backlog-refinement.md` - Complete backlog refinement guide
+    - `docs/guides/agile-scrum-workflows.md` - Agile/scrum workflow integration
+    - `docs/guides/integrations-overview.md` - Integration overview with backlog refinement
+    - `docs/reference/commands.md` - Complete command reference
+  - **Testing**:
+    - 36 filtering tests (unit + integration) covering all filter combinations
+    - Full E2E refinement flow tests
+    - Converter tests for GitHub/ADO issue conversion
+    - Template detection and resolution tests
+    - DoR validation tests
+  - **Pending (depends on adapter methods)**:
+    - Actual fetching from GitHub/ADO (requires `adapter.search_issues()` / `adapter.list_work_items()`)
+    - Writeback to remote backlog (requires adapter update methods)
+
+- **BacklogItem Domain Model**: Unified domain model for backlog items from any provider
+  - **Lossless Data Preservation**: Preserves all provider-specific fields in `provider_fields`
+  - **Refinement State Tracking**: Tracks template detection, AI refinement, and confidence scores
+  - **Sprint/Release Support**: Extracts sprint and release information from GitHub milestones and ADO iteration paths
+  - **Source Tracking**: Integrated with `SourceTracking` for cross-sync capabilities
+
+- **DefinitionOfReady Model**: Configurable Definition of Ready validation
+  - **Repo-Level Configuration**: `.specfact/dor.yaml` with configurable rules
+  - **Rule Validation**: Validates story_points, priority, business_value, acceptance_criteria, dependencies
+  - **Default Rules**: Fallback to default DoR rules when config not found
+
+- **IDE AI Copilot Integration**: Slash command prompt for IDE AI copilots
+  - **Prompt Template**: `resources/prompts/specfact.backlog-refine.md`
+  - **Integration**: Integrated into `ide_setup.py` for automatic IDE setup
+
+### Changed (0.26.0)
+
+- **CLI Help Text**: Updated main CLI help and command help text to mention backlog refinement
+- **Documentation Structure**: Enhanced documentation with backlog refinement features across all guides
+- **Sync Command**: Updated `specfact sync` command help to reference backlog refinement
+
+### Fixed (0.26.0)
+
+- **Python 3.11 Compatibility**: Fixed `datetime.UTC` import for Python versions < 3.11 in `bridge_sync.py`
+- **Type Annotations**: Fixed type annotations in test files (replaced `any` with `Any` from typing)
+
+---
+
 ## [0.25.3] - 2026-01-18
 
 ### Added (0.25.3)

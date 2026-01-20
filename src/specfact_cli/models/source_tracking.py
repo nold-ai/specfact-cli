@@ -44,6 +44,14 @@ class SourceTracking(BaseModel):
         default_factory=dict,
         description="Tool-specific metadata (e.g., OpenSpec paths, GitHub issue IDs, Linear issue URLs)",
     )
+    refined_from_backlog_item_id: str | None = Field(
+        default=None, description="Backlog item ID that this was refined from"
+    )
+    refined_from_provider: str | None = Field(default=None, description="Provider of the refined backlog item")
+    template_id: str | None = Field(default=None, description="Template ID used for refinement")
+    refinement_confidence: float | None = Field(default=None, description="Refinement confidence score (0.0-1.0)")
+    refinement_timestamp: datetime | None = Field(default=None, description="Timestamp when refinement was applied")
+    refinement_ai_model: str | None = Field(default=None, description="AI model used for refinement")
 
     @beartype
     @require(lambda self, file_path: isinstance(file_path, Path), "File path must be Path")

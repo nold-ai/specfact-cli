@@ -171,8 +171,11 @@ specfact validate sidecar run my-project /path/to/repo
 - **Role-based workflows** - Product Owners, Architects, Developers work in parallel
 - **Markdown-based** - No YAML editing required
 - **Agile/scrum ready** - DoR checklists, story points, dependencies
+- **Backlog standardization** 🆕 - Template-driven refinement with persona/framework filtering
+- **Sprint/iteration filtering** 🆕 - Filter by sprint, release, iteration for agile workflows
 
-👉 **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** - Team collaboration guide
+👉 **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** - Team collaboration guide  
+👉 **[Backlog Refinement](docs/guides/backlog-refinement.md)** 🆕 - Standardize backlog items with templates
 
 ### 🔌 Integrations
 
@@ -180,9 +183,11 @@ specfact validate sidecar run my-project /path/to/repo
 - **GitHub Actions** - Automated quality gates
 - **AI IDEs** - Generate prompts for fixing gaps
 - **DevOps tools** - Sync with GitHub Issues, Linear, Jira
+- **Backlog Refinement** 🆕 - AI-assisted template-driven refinement for standardizing work items
 - **Spec-Kit, OpenSpec, Specmatic** - Works with your existing tools
 
-👉 **[Integrations Overview](docs/guides/integrations-overview.md)** - All integration options
+👉 **[Integrations Overview](docs/guides/integrations-overview.md)** - All integration options  
+👉 **[Backlog Refinement Guide](docs/guides/backlog-refinement.md)** 🆕 **NEW** - Template-driven backlog standardization
 
 ---
 
@@ -248,6 +253,7 @@ specfact validate sidecar run my-project /path/to/repo
 - **[OpenSpec Journey](docs/guides/openspec-journey.md)** - OpenSpec integration
 - **[Specmatic Integration](docs/guides/specmatic-integration.md)** - API contract testing
 - **[DevOps Adapter Integration](docs/guides/devops-adapter-integration.md)** - GitHub Issues, Linear, Jira
+- **[Backlog Refinement](docs/guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven backlog standardization
 
 👉 **[Full Documentation Index](docs/README.md)** - Browse all documentation  
 👉 **[Online Documentation](https://docs.specfact.io/)** - Complete documentation site

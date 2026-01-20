@@ -16,10 +16,11 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 **Each role works in their own Markdown files** (no YAML editing), and SpecFact syncs everything together automatically. Perfect for teams using agile/scrum practices with clear role separation.
 
-**🆕 NEW: DevOps Backlog Integration** - SpecFact now integrates directly into your agile DevOps workflows! Bidirectionally sync OpenSpec change proposals with GitHub Issues, track implementation progress automatically, and keep your backlog in sync with your specifications.
+**🆕 NEW: DevOps Backlog Integration & Refinement** - SpecFact now integrates directly into your agile DevOps workflows! Bidirectionally sync OpenSpec change proposals with GitHub Issues, track implementation progress automatically, and **refine arbitrary backlog input into structured, template-compliant work items** using AI-assisted refinement.
 
 👉 **[Agile/Scrum Workflows Guide](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Complete guide to persona-based team collaboration  
-👉 **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows
+👉 **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows  
+👉 **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items
 
 ---
 
@@ -36,6 +37,8 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
 - ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
 - ✅ **DevOps integration** 🆕 → **Bidirectional backlog sync** - Sync change proposals to GitHub Issues and Azure DevOps Work Items (and future: Linear, Jira) with automatic progress tracking
+- ✅ **Backlog refinement** 🆕 → **Template-driven standardization** - Transform arbitrary DevOps backlog input into structured, template-compliant work items with AI assistance, persona/framework filtering, and sprint/iteration support
+- ✅ **Definition of Ready (DoR)** 🆕 → **Sprint readiness validation** - Check DoR rules before adding items to sprints, with repo-level configuration
 - ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
 
 **Perfect together:**
@@ -184,6 +187,7 @@ specfact enforce sdd --bundle my-project
 - [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
 - [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ✅)
 - [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW FEATURE** - Bidirectional GitHub Issues sync, automatic progress tracking, and agile DevOps workflow integration
+- [Backlog Refinement](guides/backlog-refinement.md) 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items with persona/framework filtering, sprint/iteration support, and DoR validation
 - [Bridge Adapters](reference/commands.md#sync-bridge) - OpenSpec and DevOps integration
 
 #### Team Collaboration & Agile/Scrum

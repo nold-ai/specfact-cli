@@ -38,6 +38,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 - **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
 - **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
 - **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
+- **[Backlog Refinement](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven backlog refinement for standardizing work items
 - **[Sidecar Validation](guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
 - **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
@@ -55,6 +56,15 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
   - **Bidirectional Sync**: Import backlog items as proposals, export proposals as backlog items
   - **Code Change Tracking**: Automatically detect commits and add progress comments
   - **Status Synchronization**: Keep OpenSpec and backlog status in sync
+- **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven refinement for standardizing work items
+  - **Template Detection**: Automatically detect which template matches a backlog item with priority-based resolution
+  - **AI-Assisted Refinement**: Generate prompts for IDE AI copilots to refine unstructured input
+  - **Confidence Scoring**: Validate refined content and provide confidence scores
+  - **Lossless Preservation**: Preserve original backlog data for round-trip synchronization
+  - **Agile Filtering** 🆕: Filter by sprint, release, iteration, labels, state, assignee for agile workflows
+  - **Persona/Framework Support** 🆕: Filter templates by persona (product-owner, architect, developer) and framework (scrum, safe, kanban)
+  - **Definition of Ready (DoR)** 🆕: Validate sprint readiness with repo-level DoR configuration
+  - **Preview/Write Safety** 🆕: Preview mode by default, explicit `--write` flag for writeback
 - **[Authentication](reference/authentication.md)** - Device code auth for GitHub and Azure DevOps
 - **[GitHub Adapter](adapters/github.md)** - GitHub Issues adapter reference
 - **[Azure DevOps Adapter](adapters/azuredevops.md)** - Azure DevOps work items adapter reference

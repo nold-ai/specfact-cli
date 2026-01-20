@@ -3126,6 +3126,7 @@ specfact sync bridge --adapter ado --mode export-only \
 ```
 
 **Key Points:**
+
 - Change IDs are shown in import/export output
 - Same change_id is used across all adapters for the same proposal
 - Bundle preserves lossless content for cross-adapter sync
@@ -3623,6 +3624,120 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 - Code changes → Plan artifact updates
 - Deviations from manual plans
 - Feature/story extraction from code
+
+---
+
+### `backlog` - Backlog Refinement and Template Management
+
+Backlog refinement commands for AI-assisted template-driven refinement of DevOps backlog items.
+
+#### `backlog refine`
+
+Refine backlog items using AI-assisted template matching. Transforms arbitrary DevOps backlog input (GitHub Issues, ADO work items) into structured, template-compliant format (user stories, defects, spikes, enablers).
+
+```bash
+specfact backlog refine <ADAPTER> [OPTIONS]
+```
+
+**Arguments:**
+
+- `ADAPTER` - Backlog adapter name (`github`, `ado`, etc.)
+
+**Options:**
+
+**Filtering Options:**
+
+- `--labels`, `--tags` - Filter by labels/tags (can specify multiple, e.g., `--labels feature,enhancement`)
+- `--state` - Filter by state (e.g., `open`, `closed`, `active`)
+- `--assignee` - Filter by assignee username
+- `--iteration` - Filter by iteration path (ADO format: `Project\\Sprint 1`)
+- `--sprint` - Filter by sprint identifier
+- `--release` - Filter by release identifier
+- `--persona` - Filter templates by persona (`product-owner`, `architect`, `developer`)
+- `--framework` - Filter templates by framework (`agile`, `scrum`, `safe`, `kanban`)
+- `--search`, `-s` - Generic search query using provider-specific syntax (e.g., GitHub: `is:open label:feature`)
+
+**Template Selection:**
+
+- `--template`, `-t` - Target template ID (default: auto-detect with priority-based resolution)
+
+**Refinement Options:**
+
+- `--auto-accept-high-confidence` - Auto-accept refinements with confidence >= 0.85
+
+**Preview and Writeback:**
+
+- `--preview` / `--no-preview` - Preview mode: show what will be written without updating backlog (default: `--preview`)
+- `--write` - Write mode: explicitly opt-in to update remote backlog (requires `--write` flag)
+
+**Definition of Ready (DoR):**
+
+- `--check-dor` - Check Definition of Ready (DoR) rules before refinement (loads from `.specfact/dor.yaml`)
+
+**OpenSpec Integration:**
+
+- `--bundle`, `-b` - OpenSpec bundle path to import refined items
+- `--auto-bundle` - Auto-import refined items to OpenSpec bundle
+
+**Architecture Note**: SpecFact CLI follows a CLI-first architecture:
+
+- SpecFact CLI generates prompts/instructions for IDE AI copilots (Cursor, Claude Code, etc.)
+- IDE AI copilots execute those instructions using their native LLM
+- IDE AI copilots feed results back to SpecFact CLI
+- SpecFact CLI validates and processes the results
+- SpecFact CLI does NOT directly invoke LLM APIs (OpenAI, Anthropic, etc.)
+
+**Examples:**
+
+```bash
+# Refine GitHub issues (auto-detect template)
+specfact backlog refine github --search "is:open label:feature"
+
+# Filter by labels and state
+specfact backlog refine github --labels feature,enhancement --state open
+
+# Filter by sprint and assignee
+specfact backlog refine github --sprint "Sprint 1" --assignee dev1
+
+# Filter by framework and persona (Scrum + Product Owner)
+specfact backlog refine github --framework scrum --persona product-owner --labels feature
+
+# Refine with specific template
+specfact backlog refine github --template user_story_v1 --search "is:open"
+
+# Check Definition of Ready before refinement
+specfact backlog refine github --check-dor --labels feature
+
+# Preview refinement without writing (default)
+specfact backlog refine github --preview --labels feature
+
+# Write refinement to backlog (explicit opt-in)
+specfact backlog refine github --write --labels feature
+
+# Auto-accept high-confidence refinements
+specfact backlog refine github --auto-accept-high-confidence --search "is:open"
+
+# Refine and import to OpenSpec bundle
+specfact backlog refine github \
+  --bundle my-project \
+  --auto-bundle \
+  --search "is:open label:enhancement"
+
+# Refine ADO work items with sprint filter
+specfact backlog refine ado --sprint "Sprint 1" --state Active
+
+# Refine ADO work items with iteration path
+specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
+```
+
+**Pre-built Templates:**
+
+- `user_story_v1` - User story format (As a / I want / So that / Acceptance Criteria)
+- `defect_v1` - Defect/bug format (Summary / Steps to Reproduce / Expected / Actual / Environment)
+- `spike_v1` - Research spike format (Research Question / Approach / Findings / Recommendation)
+- `enabler_v1` - Enabler work format (Description / Dependencies / Implementation / Success Criteria)
+
+**See**: [Backlog Refinement Guide](../guides/backlog-refinement.md) for complete documentation.
 
 ---
 

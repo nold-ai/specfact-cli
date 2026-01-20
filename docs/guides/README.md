@@ -23,7 +23,8 @@ Practical guides for using SpecFact CLI effectively.
 - **[Workflows](workflows.md)** - Common daily workflows
 - **[IDE Integration](ide-integration.md)** - Set up slash commands in your IDE
 - **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` on CLI commands
-- **[DevOps Adapter Integration](devops-adapter-integration.md)** - Integrate with GitHub Issues, Azure DevOps, Linear, Jira for backlog tracking
+- **[DevOps Adapter Integration](devops-adapter-integration.md)** 🆕 - Integrate with GitHub Issues, Azure DevOps, Linear, Jira for backlog tracking
+- **[Backlog Refinement](backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items with persona/framework filtering, sprint/iteration support, and DoR validation
 - **[Specmatic Integration](specmatic-integration.md)** - API contract testing with Specmatic (validate specs, generate tests, mock servers)
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
 - **[Competitive Analysis](competitive-analysis.md)** - How SpecFact compares to other tools
@@ -47,8 +48,9 @@ Practical guides for using SpecFact CLI effectively.
 
 1. **[CoPilot Mode](copilot-mode.md)** - Using `--mode copilot` for enhanced prompts
 2. **[Operational Modes](../reference/modes.md)** - Understanding CI/CD vs CoPilot modes
-3. **[DevOps Adapter Integration](devops-adapter-integration.md)** - GitHub Issues and backlog tracking
-4. **[Specmatic Integration](specmatic-integration.md)** - API contract testing workflow
+3. **[DevOps Adapter Integration](devops-adapter-integration.md)** 🆕 - GitHub Issues and backlog tracking
+4. **[Backlog Refinement](backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven refinement with filtering, DoR validation, and preview/write safety
+5. **[Specmatic Integration](specmatic-integration.md)** - API contract testing workflow
 
 ### For Spec-Kit & OpenSpec Users (Secondary)
 
