@@ -154,7 +154,6 @@ All notable changes to this project will be documented in this file.
 - **Python 3.11 Compatibility**: Fixed `datetime.UTC` import for Python versions < 3.11 in `bridge_sync.py`
 - **Type Annotations**: Fixed type annotations in test files (replaced `any` with `Any` from typing)
 - **Template Loading**: Fixed template loading to support `defaults/` subdirectory in `load_templates_from_directory()`
-- **Template Loading**: Fixed template loading to support `defaults/` subdirectory in `load_templates_from_directory()`
 
 ---
 
