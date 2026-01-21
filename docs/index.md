@@ -57,6 +57,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
   - **Bidirectional Sync**: Import backlog items as proposals, export proposals as backlog items
   - **Code Change Tracking**: Automatically detect commits and add progress comments
   - **Status Synchronization**: Keep OpenSpec and backlog status in sync
+
 - **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven refinement for standardizing work items
   - **Template Detection**: Automatically detect which template matches a backlog item with priority-based resolution
   - **AI-Assisted Refinement**: Generate prompts for IDE AI copilots to refine unstructured input
@@ -68,6 +69,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
   - **Preview/Write Safety** 🆕: Preview mode by default, explicit `--write` flag for writeback
   - **OpenSpec Integration** 🆕: Add OpenSpec reference comments with `--openspec-comment` flag (preserves original body)
   - **Template Customization** 🆕: Create custom templates for your team - see [Template Customization Guide](guides/template-customization.md)
+
 - **[Authentication](reference/authentication.md)** - Device code auth for GitHub and Azure DevOps
 - **[GitHub Adapter](adapters/github.md)** - GitHub Issues adapter reference
 - **[Azure DevOps Adapter](adapters/azuredevops.md)** - Azure DevOps work items adapter reference
