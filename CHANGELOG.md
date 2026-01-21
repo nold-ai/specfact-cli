@@ -35,7 +35,6 @@ All notable changes to this project will be documented in this file.
 - **ADO Adapter Export**: Updated `_create_work_item_from_proposal()`, `_update_work_item_status()`, and `_update_work_item_body()` to use generic state mapping when `source_state` and `source_type` are present
 
 ---
-
 ## [0.26.0] - 2026-01-21
 
 ### Added (0.26.0)
