@@ -3758,7 +3758,19 @@ specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
 - `spike_v1` - Research spike format (Research Question / Approach / Findings / Recommendation)
 - `enabler_v1` - Enabler work format (Description / Dependencies / Implementation / Success Criteria)
 
-**See**: [Backlog Refinement Guide](../guides/backlog-refinement.md) for complete documentation.
+**Command Chaining**: The `backlog refine` command is designed to work seamlessly with `sync bridge`:
+
+```bash
+# Refine backlog items, then sync to external tool
+specfact backlog refine github --repo-owner "my-org" --repo-name "my-repo" --write --labels feature
+specfact sync bridge --adapter github --repo-owner "my-org" --repo-name "my-repo" --backlog-ids 123,456
+
+# Cross-adapter sync: Refine from GitHub → Sync to ADO
+specfact backlog refine github --repo-owner "my-org" --repo-name "my-repo" --write --labels feature
+specfact sync bridge --adapter ado --ado-org "my-org" --ado-project "my-project" --backlog-ids 123,456
+```
+
+**See**: [Backlog Refinement Guide](../guides/backlog-refinement.md) for complete documentation including command chaining workflows.
 
 ---
 

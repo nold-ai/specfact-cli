@@ -123,6 +123,11 @@ All notable changes to this project will be documented in this file.
   - **Integration**: Integrated into `ide_setup.py` for automatic IDE setup
   - **Updated Prompts**: Enhanced `specfact.sync-backlog.md` and `specfact.06-sync.md` with adapter configuration options
 
+- **Command Chaining Support**: Integration test for `backlog refine` → `sync bridge` workflow
+  - **Integration Test**: `tests/integration/backlog/test_backlog_refine_sync_chaining.py`
+  - **Test Coverage**: Refine → sync workflow, OpenSpec comment integration, cross-adapter sync (GitHub → ADO)
+  - **Workflow Support**: Verified end-to-end command chaining with field preservation and lossless sync
+
 ### Changed (0.26.0)
 
 - **Template Location**: Moved template YAML files from `src/specfact_cli/templates/` to `resources/templates/backlog/`

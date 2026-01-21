@@ -399,6 +399,48 @@ specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
 
 ## Workflow Integration
 
+### Command Chaining: Refine → Sync
+
+The most common workflow is to refine backlog items and then sync them to external tools. This command chaining workflow is fully supported and tested:
+
+**Workflow**: `backlog refine` → `sync bridge`
+
+1. **Refine Backlog Items**: Use `specfact backlog refine` to standardize backlog items with templates
+2. **Sync to External Tools**: Use `specfact sync bridge` to sync refined items back to backlog tools (GitHub, ADO, etc.)
+
+```bash
+# Complete command chaining workflow
+# 1. Refine GitHub issues (with writeback)
+specfact backlog refine github \
+  --repo-owner my-org --repo-name my-repo \
+  --write \
+  --labels feature \
+  --state open
+
+# 2. Sync refined items to external tool (same or different adapter)
+specfact sync bridge --adapter github \
+  --repo-owner my-org --repo-name my-repo \
+  --backlog-ids 123,456 \
+  --mode export-only
+
+# Cross-adapter sync: Refine from GitHub → Sync to ADO
+specfact backlog refine github \
+  --repo-owner my-org --repo-name my-repo \
+  --write \
+  --labels feature
+
+specfact sync bridge --adapter ado \
+  --ado-org my-org --ado-project my-project \
+  --backlog-ids 123,456 \
+  --mode export-only
+```
+
+**Key Benefits**:
+- **Lossless Preservation**: Original backlog data is preserved during refinement
+- **Cross-Adapter Support**: Refine from one provider (GitHub) and sync to another (ADO)
+- **OpenSpec Integration**: Refined items can include OpenSpec comments without replacing the body
+- **Field Preservation**: Only `title` and `body_markdown` are updated; all other fields (assignees, tags, state, priority, etc.) are preserved
+
 ### With DevOps Adapter Integration
 
 Backlog refinement works seamlessly with the [DevOps Adapter Integration](../guides/devops-adapter-integration.md):
