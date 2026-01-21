@@ -155,19 +155,38 @@ Display refinement results:
 
 - `assignees`: Preserved
 - `tags`: Preserved
-- `state`: Preserved
+- `state`: Preserved (original state maintained)
 - `priority`: Preserved (if present in provider_fields)
 - `due_date`: Preserved (if present in provider_fields)
 - `story_points`: Preserved (if present in provider_fields)
 - `sprint`: Preserved (if present)
 - `release`: Preserved (if present)
+- `source_state`: Preserved for cross-adapter state mapping (stored in bundle entries)
 - All other metadata: Preserved in provider_fields
+
+**Cross-Adapter State Preservation**:
+
+- When items are imported into bundles, the original `source_state` (e.g., "open", "closed", "New", "Active") is stored in `source_metadata["source_state"]`
+- During cross-adapter export (e.g., GitHub → ADO), the `source_state` is used to determine the correct target state
+- Generic state mapping ensures state is correctly translated between any adapter pair using OpenSpec as intermediate format
+- This ensures closed GitHub issues sync to ADO as "Closed", and open GitHub issues sync to ADO as "New"
 
 **OpenSpec Comment Integration**:
 
 - When `--openspec-comment` is used, a structured comment is added to the backlog item
 - The comment includes: Change ID, template used, confidence score, refinement timestamp
 - Original body is preserved; comment provides OpenSpec reference for cross-sync
+
+**Cross-Adapter State Mapping**:
+
+- When refining items that will be synced across adapters (e.g., GitHub ↔ ADO), state is preserved using generic mapping
+- Generic state mapping uses OpenSpec as intermediate format:
+  - Source adapter state → OpenSpec status → Target adapter state
+  - Example: GitHub "open" → OpenSpec "proposed" → ADO "New"
+  - Example: GitHub "closed" → OpenSpec "applied" → ADO "Closed"
+- State preservation: Original `source_state` is stored in bundle entries and used during cross-adapter export
+- Bidirectional mapping: Works in both directions (GitHub → ADO and ADO → GitHub)
+- State mapping is automatic during `sync bridge` operations when `source_state` and `source_type` are present
 
 ## Architecture Note
 
@@ -232,6 +251,16 @@ Items updated in remote backlog:
 
 # Refine and import to OpenSpec bundle
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --bundle my-project --auto-bundle --state open
+
+# Cross-adapter sync workflow: Refine GitHub → Sync to ADO (with state preservation)
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --write --labels feature
+# Then sync to ADO (state will be automatically mapped: open → New, closed → Closed)
+# specfact sync bridge --adapter ado --ado-org my-org --ado-project my-project --mode bidirectional
+
+# Cross-adapter sync workflow: Refine ADO → Sync to GitHub (with state preservation)
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --write --state Active
+# Then sync to GitHub (state will be automatically mapped: New → open, Closed → closed)
+# specfact sync bridge --adapter github --repo-owner my-org --repo-name my-repo --mode bidirectional
 ```
 
 ## Context

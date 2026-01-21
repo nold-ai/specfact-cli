@@ -1912,6 +1912,26 @@ class BridgeSync:
                 "source_tracking": entries,
             }
 
+            # Extract source state from backlog entries (for cross-adapter sync state preservation)
+            # Check for source backlog entry from a different adapter (generic approach)
+            source_state = None
+            source_type = None
+            for entry in entries:
+                if isinstance(entry, dict):
+                    entry_type = entry.get("source_type", "").lower()
+                    # Look for entry from a different adapter (not the target adapter)
+                    if entry_type and entry_type != adapter_type.lower():
+                        source_metadata = entry.get("source_metadata", {})
+                        entry_source_state = source_metadata.get("source_state")
+                        if entry_source_state:
+                            source_state = entry_source_state
+                            source_type = entry_type
+                            break
+
+            if source_state and source_type:
+                proposal_dict["source_state"] = source_state
+                proposal_dict["source_type"] = source_type
+
             if isinstance(proposal.source_tracking.source_metadata, dict):
                 raw_title = proposal.source_tracking.source_metadata.get("raw_title")
                 raw_body = proposal.source_tracking.source_metadata.get("raw_body")
