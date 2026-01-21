@@ -132,10 +132,86 @@ class TestAdoBacklogAdapter:
             adapter.fetch_backlog_items(filters)
 
     @beartype
-    def test_fetch_backlog_items_requires_org_project(self) -> None:
-        """Test that fetch_backlog_items requires org and project."""
-        adapter = AdoAdapter(org=None, project=None, api_token="token")
+    def test_fetch_backlog_items_requires_org(self) -> None:
+        """Test that fetch_backlog_items requires org."""
+        adapter = AdoAdapter(org=None, project="project", api_token="token")
         filters = BacklogFilters()
 
-        with pytest.raises(ValueError, match="org and project required"):
+        with pytest.raises(ValueError, match=r"org.*required"):
             adapter.fetch_backlog_items(filters)
+
+    @beartype
+    def test_fetch_backlog_items_requires_project(self) -> None:
+        """Test that fetch_backlog_items requires project."""
+        adapter = AdoAdapter(org="test", project=None, api_token="token")
+        filters = BacklogFilters()
+
+        with pytest.raises(ValueError, match="project required"):
+            adapter.fetch_backlog_items(filters)
+
+    @beartype
+    def test_auth_headers_basic_pat(self) -> None:
+        """Test _auth_headers with PAT token (basic auth)."""
+        adapter = AdoAdapter(org="test", project="project", api_token="pat-token")
+        adapter.auth_scheme = "basic"
+        headers = adapter._auth_headers()
+        assert "Authorization" in headers
+        assert headers["Authorization"].startswith("Basic ")
+
+    @beartype
+    def test_auth_headers_bearer_oauth(self) -> None:
+        """Test _auth_headers with OAuth token (bearer auth)."""
+        adapter = AdoAdapter(org="test", project="project", api_token="oauth-token")
+        adapter.auth_scheme = "bearer"
+        headers = adapter._auth_headers()
+        assert "Authorization" in headers
+        assert headers["Authorization"].startswith("Bearer ")
+
+    @beartype
+    def test_auth_headers_no_token(self) -> None:
+        """Test _auth_headers with no token."""
+        adapter = AdoAdapter(org="test", project="project")
+        adapter.api_token = None
+        headers = adapter._auth_headers()
+        assert headers == {}
+
+    @beartype
+    @patch("azure.identity.DeviceCodeCredential")
+    @patch("azure.identity.TokenCachePersistenceOptions")
+    def test_try_refresh_oauth_token_success(
+        self, mock_cache_options_class: MagicMock, mock_credential_class: MagicMock
+    ) -> None:
+        """Test _try_refresh_oauth_token with successful refresh."""
+        from datetime import UTC, datetime
+
+        # Mock cache options
+        mock_cache_options = MagicMock()
+        mock_cache_options_class.return_value = mock_cache_options
+
+        # Mock credential and token
+        mock_token = MagicMock()
+        mock_token.token = "refreshed-token"
+        mock_token.expires_on = datetime.now(tz=UTC).timestamp() + 3600
+
+        mock_credential = MagicMock()
+        mock_credential.get_token.return_value = mock_token
+        mock_credential_class.return_value = mock_credential
+
+        adapter = AdoAdapter(org="test", project="project", api_token="old-token")
+        adapter.auth_scheme = "bearer"
+
+        refreshed = adapter._try_refresh_oauth_token()
+
+        assert refreshed is not None
+        assert refreshed["access_token"] == "refreshed-token"
+        assert refreshed["token_type"] == "bearer"
+
+    @beartype
+    @patch("azure.identity.DeviceCodeCredential", side_effect=Exception("Refresh failed"))
+    def test_try_refresh_oauth_token_failure(self, mock_credential_class: MagicMock) -> None:
+        """Test _try_refresh_oauth_token when refresh fails."""
+        adapter = AdoAdapter(org="test", project="project", api_token="old-token")
+        adapter.auth_scheme = "bearer"
+
+        refreshed = adapter._try_refresh_oauth_token()
+        assert refreshed is None

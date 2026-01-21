@@ -9,6 +9,87 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.5] - 2026-01-21
+
+### Added (0.26.5)
+
+- **Global Debug Mode**: Added `--debug` global CLI flag for diagnostic output
+  - **Debug Print Helper**: Added `debug_print()` function in runtime module that only outputs when `--debug` flag is set
+  - **Debug State Management**: Added `set_debug_mode()` and `is_debug_mode()` functions for debug state control
+  - **Conditional Output**: Debug messages (URLs, authentication status, API details) are now only shown when `--debug` is specified
+  - **Usage**: `specfact --debug <command>` enables debug output for the entire command execution
+- **ADO Adapter Automatic Token Refresh**: Implemented automatic OAuth token refresh using persistent token cache (like Azure CLI)
+  - **Persistent Token Cache**: Enabled `TokenCachePersistenceOptions` in auth command with shared cache name `"specfact-azure-devops"`
+  - **Automatic Refresh**: ADO adapter automatically refreshes expired OAuth tokens using cached refresh token
+  - **Seamless Operation**: Tokens refresh automatically for ~90 days without user interaction
+  - **Fallback Handling**: Provides helpful error messages when refresh fails (suggests PAT or re-authentication)
+- **Personal Access Token (PAT) Support**: Added `--pat` option to `auth azure-devops` command
+  - **Long-Lived Tokens**: PATs can have expiration up to 1 year (vs OAuth tokens which expire after ~1 hour)
+  - **Direct Storage**: Users can store PATs directly via `specfact auth azure-devops --pat your_pat_token`
+  - **Basic Authentication**: PATs are stored with `token_type: "basic"` and use base64-encoded Basic auth
+  - **Documentation**: Comprehensive guidance on creating PATs in Azure DevOps UI with up to 1 year expiration
+
+### Fixed (0.26.5)
+
+- **ADO Adapter Authentication**: Fixed missing API token in ADO API requests
+  - **Centralized Authentication**: All ADO API requests now use `_auth_headers()` helper method consistently
+  - **WIQL POST Request**: Fixed Authorization header construction in `fetch_backlog_items` WIQL query
+  - **Work Items Batch GET**: Fixed Authorization header construction in work items batch fetch
+  - **Work Item Update PATCH**: Fixed Authorization header construction in `update_backlog_item`
+  - **PAT Token Encoding**: All ADO API requests now properly encode PAT tokens using base64 encoding (`:token`) for Basic authentication
+  - **Consistent Authentication**: All ADO API calls now use centralized `_auth_headers()` method for consistent token handling (supports both Basic PAT and Bearer OAuth tokens)
+- **ADO Adapter URL Construction**: Fixed URL construction to ensure org is always included before project
+  - **Project-Based Permissions**: Org must always be part of `_apis` URL path before project for project-based permissions in larger organizations
+  - **URL Format**: Ensures format `{base_url}/{org}/{project}/_apis/...` for all ADO API calls
+  - **On-Premise Support**: Works correctly for both cloud (Azure DevOps Services) and on-premise (Azure DevOps Server) configurations
+  - **Error Messages**: Improved error messages to separate org vs project requirements with helpful guidance
+- **ADO Adapter Error Messages**: Enhanced error messages for authentication and token issues
+  - **Missing Token**: Provides three options (env var, CLI option, stored token)
+  - **Expired Token**: Suggests PAT for longer-lived tokens or re-authentication
+  - **Token Refresh**: Shows helpful guidance when automatic refresh fails
+
+### Changed (0.26.5)
+
+- **ADO Adapter**: Replaced manual Authorization header construction with `_auth_headers()` helper method in three locations:
+  - `fetch_backlog_items()` - WIQL POST request
+  - `fetch_backlog_items()` - Work items batch GET request
+  - `update_backlog_item()` - Work item PATCH request
+- **Auth Command**: Enhanced `auth azure-devops` command with PAT option and persistent token cache
+  - Added `--pat` option for direct PAT storage
+  - Enabled `TokenCachePersistenceOptions` for automatic token refresh
+  - Updated documentation to explain PAT vs OAuth token options
+- **Debug Output**: Converted debug console.print statements to use `debug_print()` helper
+  - `init.py`: All debug messages now use `debug_print()` helper
+  - `ado.py`: URL and authentication debug output uses `debug_print()`
+
+---
+
+## [0.26.4] - 2026-01-21
+
+### Skipped (0.26.4)
+
+---
+
+## [0.26.3] - 2026-01-21
+
+### Fixed (0.26.3)
+
+- **ADO Adapter Authentication**: Fixed missing API token in ADO API requests
+  - **WIQL POST Request**: Fixed Authorization header in `fetch_backlog_items` WIQL query to use `_auth_headers()` helper method
+  - **Work Items Batch GET**: Fixed Authorization header in work items batch fetch to use `_auth_headers()` helper method
+  - **Work Item Update PATCH**: Fixed Authorization header in `update_backlog_item` to use `_auth_headers()` helper method
+  - **PAT Token Encoding**: All ADO API requests now properly encode PAT tokens using base64 encoding (`:token`) for Basic authentication
+  - **Consistent Authentication**: All ADO API calls now use the centralized `_auth_headers()` method for consistent token handling (supports both Basic PAT and Bearer OAuth tokens)
+
+### Changed (0.26.3)
+
+- **ADO Adapter**: Replaced manual Authorization header construction with `_auth_headers()` helper method in three locations:
+  - `fetch_backlog_items()` - WIQL POST request
+  - `fetch_backlog_items()` - Work items batch GET request
+  - `update_backlog_item()` - Work item PATCH request
+
+---
+
 ## [0.26.2] - 2026-01-21
 
 ### Fixed (0.26.2)
@@ -68,6 +149,7 @@ All notable changes to this project will be documented in this file.
 - **ADO Adapter Export**: Updated `_create_work_item_from_proposal()`, `_update_work_item_status()`, and `_update_work_item_body()` to use generic state mapping when `source_state` and `source_type` are present
 
 ---
+
 ## [0.26.0] - 2026-01-21
 
 ### Added (0.26.0)

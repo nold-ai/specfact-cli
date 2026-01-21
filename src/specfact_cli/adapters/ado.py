@@ -29,7 +29,8 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
-from specfact_cli.utils.auth_tokens import get_token
+from specfact_cli.runtime import debug_print
+from specfact_cli.utils.auth_tokens import get_token, set_token
 
 
 console = Console()
@@ -75,10 +76,45 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         elif os.environ.get("AZURE_DEVOPS_TOKEN"):
             self.api_token = os.environ.get("AZURE_DEVOPS_TOKEN")
             self.auth_scheme = "basic"
-        elif stored_token := get_token("azure-devops"):
+        elif stored_token := get_token("azure-devops", allow_expired=False):
+            # Valid, non-expired token found
             self.api_token = stored_token.get("access_token")
             token_type = (stored_token.get("token_type") or "bearer").lower()
             self.auth_scheme = "bearer" if token_type == "bearer" else "basic"
+        elif stored_token_expired := get_token("azure-devops", allow_expired=True):
+            # Token exists but is expired - try to refresh using persistent cache
+            expires_at = stored_token_expired.get("expires_at", "unknown")
+            token_type = (stored_token_expired.get("token_type") or "bearer").lower()
+            if token_type == "bearer":
+                # OAuth token expired - try automatic refresh using persistent cache (like Azure CLI)
+                refreshed_token = self._try_refresh_oauth_token()
+                if refreshed_token:
+                    self.api_token = refreshed_token.get("access_token")
+                    self.auth_scheme = "bearer"
+                    # Update stored token with refreshed token
+                    set_token("azure-devops", refreshed_token)
+                    debug_print(f"[dim]OAuth token automatically refreshed (was expired at {expires_at})[/dim]")
+                else:
+                    # Refresh failed - provide helpful guidance
+                    console.print(
+                        f"[yellow]⚠[/yellow] Stored OAuth token expired at {expires_at}. "
+                        "Attempting automatic refresh..."
+                    )
+                    console.print("[yellow]⚠[/yellow] Automatic refresh failed. OAuth tokens expire after ~1 hour.")
+                    console.print(
+                        "[dim]Options:[/dim]\n"
+                        "  1. Use a Personal Access Token (PAT) with longer expiration (up to 1 year):\n"
+                        "     - Create PAT: https://dev.azure.com/{org}/_usersSettings/tokens\n"
+                        "     - Store PAT: specfact auth azure-devops --pat your_pat_token\n"
+                        "  2. Re-authenticate: specfact auth azure-devops\n"
+                        "  3. Use --ado-token option with a valid token"
+                    )
+                    self.api_token = None
+                    self.auth_scheme = None
+            else:
+                # PAT token - no expiration tracking, assume still valid
+                self.api_token = stored_token_expired.get("access_token")
+                self.auth_scheme = "basic"
         else:
             self.api_token = None
             self.auth_scheme = None
@@ -117,8 +153,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Full URL with proper format based on cloud vs on-premise
 
         Note:
-            For on-premise, if base_url already includes /tfs/{collection} or /{collection},
-            it won't add org again. For cloud, always adds {org}/{project}.
+            For project-based permissions in larger organizations, org must be part of the
+            _apis URL path before the project. This ensures proper permission scoping.
+            Format: {base_url}/{org}/{project}/_apis/...
         """
         if not self.project:
             raise ValueError(f"project required to build ADO URL (project={self.project!r})")
@@ -150,8 +187,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             has_collection_in_base = has_tfs or len(parts) > 1
 
             if has_collection_in_base:
-                # Collection already in base_url, just add project
-                url = f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
+                # Collection already in base_url, but for project-based permissions, we still need org in path
+                # Include org before project to ensure proper permission scoping
+                if self.org:
+                    url = f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+                else:
+                    # Fallback: if org not provided but collection in base_url, use project directly
+                    console.print(
+                        "[yellow]Warning:[/yellow] Collection in base_url but org not provided. Using project directly."
+                    )
+                    url = f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
             elif self.org:
                 # Collection not in base_url, need to add it
                 # For on-premise, typically use /tfs/{collection} format unless explicitly newer format
@@ -1198,6 +1243,62 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         import base64
 
         return base64.b64encode(f":{token}".encode()).decode()
+
+    def _try_refresh_oauth_token(self) -> dict[str, Any] | None:
+        """
+        Attempt to refresh expired OAuth token using persistent token cache.
+
+        This uses the same persistent cache as the auth command, allowing automatic
+        token refresh without user interaction (like Azure CLI).
+
+        Returns:
+            Refreshed token data dict if successful, None if refresh failed
+        """
+        try:
+            from azure.identity import (  # type: ignore[reportMissingImports]
+                DeviceCodeCredential,
+                TokenCachePersistenceOptions,
+            )
+
+            # Use the same cache name as auth command for shared cache
+            # Try encrypted first, fall back to unencrypted if libsecret unavailable
+            cache_options = None
+            try:
+                try:
+                    cache_options = TokenCachePersistenceOptions(
+                        name="specfact-azure-devops",
+                        allow_unencrypted_cache=False,  # Prefer encrypted
+                    )
+                except Exception:
+                    # Encrypted cache not available, try unencrypted
+                    cache_options = TokenCachePersistenceOptions(
+                        name="specfact-azure-devops",
+                        allow_unencrypted_cache=True,  # Fallback: unencrypted
+                    )
+            except Exception:
+                # Persistent cache completely unavailable, can't refresh
+                return None
+
+            # Create credential with same cache - it will use cached refresh token
+            credential = DeviceCodeCredential(cache_persistence_options=cache_options)
+            # Use the same resource as auth command
+            azure_devops_resource = "499b84ac-1321-427f-aa17-267ca6975798/.default"
+            token = credential.get_token(azure_devops_resource)
+
+            # Return refreshed token data
+            from datetime import UTC, datetime
+
+            expires_at = datetime.fromtimestamp(token.expires_on, tz=UTC).isoformat()
+            return {
+                "access_token": token.token,
+                "token_type": "bearer",
+                "expires_at": expires_at,
+                "resource": azure_devops_resource,
+                "issued_at": datetime.now(tz=UTC).isoformat(),
+            }
+        except Exception:
+            # Refresh failed (no cached refresh token, refresh token expired, etc.)
+            return None
 
     def _auth_headers(self) -> dict[str, str]:
         """Return authorization headers based on token type."""
@@ -2306,11 +2407,26 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Uses ADO Work Items API to query work items.
         """
         if not self.api_token:
-            msg = "Azure DevOps API token required to fetch backlog items"
+            msg = (
+                "Azure DevOps API token required to fetch backlog items.\n"
+                "Options:\n"
+                "  1. Set AZURE_DEVOPS_TOKEN environment variable\n"
+                "  2. Use --ado-token option\n"
+                "  3. Store token via specfact auth azure-devops"
+            )
             raise ValueError(msg)
 
-        if not self.org or not self.project:
-            msg = "org and project required to fetch backlog items"
+        if not self.org:
+            msg = (
+                "org (organization) required to fetch backlog items.\n"
+                "For Azure DevOps Services (cloud), org is always required.\n"
+                "For Azure DevOps Server (on-premise), org is the collection name.\n"
+                "Provide via --ado-org option or ensure it's set in adapter configuration."
+            )
+            raise ValueError(msg)
+
+        if not self.project:
+            msg = "project required to fetch backlog items. Provide via --ado-project option."
             raise ValueError(msg)
 
         # Build WIQL (Work Item Query Language) query
@@ -2344,14 +2460,23 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # POST to project-level endpoint: {org}/{project}/_apis/wit/wiql?api-version=7.1
         url = self._build_ado_url("_apis/wit/wiql", api_version="7.1")
         headers = {
-            "Authorization": f"{self.auth_scheme} {self.api_token}" if self.auth_scheme else f"Basic {self.api_token}",
+            **self._auth_headers(),
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
         payload = {"query": wiql}
 
-        # Debug: Log URL construction for troubleshooting
-        console.print(f"[dim]ADO WIQL URL: {url}[/dim]")
+        # Debug: Log URL construction and auth status for troubleshooting
+        debug_print(f"[dim]ADO WIQL URL: {url}[/dim]")
+        if "Authorization" in headers:
+            auth_header_preview = (
+                headers["Authorization"][:20] + "..."
+                if len(headers["Authorization"]) > 20
+                else headers["Authorization"]
+            )
+            debug_print(f"[dim]ADO Auth: {auth_header_preview}[/dim]")
+        else:
+            debug_print("[yellow]Warning: No Authorization header in request[/yellow]")
 
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -2430,14 +2555,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             # Headers for work items batch GET (organization-level endpoint)
             workitems_headers = {
-                "Authorization": f"{self.auth_scheme} {self.api_token}"
-                if self.auth_scheme
-                else f"Basic {self.api_token}",
+                **self._auth_headers(),
                 "Accept": "application/json",
             }
 
             # Debug: Log URL construction for troubleshooting
-            console.print(f"[dim]ADO WorkItems URL: {url}&ids={ids_str}[/dim]")
+            debug_print(f"[dim]ADO WorkItems URL: {url}&ids={ids_str}[/dim]")
 
             try:
                 response = requests.get(url, headers=workitems_headers, params=params, timeout=30)
@@ -2545,7 +2668,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         work_item_id = int(item.id)
         url = self._build_ado_url(f"_apis/wit/workitems/{work_item_id}", api_version="7.1")
         headers = {
-            "Authorization": f"{self.auth_scheme} {self.api_token}" if self.auth_scheme else f"Basic {self.api_token}",
+            **self._auth_headers(),
             "Content-Type": "application/json-patch+json",
         }
 

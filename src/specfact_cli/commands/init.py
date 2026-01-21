@@ -17,6 +17,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 
+from specfact_cli.runtime import debug_print
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.env_manager import EnvManager, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
@@ -258,12 +259,12 @@ def init(
         # Try 1: Development mode - relative to repo root
         dev_templates_dir = (repo_path / "resources" / "prompts").resolve()
         tried_locations.append(dev_templates_dir)
-        console.print(f"[dim]Debug:[/dim] Trying development path: {dev_templates_dir}")
+        debug_print(f"[dim]Debug:[/dim] Trying development path: {dev_templates_dir}")
         if dev_templates_dir.exists():
             templates_dir = dev_templates_dir
             console.print(f"[green]✓[/green] Found templates at: {templates_dir}")
         else:
-            console.print("[dim]Debug:[/dim] Development path not found, trying installed package...")
+            debug_print("[dim]Debug:[/dim] Development path not found, trying installed package...")
             # Try 2: Installed package - use importlib.resources
             # Note: importlib is part of Python's standard library (since Python 3.1)
             # importlib.resources.files() is available since Python 3.9
@@ -273,7 +274,7 @@ def init(
             try:
                 import importlib.resources
 
-                console.print("[dim]Debug:[/dim] Using importlib.resources.files() API...")
+                debug_print("[dim]Debug:[/dim] Using importlib.resources.files() API...")
                 # Use files() API (Python 3.9+) - recommended approach
                 resources_ref = importlib.resources.files("specfact_cli")
                 templates_ref = resources_ref / "resources" / "prompts"
@@ -282,7 +283,7 @@ def init(
                 # Use resolve() to handle Windows/Linux/macOS path differences
                 package_templates_dir = Path(str(templates_ref)).resolve()
                 tried_locations.append(package_templates_dir)
-                console.print(f"[dim]Debug:[/dim] Package templates path: {package_templates_dir}")
+                debug_print(f"[dim]Debug:[/dim] Package templates path: {package_templates_dir}")
                 if package_templates_dir.exists():
                     templates_dir = package_templates_dir
                     console.print(f"[green]✓[/green] Found templates at: {templates_dir}")
@@ -292,20 +293,20 @@ def init(
                 console.print(
                     f"[yellow]⚠[/yellow] importlib.resources not available or module not found: {type(e).__name__}: {e}"
                 )
-                console.print("[dim]Debug:[/dim] Falling back to importlib.util.find_spec()...")
+                debug_print("[dim]Debug:[/dim] Falling back to importlib.util.find_spec()...")
             except (TypeError, AttributeError, ValueError) as e:
                 console.print(f"[yellow]⚠[/yellow] Error converting Traversable to Path: {e}")
-                console.print("[dim]Debug:[/dim] Falling back to importlib.util.find_spec()...")
+                debug_print("[dim]Debug:[/dim] Falling back to importlib.util.find_spec()...")
             except Exception as e:
                 console.print(f"[yellow]⚠[/yellow] Unexpected error with importlib.resources: {type(e).__name__}: {e}")
-                console.print("[dim]Debug:[/dim] Falling back to importlib.util.find_spec()...")
+                debug_print("[dim]Debug:[/dim] Falling back to importlib.util.find_spec()...")
 
             # Fallback: importlib.util.find_spec() + comprehensive package location search
             if not templates_dir or not templates_dir.exists():
                 try:
                     import importlib.util
 
-                    console.print("[dim]Debug:[/dim] Using importlib.util.find_spec() fallback...")
+                    debug_print("[dim]Debug:[/dim] Using importlib.util.find_spec() fallback...")
                     spec = importlib.util.find_spec("specfact_cli")
                     if spec and spec.origin:
                         # spec.origin points to __init__.py
@@ -314,8 +315,8 @@ def init(
                         package_root = Path(spec.origin).parent.resolve()
                         package_templates_dir = (package_root / "resources" / "prompts").resolve()
                         tried_locations.append(package_templates_dir)
-                        console.print(f"[dim]Debug:[/dim] Package root from spec.origin: {package_root}")
-                        console.print(f"[dim]Debug:[/dim] Templates path from spec: {package_templates_dir}")
+                        debug_print(f"[dim]Debug:[/dim] Package root from spec.origin: {package_root}")
+                        debug_print(f"[dim]Debug:[/dim] Templates path from spec: {package_templates_dir}")
                         if package_templates_dir.exists():
                             templates_dir = package_templates_dir
                             console.print(f"[green]✓[/green] Found templates at: {templates_dir}")
@@ -324,20 +325,20 @@ def init(
                     else:
                         console.print("[yellow]⚠[/yellow] Could not find specfact_cli module spec")
                         if spec is None:
-                            console.print("[dim]Debug:[/dim] spec is None")
+                            debug_print("[dim]Debug:[/dim] spec is None")
                         elif not spec.origin:
-                            console.print("[dim]Debug:[/dim] spec.origin is None or empty")
+                            debug_print("[dim]Debug:[/dim] spec.origin is None or empty")
                 except Exception as e:
                     console.print(f"[yellow]⚠[/yellow] Error with importlib.util.find_spec(): {type(e).__name__}: {e}")
 
             # Fallback: Comprehensive package location search (cross-platform)
             if not templates_dir or not templates_dir.exists():
                 try:
-                    console.print("[dim]Debug:[/dim] Searching all package installation locations...")
+                    debug_print("[dim]Debug:[/dim] Searching all package installation locations...")
                     package_locations = get_package_installation_locations("specfact_cli")
-                    console.print(f"[dim]Debug:[/dim] Found {len(package_locations)} possible package location(s)")
+                    debug_print(f"[dim]Debug:[/dim] Found {len(package_locations)} possible package location(s)")
                     for i, loc in enumerate(package_locations, 1):
-                        console.print(f"[dim]Debug:[/dim]   {i}. {loc}")
+                        debug_print(f"[dim]Debug:[/dim]   {i}. {loc}")
                         # Check for resources/prompts in this package location
                         resource_path = (loc / "resources" / "prompts").resolve()
                         tried_locations.append(resource_path)
@@ -347,7 +348,7 @@ def init(
                             break
                     if not templates_dir or not templates_dir.exists():
                         # Try using the helper function as a final attempt
-                        console.print("[dim]Debug:[/dim] Trying find_package_resources_path() helper...")
+                        debug_print("[dim]Debug:[/dim] Trying find_package_resources_path() helper...")
                         resource_path = find_package_resources_path("specfact_cli", "resources/prompts")
                         if resource_path and resource_path.exists():
                             tried_locations.append(resource_path)
@@ -361,15 +362,15 @@ def init(
             # Try 3: Fallback - relative to this file (for edge cases)
             if not templates_dir or not templates_dir.exists():
                 try:
-                    console.print("[dim]Debug:[/dim] Trying fallback: relative to __file__...")
+                    debug_print("[dim]Debug:[/dim] Trying fallback: relative to __file__...")
                     # Get the directory containing this file (init.py)
                     # init.py is in: src/specfact_cli/commands/init.py
                     # Go up: commands -> specfact_cli -> src -> project root
                     current_file = Path(__file__).resolve()
                     fallback_dir = (current_file.parent.parent.parent.parent / "resources" / "prompts").resolve()
                     tried_locations.append(fallback_dir)
-                    console.print(f"[dim]Debug:[/dim] Current file: {current_file}")
-                    console.print(f"[dim]Debug:[/dim] Fallback templates path: {fallback_dir}")
+                    debug_print(f"[dim]Debug:[/dim] Current file: {current_file}")
+                    debug_print(f"[dim]Debug:[/dim] Fallback templates path: {fallback_dir}")
                     if fallback_dir.exists():
                         templates_dir = fallback_dir
                         console.print(f"[green]✓[/green] Found templates at: {templates_dir}")
