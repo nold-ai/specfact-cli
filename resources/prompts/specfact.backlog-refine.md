@@ -36,9 +36,23 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 
 **Azure DevOps Adapter:**
 
-- `--ado-org ORG` - Azure DevOps organization (required for ADO adapter)
+- `--ado-org ORG` - Azure DevOps organization or collection name (required for ADO adapter, except when collection is in base_url)
 - `--ado-project PROJECT` - Azure DevOps project (required for ADO adapter)
-- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)
+- `--ado-base-url URL` - Azure DevOps base URL (optional, defaults to `https://dev.azure.com` for cloud)
+  - **Cloud**: `https://dev.azure.com` (default)
+  - **On-premise**: `https://server` or `https://server/tfs/collection` (if collection included)
+- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var or stored token if not provided)
+
+**ADO Configuration Notes:**
+
+- **Cloud (Azure DevOps Services)**: Always requires `--ado-org` and `--ado-project`. Base URL defaults to `https://dev.azure.com`.
+- **On-premise (Azure DevOps Server)**:
+  - If base URL includes collection (e.g., `https://server/tfs/DefaultCollection`), `--ado-org` is optional.
+  - If base URL doesn't include collection, provide collection name via `--ado-org`.
+- **API Endpoints**:
+  - WIQL queries use POST to `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1` (project-level)
+  - Work items batch GET uses `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1` (organization-level)
+  - The `api-version` parameter is **required** for all ADO API calls
 
 ### Filters
 
@@ -234,8 +248,14 @@ Items updated in remote backlog:
 # Refine GitHub issues with feature label (requires repo-owner and repo-name)
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --labels feature
 
-# Refine ADO work items in specific sprint (requires ado-org and ado-project)
+# Refine ADO work items (Azure DevOps Services - cloud)
 /specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --sprint "Sprint 1"
+
+# Refine ADO work items (Azure DevOps Server - on-premise, collection in base_url)
+/specfact.backlog-refine --adapter ado --ado-base-url "https://devops.company.com/tfs/DefaultCollection" --ado-project my-project --state Active
+
+# Refine ADO work items (Azure DevOps Server - on-premise, collection provided)
+/specfact.backlog-refine --adapter ado --ado-base-url "https://devops.company.com" --ado-org "DefaultCollection" --ado-project my-project --state Active
 
 # Refine with Scrum framework and Product Owner persona
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --framework scrum --persona product-owner
@@ -262,6 +282,30 @@ Items updated in remote backlog:
 # Then sync to GitHub (state will be automatically mapped: New → open, Closed → closed)
 # specfact sync bridge --adapter github --repo-owner my-org --repo-name my-repo --mode bidirectional
 ```
+
+## Troubleshooting
+
+### ADO API Errors
+
+**Error: "No HTTP resource was found that matches the request URI"**
+
+- **Cause**: Missing `api-version` parameter or incorrect URL format
+- **Solution**: Ensure `api-version=7.1` is included in all ADO API URLs. Check base URL format for on-premise installations.
+
+**Error: "The requested resource does not support http method 'GET'"**
+
+- **Cause**: Attempting to use GET on WIQL endpoint (which requires POST)
+- **Solution**: WIQL queries must use POST method with JSON body containing the query. This is handled automatically by SpecFact CLI.
+
+**Error: Organization removed from request string**
+
+- **Cause**: Incorrect base URL format (may already include organization/collection)
+- **Solution**: For on-premise, check if base URL already includes collection. If yes, omit `--ado-org` or adjust base URL accordingly.
+
+**Error: "Azure DevOps API token required"**
+
+- **Cause**: Missing authentication token
+- **Solution**: Provide token via `--ado-token`, `AZURE_DEVOPS_TOKEN` environment variable, or use `specfact auth azure-devops` for device code flow.
 
 ## Context
 

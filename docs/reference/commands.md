@@ -3682,12 +3682,30 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 **Adapter Configuration:**
 
+**GitHub Adapter:**
+
 - `--repo-owner` - GitHub repository owner (required for GitHub adapter)
 - `--repo-name` - GitHub repository name (required for GitHub adapter)
 - `--github-token` - GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)
-- `--ado-org` - Azure DevOps organization (required for ADO adapter)
+
+**Azure DevOps Adapter:**
+
+- `--ado-org` - Azure DevOps organization or collection name (required for ADO adapter, except when collection is in base_url)
 - `--ado-project` - Azure DevOps project (required for ADO adapter)
-- `--ado-token` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)
+- `--ado-base-url` - Azure DevOps base URL (optional, defaults to `https://dev.azure.com` for cloud)
+  - **Cloud**: `https://dev.azure.com` (default)
+  - **On-premise**: `https://server` or `https://server/tfs/collection` (if collection included)
+- `--ado-token` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var or stored token if not provided)
+
+**ADO Configuration Notes:**
+
+- **Cloud (Azure DevOps Services)**: Always requires `--ado-org` and `--ado-project`. Base URL defaults to `https://dev.azure.com`.
+- **On-premise (Azure DevOps Server)**:
+  - If base URL includes collection (e.g., `https://server/tfs/DefaultCollection`), `--ado-org` is optional.
+  - If base URL doesn't include collection, provide collection name via `--ado-org`.
+- **API Endpoints**:
+  - WIQL queries use POST to `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1`
+  - Work items batch GET uses `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1` (organization-level, not project-level)
 
 **Architecture Note**: SpecFact CLI follows a CLI-first architecture:
 
@@ -3741,14 +3759,37 @@ specfact backlog refine github \
 # Refine and add OpenSpec comment (preserves original body)
 specfact backlog refine github --repo-owner "nold-ai" --repo-name "specfact-cli" --write --openspec-comment --state open
 
-# Refine ADO work items
-specfact backlog refine ado --ado-org "my-org" --ado-project "my-project" --state Active
+# Refine ADO work items (Azure DevOps Services - cloud)
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --state Active
+
+# Refine ADO work items (Azure DevOps Server - on-premise, collection in base_url)
+specfact backlog refine ado \
+  --ado-base-url "https://devops.company.com/tfs/DefaultCollection" \
+  --ado-project "my-project" \
+  --state Active
+
+# Refine ADO work items (Azure DevOps Server - on-premise, collection provided)
+specfact backlog refine ado \
+  --ado-base-url "https://devops.company.com" \
+  --ado-org "DefaultCollection" \
+  --ado-project "my-project" \
+  --state Active
 
 # Refine ADO work items with sprint filter
-specfact backlog refine ado --sprint "Sprint 1" --state Active
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --sprint "Sprint 1" \
+  --state Active
 
 # Refine ADO work items with iteration path
-specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --iteration "Project\\Release 1\\Sprint 1"
 ```
 
 **Pre-built Templates:**
@@ -3795,7 +3836,66 @@ When syncing backlog items between different adapters (e.g., GitHub ↔ ADO), th
 - Ensures closed items remain closed and open items remain open across adapter boundaries
 - No data loss - original state information is preserved throughout the sync process
 
-**See**: [Backlog Refinement Guide](../guides/backlog-refinement.md) for complete documentation including command chaining workflows.
+**ADO Adapter Configuration**:
+
+The Azure DevOps adapter supports both **Azure DevOps Services (cloud)** and **Azure DevOps Server (on-premise)**:
+
+**Cloud Configuration** (Azure DevOps Services):
+
+```bash
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --state Active
+```
+
+- Base URL: `https://dev.azure.com` (default)
+- URL Format: `https://dev.azure.com/{org}/{project}/_apis/wit/wiql?api-version=7.1`
+
+**On-Premise Configuration** (Azure DevOps Server):
+
+```bash
+# Option 1: Collection in base URL
+specfact backlog refine ado \
+  --ado-base-url "https://devops.company.com/tfs/DefaultCollection" \
+  --ado-project "my-project" \
+  --state Active
+
+# Option 2: Collection provided separately
+specfact backlog refine ado \
+  --ado-base-url "https://devops.company.com" \
+  --ado-org "DefaultCollection" \
+  --ado-project "my-project" \
+  --state Active
+```
+
+- Base URL: Your on-premise server URL
+- URL Format: `https://server/tfs/collection/{project}/_apis/wit/wiql?api-version=7.1` or `https://server/collection/{project}/_apis/wit/wiql?api-version=7.1`
+
+**ADO API Endpoint Requirements**:
+
+- **WIQL Query**: POST to `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1` (project-level endpoint)
+- **Work Items Batch GET**: GET to `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1` (organization-level endpoint)
+- **api-version Parameter**: Required for all ADO API calls (default: `7.1`)
+
+**ADO Troubleshooting**:
+
+**Error: "No HTTP resource was found that matches the request URI"**
+
+- **Cause**: Missing `api-version` parameter or incorrect URL format
+- **Solution**: Ensure `api-version=7.1` is included in all ADO API URLs. Check base URL format for on-premise installations.
+
+**Error: "The requested resource does not support http method 'GET'"**
+
+- **Cause**: Attempting to use GET on WIQL endpoint (which requires POST)
+- **Solution**: WIQL queries must use POST method with JSON body containing the query.
+
+**Error: Organization removed from request string**
+
+- **Cause**: Incorrect base URL format (may already include organization/collection)
+- **Solution**: For on-premise, check if base URL already includes collection. If yes, omit `--ado-org` or adjust base URL.
+
+**See**: [Backlog Refinement Guide](../guides/backlog-refinement.md) for complete documentation including command chaining workflows and ADO adapter configuration details.
 
 ---
 

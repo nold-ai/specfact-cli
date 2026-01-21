@@ -84,8 +84,99 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             self.auth_scheme = None
 
         # Base URL defaults to Azure DevOps Services (cloud)
-        self.base_url = base_url or "https://dev.azure.com"
+        # Normalize base_url: remove trailing slashes
+        # Note: For Azure DevOps Services (cloud), base_url should be "https://dev.azure.com"
+        # For Azure DevOps Server (on-premise), base_url might be "https://server" or "https://server/collection"
+        raw_base_url = base_url or "https://dev.azure.com"
+        self.base_url = raw_base_url.rstrip("/")
         self.work_item_type = work_item_type
+
+    def _is_on_premise(self) -> bool:
+        """
+        Detect if this is Azure DevOps Server (on-premise) vs Azure DevOps Services (cloud).
+
+        Returns:
+            True if on-premise (base_url doesn't contain dev.azure.com), False if cloud
+        """
+        return "dev.azure.com" not in self.base_url.lower()
+
+    def _build_ado_url(self, path: str, api_version: str = "7.1") -> str:
+        """
+        Build Azure DevOps API URL with proper formatting.
+
+        Supports both:
+        - Azure DevOps Services (cloud): https://dev.azure.com/{org}/{project}/_apis/...
+        - Azure DevOps Server (on-premise): https://{server}/tfs/{collection}/{project}/_apis/...
+                                          or https://{server}/{collection}/{project}/_apis/...
+
+        Args:
+            path: API path (e.g., "_apis/wit/workitems", "_apis/wit/wiql")
+            api_version: API version (default: "7.1")
+
+        Returns:
+            Full URL with proper format based on cloud vs on-premise
+
+        Note:
+            For on-premise, if base_url already includes /tfs/{collection} or /{collection},
+            it won't add org again. For cloud, always adds {org}/{project}.
+        """
+        if not self.project:
+            raise ValueError(f"project required to build ADO URL (project={self.project!r})")
+
+        # Normalize base_url (remove trailing slashes)
+        base_url_normalized = self.base_url.rstrip("/")
+
+        # Normalize path (remove leading slashes)
+        path_normalized = path.lstrip("/")
+
+        is_on_premise = self._is_on_premise()
+
+        if is_on_premise:
+            # Azure DevOps Server (on-premise)
+            # Format could be:
+            # - https://server/tfs/collection/{project}/_apis/... (older TFS format)
+            # - https://server/collection/{project}/_apis/... (newer format)
+            # - https://server/{project}/_apis/... (if collection in base_url)
+
+            base_lower = base_url_normalized.lower()
+            has_tfs = "/tfs/" in base_lower
+
+            # Check if base_url already includes a collection path
+            # If base_url contains /tfs/ or has more than just protocol + domain, collection is likely included
+            parts = [p for p in base_url_normalized.rstrip("/").split("/") if p and p not in ["http:", "https:"]]
+            # Collection is in base_url if:
+            # 1. It contains /tfs/ (older TFS format: server/tfs/collection)
+            # 2. It has more than 1 part after protocol (e.g., server/collection)
+            has_collection_in_base = has_tfs or len(parts) > 1
+
+            if has_collection_in_base:
+                # Collection already in base_url, just add project
+                url = f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
+            elif self.org:
+                # Collection not in base_url, need to add it
+                # For on-premise, typically use /tfs/{collection} format unless explicitly newer format
+                # But if base_url doesn't have /tfs/, use newer format
+                if "/tfs" in base_url_normalized.lower() or not has_tfs:
+                    # If base_url mentions tfs anywhere or we're not sure, use /tfs/ format
+                    # Actually, if has_tfs is False, we should use newer format
+                    url = f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+                else:
+                    # Use /tfs/ format for older TFS servers
+                    url = f"{base_url_normalized}/tfs/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+            else:
+                # No org provided, assume collection is in base_url or use project directly
+                console.print(
+                    "[yellow]Warning:[/yellow] On-premise detected but org (collection) not provided. Assuming collection is in base_url."
+                )
+                url = f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
+        else:
+            # Azure DevOps Services (cloud)
+            # Format: https://dev.azure.com/{org}/{project}/_apis/...
+            if not self.org:
+                raise ValueError(f"org required for Azure DevOps Services (cloud) (org={self.org!r})")
+            url = f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+
+        return url
 
     # BacklogAdapterMixin abstract method implementations
 
@@ -2223,8 +2314,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raise ValueError(msg)
 
         # Build WIQL (Work Item Query Language) query
-        wiql_parts = ["SELECT [System.Id], [System.Title], [System.State]"]
+        # WIQL syntax: SELECT fields FROM WorkItems WHERE conditions
+        # Use @project macro to reference the project context in project-scoped queries
+        wiql_parts = ["SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType]"]
         wiql_parts.append("FROM WorkItems")
+        # Use @project macro for project context (ADO automatically resolves this in project-scoped queries)
         wiql_parts.append("WHERE [System.TeamProject] = @project")
 
         conditions = []
@@ -2247,15 +2341,44 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         wiql = " ".join(wiql_parts)
 
         # Execute WIQL query
-        url = f"{self.base_url}/{self.org}/{self.project}/_apis/wit/wiql"
+        # POST to project-level endpoint: {org}/{project}/_apis/wit/wiql?api-version=7.1
+        url = self._build_ado_url("_apis/wit/wiql", api_version="7.1")
         headers = {
             "Authorization": f"{self.auth_scheme} {self.api_token}" if self.auth_scheme else f"Basic {self.api_token}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
         }
         payload = {"query": wiql}
 
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
+        # Debug: Log URL construction for troubleshooting
+        console.print(f"[dim]ADO WIQL URL: {url}[/dim]")
+
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            # Provide better error message with URL details
+            error_detail = ""
+            if e.response is not None:
+                try:
+                    error_json = e.response.json()
+                    error_detail = f"\nResponse: {error_json}"
+                except Exception:
+                    error_detail = f"\nResponse status: {e.response.status_code}"
+
+            error_msg = (
+                f"Azure DevOps API error: {e}{error_detail}\n"
+                f"URL: {url}\n"
+                f"Organization: {self.org}\n"
+                f"Project: {self.project}\n"
+                f"Base URL: {self.base_url}\n"
+                f"Expected format: https://dev.azure.com/{{org}}/{{project}}/_apis/wit/wiql?api-version=7.1\n"
+                f"If using Azure DevOps Server (on-premise), base_url format may differ."
+            )
+            # Create new exception with better message
+            new_exception = requests.HTTPError(error_msg)
+            new_exception.response = e.response
+            raise new_exception from e
         query_result = response.json()
 
         work_item_ids = [item["id"] for item in query_result.get("workItems", [])]
@@ -2264,18 +2387,84 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return []
 
         # Fetch work item details
+        # Note: GET workitems by IDs uses organization-level endpoint, not project-level
+        # Format: https://dev.azure.com/{organization}/_apis/wit/workitems?ids={ids}&api-version={version}
         items: list[BacklogItem] = []
         batch_size = 200  # ADO API limit
+
+        # Build organization-level URL for work items batch fetch
+        base_url_normalized = self.base_url.rstrip("/")
+        is_on_premise = self._is_on_premise()
+
+        # For work items batch GET, URL is at organization level (not project level)
+        if is_on_premise:
+            # On-premise: if base_url has collection, use it; otherwise add org
+            parts = [p for p in base_url_normalized.split("/") if p and p not in ["http:", "https:"]]
+            has_collection_in_base = "/tfs/" in base_url_normalized.lower() or len(parts) > 1
+
+            if has_collection_in_base:
+                # Collection already in base_url
+                workitems_base_url = base_url_normalized
+            elif self.org:
+                # Need to add collection
+                if "/tfs" in base_url_normalized.lower():
+                    workitems_base_url = f"{base_url_normalized}/tfs/{self.org}"
+                else:
+                    workitems_base_url = f"{base_url_normalized}/{self.org}"
+            else:
+                workitems_base_url = base_url_normalized
+        else:
+            # Cloud: organization level
+            if not self.org:
+                raise ValueError(f"org required for Azure DevOps Services (cloud) (org={self.org!r})")
+            workitems_base_url = f"{base_url_normalized}/{self.org}"
 
         for i in range(0, len(work_item_ids), batch_size):
             batch = work_item_ids[i : i + batch_size]
             ids_str = ",".join(str(wi_id) for wi_id in batch)
 
-            url = f"{self.base_url}/{self.org}/{self.project}/_apis/wit/workitems"
+            # Work items batch GET is at organization level, not project level
+            # Format: {org}/_apis/wit/workitems?ids={ids}&api-version=7.1
+            url = f"{workitems_base_url}/_apis/wit/workitems?api-version=7.1"
             params = {"ids": ids_str, "$expand": "all"}
 
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+            # Headers for work items batch GET (organization-level endpoint)
+            workitems_headers = {
+                "Authorization": f"{self.auth_scheme} {self.api_token}"
+                if self.auth_scheme
+                else f"Basic {self.api_token}",
+                "Accept": "application/json",
+            }
+
+            # Debug: Log URL construction for troubleshooting
+            console.print(f"[dim]ADO WorkItems URL: {url}&ids={ids_str}[/dim]")
+
+            try:
+                response = requests.get(url, headers=workitems_headers, params=params, timeout=30)
+                response.raise_for_status()
+            except requests.HTTPError as e:
+                # Provide better error message with URL details
+                error_detail = ""
+                if e.response is not None:
+                    try:
+                        error_json = e.response.json()
+                        error_detail = f"\nResponse: {error_json}"
+                    except Exception:
+                        error_detail = f"\nResponse status: {e.response.status_code}"
+
+                error_msg = (
+                    f"Azure DevOps API error: {e}{error_detail}\n"
+                    f"URL: {url}\n"
+                    f"Organization: {self.org}\n"
+                    f"Project: {self.project}\n"
+                    f"Base URL: {self.base_url}\n"
+                    f"Expected format: https://dev.azure.com/{{org}}/{{project}}/_apis/wit/workitems?ids={{ids}}&api-version=7.1\n"
+                    f"If using Azure DevOps Server (on-premise), base_url format may differ."
+                )
+                # Create new exception with better message
+                new_exception = requests.HTTPError(error_msg)
+                new_exception.response = e.response
+                raise new_exception from e
             work_items_data = response.json()
 
             # Convert ADO work items to BacklogItem
@@ -2354,7 +2543,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raise ValueError(msg)
 
         work_item_id = int(item.id)
-        url = f"{self.base_url}/{self.org}/{self.project}/_apis/wit/workitems/{work_item_id}"
+        url = self._build_ado_url(f"_apis/wit/workitems/{work_item_id}", api_version="7.1")
         headers = {
             "Authorization": f"{self.auth_scheme} {self.api_token}" if self.auth_scheme else f"Basic {self.api_token}",
             "Content-Type": "application/json-patch+json",
