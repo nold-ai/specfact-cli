@@ -9,6 +9,39 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.2] - 2026-01-21
+
+### Fixed (0.26.2)
+
+- **ADO Adapter API Endpoints**: Fixed Azure DevOps API endpoint issues
+  - **WIQL Query Endpoint**: Added required `api-version=7.1` parameter to WIQL query URL (POST to `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1`)
+  - **Work Items Batch GET Endpoint**: Fixed to use organization-level endpoint instead of project-level (`{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1`)
+  - **Error Handling**: Improved error messages with URL details, organization, project, and base URL information for better troubleshooting
+  - **API Version Requirement**: All ADO API calls now include `api-version=7.1` parameter to ensure correct API version targeting
+- **ADO Adapter On-Premise Support**: Enhanced Azure DevOps Server (on-premise) support
+  - **URL Format Detection**: Added `_is_on_premise()` method to detect cloud vs on-premise environments
+  - **Smart URL Construction**: Added `_build_ado_url()` helper method that handles both cloud and on-premise URL formats
+  - **Collection Handling**: Supports both URL formats:
+    - Collection in base URL: `https://server/tfs/collection/{project}/_apis/...`
+    - Collection provided separately: `https://server/{collection}/{project}/_apis/...`
+  - **Cloud Format**: `https://dev.azure.com/{org}/{project}/_apis/...`
+  - **On-Premise Format**: Automatically detects and handles `/tfs/collection` or `/collection` patterns in base URL
+
+### Added (0.26.2)
+
+- **ADO Adapter Documentation**: Comprehensive documentation for Azure DevOps adapter configuration
+  - **Backlog Refinement Guide**: Added "Azure DevOps Adapter Configuration" section with cloud vs on-premise differences, URL format examples, API endpoint requirements, and troubleshooting
+  - **Command Reference**: Expanded ADO adapter configuration section with `--ado-base-url` parameter, cloud vs on-premise requirements, API endpoint documentation, and troubleshooting section
+  - **AI IDE Prompt**: Updated `specfact.backlog-refine.md` with ADO adapter configuration examples (cloud and on-premise), API endpoint requirements, and troubleshooting tips
+  - **Configuration Examples**: Added examples for both Azure DevOps Services (cloud) and Azure DevOps Server (on-premise) configurations
+
+### Changed (0.26.2)
+
+- **ADO Adapter URL Building**: Centralized URL construction logic in `_build_ado_url()` method for consistent URL formatting across all ADO API calls
+- **ADO Adapter Error Messages**: Enhanced error messages to include constructed URL, organization, project, base URL, and expected format for easier troubleshooting
+
+---
+
 ## [0.26.1] - 2026-01-21
 
 ### Fixed (0.26.1)

@@ -763,6 +763,112 @@ specfact sync bridge --adapter github --mode bidirectional \
 specfact backlog refine github --bundle my-project --auto-bundle
 ```
 
+### Azure DevOps Adapter Configuration
+
+The Azure DevOps (ADO) adapter supports both **Azure DevOps Services (cloud)** and **Azure DevOps Server (on-premise)**. Configuration differs based on your environment.
+
+#### Azure DevOps Services (Cloud)
+
+For cloud-based Azure DevOps, use the standard format:
+
+```bash
+# Basic configuration
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --state Active
+
+# With custom base URL (defaults to https://dev.azure.com)
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --ado-base-url "https://dev.azure.com" \
+  --state Active
+```
+
+**URL Format**: `https://dev.azure.com/{org}/{project}/_apis/wit/wiql?api-version=7.1`
+
+#### Azure DevOps Server (On-Premise)
+
+For on-premise Azure DevOps Server, the URL format depends on whether the collection is included in the base URL:
+
+**Option 1: Collection in Base URL**
+
+If your base URL already includes the collection:
+
+```bash
+# Collection already in base_url
+specfact backlog refine ado \
+  --ado-base-url "https://devops.company.com/tfs/DefaultCollection" \
+  --ado-project "my-project" \
+  --state Active
+```
+
+**URL Format**: `https://server/tfs/collection/{project}/_apis/wit/wiql?api-version=7.1`
+
+**Option 2: Collection Provided Separately**
+
+If your base URL doesn't include the collection:
+
+```bash
+# Collection provided as org parameter
+specfact backlog refine ado \
+  --ado-base-url "https://devops.company.com" \
+  --ado-org "DefaultCollection" \
+  --ado-project "my-project" \
+  --state Active
+```
+
+**URL Format**: `https://server/{collection}/{project}/_apis/wit/wiql?api-version=7.1`
+
+#### ADO API Endpoint Requirements
+
+**WIQL Query Endpoint** (POST):
+- **URL**: `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1`
+- **Method**: POST
+- **Body**: `{"query": "SELECT [System.Id] FROM WorkItems WHERE ..."}`
+- **Headers**: `Content-Type: application/json`, `Accept: application/json`
+- **Note**: The `api-version` parameter is **required** for all ADO API calls
+
+**Work Items Batch GET Endpoint**:
+- **URL**: `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1`
+- **Method**: GET
+- **Note**: This endpoint is at the **organization level** (not project level) for fetching work item details by IDs
+
+#### Common ADO API Errors
+
+**Error: "No HTTP resource was found that matches the request URI"**
+- **Cause**: Missing `api-version` parameter or incorrect URL format
+- **Solution**: Ensure `api-version=7.1` is included in all ADO API URLs
+
+**Error: "The requested resource does not support http method 'GET'"**
+- **Cause**: Attempting to use GET on WIQL endpoint (which requires POST)
+- **Solution**: WIQL queries must use POST method with JSON body
+
+**Error: Organization removed from request string**
+- **Cause**: Incorrect base URL format (may already include organization/collection)
+- **Solution**: Check if base URL already includes collection, adjust `--ado-org` parameter accordingly
+
+#### Authentication
+
+ADO adapter supports multiple authentication methods:
+
+```bash
+# Method 1: Environment variable
+export AZURE_DEVOPS_TOKEN="your-pat-token"
+specfact backlog refine ado --ado-org "my-org" --ado-project "my-project"
+
+# Method 2: CLI parameter
+specfact backlog refine ado \
+  --ado-org "my-org" \
+  --ado-project "my-project" \
+  --ado-token "your-pat-token"
+
+# Method 3: Stored token (via device code flow)
+specfact auth azure-devops  # Interactive device code flow
+specfact backlog refine ado --ado-org "my-org" --ado-project "my-project"
+```
+
 ---
 
 ## Related Documentation
