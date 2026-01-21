@@ -22,7 +22,7 @@ from beartype import beartype
 from icontract import require
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
+from rich.prompt import Confirm
 
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.backlog.adapters.base import BacklogAdapter
@@ -434,10 +434,17 @@ def refine(
                 item.template_confidence = detection_result.confidence
                 item.template_missing_fields = detection_result.missing_fields
 
-                # High confidence - no refinement needed
-                if detection_result.confidence >= 0.8:
-                    console.print("[green]High confidence match - no refinement needed[/green]")
+                # High confidence AND no missing required fields - no refinement needed
+                # Note: Even with high confidence, if required sections are missing, refinement is needed
+                if detection_result.confidence >= 0.8 and not detection_result.missing_fields:
+                    console.print(
+                        "[green]High confidence match with all required sections - no refinement needed[/green]"
+                    )
                     continue
+                if detection_result.missing_fields:
+                    console.print(
+                        f"[yellow]⚠ Missing required sections: {', '.join(detection_result.missing_fields)} - refinement needed[/yellow]"
+                    )
 
             # Low confidence or no match - needs refinement
             # Get target template using priority-based resolution
@@ -482,11 +489,33 @@ def refine(
             console.print("1. Copy the prompt above to your IDE AI copilot (Cursor, Claude Code, etc.)")
             console.print("2. Execute the prompt in your IDE AI copilot")
             console.print("3. Copy the refined content from the AI copilot response")
-            console.print("4. Paste the refined content below when prompted\n")
+            console.print(
+                "4. Paste the refined content below (press Enter, then paste, then press Ctrl+D or type 'END' on a new line)\n"
+            )
 
-            refined_content = Prompt.ask("Paste refined content from IDE AI copilot", default="")
+            # Read multiline input from stdin
+            # Support both interactive (paste + Ctrl+D) and non-interactive (EOF) modes
+            refined_content_lines: list[str] = []
+            console.print("[dim]Paste refined content (press Ctrl+D or type 'END' on a new line when done):[/dim]")
 
-            if not refined_content.strip():
+            try:
+                while True:
+                    try:
+                        line = input()
+                        if line.strip().upper() == "END":
+                            break
+                        refined_content_lines.append(line)
+                    except EOFError:
+                        # Ctrl+D pressed or EOF reached
+                        break
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Input cancelled - skipping[/yellow]")
+                skipped_count += 1
+                continue
+
+            refined_content = "\n".join(refined_content_lines).strip()
+
+            if not refined_content:
                 console.print("[yellow]No refined content provided - skipping[/yellow]")
                 skipped_count += 1
                 continue
