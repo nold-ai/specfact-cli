@@ -171,6 +171,30 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda status: isinstance(status, str) and len(status) > 0, "Status must be non-empty string")
+    @ensure(lambda result: isinstance(result, str), "Must return issue state string")
+    def map_openspec_status_to_issue_state(self, status: str) -> str:
+        """
+        Map OpenSpec change status to GitHub issue state (open/closed).
+
+        Args:
+            status: OpenSpec change status (proposed, in-progress, applied, deprecated, discarded)
+
+        Returns:
+            GitHub issue state: "open" or "closed"
+
+        Note:
+            This method is used for cross-adapter state mapping where we need the
+            actual issue state, not labels. For label mapping, use map_openspec_status_to_backlog().
+        """
+        # Map OpenSpec status to GitHub issue state
+        # "applied", "deprecated", "discarded" → closed
+        # "proposed", "in-progress" → open
+        if status in ("applied", "deprecated", "discarded"):
+            return "closed"
+        return "open"
+
+    @beartype
+    @require(lambda status: isinstance(status, str) and len(status) > 0, "Status must be non-empty string")
     @ensure(lambda result: isinstance(result, list), "Must return list of label strings")
     def map_openspec_status_to_backlog(self, status: str) -> list[str]:
         """
@@ -185,6 +209,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Note:
             This implements the tool-agnostic status mapping pattern for GitHub.
             Future backlog adapters should implement similar mappings for their tools.
+
+            For cross-adapter state mapping (issue state, not labels), use map_openspec_status_to_issue_state().
         """
         labels = ["openspec"]
 
@@ -210,6 +236,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         - Title (from issue title)
         - Description (What Changes section)
         - Rationale (Why section)
+        - Change ID (from body footer or comments)
         - Other optional fields (timeline, owner, stakeholders, dependencies)
 
         Args:
@@ -220,6 +247,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             - title: str
             - description: str (What Changes section)
             - rationale: str (Why section)
+            - change_id: str (extracted from body footer or comments)
             - status: str (mapped to OpenSpec status)
             - Other optional fields
 
@@ -229,6 +257,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Note:
             This implements the tool-agnostic metadata extraction pattern for GitHub.
             Future backlog adapters should implement similar parsing for their tools.
+
+            Change ID extraction priority:
+            1. Body footer (legacy format): *OpenSpec Change Proposal: `id`*
+            2. Comments (new format): **Change ID**: `id` in OpenSpec Change Proposal Reference comment
+            3. Issue number (fallback)
         """
         if not isinstance(item_data, dict):
             msg = "GitHub issue data must be dict"
@@ -278,15 +311,41 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             if impact_match:
                 impact = impact_match.group(1).strip()
 
-        # Extract change ID from OpenSpec metadata footer or issue number
+        # Extract change ID from OpenSpec metadata footer, comments, or issue number
         change_id = None
+
+        # First, check body for OpenSpec metadata footer (legacy format)
         if body:
             # Look for OpenSpec metadata footer: *OpenSpec Change Proposal: `{change_id}`*
             change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", body, re.IGNORECASE)
             if change_id_match:
                 change_id = change_id_match.group(1)
+
+        # If not found in body, check comments (new format - OpenSpec info in comments)
         if not change_id:
-            # Use issue number as fallback
+            issue_number = item_data.get("number")
+            if issue_number and self.repo_owner and self.repo_name:
+                comments = self._get_issue_comments(self.repo_owner, self.repo_name, issue_number)
+                # Look for OpenSpec Change Proposal Reference comment
+                # Pattern 1: Structured comment format with "**Change ID**: `id`"
+                openspec_patterns = [
+                    r"\*\*Change ID\*\*[:\s]+`([a-z0-9-]+)`",
+                    r"Change ID[:\s]+`([a-z0-9-]+)`",
+                    r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
+                    r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
+                ]
+                for comment in comments:
+                    comment_body = comment.get("body", "")
+                    for pattern in openspec_patterns:
+                        match = re.search(pattern, comment_body, re.IGNORECASE | re.DOTALL)
+                        if match:
+                            change_id = match.group(1)
+                            break
+                    if change_id:
+                        break
+
+        # Fallback to issue number if still not found
+        if not change_id:
             change_id = str(item_data.get("number", "unknown"))
 
         # Extract status from labels
@@ -491,12 +550,17 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 source_metadata.setdefault("source_repo", source_repo)
 
             entry_id = artifact_path.get("number") or artifact_path.get("id")
+            # Extract GitHub issue state (open/closed) for cross-adapter sync state preservation
+            github_state = artifact_path.get("state", "open").lower()
             entry = {
                 "source_id": str(entry_id) if entry_id is not None else None,
                 "source_url": artifact_path.get("html_url") or artifact_path.get("url") or "",
                 "source_type": "github",
                 "source_repo": source_repo or "",
-                "source_metadata": {"last_synced_status": proposal.status},
+                "source_metadata": {
+                    "last_synced_status": proposal.status,
+                    "source_state": github_state,  # Preserve GitHub state for cross-adapter sync
+                },
             }
             entries = source_metadata.get("backlog_entries")
             if not isinstance(entries, list):
@@ -1011,6 +1075,17 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             body = "\n".join(body_parts)
 
+        # Check for API token before making request
+        if not self.api_token:
+            msg = (
+                "GitHub API token required to create issues. Options:\n"
+                "  1. Set GITHUB_TOKEN environment variable\n"
+                "  2. Use --github-token option\n"
+                "  3. Use GitHub CLI authentication (gh auth login)\n"
+                "  4. Store token via specfact auth github"
+            )
+            raise ValueError(msg)
+
         # Create issue via GitHub API
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues"
         headers = {
@@ -1018,9 +1093,24 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Accept": "application/vnd.github.v3+json",
         }
         # Determine issue state based on proposal status
-        # Completed proposals (applied, deprecated, discarded) should be closed
-        should_close = status in ("applied", "deprecated", "discarded")
-        issue_state = "closed" if should_close else "open"
+        # Check if source_state and source_type are provided (from cross-adapter sync)
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "github":
+            # Use generic cross-adapter state mapping (preserves original state from source adapter)
+            from specfact_cli.adapters.registry import AdapterRegistry
+
+            source_adapter = AdapterRegistry.get_adapter(source_type)
+            if source_adapter and hasattr(source_adapter, "map_backlog_state_between_adapters"):
+                issue_state = source_adapter.map_backlog_state_between_adapters(source_state, source_type, self)
+            else:
+                # Fallback: map via OpenSpec status
+                should_close = status in ("applied", "deprecated", "discarded")
+                issue_state = "closed" if should_close else "open"
+        else:
+            # Use OpenSpec status mapping (default behavior)
+            should_close = status in ("applied", "deprecated", "discarded")
+            issue_state = "closed" if should_close else "open"
 
         # Map status to GitHub state_reason
         state_reason = None
@@ -1120,7 +1210,23 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         title = proposal_data.get("title", "Untitled")
 
         # Map status to GitHub issue state and comment
-        should_close = status in ("applied", "deprecated", "discarded")
+        # Check if source_state and source_type are provided (from cross-adapter sync)
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "github":
+            # Use generic cross-adapter state mapping (preserves original state from source adapter)
+            from specfact_cli.adapters.registry import AdapterRegistry
+
+            source_adapter = AdapterRegistry.get_adapter(source_type)
+            if source_adapter and hasattr(source_adapter, "map_backlog_state_between_adapters"):
+                issue_state = source_adapter.map_backlog_state_between_adapters(source_state, source_type, self)
+                should_close = issue_state == "closed"
+            else:
+                # Fallback: map via OpenSpec status
+                should_close = status in ("applied", "deprecated", "discarded")
+        else:
+            # Use OpenSpec status mapping (default behavior)
+            should_close = status in ("applied", "deprecated", "discarded")
         source_tracking = proposal_data.get("source_tracking", {})
         # Note: code_repo_path not available in _update_issue_status context
         comment_text = self._get_status_comment(status, title, source_tracking, None)
@@ -1160,6 +1266,35 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = f"Failed to update GitHub issue #{issue_number}: {e}"
             console.print(f"[bold red]✗[/bold red] {msg}")
             raise
+
+    def _get_issue_comments(self, repo_owner: str, repo_name: str, issue_number: int) -> list[dict[str, Any]]:
+        """
+        Fetch comments for a GitHub issue.
+
+        Args:
+            repo_owner: GitHub repository owner
+            repo_name: GitHub repository name
+            issue_number: Issue number
+
+        Returns:
+            List of comment dicts with 'body' field, or empty list on error
+        """
+        if not self.api_token:
+            return []
+
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}/comments"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException:
+            # Return empty list on error - comments are optional
+            return []
 
     def _add_issue_comment(self, repo_owner: str, repo_name: str, issue_number: int, comment: str) -> None:
         """
@@ -2419,7 +2554,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     @beartype
     @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
     @require(
-        lambda update_fields: update_fields is None or isinstance(update_fields, list),
+        lambda item, update_fields: update_fields is None or isinstance(update_fields, list),
         "Update fields must be None or list",
     )
     @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")

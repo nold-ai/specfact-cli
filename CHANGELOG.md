@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.1] - 2026-01-21
+
+### Fixed (0.26.1)
+
+- **Cross-Adapter State Mapping**: Fixed state misalignment during cross-adapter sync (GitHub ↔ ADO)
+  - **Generic State Mapping**: Implemented generic, adapter-agnostic state mapping mechanism using OpenSpec as intermediate format
+  - **State Preservation**: Original `source_state` is now preserved in bundle entries during import and used during cross-adapter export
+  - **Bidirectional Support**: State mapping works correctly in both directions (GitHub → ADO and ADO → GitHub)
+  - **GitHub Adapter**: Added `map_openspec_status_to_issue_state()` method for cross-adapter state mapping (returns "open"/"closed" instead of labels)
+  - **ADO Adapter**: Updated to use generic `map_backlog_state_between_adapters()` method for cross-adapter sync
+  - **Bridge Sync**: Updated `export_backlog_from_bundle()` to extract and pass `source_state` and `source_type` for accurate state translation
+  - **State Mapping Examples**: GitHub "open" ↔ ADO "New", GitHub "closed" ↔ ADO "Closed", ADO "Active" → GitHub "open", ADO "Resolved" → GitHub "closed"
+- **Backlog Refinement Documentation**: Updated documentation and AI IDE prompts with cross-adapter state mapping information
+  - **AI IDE Prompt**: Updated `specfact.backlog-refine.md` with cross-adapter state mapping section, generic mapping examples, and bidirectional workflow examples
+  - **User Guide**: Added "Cross-Adapter State Mapping" section to `docs/guides/backlog-refinement.md` explaining generic state mapping mechanism
+  - **Command Reference**: Added cross-adapter state mapping documentation and state preservation guarantees to `docs/reference/commands.md`
+  - **Field Preservation**: Clarified `source_state` preservation policy in documentation
+
+### Changed (0.26.1)
+
+- **BacklogAdapterMixin**: Enhanced `map_backlog_state_between_adapters()` to use GitHub adapter's `map_openspec_status_to_issue_state()` method for accurate issue state mapping (not labels)
+- **GitHub Adapter**: Added `map_openspec_status_to_issue_state()` method for cross-adapter state mapping (complements existing `map_openspec_status_to_backlog()` which returns labels)
+- **GitHub Adapter Export**: Updated `_create_issue_from_proposal()` and `_update_issue_status()` to check for `source_state` and `source_type` for cross-adapter state mapping
+- **ADO Adapter Export**: Updated `_create_work_item_from_proposal()`, `_update_work_item_status()`, and `_update_work_item_body()` to use generic state mapping when `source_state` and `source_type` are present
+
+---
+
 ## [0.26.0] - 2026-01-21
 
 ### Added (0.26.0)

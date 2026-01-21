@@ -65,10 +65,21 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 ### Advanced/Configuration
 
 - `--adapter TYPE` - DevOps adapter type (github, ado, linear, jira). Default: github
-- `--repo-owner OWNER` - Repository owner (for GitHub/ADO). Optional, can use bridge config
-- `--repo-name NAME` - Repository name (for GitHub/ADO). Optional, can use bridge config
+
+**GitHub Adapter Options:**
+
+- `--repo-owner OWNER` - Repository owner (for GitHub adapter). Optional, can use bridge config
+- `--repo-name NAME` - Repository name (for GitHub adapter). Optional, can use bridge config
 - `--github-token TOKEN` - GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)
 - `--use-gh-cli/--no-gh-cli` - Use GitHub CLI (`gh auth token`) to get token automatically (default: True). Useful in enterprise environments where PAT creation is restricted
+
+**Azure DevOps Adapter Options:**
+
+- `--ado-org ORG` - Azure DevOps organization (required for ADO adapter)
+- `--ado-project PROJECT` - Azure DevOps project (required for ADO adapter)
+- `--ado-base-url URL` - Azure DevOps base URL (optional, defaults to <https://dev.azure.com>). Use for Azure DevOps Server (on-prem)
+- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided). Requires Work Items (Read & Write) permissions
+- `--ado-work-item-type TYPE` - Azure DevOps work item type (optional, derived from process template if not provided). Examples: 'User Story', 'Product Backlog Item', 'Bug'
 
 ## Workflow
 
@@ -114,24 +125,41 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 **For non-sanitized proposals** (direct export):
 
 ```bash
+# GitHub adapter
 specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --no-sanitize --change-ids <id1,id2> \
   [--code-repo <source-code-path>] \
   [--track-code-changes] [--add-progress-comment] \
   [--target-repo <owner/repo>] [--repo-owner <owner>] [--repo-name <name>] \
   [--github-token <token>] [--use-gh-cli]
+
+# Azure DevOps adapter
+specfact sync bridge --adapter ado --mode export-only --repo <openspec-path> \
+  --no-sanitize --change-ids <id1,id2> \
+  [--code-repo <source-code-path>] \
+  [--track-code-changes] [--add-progress-comment] \
+  --ado-org <org> --ado-project <project> \
+  [--ado-token <token>] [--ado-base-url <url>] [--ado-work-item-type <type>]
 ```
 
 **For sanitized proposals** (requires LLM review):
 
 ```bash
-# Step 3a: Export to temporary file for LLM review
+# Step 3a: Export to temporary file for LLM review (GitHub)
 specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --sanitize --change-ids <id1,id2> \
   [--code-repo <source-code-path>] \
   --export-to-tmp --tmp-file /tmp/specfact-proposal-<change-id>.md \
   [--target-repo <owner/repo>] [--repo-owner <owner>] [--repo-name <name>] \
   [--github-token <token>] [--use-gh-cli]
+
+# Step 3a: Export to temporary file for LLM review (ADO)
+specfact sync bridge --adapter ado --mode export-only --repo <openspec-path> \
+  --sanitize --change-ids <id1,id2> \
+  [--code-repo <source-code-path>] \
+  --export-to-tmp --tmp-file /tmp/specfact-proposal-<change-id>.md \
+  --ado-org <org> --ado-project <project> \
+  [--ado-token <token>] [--ado-base-url <url>]
 ```
 
 **Note**: When `--code-repo` is provided, code change detection uses that repository. Otherwise, code changes are detected in the OpenSpec repository (`--repo`).
@@ -173,12 +201,19 @@ specfact sync bridge --adapter github --mode export-only --repo <openspec-path> 
 **For sanitized proposals** (after LLM review):
 
 ```bash
-# Step 5a: Import sanitized content from temporary file
+# Step 5a: Import sanitized content from temporary file (GitHub)
 specfact sync bridge --adapter github --mode export-only --repo <path> \
   --import-from-tmp --tmp-file /tmp/specfact-proposal-<change-id>-sanitized.md \
   --change-ids <id1,id2> \
   [--target-repo <owner/repo>] [--repo-owner <owner>] [--repo-name <name>] \
   [--github-token <token>] [--use-gh-cli]
+
+# Step 5a: Import sanitized content from temporary file (ADO)
+specfact sync bridge --adapter ado --mode export-only --repo <path> \
+  --import-from-tmp --tmp-file /tmp/specfact-proposal-<change-id>-sanitized.md \
+  --change-ids <id1,id2> \
+  --ado-org <org> --ado-project <project> \
+  [--ado-token <token>] [--ado-base-url <url>]
 ```
 
 **For non-sanitized proposals** (already exported in Step 3):
@@ -244,11 +279,17 @@ When in copilot mode, follow this workflow:
 **What to do**:
 
 ```bash
-# For each sanitized proposal, export to temp file
+# For each sanitized proposal, export to temp file (GitHub)
 specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --change-ids <change-id> --export-to-tmp --tmp-file /tmp/specfact-proposal-<change-id>.md \
   [--code-repo <source-code-path>] \
-  [other options]
+  [--repo-owner <owner>] [--repo-name <name>] [--github-token <token>] [--use-gh-cli]
+
+# For each sanitized proposal, export to temp file (ADO)
+specfact sync bridge --adapter ado --mode export-only --repo <openspec-path> \
+  --change-ids <change-id> --export-to-tmp --tmp-file /tmp/specfact-proposal-<change-id>.md \
+  [--code-repo <source-code-path>] \
+  --ado-org <org> --ado-project <project> [--ado-token <token>] [--ado-base-url <url>]
 ```
 
 **Capture**:
@@ -315,12 +356,19 @@ specfact sync bridge --adapter github --mode export-only --repo <openspec-path> 
 **What to do**:
 
 ```bash
-# Export non-sanitized proposals directly
+# Export non-sanitized proposals directly (GitHub)
 specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --change-ids <id1,id2> --no-sanitize \
   [--code-repo <source-code-path>] \
   [--track-code-changes] [--add-progress-comment] \
-  [other options]
+  [--repo-owner <owner>] [--repo-name <name>] [--github-token <token>] [--use-gh-cli]
+
+# Export non-sanitized proposals directly (ADO)
+specfact sync bridge --adapter ado --mode export-only --repo <openspec-path> \
+  --change-ids <id1,id2> --no-sanitize \
+  [--code-repo <source-code-path>] \
+  [--track-code-changes] [--add-progress-comment] \
+  --ado-org <org> --ado-project <project> [--ado-token <token>] [--ado-base-url <url>]
 ```
 
 **Result**: Issues created directly without LLM review
@@ -334,12 +382,19 @@ specfact sync bridge --adapter github --mode export-only --repo <openspec-path> 
 **What to do**:
 
 ```bash
-# For each approved sanitized proposal, import from temp file and create issue
+# For each approved sanitized proposal, import from temp file and create issue (GitHub)
 specfact sync bridge --adapter github --mode export-only --repo <openspec-path> \
   --change-ids <change-id> --import-from-tmp --tmp-file /tmp/specfact-proposal-<change-id>-sanitized.md \
   [--code-repo <source-code-path>] \
   [--track-code-changes] [--add-progress-comment] \
-  [other options]
+  [--repo-owner <owner>] [--repo-name <name>] [--github-token <token>] [--use-gh-cli]
+
+# For each approved sanitized proposal, import from temp file and create work item (ADO)
+specfact sync bridge --adapter ado --mode export-only --repo <openspec-path> \
+  --change-ids <change-id> --import-from-tmp --tmp-file /tmp/specfact-proposal-<change-id>-sanitized.md \
+  [--code-repo <source-code-path>] \
+  [--track-code-changes] [--add-progress-comment] \
+  --ado-org <org> --ado-project <project> [--ado-token <token>] [--ado-base-url <url>]
 ```
 
 **Result**: Issues created with sanitized content
@@ -461,8 +516,11 @@ Competitive analysis and internal strategy sections removed
 # Auto-detect sanitization (filters based on repo setup)
 /specfact.sync-backlog --adapter github
 
-# Explicit repository configuration
+# Explicit repository configuration (GitHub)
 /specfact.sync-backlog --adapter github --repo-owner nold-ai --repo-name specfact-cli-internal
+
+# Azure DevOps adapter (requires org and project)
+/specfact.sync-backlog --adapter ado --ado-org my-org --ado-project my-project
 
 # Use GitHub CLI for token (enterprise-friendly)
 /specfact.sync-backlog --adapter github --use-gh-cli

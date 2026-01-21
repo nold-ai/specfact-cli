@@ -74,6 +74,72 @@ class BacklogAdapterMixin(ABC):
             tool-specific status mapping logic.
         """
 
+    @beartype
+    @require(
+        lambda source_state: isinstance(source_state, str) and len(source_state) > 0,
+        "Source state must be non-empty string",
+    )
+    @require(
+        lambda source_adapter_type: isinstance(source_adapter_type, str) and len(source_adapter_type) > 0,
+        "Source adapter type must be non-empty string",
+    )
+    @require(
+        lambda target_adapter: isinstance(target_adapter, BacklogAdapterMixin),
+        "Target adapter must implement BacklogAdapterMixin",
+    )
+    @ensure(lambda result: isinstance(result, str), "Must return status string")
+    def map_backlog_state_between_adapters(
+        self, source_state: str, source_adapter_type: str, target_adapter: BacklogAdapterMixin
+    ) -> str:
+        """
+        Map backlog state from one adapter to another using OpenSpec as intermediate format.
+
+        This method provides generic cross-adapter state mapping by:
+        1. Getting the source adapter instance
+        2. Mapping source state to OpenSpec status using source adapter's mapping
+        3. Mapping OpenSpec status to target state using target adapter's mapping
+
+        Args:
+            source_state: State from source adapter (e.g., "open", "closed", "New", "Active")
+            source_adapter_type: Source adapter type (e.g., "github", "ado", "jira")
+            target_adapter: Target adapter instance (must implement BacklogAdapterMixin)
+
+        Returns:
+            Target adapter state string
+
+        Note:
+            This is a generic method that works for any adapter pair by using OpenSpec
+            as the intermediate format. It requires the source adapter to be registered
+            in AdapterRegistry to retrieve its mapping methods.
+        """
+        from specfact_cli.adapters.registry import AdapterRegistry
+
+        # Get source adapter instance to use its mapping methods
+        source_adapter = AdapterRegistry.get_adapter(source_adapter_type)
+        if not source_adapter or not isinstance(source_adapter, BacklogAdapterMixin):
+            # Fallback: if source adapter not found, try to map directly
+            # This handles cases where source adapter might not be registered
+            # In this case, we'll use the target adapter's default mapping
+            openspec_status = "proposed"  # Default fallback
+        else:
+            # Step 1: Map source state to OpenSpec status using source adapter
+            openspec_status = source_adapter.map_backlog_status_to_openspec(source_state)
+
+        # Step 2: Map OpenSpec status to target state using target adapter
+        # Special handling for GitHub adapter: use issue state method instead of labels
+        if hasattr(target_adapter, "map_openspec_status_to_issue_state"):
+            # GitHub adapter: use issue state mapping (open/closed)
+            return target_adapter.map_openspec_status_to_issue_state(openspec_status)
+
+        target_state = target_adapter.map_openspec_status_to_backlog(openspec_status)
+
+        # Handle list return type (some adapters return lists)
+        if isinstance(target_state, list):
+            # Use first element if list (typically the primary state)
+            return target_state[0] if target_state else "New"
+
+        return target_state
+
     @abstractmethod
     @beartype
     @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
