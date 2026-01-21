@@ -374,15 +374,22 @@ def refine(
                     }
                 )
 
+        # Normalize adapter, framework, and persona to lowercase for template matching
+        # Template metadata in YAML uses lowercase (e.g., provider: github, framework: scrum)
+        # This ensures case-insensitive matching regardless of CLI input case
+        normalized_adapter = adapter.lower() if adapter else None
+        normalized_framework = framework.lower() if framework else None
+        normalized_persona = persona.lower() if persona else None
+
         # Validate adapter-specific required parameters
-        if adapter.lower() == "github" and (not repo_owner or not repo_name):
+        if normalized_adapter == "github" and (not repo_owner or not repo_name):
             console.print("[red]Error:[/red] GitHub adapter requires both --repo-owner and --repo-name options")
             console.print(
                 "[yellow]Example:[/yellow] specfact backlog refine github "
                 "--repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
             )
             sys.exit(1)
-        if adapter.lower() == "ado" and (not ado_org or not ado_project):
+        if normalized_adapter == "ado" and (not ado_org or not ado_project):
             console.print("[red]Error:[/red] Azure DevOps adapter requires both --ado-org and --ado-project options")
             console.print(
                 "[yellow]Example:[/yellow] specfact backlog refine ado --ado-org 'my-org' --ado-project 'my-project' --state Active"
@@ -434,7 +441,10 @@ def refine(
                     console.print("[green]✓ Definition of Ready (DoR) satisfied[/green]")
 
             # Detect template with persona/framework/provider filtering
-            detection_result = detector.detect_template(item, provider=adapter, framework=framework, persona=persona)
+            # Use normalized values for case-insensitive template matching
+            detection_result = detector.detect_template(
+                item, provider=normalized_adapter, framework=normalized_framework, persona=normalized_persona
+            )
 
             if detection_result.template_id:
                 template_id_str = detection_result.template_id
@@ -466,7 +476,10 @@ def refine(
                 target_template = registry.get_template(detection_result.template_id)
             else:
                 # Use priority-based template resolution
-                target_template = registry.resolve_template(provider=adapter, framework=framework, persona=persona)
+                # Use normalized values for case-insensitive template matching
+                target_template = registry.resolve_template(
+                    provider=normalized_adapter, framework=normalized_framework, persona=normalized_persona
+                )
                 if target_template:
                     resolved_id = target_template.template_id
                     console.print(f"[yellow]No template detected, using resolved template: {resolved_id}[/yellow]")
