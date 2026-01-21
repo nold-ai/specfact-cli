@@ -1075,6 +1075,17 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             body = "\n".join(body_parts)
 
+        # Check for API token before making request
+        if not self.api_token:
+            msg = (
+                "GitHub API token required to create issues. Options:\n"
+                "  1. Set GITHUB_TOKEN environment variable\n"
+                "  2. Use --github-token option\n"
+                "  3. Use GitHub CLI authentication (gh auth login)\n"
+                "  4. Store token via specfact auth github"
+            )
+            raise ValueError(msg)
+
         # Create issue via GitHub API
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues"
         headers = {
