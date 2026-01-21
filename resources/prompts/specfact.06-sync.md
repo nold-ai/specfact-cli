@@ -36,8 +36,23 @@ Synchronize artifacts from external tools (Spec-Kit, Linear, Jira) with SpecFact
 
 ### Advanced/Configuration
 
-- `--adapter TYPE` - Adapter type (speckit, generic-markdown). Default: auto-detect
+- `--adapter TYPE` - Adapter type (speckit, generic-markdown, openspec, github, ado). Default: auto-detect
 - `--interval SECONDS` - Watch interval in seconds. Default: 5 (range: 1+)
+
+**GitHub Adapter Options (for backlog sync):**
+
+- `--repo-owner OWNER` - GitHub repository owner (required for GitHub backlog sync)
+- `--repo-name NAME` - GitHub repository name (required for GitHub backlog sync)
+- `--github-token TOKEN` - GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)
+- `--use-gh-cli/--no-gh-cli` - Use GitHub CLI (`gh auth token`) to get token automatically (default: True)
+
+**Azure DevOps Adapter Options (for backlog sync):**
+
+- `--ado-org ORG` - Azure DevOps organization (required for ADO backlog sync)
+- `--ado-project PROJECT` - Azure DevOps project (required for ADO backlog sync)
+- `--ado-base-url URL` - Azure DevOps base URL (optional, defaults to <https://dev.azure.com>). Use for Azure DevOps Server (on-prem)
+- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)
+- `--ado-work-item-type TYPE` - Azure DevOps work item type (optional, derived from process template if not provided)
 
 ## Workflow
 
@@ -50,7 +65,15 @@ Synchronize artifacts from external tools (Spec-Kit, Linear, Jira) with SpecFact
 ### Step 2: Execute CLI
 
 ```bash
-specfact sync bridge --adapter <adapter> --repo <path> [--bidirectional] [--bundle <name>] [--overwrite] [--watch] [--interval <seconds>]
+# Spec-Kit adapter (default)
+specfact sync bridge --adapter speckit --repo <path> [--bidirectional] [--bundle <name>] [--overwrite] [--watch] [--interval <seconds>]
+
+# GitHub adapter (for backlog sync)
+specfact sync bridge --adapter github --repo <path> --repo-owner <owner> --repo-name <name> [--bidirectional] [--bundle <name>] [--github-token <token>] [--use-gh-cli]
+
+# Azure DevOps adapter (for backlog sync)
+specfact sync bridge --adapter ado --repo <path> --ado-org <org> --ado-project <project> [--bidirectional] [--bundle <name>] [--ado-token <token>] [--ado-base-url <url>]
+
 # --bundle defaults to active plan if not specified
 ```
 
@@ -143,16 +166,35 @@ Conflicts Resolved: 2
 
 ```text
 ✗ Unsupported adapter: invalid-adapter
-Supported adapters: speckit, generic-markdown
+Supported adapters: speckit, generic-markdown, openspec, github, ado
+```
+
+### Error (Missing Required Parameters)
+
+```text
+✗ GitHub adapter requires both --repo-owner and --repo-name options
+Example: specfact sync bridge --adapter github --repo-owner 'nold-ai' --repo-name 'specfact-cli' --bidirectional
+```
+
+```text
+✗ Azure DevOps adapter requires both --ado-org and --ado-project options
+Example: specfact sync bridge --adapter ado --ado-org 'my-org' --ado-project 'my-project' --bidirectional
 ```
 
 ## Common Patterns
 
 ```bash
+# Spec-Kit adapter
 /specfact.06-sync --adapter speckit --repo . --bidirectional
 /specfact.06-sync --adapter speckit --repo . --bundle legacy-api
 /specfact.06-sync --adapter speckit --repo . --watch --interval 5
 /specfact.06-sync --repo . --bidirectional  # Auto-detect adapter
+
+# GitHub adapter (backlog sync)
+/specfact.06-sync --adapter github --repo . --repo-owner nold-ai --repo-name specfact-cli --bidirectional
+
+# Azure DevOps adapter (backlog sync)
+/specfact.06-sync --adapter ado --repo . --ado-org my-org --ado-project my-project --bidirectional
 ```
 
 ## Context

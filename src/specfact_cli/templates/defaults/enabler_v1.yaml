@@ -1,0 +1,21 @@
+template_id: enabler_v1
+name: Enabler
+description: Enabler work template for infrastructure and technical improvements
+scope: corporate
+required_sections:
+  - Objective
+  - Technical Approach
+  - Success Criteria
+optional_sections:
+  - Dependencies
+  - Risks
+  - Timeline
+body_patterns:
+  objective: "[Oo]bjective"
+  technical_approach: "[Tt]echnical [Aa]pproach"
+  success_criteria: "[Ss]uccess [Cc]riteria"
+title_patterns:
+  - "^.*[Ee]nabler.*$"
+  - "^.*[Ii]nfrastructure.*$"
+  - "^.*[Tt]echnical [Dd]ebt.*$"
+schema_ref: openspec/templates/enabler_v1/

@@ -16,9 +16,11 @@ from dataclasses import dataclass
 
 
 try:
-    from datetime import UTC
+    from datetime import UTC, datetime
 except ImportError:
-    UTC = UTC  # type: ignore[assignment]
+    from datetime import datetime
+
+    UTC = UTC  # type: ignore  # python3.10 backport of UTC
 from pathlib import Path
 from typing import Any
 
@@ -4430,13 +4432,21 @@ class BridgeSync:
 
         return ""
 
-    def _write_openspec_change_from_proposal(self, proposal: Any, bridge_config: Any) -> list[str]:
+    def _write_openspec_change_from_proposal(
+        self,
+        proposal: Any,
+        bridge_config: Any,
+        template_id: str | None = None,
+        refinement_confidence: float | None = None,
+    ) -> list[str]:
         """
         Write OpenSpec change files from imported ChangeProposal.
 
         Args:
             proposal: ChangeProposal instance
             bridge_config: Bridge configuration
+            template_id: Optional template ID used for refinement
+            refinement_confidence: Optional refinement confidence score (0.0-1.0)
 
         Returns:
             List of warnings (empty if successful)
@@ -4522,6 +4532,14 @@ class BridgeSync:
                 proposal_lines.append(dependencies_section)
                 proposal_lines.append("")
 
+            # Update source_tracking with refinement metadata if provided
+            if proposal.source_tracking and (template_id is not None or refinement_confidence is not None):
+                if template_id is not None:
+                    proposal.source_tracking.template_id = template_id
+                if refinement_confidence is not None:
+                    proposal.source_tracking.refinement_confidence = refinement_confidence
+                    proposal.source_tracking.refinement_timestamp = datetime.now(UTC)
+
             # Write Source Tracking section
             if proposal.source_tracking:
                 proposal_lines.append("---")
@@ -4533,6 +4551,22 @@ class BridgeSync:
                 source_metadata = (
                     proposal.source_tracking.source_metadata if proposal.source_tracking.source_metadata else {}
                 )
+
+                # Add refinement metadata if present
+                if proposal.source_tracking.template_id:
+                    proposal_lines.append(f"- **Template ID**: {proposal.source_tracking.template_id}")
+                if proposal.source_tracking.refinement_confidence is not None:
+                    proposal_lines.append(
+                        f"- **Refinement Confidence**: {proposal.source_tracking.refinement_confidence:.2f}"
+                    )
+                if proposal.source_tracking.refinement_timestamp:
+                    proposal_lines.append(
+                        f"- **Refinement Timestamp**: {proposal.source_tracking.refinement_timestamp.isoformat()}"
+                    )
+                if proposal.source_tracking.refinement_ai_model:
+                    proposal_lines.append(f"- **Refinement AI Model**: {proposal.source_tracking.refinement_ai_model}")
+                if proposal.source_tracking.template_id or proposal.source_tracking.refinement_confidence is not None:
+                    proposal_lines.append("")
                 if isinstance(source_metadata, dict):
                     backlog_entries = source_metadata.get("backlog_entries", [])
                     if backlog_entries:

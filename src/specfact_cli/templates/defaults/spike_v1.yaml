@@ -1,0 +1,20 @@
+template_id: spike_v1
+name: Spike
+description: Research spike template for investigating technical feasibility
+scope: corporate
+required_sections:
+  - Research Question
+  - Investigation Approach
+  - Findings
+optional_sections:
+  - Recommendations
+  - Time Box
+  - Related Work
+body_patterns:
+  research_question: "[Rr]esearch [Qq]uestion"
+  investigation_approach: "[Ii]nvestigation [Aa]pproach"
+  findings: "[Ff]indings"
+title_patterns:
+  - "^.*[Ss]pike.*$"
+  - "^.*[Rr]esearch.*$"
+schema_ref: openspec/templates/spike_v1/
