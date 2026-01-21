@@ -308,32 +308,41 @@ def refine(
         # Initialize template registry and load templates
         registry = TemplateRegistry()
 
-        # Determine template directories (in priority order: custom > built-in)
+        # Determine template directories (built-in first so custom overrides take effect)
         from specfact_cli.utils.ide_setup import find_package_resources_path
 
         current_dir = Path.cwd()
 
-        # 1. Load custom templates from project directory (highest priority)
-        project_templates_dir = current_dir / ".specfact" / "templates" / "backlog"
-        if project_templates_dir.exists():
-            registry.load_templates_from_directory(project_templates_dir)
-
-        # 2. Load built-in templates from resources/templates/backlog/ (preferred location)
+        # 1. Load built-in templates from resources/templates/backlog/ (preferred location)
         # Try to find resources directory using package resource finder (for installed packages)
         resources_path = find_package_resources_path("specfact_cli", "resources/templates/backlog")
+        built_in_loaded = False
         if resources_path and resources_path.exists():
             registry.load_templates_from_directory(resources_path)
+            built_in_loaded = True
         else:
             # Fallback: Try relative to repo root (development mode)
             repo_root = Path(__file__).parent.parent.parent.parent
             resources_templates_dir = repo_root / "resources" / "templates" / "backlog"
             if resources_templates_dir.exists():
                 registry.load_templates_from_directory(resources_templates_dir)
+                built_in_loaded = True
             else:
-                # 3. Fallback to src/specfact_cli/templates/ for backward compatibility
+                # 2. Fallback to src/specfact_cli/templates/ for backward compatibility
                 src_templates_dir = Path(__file__).parent.parent / "templates"
                 if src_templates_dir.exists():
                     registry.load_templates_from_directory(src_templates_dir)
+                    built_in_loaded = True
+
+        if not built_in_loaded:
+            console.print(
+                "[yellow]⚠ No built-in backlog templates found; continuing with custom templates only.[/yellow]"
+            )
+
+        # 3. Load custom templates from project directory (highest priority)
+        project_templates_dir = current_dir / ".specfact" / "templates" / "backlog"
+        if project_templates_dir.exists():
+            registry.load_templates_from_directory(project_templates_dir)
 
         # Initialize template detector
         detector = TemplateDetector(registry)
@@ -369,7 +378,8 @@ def refine(
         if adapter.lower() == "github" and (not repo_owner or not repo_name):
             console.print("[red]Error:[/red] GitHub adapter requires both --repo-owner and --repo-name options")
             console.print(
-                "[yellow]Example:[/yellow] specfact backlog refine github --repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
+                "[yellow]Example:[/yellow] specfact backlog refine github "
+                "--repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
             )
             sys.exit(1)
         if adapter.lower() == "ado" and (not ado_org or not ado_project):
@@ -427,24 +437,23 @@ def refine(
             detection_result = detector.detect_template(item, provider=adapter, framework=framework, persona=persona)
 
             if detection_result.template_id:
-                console.print(
-                    f"[green]✓ Detected template: {detection_result.template_id} (confidence: {detection_result.confidence:.2f})[/green]"
-                )
+                template_id_str = detection_result.template_id
+                confidence_str = f"{detection_result.confidence:.2f}"
+                console.print(f"[green]✓ Detected template: {template_id_str} (confidence: {confidence_str})[/green]")
                 item.detected_template = detection_result.template_id
                 item.template_confidence = detection_result.confidence
                 item.template_missing_fields = detection_result.missing_fields
 
                 # High confidence AND no missing required fields - no refinement needed
                 # Note: Even with high confidence, if required sections are missing, refinement is needed
-                if detection_result.confidence >= 0.8 and not detection_result.missing_fields:
+                if template_id is None and detection_result.confidence >= 0.8 and not detection_result.missing_fields:
                     console.print(
                         "[green]High confidence match with all required sections - no refinement needed[/green]"
                     )
                     continue
                 if detection_result.missing_fields:
-                    console.print(
-                        f"[yellow]⚠ Missing required sections: {', '.join(detection_result.missing_fields)} - refinement needed[/yellow]"
-                    )
+                    missing_str = ", ".join(detection_result.missing_fields)
+                    console.print(f"[yellow]⚠ Missing required sections: {missing_str} - refinement needed[/yellow]")
 
             # Low confidence or no match - needs refinement
             # Get target template using priority-based resolution
@@ -459,9 +468,8 @@ def refine(
                 # Use priority-based template resolution
                 target_template = registry.resolve_template(provider=adapter, framework=framework, persona=persona)
                 if target_template:
-                    console.print(
-                        f"[yellow]No template detected, using resolved template: {target_template.template_id}[/yellow]"
-                    )
+                    resolved_id = target_template.template_id
+                    console.print(f"[yellow]No template detected, using resolved template: {resolved_id}[/yellow]")
                 else:
                     # Fallback: Use first available template as default
                     templates = registry.list_templates(scope="corporate")
@@ -490,11 +498,13 @@ def refine(
             console.print("2. Execute the prompt in your IDE AI copilot")
             console.print("3. Copy the refined content from the AI copilot response")
             console.print(
-                "4. Paste the refined content below (press Enter, then paste, then press Ctrl+D or type 'END' on a new line)\n"
+                "4. Paste the refined content below "
+                "(press Enter, then paste, then press Ctrl+D or type 'END' on a new line)\n"
             )
 
             # Read multiline input from stdin
             # Support both interactive (paste + Ctrl+D) and non-interactive (EOF) modes
+            # Note: When pasting multiline content, each line is read sequentially
             refined_content_lines: list[str] = []
             console.print("[dim]Paste refined content (press Ctrl+D or type 'END' on a new line when done):[/dim]")
 
@@ -502,11 +512,12 @@ def refine(
                 while True:
                     try:
                         line = input()
+                        # Check for sentinel value (case-insensitive, must be on its own line)
                         if line.strip().upper() == "END":
                             break
                         refined_content_lines.append(line)
                     except EOFError:
-                        # Ctrl+D pressed or EOF reached
+                        # Ctrl+D pressed or EOF reached (common when pasting multiline content)
                         break
             except KeyboardInterrupt:
                 console.print("\n[yellow]Input cancelled - skipping[/yellow]")
@@ -608,7 +619,8 @@ def refine(
                                     f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
                                     f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
                                     f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
-                                    f"*Note: Original body preserved. This comment provides OpenSpec reference for cross-sync.*"
+                                    f"*Note: Original body preserved. "
+                                    f"This comment provides OpenSpec reference for cross-sync.*"
                                 )
                                 if adapter_instance.add_comment(updated_item, comment_text):
                                     console.print("[green]✓ Added OpenSpec reference comment[/green]")
@@ -655,13 +667,15 @@ def refine(
                                         f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
                                         f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
                                         f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
-                                        f"*Note: Original body preserved. This comment provides OpenSpec reference for cross-sync.*"
+                                        f"*Note: Original body preserved. "
+                                        f"This comment provides OpenSpec reference for cross-sync.*"
                                     )
                                     if adapter_instance.add_comment(updated_item, comment_text):
                                         console.print("[green]✓ Added OpenSpec reference comment[/green]")
                                     else:
                                         console.print(
-                                            "[yellow]⚠ Failed to add comment (adapter may not support comments)[/yellow]"
+                                            "[yellow]⚠ Failed to add comment "
+                                            "(adapter may not support comments)[/yellow]"
                                         )
                             else:
                                 console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
