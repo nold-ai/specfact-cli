@@ -1,0 +1,28 @@
+template_id: developer_task_v1
+name: Developer Task
+description: Task template optimized for Developer persona with technical implementation details
+scope: corporate
+personas:
+  - developer
+required_sections:
+  - Task Description
+  - Technical Approach
+  - Implementation Details
+  - Acceptance Criteria
+optional_sections:
+  - Dependencies
+  - Testing Requirements
+  - Performance Considerations
+  - Security Considerations
+  - Notes
+body_patterns:
+  task_description: "[Tt]ask [Dd]escription"
+  technical_approach: "[Tt]echnical [Aa]pproach"
+  implementation_details: "[Ii]mplementation [Dd]etails"
+  acceptance_criteria: "[Aa]cceptance [Cc]riteria"
+title_patterns:
+  - "^.*[Tt]ask.*$"
+  - "^.*[Dd]evelop.*$"
+  - "^.*[Ii]mplement.*$"
+  - "^.*[Tt]ech.*$"
+schema_ref: openspec/templates/personas/developer/task_v1/

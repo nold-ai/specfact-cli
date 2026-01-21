@@ -1,0 +1,19 @@
+template_id: user_story_v1
+name: User Story
+description: Standard user story template with As a/I want/So that structure
+scope: corporate
+required_sections:
+  - As a
+  - I want
+  - So that
+  - Acceptance Criteria
+optional_sections:
+  - Notes
+  - Dependencies
+body_patterns:
+  as_a: "As a [^,]+ I want"
+  so_that: "So that [^,]+"
+title_patterns:
+  - "^.*[Uu]ser [Ss]tory.*$"
+  - "^.*[Uu]ser.*[Ss]tory.*$"
+schema_ref: openspec/templates/user_story_v1/

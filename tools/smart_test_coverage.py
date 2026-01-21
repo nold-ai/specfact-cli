@@ -70,7 +70,7 @@ class SmartCoverageManager:
         self.test_level_dirs = {
             "unit": "tests/unit",
             "integration": "tests/integration",
-            "e2e": "tests/integration",  # E2E tests are a subset of integration tests
+            "e2e": "tests/e2e",  # E2E tests live under tests/e2e
         }
 
         # Configuration files that affect test behavior

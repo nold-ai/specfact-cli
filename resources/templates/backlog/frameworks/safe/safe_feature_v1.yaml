@@ -1,0 +1,26 @@
+template_id: safe_feature_v1
+name: SAFe Feature
+description: Feature template optimized for Scaled Agile Framework (SAFe) with business value, acceptance criteria, and solution intent
+scope: corporate
+framework: safe
+required_sections:
+  - Feature Name
+  - Business Value
+  - Acceptance Criteria
+  - Solution Intent
+optional_sections:
+  - Dependencies
+  - Non-functional Requirements (NFRs)
+  - Risks
+  - Timeline
+  - Notes
+body_patterns:
+  feature_name: "[Ff]eature [Nn]ame"
+  business_value: "[Bb]usiness [Vv]alue"
+  acceptance_criteria: "[Aa]cceptance [Cc]riteria"
+  solution_intent: "[Ss]olution [Ii]ntent"
+title_patterns:
+  - "^.*[Ff]eature.*$"
+  - "^.*SAFe.*$"
+  - "^.*[Ff]eature:.*$"
+schema_ref: openspec/templates/frameworks/safe/feature_v1/

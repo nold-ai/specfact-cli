@@ -13,11 +13,14 @@ This guide explains how to use SpecFact CLI for agile/scrum workflows, including
 SpecFact CLI supports real-world agile/scrum practices through:
 
 - **Definition of Ready (DoR)**: Automatic validation of story readiness for sprint planning
+- **Backlog Refinement** 🆕: AI-assisted template-driven refinement for standardizing work items from DevOps backlogs
 - **Dependency Management**: Track story-to-story and feature-to-feature dependencies
 - **Prioritization**: Priority levels, ranking, and business value scoring
 - **Sprint Planning**: Target sprint/release assignment and story point tracking
 - **Business Value Focus**: User-focused value statements and measurable outcomes
 - **Conflict Resolution**: Persona-aware three-way merge with automatic conflict resolution based on section ownership
+
+**🆕 NEW: Backlog Refinement Integration** - Use `specfact backlog refine` to standardize backlog items from GitHub Issues, Azure DevOps, and other tools into template-compliant format before importing into project bundles. See [Backlog Refinement Guide](backlog-refinement.md) for complete documentation.
 
 ## Persona-Based Workflows
 
@@ -471,6 +474,25 @@ specfact project merge --strategy manual ...
 
 ## Definition of Ready (DoR)
 
+### DoR Validation in Backlog Refinement 🆕
+
+When refining backlog items from DevOps tools, you can validate DoR rules before refinement:
+
+```bash
+# Check DoR before refining backlog items
+specfact backlog refine github --check-dor --labels feature
+
+# DoR configuration in .specfact/dor.yaml
+rules:
+  story_points: true
+  priority: true
+  business_value: true
+  acceptance_criteria: true
+  dependencies: false  # Optional
+```
+
+**See**: [Backlog Refinement Guide](backlog-refinement.md#definition-of-ready-dor) for DoR validation in backlog refinement workflow.
+
 ### DoR Checklist
 
 Each story must meet these criteria before sprint planning:
@@ -632,6 +654,30 @@ Use Fibonacci-like values: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 100
 - **Story Points**: 5 (Complexity)
 - **Value Points**: 8 (Business Value)
 ```
+
+### Backlog Refinement Before Sprint Planning 🆕
+
+Before sprint planning, refine backlog items from DevOps tools (GitHub Issues, Azure DevOps) into structured, template-compliant format:
+
+```bash
+# Refine GitHub issues in current sprint
+specfact backlog refine github --sprint "Sprint 1" --check-dor --labels feature
+
+# Refine ADO work items with DoR validation
+specfact backlog refine ado --iteration "Project\\Sprint 1" --check-dor --state Active
+
+# Use persona/framework filtering for role-specific templates
+specfact backlog refine github --persona product-owner --framework scrum --sprint "Sprint 1"
+```
+
+**Benefits**:
+
+- Standardizes unstructured backlog input into corporate templates
+- Validates DoR before adding items to sprints
+- Filters by sprint, release, iteration for agile workflows
+- Preserves original backlog data for round-trip synchronization
+
+**See**: [Backlog Refinement Guide](backlog-refinement.md) for complete documentation.
 
 ### Target Sprint Assignment
 

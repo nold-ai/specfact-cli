@@ -29,7 +29,7 @@ from specfact_cli.utils.terminal import get_progress_config
 
 
 app = typer.Typer(
-    help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, Linear, Jira, etc.)"
+    help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, Linear, Jira, etc.). See 'specfact backlog refine' for template-driven backlog refinement."
 )
 console = get_configured_console()
 
@@ -1157,6 +1157,9 @@ def sync_bridge(
 
     Synchronizes artifacts from external tools (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.) with
     SpecFact project bundles using configurable bridge mappings.
+
+    **Related**: Use `specfact backlog refine` to standardize backlog items with template-driven refinement
+    before syncing to OpenSpec bundles. See backlog refinement guide for details.
 
     Supported adapters:
     - speckit: Spec-Kit projects (specs/, .specify/) - import & sync

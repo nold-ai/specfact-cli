@@ -1,0 +1,21 @@
+template_id: ado_work_item_v1
+name: Azure DevOps Work Item
+description: Work item template optimized for Azure DevOps with area path and iteration path support
+scope: corporate
+provider: ado
+required_sections:
+  - Description
+  - Acceptance Criteria
+optional_sections:
+  - Notes
+  - Dependencies
+  - Area Path
+  - Iteration Path
+body_patterns:
+  description: "Description?:\\s*.+"
+  acceptance_criteria: "Acceptance Criteria?:\\s*.+"
+title_patterns:
+  - "^.*[Ww]ork [Ii]tem.*$"
+  - "^.*[Uu]ser [Ss]tory.*$"
+  - "^.*[Bb]ug.*$"
+schema_ref: openspec/templates/providers/ado/work_item_v1/

@@ -1,0 +1,235 @@
+# SpecFact Backlog Refinement Command
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Purpose
+
+Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into structured, template-compliant work items using AI-assisted refinement with template detection and validation.
+
+**When to use:** Standardizing backlog items, enforcing corporate templates (user stories, defects, spikes, enablers), preparing items for sprint planning.
+
+**Quick:** `/specfact.backlog-refine --adapter github --labels feature,enhancement` or `/specfact.backlog-refine --adapter ado --sprint "Sprint 1"`
+
+## Parameters
+
+### Required
+
+- `ADAPTER` - Backlog adapter name (github, ado, etc.)
+
+### Adapter Configuration (Required for GitHub/ADO)
+
+**GitHub Adapter:**
+
+- `--repo-owner OWNER` - GitHub repository owner (required for GitHub adapter)
+- `--repo-name NAME` - GitHub repository name (required for GitHub adapter)
+- `--github-token TOKEN` - GitHub API token (optional, uses GITHUB_TOKEN env var or gh CLI if not provided)
+
+**Azure DevOps Adapter:**
+
+- `--ado-org ORG` - Azure DevOps organization (required for ADO adapter)
+- `--ado-project PROJECT` - Azure DevOps project (required for ADO adapter)
+- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)
+
+### Filters
+
+- `--labels LABELS` or `--tags TAGS` - Filter by labels/tags (comma-separated, e.g., "feature,enhancement")
+- `--state STATE` - Filter by state (open, closed, etc.)
+- `--assignee USERNAME` - Filter by assignee username
+- `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1")
+- `--sprint SPRINT` - Filter by sprint identifier
+- `--release RELEASE` - Filter by release identifier
+- `--persona PERSONA` - Filter templates by persona (product-owner, architect, developer)
+- `--framework FRAMEWORK` - Filter templates by framework (agile, scrum, safe, kanban)
+
+### Template Selection
+
+- `--template TEMPLATE_ID` or `-t TEMPLATE_ID` - Target template ID (default: auto-detect)
+- `--auto-accept-high-confidence` - Auto-accept refinements with confidence >= 0.85
+
+### Preview and Writeback
+
+- `--preview` / `--no-preview` - Preview mode: show what will be written without updating backlog (default: --preview)
+- `--write` - Write mode: explicitly opt-in to update remote backlog (requires --write flag)
+
+### Definition of Ready (DoR)
+
+- `--check-dor` - Check Definition of Ready (DoR) rules before refinement (loads from `.specfact/dor.yaml`)
+
+### OpenSpec Integration
+
+- `--bundle BUNDLE` or `-b BUNDLE` - OpenSpec bundle path to import refined items
+- `--auto-bundle` - Auto-import refined items to OpenSpec bundle
+- `--openspec-comment` - Add OpenSpec change proposal reference as comment (preserves original body)
+
+### Generic Search
+
+- `--search QUERY` or `-s QUERY` - Search query using provider-specific syntax (e.g., GitHub: "is:open label:feature")
+
+## Workflow
+
+### Step 1: Execute CLI Command
+
+Execute the SpecFact CLI command with user-provided arguments:
+
+```bash
+specfact backlog refine $ADAPTER \
+  [--labels LABELS] [--state STATE] [--assignee USERNAME] \
+  [--iteration PATH] [--sprint SPRINT] [--release RELEASE] \
+  [--persona PERSONA] [--framework FRAMEWORK] \
+  [--template TEMPLATE_ID] [--auto-accept-high-confidence] \
+  [--preview] [--write] \
+  [--bundle BUNDLE] [--auto-bundle] \
+  [--search QUERY]
+```
+
+**Capture CLI output**:
+
+- List of backlog items found
+- Template detection results for each item
+- Refinement prompts for IDE AI copilot
+- Validation results
+- Preview of what will be written (if --preview)
+- Writeback confirmation (if --write)
+
+### Step 2: Process Refinement Prompts (If Items Need Refinement)
+
+**When CLI generates refinement prompts**:
+
+1. **For each item needing refinement**:
+   - CLI displays a refinement prompt
+   - Copy the prompt and execute it in your IDE AI copilot
+   - Get refined content from AI copilot response
+   - Paste refined content back to CLI when prompted
+
+2. **CLI validation**:
+   - CLI validates refined content against template requirements
+   - CLI provides confidence score
+   - CLI shows preview of changes (original vs refined)
+
+3. **User confirmation**:
+   - Review preview (fields that will be updated vs preserved)
+   - Accept or reject refinement
+   - If accepted and --write flag set, CLI updates remote backlog
+
+### Step 3: Present Results
+
+Display refinement results:
+
+- Number of items refined
+- Number of items skipped
+- Template matches found
+- Confidence scores
+- Preview status (if --preview)
+- Writeback status (if --write)
+
+## CLI Enforcement
+
+**CRITICAL**: Always use SpecFact CLI commands. See [CLI Enforcement Rules](./shared/cli-enforcement.md) for details.
+
+**Rules**:
+
+- Execute CLI first - never modify backlog items directly
+- Use refinement prompts generated by CLI
+- Validate refined content through CLI
+- Use --preview flag by default for safety
+- Use --write flag only when ready to update backlog
+
+## Field Preservation Policy
+
+**Fields that will be UPDATED**:
+
+- `title`: Updated if changed during refinement
+- `body_markdown`: Updated with refined content
+
+**Fields that will be PRESERVED** (not modified):
+
+- `assignees`: Preserved
+- `tags`: Preserved
+- `state`: Preserved
+- `priority`: Preserved (if present in provider_fields)
+- `due_date`: Preserved (if present in provider_fields)
+- `story_points`: Preserved (if present in provider_fields)
+- `sprint`: Preserved (if present)
+- `release`: Preserved (if present)
+- All other metadata: Preserved in provider_fields
+
+**OpenSpec Comment Integration**:
+
+- When `--openspec-comment` is used, a structured comment is added to the backlog item
+- The comment includes: Change ID, template used, confidence score, refinement timestamp
+- Original body is preserved; comment provides OpenSpec reference for cross-sync
+
+## Architecture Note
+
+SpecFact CLI follows a CLI-first architecture:
+
+- SpecFact CLI generates prompts/instructions for IDE AI copilots
+- IDE AI copilots execute those instructions using their native LLM
+- IDE AI copilots feed results back to SpecFact CLI
+- SpecFact CLI validates and processes the results
+- SpecFact CLI does NOT directly invoke LLM APIs
+
+## Expected Output
+
+### Success (Preview Mode)
+
+```text
+✓ Refinement completed (Preview Mode)
+
+Found 5 backlog items
+Refined: 3
+Skipped: 2
+
+Preview mode: Refinement will NOT be written to backlog
+Use --write flag to explicitly opt-in to writeback
+```
+
+### Success (Write Mode)
+
+```text
+✓ Refinement completed and written to backlog
+
+Found 5 backlog items
+Refined: 3
+Skipped: 2
+
+Items updated in remote backlog:
+  - #123: User Story Template Applied
+  - #124: Defect Template Applied
+  - #125: Spike Template Applied
+```
+
+## Common Patterns
+
+```bash
+# Refine GitHub issues with feature label (requires repo-owner and repo-name)
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --labels feature
+
+# Refine ADO work items in specific sprint (requires ado-org and ado-project)
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --sprint "Sprint 1"
+
+# Refine with Scrum framework and Product Owner persona
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --framework scrum --persona product-owner
+
+# Preview refinement without writing
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --preview
+
+# Write refinement to backlog with OpenSpec comment (explicit opt-in)
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --write --openspec-comment
+
+# Check Definition of Ready before refinement
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --check-dor --labels feature
+
+# Refine and import to OpenSpec bundle
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --bundle my-project --auto-bundle --state open
+```
+
+## Context
+
+{ARGS}

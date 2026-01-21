@@ -45,6 +45,7 @@ uvx specfact-cli@latest plan init my-project --interactive
 - 📖 **[First Steps](first-steps.md)** - Step-by-step first commands
 - 📖 **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](tutorial-openspec-speckit.md)** ⭐ **NEW** - Complete beginner-friendly tutorial
 - 📖 **[DevOps Backlog Integration](../guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows
+- 📖 **[Backlog Refinement](../guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items
 - 📖 **[Use Cases](../guides/use-cases.md)** - See real-world examples
 - 📖 **[Command Reference](../reference/commands.md)** - Learn all available commands
 

@@ -408,6 +408,102 @@ specfact sync bridge --adapter github --track-code-changes \
 
 ---
 
+### I want to standardize backlog items using templates
+
+**Recommended**: [Backlog Refinement Guide](backlog-refinement.md) 🆕 **NEW FEATURE** - AI-assisted template-driven refinement
+
+**Command**: `backlog refine`
+
+**Quick Example**:
+
+```bash
+# Refine GitHub issues with auto-detection
+specfact backlog refine github --search "is:open label:feature"
+
+# Filter by sprint and assignee
+specfact backlog refine github --sprint "Sprint 1" --assignee dev1
+
+# Filter by framework and persona (Scrum + Product Owner)
+specfact backlog refine github --framework scrum --persona product-owner --labels feature
+
+# Check Definition of Ready before refinement
+specfact backlog refine github --check-dor --labels feature
+
+# Preview refinement without writing (default - safe mode)
+specfact backlog refine github --preview --labels feature
+
+# Write refinement to backlog (explicit opt-in)
+specfact backlog refine github --write --labels feature
+```
+
+**Detailed Guide**: [Backlog Refinement Guide](backlog-refinement.md)
+
+---
+
+### I want to refine backlog items in a specific sprint
+
+**Recommended**: `backlog refine` with sprint filtering
+
+**Command**: `backlog refine --sprint <sprint-name>`
+
+**Quick Example**:
+
+```bash
+# Refine items in current sprint
+specfact backlog refine github --sprint "Sprint 1" --state open
+
+# Refine ADO work items in specific iteration
+specfact backlog refine ado --iteration "Project\\Sprint 1" --state Active
+```
+
+**Detailed Guide**: [Backlog Refinement Guide](backlog-refinement.md#quick-start)
+
+---
+
+### I want to use persona-specific templates for backlog refinement
+
+**Recommended**: `backlog refine` with persona/framework filtering
+
+**Command**: `backlog refine --persona <persona> --framework <framework>`
+
+**Quick Example**:
+
+```bash
+# Use Product Owner templates with Scrum framework
+specfact backlog refine github --persona product-owner --framework scrum --labels feature
+
+# Use Developer templates with Agile framework
+specfact backlog refine github --persona developer --framework agile --labels task
+```
+
+**Detailed Guide**: [Backlog Refinement Guide](backlog-refinement.md#template-system)
+
+---
+
+### I want to check if backlog items are ready for sprint planning
+
+**Recommended**: `backlog refine` with DoR validation
+
+**Command**: `backlog refine --check-dor`
+
+**Quick Example**:
+
+```bash
+# Check DoR before refinement
+specfact backlog refine github --check-dor --labels feature
+
+# DoR configuration in .specfact/dor.yaml
+rules:
+  story_points: true
+  priority: true
+  business_value: true
+  acceptance_criteria: true
+```
+
+**Detailed Guide**: [Backlog Refinement Guide](backlog-refinement.md#definition-of-ready-dor)
+
+---
+
 ### I want to sync change proposals to GitHub Issues
 
 **Recommended**: DevOps bridge adapter with bidirectional sync 🆕

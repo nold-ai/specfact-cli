@@ -1,0 +1,24 @@
+template_id: product_owner_user_story_v1
+name: Product Owner User Story
+description: User story template optimized for Product Owner persona with business value focus
+scope: corporate
+personas:
+  - product-owner
+required_sections:
+  - As a
+  - I want
+  - So that
+  - Acceptance Criteria
+  - Business Value
+optional_sections:
+  - Notes
+  - Dependencies
+  - Success Metrics
+body_patterns:
+  as_a: "As a [^,]+ I want"
+  so_that: "So that [^,]+"
+  business_value: "Business Value?:\\s*.+"
+title_patterns:
+  - "^.*[Uu]ser [Ss]tory.*$"
+  - "^.*[Uu]ser.*[Ss]tory.*$"
+schema_ref: openspec/templates/personas/product-owner/user_story_v1/

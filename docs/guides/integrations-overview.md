@@ -169,6 +169,45 @@ SpecFact CLI integrations fall into four main categories:
 
 ---
 
+### Backlog Refinement 🆕 **NEW FEATURE**
+
+**Purpose**: AI-assisted template-driven refinement for standardizing work items from DevOps backlogs
+
+**What it provides**:
+
+- ✅ **Template detection** - Automatically detects which template (user story, defect, spike, enabler) matches a backlog item
+- ✅ **AI-assisted refinement** - Generates prompts for IDE AI copilots to refine unstructured input into template-compliant format
+- ✅ **Priority-based template resolution** - Resolves templates using provider+framework+persona priority chain
+- ✅ **Agile filtering** - Filter by sprint, release, iteration, labels, state, assignee for agile workflows
+- ✅ **Persona/framework support** - Filter templates by persona (product-owner, architect, developer) and framework (scrum, safe, kanban)
+- ✅ **Definition of Ready (DoR) validation** - Check DoR rules before adding items to sprints with repo-level configuration
+- ✅ **Preview/write safety** - Preview mode by default, explicit `--write` flag for writeback
+- ✅ **Lossless preservation** - Preserves original backlog data for round-trip synchronization
+- ✅ **Sprint/release extraction** - Automatically extracts sprint and release information from GitHub milestones and ADO iteration paths
+
+**Supported adapters**:
+
+- **GitHub Issues** (`--adapter github`) - ✅ Full support with milestone extraction
+- **Azure DevOps** (`--adapter ado`) - ✅ Full support with iteration path extraction
+- **Jira, Linear** - Planned (extensible architecture)
+
+**When to use**:
+
+- **Standardizing backlog items** - Transform arbitrary DevOps backlog input into structured, template-compliant format
+- **Sprint planning preparation** - Refine items before adding to sprints with DoR validation
+- **Template enforcement** - Enforce corporate templates (user stories, defects, spikes, enablers) across teams
+- **Agile workflow integration** - Filter by sprint, release, iteration for common agile/scrum workflows
+- **Persona-specific refinement** - Use role-specific templates (product-owner, architect, developer)
+- **Framework-specific refinement** - Use methodology-specific templates (scrum, safe, kanban)
+
+**Key difference**: Backlog refinement provides **template-driven standardization** of backlog items, while DevOps adapter integration provides **bidirectional synchronization** between OpenSpec and backlog tools. Use together: refine items → sync to OpenSpec → track progress.
+
+**Why this matters**: DevOps teams often create backlog items with informal, unstructured descriptions. Backlog refinement helps enforce corporate standards while maintaining lossless synchronization with your backlog tools, enabling seamless integration into agile workflows.
+
+**See also**: [Backlog Refinement Guide](./backlog-refinement.md) | [DevOps Adapter Integration Guide](./devops-adapter-integration.md)
+
+---
+
 ## IDE & Development
 
 ### AI IDE Integration
@@ -216,7 +255,8 @@ Start: What do you need?
 │  └─ ✅ Use Specmatic integration (API-level contracts)
 │
 ├─ Need to integrate SpecFact into agile DevOps workflows?
-│  └─ ✅ Use DevOps adapter integration (GitHub Issues, etc.) - Bidirectional sync with backlog
+│  ├─ Need to standardize backlog items? → Use backlog refinement (template-driven standardization)
+│  └─ Need bidirectional sync? → Use DevOps adapter integration (GitHub Issues, etc.) - Bidirectional sync with backlog
 │
 └─ Need AI-assisted development?
    └─ ✅ Use AI IDE integration (slash commands, AI workflows)
@@ -263,6 +303,7 @@ Start: What do you need?
 | **Specmatic** | API contract testing and validation | `spec validate` | [Specmatic Integration](./specmatic-integration.md) |
 | **Sidecar Validation** 🆕 | Validate external codebases without modifying source | `validate sidecar init/run` | [Sidecar Validation](./sidecar-validation.md) |
 | **DevOps Adapter** | Sync proposals to backlog tools | `sync bridge --adapter github` | [DevOps Integration](./devops-adapter-integration.md) |
+| **Backlog Refinement** 🆕 | Standardize backlog items with templates | `backlog refine github --sprint "Sprint 1"` | [Backlog Refinement](./backlog-refinement.md) |
 | **AI IDE** | AI-assisted development workflows | `init --ide cursor` | [AI IDE Workflow](./ai-ide-workflow.md) |
 
 ---
