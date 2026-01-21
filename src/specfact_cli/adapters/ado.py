@@ -200,6 +200,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         Note:
             This implements the tool-agnostic metadata extraction pattern for Azure DevOps.
+            Future backlog adapters should implement similar parsing for their tools.
+
+            Change ID extraction priority:
+            1. Description footer (legacy format): *OpenSpec Change Proposal: `id`*
+            2. Comments (new format): **Change ID**: `id` in OpenSpec Change Proposal Reference comment
+            3. Work item ID (fallback)
         """
         if not isinstance(item_data, dict):
             msg = "ADO work item data must be dict"
@@ -256,15 +262,40 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             if impact_match:
                 impact = impact_match.group(1).strip()
 
-        # Extract change ID from OpenSpec metadata footer or work item ID
+        # Extract change ID from OpenSpec metadata footer, comments, or work item ID
         change_id = None
+
+        # First, check description for OpenSpec metadata footer (legacy format)
         if description_raw:
             # Look for OpenSpec metadata footer: *OpenSpec Change Proposal: `{change_id}`*
             change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", description_raw, re.IGNORECASE)
             if change_id_match:
                 change_id = change_id_match.group(1)
+
+        # If not found in description, check comments (new format - OpenSpec info in comments)
         if not change_id:
-            # Use work item ID as fallback
+            work_item_id = item_data.get("id")
+            if work_item_id and self.org and self.project:
+                comments = self._get_work_item_comments(self.org, self.project, work_item_id)
+                # Look for OpenSpec Change Proposal Reference comment
+                openspec_patterns = [
+                    r"\*\*Change ID\*\*[:\s]+`([a-z0-9-]+)`",
+                    r"Change ID[:\s]+`([a-z0-9-]+)`",
+                    r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
+                    r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
+                ]
+                for comment in comments:
+                    comment_text = comment.get("text", "") or comment.get("body", "")
+                    for pattern in openspec_patterns:
+                        match = re.search(pattern, comment_text, re.IGNORECASE | re.DOTALL)
+                        if match:
+                            change_id = match.group(1)
+                            break
+                    if change_id:
+                        break
+
+        # Fallback to work item ID if still not found
+        if not change_id:
             change_id = str(item_data.get("id", "unknown"))
 
         # Extract status from System.State
@@ -1298,7 +1329,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         work_item_type = self._get_work_item_type(org, project)
 
         # Map status to ADO state
-        ado_state = self.map_openspec_status_to_backlog(status)
+        # Check if source_state and source_type are provided (from cross-adapter sync)
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "ado":
+            # Use generic cross-adapter state mapping (preserves original state from source adapter)
+            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
+        else:
+            # Use OpenSpec status mapping (default behavior)
+            ado_state = self.map_openspec_status_to_backlog(status)
 
         # Ensure API token is available
         if not self.api_token:
@@ -1436,7 +1475,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         status = proposal_data.get("status", "proposed")
 
         # Map status to ADO state
-        ado_state = self.map_openspec_status_to_backlog(status)
+        # Check if source_state and source_type are provided (from cross-adapter sync)
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "ado":
+            # Use generic cross-adapter state mapping (preserves original state from source adapter)
+            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
+        else:
+            # Use OpenSpec status mapping (default behavior)
+            ado_state = self.map_openspec_status_to_backlog(status)
 
         # Ensure API token is available
         if not self.api_token:
@@ -1546,7 +1593,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             body = "\n".join(body_parts)
 
         # Map status to ADO state
-        ado_state = self.map_openspec_status_to_backlog(status)
+        # Check if source_state and source_type are provided (from cross-adapter sync)
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "ado":
+            # Use generic cross-adapter state mapping (preserves original state from source adapter)
+            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
+        else:
+            # Use OpenSpec status mapping (default behavior)
+            ado_state = self.map_openspec_status_to_backlog(status)
 
         # Ensure API token is available
         if not self.api_token:
@@ -1979,6 +2034,37 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # If we can't check (git not available, etc.), return False to be safe
             self.console.log(f"[bold yellow]Warning:[/bold yellow] Error checking branch existence: {e}")
             return False
+
+    def _get_work_item_comments(self, org: str, project: str, work_item_id: int) -> list[dict[str, Any]]:
+        """
+        Fetch comments for an Azure DevOps work item.
+
+        Args:
+            org: Azure DevOps organization
+            project: Azure DevOps project
+            work_item_id: Work item ID
+
+        Returns:
+            List of comment dicts with 'text' or 'body' field, or empty list on error
+        """
+        if not self.api_token:
+            return []
+
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1"
+        headers = {
+            "Accept": "application/json",
+            **self._auth_headers(),
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            # ADO API returns comments in a 'comments' array within the response
+            response_data = response.json()
+            return response_data.get("comments", [])
+        except requests.RequestException:
+            # Return empty list on error - comments are optional
+            return []
 
     @beartype
     @require(lambda org: isinstance(org, str) and org, "Organization must be non-empty string")

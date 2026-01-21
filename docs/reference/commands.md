@@ -3765,10 +3765,35 @@ specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
 specfact backlog refine github --repo-owner "my-org" --repo-name "my-repo" --write --labels feature
 specfact sync bridge --adapter github --repo-owner "my-org" --repo-name "my-repo" --backlog-ids 123,456
 
-# Cross-adapter sync: Refine from GitHub → Sync to ADO
+# Cross-adapter sync: Refine from GitHub → Sync to ADO (with automatic state mapping)
 specfact backlog refine github --repo-owner "my-org" --repo-name "my-repo" --write --labels feature
-specfact sync bridge --adapter ado --ado-org "my-org" --ado-project "my-project" --backlog-ids 123,456
+specfact sync bridge --adapter ado --ado-org "my-org" --ado-project "my-project" --backlog-ids 123,456 --mode bidirectional
+# State is automatically mapped: GitHub "open" → ADO "New", GitHub "closed" → ADO "Closed"
 ```
+
+**Cross-Adapter State Mapping**:
+
+When syncing backlog items between different adapters (e.g., GitHub ↔ ADO), the system automatically preserves and maps states using a generic mechanism:
+
+- **State Preservation**: Original `source_state` is stored in bundle entries during import and used during cross-adapter export to ensure accurate state translation
+- **Generic Mapping**: Uses OpenSpec as intermediate format:
+  - Source adapter state → OpenSpec status → Target adapter state
+- **Bidirectional**: Works in both directions (GitHub → ADO and ADO → GitHub)
+- **Automatic**: No manual configuration required - state mapping is automatic when `source_state` and `source_type` are present in bundle entries
+
+**State Mapping Examples**:
+
+- GitHub "open" ↔ ADO "New" (active work)
+- GitHub "closed" ↔ ADO "Closed" (completed work)
+- ADO "Active" → GitHub "open" (active work remains open)
+- ADO "Resolved" → GitHub "closed" (resolved work is closed)
+
+**State Preservation Guarantees**:
+
+- Original backlog state is preserved in `source_metadata["source_state"]` during import
+- State is automatically mapped during cross-adapter export using generic mapping mechanism
+- Ensures closed items remain closed and open items remain open across adapter boundaries
+- No data loss - original state information is preserved throughout the sync process
 
 **See**: [Backlog Refinement Guide](../guides/backlog-refinement.md) for complete documentation including command chaining workflows.
 

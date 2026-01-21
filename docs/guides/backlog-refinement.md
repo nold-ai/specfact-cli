@@ -436,10 +436,62 @@ specfact sync bridge --adapter ado \
 ```
 
 **Key Benefits**:
+
 - **Lossless Preservation**: Original backlog data is preserved during refinement
 - **Cross-Adapter Support**: Refine from one provider (GitHub) and sync to another (ADO)
 - **OpenSpec Integration**: Refined items can include OpenSpec comments without replacing the body
 - **Field Preservation**: Only `title` and `body_markdown` are updated; all other fields (assignees, tags, state, priority, etc.) are preserved
+- **Generic State Mapping**: Automatic state preservation during cross-adapter sync using OpenSpec as intermediate format
+
+### Cross-Adapter State Mapping
+
+When syncing backlog items between different adapters (e.g., GitHub ↔ ADO), SpecFact CLI uses a **generic state mapping mechanism** that preserves the original state across adapters.
+
+**How It Works**:
+
+1. **State Preservation During Import**: When backlog items are imported into a bundle, the original `source_state` (e.g., "open", "closed", "New", "Active") is stored in `source_metadata["source_state"]` within the bundle entry.
+
+2. **Generic State Mapping**: During cross-adapter export, the system uses OpenSpec as an intermediate format:
+   - **Step 1**: Source adapter state → OpenSpec status (using source adapter's mapping)
+   - **Step 2**: OpenSpec status → Target adapter state (using target adapter's mapping)
+
+3. **Bidirectional Support**: The mapping works in both directions:
+   - **GitHub → ADO**: GitHub "open" → OpenSpec "proposed" → ADO "New"
+   - **GitHub → ADO**: GitHub "closed" → OpenSpec "applied" → ADO "Closed"
+   - **ADO → GitHub**: ADO "New" → OpenSpec "proposed" → GitHub "open"
+   - **ADO → GitHub**: ADO "Closed" → OpenSpec "applied" → GitHub "closed"
+
+**Example: Cross-Adapter Sync with State Preservation**:
+
+```bash
+# 1. Import closed GitHub issues into bundle (state "closed" is preserved)
+specfact sync bridge --adapter github --mode bidirectional \
+  --repo-owner nold-ai --repo-name specfact-cli \
+  --backlog-ids 110,122
+
+# 2. Export to ADO (state is automatically mapped: closed → Closed)
+specfact sync bridge --adapter ado --mode export-only \
+  --ado-org dominikusnold --ado-project "SpecFact CLI" \
+  --bundle cross-sync-test --change-ids add-ado-backlog-adapter,add-template-driven-backlog-refinement
+
+# Result: ADO work items are created with "Closed" state (matching GitHub "closed")
+```
+
+**State Mapping Guarantees**:
+
+- **Open Issues**: GitHub "open" ↔ ADO "New" (both represent active work)
+- **Closed Issues**: GitHub "closed" ↔ ADO "Closed" (both represent completed work)
+- **Active Work**: ADO "Active" → GitHub "open" (active work remains open)
+- **Resolved Work**: ADO "Resolved" → GitHub "closed" (resolved work is closed)
+
+**Implementation Details**:
+
+- The generic mapping is implemented in `BacklogAdapterMixin.map_backlog_state_between_adapters()`
+- Each adapter provides bidirectional mappings:
+  - `map_backlog_status_to_openspec()`: Adapter state → OpenSpec status
+  - `map_openspec_status_to_backlog()`: OpenSpec status → Adapter state
+- The mapping is automatic when `source_state` and `source_type` are present in bundle entries
+- No manual state mapping is required - the system handles it automatically
 
 ### With DevOps Adapter Integration
 

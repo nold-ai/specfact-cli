@@ -97,6 +97,35 @@ def _apply_filters(
     return filtered
 
 
+def _extract_openspec_change_id(body: str) -> str | None:
+    """
+    Extract OpenSpec change proposal ID from issue body.
+
+    Looks for patterns like:
+    - *OpenSpec Change Proposal: `id`*
+    - OpenSpec Change Proposal: `id`
+    - OpenSpec.*proposal: `id`
+
+    Args:
+        body: Issue body text
+
+    Returns:
+        Change proposal ID if found, None otherwise
+    """
+    import re
+
+    openspec_patterns = [
+        r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
+        r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
+        r"OpenSpec.*proposal[:\s]+`?([a-z0-9-]+)`?",
+    ]
+    for pattern in openspec_patterns:
+        match = re.search(pattern, body, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
+
+
 def _build_adapter_kwargs(
     adapter: str,
     repo_owner: str | None = None,
@@ -623,8 +652,12 @@ def refine(
 
                             # Add OpenSpec comment if requested
                             if openspec_comment:
+                                # Extract OpenSpec change proposal ID from original body if present
+                                original_body = item.body_markdown or ""
+                                openspec_change_id = _extract_openspec_change_id(original_body)
+
                                 # Generate OpenSpec change proposal reference
-                                change_id = f"backlog-refine-{item.id}"
+                                change_id = openspec_change_id or f"backlog-refine-{item.id}"
                                 comment_text = (
                                     f"## OpenSpec Change Proposal Reference\n\n"
                                     f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
@@ -671,8 +704,12 @@ def refine(
 
                                 # Add OpenSpec comment if requested
                                 if openspec_comment:
+                                    # Extract OpenSpec change proposal ID from original body if present
+                                    original_body = item.body_markdown or ""
+                                    openspec_change_id = _extract_openspec_change_id(original_body)
+
                                     # Generate OpenSpec change proposal reference
-                                    change_id = f"backlog-refine-{item.id}"
+                                    change_id = openspec_change_id or f"backlog-refine-{item.id}"
                                     comment_text = (
                                         f"## OpenSpec Change Proposal Reference\n\n"
                                         f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
