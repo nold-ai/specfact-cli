@@ -222,14 +222,17 @@ class TestDevOpsGitHubSync:
 
         # Mock token retrieval to ensure no token is available
         original_get = os.environ.get
+
         def mock_environ_get(key, default=None):
             if key == "GITHUB_TOKEN":
                 return default
             return original_get(key, default)
-        
-        with patch("specfact_cli.adapters.github.get_token", return_value=None), patch(
-            "os.environ.get", side_effect=mock_environ_get
-        ), patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals):
+
+        with (
+            patch("specfact_cli.adapters.github.get_token", return_value=None),
+            patch("os.environ.get", side_effect=mock_environ_get),
+            patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals),
+        ):
             result = sync.export_change_proposals_to_devops(
                 adapter_type="github",
                 repo_owner="test-owner",
