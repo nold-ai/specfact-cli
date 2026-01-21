@@ -52,3 +52,18 @@ def test_auth_clear_all(tmp_path: Path, monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert load_tokens() == {}
+
+
+def test_auth_azure_devops_pat_option(tmp_path: Path, monkeypatch) -> None:
+    """Test storing PAT via --pat option."""
+    _set_home(tmp_path, monkeypatch)
+
+    result = runner.invoke(app, ["auth", "azure-devops", "--pat", "test-pat-token"])
+
+    assert result.exit_code == 0
+    tokens = load_tokens()
+    assert "azure-devops" in tokens
+    token_data = tokens["azure-devops"]
+    assert token_data["access_token"] == "test-pat-token"
+    assert token_data["token_type"] == "basic"
+    assert "PAT" in result.stdout or "Personal Access Token" in result.stdout

@@ -116,8 +116,17 @@ def test_azure_devops_device_flow_integration(tmp_path: Path, monkeypatch) -> No
             self.token = token
             self.expires_on = expires_on
 
+    class FakeInteractiveBrowserCredential:
+        """Mock InteractiveBrowserCredential that fails (simulating headless environment)."""
+
+        def __init__(self, **kwargs) -> None:
+            pass
+
+        def get_token(self, resource: str) -> FakeToken:
+            raise RuntimeError("Interactive browser unavailable (headless environment)")
+
     class FakeDeviceCodeCredential:
-        def __init__(self, prompt_callback) -> None:
+        def __init__(self, prompt_callback, **kwargs) -> None:
             self._prompt_callback = prompt_callback
 
         def get_token(self, resource: str) -> FakeToken:
@@ -127,6 +136,7 @@ def test_azure_devops_device_flow_integration(tmp_path: Path, monkeypatch) -> No
 
     azure_mod = types.ModuleType("azure")
     identity_mod = types.ModuleType("azure.identity")
+    identity_mod.InteractiveBrowserCredential = FakeInteractiveBrowserCredential
     identity_mod.DeviceCodeCredential = FakeDeviceCodeCredential
     azure_mod.identity = identity_mod
     monkeypatch.setitem(sys.modules, "azure", azure_mod)

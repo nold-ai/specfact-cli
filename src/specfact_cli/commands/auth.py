@@ -153,10 +153,54 @@ def _poll_github_device_token(
 
 
 @app.command("azure-devops")
-def auth_azure_devops() -> None:
-    """Authenticate to Azure DevOps using device code flow."""
+def auth_azure_devops(
+    pat: str | None = typer.Option(
+        None,
+        "--pat",
+        help="Store a Personal Access Token (PAT) directly. PATs can have expiration up to 1 year, "
+        "unlike OAuth tokens which expire after ~1 hour. Create PAT at: "
+        "https://dev.azure.com/{org}/_usersSettings/tokens",
+    ),
+    use_device_code: bool = typer.Option(
+        False,
+        "--use-device-code",
+        help="Force device code flow instead of trying interactive browser first. "
+        "Useful for SSH/headless environments where browser cannot be opened.",
+    ),
+) -> None:
+    """
+    Authenticate to Azure DevOps using OAuth (device code or interactive browser) or Personal Access Token (PAT).
+
+    **Token Options:**
+
+    1. **Personal Access Token (PAT)** - Recommended for long-lived authentication:
+       - Use --pat option to store a PAT directly
+       - PATs can have expiration up to 1 year (maximum allowed)
+       - Create PAT at: https://dev.azure.com/{org}/_usersSettings/tokens
+       - Select required scopes (e.g., "Work Items: Read & Write")
+       - Example: specfact auth azure-devops --pat your_pat_token
+
+    2. **OAuth Flow** (default, when no PAT provided):
+       - **First tries interactive browser** (opens browser automatically, better UX)
+       - **Falls back to device code** if browser unavailable (SSH/headless environments)
+       - Access tokens expire after ~1 hour, refresh tokens last 90 days
+       - Automatic token refresh via persistent cache (no re-authentication needed)
+       - Example: specfact auth azure-devops
+
+    3. **Force Device Code Flow** (--use-device-code):
+       - Skip interactive browser, use device code directly
+       - Useful for SSH/headless environments or when browser cannot be opened
+       - Example: specfact auth azure-devops --use-device-code
+
+    **For Long-Lived Tokens:**
+    Use a PAT with 90 days or 1 year expiration instead of OAuth tokens to avoid
+    frequent re-authentication. PATs are stored securely and work the same way as OAuth tokens.
+    """
     try:
-        from azure.identity import DeviceCodeCredential  # type: ignore[reportMissingImports]
+        from azure.identity import (  # type: ignore[reportMissingImports]
+            DeviceCodeCredential,
+            InteractiveBrowserCredential,
+        )
     except ImportError:
         console.print("[bold red]✗[/bold red] azure-identity is not installed.")
         console.print("Install dependencies with: pip install specfact-cli")
@@ -171,9 +215,145 @@ def auth_azure_devops() -> None:
         console.print(f"Enter the code: [bold]{user_code}[/bold]")
         console.print(f"Code expires at: {expires_at.isoformat()}")
 
-    console.print("[bold]Starting Azure DevOps device code authentication...[/bold]")
-    credential = DeviceCodeCredential(prompt_callback=prompt_callback)
-    token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+    # If PAT is provided, store it directly (no expiration for PATs stored as Basic auth)
+    if pat:
+        console.print("[bold]Storing Personal Access Token (PAT)...[/bold]")
+        # PATs are stored as Basic auth tokens (no expiration date set by default)
+        # Users can create PATs with up to 1 year expiration in Azure DevOps UI
+        token_data = {
+            "access_token": pat,
+            "token_type": "basic",  # PATs use Basic authentication
+            "issued_at": datetime.now(tz=UTC).isoformat(),
+            # Note: PAT expiration is managed by Azure DevOps, not stored locally
+            # Users should set expiration when creating PAT (up to 1 year)
+        }
+        set_token("azure-devops", token_data)
+        console.print("[bold green]✓[/bold green] Personal Access Token stored")
+        console.print(
+            "[dim]PAT stored successfully. PATs can have expiration up to 1 year when created in Azure DevOps.[/dim]"
+        )
+        console.print("[dim]Create/manage PATs at: https://dev.azure.com/{org}/_usersSettings/tokens[/dim]")
+        return
+
+    # OAuth flow with persistent token cache (automatic refresh)
+    # Try interactive browser first, fall back to device code if it fails
+    console.print("[bold]Starting Azure DevOps OAuth authentication...[/bold]")
+
+    # Enable persistent token cache for automatic token refresh (like Azure CLI)
+    # This allows tokens to be refreshed automatically without re-authentication
+    cache_options = None
+    use_unencrypted_cache = False
+    try:
+        from azure.identity import TokenCachePersistenceOptions  # type: ignore[reportMissingImports]
+
+        # Try encrypted cache first (secure), fall back to unencrypted if libsecret unavailable
+        try:
+            cache_options = TokenCachePersistenceOptions(
+                name="specfact-azure-devops",  # Shared cache name across processes
+                allow_unencrypted_cache=False,  # Prefer encrypted storage
+            )
+            console.print(
+                "[dim]Persistent token cache enabled (encrypted) - tokens will refresh automatically (like Azure CLI)[/dim]"
+            )
+        except Exception:
+            # Encrypted cache not available (e.g., libsecret missing on Linux), try unencrypted
+            try:
+                cache_options = TokenCachePersistenceOptions(
+                    name="specfact-azure-devops",
+                    allow_unencrypted_cache=True,  # Fallback: unencrypted storage
+                )
+                use_unencrypted_cache = True
+                console.print(
+                    "[yellow]Note:[/yellow] Using unencrypted token cache (libsecret unavailable). "
+                    "Tokens will refresh automatically but stored without encryption."
+                )
+            except Exception:
+                # Persistent cache completely unavailable, use in-memory only
+                console.print(
+                    "[yellow]Note:[/yellow] Persistent cache not available, using in-memory cache only. "
+                    "Tokens will need to be refreshed manually after ~1 hour."
+                )
+    except ImportError:
+        # TokenCachePersistenceOptions not available in this version
+        pass
+
+    # Helper function to try authentication with fallback to unencrypted cache or no cache
+    def try_authenticate_with_fallback(credential_class, credential_kwargs):
+        """Try authentication, falling back to unencrypted cache or no cache if encrypted cache fails."""
+        nonlocal cache_options, use_unencrypted_cache
+        # First try with current cache_options
+        try:
+            credential = credential_class(cache_persistence_options=cache_options, **credential_kwargs)
+            return credential.get_token(AZURE_DEVOPS_RESOURCE)
+        except Exception as e:
+            error_msg = str(e).lower()
+            # Check if error is about cache encryption and we haven't already tried unencrypted
+            if (
+                ("cache encryption" in error_msg or "libsecret" in error_msg)
+                and cache_options
+                and not use_unencrypted_cache
+            ):
+                # Try again with unencrypted cache
+                console.print("[yellow]Note:[/yellow] Encrypted cache unavailable, trying unencrypted cache...")
+                try:
+                    from azure.identity import TokenCachePersistenceOptions  # type: ignore[reportMissingImports]
+
+                    unencrypted_cache = TokenCachePersistenceOptions(
+                        name="specfact-azure-devops",
+                        allow_unencrypted_cache=True,
+                    )
+                    credential = credential_class(cache_persistence_options=unencrypted_cache, **credential_kwargs)
+                    token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+                    console.print(
+                        "[yellow]Note:[/yellow] Using unencrypted token cache (libsecret unavailable). "
+                        "Tokens will refresh automatically but stored without encryption."
+                    )
+                    # Update global cache_options for future use
+                    cache_options = unencrypted_cache
+                    use_unencrypted_cache = True
+                    return token
+                except Exception as e2:
+                    # Unencrypted cache also failed - check if it's the same error
+                    error_msg2 = str(e2).lower()
+                    if "cache encryption" in error_msg2 or "libsecret" in error_msg2:
+                        # Still failing on cache, try without cache entirely
+                        console.print("[yellow]Note:[/yellow] Persistent cache unavailable, trying without cache...")
+                        try:
+                            credential = credential_class(**credential_kwargs)
+                            token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+                            console.print(
+                                "[yellow]Note:[/yellow] Using in-memory cache only. "
+                                "Tokens will need to be refreshed manually after ~1 hour."
+                            )
+                            return token
+                        except Exception:
+                            # Even without cache it failed, re-raise original
+                            raise e from e2
+                    # Different error, re-raise
+                    raise e2 from e
+            # Not a cache encryption error, re-raise
+            raise
+
+    # Try interactive browser first (better UX), fall back to device code if it fails
+    token = None
+    if not use_device_code:
+        try:
+            console.print("[dim]Trying interactive browser authentication...[/dim]")
+            token = try_authenticate_with_fallback(InteractiveBrowserCredential, {})
+            console.print("[bold green]✓[/bold green] Interactive browser authentication successful")
+        except Exception as e:
+            # Interactive browser failed (no display, headless environment, etc.)
+            console.print(f"[yellow]⚠[/yellow] Interactive browser unavailable: {type(e).__name__}")
+            console.print("[dim]Falling back to device code flow...[/dim]")
+
+    # Use device code flow if interactive browser failed or was explicitly requested
+    if token is None:
+        console.print("[bold]Using device code authentication...[/bold]")
+        try:
+            token = try_authenticate_with_fallback(DeviceCodeCredential, {"prompt_callback": prompt_callback})
+        except Exception as e:
+            console.print(f"[bold red]✗[/bold red] Authentication failed: {e}")
+            raise typer.Exit(1) from e
 
     expires_at = datetime.fromtimestamp(token.expires_on, tz=UTC).isoformat()
     token_data = {
@@ -187,6 +367,10 @@ def auth_azure_devops() -> None:
 
     console.print("[bold green]✓[/bold green] Azure DevOps authentication complete")
     console.print("Stored token for provider: azure-devops")
+    console.print(
+        f"[yellow]⚠[/yellow] Token expires at: {expires_at}\n"
+        "[dim]For longer-lived tokens (up to 1 year), use --pat option with a Personal Access Token.[/dim]"
+    )
 
 
 @app.command("github")

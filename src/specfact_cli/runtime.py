@@ -32,6 +32,7 @@ _operational_mode: OperationalMode = OperationalMode.CICD
 _input_format: StructuredFormat = StructuredFormat.YAML
 _output_format: StructuredFormat = StructuredFormat.YAML
 _non_interactive_override: bool | None = None
+_debug_mode: bool = False
 _console_cache: dict[TerminalMode, Console] = {}
 
 
@@ -110,6 +111,19 @@ def is_interactive() -> bool:
 
 
 @beartype
+def set_debug_mode(enabled: bool) -> None:
+    """Enable or disable debug output mode."""
+    global _debug_mode
+    _debug_mode = enabled
+
+
+@beartype
+def is_debug_mode() -> bool:
+    """Check if debug mode is enabled."""
+    return _debug_mode
+
+
+@beartype
 @ensure(lambda result: isinstance(result, TerminalMode), "Must return TerminalMode")
 def get_terminal_mode() -> TerminalMode:
     """
@@ -159,3 +173,20 @@ def get_configured_console() -> Console:
         _console_cache[mode] = Console(**config)
 
     return _console_cache[mode]
+
+
+@beartype
+def debug_print(*args, **kwargs) -> None:
+    """
+    Print debug messages only if debug mode is enabled.
+
+    This function behaves like console.print() but only outputs when --debug flag is set.
+    Use this for diagnostic information, URL construction details, authentication status, etc.
+
+    Args:
+        *args: Arguments to pass to console.print()
+        **kwargs: Keyword arguments to pass to console.print()
+    """
+    if _debug_mode:
+        console = get_configured_console()
+        console.print(*args, **kwargs)

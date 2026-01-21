@@ -73,7 +73,7 @@ from specfact_cli.commands import (
     validate,
 )
 from specfact_cli.modes import OperationalMode, detect_mode
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import get_configured_console, set_debug_mode
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -236,6 +236,11 @@ def main(
         callback=mode_callback,
         help="Operational mode: cicd (fast, deterministic) or copilot (enhanced, interactive)",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug output (shows detailed logging and diagnostic information)",
+    ),
     input_format: Annotated[
         StructuredFormat,
         typer.Option(
@@ -277,6 +282,9 @@ def main(
     global _show_banner
     # Set banner flag based on --no-banner option
     _show_banner = not no_banner
+
+    # Set debug mode
+    set_debug_mode(debug)
 
     runtime.configure_io_formats(input_format=input_format, output_format=output_format)
     # Invert logic: --interactive means not non-interactive, --no-interactive means non-interactive

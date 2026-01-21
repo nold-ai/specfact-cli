@@ -7,7 +7,14 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-from specfact_cli.runtime import TerminalMode, get_configured_console, get_terminal_mode
+from specfact_cli.runtime import (
+    TerminalMode,
+    debug_print,
+    get_configured_console,
+    get_terminal_mode,
+    is_debug_mode,
+    set_debug_mode,
+)
 from specfact_cli.utils.terminal import TerminalCapabilities
 
 
@@ -106,3 +113,29 @@ class TestGetConfiguredConsole:
         console1 = get_configured_console()
         console2 = get_configured_console()
         assert console1 is console2
+
+
+class TestDebugMode:
+    """Test debug mode functionality."""
+
+    def test_set_debug_mode_enabled(self) -> None:
+        """Test enabling debug mode."""
+        set_debug_mode(True)
+        assert is_debug_mode() is True
+
+    def test_set_debug_mode_disabled(self) -> None:
+        """Test disabling debug mode."""
+        set_debug_mode(False)
+        assert is_debug_mode() is False
+
+    def test_debug_print_when_enabled(self) -> None:
+        """Test that debug_print outputs when debug mode is enabled."""
+        set_debug_mode(True)
+        # Should not raise exception
+        debug_print("test message")
+
+    def test_debug_print_when_disabled(self) -> None:
+        """Test that debug_print does not output when debug mode is disabled."""
+        set_debug_mode(False)
+        # Should not raise exception, but output should be suppressed
+        debug_print("test message")
