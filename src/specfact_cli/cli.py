@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 
 
@@ -425,6 +426,32 @@ def cli_main() -> None:
     if show_banner:
         print_banner()
         console.print()  # Empty line after banner
+
+    # Run startup checks (template validation and version check)
+    # Only run for actual commands, not for help/version/completion
+    should_run_checks = (
+        len(sys.argv) > 1
+        and sys.argv[1] not in ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
+        and not sys.argv[1].startswith("_")  # Skip completion internals
+    )
+    if should_run_checks:
+        from specfact_cli.utils.startup_checks import print_startup_checks
+
+        # Determine repo path (use current directory or find from git root)
+        repo_path = Path.cwd()
+        # Try to find git root
+        current = repo_path
+        while current.parent != current:
+            if (current / ".git").exists():
+                repo_path = current
+                break
+            current = current.parent
+
+        # Run checks (version check may be slow, so we do it async or with timeout)
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            print_startup_checks(repo_path=repo_path, check_version=True)
 
     # Record start time for command execution
     start_time = datetime.now()

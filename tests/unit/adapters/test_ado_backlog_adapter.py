@@ -150,6 +150,112 @@ class TestAdoBacklogAdapter:
             adapter.fetch_backlog_items(filters)
 
     @beartype
+    def test_normalize_filter_value_case_insensitive(self) -> None:
+        """Test that filter normalization is case-insensitive."""
+        assert BacklogFilters.normalize_filter_value("Active") == "active"
+        assert BacklogFilters.normalize_filter_value("ACTIVE") == "active"
+        assert BacklogFilters.normalize_filter_value("active") == "active"
+
+    @beartype
+    def test_resolve_sprint_filter_full_path(self) -> None:
+        """Test sprint filter resolution with full iteration path."""
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+
+        items = [
+            BacklogItem(
+                id="1",
+                provider="ado",
+                url="",
+                title="Item 1",
+                body_markdown="",
+                state="Active",
+                iteration="Project\\Sprint 1",
+                sprint="Sprint 1",
+            ),
+            BacklogItem(
+                id="2",
+                provider="ado",
+                url="",
+                title="Item 2",
+                body_markdown="",
+                state="Active",
+                iteration="Project\\Sprint 2",
+                sprint="Sprint 2",
+            ),
+        ]
+
+        iteration_path, filtered = adapter._resolve_sprint_filter("Project\\Sprint 1", items)
+
+        assert iteration_path == "Project\\Sprint 1"
+        assert len(filtered) == 1
+        assert filtered[0].id == "1"
+
+    @beartype
+    def test_resolve_sprint_filter_ambiguous_name(self) -> None:
+        """Test sprint filter resolution with ambiguous name-only match."""
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+
+        items = [
+            BacklogItem(
+                id="1",
+                provider="ado",
+                url="",
+                title="Item 1",
+                body_markdown="",
+                state="Active",
+                iteration="Project\\Sprint 1",
+                sprint="Sprint 1",
+            ),
+            BacklogItem(
+                id="2",
+                provider="ado",
+                url="",
+                title="Item 2",
+                body_markdown="",
+                state="Active",
+                iteration="Project\\2023\\Sprint 1",
+                sprint="Sprint 1",
+            ),
+        ]
+
+        with pytest.raises(ValueError, match="Ambiguous sprint name"):
+            adapter._resolve_sprint_filter("Sprint 1", items)
+
+    @beartype
+    def test_resolve_sprint_filter_unique_name(self) -> None:
+        """Test sprint filter resolution with unique name-only match."""
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+
+        items = [
+            BacklogItem(
+                id="1",
+                provider="ado",
+                url="",
+                title="Item 1",
+                body_markdown="",
+                state="Active",
+                iteration="Project\\Sprint 1",
+                sprint="Sprint 1",
+            ),
+            BacklogItem(
+                id="2",
+                provider="ado",
+                url="",
+                title="Item 2",
+                body_markdown="",
+                state="Active",
+                iteration="Project\\Sprint 2",
+                sprint="Sprint 2",
+            ),
+        ]
+
+        iteration_path, filtered = adapter._resolve_sprint_filter("Sprint 1", items)
+
+        assert iteration_path == "Project\\Sprint 1"
+        assert len(filtered) == 1
+        assert filtered[0].id == "1"
+
+    @beartype
     def test_auth_headers_basic_pat(self) -> None:
         """Test _auth_headers with PAT token (basic auth)."""
         adapter = AdoAdapter(org="test", project="project", api_token="pat-token")

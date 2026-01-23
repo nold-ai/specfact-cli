@@ -38,6 +38,7 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 
 - `--ado-org ORG` - Azure DevOps organization or collection name (required for ADO adapter, except when collection is in base_url)
 - `--ado-project PROJECT` - Azure DevOps project (required for ADO adapter)
+- `--ado-team TEAM` - Azure DevOps team name (optional, defaults to project name for iteration lookup)
 - `--ado-base-url URL` - Azure DevOps base URL (optional, defaults to `https://dev.azure.com` for cloud)
   - **Cloud**: `https://dev.azure.com` (default)
   - **On-premise**: `https://server` or `https://server/tfs/collection` (if collection included)
@@ -57,11 +58,17 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 ### Filters
 
 - `--labels LABELS` or `--tags TAGS` - Filter by labels/tags (comma-separated, e.g., "feature,enhancement")
-- `--state STATE` - Filter by state (open, closed, etc.)
-- `--assignee USERNAME` - Filter by assignee username
-- `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1")
-- `--sprint SPRINT` - Filter by sprint identifier
-- `--release RELEASE` - Filter by release identifier
+- `--state STATE` - Filter by state (case-insensitive, e.g., "open", "closed", "Active", "New")
+- `--assignee USERNAME` - Filter by assignee (case-insensitive):
+  - **GitHub**: Login or @username (e.g., "johndoe" or "@johndoe")
+  - **ADO**: displayName, uniqueName, or mail (e.g., "Jane Doe" or "jane.doe@example.com")
+- `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1", case-insensitive)
+- `--sprint SPRINT` - Filter by sprint (case-insensitive):
+  - **ADO**: Use full iteration path (e.g., "Project\\Sprint 1") to avoid ambiguity when multiple sprints share the same name
+  - If omitted, defaults to current active iteration for the team
+  - Ambiguous name-only matches will prompt for explicit iteration path
+- `--release RELEASE` - Filter by release identifier (case-insensitive)
+- `--limit N` - Maximum number of items to process in this refinement session (caps batch size)
 - `--persona PERSONA` - Filter templates by persona (product-owner, architect, developer)
 - `--framework FRAMEWORK` - Filter templates by framework (agile, scrum, safe, kanban)
 
@@ -99,6 +106,7 @@ Execute the SpecFact CLI command with user-provided arguments:
 specfact backlog refine $ADAPTER \
   [--labels LABELS] [--state STATE] [--assignee USERNAME] \
   [--iteration PATH] [--sprint SPRINT] [--release RELEASE] \
+  [--limit N] \
   [--persona PERSONA] [--framework FRAMEWORK] \
   [--template TEMPLATE_ID] [--auto-accept-high-confidence] \
   [--preview] [--write] \
@@ -134,6 +142,11 @@ specfact backlog refine $ADAPTER \
    - Review preview (fields that will be updated vs preserved)
    - Accept or reject refinement
    - If accepted and --write flag set, CLI updates remote backlog
+
+4. **Session control**:
+   - Use `:skip` to skip the current item without updating
+   - Use `:quit` or `:abort` to cancel the entire session gracefully
+   - Session cancellation shows summary and exits without error
 
 ### Step 3: Present Results
 
@@ -220,11 +233,22 @@ SpecFact CLI follows a CLI-first architecture:
 ✓ Refinement completed (Preview Mode)
 
 Found 5 backlog items
+Limited to 3 items (found 5 total)
 Refined: 3
-Skipped: 2
+Skipped: 0
 
 Preview mode: Refinement will NOT be written to backlog
 Use --write flag to explicitly opt-in to writeback
+```
+
+### Success (Cancelled Session)
+
+```text
+Session cancelled by user
+
+Found 5 backlog items
+Refined: 1
+Skipped: 1
 ```
 
 ### Success (Write Mode)
@@ -248,14 +272,23 @@ Items updated in remote backlog:
 # Refine GitHub issues with feature label (requires repo-owner and repo-name)
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --labels feature
 
-# Refine ADO work items (Azure DevOps Services - cloud)
-/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --sprint "Sprint 1"
+# Refine ADO work items (Azure DevOps Services - cloud) with full iteration path
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --sprint "MyProject\\Sprint 1"
+
+# Refine ADO work items using current active iteration (sprint omitted)
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --ado-team "My Team" --state Active
 
 # Refine ADO work items (Azure DevOps Server - on-premise, collection in base_url)
 /specfact.backlog-refine --adapter ado --ado-base-url "https://devops.company.com/tfs/DefaultCollection" --ado-project my-project --state Active
 
 # Refine ADO work items (Azure DevOps Server - on-premise, collection provided)
 /specfact.backlog-refine --adapter ado --ado-base-url "https://devops.company.com" --ado-org "DefaultCollection" --ado-project my-project --state Active
+
+# Refine with batch limit (process max 10 items)
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --limit 10 --labels feature
+
+# Refine with case-insensitive filters
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --state "new" --assignee "jane doe"
 
 # Refine with Scrum framework and Product Owner persona
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --framework scrum --persona product-owner

@@ -51,6 +51,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         self,
         org: str | None = None,
         project: str | None = None,
+        team: str | None = None,
         base_url: str | None = None,
         api_token: str | None = None,
         work_item_type: str | None = None,
@@ -61,12 +62,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Args:
             org: Azure DevOps organization name (optional, can be provided via env/CLI)
             project: Azure DevOps project name (optional, can be provided via env/CLI)
+            team: Azure DevOps team name (optional, defaults to project name for iteration lookup)
             base_url: Azure DevOps base URL (optional, defaults to https://dev.azure.com)
             api_token: Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var or stored auth token)
             work_item_type: Work item type (optional, derived from process template if not provided)
         """
         self.org = org
         self.project = project
+        # Don't default team to project here - will be resolved in _get_current_iteration if needed
+        self.team = team
         self.auth_scheme: str | None = None
 
         # Token resolution: explicit token > env var > stored token
@@ -2381,6 +2385,239 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     # BacklogAdapter interface implementations
 
+    def _get_current_iteration(self) -> str | None:
+        """
+        Get the current active iteration for the team.
+
+        Returns:
+            Current iteration path if found, None otherwise
+
+        Raises:
+            requests.RequestException: If API call fails
+        """
+        if not self.org or not self.project:
+            return None
+
+        # If team is not set, fetch the default team from the project
+        team_to_use = self.team
+        if not team_to_use:
+            # Try to get the default team for the project
+            try:
+                # Get teams for the project: /{org}/_apis/projects/{projectId}/teams
+                # First, we need the project ID - URL encode project name in case it has spaces
+                from urllib.parse import quote
+
+                project_encoded = quote(self.project, safe="")
+                project_url = f"{self.base_url}/{self.org}/_apis/projects/{project_encoded}"
+                project_params = {"api-version": "7.1"}
+                project_headers = {
+                    **self._auth_headers(),
+                    "Accept": "application/json",
+                }
+                project_response = requests.get(project_url, headers=project_headers, params=project_params, timeout=30)
+                project_response.raise_for_status()
+                project_data = project_response.json()
+                project_id = project_data.get("id")
+
+                if project_id:
+                    # Get teams for the project
+                    teams_url = f"{self.base_url}/{self.org}/_apis/projects/{project_id}/teams"
+                    teams_response = requests.get(teams_url, headers=project_headers, params=project_params, timeout=30)
+                    teams_response.raise_for_status()
+                    teams_data = teams_response.json()
+                    teams = teams_data.get("value", [])
+                    if teams:
+                        # Use the first team (usually the default team)
+                        team_to_use = teams[0].get("name")
+                        # Cache it for future use
+                        self.team = team_to_use
+            except requests.RequestException:
+                # If team lookup fails, we can't proceed
+                return None
+
+        if not team_to_use:
+            return None
+
+        # Team iterations API: /{org}/{project}/{team}/_apis/work/teamsettings/iterations?$timeframe=current
+        # URL encode team name in case it has spaces or special characters
+        from urllib.parse import quote
+
+        team_encoded = quote(team_to_use, safe="")
+        url = f"{self.base_url}/{self.org}/{self.project}/{team_encoded}/_apis/work/teamsettings/iterations"
+        params = {"$timeframe": "current", "api-version": "7.1"}
+        headers = {
+            **self._auth_headers(),
+            "Accept": "application/json",
+        }
+
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            iterations = data.get("value", [])
+            if iterations:
+                # Return the first current iteration path
+                return iterations[0].get("path")
+        except requests.HTTPError as e:
+            # Log the error for debugging but don't fail completely
+            # The team might not exist or might have a different name
+            if e.response is not None and e.response.status_code == 404 and team_to_use != self.project:
+                # Team not found - try with project name as fallback
+                # Retry with project name (URL encoded)
+                project_encoded = quote(self.project, safe="")
+                fallback_url = (
+                    f"{self.base_url}/{self.org}/{self.project}/{project_encoded}/_apis/work/teamsettings/iterations"
+                )
+                try:
+                    fallback_response = requests.get(fallback_url, headers=headers, params=params, timeout=30)
+                    fallback_response.raise_for_status()
+                    fallback_data = fallback_response.json()
+                    fallback_iterations = fallback_data.get("value", [])
+                    if fallback_iterations:
+                        return fallback_iterations[0].get("path")
+                except requests.RequestException:
+                    pass
+        except requests.RequestException:
+            # Fail silently - will be handled by caller
+            pass
+        return None
+
+    def _list_available_iterations(self) -> list[str]:
+        """
+        List all available iteration paths for the team.
+
+        Returns:
+            List of iteration paths (empty list if unavailable)
+
+        Raises:
+            requests.RequestException: If API call fails
+        """
+        if not self.org or not self.project:
+            return []
+
+        # If team is not set, try to get it (same logic as _get_current_iteration)
+        team_to_use = self.team
+        if not team_to_use:
+            # Try to get the default team for the project (same logic as _get_current_iteration)
+            try:
+                from urllib.parse import quote
+
+                project_encoded = quote(self.project, safe="")
+                project_url = f"{self.base_url}/{self.org}/_apis/projects/{project_encoded}"
+                project_params = {"api-version": "7.1"}
+                project_headers = {
+                    **self._auth_headers(),
+                    "Accept": "application/json",
+                }
+                project_response = requests.get(project_url, headers=project_headers, params=project_params, timeout=30)
+                project_response.raise_for_status()
+                project_data = project_response.json()
+                project_id = project_data.get("id")
+
+                if project_id:
+                    teams_url = f"{self.base_url}/{self.org}/_apis/projects/{project_id}/teams"
+                    teams_response = requests.get(teams_url, headers=project_headers, params=project_params, timeout=30)
+                    teams_response.raise_for_status()
+                    teams_data = teams_response.json()
+                    teams = teams_data.get("value", [])
+                    if teams:
+                        team_to_use = teams[0].get("name")
+                        self.team = team_to_use
+            except requests.RequestException:
+                return []
+
+        if not team_to_use:
+            return []
+
+        # Team iterations API: /{org}/{project}/{team}/_apis/work/teamsettings/iterations
+        # URL encode team name in case it has spaces or special characters
+        from urllib.parse import quote
+
+        team_encoded = quote(team_to_use, safe="")
+        url = f"{self.base_url}/{self.org}/{self.project}/{team_encoded}/_apis/work/teamsettings/iterations"
+        params = {"api-version": "7.1"}
+        headers = {
+            **self._auth_headers(),
+            "Accept": "application/json",
+        }
+
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            iterations = data.get("value", [])
+            return [it.get("path", "") for it in iterations if it.get("path")]
+        except requests.RequestException:
+            # Fail silently - will be handled by caller
+            pass
+        return []
+
+    def _resolve_sprint_filter(
+        self,
+        sprint_filter: str | None,
+        items: list[BacklogItem],
+    ) -> tuple[str | None, list[BacklogItem]]:
+        """
+        Resolve sprint filter with path matching and ambiguity detection.
+
+        Args:
+            sprint_filter: Sprint filter value (name or full path)
+            items: List of backlog items to filter
+
+        Returns:
+            Tuple of (resolved_iteration_path, filtered_items)
+
+        Raises:
+            ValueError: If ambiguous sprint name match is detected
+        """
+        if not sprint_filter:
+            # No sprint filter - try to get current iteration
+            current_iteration = self._get_current_iteration()
+            if current_iteration:
+                # Filter by current iteration path
+                filtered = [item for item in items if item.iteration and item.iteration == current_iteration]
+                return current_iteration, filtered
+            # No current iteration found - return all items
+            console.print("[yellow]⚠ No current iteration found; returning all items[/yellow]")
+            return None, items
+
+        # Check if sprint_filter contains path separator (full path)
+        has_path_separator = "\\" in sprint_filter or "/" in sprint_filter
+
+        if has_path_separator:
+            # Full iteration path - match directly
+            filtered = [item for item in items if item.iteration and item.iteration == sprint_filter]
+            return sprint_filter, filtered
+        # Name-only - check for ambiguity
+        matching_items = [
+            item
+            for item in items
+            if item.sprint
+            and BacklogFilters.normalize_filter_value(item.sprint)
+            == BacklogFilters.normalize_filter_value(sprint_filter)
+        ]
+
+        if not matching_items:
+            # No matches
+            return sprint_filter, []
+
+        # Check for ambiguous iteration paths
+        unique_iterations = {item.iteration for item in matching_items if item.iteration}
+
+        if len(unique_iterations) > 1:
+            # Ambiguous - multiple iteration paths with same sprint name
+            iteration_list = "\n".join(f"  - {it}" for it in sorted(unique_iterations))
+            msg = (
+                f"Ambiguous sprint name '{sprint_filter}' matches multiple iteration paths:\n"
+                f"{iteration_list}\n"
+                f"Please use a full iteration path (e.g., 'Project\\Iteration\\Sprint 01') instead."
+            )
+            raise ValueError(msg)
+
+        # Single unique iteration path - safe to use
+        iteration_path = unique_iterations.pop() if unique_iterations else None
+        return iteration_path, matching_items
+
     @beartype
     @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty adapter name")
     def name(self) -> str:
@@ -2439,17 +2676,62 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         conditions = []
 
-        if filters.state:
-            conditions.append(f"[System.State] = '{filters.state}'")
-
-        if filters.assignee:
-            conditions.append(f"[System.AssignedTo] = '{filters.assignee}'")
+        # Note: ADO WIQL doesn't support case-insensitive matching directly
+        # We'll apply case-insensitive filtering post-fetch for state and assignee
+        # For iteration, we handle sprint resolution separately
 
         if filters.area:
             conditions.append(f"[System.AreaPath] = '{filters.area}'")
 
+        # Handle sprint/iteration filtering
+        # If sprint is provided, resolve it (may become iteration path)
+        # If neither sprint nor iteration provided, default to current iteration
+        resolved_iteration = None
         if filters.iteration:
-            conditions.append(f"[System.IterationPath] = '{filters.iteration}'")
+            # Check if iteration is the special value "current"
+            if filters.iteration.lower() == "current":
+                current_iteration = self._get_current_iteration()
+                if current_iteration:
+                    resolved_iteration = current_iteration
+                    conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+                else:
+                    # Provide helpful error message with suggestions
+                    available_iterations = self._list_available_iterations()
+                    suggestions = ""
+                    if available_iterations:
+                        examples = available_iterations[:5]
+                        suggestions = "\n[cyan]Available iteration paths (showing first 5):[/cyan]\n"
+                        for it_path in examples:
+                            suggestions += f"  • {it_path}\n"
+                        if len(available_iterations) > 5:
+                            suggestions += f"  ... and {len(available_iterations) - 5} more\n"
+
+                    error_msg = (
+                        f"[red]Error:[/red] No current iteration found.\n\n"
+                        f"{suggestions}"
+                        f"[cyan]Tips:[/cyan]\n"
+                        f"  • Specify a full iteration path: [bold]--iteration 'Project\\Sprint 1'[/bold]\n"
+                        f"  • Use [bold]--sprint[/bold] with just the sprint name for automatic matching\n"
+                        f"  • Check your project's iteration paths in Azure DevOps: Project Settings → Boards → Iterations\n"
+                        f"  • Ensure your team has an active iteration configured"
+                    )
+                    console.print(error_msg)
+                    raise ValueError("No current iteration found")
+            else:
+                # Use iteration path as-is (must be exact full path from ADO)
+                resolved_iteration = filters.iteration
+                conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+        elif filters.sprint:
+            # Sprint will be resolved post-fetch to handle ambiguity
+            pass
+        else:
+            # No sprint/iteration - try current iteration
+            current_iteration = self._get_current_iteration()
+            if current_iteration:
+                resolved_iteration = current_iteration
+                conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+            else:
+                console.print("[yellow]⚠ No current iteration found and no sprint/iteration filter provided[/yellow]")
 
         if conditions:
             wiql_parts.append("AND " + " AND ".join(conditions))
@@ -2482,7 +2764,59 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             response = requests.post(url, headers=headers, json=payload, timeout=30)
             response.raise_for_status()
         except requests.HTTPError as e:
-            # Provide better error message with URL details
+            # Provide user-friendly error message
+            user_friendly_msg = None
+            if e.response is not None:
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get("message", "")
+
+                    # Check for iteration path errors
+                    if "TF51011" in error_message or "iteration path does not exist" in error_message.lower():
+                        # Extract the problematic iteration path from the error
+                        import re
+
+                        match = re.search(r"«'([^']+)'»", error_message)
+                        bad_path = match.group(1) if match else (resolved_iteration if resolved_iteration else None)
+
+                        # Try to get available iterations for helpful suggestions
+                        available_iterations = self._list_available_iterations()
+                        suggestions = ""
+                        if available_iterations:
+                            # Show first 5 available iterations as examples
+                            examples = available_iterations[:5]
+                            suggestions = "\n[cyan]Available iteration paths (showing first 5):[/cyan]\n"
+                            for it_path in examples:
+                                suggestions += f"  • {it_path}\n"
+                            if len(available_iterations) > 5:
+                                suggestions += f"  ... and {len(available_iterations) - 5} more\n"
+
+                        user_friendly_msg = (
+                            f"[red]Error:[/red] The iteration path does not exist in Azure DevOps.\n"
+                            f"[yellow]Provided path:[/yellow] {bad_path}\n\n"
+                            f"{suggestions}"
+                            f"[cyan]Tips:[/cyan]\n"
+                            f"  • Use [bold]--iteration current[/bold] to automatically use the current active iteration\n"
+                            f"  • Use [bold]--sprint[/bold] with just the sprint name (e.g., 'Sprint 01') for automatic matching\n"
+                            f"  • The iteration path must match exactly as shown in Azure DevOps (including project name)\n"
+                            f"  • Check your project's iteration paths in Azure DevOps: Project Settings → Boards → Iterations"
+                        )
+                    elif "400" in str(e.response.status_code) or "Bad Request" in str(e):
+                        user_friendly_msg = (
+                            f"[red]Error:[/red] Invalid request to Azure DevOps API.\n"
+                            f"[yellow]Details:[/yellow] {error_message}\n\n"
+                            f"Please check your parameters and try again."
+                        )
+                except Exception:
+                    pass
+
+            # If we have a user-friendly message, use it; otherwise fall back to detailed technical error
+            if user_friendly_msg:
+                console.print(user_friendly_msg)
+                # Still raise the exception for proper error handling
+                raise ValueError(f"Iteration path error: {resolved_iteration}") from e
+
+            # Fallback to detailed technical error
             error_detail = ""
             if e.response is not None:
                 try:
@@ -2600,18 +2934,52 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Apply post-fetch filters that ADO API doesn't support directly
         filtered_items = items
 
+        # Case-insensitive state filtering
+        if filters.state:
+            normalized_state = BacklogFilters.normalize_filter_value(filters.state)
+            filtered_items = [
+                item for item in filtered_items if BacklogFilters.normalize_filter_value(item.state) == normalized_state
+            ]
+
+        # Case-insensitive assignee filtering (match against displayName, uniqueName, or mail)
+        if filters.assignee:
+            normalized_assignee = BacklogFilters.normalize_filter_value(filters.assignee)
+            filtered_items = [
+                item
+                for item in filtered_items
+                if any(
+                    BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
+                    for assignee in item.assignees
+                )
+            ]
+
         if filters.labels:
             filtered_items = [item for item in filtered_items if any(label in item.tags for label in filters.labels)]
 
+        # Sprint filtering with path matching and ambiguity detection
         if filters.sprint:
-            filtered_items = [item for item in filtered_items if item.sprint and item.sprint == filters.sprint]
+            try:
+                _, filtered_items = self._resolve_sprint_filter(filters.sprint, filtered_items)
+            except ValueError as e:
+                # Ambiguous sprint match - raise with clear error message
+                console.print(f"[red]Error:[/red] {e}")
+                raise
 
         if filters.release:
-            filtered_items = [item for item in filtered_items if item.release and item.release == filters.release]
+            normalized_release = BacklogFilters.normalize_filter_value(filters.release)
+            filtered_items = [
+                item
+                for item in filtered_items
+                if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
+            ]
 
         if filters.search:
             # Search filtering not directly supported by ADO WIQL, skip for now
             pass
+
+        # Apply limit if specified
+        if filters.limit is not None and len(filtered_items) > filters.limit:
+            filtered_items = filtered_items[: filters.limit]
 
         return filtered_items
 
@@ -2679,15 +3047,137 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
 
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
-            operations.append({"op": "replace", "path": "/fields/System.Description", "value": item.body_markdown})
+            # Convert TODO markers to proper Markdown checkboxes for ADO rendering
+            # Convert patterns like "* [TODO: ...]" or "- [TODO: ...]" to "- [ ] ..."
+            import re
+
+            markdown_content = item.body_markdown
+            # Pattern matches: * [TODO: ...] or - [TODO: ...] or *[TODO: ...] or -[TODO: ...]
+            todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
+            markdown_content = re.sub(
+                todo_pattern,
+                r"\1- [ ] \2",
+                markdown_content,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
+
+            # Set multiline field format to Markdown FIRST (before setting content)
+            # This ensures ADO recognizes the format before processing the content
+            # Use "add" operation (consistent with other methods) - ADO will handle if it already exists
+            operations.append({"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": "Markdown"})
+            # Then set description content with Markdown format
+            operations.append({"op": "replace", "path": "/fields/System.Description", "value": markdown_content})
 
         if update_fields is None or "state" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})
 
         # Update work item
-        response = requests.patch(url, headers=headers, json=operations, timeout=30)
-        response.raise_for_status()
+        try:
+            response = requests.patch(url, headers=headers, json=operations, timeout=30)
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            # Handle various error cases
+            if e.response and e.response.status_code in (400, 422):
+                error_message = ""
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get("message", "")
+                except Exception:
+                    pass
+
+                # Check if error is about multilineFieldsFormat already existing (use "replace" instead)
+                if "already exists" in error_message.lower() or "cannot add" in error_message.lower():
+                    # Try with "replace" operation for multilineFieldsFormat
+                    operations_replace = []
+                    for op in operations:
+                        if op.get("path") == "/multilineFieldsFormat/System.Description":
+                            # Change to replace operation
+                            operations_replace.append({"op": "replace", "path": op["path"], "value": op["value"]})
+                        else:
+                            operations_replace.append(op)
+
+                    try:
+                        response = requests.patch(url, headers=headers, json=operations_replace, timeout=30)
+                        response.raise_for_status()
+                    except requests.HTTPError:
+                        # If replace also fails, fallback to HTML conversion
+                        console.print("[yellow]⚠ Markdown format not supported, converting to HTML[/yellow]")
+                        operations_html = [
+                            op for op in operations if "/multilineFieldsFormat/" not in op.get("path", "")
+                        ]
+                        # Find description operation and convert markdown to HTML
+                        for op in operations_html:
+                            if op.get("path") == "/fields/System.Description":
+                                # Convert TODO markers to HTML checkboxes before converting to HTML
+                                import re
+
+                                markdown_for_html = op["value"]
+                                # Convert TODO markers to checkboxes first
+                                todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
+                                markdown_for_html = re.sub(
+                                    todo_pattern,
+                                    r"\1- [ ] \2",
+                                    markdown_for_html,
+                                    flags=re.MULTILINE | re.IGNORECASE,
+                                )
+                                # Simple markdown to HTML conversion (basic)
+                                try:
+                                    import markdown
+
+                                    html_body = markdown.markdown(
+                                        markdown_for_html, extensions=["fenced_code", "tables"]
+                                    )
+                                    op["value"] = html_body
+                                except ImportError:
+                                    # markdown library not available - use raw text
+                                    console.print("[yellow]⚠ markdown library not available, using raw text[/yellow]")
+                                    # Keep original markdown as-is (ADO may still render it)
+                                break
+
+                        response = requests.patch(url, headers=headers, json=operations_html, timeout=30)
+                        response.raise_for_status()
+                else:
+                    # Other 400/422 errors - try HTML fallback
+                    console.print("[yellow]⚠ Markdown format not supported, converting to HTML[/yellow]")
+                    operations_html = [op for op in operations if "/multilineFieldsFormat/" not in op.get("path", "")]
+                    # Find description operation and convert markdown to HTML
+                    for op in operations_html:
+                        if op.get("path") == "/fields/System.Description":
+                            # Convert TODO markers to HTML checkboxes before converting to HTML
+                            import re
+
+                            markdown_for_html = op["value"]
+                            # Convert TODO markers to checkboxes first
+                            todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
+                            markdown_for_html = re.sub(
+                                todo_pattern,
+                                r"\1- [ ] \2",
+                                markdown_for_html,
+                                flags=re.MULTILINE | re.IGNORECASE,
+                            )
+                            # Simple markdown to HTML conversion (basic)
+                            try:
+                                import markdown
+
+                                html_body = markdown.markdown(markdown_for_html, extensions=["fenced_code", "tables"])
+                                op["value"] = html_body
+                            except ImportError:
+                                # markdown library not available - use raw text
+                                console.print("[yellow]⚠ markdown library not available, using raw text[/yellow]")
+                                # Keep original markdown as-is (ADO may still render it)
+                            break
+
+                    response = requests.patch(url, headers=headers, json=operations_html, timeout=30)
+                    response.raise_for_status()
+            else:
+                raise
+
         updated_work_item = response.json()
+
+        # Store format metadata in provider_fields for round-trip
+        if hasattr(item, "provider_fields") and isinstance(item.provider_fields, dict):
+            item.provider_fields["description_format"] = "Markdown"
+            item.provider_fields["description_markdown"] = item.body_markdown
 
         # Convert back to BacklogItem
         from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
