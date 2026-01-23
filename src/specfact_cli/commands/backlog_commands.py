@@ -22,6 +22,7 @@ from beartype import beartype
 from icontract import require
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Confirm
 
 from specfact_cli.adapters.registry import AdapterRegistry
@@ -74,25 +75,46 @@ def _apply_filters(
             item for item in filtered if any(label.lower() in [tag.lower() for tag in item.tags] for label in labels)
         ]
 
-    # Filter by state
+    # Filter by state (case-insensitive)
     if state:
-        filtered = [item for item in filtered if item.state.lower() == state.lower()]
+        normalized_state = BacklogFilters.normalize_filter_value(state)
+        filtered = [item for item in filtered if BacklogFilters.normalize_filter_value(item.state) == normalized_state]
 
-    # Filter by assignee
+    # Filter by assignee (case-insensitive)
     if assignee:
-        filtered = [item for item in filtered if any(assignee.lower() == a.lower() for a in item.assignees)]
+        normalized_assignee = BacklogFilters.normalize_filter_value(assignee)
+        filtered = [
+            item
+            for item in filtered
+            if any(BacklogFilters.normalize_filter_value(a) == normalized_assignee for a in item.assignees)
+        ]
 
-    # Filter by iteration
+    # Filter by iteration (case-insensitive)
     if iteration:
-        filtered = [item for item in filtered if item.iteration and item.iteration.lower() == iteration.lower()]
+        normalized_iteration = BacklogFilters.normalize_filter_value(iteration)
+        filtered = [
+            item
+            for item in filtered
+            if item.iteration and BacklogFilters.normalize_filter_value(item.iteration) == normalized_iteration
+        ]
 
-    # Filter by sprint
+    # Filter by sprint (case-insensitive)
     if sprint:
-        filtered = [item for item in filtered if item.sprint and item.sprint.lower() == sprint.lower()]
+        normalized_sprint = BacklogFilters.normalize_filter_value(sprint)
+        filtered = [
+            item
+            for item in filtered
+            if item.sprint and BacklogFilters.normalize_filter_value(item.sprint) == normalized_sprint
+        ]
 
-    # Filter by release
+    # Filter by release (case-insensitive)
     if release:
-        filtered = [item for item in filtered if item.release and item.release.lower() == release.lower()]
+        normalized_release = BacklogFilters.normalize_filter_value(release)
+        filtered = [
+            item
+            for item in filtered
+            if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
+        ]
 
     return filtered
 
@@ -133,6 +155,7 @@ def _build_adapter_kwargs(
     github_token: str | None = None,
     ado_org: str | None = None,
     ado_project: str | None = None,
+    ado_team: str | None = None,
     ado_token: str | None = None,
 ) -> dict[str, Any]:
     """
@@ -163,6 +186,8 @@ def _build_adapter_kwargs(
             kwargs["org"] = ado_org
         if ado_project:
             kwargs["project"] = ado_project
+        if ado_team:
+            kwargs["team"] = ado_team
         if ado_token:
             kwargs["api_token"] = ado_token
     return kwargs
@@ -177,12 +202,13 @@ def _fetch_backlog_items(
     iteration: str | None = None,
     sprint: str | None = None,
     release: str | None = None,
-    limit: int = 100,
+    limit: int | None = None,
     repo_owner: str | None = None,
     repo_name: str | None = None,
     github_token: str | None = None,
     ado_org: str | None = None,
     ado_project: str | None = None,
+    ado_team: str | None = None,
     ado_token: str | None = None,
 ) -> list[BacklogItem]:
     """
@@ -214,6 +240,7 @@ def _fetch_backlog_items(
         github_token=github_token,
         ado_org=ado_org,
         ado_project=ado_project,
+        ado_team=ado_team,
         ado_token=ado_token,
     )
 
@@ -233,13 +260,14 @@ def _fetch_backlog_items(
         iteration=iteration,
         sprint=sprint,
         release=release,
+        limit=limit,
     )
 
     # Fetch items using the adapter
     items = adapter.fetch_backlog_items(filters)
 
-    # Apply limit
-    if limit and len(items) > limit:
+    # Apply limit deterministically (slice after filtering)
+    if limit is not None and len(items) > limit:
         items = items[:limit]
 
     return items
@@ -257,11 +285,25 @@ def refine(
     labels: list[str] | None = typer.Option(
         None, "--labels", "--tags", help="Filter by labels/tags (can specify multiple)"
     ),
-    state: str | None = typer.Option(None, "--state", help="Filter by state (open, closed, etc.)"),
-    assignee: str | None = typer.Option(None, "--assignee", help="Filter by assignee username"),
+    state: str | None = typer.Option(
+        None, "--state", help="Filter by state (case-insensitive, e.g., 'open', 'closed', 'Active', 'New')"
+    ),
+    assignee: str | None = typer.Option(
+        None,
+        "--assignee",
+        help="Filter by assignee (case-insensitive). GitHub: login or @username. ADO: displayName, uniqueName, or mail",
+    ),
     # Iteration/sprint filters
-    iteration: str | None = typer.Option(None, "--iteration", help="Filter by iteration path"),
-    sprint: str | None = typer.Option(None, "--sprint", help="Filter by sprint identifier"),
+    iteration: str | None = typer.Option(
+        None,
+        "--iteration",
+        help="Filter by iteration path (ADO format: 'Project\\Sprint 1' or 'current' for current iteration). Must be exact full path from ADO.",
+    ),
+    sprint: str | None = typer.Option(
+        None,
+        "--sprint",
+        help="Filter by sprint (case-insensitive). ADO: use full iteration path (e.g., 'Project\\Sprint 1') to avoid ambiguity. If omitted, defaults to current active iteration.",
+    ),
     release: str | None = typer.Option(None, "--release", help="Filter by release identifier"),
     # Template filters
     persona: str | None = typer.Option(
@@ -273,6 +315,11 @@ def refine(
     # Existing options
     search: str | None = typer.Option(
         None, "--search", "-s", help="Search query to filter backlog items (provider-specific syntax)"
+    ),
+    limit: int | None = typer.Option(
+        None,
+        "--limit",
+        help="Maximum number of items to process in this refinement session. Use to cap batch size and avoid processing too many items at once.",
     ),
     template_id: str | None = typer.Option(None, "--template", "-t", help="Target template ID (default: auto-detect)"),
     auto_accept_high_confidence: bool = typer.Option(
@@ -310,6 +357,11 @@ def refine(
     ado_org: str | None = typer.Option(None, "--ado-org", help="Azure DevOps organization (required for ADO adapter)"),
     ado_project: str | None = typer.Option(
         None, "--ado-project", help="Azure DevOps project (required for ADO adapter)"
+    ),
+    ado_team: str | None = typer.Option(
+        None,
+        "--ado-team",
+        help="Azure DevOps team name for iteration lookup (defaults to project name). Used when resolving current iteration when --sprint is omitted.",
     ),
     ado_token: str | None = typer.Option(
         None, "--ado-token", help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)"
@@ -426,36 +478,81 @@ def refine(
             sys.exit(1)
 
         # Fetch backlog items with filters
-        console.print(f"[bold]Fetching backlog items from {adapter}...[/bold]")
-        items = _fetch_backlog_items(
-            adapter,
-            search_query=search,
-            labels=labels,
-            state=state,
-            assignee=assignee,
-            iteration=iteration,
-            sprint=sprint,
-            release=release,
-            repo_owner=repo_owner,
-            repo_name=repo_name,
-            github_token=github_token,
-            ado_org=ado_org,
-            ado_project=ado_project,
-            ado_token=ado_token,
-        )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            fetch_task = progress.add_task(f"[cyan]Fetching backlog items from {adapter}...[/cyan]", total=None)
+            items = _fetch_backlog_items(
+                adapter,
+                search_query=search,
+                labels=labels,
+                state=state,
+                assignee=assignee,
+                iteration=iteration,
+                sprint=sprint,
+                release=release,
+                limit=limit,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                github_token=github_token,
+                ado_org=ado_org,
+                ado_project=ado_project,
+                ado_team=ado_team,
+                ado_token=ado_token,
+            )
+            progress.update(fetch_task, description="[green]✓[/green] Fetched backlog items")
 
         if not items:
-            console.print("[yellow]No backlog items found.[/yellow]")
+            # Provide helpful message when no items found, especially if filters were used
+            filter_info = []
+            if state:
+                filter_info.append(f"state={state}")
+            if assignee:
+                filter_info.append(f"assignee={assignee}")
+            if iteration:
+                filter_info.append(f"iteration={iteration}")
+            if sprint:
+                filter_info.append(f"sprint={sprint}")
+            if release:
+                filter_info.append(f"release={release}")
+
+            if filter_info:
+                console.print(
+                    f"[yellow]No backlog items found with the specified filters:[/yellow] {', '.join(filter_info)}\n"
+                    f"[cyan]Tips:[/cyan]\n"
+                    f"  • Verify the iteration path exists in Azure DevOps (Project Settings → Boards → Iterations)\n"
+                    f"  • Try using [bold]--iteration current[/bold] to use the current active iteration\n"
+                    f"  • Try using [bold]--sprint[/bold] with just the sprint name for automatic matching\n"
+                    f"  • Check that items exist in the specified iteration/sprint"
+                )
+            else:
+                console.print("[yellow]No backlog items found.[/yellow]")
             return
 
-        console.print(f"[green]Found {len(items)} backlog items[/green]")
+        # Apply limit if specified
+        if limit and len(items) > limit:
+            items = items[:limit]
+            console.print(f"[yellow]Limited to {limit} items (found {len(items)} total)[/yellow]")
+        else:
+            console.print(f"[green]Found {len(items)} backlog items[/green]")
 
         # Process each item
         refined_count = 0
         skipped_count = 0
+        cancelled = False
 
-        for item in items:
-            console.print(f"\n[bold]Processing: {item.title}[/bold]")
+        # Process items without progress bar during refinement to avoid conflicts with interactive prompts
+        for idx, item in enumerate(items, 1):
+            # Check for cancellation
+            if cancelled:
+                break
+
+            # Show simple status text instead of progress bar
+            console.print(f"\n[bold cyan]Refining item {idx} of {len(items)}: {item.title}[/bold cyan]")
 
             # Check DoR (if enabled)
             if check_dor and dor_config:
@@ -483,12 +580,40 @@ def refine(
                 item.template_confidence = detection_result.confidence
                 item.template_missing_fields = detection_result.missing_fields
 
+                # Check if item already has checkboxes in required sections (already refined)
+                # Items with checkboxes (- [ ] or - [x]) in required sections are considered already refined
+                target_template_for_check = (
+                    registry.get_template(detection_result.template_id) if detection_result.template_id else None
+                )
+                if target_template_for_check:
+                    import re
+
+                    has_checkboxes = bool(
+                        re.search(r"^[\s]*- \[[ x]\]", item.body_markdown, re.MULTILINE | re.IGNORECASE)
+                    )
+                    # Check if all required sections are present
+                    all_sections_present = True
+                    for section in target_template_for_check.required_sections:
+                        # Look for section heading (## Section Name or ### Section Name)
+                        section_pattern = rf"^#+\s+{re.escape(section)}\s*$"
+                        if not re.search(section_pattern, item.body_markdown, re.MULTILINE | re.IGNORECASE):
+                            all_sections_present = False
+                            break
+                    # If item has checkboxes and all required sections, it's already refined - skip it
+                    if has_checkboxes and all_sections_present and not detection_result.missing_fields:
+                        console.print(
+                            "[green]Item already refined with checkboxes and all required sections - skipping[/green]"
+                        )
+                        skipped_count += 1
+                        continue
+
                 # High confidence AND no missing required fields - no refinement needed
                 # Note: Even with high confidence, if required sections are missing, refinement is needed
                 if template_id is None and detection_result.confidence >= 0.8 and not detection_result.missing_fields:
                     console.print(
                         "[green]High confidence match with all required sections - no refinement needed[/green]"
                     )
+                    skipped_count += 1
                     continue
                 if detection_result.missing_fields:
                     missing_str = ", ".join(detection_result.missing_fields)
@@ -526,6 +651,19 @@ def refine(
                 skipped_count += 1
                 continue
 
+            # In preview mode without --write, skip interactive refinement
+            # Just show what would happen without prompting for input
+            if preview and not write:
+                console.print(
+                    "[yellow]⚠ Preview mode: Item needs refinement but interactive prompts are skipped[/yellow]"
+                )
+                console.print(
+                    "[yellow]   Use [bold]--write[/bold] flag to enable interactive refinement and writeback[/yellow]"
+                )
+                console.print(f"[dim]   Template: {target_template.name} (ID: {target_template.template_id})[/dim]")
+                skipped_count += 1
+                continue
+
             # Generate prompt for IDE AI copilot
             console.print(f"[bold]Generating refinement prompt for template: {target_template.name}...[/bold]")
             prompt = refiner.generate_refinement_prompt(item, target_template)
@@ -539,24 +677,36 @@ def refine(
             console.print("1. Copy the prompt above to your IDE AI copilot (Cursor, Claude Code, etc.)")
             console.print("2. Execute the prompt in your IDE AI copilot")
             console.print("3. Copy the refined content from the AI copilot response")
-            console.print(
-                "4. Paste the refined content below "
-                "(press Enter, then paste, then press Ctrl+D or type 'END' on a new line)\n"
-            )
+            console.print("4. Paste the refined content below, then type 'END' on a new line when done\n")
 
             # Read multiline input from stdin
             # Support both interactive (paste + Ctrl+D) and non-interactive (EOF) modes
             # Note: When pasting multiline content, each line is read sequentially
             refined_content_lines: list[str] = []
-            console.print("[dim]Paste refined content (press Ctrl+D or type 'END' on a new line when done):[/dim]")
+            console.print("[bold]Paste refined content below (type 'END' on a new line when done):[/bold]")
+            console.print("[dim]Commands: :skip (skip this item), :quit or :abort (cancel session)[/dim]")
 
             try:
                 while True:
                     try:
                         line = input()
-                        # Check for sentinel value (case-insensitive, must be on its own line)
-                        if line.strip().upper() == "END":
+                        line_stripped = line.strip()
+                        line_upper = line_stripped.upper()
+
+                        # Check for sentinel values (case-insensitive)
+                        if line_upper == "END":
                             break
+                        if line_upper == ":SKIP":
+                            console.print("[yellow]Skipping current item[/yellow]")
+                            skipped_count += 1
+                            refined_content_lines = []  # Clear content
+                            break
+                        if line_upper in (":QUIT", ":ABORT"):
+                            console.print("[yellow]Cancelling refinement session[/yellow]")
+                            cancelled = True
+                            refined_content_lines = []  # Clear content
+                            break
+
                         refined_content_lines.append(line)
                     except EOFError:
                         # Ctrl+D pressed or EOF reached (common when pasting multiline content)
@@ -565,6 +715,10 @@ def refine(
                 console.print("\n[yellow]Input cancelled - skipping[/yellow]")
                 skipped_count += 1
                 continue
+
+            # Check if session was cancelled
+            if cancelled:
+                break
 
             refined_content = "\n".join(refined_content_lines).strip()
 
@@ -579,8 +733,11 @@ def refine(
                     refined_content, item.body_markdown, target_template
                 )
 
+                # Print newline to separate validation results
+                console.print()
+
                 # Display validation result
-                console.print("\n[bold]Refinement Validation Result:[/bold]")
+                console.print("[bold]Refinement Validation Result:[/bold]")
                 console.print(f"[green]Confidence: {refinement_result.confidence:.2f}[/green]")
                 if refinement_result.has_todo_markers:
                     console.print("[yellow]⚠ Contains TODO markers[/yellow]")
@@ -678,7 +835,8 @@ def refine(
                             console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
                         refined_count += 1
                     else:
-                        # Interactive prompt
+                        # Interactive prompt with clear separation
+                        console.print()
                         accept = Confirm.ask("Accept refinement and write to backlog?", default=False)
                         if accept:
                             item.apply_refinement()
@@ -774,6 +932,10 @@ def refine(
 
         # Summary
         console.print("\n[bold]Summary:[/bold]")
+        if cancelled:
+            console.print("[yellow]Session cancelled by user[/yellow]")
+        if limit:
+            console.print(f"[dim]Limit applied: {limit} items[/dim]")
         console.print(f"[green]Refined: {refined_count}[/green]")
         console.print(f"[yellow]Skipped: {skipped_count}[/yellow]")
 

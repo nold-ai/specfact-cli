@@ -9,6 +9,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.6] - 2026-01-23
+
+### Added (0.26.6)
+
+- **Startup Checks**: Added automatic checks on CLI startup for template file validation and version updates
+  - **IDE Template Validation**: Checks if template files in detected IDE (e.g., `.cursor/commands/`) differ from bundled templates and suggests running `specfact init --force` if outdated
+  - **Version Update Notifications**: Checks PyPI for available CLI updates (minor/major/patch) and notifies users with appropriate warnings
+  - **Progress Indicators**: Added progress spinners during startup checks to provide user feedback
+  - **Graceful Error Handling**: Startup checks are wrapped with `contextlib.suppress` to prevent failures from crashing the CLI
+  - **Comprehensive Tests**: Added 28 unit and integration tests for startup checks functionality
+
+### Fixed (0.26.6)
+
+- **Backlog Refinement Preview Mode**: Fixed issue where interactive refinement prompts were shown in preview mode (without `--write` flag)
+  - **Preview Mode Behavior**: In preview mode, items needing refinement are now skipped with informative messages instead of prompting for user input
+  - **User Experience**: Preview mode now truly previews what would happen without requiring interactive input
+  - **Clear Guidance**: Users are informed to use `--write` flag when they want to actually refine items
+
+### Changed (0.26.6)
+
+- **Startup Checks Integration**: Integrated startup checks into CLI main entry point
+  - Checks run automatically for all commands (except help/version/completion)
+  - Checks are non-blocking and don't interfere with command execution
+  - Progress indicators use `rich.progress.Progress` with transient display
+
+---
 ## [0.26.5] - 2026-01-21
 
 ### Added (0.26.5)

@@ -109,7 +109,7 @@ Instructions:
 1. Preserve all original requirements, scope, and technical details
 2. Do NOT add new features or change the scope
 3. Transform the content to match the template structure
-4. If information is missing for a required section, mark it with [TODO: describe what's needed]
+4. If information is missing for a required section, use a Markdown checkbox: - [ ] describe what's needed
 5. If you detect conflicting or ambiguous information, add a [NOTES] section at the end explaining the ambiguity
 6. Use markdown formatting for sections (## Section Name)
 
