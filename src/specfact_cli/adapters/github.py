@@ -2483,13 +2483,19 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raise ValueError(msg)
 
         # Build GitHub search query
+        # Note: GitHub search API is case-insensitive for state, but we'll apply
+        # case-insensitive filtering post-fetch for assignee to handle display names
         query_parts = [f"repo:{self.repo_owner}/{self.repo_name}", "type:issue"]
 
         if filters.state:
-            query_parts.append(f"state:{filters.state}")
+            # GitHub state is case-insensitive, but normalize for consistency
+            normalized_state = BacklogFilters.normalize_filter_value(filters.state) or filters.state
+            query_parts.append(f"state:{normalized_state}")
 
         if filters.assignee:
-            query_parts.append(f"assignee:{filters.assignee}")
+            # Strip leading @ if present for GitHub search
+            assignee_value = filters.assignee.lstrip("@")
+            query_parts.append(f"assignee:{assignee_value}")
 
         if filters.labels:
             for label in filters.labels:
@@ -2536,18 +2542,63 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Apply post-fetch filters that GitHub API doesn't support directly
         filtered_items = items
 
+        # Case-insensitive state filtering (GitHub API may return mixed case)
+        if filters.state:
+            normalized_state = BacklogFilters.normalize_filter_value(filters.state)
+            filtered_items = [
+                item for item in filtered_items if BacklogFilters.normalize_filter_value(item.state) == normalized_state
+            ]
+
+        # Case-insensitive assignee filtering (match login and display name)
+        if filters.assignee:
+            # Normalize assignee filter (strip @, lowercase)
+            assignee_filter = filters.assignee.lstrip("@")
+            normalized_assignee = BacklogFilters.normalize_filter_value(assignee_filter)
+
+            filtered_items = [
+                item
+                for item in filtered_items
+                if any(
+                    # Match against login (case-insensitive)
+                    BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
+                    # Or match against display name if available (case-insensitive)
+                    or (
+                        hasattr(item, "provider_fields")
+                        and isinstance(item.provider_fields, dict)
+                        and item.provider_fields.get("assignee_login")
+                        and BacklogFilters.normalize_filter_value(item.provider_fields["assignee_login"])
+                        == normalized_assignee
+                    )
+                    for assignee in item.assignees
+                )
+            ]
+
         if filters.iteration:
             filtered_items = [item for item in filtered_items if item.iteration and item.iteration == filters.iteration]
 
         if filters.sprint:
-            filtered_items = [item for item in filtered_items if item.sprint and item.sprint == filters.sprint]
+            normalized_sprint = BacklogFilters.normalize_filter_value(filters.sprint)
+            filtered_items = [
+                item
+                for item in filtered_items
+                if item.sprint and BacklogFilters.normalize_filter_value(item.sprint) == normalized_sprint
+            ]
 
         if filters.release:
-            filtered_items = [item for item in filtered_items if item.release and item.release == filters.release]
+            normalized_release = BacklogFilters.normalize_filter_value(filters.release)
+            filtered_items = [
+                item
+                for item in filtered_items
+                if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
+            ]
 
         if filters.area:
             # Area filtering not directly supported by GitHub, skip for now
             pass
+
+        # Apply limit if specified
+        if filters.limit is not None and len(filtered_items) > filters.limit:
+            filtered_items = filtered_items[: filters.limit]
 
         return filtered_items
 
