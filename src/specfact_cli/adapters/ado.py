@@ -3050,8 +3050,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if update_fields is None or "title" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
 
-        # Use AdoFieldMapper for field writeback
-        ado_mapper = AdoFieldMapper()
+        # Use AdoFieldMapper for field writeback (honor custom field mappings)
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
         canonical_fields: dict[str, Any] = {
             "description": item.body_markdown,
             "acceptance_criteria": item.acceptance_criteria,
@@ -3062,10 +3063,14 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "work_item_type": item.work_item_type,
         }
 
-        # Map canonical fields to ADO fields
+        # Map canonical fields to ADO fields (uses custom mappings if provided)
         ado_fields = ado_mapper.map_from_canonical(canonical_fields)
 
-        # Update description (body_markdown)
+        # Get reverse mapping to find ADO field names for canonical fields
+        field_mappings = ado_mapper._get_field_mappings()
+        reverse_mappings = {v: k for k, v in field_mappings.items()}
+
+        # Update description (body_markdown) - always use System.Description
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
             # Convert TODO markers to proper Markdown checkboxes for ADO rendering
             import re
@@ -3080,56 +3085,47 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 flags=re.MULTILINE | re.IGNORECASE,
             )
 
+            # Get mapped description field name (honors custom mappings)
+            description_field = reverse_mappings.get("description", "System.Description")
             # Set multiline field format to Markdown FIRST (before setting content)
-            operations.append({"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": "Markdown"})
+            operations.append({"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": "Markdown"})
             # Then set description content with Markdown format
-            operations.append({"op": "replace", "path": "/fields/System.Description", "value": markdown_content})
+            operations.append({"op": "replace", "path": f"/fields/{description_field}", "value": markdown_content})
 
-        # Update acceptance criteria (separate field in ADO)
-        if update_fields is None or (
-            "acceptance_criteria" in update_fields
-            and item.acceptance_criteria
-            and "System.AcceptanceCriteria" in ado_fields
-        ):
-            operations.append(
-                {"op": "replace", "path": "/fields/System.AcceptanceCriteria", "value": item.acceptance_criteria}
-            )
+        # Update acceptance criteria using mapped field name (honors custom mappings)
+        if update_fields is None or "acceptance_criteria" in update_fields:
+            acceptance_criteria_field = reverse_mappings.get("acceptance_criteria")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            if acceptance_criteria_field and item.acceptance_criteria and acceptance_criteria_field in ado_fields:
+                operations.append(
+                    {"op": "replace", "path": f"/fields/{acceptance_criteria_field}", "value": item.acceptance_criteria}
+                )
 
-        # Update story points
-        if update_fields is None or (
-            "story_points" in update_fields
-            and item.story_points is not None
-            and "Microsoft.VSTS.Common.StoryPoints" in ado_fields
-        ):
-            operations.append(
-                {"op": "replace", "path": "/fields/Microsoft.VSTS.Common.StoryPoints", "value": item.story_points}
-            )
-        elif update_fields is None or (
-            "story_points" in update_fields
-            and item.story_points is not None
-            and "Microsoft.VSTS.Scheduling.StoryPoints" in ado_fields
-        ):
-            operations.append(
-                {"op": "replace", "path": "/fields/Microsoft.VSTS.Scheduling.StoryPoints", "value": item.story_points}
-            )
+        # Update story points using mapped field name (honors custom mappings)
+        if update_fields is None or "story_points" in update_fields:
+            story_points_field = reverse_mappings.get("story_points")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            # Handle both Microsoft.VSTS.Common.StoryPoints and Microsoft.VSTS.Scheduling.StoryPoints
+            if story_points_field and item.story_points is not None and story_points_field in ado_fields:
+                operations.append(
+                    {"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points}
+                )
 
-        # Update business value
-        if update_fields is None or (
-            "business_value" in update_fields
-            and item.business_value is not None
-            and "Microsoft.VSTS.Common.BusinessValue" in ado_fields
-        ):
-            operations.append(
-                {"op": "replace", "path": "/fields/Microsoft.VSTS.Common.BusinessValue", "value": item.business_value}
-            )
+        # Update business value using mapped field name (honors custom mappings)
+        if update_fields is None or "business_value" in update_fields:
+            business_value_field = reverse_mappings.get("business_value")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            if business_value_field and item.business_value is not None and business_value_field in ado_fields:
+                operations.append(
+                    {"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value}
+                )
 
-        # Update priority
-        if update_fields is None or (
-            "priority" in update_fields and item.priority is not None and "Microsoft.VSTS.Common.Priority" in ado_fields
-        ):
-            operations.append(
-                {"op": "replace", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": item.priority}
-            )
+        # Update priority using mapped field name (honors custom mappings)
+        if update_fields is None or "priority" in update_fields:
+            priority_field = reverse_mappings.get("priority")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            if priority_field and item.priority is not None and priority_field in ado_fields:
+                operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
 
         if update_fields is None or "state" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})

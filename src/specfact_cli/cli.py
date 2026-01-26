@@ -441,11 +441,17 @@ def cli_main() -> None:
                 os.environ["_SPECFACT_COMPLETE"] = mapped_shell
 
     # Show banner or version line before Typer processes the command
+    # Skip for help/version/completion commands and in test mode to avoid cluttering output
+    skip_output_commands = ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
+    is_help_or_version = any(arg in skip_output_commands for arg in sys.argv[1:])
+    # Check test mode using same pattern as terminal.py
+    is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+
     if show_banner:
         print_banner()
         console.print()  # Empty line after banner
-    else:
-        # Show simple version line like other CLIs
+    elif not is_help_or_version and not is_test_mode:
+        # Show simple version line like other CLIs (skip for help/version commands and in test mode)
         print_version_line()
 
     # Run startup checks (template validation and version check)
