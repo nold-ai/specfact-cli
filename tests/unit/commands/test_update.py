@@ -17,6 +17,7 @@ class TestInstallationMethodDetection:
     @patch("specfact_cli.commands.update.sys.argv", ["/usr/bin/python3", "-m", "specfact_cli"])
     def test_detect_pip_installation(self, mock_subprocess: MagicMock) -> None:
         """Test detecting pip installation."""
+
         # pipx check fails (not pipx), then pip show succeeds
         def side_effect(*args, **kwargs):
             result = MagicMock()

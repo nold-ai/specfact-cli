@@ -1286,9 +1286,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             # Create credential with same cache - it will use cached refresh token
             credential = DeviceCodeCredential(cache_persistence_options=cache_options)
-            # Use the same resource as auth command
+            # Use the same resource and scopes as auth command (including offline_access for refresh tokens)
             azure_devops_resource = "499b84ac-1321-427f-aa17-267ca6975798/.default"
-            token = credential.get_token(azure_devops_resource)
+            azure_devops_scopes = [azure_devops_resource, "offline_access"]
+            token = credential.get_token(*azure_devops_scopes)
 
             # Return refreshed token data
             from datetime import UTC, datetime

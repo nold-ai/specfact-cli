@@ -27,6 +27,8 @@ console = get_configured_console()
 
 
 AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798/.default"
+# Request offline_access scope to obtain refresh tokens (90-day lifetime)
+AZURE_DEVOPS_SCOPES = [AZURE_DEVOPS_RESOURCE, "offline_access"]
 DEFAULT_GITHUB_BASE_URL = "https://github.com"
 DEFAULT_GITHUB_API_URL = "https://api.github.com"
 DEFAULT_GITHUB_SCOPES = "repo"
@@ -183,8 +185,9 @@ def auth_azure_devops(
     2. **OAuth Flow** (default, when no PAT provided):
        - **First tries interactive browser** (opens browser automatically, better UX)
        - **Falls back to device code** if browser unavailable (SSH/headless environments)
-       - Access tokens expire after ~1 hour, refresh tokens last 90 days
-       - Automatic token refresh via persistent cache (no re-authentication needed)
+       - Access tokens expire after ~1 hour, refresh tokens last 90 days (if used at least once)
+       - Requests `offline_access` scope to obtain refresh tokens
+       - Automatic token refresh via persistent cache (no re-authentication needed for 90 days)
        - Example: specfact auth azure-devops
 
     3. **Force Device Code Flow** (--use-device-code):
@@ -284,7 +287,8 @@ def auth_azure_devops(
         # First try with current cache_options
         try:
             credential = credential_class(cache_persistence_options=cache_options, **credential_kwargs)
-            return credential.get_token(AZURE_DEVOPS_RESOURCE)
+            # Request offline_access scope to obtain refresh tokens (90-day lifetime)
+            return credential.get_token(*AZURE_DEVOPS_SCOPES)
         except Exception as e:
             error_msg = str(e).lower()
             # Check if error is about cache encryption and we haven't already tried unencrypted
@@ -303,7 +307,8 @@ def auth_azure_devops(
                         allow_unencrypted_cache=True,
                     )
                     credential = credential_class(cache_persistence_options=unencrypted_cache, **credential_kwargs)
-                    token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+                    # Request offline_access scope to obtain refresh tokens (90-day lifetime)
+                    token = credential.get_token(*AZURE_DEVOPS_SCOPES)
                     console.print(
                         "[yellow]Note:[/yellow] Using unencrypted token cache (libsecret unavailable). "
                         "Tokens will refresh automatically but stored without encryption."
@@ -320,7 +325,8 @@ def auth_azure_devops(
                         console.print("[yellow]Note:[/yellow] Persistent cache unavailable, trying without cache...")
                         try:
                             credential = credential_class(**credential_kwargs)
-                            token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+                            # Request offline_access scope to obtain refresh tokens (90-day lifetime)
+                            token = credential.get_token(*AZURE_DEVOPS_SCOPES)
                             console.print(
                                 "[yellow]Note:[/yellow] Using in-memory cache only. "
                                 "Tokens will need to be refreshed manually after ~1 hour."
