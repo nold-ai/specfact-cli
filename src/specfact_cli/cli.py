@@ -71,6 +71,7 @@ from specfact_cli.commands import (
     sdd,
     spec,
     sync,
+    update,
     validate,
 )
 from specfact_cli.modes import OperationalMode, detect_mode
@@ -242,6 +243,11 @@ def main(
         "--debug",
         help="Enable debug output (shows detailed logging and diagnostic information)",
     ),
+    skip_checks: bool = typer.Option(
+        False,
+        "--skip-checks",
+        help="Skip startup checks (template validation and version check) - useful for CI/CD",
+    ),
     input_format: Annotated[
         StructuredFormat,
         typer.Option(
@@ -372,6 +378,7 @@ app.add_typer(drift.app, name="drift", help="Detect drift between code and speci
 # 11.6. Analysis
 app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
 app.add_typer(validate.app, name="validate", help="Validation commands including sidecar validation")
+app.add_typer(update.app, name="update", help="Check for and install SpecFact CLI updates")
 
 
 def cli_main() -> None:
@@ -450,8 +457,11 @@ def cli_main() -> None:
         # Run checks (version check may be slow, so we do it async or with timeout)
         import contextlib
 
+        # Check if --skip-checks flag is present
+        skip_checks_flag = "--skip-checks" in sys.argv
+
         with contextlib.suppress(Exception):
-            print_startup_checks(repo_path=repo_path, check_version=True)
+            print_startup_checks(repo_path=repo_path, check_version=True, skip_checks=skip_checks_flag)
 
     # Record start time for command execution
     start_time = datetime.now()
