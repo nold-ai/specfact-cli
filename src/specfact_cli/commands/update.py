@@ -1,7 +1,7 @@
 """
-Update command for SpecFact CLI.
+Upgrade command for SpecFact CLI.
 
-This module provides the `specfact update` command for checking and installing
+This module provides the `specfact upgrade` command for checking and installing
 CLI updates from PyPI.
 """
 
@@ -26,7 +26,6 @@ from specfact_cli.utils.startup_checks import check_pypi_version
 
 
 app = typer.Typer(
-    name="update",
     help="Check for and install SpecFact CLI updates",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -176,9 +175,9 @@ def install_update(method: InstallationMethod, yes: bool = False) -> bool:
         return False
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 @beartype
-def update(
+def upgrade(
     check_only: bool = typer.Option(
         False,
         "--check-only",
@@ -201,13 +200,13 @@ def update(
 
     Examples:
         # Check for updates only
-        specfact update --check-only
+        specfact upgrade --check-only
 
         # Check and install (with confirmation)
-        specfact update
+        specfact upgrade
 
         # Check and install without confirmation
-        specfact update --yes
+        specfact upgrade --yes
     """
     # Check for updates
     console.print("[cyan]Checking for updates...[/cyan]")
@@ -250,8 +249,8 @@ def update(
         if check_only:
             # Detect installation method for user info
             method = detect_installation_method()
-            console.print(f"\n[yellow]To update, run:[/yellow] [cyan]{method.command}[/cyan]")
-            console.print("[dim]Or run:[/dim] [cyan]specfact update --yes[/cyan]")
+            console.print(f"\n[yellow]To upgrade, run:[/yellow] [cyan]{method.command}[/cyan]")
+            console.print("[dim]Or run:[/dim] [cyan]specfact upgrade --yes[/cyan]")
             return
 
         # Install update

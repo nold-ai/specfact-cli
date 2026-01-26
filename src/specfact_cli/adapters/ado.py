@@ -1272,13 +1272,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 try:
                     cache_options = TokenCachePersistenceOptions(
                         name="specfact-azure-devops",
-                        allow_unencrypted_cache=False,  # Prefer encrypted
+                        allow_unencrypted_storage=False,  # Prefer encrypted
                     )
                 except Exception:
                     # Encrypted cache not available, try unencrypted
                     cache_options = TokenCachePersistenceOptions(
                         name="specfact-azure-devops",
-                        allow_unencrypted_cache=True,  # Fallback: unencrypted
+                        allow_unencrypted_storage=True,  # Fallback: unencrypted
                     )
             except Exception:
                 # Persistent cache completely unavailable, can't refresh
@@ -1286,9 +1286,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             # Create credential with same cache - it will use cached refresh token
             credential = DeviceCodeCredential(cache_persistence_options=cache_options)
-            # Use the same resource and scopes as auth command (including offline_access for refresh tokens)
+            # Use the same resource and scopes as auth command
+            # Note: Refresh tokens are automatically obtained via persistent token cache
+            # offline_access is a reserved scope and cannot be explicitly requested
             azure_devops_resource = "499b84ac-1321-427f-aa17-267ca6975798/.default"
-            azure_devops_scopes = [azure_devops_resource, "offline_access"]
+            azure_devops_scopes = [azure_devops_resource]
             token = credential.get_token(*azure_devops_scopes)
 
             # Return refreshed token data

@@ -134,8 +134,8 @@ console = get_configured_console()
 # Global mode context (set by --mode flag or auto-detected)
 _current_mode: OperationalMode | None = None
 
-# Global banner flag (set by --no-banner flag)
-_show_banner: bool = True
+# Global banner flag (set by --banner flag)
+_show_banner: bool = False
 
 
 def print_banner() -> None:
@@ -177,6 +177,11 @@ def print_banner() -> None:
                 console.print(line, style="cyan")
         else:
             console.print()  # Empty line
+
+
+def print_version_line() -> None:
+    """Print simple version line like other CLIs."""
+    console.print(f"[dim]SpecFact CLI - v{__version__}[/dim]")
 
 
 def version_callback(value: bool) -> None:
@@ -227,10 +232,10 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
-    no_banner: bool = typer.Option(
+    banner: bool = typer.Option(
         False,
-        "--no-banner",
-        help="Hide ASCII art banner (useful for CI/CD)",
+        "--banner",
+        help="Show ASCII art banner (hidden by default, shown on first run)",
     ),
     mode: str | None = typer.Option(
         None,
@@ -287,8 +292,8 @@ def main(
     - Default to CI/CD mode
     """
     global _show_banner
-    # Set banner flag based on --no-banner option
-    _show_banner = not no_banner
+    # Set banner flag based on --banner option
+    _show_banner = banner
 
     # Set debug mode
     set_debug_mode(debug)
@@ -378,7 +383,7 @@ app.add_typer(drift.app, name="drift", help="Detect drift between code and speci
 # 11.6. Analysis
 app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
 app.add_typer(validate.app, name="validate", help="Validation commands including sidecar validation")
-app.add_typer(update.app, name="update", help="Check for and install SpecFact CLI updates")
+app.add_typer(update.app, name="upgrade", help="Check for and install SpecFact CLI updates")
 
 
 def cli_main() -> None:
@@ -391,12 +396,19 @@ def cli_main() -> None:
     # Normalize shell names in argv for Typer's built-in completion commands
     normalize_shell_in_argv()
 
-    # Check if --no-banner flag is present (before Typer processes it)
-    no_banner_requested = "--no-banner" in sys.argv
+    # Check if --banner flag is present (before Typer processes it)
+    banner_requested = "--banner" in sys.argv
 
-    # Show banner by default unless --no-banner is specified
-    # Banner shows for: no args, --help/-h, or any command (unless --no-banner)
-    show_banner = not no_banner_requested
+    # Check if this is first run (no ~/.specfact folder exists)
+    # Use Path.home() directly to avoid importing metadata module (which creates the directory)
+    specfact_dir = Path.home() / ".specfact"
+    is_first_run = not specfact_dir.exists()
+
+    # Show banner if:
+    # 1. --banner flag is explicitly requested, OR
+    # 2. This is the first run (no ~/.specfact folder exists)
+    # Otherwise, show simple version line
+    show_banner = banner_requested or is_first_run
 
     # Intercept Typer's shell detection for --show-completion and --install-completion
     # when no shell is provided (auto-detection case)
@@ -428,11 +440,13 @@ def cli_main() -> None:
             else:
                 os.environ["_SPECFACT_COMPLETE"] = mapped_shell
 
-    # Show banner by default (unless --no-banner is specified)
-    # Only show once, before Typer processes the command
+    # Show banner or version line before Typer processes the command
     if show_banner:
         print_banner()
         console.print()  # Empty line after banner
+    else:
+        # Show simple version line like other CLIs
+        print_version_line()
 
     # Run startup checks (template validation and version check)
     # Only run for actual commands, not for help/version/completion

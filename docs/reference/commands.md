@@ -174,9 +174,10 @@ specfact auth status
 - `migrate artifacts` - Migrate artifacts between bundle versions
 - `sdd list` - List all SDD manifests in repository
 
-**Setup:**
+**Setup & Maintenance:**
 
 - `init` - Initialize IDE integration
+- `upgrade` - Check for and install CLI updates
 
 **⚠️ Deprecated (v0.17.0):**
 
@@ -223,17 +224,26 @@ Examples:
 
 **Banner Display:**
 
-The CLI displays an ASCII art banner by default for brand recognition and visual appeal. The banner shows:
+The CLI shows a simple version line by default (e.g., `SpecFact CLI - v0.26.6`) for cleaner output. The full ASCII art banner is shown:
 
-- When executing any command (unless `--no-banner` is specified)
-- With help output (`--help` or `-h`)
-- With version output (`--version` or `-v`)
+- On first run (when `~/.specfact` folder doesn't exist)
+- When explicitly requested with `--banner` flag
 
-To suppress the banner (useful for CI/CD or automated scripts):
+To show the banner explicitly:
 
 ```bash
-specfact --no-banner <command>
+specfact --banner <command>
 ```
+
+**Startup Performance:**
+
+The CLI optimizes startup performance by:
+
+- **Template checks**: Only run when CLI version has changed since last check (stored in `~/.specfact/metadata.json`)
+- **Version checks**: Only run if >= 24 hours since last check (rate-limited to once per day)
+- **Skip checks**: Use `--skip-checks` to disable all startup checks (useful for CI/CD)
+
+This ensures fast startup times (< 2 seconds) while still providing important notifications when needed.
 
 **Examples:**
 
@@ -4713,6 +4723,56 @@ specfact init --ide cursor --install-deps
 | And more... | See [IDE Integration Guide](../guides/ide-integration.md) | Markdown |
 
 **See [IDE Integration Guide](../guides/ide-integration.md)** for detailed setup instructions and all supported IDEs.
+
+---
+
+### `upgrade` - Check for and Install CLI Updates
+
+Check for and install SpecFact CLI updates from PyPI.
+
+```bash
+specfact upgrade [OPTIONS]
+```
+
+**Options:**
+
+- `--check-only` - Only check for updates, don't install
+- `--yes`, `-y` - Skip confirmation prompt and install immediately
+
+**Examples:**
+
+```bash
+# Check for updates only
+specfact upgrade --check-only
+
+# Check and install (with confirmation)
+specfact upgrade
+
+# Check and install without confirmation
+specfact upgrade --yes
+```
+
+**What it does:**
+
+1. Checks PyPI for the latest version
+2. Compares with current installed version
+3. Detects installation method (pip, pipx, or uvx)
+4. Optionally installs the update using the appropriate method
+
+**Installation Method Detection:**
+
+The command automatically detects how SpecFact CLI was installed:
+
+- **pip**: Uses `pip install --upgrade specfact-cli`
+- **pipx**: Uses `pipx upgrade specfact-cli`
+- **uvx**: Informs user that uvx automatically uses latest version (no update needed)
+
+**Update Types:**
+
+- **Major updates** (🔴): May contain breaking changes - review release notes before upgrading
+- **Minor/Patch updates** (🟡): Backward compatible improvements and bug fixes
+
+**Note**: The upgrade command respects the same rate limiting as startup checks (checks are cached for 24 hours in `~/.specfact/metadata.json`).
 
 ---
 

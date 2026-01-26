@@ -363,7 +363,7 @@ def print_startup_checks(
                         "Review release notes before upgrading.\n\n"
                     )
                 update_message += (
-                    "Update with: [bold]specfact update[/bold] or [bold]pip install --upgrade specfact-cli[/bold]"
+                    "Upgrade with: [bold]specfact upgrade[/bold] or [bold]pip install --upgrade specfact-cli[/bold]"
                 )
 
                 console.print()
