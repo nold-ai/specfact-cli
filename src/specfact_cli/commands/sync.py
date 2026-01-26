@@ -1478,13 +1478,10 @@ def sync_bridge(
             bridge_sync = BridgeSync(repo, bridge_config=bridge_config)
 
             # Import OpenSpec artifacts
-            progress_columns, progress_kwargs = get_progress_config()
-            with Progress(
-                *progress_columns,
-                console=console,
-                **progress_kwargs,
-            ) as progress:
-                task = progress.add_task("[cyan]Importing OpenSpec artifacts...[/cyan]", total=None)
+            # In test mode, skip Progress to avoid stream closure issues with test framework
+            if _is_test_mode():
+                # Test mode: simple console output without Progress
+                console.print("[cyan]Importing OpenSpec artifacts...[/cyan]")
 
                 # Import project context
                 if bundle:
@@ -1505,7 +1502,39 @@ def sync_bridge(
                                         f"[yellow]⚠[/yellow] Failed to import {feature_id}: {', '.join(result.errors)}"
                                     )
 
-                progress.update(task, description="[green]✓[/green] Import complete")
+                console.print("[green]✓[/green] Import complete")
+            else:
+                # Normal mode: use Progress
+                progress_columns, progress_kwargs = get_progress_config()
+                with Progress(
+                    *progress_columns,
+                    console=console,
+                    **progress_kwargs,
+                ) as progress:
+                    task = progress.add_task("[cyan]Importing OpenSpec artifacts...[/cyan]", total=None)
+
+                    # Import project context
+                    if bundle:
+                        # Import specific artifacts for the bundle
+                        # For now, import all OpenSpec specs
+                        openspec_specs_dir = (
+                            bridge_config.external_base_path / "openspec" / "specs"
+                            if bridge_config.external_base_path
+                            else repo / "openspec" / "specs"
+                        )
+                        if openspec_specs_dir.exists():
+                            for spec_dir in openspec_specs_dir.iterdir():
+                                if spec_dir.is_dir() and (spec_dir / "spec.md").exists():
+                                    feature_id = spec_dir.name
+                                    result = bridge_sync.import_artifact("specification", feature_id, bundle)
+                                    if not result.success:
+                                        console.print(
+                                            f"[yellow]⚠[/yellow] Failed to import {feature_id}: {', '.join(result.errors)}"
+                                        )
+
+                    progress.update(task, description="[green]✓[/green] Import complete")
+                    # Ensure progress output is flushed before context exits
+                    progress.refresh()
 
             # Generate alignment report
             if bundle:

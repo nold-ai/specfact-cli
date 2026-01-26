@@ -25,6 +25,7 @@ from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
@@ -3046,9 +3047,24 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if update_fields is None or "title" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
 
+        # Use AdoFieldMapper for field writeback
+        ado_mapper = AdoFieldMapper()
+        canonical_fields: dict[str, Any] = {
+            "description": item.body_markdown,
+            "acceptance_criteria": item.acceptance_criteria,
+            "story_points": item.story_points,
+            "business_value": item.business_value,
+            "priority": item.priority,
+            "value_points": item.value_points,
+            "work_item_type": item.work_item_type,
+        }
+
+        # Map canonical fields to ADO fields
+        ado_fields = ado_mapper.map_from_canonical(canonical_fields)
+
+        # Update description (body_markdown)
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
             # Convert TODO markers to proper Markdown checkboxes for ADO rendering
-            # Convert patterns like "* [TODO: ...]" or "- [TODO: ...]" to "- [ ] ..."
             import re
 
             markdown_content = item.body_markdown
@@ -3062,11 +3078,55 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             )
 
             # Set multiline field format to Markdown FIRST (before setting content)
-            # This ensures ADO recognizes the format before processing the content
-            # Use "add" operation (consistent with other methods) - ADO will handle if it already exists
             operations.append({"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": "Markdown"})
             # Then set description content with Markdown format
             operations.append({"op": "replace", "path": "/fields/System.Description", "value": markdown_content})
+
+        # Update acceptance criteria (separate field in ADO)
+        if update_fields is None or (
+            "acceptance_criteria" in update_fields
+            and item.acceptance_criteria
+            and "System.AcceptanceCriteria" in ado_fields
+        ):
+            operations.append(
+                {"op": "replace", "path": "/fields/System.AcceptanceCriteria", "value": item.acceptance_criteria}
+            )
+
+        # Update story points
+        if update_fields is None or (
+            "story_points" in update_fields
+            and item.story_points is not None
+            and "Microsoft.VSTS.Common.StoryPoints" in ado_fields
+        ):
+            operations.append(
+                {"op": "replace", "path": "/fields/Microsoft.VSTS.Common.StoryPoints", "value": item.story_points}
+            )
+        elif update_fields is None or (
+            "story_points" in update_fields
+            and item.story_points is not None
+            and "Microsoft.VSTS.Scheduling.StoryPoints" in ado_fields
+        ):
+            operations.append(
+                {"op": "replace", "path": "/fields/Microsoft.VSTS.Scheduling.StoryPoints", "value": item.story_points}
+            )
+
+        # Update business value
+        if update_fields is None or (
+            "business_value" in update_fields
+            and item.business_value is not None
+            and "Microsoft.VSTS.Common.BusinessValue" in ado_fields
+        ):
+            operations.append(
+                {"op": "replace", "path": "/fields/Microsoft.VSTS.Common.BusinessValue", "value": item.business_value}
+            )
+
+        # Update priority
+        if update_fields is None or (
+            "priority" in update_fields and item.priority is not None and "Microsoft.VSTS.Common.Priority" in ado_fields
+        ):
+            operations.append(
+                {"op": "replace", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": item.priority}
+            )
 
         if update_fields is None or "state" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})

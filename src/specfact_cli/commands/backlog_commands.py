@@ -13,11 +13,14 @@ SpecFact CLI Architecture:
 
 from __future__ import annotations
 
+import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import typer
+import yaml
 from beartype import beartype
 from icontract import require
 from rich.console import Console
@@ -339,6 +342,22 @@ def refine(
     write: bool = typer.Option(
         False, "--write", help="Write mode: explicitly opt-in to update remote backlog (requires --write flag)"
     ),
+    # Export/import for copilot processing
+    export_to_tmp: bool = typer.Option(
+        False,
+        "--export-to-tmp",
+        help="Export backlog items to temporary file for copilot processing (default: /tmp/specfact-backlog-refine-<timestamp>.md)",
+    ),
+    import_from_tmp: bool = typer.Option(
+        False,
+        "--import-from-tmp",
+        help="Import refined content from temporary file after copilot processing (default: /tmp/specfact-backlog-refine-<timestamp>-refined.md)",
+    ),
+    tmp_file: Path | None = typer.Option(
+        None,
+        "--tmp-file",
+        help="Custom temporary file path (overrides default)",
+    ),
     # DoR validation
     check_dor: bool = typer.Option(
         False, "--check-dor", help="Check Definition of Ready (DoR) rules before refinement"
@@ -365,6 +384,11 @@ def refine(
     ),
     ado_token: str | None = typer.Option(
         None, "--ado-token", help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)"
+    ),
+    custom_field_mapping: str | None = typer.Option(
+        None,
+        "--custom-field-mapping",
+        help="Path to custom ADO field mapping YAML file (overrides default mappings)",
     ),
 ) -> None:
     """
@@ -477,6 +501,27 @@ def refine(
             )
             sys.exit(1)
 
+        # Validate and set custom field mapping (if provided)
+        if custom_field_mapping:
+            mapping_path = Path(custom_field_mapping)
+            if not mapping_path.exists():
+                console.print(f"[red]Error:[/red] Custom field mapping file not found: {custom_field_mapping}")
+                sys.exit(1)
+            if not mapping_path.is_file():
+                console.print(f"[red]Error:[/red] Custom field mapping path is not a file: {custom_field_mapping}")
+                sys.exit(1)
+            # Validate file format by attempting to load it
+            try:
+                from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+
+                FieldMappingConfig.from_file(mapping_path)
+                console.print(f"[green]✓[/green] Validated custom field mapping: {custom_field_mapping}")
+            except (FileNotFoundError, ValueError, yaml.YAMLError) as e:
+                console.print(f"[red]Error:[/red] Invalid custom field mapping file: {e}")
+                sys.exit(1)
+            # Set environment variable for converter to use
+            os.environ["SPECFACT_ADO_CUSTOM_MAPPING"] = str(mapping_path.absolute())
+
         # Fetch backlog items with filters
         with Progress(
             SpinnerColumn(),
@@ -531,6 +576,77 @@ def refine(
                 )
             else:
                 console.print("[yellow]No backlog items found.[/yellow]")
+            return
+
+        # Validate export/import flags
+        if export_to_tmp and import_from_tmp:
+            console.print("[bold red]✗[/bold red] --export-to-tmp and --import-from-tmp are mutually exclusive")
+            raise typer.Exit(1)
+
+        # Handle export mode
+        if export_to_tmp:
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            export_file = tmp_file or Path(f"/tmp/specfact-backlog-refine-{timestamp}.md")
+
+            console.print(f"[bold cyan]Exporting {len(items)} backlog item(s) to: {export_file}[/bold cyan]")
+
+            # Export items to markdown file
+            export_content = "# SpecFact Backlog Refinement Export\n\n"
+            export_content += f"**Export Date**: {datetime.now().isoformat()}\n"
+            export_content += f"**Adapter**: {adapter}\n"
+            export_content += f"**Items**: {len(items)}\n\n"
+            export_content += "---\n\n"
+
+            for idx, item in enumerate(items, 1):
+                export_content += f"## Item {idx}: {item.title}\n\n"
+                export_content += f"**ID**: {item.id}\n"
+                export_content += f"**URL**: {item.url}\n"
+                export_content += f"**State**: {item.state}\n"
+                export_content += f"**Provider**: {item.provider}\n"
+
+                # Include metrics
+                if item.story_points is not None or item.business_value is not None or item.priority is not None:
+                    export_content += "\n**Metrics**:\n"
+                    if item.story_points is not None:
+                        export_content += f"- Story Points: {item.story_points}\n"
+                    if item.business_value is not None:
+                        export_content += f"- Business Value: {item.business_value}\n"
+                    if item.priority is not None:
+                        export_content += f"- Priority: {item.priority} (1=highest)\n"
+                    if item.value_points is not None:
+                        export_content += f"- Value Points (SAFe): {item.value_points}\n"
+                    if item.work_item_type:
+                        export_content += f"- Work Item Type: {item.work_item_type}\n"
+
+                # Include acceptance criteria
+                if item.acceptance_criteria:
+                    export_content += f"\n**Acceptance Criteria**:\n{item.acceptance_criteria}\n"
+
+                # Include body
+                export_content += f"\n**Body**:\n```markdown\n{item.body_markdown}\n```\n"
+
+                export_content += "\n---\n\n"
+
+            export_file.write_text(export_content, encoding="utf-8")
+            console.print(f"[green]✓ Exported to: {export_file}[/green]")
+            console.print("[dim]Process items with copilot, then use --import-from-tmp to import refined content[/dim]")
+            return
+
+        # Handle import mode
+        if import_from_tmp:
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            import_file = tmp_file or Path(f"/tmp/specfact-backlog-refine-{timestamp}-refined.md")
+
+            if not import_file.exists():
+                console.print(f"[bold red]✗[/bold red] Import file not found: {import_file}")
+                console.print(f"[dim]Expected file: {import_file}[/dim]")
+                console.print("[dim]Or specify custom path with --tmp-file[/dim]")
+                raise typer.Exit(1)
+
+            console.print(f"[bold cyan]Importing refined content from: {import_file}[/bold cyan]")
+            # TODO: Implement import logic to parse refined content and apply to items
+            console.print("[yellow]⚠ Import functionality pending implementation[/yellow]")
+            console.print("[dim]For now, use interactive refinement with --write flag[/dim]")
             return
 
         # Apply limit if specified
@@ -651,16 +767,55 @@ def refine(
                 skipped_count += 1
                 continue
 
-            # In preview mode without --write, skip interactive refinement
-            # Just show what would happen without prompting for input
+            # In preview mode without --write, show full item details but skip interactive refinement
             if preview and not write:
+                console.print("\n[bold]Preview Mode: Full Item Details[/bold]")
+                console.print(f"[bold]Title:[/bold] {item.title}")
+                console.print(f"[bold]URL:[/bold] {item.url}")
+                console.print(f"[bold]State:[/bold] {item.state}")
+                console.print(f"[bold]Provider:[/bold] {item.provider}")
+
+                # Show metrics if available
+                if item.story_points is not None or item.business_value is not None or item.priority is not None:
+                    console.print("\n[bold]Story Metrics:[/bold]")
+                    if item.story_points is not None:
+                        console.print(f"  - Story Points: {item.story_points}")
+                    if item.business_value is not None:
+                        console.print(f"  - Business Value: {item.business_value}")
+                    if item.priority is not None:
+                        console.print(f"  - Priority: {item.priority} (1=highest)")
+                    if item.value_points is not None:
+                        console.print(f"  - Value Points (SAFe): {item.value_points}")
+                    if item.work_item_type:
+                        console.print(f"  - Work Item Type: {item.work_item_type}")
+
+                # Show acceptance criteria if available
+                if item.acceptance_criteria:
+                    console.print("\n[bold]Acceptance Criteria:[/bold]")
+                    console.print(Panel(item.acceptance_criteria))
+
+                # Show body
+                console.print("\n[bold]Body:[/bold]")
                 console.print(
-                    "[yellow]⚠ Preview mode: Item needs refinement but interactive prompts are skipped[/yellow]"
+                    Panel(item.body_markdown[:1000] + "..." if len(item.body_markdown) > 1000 else item.body_markdown)
+                )
+
+                # Show template info
+                console.print(
+                    f"\n[bold]Target Template:[/bold] {target_template.name} (ID: {target_template.template_id})"
+                )
+                console.print(f"[bold]Template Description:[/bold] {target_template.description}")
+
+                # Show what would be updated
+                console.print(
+                    "\n[yellow]⚠ Preview mode: Item needs refinement but interactive prompts are skipped[/yellow]"
                 )
                 console.print(
                     "[yellow]   Use [bold]--write[/bold] flag to enable interactive refinement and writeback[/yellow]"
                 )
-                console.print(f"[dim]   Template: {target_template.name} (ID: {target_template.template_id})[/dim]")
+                console.print(
+                    "[yellow]   Or use [bold]--export-to-tmp[/bold] to export items for copilot processing[/yellow]"
+                )
                 skipped_count += 1
                 continue
 
@@ -727,10 +882,10 @@ def refine(
                 skipped_count += 1
                 continue
 
-            # Validate and score refined content
+            # Validate and score refined content (provider-aware)
             try:
                 refinement_result = refiner.validate_and_score_refinement(
-                    refined_content, item.body_markdown, target_template
+                    refined_content, item.body_markdown, target_template, item
                 )
 
                 # Print newline to separate validation results
@@ -744,6 +899,25 @@ def refine(
                 if refinement_result.has_notes_section:
                     console.print("[yellow]⚠ Contains NOTES section[/yellow]")
 
+                # Display story metrics if available
+                if item.story_points is not None or item.business_value is not None or item.priority is not None:
+                    console.print("\n[bold]Story Metrics:[/bold]")
+                    if item.story_points is not None:
+                        console.print(f"  - Story Points: {item.story_points}")
+                    if item.business_value is not None:
+                        console.print(f"  - Business Value: {item.business_value}")
+                    if item.priority is not None:
+                        console.print(f"  - Priority: {item.priority} (1=highest)")
+                    if item.value_points is not None:
+                        console.print(f"  - Value Points (SAFe): {item.value_points}")
+                    if item.work_item_type:
+                        console.print(f"  - Work Item Type: {item.work_item_type}")
+
+                # Display story splitting suggestion if needed
+                if refinement_result.needs_splitting and refinement_result.splitting_suggestion:
+                    console.print("\n[yellow]⚠ Story Splitting Recommendation:[/yellow]")
+                    console.print(Panel(refinement_result.splitting_suggestion, title="Splitting Suggestion"))
+
                 # Show preview with field preservation information
                 console.print("\n[bold]Preview: What will be updated[/bold]")
                 console.print("[dim]Fields that will be UPDATED:[/dim]")
@@ -756,6 +930,9 @@ def refine(
                 console.print("  - priority: Preserved (if present in provider_fields)")
                 console.print("  - due_date: Preserved (if present in provider_fields)")
                 console.print("  - story_points: Preserved (if present in provider_fields)")
+                console.print("  - business_value: Preserved (if present in provider_fields)")
+                console.print("  - priority: Preserved (if present in provider_fields)")
+                console.print("  - acceptance_criteria: Preserved (if present in provider_fields)")
                 console.print("  - All other metadata: Preserved in provider_fields")
 
                 console.print("\n[bold]Original:[/bold]")
@@ -802,9 +979,17 @@ def refine(
 
                         adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
                         if isinstance(adapter_instance, BacklogAdapter):
-                            updated_item = adapter_instance.update_backlog_item(
-                                item, update_fields=["title", "body_markdown"]
-                            )
+                            # Update all fields including new agile framework fields
+                            update_fields_list = ["title", "body_markdown"]
+                            if item.acceptance_criteria:
+                                update_fields_list.append("acceptance_criteria")
+                            if item.story_points is not None:
+                                update_fields_list.append("story_points")
+                            if item.business_value is not None:
+                                update_fields_list.append("business_value")
+                            if item.priority is not None:
+                                update_fields_list.append("priority")
+                            updated_item = adapter_instance.update_backlog_item(item, update_fields=update_fields_list)
                             console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
 
                             # Add OpenSpec comment if requested
@@ -855,8 +1040,18 @@ def refine(
 
                             adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
                             if isinstance(adapter_instance, BacklogAdapter):
+                                # Update all fields including new agile framework fields
+                                update_fields_list = ["title", "body_markdown"]
+                                if item.acceptance_criteria:
+                                    update_fields_list.append("acceptance_criteria")
+                                if item.story_points is not None:
+                                    update_fields_list.append("story_points")
+                                if item.business_value is not None:
+                                    update_fields_list.append("business_value")
+                                if item.priority is not None:
+                                    update_fields_list.append("priority")
                                 updated_item = adapter_instance.update_backlog_item(
-                                    item, update_fields=["title", "body_markdown"]
+                                    item, update_fields=update_fields_list
                                 )
                                 console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
 

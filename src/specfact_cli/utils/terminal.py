@@ -122,6 +122,12 @@ def get_console_config() -> dict[str, Any]:
     if sys.platform == "win32":
         config["legacy_windows"] = True
 
+    # In test mode, explicitly use sys.stdout to prevent stream closure issues
+    # This ensures the test framework can read from the streams after command returns
+    is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+    if is_test_mode:
+        config["file"] = sys.stdout
+
     return config
 
 

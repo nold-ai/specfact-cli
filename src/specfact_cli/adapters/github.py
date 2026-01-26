@@ -29,6 +29,7 @@ from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.backlog.mappers.github_mapper import GitHubFieldMapper
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
@@ -2671,12 +2672,28 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Accept": "application/vnd.github.v3+json",
         }
 
+        # Use GitHubFieldMapper for field writeback
+        github_mapper = GitHubFieldMapper()
+        canonical_fields: dict[str, Any] = {
+            "description": item.body_markdown,
+            "acceptance_criteria": item.acceptance_criteria,
+            "story_points": item.story_points,
+            "business_value": item.business_value,
+            "priority": item.priority,
+            "value_points": item.value_points,
+            "work_item_type": item.work_item_type,
+        }
+
+        # Map canonical fields to GitHub markdown format
+        github_fields = github_mapper.map_from_canonical(canonical_fields)
+
         # Build update payload
         payload: dict[str, Any] = {}
         if update_fields is None or "title" in update_fields:
             payload["title"] = item.title
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
-            payload["body"] = item.body_markdown
+            # Use mapped body from field mapper (includes all fields as markdown headings)
+            payload["body"] = github_fields.get("body", item.body_markdown)
         if update_fields is None or "state" in update_fields:
             payload["state"] = item.state
 

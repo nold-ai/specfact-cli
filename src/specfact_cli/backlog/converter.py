@@ -8,11 +8,14 @@ to BacklogItem domain models, handling arbitrary DevOps backlog input.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
+from specfact_cli.backlog.mappers.github_mapper import GitHubFieldMapper
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.source_tracking import SourceTracking
 
@@ -56,6 +59,16 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
 
     body_markdown = item_data.get("body", "") or ""
     state = item_data.get("state", "open").lower()
+
+    # Extract fields using GitHubFieldMapper
+    github_mapper = GitHubFieldMapper()
+    extracted_fields = github_mapper.extract_fields(item_data)
+    acceptance_criteria = extracted_fields.get("acceptance_criteria")
+    story_points = extracted_fields.get("story_points")
+    business_value = extracted_fields.get("business_value")
+    priority = extracted_fields.get("priority")
+    value_points = extracted_fields.get("value_points")
+    work_item_type = extracted_fields.get("work_item_type")
 
     # Extract metadata fields
     assignees = []
@@ -130,6 +143,12 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
         updated_at=updated_at,
         source_tracking=source_tracking,
         provider_fields=provider_fields,
+        acceptance_criteria=acceptance_criteria,
+        story_points=story_points,
+        business_value=business_value,
+        priority=priority,
+        value_points=value_points,
+        work_item_type=work_item_type,
     )
 
 
@@ -137,7 +156,9 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
 @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
 @require(lambda provider: isinstance(provider, str) and len(provider) > 0, "Provider must be non-empty string")
 @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
-def convert_ado_work_item_to_backlog_item(item_data: dict[str, Any], provider: str = "ado") -> BacklogItem:
+def convert_ado_work_item_to_backlog_item(
+    item_data: dict[str, Any], provider: str = "ado", custom_mapping_file: str | Path | None = None
+) -> BacklogItem:
     """
     Convert Azure DevOps work item data to BacklogItem.
 
@@ -178,6 +199,21 @@ def convert_ado_work_item_to_backlog_item(item_data: dict[str, Any], provider: s
 
     body_markdown = fields.get("System.Description", "") or ""
     state = fields.get("System.State", "New").lower()
+
+    # Extract fields using AdoFieldMapper (with optional custom mapping)
+    # Priority: 1) Parameter, 2) Environment variable, 3) Auto-detect from .specfact/
+    import os
+
+    if custom_mapping_file is None and os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING"):
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+    ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+    extracted_fields = ado_mapper.extract_fields(item_data)
+    acceptance_criteria = extracted_fields.get("acceptance_criteria")
+    story_points = extracted_fields.get("story_points")
+    business_value = extracted_fields.get("business_value")
+    priority = extracted_fields.get("priority")
+    value_points = extracted_fields.get("value_points")
+    work_item_type = extracted_fields.get("work_item_type")
 
     # Extract metadata fields
     assignees = []
@@ -257,6 +293,12 @@ def convert_ado_work_item_to_backlog_item(item_data: dict[str, Any], provider: s
         updated_at=updated_at,
         source_tracking=source_tracking,
         provider_fields=provider_fields,
+        acceptance_criteria=acceptance_criteria,
+        story_points=story_points,
+        business_value=business_value,
+        priority=priority,
+        value_points=value_points,
+        work_item_type=work_item_type,
     )
 
 

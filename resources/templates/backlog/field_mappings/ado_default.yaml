@@ -1,0 +1,23 @@
+# Default ADO field mapping template
+# Generic mappings that work across most ADO process templates
+
+framework: default
+
+# Field mappings: ADO field name -> canonical field name
+field_mappings:
+  System.Description: description
+  System.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Common.StoryPoints: story_points
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+  Microsoft.VSTS.Common.BusinessValue: business_value
+  Microsoft.VSTS.Common.Priority: priority
+  System.WorkItemType: work_item_type
+
+# Work item type mappings: ADO work item type -> canonical work item type
+work_item_type_mappings:
+  Product Backlog Item: User Story
+  User Story: User Story
+  Feature: Feature
+  Epic: Epic
+  Task: Task
+  Bug: Bug
