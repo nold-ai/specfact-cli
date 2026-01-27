@@ -179,6 +179,8 @@ Once validated, the refinement can be previewed or applied:
 **Preview Mode (Default - Safe)**:
 
 - Shows what will be updated (title, body) vs preserved (assignees, tags, state, priority, etc.)
+- **Displays assignee information**: Shows assignee(s) or "Unassigned" status for each item
+- **Displays acceptance criteria**: Shows acceptance criteria if available (extracted from ADO `Microsoft.VSTS.Common.AcceptanceCriteria` or `System.AcceptanceCriteria` fields)
 - Displays original vs refined content diff
 - **Does NOT write to remote backlog** (safe by default)
 

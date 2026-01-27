@@ -32,6 +32,7 @@ class AdoFieldMapper(FieldMapper):
     DEFAULT_FIELD_MAPPINGS = {
         "System.Description": "description",
         "System.AcceptanceCriteria": "acceptance_criteria",
+        "Microsoft.VSTS.Common.AcceptanceCriteria": "acceptance_criteria",  # Alternative field name
         "Microsoft.VSTS.Common.StoryPoints": "story_points",
         "Microsoft.VSTS.Scheduling.StoryPoints": "story_points",  # Alternative field name
         "Microsoft.VSTS.Common.BusinessValue": "business_value",
@@ -195,6 +196,10 @@ class AdoFieldMapper(FieldMapper):
         """
         Extract field value from ADO fields dict using mapping.
 
+        Supports multiple field name alternatives for the same canonical field.
+        Checks all ADO fields that map to the canonical field and returns the first found value.
+        Priority: custom mapping > default mapping (handled by _get_field_mappings merge order).
+
         Args:
             fields_dict: ADO fields dict
             field_mappings: Field mappings (ADO field name -> canonical field name)
@@ -203,7 +208,8 @@ class AdoFieldMapper(FieldMapper):
         Returns:
             Field value or None if not found
         """
-        # Find ADO field name for this canonical field
+        # Find all ADO field names that map to this canonical field
+        # Check all alternatives and return the first found value
         for ado_field, canonical in field_mappings.items():
             if canonical == canonical_field:
                 value = fields_dict.get(ado_field)

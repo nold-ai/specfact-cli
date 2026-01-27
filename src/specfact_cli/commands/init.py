@@ -29,6 +29,84 @@ from specfact_cli.utils.ide_setup import (
 )
 
 
+def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console: Console) -> None:
+    """
+    Copy backlog field mapping templates to .specfact/templates/backlog/field_mappings/.
+
+    Args:
+        repo_path: Repository path
+        force: Whether to overwrite existing files
+        console: Rich console for output
+    """
+    import shutil
+
+    # Find backlog field mapping templates directory
+    # Priority order:
+    # 1. Development: relative to project root (resources/templates/backlog/field_mappings)
+    # 2. Installed package: use importlib.resources to find package location
+    templates_dir: Path | None = None
+
+    # Try 1: Development mode - relative to repo root
+    dev_templates_dir = (repo_path / "resources" / "templates" / "backlog" / "field_mappings").resolve()
+    if dev_templates_dir.exists():
+        templates_dir = dev_templates_dir
+    else:
+        # Try 2: Installed package - use importlib.resources
+        try:
+            import importlib.resources
+
+            resources_ref = importlib.resources.files("specfact_cli")
+            templates_ref = resources_ref / "resources" / "templates" / "backlog" / "field_mappings"
+            package_templates_dir = Path(str(templates_ref)).resolve()
+            if package_templates_dir.exists():
+                templates_dir = package_templates_dir
+        except Exception:
+            # Fallback: try importlib.util.find_spec()
+            try:
+                import importlib.util
+
+                spec = importlib.util.find_spec("specfact_cli")
+                if spec and spec.origin:
+                    package_root = Path(spec.origin).parent.resolve()
+                    package_templates_dir = (
+                        package_root / "resources" / "templates" / "backlog" / "field_mappings"
+                    ).resolve()
+                    if package_templates_dir.exists():
+                        templates_dir = package_templates_dir
+            except Exception:
+                pass
+
+    if not templates_dir or not templates_dir.exists():
+        # Templates not found - this is not critical, just skip
+        debug_print("[dim]Debug:[/dim] Backlog field mapping templates not found, skipping copy")
+        return
+
+    # Create target directory
+    target_dir = repo_path / ".specfact" / "templates" / "backlog" / "field_mappings"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy templates (ado_*.yaml files)
+    template_files = list(templates_dir.glob("ado_*.yaml"))
+    copied_count = 0
+
+    for template_file in template_files:
+        target_file = target_dir / template_file.name
+        if target_file.exists() and not force:
+            continue  # Skip if file exists and --force not used
+        try:
+            shutil.copy2(template_file, target_file)
+            copied_count += 1
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Failed to copy {template_file.name}: {e}")
+
+    if copied_count > 0:
+        console.print(
+            f"[green]✓[/green] Copied {copied_count} ADO field mapping template(s) to .specfact/templates/backlog/field_mappings/"
+        )
+    elif template_files:
+        console.print("[dim]Backlog field mapping templates already exist (use --force to overwrite)[/dim]")
+
+
 app = typer.Typer(help="Initialize SpecFact for IDE integration")
 console = Console()
 
@@ -439,6 +517,11 @@ def init(
             console.print(f"[green]Copied {len(copied_files)} template(s) to {ide_config['folder']}[/green]")
             if settings_path:
                 console.print(f"[green]Updated VS Code settings:[/green] {settings_path}")
+            console.print()
+
+            # Copy backlog field mapping templates
+            _copy_backlog_field_mapping_templates(repo_path, force, console)
+
             console.print()
             console.print("[dim]You can now use SpecFact slash commands in your IDE![/dim]")
             console.print("[dim]Example: /specfact.01-import --bundle legacy-api --repo .[/dim]")

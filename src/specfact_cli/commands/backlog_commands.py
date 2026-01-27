@@ -84,12 +84,18 @@ def _apply_filters(
         filtered = [item for item in filtered if BacklogFilters.normalize_filter_value(item.state) == normalized_state]
 
     # Filter by assignee (case-insensitive)
+    # Matches against any identifier in assignees list (displayName, uniqueName, or mail for ADO)
     if assignee:
         normalized_assignee = BacklogFilters.normalize_filter_value(assignee)
         filtered = [
             item
             for item in filtered
-            if any(BacklogFilters.normalize_filter_value(a) == normalized_assignee for a in item.assignees)
+            if item.assignees  # Only check items with assignees
+            and any(
+                BacklogFilters.normalize_filter_value(a) == normalized_assignee
+                for a in item.assignees
+                if a  # Skip None or empty strings
+            )
         ]
 
     # Filter by iteration (case-insensitive)
@@ -774,6 +780,7 @@ def refine(
                 console.print(f"[bold]URL:[/bold] {item.url}")
                 console.print(f"[bold]State:[/bold] {item.state}")
                 console.print(f"[bold]Provider:[/bold] {item.provider}")
+                console.print(f"[bold]Assignee:[/bold] {', '.join(item.assignees) if item.assignees else 'Unassigned'}")
 
                 # Show metrics if available
                 if item.story_points is not None or item.business_value is not None or item.priority is not None:
@@ -1139,3 +1146,240 @@ def refine(
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from e
+
+
+@app.command("map-fields")
+@require(
+    lambda ado_org, ado_project: isinstance(ado_org, str)
+    and len(ado_org) > 0
+    and isinstance(ado_project, str)
+    and len(ado_project) > 0,
+    "ADO org and project must be non-empty strings",
+)
+@beartype
+def map_fields(
+    ado_org: str = typer.Option(..., "--ado-org", help="Azure DevOps organization (required)"),
+    ado_project: str = typer.Option(..., "--ado-project", help="Azure DevOps project (required)"),
+    ado_token: str | None = typer.Option(
+        None, "--ado-token", help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)"
+    ),
+    ado_base_url: str | None = typer.Option(
+        None, "--ado-base-url", help="Azure DevOps base URL (defaults to https://dev.azure.com)"
+    ),
+) -> None:
+    """
+    Interactive command to map ADO fields to canonical field names.
+
+    Fetches available fields from Azure DevOps API and guides you through
+    mapping them to canonical field names (description, acceptance_criteria, etc.).
+    Saves the mapping to .specfact/templates/backlog/field_mappings/ado_custom.yaml.
+
+    Examples:
+        specfact backlog map-fields --ado-org myorg --ado-project myproject
+        specfact backlog map-fields --ado-org myorg --ado-project myproject --ado-token <token>
+    """
+    import base64
+
+    import requests
+    from rich.prompt import Prompt
+
+    from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+
+    # Resolve token (explicit > env var)
+    api_token = ado_token or os.environ.get("AZURE_DEVOPS_TOKEN")
+    if not api_token:
+        console.print("[red]Error:[/red] Azure DevOps token required")
+        console.print("[yellow]Options:[/yellow]")
+        console.print("  1. Use --ado-token option")
+        console.print("  2. Set AZURE_DEVOPS_TOKEN environment variable")
+        console.print("  3. Use: specfact auth azure-devops")
+        raise typer.Exit(1)
+
+    # Build base URL
+    base_url = (ado_base_url or "https://dev.azure.com").rstrip("/")
+
+    # Fetch fields from ADO API
+    console.print("[cyan]Fetching fields from Azure DevOps...[/cyan]")
+    fields_url = f"{base_url}/{ado_org}/{ado_project}/_apis/wit/fields?api-version=7.1"
+
+    # Prepare authentication
+    auth_header = base64.b64encode(f":{api_token}".encode()).decode()
+
+    try:
+        response = requests.get(fields_url, headers={"Authorization": f"Basic {auth_header}"}, timeout=30)
+        response.raise_for_status()
+        fields_data = response.json()
+    except requests.exceptions.RequestException as e:
+        console.print(f"[red]Error:[/red] Failed to fetch fields from Azure DevOps: {e}")
+        raise typer.Exit(1) from e
+
+    # Extract fields and filter out system-only fields
+    all_fields = fields_data.get("value", [])
+    system_only_fields = {
+        "System.Id",
+        "System.Rev",
+        "System.ChangedDate",
+        "System.CreatedDate",
+        "System.ChangedBy",
+        "System.CreatedBy",
+        "System.AreaId",
+        "System.IterationId",
+        "System.TeamProject",
+        "System.NodeName",
+        "System.AreaLevel1",
+        "System.AreaLevel2",
+        "System.AreaLevel3",
+        "System.AreaLevel4",
+        "System.AreaLevel5",
+        "System.AreaLevel6",
+        "System.AreaLevel7",
+        "System.AreaLevel8",
+        "System.AreaLevel9",
+        "System.AreaLevel10",
+        "System.IterationLevel1",
+        "System.IterationLevel2",
+        "System.IterationLevel3",
+        "System.IterationLevel4",
+        "System.IterationLevel5",
+        "System.IterationLevel6",
+        "System.IterationLevel7",
+        "System.IterationLevel8",
+        "System.IterationLevel9",
+        "System.IterationLevel10",
+    }
+
+    # Filter relevant fields
+    relevant_fields = [
+        field
+        for field in all_fields
+        if field.get("referenceName") not in system_only_fields
+        and not field.get("referenceName", "").startswith("System.History")
+        and not field.get("referenceName", "").startswith("System.Watermark")
+    ]
+
+    # Sort fields by reference name
+    relevant_fields.sort(key=lambda f: f.get("referenceName", ""))
+
+    # Canonical fields to map
+    canonical_fields = {
+        "description": "Description",
+        "acceptance_criteria": "Acceptance Criteria",
+        "story_points": "Story Points",
+        "business_value": "Business Value",
+        "priority": "Priority",
+        "work_item_type": "Work Item Type",
+    }
+
+    # Load existing mapping if it exists
+    current_dir = Path.cwd()
+    custom_mapping_file = current_dir / ".specfact" / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
+    existing_mapping: dict[str, str] = {}
+    if custom_mapping_file.exists():
+        try:
+            existing_config = FieldMappingConfig.from_file(custom_mapping_file)
+            existing_mapping = existing_config.field_mappings
+            console.print(f"[green]✓[/green] Loaded existing mapping from {custom_mapping_file}")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Failed to load existing mapping: {e}")
+
+    # Interactive mapping
+    console.print()
+    console.print(Panel("[bold cyan]Interactive Field Mapping[/bold cyan]", border_style="cyan"))
+    console.print("[dim]Map ADO fields to canonical field names. Press Enter to skip a field.[/dim]")
+    console.print()
+
+    new_mapping: dict[str, str] = {}
+
+    for canonical_field, display_name in canonical_fields.items():
+        # Show current mapping if exists
+        current_ado_fields = [
+            ado_field for ado_field, canonical in existing_mapping.items() if canonical == canonical_field
+        ]
+        if current_ado_fields:
+            console.print(f"[bold]{display_name}[/bold] (canonical: {canonical_field})")
+            console.print(f"  Current mapping: {', '.join(current_ado_fields)}")
+        else:
+            console.print(f"[bold]{display_name}[/bold] (canonical: {canonical_field})")
+            console.print("  Current mapping: <no mapping>")
+
+        # Display available fields (first 20, with option to show more)
+        console.print(f"\n  Available ADO fields (showing first 20 of {len(relevant_fields)}):")
+        field_choices: list[str] = ["<no mapping>"]
+        for i, field in enumerate(relevant_fields[:20], 1):
+            ref_name = field.get("referenceName", "")
+            name = field.get("name", ref_name)
+            field_choices.append(ref_name)
+            console.print(f"    {i}. {ref_name} ({name})")
+
+        if len(relevant_fields) > 20:
+            console.print(f"    ... and {len(relevant_fields) - 20} more fields")
+
+        # Prompt for selection (user types field reference name or number)
+        prompt_text = f"\n  Enter ADO field for {display_name} (reference name or number, or press Enter to skip)"
+        if current_ado_fields:
+            prompt_text += f" [default: {current_ado_fields[0]}]"
+        selected = Prompt.ask(prompt_text, default=current_ado_fields[0] if current_ado_fields else "")
+
+        if selected and selected.strip():
+            # Check if user entered a number
+            if selected.strip().isdigit():
+                field_index = int(selected.strip()) - 1
+                if 0 <= field_index < len(relevant_fields):
+                    selected = relevant_fields[field_index].get("referenceName", "")
+                else:
+                    console.print(f"[yellow]⚠[/yellow] Invalid field number. Skipping {display_name}.")
+                    continue
+            # Validate field exists
+            if selected in [f.get("referenceName", "") for f in relevant_fields]:
+                new_mapping[selected] = canonical_field
+            elif selected == "<no mapping>":
+                # User explicitly chose no mapping
+                pass
+            else:
+                console.print(f"[yellow]⚠[/yellow] Field '{selected}' not found. Skipping {display_name}.")
+
+        console.print()
+
+    # Validate mapping
+    console.print("[cyan]Validating mapping...[/cyan]")
+    duplicate_ado_fields = {}
+    for ado_field, canonical in new_mapping.items():
+        if ado_field in duplicate_ado_fields:
+            duplicate_ado_fields[ado_field].append(canonical)
+        else:
+            # Check if this ADO field is already mapped to a different canonical field
+            for other_ado, other_canonical in new_mapping.items():
+                if other_ado == ado_field and other_canonical != canonical:
+                    if ado_field not in duplicate_ado_fields:
+                        duplicate_ado_fields[ado_field] = []
+                    duplicate_ado_fields[ado_field].extend([canonical, other_canonical])
+
+    if duplicate_ado_fields:
+        console.print("[yellow]⚠[/yellow] Warning: Some ADO fields are mapped to multiple canonical fields:")
+        for ado_field, canonicals in duplicate_ado_fields.items():
+            console.print(f"  {ado_field}: {', '.join(set(canonicals))}")
+        if not Confirm.ask("Continue anyway?", default=False):
+            console.print("[yellow]Mapping cancelled.[/yellow]")
+            raise typer.Exit(0)
+
+    # Merge with existing mapping (new mapping takes precedence)
+    final_mapping = existing_mapping.copy()
+    final_mapping.update(new_mapping)
+
+    # Create FieldMappingConfig
+    config = FieldMappingConfig(
+        framework="default",
+        field_mappings=final_mapping,
+        work_item_type_mappings={},  # Can be extended later
+    )
+
+    # Save to file
+    custom_mapping_file.parent.mkdir(parents=True, exist_ok=True)
+    with custom_mapping_file.open("w", encoding="utf-8") as f:
+        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+
+    console.print()
+    console.print(Panel("[bold green]✓ Mapping saved successfully[/bold green]", border_style="green"))
+    console.print(f"[green]Location:[/green] {custom_mapping_file}")
+    console.print()
+    console.print("[dim]You can now use this mapping with specfact backlog refine.[/dim]")

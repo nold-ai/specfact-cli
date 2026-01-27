@@ -165,9 +165,134 @@ work_item_type_mappings:
   Issue: Bug
 ```
 
+## Discovering Available ADO Fields
+
+Before creating custom field mappings, you need to know which fields are available in your Azure DevOps project. There are two ways to discover available fields:
+
+### Method 1: Using Interactive Mapping Command (Recommended)
+
+The easiest way to discover and map ADO fields is using the interactive mapping command:
+
+```bash
+specfact backlog map-fields --ado-org myorg --ado-project myproject
+```
+
+This command will:
+
+1. Fetch all available fields from your Azure DevOps project
+2. Filter out system-only fields automatically
+3. Display a list of relevant fields for each canonical field
+4. Guide you through mapping ADO fields to canonical field names
+5. Save the mapping to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+
+**Example Output:**
+
+```
+Fetching fields from Azure DevOps...
+✓ Loaded existing mapping from .specfact/templates/backlog/field_mappings/ado_custom.yaml
+
+Interactive Field Mapping
+Map ADO fields to canonical field names. Press Enter to skip a field.
+
+Description (canonical: description)
+  Current mapping: System.Description
+
+  Available ADO fields (showing first 20 of 45):
+    1. System.Description (Description)
+    2. Microsoft.VSTS.Common.AcceptanceCriteria (Acceptance Criteria)
+    3. Microsoft.VSTS.Common.StoryPoints (Story Points)
+    ...
+
+  Enter ADO field for Description (reference name or number, or press Enter to skip) [default: System.Description]: 1
+```
+
+### Method 2: Using ADO REST API
+
+You can also discover available fields directly from the Azure DevOps REST API:
+
+**Step 1: Get your Azure DevOps PAT (Personal Access Token)**
+
+- Go to: `https://dev.azure.com/{org}/_usersSettings/tokens`
+- Create a new token with "Work Items (Read)" permission
+
+**Step 2: Fetch fields using curl or HTTP client**
+
+```bash
+# Replace {org}, {project}, and {token} with your values
+curl -u ":{token}" \
+  "https://dev.azure.com/{org}/{project}/_apis/wit/fields?api-version=7.1" \
+  | jq '.value[] | {referenceName: .referenceName, name: .name}'
+```
+
+**Step 3: Identify field names from API response**
+
+The API returns a JSON array with field information:
+
+```json
+{
+  "value": [
+    {
+      "referenceName": "System.Description",
+      "name": "Description",
+      "type": "html"
+    },
+    {
+      "referenceName": "Microsoft.VSTS.Common.AcceptanceCriteria",
+      "name": "Acceptance Criteria",
+      "type": "html"
+    }
+  ]
+}
+```
+
+**Common ADO Field Names by Process Template:**
+
+- **Scrum**: `Microsoft.VSTS.Scheduling.StoryPoints`, `System.AcceptanceCriteria`
+- **Agile**: `Microsoft.VSTS.Common.StoryPoints`, `System.AcceptanceCriteria`
+- **SAFe**: `Microsoft.VSTS.Scheduling.StoryPoints`, `Microsoft.VSTS.Common.AcceptanceCriteria`
+- **Custom Templates**: May use `Custom.*` prefix (e.g., `Custom.StoryPoints`, `Custom.AcceptanceCriteria`)
+
+**Note**: The field `Microsoft.VSTS.Common.AcceptanceCriteria` is commonly used in many ADO process templates, while `System.AcceptanceCriteria` is less common. SpecFact CLI supports both by default.
+
 ## Using Custom Field Mappings
 
-### Method 1: CLI Parameter (Recommended)
+### Method 1: Interactive Mapping Command (Recommended)
+
+Use the interactive mapping command to create and update field mappings:
+
+```bash
+specfact backlog map-fields --ado-org myorg --ado-project myproject
+```
+
+This command:
+
+- Fetches available fields from your ADO project
+- Shows current mappings (if they exist)
+- Guides you through mapping each canonical field
+- Validates the mapping before saving
+- Saves to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+
+**Options:**
+
+- `--ado-org`: Azure DevOps organization (required)
+- `--ado-project`: Azure DevOps project (required)
+- `--ado-token`: Azure DevOps PAT (optional, uses `AZURE_DEVOPS_TOKEN` env var if not provided)
+- `--ado-base-url`: Azure DevOps base URL (defaults to `https://dev.azure.com`)
+
+**Example:**
+
+```bash
+# Using environment variable for token
+export AZURE_DEVOPS_TOKEN=your_token_here
+specfact backlog map-fields --ado-org myorg --ado-project myproject
+
+# Or provide token directly
+specfact backlog map-fields --ado-org myorg --ado-project myproject --ado-token your_token_here
+```
+
+### Method 2: CLI Parameter
+
+Use the `--custom-field-mapping` option when running the refine command:
 
 Use the `--custom-field-mapping` option when running the refine command:
 
@@ -180,6 +305,7 @@ specfact backlog refine ado \
 ```
 
 The CLI will:
+
 1. Validate the file exists and is readable
 2. Validate the YAML format and schema
 3. Set it as an environment variable for the converter to use
@@ -195,7 +321,119 @@ Place your custom mapping file at:
 
 SpecFact CLI will automatically detect and use this file if no `--custom-field-mapping` parameter is provided.
 
-### Method 3: Environment Variable
+### Method 3: Manually Creating Field Mapping Files
+
+You can also create field mapping files manually by editing YAML files directly.
+
+**Step 1: Create the directory structure**
+
+```bash
+mkdir -p .specfact/templates/backlog/field_mappings
+```
+
+**Step 2: Create `ado_custom.yaml` file**
+
+Create a new file `.specfact/templates/backlog/field_mappings/ado_custom.yaml` with the following structure:
+
+```yaml
+# Framework identifier (scrum, safe, kanban, agile, default)
+framework: default
+
+# Field mappings: ADO field name -> canonical field name
+field_mappings:
+  System.Description: description
+  Microsoft.VSTS.Common.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+  Microsoft.VSTS.Common.BusinessValue: business_value
+  Microsoft.VSTS.Common.Priority: priority
+  System.WorkItemType: work_item_type
+
+# Work item type mappings: ADO work item type -> canonical work item type
+work_item_type_mappings:
+  Product Backlog Item: User Story
+  User Story: User Story
+  Feature: Feature
+  Epic: Epic
+  Task: Task
+  Bug: Bug
+```
+
+**Step 3: Validate the YAML file**
+
+Use a YAML validator or test with SpecFact CLI:
+
+```bash
+# The refine command will validate the file automatically
+specfact backlog refine ado --ado-org myorg --ado-project myproject --state Active
+```
+
+**YAML Schema Reference:**
+
+- **`framework`** (string, optional): Framework identifier (`scrum`, `safe`, `kanban`, `agile`, `default`)
+- **`field_mappings`** (dict, required): Mapping from ADO field names to canonical field names
+  - Keys: ADO field reference names (e.g., `System.Description`, `Microsoft.VSTS.Common.AcceptanceCriteria`)
+  - Values: Canonical field names (`description`, `acceptance_criteria`, `story_points`, `business_value`, `priority`, `work_item_type`)
+- **`work_item_type_mappings`** (dict, optional): Mapping from ADO work item types to canonical work item types
+  - Keys: ADO work item type names (e.g., `Product Backlog Item`, `User Story`)
+  - Values: Canonical work item type names (e.g., `User Story`, `Feature`, `Epic`)
+
+**Examples for Different ADO Process Templates:**
+
+**Scrum Template:**
+
+```yaml
+framework: scrum
+field_mappings:
+  System.Description: description
+  System.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Common.AcceptanceCriteria: acceptance_criteria  # Alternative
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+  Microsoft.VSTS.Common.BusinessValue: business_value
+  Microsoft.VSTS.Common.Priority: priority
+  System.WorkItemType: work_item_type
+```
+
+**Agile Template:**
+
+```yaml
+framework: agile
+field_mappings:
+  System.Description: description
+  Microsoft.VSTS.Common.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+  Microsoft.VSTS.Common.BusinessValue: business_value
+  Microsoft.VSTS.Common.Priority: priority
+  System.WorkItemType: work_item_type
+```
+
+**SAFe Template:**
+
+```yaml
+framework: safe
+field_mappings:
+  System.Description: description
+  Microsoft.VSTS.Common.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+  Microsoft.VSTS.Common.BusinessValue: business_value
+  Microsoft.VSTS.Common.Priority: priority
+  System.WorkItemType: work_item_type
+  Microsoft.VSTS.Common.ValueArea: value_points
+```
+
+**Custom Template:**
+
+```yaml
+framework: default
+field_mappings:
+  System.Description: description
+  Custom.AcceptanceCriteria: acceptance_criteria
+  Custom.StoryPoints: story_points
+  Custom.BusinessValue: business_value
+  Custom.Priority: priority
+  System.WorkItemType: work_item_type
+```
+
+### Method 4: Environment Variable
 
 Set the `SPECFACT_ADO_CUSTOM_MAPPING` environment variable:
 
@@ -205,9 +443,10 @@ specfact backlog refine ado --ado-org my-org --ado-project my-project
 ```
 
 **Priority Order**:
+
 1. CLI parameter (`--custom-field-mapping`) - highest priority
 2. Environment variable (`SPECFACT_ADO_CUSTOM_MAPPING`)
-3. Auto-detection from `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+3. Auto-detection from `.specfact/templates/backlog/field_mappings/ado_custom.yaml` (created by `specfact init` or `specfact backlog map-fields`)
 
 ## Default Field Mappings
 
@@ -215,11 +454,14 @@ If no custom mapping is provided, SpecFact CLI uses default mappings that work w
 
 - `System.Description` → `description`
 - `System.AcceptanceCriteria` → `acceptance_criteria`
+- `Microsoft.VSTS.Common.AcceptanceCriteria` → `acceptance_criteria` (alternative, commonly used)
 - `Microsoft.VSTS.Common.StoryPoints` → `story_points`
 - `Microsoft.VSTS.Scheduling.StoryPoints` → `story_points` (alternative)
 - `Microsoft.VSTS.Common.BusinessValue` → `business_value`
 - `Microsoft.VSTS.Common.Priority` → `priority`
 - `System.WorkItemType` → `work_item_type`
+
+**Multiple Field Alternatives**: SpecFact CLI supports multiple ADO field names mapping to the same canonical field. For example, both `System.AcceptanceCriteria` and `Microsoft.VSTS.Common.AcceptanceCriteria` can map to `acceptance_criteria`. The mapper will check all alternatives and use the first found value.
 
 Custom mappings **override** defaults. If a field is mapped in your custom file, it will be used instead of the default.
 
@@ -248,16 +490,19 @@ The CLI validates custom mapping files before use:
 ### Common Errors
 
 **File Not Found**:
+
 ```
 Error: Custom field mapping file not found: /path/to/file.yaml
 ```
 
 **Invalid YAML**:
+
 ```
 Error: Invalid custom field mapping file: YAML parsing error
 ```
 
 **Invalid Schema**:
+
 ```
 Error: Invalid custom field mapping file: Field 'field_mappings' must be a dict
 ```
@@ -287,9 +532,43 @@ Custom field mappings work seamlessly with backlog refinement:
 If fields are not being extracted:
 
 1. **Check Field Names**: Verify the ADO field names in your mapping match exactly (case-sensitive)
+   - Use `specfact backlog map-fields` to discover the exact field names in your project
+   - Or use the ADO REST API to fetch available fields
 2. **Check Work Item Type**: Some fields may only exist for certain work item types
-3. **Test with Defaults**: Try without custom mapping to see if defaults work
-4. **Check Logs**: Enable verbose logging to see field extraction details
+   - Test with different work item types (User Story, Feature, Epic)
+3. **Check Multiple Alternatives**: Some fields have multiple names (e.g., `System.AcceptanceCriteria` vs `Microsoft.VSTS.Common.AcceptanceCriteria`)
+   - Add both alternatives to your mapping if needed
+   - SpecFact CLI checks all alternatives and uses the first found value
+4. **Test with Defaults**: Try without custom mapping to see if defaults work
+5. **Check Logs**: Enable verbose logging to see field extraction details
+6. **Verify API Response**: Check the raw ADO API response to see which fields are actually present
+
+### Mapping Not Applied
+
+If your custom mapping is not being applied:
+
+1. **Check File Location**: Ensure the mapping file is in the correct location:
+   - `.specfact/templates/backlog/field_mappings/ado_custom.yaml` (auto-detection)
+   - Or use `--custom-field-mapping` to specify a custom path
+2. **Validate YAML Syntax**: Use a YAML validator to check syntax
+   - Common issues: incorrect indentation, missing colons, invalid characters
+3. **Check File Permissions**: Ensure the file is readable
+4. **Verify Schema**: Ensure the file matches the `FieldMappingConfig` schema
+   - Required: `field_mappings` (dict)
+   - Optional: `framework` (string), `work_item_type_mappings` (dict)
+
+### Interactive Mapping Fails
+
+If the interactive mapping command (`specfact backlog map-fields`) fails:
+
+1. **Check ADO Connection**: Verify you can connect to Azure DevOps
+   - Test with: `curl -u ":{token}" "https://dev.azure.com/{org}/{project}/_apis/wit/fields?api-version=7.1"`
+2. **Verify Permissions**: Ensure your PAT has "Work Items (Read)" permission
+3. **Check Token**: Verify your token is valid and not expired
+   - Use `--ado-token` option or set `AZURE_DEVOPS_TOKEN` environment variable
+4. **Verify Organization/Project**: Ensure the org and project names are correct
+   - Check for typos in organization or project names
+5. **Check Base URL**: For Azure DevOps Server (on-premise), use `--ado-base-url` option
 
 ### Validation Errors
 
