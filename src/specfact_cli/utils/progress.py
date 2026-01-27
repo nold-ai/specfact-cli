@@ -214,4 +214,5 @@ def save_bundle_with_progress(
             pass
 
     # No progress display - just save directly
+    # In test mode, skip progress entirely to avoid async cleanup issues
     save_project_bundle(bundle, bundle_dir, atomic=atomic, progress_callback=None)

@@ -176,9 +176,21 @@ class GitHubFieldMapper(FieldMapper):
             Default content (body without ## headings)
         """
         # Remove all sections starting with ##
-        pattern = r"^##.*?$(?:\n.*?)*?(?=^##|\Z)"
-        default_content = re.sub(pattern, "", body, flags=re.MULTILINE | re.DOTALL)
-        return default_content.strip()
+        # Use a more efficient pattern to avoid ReDoS: match lines starting with ##
+        # and everything up to the next ## or end of string, using non-backtracking approach
+        lines = body.split("\n")
+        result_lines: list[str] = []
+        skip_section = False
+
+        for line in lines:
+            # Check if this line starts a new section (## heading)
+            if re.match(r"^##+", line):
+                skip_section = True
+            else:
+                if not skip_section:
+                    result_lines.append(line)
+
+        return "\n".join(result_lines).strip()
 
     @beartype
     @require(lambda self, body: isinstance(body, str), "Body must be str")

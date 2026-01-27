@@ -15,6 +15,7 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 from beartype import beartype
@@ -745,13 +746,18 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     if not entry_repo:
                         source_url = entry.get("source_url", "")
                         # Try ADO URL pattern - match by org (GUIDs in URLs)
-                        if source_url and "dev.azure.com" in source_url and "/" in target_repo:
-                            target_org = target_repo.split("/")[0]
-                            ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
-                            if ado_org_match and ado_org_match.group(1) == target_org:
-                                # Org matches - this is likely the same ADO organization
-                                work_item_id = entry.get("source_id")
-                                break
+                        if source_url and "/" in target_repo:
+                            try:
+                                parsed = urlparse(source_url)
+                                if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
+                                    target_org = target_repo.split("/")[0]
+                                    ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                                    if ado_org_match and ado_org_match.group(1) == target_org:
+                                        # Org matches - this is likely the same ADO organization
+                                        work_item_id = entry.get("source_id")
+                                        break
+                            except Exception:
+                                pass
 
                     # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
                     # This prevents cross-project matches when both entry_repo and target_repo have project names
