@@ -217,7 +217,7 @@ class TestAdoFieldMapper:
     def test_extract_acceptance_criteria_multiple_alternatives(self) -> None:
         """Test that both System.AcceptanceCriteria and Microsoft.VSTS.Common.AcceptanceCriteria work."""
         mapper = AdoFieldMapper()
-        
+
         # Test with Microsoft.VSTS.Common.AcceptanceCriteria (preferred in many ADO templates)
         item_data_common = {
             "fields": {
@@ -228,7 +228,7 @@ class TestAdoFieldMapper:
         }
         fields_common = mapper.extract_fields(item_data_common)
         assert fields_common["acceptance_criteria"] == "Common AC"
-        
+
         # Test with System.AcceptanceCriteria (backward compatibility)
         item_data_system = {
             "fields": {
@@ -239,7 +239,7 @@ class TestAdoFieldMapper:
         }
         fields_system = mapper.extract_fields(item_data_system)
         assert fields_system["acceptance_criteria"] == "System AC"
-        
+
         # Test priority: if both exist, should use first found (order in DEFAULT_FIELD_MAPPINGS)
         item_data_both = {
             "fields": {
@@ -390,9 +390,7 @@ class TestAdoFieldMapper:
         assert ado_fields["System.Description"] == "Main description"
         # Acceptance criteria can map to either System.AcceptanceCriteria or Microsoft.VSTS.Common.AcceptanceCriteria
         # Reverse mapping picks first match in DEFAULT_FIELD_MAPPINGS
-        assert (
-            "System.AcceptanceCriteria" in ado_fields or "Microsoft.VSTS.Common.AcceptanceCriteria" in ado_fields
-        )
+        assert "System.AcceptanceCriteria" in ado_fields or "Microsoft.VSTS.Common.AcceptanceCriteria" in ado_fields
         acceptance_criteria_value = ado_fields.get("System.AcceptanceCriteria") or ado_fields.get(
             "Microsoft.VSTS.Common.AcceptanceCriteria"
         )

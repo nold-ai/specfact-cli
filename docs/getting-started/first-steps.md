@@ -47,6 +47,11 @@ cd /path/to/your/project
 # Step 3: Initialize IDE integration (one-time)
 specfact init
 
+# This creates:
+# - .specfact/ directory structure
+# - .specfact/templates/backlog/field_mappings/ with default ADO field mapping templates
+# - IDE-specific command files for your AI assistant
+
 # Step 4: Use slash command in IDE chat
 /specfact.01-import legacy-api --repo .
 # Or let the AI assistant prompt you for bundle name
@@ -168,6 +173,7 @@ specfact plan init my-project --interactive
 - Creates `.specfact/` directory structure
 - Prompts you for project title and description
 - Creates modular project bundle at `.specfact/projects/my-project/`
+- Copies default ADO field mapping templates to `.specfact/templates/backlog/field_mappings/` for review and customization
 
 **Example output**:
 

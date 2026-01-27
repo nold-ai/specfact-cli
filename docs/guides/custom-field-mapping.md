@@ -181,29 +181,42 @@ This command will:
 
 1. Fetch all available fields from your Azure DevOps project
 2. Filter out system-only fields automatically
-3. Display a list of relevant fields for each canonical field
-4. Guide you through mapping ADO fields to canonical field names
-5. Save the mapping to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+3. Pre-populate default mappings from `AdoFieldMapper.DEFAULT_FIELD_MAPPINGS`
+4. Prefer `Microsoft.VSTS.Common.*` fields over `System.*` fields for better compatibility
+5. Use regex/fuzzy matching to suggest potential matches when no default exists
+6. Display an interactive menu with arrow-key navigation (↑↓ to navigate, Enter to select)
+7. Pre-select the best match (existing custom > default > fuzzy match > "<no mapping>")
+8. Guide you through mapping ADO fields to canonical field names
+9. Validate the mapping before saving
+10. Save the mapping to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+
+**Interactive Menu Navigation:**
+
+- Use **↑** (Up arrow) and **↓** (Down arrow) to navigate through available ADO fields
+- Press **Enter** to select a field
+- The menu shows all available ADO fields in a scrollable list
+- Default mappings are pre-selected automatically
+- Fuzzy matching suggests relevant fields when no default mapping exists
 
 **Example Output:**
 
-```
+```bash
 Fetching fields from Azure DevOps...
 ✓ Loaded existing mapping from .specfact/templates/backlog/field_mappings/ado_custom.yaml
 
 Interactive Field Mapping
-Map ADO fields to canonical field names. Press Enter to skip a field.
+Map ADO fields to canonical field names.
 
 Description (canonical: description)
   Current mapping: System.Description
 
-  Available ADO fields (showing first 20 of 45):
-    1. System.Description (Description)
-    2. Microsoft.VSTS.Common.AcceptanceCriteria (Acceptance Criteria)
-    3. Microsoft.VSTS.Common.StoryPoints (Story Points)
+  Available ADO fields:
+  > System.Description (Description)                    [default - pre-selected]
+    Microsoft.VSTS.Common.AcceptanceCriteria (Acceptance Criteria)
+    Microsoft.VSTS.Common.StoryPoints (Story Points)
+    Microsoft.VSTS.Scheduling.StoryPoints (Story Points)
     ...
-
-  Enter ADO field for Description (reference name or number, or press Enter to skip) [default: System.Description]: 1
+    <no mapping>
 ```
 
 ### Method 2: Using ADO REST API
@@ -252,7 +265,7 @@ The API returns a JSON array with field information:
 - **SAFe**: `Microsoft.VSTS.Scheduling.StoryPoints`, `Microsoft.VSTS.Common.AcceptanceCriteria`
 - **Custom Templates**: May use `Custom.*` prefix (e.g., `Custom.StoryPoints`, `Custom.AcceptanceCriteria`)
 
-**Note**: The field `Microsoft.VSTS.Common.AcceptanceCriteria` is commonly used in many ADO process templates, while `System.AcceptanceCriteria` is less common. SpecFact CLI supports both by default.
+**Note**: The field `Microsoft.VSTS.Common.AcceptanceCriteria` is commonly used in many ADO process templates, while `System.AcceptanceCriteria` is less common. SpecFact CLI supports both by default and **prefers `Microsoft.VSTS.Common.*` fields over `System.*` fields** when multiple alternatives exist for better compatibility across different ADO process templates.
 
 ## Using Custom Field Mappings
 
@@ -276,19 +289,35 @@ This command:
 
 - `--ado-org`: Azure DevOps organization (required)
 - `--ado-project`: Azure DevOps project (required)
-- `--ado-token`: Azure DevOps PAT (optional, uses `AZURE_DEVOPS_TOKEN` env var if not provided)
+- `--ado-token`: Azure DevOps PAT (optional, uses token resolution priority: explicit > env var > stored token)
+- `--reset`: Reset custom field mapping to defaults (deletes `ado_custom.yaml` and restores default mappings)
 - `--ado-base-url`: Azure DevOps base URL (defaults to `https://dev.azure.com`)
 
-**Example:**
+**Token Resolution:**
+
+The command automatically uses stored tokens from `specfact auth azure-devops` if available. Token resolution priority:
+
+1. Explicit `--ado-token` parameter
+2. `AZURE_DEVOPS_TOKEN` environment variable
+3. Stored token via `specfact auth azure-devops`
+4. Expired stored token (with warning and options to refresh)
+
+**Examples:**
 
 ```bash
-# Using environment variable for token
-export AZURE_DEVOPS_TOKEN=your_token_here
+# Uses stored token automatically (recommended)
 specfact backlog map-fields --ado-org myorg --ado-project myproject
 
-# Or provide token directly
+# Override with explicit token
 specfact backlog map-fields --ado-org myorg --ado-project myproject --ado-token your_token_here
+
+# Reset to default mappings
+specfact backlog map-fields --ado-org myorg --ado-project myproject --reset
 ```
+
+**Automatic Usage:**
+
+After creating a custom mapping, it is **automatically used** by all subsequent backlog operations in that directory. No restart or additional configuration needed. The `AdoFieldMapper` automatically detects and loads `.specfact/templates/backlog/field_mappings/ado_custom.yaml` if it exists.
 
 ### Method 2: CLI Parameter
 
@@ -315,7 +344,7 @@ The CLI will:
 
 Place your custom mapping file at:
 
-```
+```bash
 .specfact/templates/backlog/field_mappings/ado_custom.yaml
 ```
 
@@ -491,19 +520,19 @@ The CLI validates custom mapping files before use:
 
 **File Not Found**:
 
-```
+```bash
 Error: Custom field mapping file not found: /path/to/file.yaml
 ```
 
 **Invalid YAML**:
 
-```
+```bash
 Error: Invalid custom field mapping file: YAML parsing error
 ```
 
 **Invalid Schema**:
 
-```
+```bash
 Error: Invalid custom field mapping file: Field 'field_mappings' must be a dict
 ```
 
@@ -561,14 +590,36 @@ If your custom mapping is not being applied:
 
 If the interactive mapping command (`specfact backlog map-fields`) fails:
 
-1. **Check ADO Connection**: Verify you can connect to Azure DevOps
+1. **Check Token Resolution**: The command uses token resolution priority:
+   - First: Explicit `--ado-token` parameter
+   - Second: `AZURE_DEVOPS_TOKEN` environment variable
+   - Third: Stored token via `specfact auth azure-devops`
+   - Fourth: Expired stored token (shows warning with options)
+
+   **Solutions:**
+   - Use `--ado-token` to provide token explicitly
+   - Set `AZURE_DEVOPS_TOKEN` environment variable
+   - Store token: `specfact auth azure-devops --pat your_pat_token`
+   - Re-authenticate: `specfact auth azure-devops`
+
+2. **Check ADO Connection**: Verify you can connect to Azure DevOps
    - Test with: `curl -u ":{token}" "https://dev.azure.com/{org}/{project}/_apis/wit/fields?api-version=7.1"`
-2. **Verify Permissions**: Ensure your PAT has "Work Items (Read)" permission
-3. **Check Token**: Verify your token is valid and not expired
-   - Use `--ado-token` option or set `AZURE_DEVOPS_TOKEN` environment variable
-4. **Verify Organization/Project**: Ensure the org and project names are correct
+
+3. **Verify Permissions**: Ensure your PAT has "Work Items (Read)" permission
+
+4. **Check Token Expiration**: OAuth tokens expire after ~1 hour
+   - Use PAT token for longer expiration (up to 1 year): `specfact auth azure-devops --pat your_pat_token`
+
+5. **Verify Organization/Project**: Ensure the org and project names are correct
    - Check for typos in organization or project names
-5. **Check Base URL**: For Azure DevOps Server (on-premise), use `--ado-base-url` option
+
+6. **Check Base URL**: For Azure DevOps Server (on-premise), use `--ado-base-url` option
+
+7. **Reset to Defaults**: If mappings are corrupted, use `--reset` to restore defaults:
+
+   ```bash
+   specfact backlog map-fields --ado-org myorg --ado-project myproject --reset
+   ```
 
 ### Validation Errors
 

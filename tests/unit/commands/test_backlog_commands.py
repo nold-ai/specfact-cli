@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -79,7 +78,9 @@ class TestBacklogPreviewOutput:
             state="New",
             assignees=[],
         )
-        assignee_display_unassigned = ", ".join(item_unassigned.assignees) if item_unassigned.assignees else "Unassigned"
+        assignee_display_unassigned = (
+            ", ".join(item_unassigned.assignees) if item_unassigned.assignees else "Unassigned"
+        )
         assert assignee_display_unassigned == "Unassigned"
 
 
@@ -116,7 +117,7 @@ class TestInteractiveMappingCommand:
         mock_prompt.return_value = ""
         mock_confirm.return_value = False
 
-        result = runner.invoke(
+        runner.invoke(
             app,
             [
                 "backlog",
@@ -149,8 +150,16 @@ class TestInteractiveMappingCommand:
         mock_response.json.return_value = {
             "value": [
                 {"referenceName": "System.Id", "name": "ID", "type": "integer"},  # System field - should be filtered
-                {"referenceName": "System.Rev", "name": "Revision", "type": "integer"},  # System field - should be filtered
-                {"referenceName": "System.Description", "name": "Description", "type": "html"},  # User field - should be included
+                {
+                    "referenceName": "System.Rev",
+                    "name": "Revision",
+                    "type": "integer",
+                },  # System field - should be filtered
+                {
+                    "referenceName": "System.Description",
+                    "name": "Description",
+                    "type": "html",
+                },  # User field - should be included
                 {
                     "referenceName": "Microsoft.VSTS.Common.AcceptanceCriteria",
                     "name": "Acceptance Criteria",
@@ -165,7 +174,7 @@ class TestInteractiveMappingCommand:
         mock_prompt.return_value = ""
         mock_confirm.return_value = False
 
-        result = runner.invoke(
+        runner.invoke(
             app,
             [
                 "backlog",

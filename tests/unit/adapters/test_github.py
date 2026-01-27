@@ -244,7 +244,10 @@ class TestGitHubAdapter:
         """Test error when API token is missing."""
         from unittest.mock import patch
 
-        with patch("specfact_cli.adapters.github._get_github_token_from_gh_cli", return_value=None):
+        with (
+            patch("specfact_cli.adapters.github._get_github_token_from_gh_cli", return_value=None),
+            patch("specfact_cli.adapters.github.get_token", return_value=None),
+        ):
             adapter = GitHubAdapter(repo_owner="test-owner", repo_name="test-repo", api_token=None, use_gh_cli=False)
             os.environ.pop("GITHUB_TOKEN", None)  # Ensure env var is not set
 
@@ -262,7 +265,10 @@ class TestGitHubAdapter:
         """Test using GitHub CLI token when available."""
         from unittest.mock import patch
 
-        with patch("specfact_cli.adapters.github._get_github_token_from_gh_cli", return_value="gh_cli_token_12345"):
+        with (
+            patch("specfact_cli.adapters.github._get_github_token_from_gh_cli", return_value="gh_cli_token_12345"),
+            patch("specfact_cli.adapters.github.get_token", return_value=None),
+        ):
             adapter = GitHubAdapter(repo_owner="test-owner", repo_name="test-repo", api_token=None, use_gh_cli=True)
             os.environ.pop("GITHUB_TOKEN", None)  # Ensure env var is not set
 

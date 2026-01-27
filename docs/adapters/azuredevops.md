@@ -90,13 +90,64 @@ external_base_path: ../openspec-repo  # Optional: cross-repo support
 
 **Note**: Organization, project, and API token are **not** stored in bridge config for security. They must be provided via CLI flags or environment variables.
 
+### Field Mapping
+
+The adapter supports flexible field mapping to handle different ADO process templates:
+
+- **Multiple Field Alternatives**: Supports multiple ADO field names mapping to the same canonical field (e.g., both `System.AcceptanceCriteria` and `Microsoft.VSTS.Common.AcceptanceCriteria` map to `acceptance_criteria`)
+- **Default Mappings**: Includes default mappings for common ADO fields (Scrum, Agile, SAFe, Kanban)
+- **Custom Mappings**: Supports per-project custom field mappings via `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+- **Interactive Mapping**: Use `specfact backlog map-fields` to interactively discover and map ADO fields for your project
+
+**Interactive Field Mapping Command**:
+
+```bash
+# Discover and map ADO fields interactively
+specfact backlog map-fields --ado-org myorg --ado-project myproject
+```
+
+This command:
+
+- Fetches available fields from your ADO project
+- Pre-populates default mappings
+- Uses arrow-key navigation for field selection
+- Saves mappings to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+- Automatically used by all subsequent backlog operations
+
+See [Custom Field Mapping Guide](../guides/custom-field-mapping.md) for complete documentation.
+
+### Assignee Extraction and Display
+
+The adapter extracts assignee information from ADO work items:
+
+- **Extraction**: Assignees are extracted from `System.AssignedTo` field
+- **Display**: Assignees are always displayed in backlog refinement preview output
+- **Format**: Shows assignee names or "Unassigned" if no assignee
+- **Preservation**: Assignee information is preserved during refinement and sync operations
+
 ### Authentication
 
 The adapter supports multiple authentication methods (in order of precedence):
 
 1. **Explicit token**: `api_token` parameter or `--ado-token` CLI flag
 2. **Environment variable**: `AZURE_DEVOPS_TOKEN` (also accepts `ADO_TOKEN` or `AZURE_DEVOPS_PAT`)
-3. **Stored auth token**: `specfact auth azure-devops` (device code flow)
+3. **Stored auth token**: `specfact auth azure-devops` (device code flow or PAT token)
+
+**Token Resolution Priority**:
+
+When using ADO commands, tokens are resolved in this order:
+
+1. Explicit `--ado-token` parameter
+2. `AZURE_DEVOPS_TOKEN` environment variable
+3. Stored token via `specfact auth azure-devops`
+4. Expired stored token (shows warning with options to refresh)
+
+**Token Types**:
+
+- **OAuth Tokens**: Device code flow, expire after ~1 hour, automatically refreshed when possible
+- **PAT Tokens**: Personal Access Tokens, can last up to 1 year, recommended for automation
+
+See [Authentication Guide](../reference/authentication.md) for complete documentation.
 
 **Example:**
 
@@ -368,6 +419,7 @@ The adapter uses a three-level matching strategy to prevent duplicate work items
 3. **Org-only match**: For ADO, match by organization only when project names differ
 
 This handles cases where:
+
 - ADO URLs contain GUIDs instead of project names (e.g., `dominikusnold/69b5d0c2-2400-470d-b937-b5205503a679`)
 - Project names change but organization stays the same
 - Work items are synced across different projects in the same organization
