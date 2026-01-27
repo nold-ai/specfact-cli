@@ -38,6 +38,9 @@ class BacklogItem(BaseModel):
     title: str = Field(..., description="Backlog item title")
     body_markdown: str = Field(default="", description="Backlog item body in Markdown format")
     state: str = Field(..., description="Backlog item state (open, closed, etc.)")
+    acceptance_criteria: str | None = Field(
+        default=None, description="Acceptance criteria for the item (separate from body_markdown, all frameworks)"
+    )
 
     # Metadata fields
     assignees: list[str] = Field(default_factory=list, description="List of assignee usernames")
@@ -52,6 +55,22 @@ class BacklogItem(BaseModel):
     area: str | None = Field(default=None, description="Area path/component")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Creation timestamp")
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Last update timestamp")
+
+    # Agile framework fields (Kanban/Scrum/SAFe)
+    story_points: int | None = Field(
+        default=None,
+        description="Story points estimate (0-100 range, Scrum/SAFe). Stories > 13 points may need splitting.",
+    )
+    business_value: int | None = Field(default=None, description="Business value estimate (0-100 range, Scrum/SAFe)")
+    priority: int | None = Field(default=None, description="Priority level (1-4 range, 1=highest, all frameworks)")
+    value_points: int | None = Field(
+        default=None,
+        description="Value points (SAFe-specific, calculated from business_value / story_points). Used for WSJF prioritization.",
+    )
+    work_item_type: str | None = Field(
+        default=None,
+        description="Work item type (Epic, Feature, User Story, Task, Bug, etc., framework-aware). Supports Kanban, Scrum, SAFe hierarchies.",
+    )
 
     # Tracking fields
     source_tracking: SourceTracking | None = Field(default=None, description="Source tracking metadata")

@@ -119,7 +119,9 @@ I can access my account and protected resources
 - User is redirected to dashboard on successful login"""
 
         # Step 5: Validate refined content (simulating backlog refine command)
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         assert validation_result.confidence >= 0.85
 
@@ -181,7 +183,9 @@ I can accomplish my goal
 ## Acceptance Criteria
 - Feature is available"""
 
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
         backlog_item.refined_body = validation_result.refined_body
         backlog_item.apply_refinement()
 
@@ -237,7 +241,9 @@ I can complete my tasks without delays
 - Page load time < 2 seconds
 - API response time < 500ms"""
 
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
         backlog_item.refined_body = validation_result.refined_body
         backlog_item.apply_refinement()
 

@@ -70,7 +70,7 @@ class TestBacklogAIRefiner:
 
     @beartype
     def test_validate_and_score_complete_refinement(
-        self, refiner: BacklogAIRefiner, user_story_template: BacklogTemplate
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:
         """Test validating complete refinement (high confidence)."""
         original_body = "Some original content"
@@ -87,7 +87,9 @@ I can access my account
 - User can enter credentials
 - User can click login button"""
 
-        result = refiner.validate_and_score_refinement(refined_body, original_body, user_story_template)
+        result = refiner.validate_and_score_refinement(
+            refined_body, original_body, user_story_template, arbitrary_backlog_item
+        )
 
         assert isinstance(result, RefinementResult)
         assert result.refined_body == refined_body
@@ -97,7 +99,7 @@ I can access my account
 
     @beartype
     def test_validate_and_score_with_todo_markers(
-        self, refiner: BacklogAIRefiner, user_story_template: BacklogTemplate
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:
         """Test validating refinement with TODO markers (medium confidence)."""
         original_body = "Some original content"
@@ -114,14 +116,16 @@ to log in
 - User can enter credentials
 - [TODO: add more criteria]"""
 
-        result = refiner.validate_and_score_refinement(refined_body, original_body, user_story_template)
+        result = refiner.validate_and_score_refinement(
+            refined_body, original_body, user_story_template, arbitrary_backlog_item
+        )
 
         assert result.confidence < 0.85
         assert result.has_todo_markers is True
 
     @beartype
     def test_validate_and_score_with_notes_section(
-        self, refiner: BacklogAIRefiner, user_story_template: BacklogTemplate
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:
         """Test validating refinement with NOTES section (lower confidence)."""
         original_body = "Some original content"
@@ -140,32 +144,38 @@ I can access my account
 ## NOTES
 There's some ambiguity about the login method."""
 
-        result = refiner.validate_and_score_refinement(refined_body, original_body, user_story_template)
+        result = refiner.validate_and_score_refinement(
+            refined_body, original_body, user_story_template, arbitrary_backlog_item
+        )
 
         assert result.confidence < 0.85
         assert result.has_notes_section is True
 
     @beartype
     def test_validate_missing_required_sections_raises(
-        self, refiner: BacklogAIRefiner, user_story_template: BacklogTemplate
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:
         """Test that validation raises error for missing required sections."""
         original_body = "Some original content"
         refined_body = "Incomplete refinement without required sections"
 
         with pytest.raises(ValueError, match="missing required sections"):
-            refiner.validate_and_score_refinement(refined_body, original_body, user_story_template)
+            refiner.validate_and_score_refinement(
+                refined_body, original_body, user_story_template, arbitrary_backlog_item
+            )
 
     @beartype
     def test_validate_empty_refinement_raises(
-        self, refiner: BacklogAIRefiner, user_story_template: BacklogTemplate
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:
         """Test that validation raises error for empty refinement."""
         original_body = "Some original content"
         refined_body = ""
 
         with pytest.raises(ValueError, match="Refined body is empty"):
-            refiner.validate_and_score_refinement(refined_body, original_body, user_story_template)
+            refiner.validate_and_score_refinement(
+                refined_body, original_body, user_story_template, arbitrary_backlog_item
+            )
 
     @beartype
     def test_validate_arbitrary_input_refinement(
@@ -189,8 +199,93 @@ I can access my account and protected resources
 - User is redirected to dashboard on success"""
 
         result = refiner.validate_and_score_refinement(
-            refined_body, arbitrary_backlog_item.body_markdown, user_story_template
+            refined_body, arbitrary_backlog_item.body_markdown, user_story_template, arbitrary_backlog_item
         )
 
         assert result.confidence >= 0.85
         assert all(section in result.refined_body for section in ["As a", "I want", "So that", "Acceptance Criteria"])
+
+    @beartype
+    def test_validate_agile_fields_valid(self, refiner: BacklogAIRefiner) -> None:
+        """Test validating agile fields with valid values."""
+        item = BacklogItem(
+            id="123",
+            provider="github",
+            url="https://github.com/test/repo/issues/123",
+            title="Test",
+            body_markdown="Test",
+            state="open",
+            story_points=8,
+            business_value=50,
+            priority=2,
+            value_points=6,
+        )
+
+        errors = refiner._validate_agile_fields(item)
+        assert errors == []
+
+    @beartype
+    def test_validate_agile_fields_invalid_story_points(self, refiner: BacklogAIRefiner) -> None:
+        """Test validating agile fields with invalid story_points."""
+        item = BacklogItem(
+            id="123",
+            provider="github",
+            url="https://github.com/test/repo/issues/123",
+            title="Test",
+            body_markdown="Test",
+            state="open",
+            story_points=150,  # Out of range
+        )
+
+        errors = refiner._validate_agile_fields(item)
+        assert len(errors) > 0
+        assert any("story_points" in error and "0-100" in error for error in errors)
+
+    @beartype
+    def test_validate_agile_fields_invalid_priority(self, refiner: BacklogAIRefiner) -> None:
+        """Test validating agile fields with invalid priority."""
+        item = BacklogItem(
+            id="123",
+            provider="github",
+            url="https://github.com/test/repo/issues/123",
+            title="Test",
+            body_markdown="Test",
+            state="open",
+            priority=10,  # Out of range
+        )
+
+        errors = refiner._validate_agile_fields(item)
+        assert len(errors) > 0
+        assert any("priority" in error and "1-4" in error for error in errors)
+
+    @beartype
+    def test_validate_and_score_with_invalid_fields_raises(
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
+    ) -> None:
+        """Test that validation raises error for invalid agile fields."""
+        # Create item with invalid story_points
+        invalid_item = BacklogItem(
+            id="123",
+            provider="github",
+            url="https://github.com/test/repo/issues/123",
+            title="Test",
+            body_markdown="Test",
+            state="open",
+            story_points=150,  # Out of range
+        )
+
+        original_body = "Some original content"
+        refined_body = """## As a
+user
+
+## I want
+to log in
+
+## So that
+I can access my account
+
+## Acceptance Criteria
+- User can enter credentials"""
+
+        with pytest.raises(ValueError, match="Field validation errors"):
+            refiner.validate_and_score_refinement(refined_body, original_body, user_story_template, invalid_item)

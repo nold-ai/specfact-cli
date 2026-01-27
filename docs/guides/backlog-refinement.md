@@ -90,6 +90,13 @@ specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
 
 # Refine with defect template
 specfact backlog refine ado --template defect_v1 --search "WorkItemType = 'Bug'"
+
+# Use custom field mapping for custom ADO process templates
+specfact backlog refine ado \
+  --ado-org my-org \
+  --ado-project my-project \
+  --custom-field-mapping /path/to/ado_custom.yaml \
+  --state Active
 ```
 
 ---
@@ -391,6 +398,13 @@ specfact backlog refine github \
 # Refine ADO work items with sprint filter
 specfact backlog refine ado --sprint "Sprint 1" --state Active
 
+# Refine ADO work items with custom field mapping
+specfact backlog refine ado \
+  --ado-org my-org \
+  --ado-project my-project \
+  --custom-field-mapping .specfact/templates/backlog/field_mappings/ado_custom.yaml \
+  --state Active
+
 # Refine ADO work items with iteration path
 specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
 ```
@@ -548,6 +562,43 @@ specfact backlog refine github --search "is:open label:feature"
 ```
 
 ---
+
+## Field Mapping and Customization
+
+### Custom Field Mappings for Azure DevOps
+
+If your Azure DevOps organization uses custom process templates with non-standard field names, you can create custom field mappings to map your ADO fields to canonical field names.
+
+**Quick Example**:
+
+```bash
+# Use custom field mapping file
+specfact backlog refine ado \
+  --ado-org my-org \
+  --ado-project my-project \
+  --custom-field-mapping .specfact/templates/backlog/field_mappings/ado_custom.yaml \
+  --state Active
+```
+
+**Custom Mapping File Format**:
+
+Create a YAML file at `.specfact/templates/backlog/field_mappings/ado_custom.yaml`:
+
+```yaml
+framework: scrum
+
+field_mappings:
+  System.Description: description
+  Custom.StoryPoints: story_points
+  Custom.BusinessValue: business_value
+  Custom.Priority: priority
+
+work_item_type_mappings:
+  Product Backlog Item: User Story
+  Requirement: User Story
+```
+
+**See Also**: [Custom Field Mapping Guide](./custom-field-mapping.md) for complete documentation on field mapping templates, framework-specific examples, and best practices.
 
 ## Template Customization
 

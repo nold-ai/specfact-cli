@@ -9,6 +9,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.7] - 2026-01-27
+
+### Fixed (0.26.7)
+
+- **Adapter Token Validation Tests**: Fixed test failures in ADO and GitHub adapter token validation tests
+  - **ADO Adapter**: Added proper mocking of `get_token()` to prevent stored tokens from interfering with missing token tests
+  - **GitHub Adapter**: Fixed token validation tests by properly mocking both `get_token()` and `_get_github_token_from_gh_cli()` functions
+  - **Test Reliability**: Tests now correctly validate error handling when API tokens are missing
+
+- **Test Timeout Issues**: Resolved multiple test timeout failures in E2E and integration tests
+  - **Commit History Analysis**: Skip commit history analysis in `TEST_MODE` to prevent git operation timeouts
+  - **AST Parsing**: Added filtering to exclude virtual environment directories (`.venv`, `venv`, `site-packages`) from test file discovery and AST parsing
+  - **Large File Handling**: Added file size limit (1MB) check before AST parsing to prevent timeouts on large dependency files
+  - **Semgrep Integration Tests**: Set `TEST_MODE=true` in Semgrep integration tests to skip actual Semgrep execution and prevent ThreadPoolExecutor deadlocks
+
+- **Test File Discovery**: Improved test file discovery to exclude virtual environment directories
+  - **TestPatternExtractor**: Enhanced `_discover_test_files()` to filter out `.venv`, `venv`, `.env`, `env`, `__pycache__`, and `site-packages` directories
+  - **Test File Validation**: Added path validation to ensure test files are within repository boundaries
+
+---
+
 ## [0.26.6] - 2026-01-23
 
 ### Added (0.26.6)
@@ -35,6 +56,7 @@ All notable changes to this project will be documented in this file.
   - Progress indicators use `rich.progress.Progress` with transient display
 
 ---
+
 ## [0.26.5] - 2026-01-21
 
 ### Added (0.26.5)

@@ -27,6 +27,9 @@ console = get_configured_console()
 
 
 AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798/.default"
+# Note: Refresh tokens (90-day lifetime) are automatically obtained via persistent token cache
+# offline_access is a reserved scope and cannot be explicitly requested
+AZURE_DEVOPS_SCOPES = [AZURE_DEVOPS_RESOURCE]
 DEFAULT_GITHUB_BASE_URL = "https://github.com"
 DEFAULT_GITHUB_API_URL = "https://api.github.com"
 DEFAULT_GITHUB_SCOPES = "repo"
@@ -183,8 +186,9 @@ def auth_azure_devops(
     2. **OAuth Flow** (default, when no PAT provided):
        - **First tries interactive browser** (opens browser automatically, better UX)
        - **Falls back to device code** if browser unavailable (SSH/headless environments)
-       - Access tokens expire after ~1 hour, refresh tokens last 90 days
-       - Automatic token refresh via persistent cache (no re-authentication needed)
+       - Access tokens expire after ~1 hour, refresh tokens last 90 days (obtained automatically via persistent cache)
+       - Refresh tokens are automatically obtained when using persistent token cache (no explicit scope needed)
+       - Automatic token refresh via persistent cache (no re-authentication needed for 90 days)
        - Example: specfact auth azure-devops
 
     3. **Force Device Code Flow** (--use-device-code):
@@ -246,33 +250,91 @@ def auth_azure_devops(
     try:
         from azure.identity import TokenCachePersistenceOptions  # type: ignore[reportMissingImports]
 
-        # Try encrypted cache first (secure), fall back to unencrypted if libsecret unavailable
+        # Try encrypted cache first (secure), fall back to unencrypted if keyring is locked
+        # Note: On Linux, the GNOME Keyring must be unlocked for encrypted cache to work.
+        # In SSH sessions, the keyring is typically locked and needs to be unlocked manually.
+        # The unencrypted cache fallback provides the same functionality (persistent storage,
+        # automatic refresh) without encryption.
         try:
             cache_options = TokenCachePersistenceOptions(
                 name="specfact-azure-devops",  # Shared cache name across processes
-                allow_unencrypted_cache=False,  # Prefer encrypted storage
+                allow_unencrypted_storage=False,  # Prefer encrypted storage
             )
-            console.print(
-                "[dim]Persistent token cache enabled (encrypted) - tokens will refresh automatically (like Azure CLI)[/dim]"
-            )
+            # Don't claim encrypted cache is enabled until we verify it works
+            # We'll print a message after successful authentication
+            # Check if we're on Linux and provide helpful info
+            import os
+            import platform
+
+            if platform.system() == "Linux":
+                # Check D-Bus and secret service availability
+                dbus_session = os.environ.get("DBUS_SESSION_BUS_ADDRESS")
+                if not dbus_session:
+                    console.print(
+                        "[yellow]Note:[/yellow] D-Bus session not detected. Encrypted cache may fail.\n"
+                        "[dim]To enable encrypted cache, ensure D-Bus is available:\n"
+                        "[dim]  - In SSH sessions: export $(dbus-launch)\n"
+                        "[dim]  - Unlock keyring: echo -n 'YOUR_PASSWORD' | gnome-keyring-daemon --replace --unlock[/dim]"
+                    )
         except Exception:
             # Encrypted cache not available (e.g., libsecret missing on Linux), try unencrypted
             try:
                 cache_options = TokenCachePersistenceOptions(
                     name="specfact-azure-devops",
-                    allow_unencrypted_cache=True,  # Fallback: unencrypted storage
+                    allow_unencrypted_storage=True,  # Fallback: unencrypted storage
                 )
                 use_unencrypted_cache = True
                 console.print(
-                    "[yellow]Note:[/yellow] Using unencrypted token cache (libsecret unavailable). "
-                    "Tokens will refresh automatically but stored without encryption."
+                    "[yellow]Note:[/yellow] Encrypted cache unavailable (keyring locked). "
+                    "Using unencrypted cache instead.\n"
+                    "[dim]Tokens will be stored in plain text file but will refresh automatically.[/dim]"
                 )
+                # Provide installation instructions for Linux
+                import platform
+
+                if platform.system() == "Linux":
+                    import os
+
+                    dbus_session = os.environ.get("DBUS_SESSION_BUS_ADDRESS")
+                    console.print(
+                        "[dim]To enable encrypted cache on Linux:\n"
+                        "  1. Ensure packages are installed:\n"
+                        "     Ubuntu/Debian: sudo apt-get install libsecret-1-dev python3-secretstorage\n"
+                        "     RHEL/CentOS: sudo yum install libsecret-devel python3-secretstorage\n"
+                        "     Arch: sudo pacman -S libsecret python-secretstorage\n"
+                    )
+                    if not dbus_session:
+                        console.print(
+                            "[dim]  2. D-Bus session not detected. To enable encrypted cache:\n"
+                            "[dim]     - Start D-Bus: export $(dbus-launch)\n"
+                            "[dim]     - Unlock keyring: echo -n 'YOUR_PASSWORD' | gnome-keyring-daemon --replace --unlock\n"
+                            "[dim]     - Or use unencrypted cache (current fallback)[/dim]"
+                        )
+                    else:
+                        console.print(
+                            "[dim]  2. D-Bus session detected, but keyring may be locked.\n"
+                            "[dim]     To unlock keyring in SSH session:\n"
+                            "[dim]       export $(dbus-launch)\n"
+                            "[dim]       echo -n 'YOUR_PASSWORD' | gnome-keyring-daemon --replace --unlock\n"
+                            "[dim]     Or use unencrypted cache (current fallback)[/dim]"
+                        )
             except Exception:
                 # Persistent cache completely unavailable, use in-memory only
                 console.print(
                     "[yellow]Note:[/yellow] Persistent cache not available, using in-memory cache only. "
-                    "Tokens will need to be refreshed manually after ~1 hour."
+                    "Tokens will need to be refreshed manually after expiration."
                 )
+                # Provide installation instructions for Linux
+                import platform
+
+                if platform.system() == "Linux":
+                    console.print(
+                        "[dim]To enable persistent token cache on Linux, install libsecret:\n"
+                        "  Ubuntu/Debian: sudo apt-get install libsecret-1-dev python3-secretstorage\n"
+                        "  RHEL/CentOS: sudo yum install libsecret-devel python3-secretstorage\n"
+                        "  Arch: sudo pacman -S libsecret python-secretstorage\n"
+                        "  Also ensure a secret service daemon is running (gnome-keyring, kwallet, etc.)[/dim]"
+                    )
     except ImportError:
         # TokenCachePersistenceOptions not available in this version
         pass
@@ -284,9 +346,13 @@ def auth_azure_devops(
         # First try with current cache_options
         try:
             credential = credential_class(cache_persistence_options=cache_options, **credential_kwargs)
-            return credential.get_token(AZURE_DEVOPS_RESOURCE)
+            # Refresh tokens are automatically obtained via persistent token cache
+            return credential.get_token(*AZURE_DEVOPS_SCOPES)
         except Exception as e:
             error_msg = str(e).lower()
+            # Log the actual error for debugging (only in verbose mode or if it's not a cache encryption error)
+            if "cache encryption" not in error_msg and "libsecret" not in error_msg:
+                console.print(f"[dim]Authentication error: {type(e).__name__}: {e}[/dim]")
             # Check if error is about cache encryption and we haven't already tried unencrypted
             if (
                 ("cache encryption" in error_msg or "libsecret" in error_msg)
@@ -300,12 +366,13 @@ def auth_azure_devops(
 
                     unencrypted_cache = TokenCachePersistenceOptions(
                         name="specfact-azure-devops",
-                        allow_unencrypted_cache=True,
+                        allow_unencrypted_storage=True,  # Use unencrypted file storage
                     )
                     credential = credential_class(cache_persistence_options=unencrypted_cache, **credential_kwargs)
-                    token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+                    # Refresh tokens are automatically obtained via persistent token cache
+                    token = credential.get_token(*AZURE_DEVOPS_SCOPES)
                     console.print(
-                        "[yellow]Note:[/yellow] Using unencrypted token cache (libsecret unavailable). "
+                        "[yellow]Note:[/yellow] Using unencrypted token cache (keyring locked). "
                         "Tokens will refresh automatically but stored without encryption."
                     )
                     # Update global cache_options for future use
@@ -320,7 +387,8 @@ def auth_azure_devops(
                         console.print("[yellow]Note:[/yellow] Persistent cache unavailable, trying without cache...")
                         try:
                             credential = credential_class(**credential_kwargs)
-                            token = credential.get_token(AZURE_DEVOPS_RESOURCE)
+                            # Without persistent cache, refresh tokens cannot be stored
+                            token = credential.get_token(*AZURE_DEVOPS_SCOPES)
                             console.print(
                                 "[yellow]Note:[/yellow] Using in-memory cache only. "
                                 "Tokens will need to be refreshed manually after ~1 hour."
@@ -355,22 +423,81 @@ def auth_azure_devops(
             console.print(f"[bold red]✗[/bold red] Authentication failed: {e}")
             raise typer.Exit(1) from e
 
-    expires_at = datetime.fromtimestamp(token.expires_on, tz=UTC).isoformat()
+    # token.expires_on is Unix timestamp in seconds since epoch (UTC)
+    # Verify it's in seconds (not milliseconds) - if > 1e10, it's likely milliseconds
+    expires_on_timestamp = token.expires_on
+    if expires_on_timestamp > 1e10:
+        # Likely in milliseconds, convert to seconds
+        expires_on_timestamp = expires_on_timestamp / 1000
+
+    # Convert to datetime for display
+    expires_at_dt = datetime.fromtimestamp(expires_on_timestamp, tz=UTC)
+    expires_at = expires_at_dt.isoformat()
+
+    # Calculate remaining lifetime from current time (not total lifetime)
+    # This shows how much time is left until expiration
+    current_time_utc = datetime.now(tz=UTC)
+    current_timestamp = current_time_utc.timestamp()
+    remaining_lifetime_seconds = expires_on_timestamp - current_timestamp
+    token_lifetime_minutes = remaining_lifetime_seconds / 60
+
+    # For issued_at, we don't have the exact issue time from the token
+    # Estimate it based on typical token lifetime (usually ~1 hour for access tokens)
+    # Or calculate backwards from expiration if we know the typical lifetime
+    # For now, use current time as approximation (token was just issued)
+    issued_at = current_time_utc
+
     token_data = {
         "access_token": token.token,
         "token_type": "bearer",
         "expires_at": expires_at,
         "resource": AZURE_DEVOPS_RESOURCE,
-        "issued_at": datetime.now(tz=UTC).isoformat(),
+        "issued_at": issued_at.isoformat(),
     }
     set_token("azure-devops", token_data)
 
     console.print("[bold green]✓[/bold green] Azure DevOps authentication complete")
     console.print("Stored token for provider: azure-devops")
-    console.print(
-        f"[yellow]⚠[/yellow] Token expires at: {expires_at}\n"
-        "[dim]For longer-lived tokens (up to 1 year), use --pat option with a Personal Access Token.[/dim]"
-    )
+
+    # Calculate and display token lifetime
+    if token_lifetime_minutes < 30:
+        console.print(
+            f"[yellow]⚠[/yellow] Token expires at: {expires_at} (lifetime: ~{int(token_lifetime_minutes)} minutes)\n"
+            "[dim]Note: Short token lifetime may be due to Conditional Access policies or app registration settings.[/dim]\n"
+            "[dim]Without persistent cache, refresh tokens cannot be stored.\n"
+            "[dim]On Linux, install libsecret for automatic token refresh:\n"
+            "[dim]  Ubuntu/Debian: sudo apt-get install libsecret-1-dev python3-secretstorage\n"
+            "[dim]  RHEL/CentOS: sudo yum install libsecret-devel python3-secretstorage\n"
+            "[dim]  Arch: sudo pacman -S libsecret python-secretstorage[/dim]\n"
+            "[dim]For longer-lived tokens (up to 1 year), use --pat option with a Personal Access Token.[/dim]"
+        )
+    else:
+        console.print(
+            f"[yellow]⚠[/yellow] Token expires at: {expires_at} (UTC)\n"
+            f"[yellow]⚠[/yellow] Time until expiration: ~{int(token_lifetime_minutes)} minutes\n"
+        )
+        if cache_options is None:
+            console.print(
+                "[dim]Note: Persistent cache unavailable. Tokens will need to be refreshed manually after expiration.[/dim]\n"
+                "[dim]On Linux, install libsecret for automatic token refresh (90-day refresh token lifetime):\n"
+                "[dim]  Ubuntu/Debian: sudo apt-get install libsecret-1-dev python3-secretstorage\n"
+                "[dim]  RHEL/CentOS: sudo yum install libsecret-devel python3-secretstorage\n"
+                "[dim]  Arch: sudo pacman -S libsecret python-secretstorage[/dim]\n"
+                "[dim]For longer-lived tokens (up to 1 year), use --pat option with a Personal Access Token.[/dim]"
+            )
+        elif use_unencrypted_cache:
+            console.print(
+                "[dim]Persistent cache configured (unencrypted file storage). Tokens should refresh automatically.[/dim]\n"
+                "[dim]Note: Tokens are stored in plain text file. To enable encrypted storage, unlock the keyring:\n"
+                "[dim]  export $(dbus-launch)\n"
+                "[dim]  echo -n 'YOUR_PASSWORD' | gnome-keyring-daemon --replace --unlock[/dim]\n"
+                "[dim]For longer-lived tokens (up to 1 year), use --pat option with a Personal Access Token.[/dim]"
+            )
+        else:
+            console.print(
+                "[dim]Persistent cache configured (encrypted storage). Tokens should refresh automatically (90-day refresh token lifetime).[/dim]\n"
+                "[dim]For longer-lived tokens (up to 1 year), use --pat option with a Personal Access Token.[/dim]"
+            )
 
 
 @app.command("github")

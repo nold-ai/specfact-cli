@@ -29,6 +29,7 @@ from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.backlog.mappers.github_mapper import GitHubFieldMapper
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
@@ -2671,12 +2672,72 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Accept": "application/vnd.github.v3+json",
         }
 
+        # Use GitHubFieldMapper for field writeback
+        github_mapper = GitHubFieldMapper()
+
+        # Parse refined body_markdown to extract description and existing sections
+        # This avoids duplicating sections that are already in the refined body
+        refined_body = item.body_markdown or ""
+
+        # Check if body already contains structured sections (## headings)
+        has_structured_sections = bool(re.search(r"^##\s+", refined_body, re.MULTILINE))
+
+        # Build canonical fields - parse refined body if it has sections, otherwise use item fields
+        canonical_fields: dict[str, Any]
+        if has_structured_sections:
+            # Body already has structured sections - parse and use them to avoid duplication
+            # Extract existing sections from refined body
+            existing_acceptance_criteria = github_mapper._extract_section(refined_body, "Acceptance Criteria")
+            existing_story_points = github_mapper._extract_section(refined_body, "Story Points")
+            existing_business_value = github_mapper._extract_section(refined_body, "Business Value")
+            existing_priority = github_mapper._extract_section(refined_body, "Priority")
+
+            # Extract description (content before any ## headings)
+            description = github_mapper._extract_default_content(refined_body)
+
+            # Build canonical fields from parsed refined body (use refined values)
+            canonical_fields = {
+                "description": description,
+                # Use extracted sections from refined body (these are the refined values)
+                "acceptance_criteria": existing_acceptance_criteria,
+                "story_points": (
+                    int(existing_story_points)
+                    if existing_story_points and existing_story_points.strip().isdigit()
+                    else None
+                ),
+                "business_value": (
+                    int(existing_business_value)
+                    if existing_business_value and existing_business_value.strip().isdigit()
+                    else None
+                ),
+                "priority": (
+                    int(existing_priority) if existing_priority and existing_priority.strip().isdigit() else None
+                ),
+                "value_points": item.value_points,
+                "work_item_type": item.work_item_type,
+            }
+        else:
+            # Body doesn't have structured sections - use item fields and mapper to build
+            canonical_fields = {
+                "description": item.body_markdown or "",
+                "acceptance_criteria": item.acceptance_criteria,
+                "story_points": item.story_points,
+                "business_value": item.business_value,
+                "priority": item.priority,
+                "value_points": item.value_points,
+                "work_item_type": item.work_item_type,
+            }
+
+        # Map canonical fields to GitHub markdown format
+        github_fields = github_mapper.map_from_canonical(canonical_fields)
+
         # Build update payload
         payload: dict[str, Any] = {}
         if update_fields is None or "title" in update_fields:
             payload["title"] = item.title
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
-            payload["body"] = item.body_markdown
+            # Use mapped body from field mapper (includes all fields as markdown headings)
+            payload["body"] = github_fields.get("body", item.body_markdown)
         if update_fields is None or "state" in update_fields:
             payload["state"] = item.state
 

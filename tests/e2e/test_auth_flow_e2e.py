@@ -59,12 +59,13 @@ def test_github_auth_status_and_clear_e2e(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(requests, "post", fake_post)
 
-    auth_result = runner.invoke(app, ["auth", "github", "--client-id", "client-xyz"])
+    auth_result = runner.invoke(app, ["--skip-checks", "auth", "github", "--client-id", "client-xyz"])
     assert auth_result.exit_code == 0
 
-    status_result = runner.invoke(app, ["auth", "status"])
+    status_result = runner.invoke(app, ["--skip-checks", "auth", "status"])
     assert status_result.exit_code == 0
-    assert "github" in status_result.stdout.lower()
+    # Use result.output which contains all printed output (combined stdout and stderr)
+    assert "github" in status_result.output.lower()
 
     clear_result = runner.invoke(app, ["auth", "clear"])
     assert clear_result.exit_code == 0
