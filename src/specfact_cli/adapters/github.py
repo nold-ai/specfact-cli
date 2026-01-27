@@ -451,12 +451,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 # Use proper URL parsing to avoid substring matching vulnerabilities
                 # Look for URL patterns in git config and validate the hostname
                 url_pattern = re.compile(r"url\s*=\s*(https?://[^\s]+|git@[^:]+:[^\s]+)")
+                # Official GitHub SSH hostnames
+                github_ssh_hosts = {"github.com", "ssh.github.com"}
                 for match in url_pattern.finditer(config_content):
                     url_str = match.group(1)
-                    # Handle git@ format: git@github.com:user/repo.git -> https://github.com/user/repo.git
+                    # Handle git@ format: git@github.com:user/repo.git or git@ssh.github.com:user/repo.git
                     if url_str.startswith("git@"):
                         host_part = url_str.split(":")[0].replace("git@", "")
-                        if host_part == "github.com":
+                        if host_part in github_ssh_hosts:
                             return True
                     else:
                         # Parse HTTP/HTTPS URLs properly
