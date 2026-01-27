@@ -1,0 +1,236 @@
+---
+description: Automatically manage OpenSpec changes for all code modifications in specfact-cli codebase
+alwaysApply: true
+---
+
+# Automatic OpenSpec Workflow
+
+This rule ensures that all code changes in the specfact-cli codebase are properly tracked through OpenSpec change proposals, following the spec-driven development workflow.
+
+## When This Rule Applies
+
+This rule automatically triggers when the user requests to:
+
+- **Add** new features, functions, classes, or capabilities
+- **Modify** existing code, functions, or behavior
+- **Update** existing functionality or documentation
+- **Change** code structure, patterns, or architecture
+- **Refactor** code (unless explicitly a simple cleanup)
+- **Implement** new features or capabilities
+- **Enhance** existing functionality
+- **Remove** features or code (unless explicitly a simple deletion)
+
+## What This Rule Does NOT Apply To
+
+Skip OpenSpec workflow for:
+
+- **Bug fixes** that restore intended behavior (simple fixes)
+- **Typos, formatting, or comments** (cosmetic changes)
+- **Dependency updates** (non-breaking)
+- **Configuration changes** (simple config updates)
+- **Tests for existing behavior** (adding tests to existing code)
+- **User explicitly says "skip openspec"** or "direct implementation"
+
+## Automatic Workflow Steps
+
+### Step 1: Detect Change Request
+
+When user requests a change, immediately:
+
+1. **Parse the request** to understand:
+   - What is being changed (feature, function, module, etc.)
+   - Scope of change (new feature, modification, refactor)
+   - Affected files or modules (if mentioned)
+
+2. **Determine if OpenSpec workflow is needed:**
+   - If request matches "What This Rule Applies To" → proceed
+   - If request matches "What This Rule Does NOT Apply To" → skip OpenSpec, implement directly
+   - If unclear → ask user: "Should this be tracked as an OpenSpec change, or is this a simple fix?"
+
+### Step 2: Search for Existing OpenSpec Changes
+
+**Before creating a new change, always check for existing work:**
+
+1. **Navigate to specfact-cli-internal workspace:**
+   - Change directory to `/home/dom/git/nold-ai/specfact-cli-internal`
+   - Verify `openspec/` directory exists
+
+2. **List active changes:**
+
+   ```bash
+   cd /home/dom/git/nold-ai/specfact-cli-internal
+   openspec list
+   ```
+
+3. **Search for related changes:**
+   - Review change IDs and descriptions
+   - Look for changes that might overlap with the current request
+   - Check change status (proposed, in-progress, etc.)
+
+4. **If related change found:**
+   - Read the change proposal: `openspec show <change-id>`
+   - Check if current request aligns with existing change
+   - **If aligned:** Update the existing change instead of creating new one
+   - **If partially aligned:** Ask user: "Found related change `<change-id>`. Should I update it or create a new change?"
+
+5. **If no related change found:**
+   - Proceed to Step 3 (Create New Change)
+
+### Step 3: Create or Update OpenSpec Change
+
+**If creating a new change:**
+
+1. **Gather requirements:**
+   - Extract clear requirements from user request
+   - Identify affected capabilities or modules
+   - Determine if clarification is needed
+
+2. **Ask for missing information:**
+   - If request is vague (contains "intuitive", "fast", "better", "improved"):
+     - Ask for specific metrics or concrete behaviors
+   - If architecture patterns unclear:
+     - Ask about integration points or existing patterns
+   - If multiple interpretations possible:
+     - Clarify the exact scope and approach
+
+3. **Execute workflow command:**
+
+   **For ad-hoc changes (no plan document):**
+   - Use: `/openspec-proposal` command directly
+   - Follow the command steps:
+     - Review `openspec/project.md` and existing specs
+     - Choose unique verb-led `change-id`
+     - Scaffold `proposal.md`, `tasks.md`, optional `design.md`
+     - Create spec deltas in `changes/<id>/specs/<capability>/spec.md`
+     - Validate with `openspec validate <id> --strict`
+
+   **For changes from plan documents:**
+   - Use: `/specfact-cli-internal/wf-create-change-from-plan <plan-path>`
+   - Follow the workflow steps:
+     - Plan selection and discovery
+     - Plan review and alignment check
+     - Integrity re-check
+     - OpenSpec proposal creation
+     - Proposal review and improvement
+     - GitHub issue creation (if changes are expected in specfact-cli public repo)
+     - Completion
+
+4. **Capture change ID:**
+   - Store the created change ID for later reference
+   - Display to user: "Created OpenSpec change: `<change-id>`"
+
+**If updating existing change:**
+
+1. **Read existing change:**
+   - Read `openspec/changes/<change-id>/proposal.md`
+   - Read `openspec/changes/<change-id>/tasks.md`
+   - Read `openspec/changes/<change-id>/specs/` (if exists)
+
+2. **Update change artifacts:**
+   - Update `proposal.md` if scope changed
+   - Add new tasks to `tasks.md` if needed
+   - Update spec deltas if requirements changed
+
+3. **Validate updated change:**
+
+   ```bash
+   cd /home/dom/git/nold-ai/specfact-cli-internal
+   openspec validate <change-id> --strict
+   ```
+
+4. **Inform user:**
+   - "Updated existing OpenSpec change: `<change-id>`"
+
+### Step 4: Verify and Apply Change
+
+**After change is created or updated:**
+
+1. **Review the change:**
+   - Display summary of the change proposal
+   - Show key tasks and requirements
+   - Confirm with user: "OpenSpec change ready. Proceed with implementation?"
+
+2. **If user confirms or if workflow requires immediate application:**
+   - Execute: `/specfact-cli-internal/wf-apply-change <change-id>`
+   - Follow workflow steps:
+     - Change selection
+     - Read change artifacts
+     - Execute openspec-apply workflow
+     - Complete tasks sequentially
+     - Update task checklist
+     - Completion and summary
+
+3. **If user wants to review first:**
+   - Display change location: `openspec/changes/<change-id>/`
+   - Suggest reviewing `proposal.md` and `tasks.md`
+   - Wait for user confirmation before applying
+
+## Implementation Pattern
+
+**Example workflow:**
+
+```
+User: "Add a new command to list all backlog items"
+
+AI (automatically):
+1. Detects: "Add" → triggers OpenSpec workflow
+2. Searches: `openspec list` → no related changes found
+3. Creates: `/openspec-proposal` (for ad-hoc changes)
+   - Asks for clarifications if needed
+   - Creates change proposal
+   - Validates change
+4. Verifies: Shows change summary
+5. Applies: `/specfact-cli-internal/wf-apply-change <change-id>`
+   - Implements the change
+   - Updates tasks
+   - Completes workflow
+```
+
+## Error Handling
+
+- **If `openspec` command not found:**
+  - Inform user: "OpenSpec CLI not available. Proceeding with direct implementation."
+  - Skip OpenSpec workflow, implement directly
+
+- **If specfact-cli-internal workspace not accessible:**
+  - Inform user: "Cannot access OpenSpec workspace. Proceeding with direct implementation."
+  - Skip OpenSpec workflow, implement directly
+
+- **If change validation fails:**
+  - Fix validation errors
+  - Re-validate until passing
+  - Do not proceed with implementation until validation passes
+
+- **If user explicitly requests to skip:**
+  - Respect user request: "Skipping OpenSpec workflow as requested."
+  - Implement directly
+
+## User Override
+
+Users can explicitly skip the OpenSpec workflow by:
+
+- Saying "skip openspec" or "no openspec"
+- Saying "direct implementation" or "implement directly"
+- Saying "simple fix" or "just fix it"
+
+In these cases, implement directly without OpenSpec tracking.
+
+## Integration with Existing Rules
+
+This rule works alongside:
+
+- **Contract-first approach**: OpenSpec changes should include contract decorators
+- **Testing requirements**: OpenSpec tasks should include test requirements
+- **Code quality**: OpenSpec workflow includes quality gates
+- **Git workflow**: OpenSpec workflow includes branch creation and PR tasks
+
+## Notes
+
+- This rule applies to the **specfact-cli** codebase specifically
+- For other repositories, this rule may not apply (check repository-specific rules)
+- **Important workspace distinction:**
+  - **OpenSpec changes** are stored in `specfact-cli/openspec/changes/`
+  - **Code changes** happen in `specfact-cli/` (the main repository)
+  - When executing OpenSpec commands, navigate to `specfact-cli` workspace
+  - When implementing code, work in `specfact-cli` workspace
+- Always verify both workspaces are accessible before proceeding
