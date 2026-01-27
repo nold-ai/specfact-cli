@@ -96,7 +96,10 @@ docs/internal/
 # Ignore .specify artifacts
 .specify/
 .cursor/commands/speckit.*
-specs/
+/specs/
+
+# Include openspec/specs/ directory
+!openspec/
 
 # Ignore specfact-cli prompt templates
 .cursor/commands/specfact-*
