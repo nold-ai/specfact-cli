@@ -458,7 +458,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     url_str = match.group(1)
                     # Handle scp-style git@ format: git@github.com:user/repo.git or git@ssh.github.com:user/repo.git
                     if url_str.startswith("git@"):
-                        host_part = url_str.split(":")[0].replace("git@", "")
+                        host_part = url_str.split(":")[0].replace("git@", "").lower()
                         if host_part in github_ssh_hosts:
                             return True
                     else:
