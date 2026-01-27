@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.26.7"
+version = "0.26.8"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,6 +37,7 @@ dependencies = [
     # CLI framework
     "typer>=0.20.0",
     "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
+    "questionary>=2.0.1",  # Interactive prompts with arrow key navigation
     
     # Template engine
     "jinja2>=3.1.6",

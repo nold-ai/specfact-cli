@@ -648,6 +648,125 @@ FORCE_COLOR=1 specfact import from-code my-bundle
 
 ---
 
+## Azure DevOps Issues
+
+### Azure DevOps Token Required
+
+**Issue**: "Azure DevOps token required" error when running `specfact backlog refine ado` or `specfact backlog map-fields`.
+
+**Solutions**:
+
+1. **Use stored token** (recommended):
+
+   ```bash
+   specfact auth azure-devops
+   # Or use PAT token for longer expiration:
+   specfact auth azure-devops --pat your_pat_token
+   ```
+
+2. **Use explicit token**:
+
+   ```bash
+   specfact backlog refine ado --ado-org myorg --ado-project myproject --ado-token your_token
+   ```
+
+3. **Set environment variable**:
+
+   ```bash
+   export AZURE_DEVOPS_TOKEN=your_token
+   specfact backlog refine ado --ado-org myorg --ado-project myproject
+   ```
+
+**Token Resolution Priority**:
+
+The command automatically uses tokens in this order:
+
+1. Explicit `--ado-token` parameter
+2. `AZURE_DEVOPS_TOKEN` environment variable
+3. Stored token via `specfact auth azure-devops`
+4. Expired stored token (shows warning with options)
+
+### OAuth Token Expired
+
+**Issue**: "Stored OAuth token expired" warning when using ADO commands.
+
+**Cause**: OAuth tokens expire after approximately 1 hour.
+
+**Solutions**:
+
+1. **Use PAT token** (recommended for automation, up to 1 year expiration):
+
+   ```bash
+   specfact auth azure-devops --pat your_pat_token
+   ```
+
+2. **Re-authenticate**:
+
+   ```bash
+   specfact auth azure-devops
+   ```
+
+3. **Use explicit token**:
+
+   ```bash
+   specfact backlog refine ado --ado-org myorg --ado-project myproject --ado-token your_token
+   ```
+
+### Fields Not Extracted from ADO Work Items
+
+**Issue**: Fields like acceptance criteria or assignee are not being extracted from ADO work items.
+
+**Solutions**:
+
+1. **Check field names**: ADO field names are case-sensitive and must match exactly:
+   - Use `specfact backlog map-fields` to discover exact field names in your project
+   - Common fields: `Microsoft.VSTS.Common.AcceptanceCriteria` (preferred) or `System.AcceptanceCriteria`
+
+2. **Verify custom mapping**: Check if custom mapping file exists and is correct:
+
+   ```bash
+   cat .specfact/templates/backlog/field_mappings/ado_custom.yaml
+   ```
+
+3. **Reset to defaults**: If mappings are corrupted:
+
+   ```bash
+   specfact backlog map-fields --ado-org myorg --ado-project myproject --reset
+   ```
+
+4. **Check multiple alternatives**: SpecFact CLI supports multiple field names for the same canonical field. Both `System.AcceptanceCriteria` and `Microsoft.VSTS.Common.AcceptanceCriteria` are checked automatically.
+
+### Interactive Mapping Command Fails
+
+**Issue**: `specfact backlog map-fields` fails with connection or permission errors.
+
+**Solutions**:
+
+1. **Check token permissions**: Ensure your PAT has "Work Items (Read)" permission
+2. **Verify organization/project names**: Check for typos in `--ado-org` and `--ado-project`
+3. **Test API connection**:
+
+   ```bash
+   curl -u ":{token}" "https://dev.azure.com/{org}/{project}/_apis/wit/fields?api-version=7.1"
+   ```
+
+4. **Use explicit token**: Override with `--ado-token` if stored token has issues
+5. **Check base URL**: For on-premise Azure DevOps Server, use `--ado-base-url`
+
+### Custom Mapping Not Applied
+
+**Issue**: Custom field mapping file exists but is not being used.
+
+**Solutions**:
+
+1. **Check file location**: Must be at `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+2. **Verify YAML syntax**: Use a YAML validator to check syntax
+3. **Check file permissions**: Ensure the file is readable
+4. **Validate schema**: Ensure the file matches `FieldMappingConfig` schema
+5. **Automatic detection**: Custom mappings are automatically detected - no restart needed. If not working, check file path and syntax.
+
+---
+
 ## Getting Help
 
 If you're still experiencing issues:

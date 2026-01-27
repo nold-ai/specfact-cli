@@ -8,6 +8,7 @@ framework: safe
 field_mappings:
   System.Description: description
   System.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Common.AcceptanceCriteria: acceptance_criteria  # Alternative field name
   Microsoft.VSTS.Scheduling.StoryPoints: story_points
   Microsoft.VSTS.Common.BusinessValue: business_value
   Microsoft.VSTS.Common.Priority: priority

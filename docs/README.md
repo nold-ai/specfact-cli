@@ -38,6 +38,7 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 - ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
 - ✅ **DevOps integration** 🆕 → **Bidirectional backlog sync** - Sync change proposals to GitHub Issues and Azure DevOps Work Items (and future: Linear, Jira) with automatic progress tracking
 - ✅ **Backlog refinement** 🆕 → **Template-driven standardization** - Transform arbitrary DevOps backlog input into structured, template-compliant work items with AI assistance, persona/framework filtering, and sprint/iteration support
+- ✅ **Interactive field mapping** 🆕 → **Azure DevOps field discovery** - Discover and map ADO fields interactively with arrow-key navigation, automatic default pre-population, and fuzzy matching
 - ✅ **Definition of Ready (DoR)** 🆕 → **Sprint readiness validation** - Check DoR rules before adding items to sprints, with repo-level configuration
 - ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
 
@@ -188,6 +189,7 @@ specfact enforce sdd --bundle my-project
 - [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ✅)
 - [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW FEATURE** - Bidirectional GitHub Issues sync, automatic progress tracking, and agile DevOps workflow integration
 - [Backlog Refinement](guides/backlog-refinement.md) 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items with persona/framework filtering, sprint/iteration support, and DoR validation
+- [Custom Field Mapping](guides/custom-field-mapping.md) 🆕 **NEW FEATURE** - Interactive Azure DevOps field discovery and mapping with arrow-key navigation
 - [Bridge Adapters](reference/commands.md#sync-bridge) - OpenSpec and DevOps integration
 
 #### Team Collaboration & Agile/Scrum

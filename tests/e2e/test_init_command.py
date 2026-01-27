@@ -381,6 +381,111 @@ packages = ["src/test_package"]
         # Should NOT show warning
         assert "No Compatible Environment Manager Detected" not in result.stdout
 
+    def test_init_copies_backlog_field_mapping_templates(self, tmp_path, monkeypatch):
+        """Test that init command copies backlog field mapping templates."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create backlog field mapping templates in resources
+        backlog_templates_dir = tmp_path / "resources" / "templates" / "backlog" / "field_mappings"
+        backlog_templates_dir.mkdir(parents=True)
+        (backlog_templates_dir / "ado_default.yaml").write_text(
+            "framework: default\nfield_mappings:\n  System.Description: description\n"
+        )
+        (backlog_templates_dir / "ado_scrum.yaml").write_text(
+            "framework: scrum\nfield_mappings:\n  System.Description: description\n"
+        )
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+
+        # Verify templates were copied
+        specfact_templates_dir = tmp_path / ".specfact" / "templates" / "backlog" / "field_mappings"
+        assert specfact_templates_dir.exists()
+        assert (specfact_templates_dir / "ado_default.yaml").exists()
+        assert (specfact_templates_dir / "ado_scrum.yaml").exists()
+
+    def test_init_skips_existing_backlog_templates(self, tmp_path, monkeypatch):
+        """Test that init command skips copying if backlog templates already exist."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create backlog field mapping templates in resources
+        backlog_templates_dir = tmp_path / "resources" / "templates" / "backlog" / "field_mappings"
+        backlog_templates_dir.mkdir(parents=True)
+        (backlog_templates_dir / "ado_default.yaml").write_text(
+            "framework: default\nfield_mappings:\n  System.Description: description\n"
+        )
+
+        # Pre-create target directory with existing file
+        specfact_templates_dir = tmp_path / ".specfact" / "templates" / "backlog" / "field_mappings"
+        specfact_templates_dir.mkdir(parents=True)
+        (specfact_templates_dir / "ado_default.yaml").write_text(
+            "framework: custom\nfield_mappings:\n  Custom.Field: description\n"
+        )
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path)])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+
+        # Verify existing file was NOT overwritten (should still have custom content)
+        existing_file = specfact_templates_dir / "ado_default.yaml"
+        assert existing_file.exists()
+        content = existing_file.read_text()
+        assert "Custom.Field" in content  # Original content preserved
+
+    def test_init_force_overwrites_backlog_templates(self, tmp_path, monkeypatch):
+        """Test that init command with --force overwrites existing backlog templates."""
+        # Create templates directory structure
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        # Create backlog field mapping templates in resources
+        backlog_templates_dir = tmp_path / "resources" / "templates" / "backlog" / "field_mappings"
+        backlog_templates_dir.mkdir(parents=True)
+        (backlog_templates_dir / "ado_default.yaml").write_text(
+            "framework: default\nfield_mappings:\n  System.Description: description\n"
+        )
+
+        # Pre-create target directory with existing file
+        specfact_templates_dir = tmp_path / ".specfact" / "templates" / "backlog" / "field_mappings"
+        specfact_templates_dir.mkdir(parents=True)
+        (specfact_templates_dir / "ado_default.yaml").write_text(
+            "framework: custom\nfield_mappings:\n  Custom.Field: description\n"
+        )
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+
+        # Verify file was overwritten with default content
+        existing_file = specfact_templates_dir / "ado_default.yaml"
+        assert existing_file.exists()
+        content = existing_file.read_text()
+        assert "System.Description" in content  # Default content
+        assert "Custom.Field" not in content  # Original content replaced
+
     def test_init_no_warning_with_poetry_project(self, tmp_path, monkeypatch):
         """Test init command does not show warning when poetry is detected."""
         # Create templates directory structure

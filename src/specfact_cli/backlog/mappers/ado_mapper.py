@@ -32,6 +32,7 @@ class AdoFieldMapper(FieldMapper):
     DEFAULT_FIELD_MAPPINGS = {
         "System.Description": "description",
         "System.AcceptanceCriteria": "acceptance_criteria",
+        "Microsoft.VSTS.Common.AcceptanceCriteria": "acceptance_criteria",  # Alternative field name
         "Microsoft.VSTS.Common.StoryPoints": "story_points",
         "Microsoft.VSTS.Scheduling.StoryPoints": "story_points",  # Alternative field name
         "Microsoft.VSTS.Common.BusinessValue": "business_value",
@@ -146,6 +147,9 @@ class AdoFieldMapper(FieldMapper):
         """
         Map canonical fields back to ADO field format.
 
+        When multiple ADO fields map to the same canonical field, prefers System.* fields
+        over Microsoft.VSTS.Common.* fields for better compatibility with Scrum templates.
+
         Args:
             canonical_fields: Dict of canonical field names to values
 
@@ -155,8 +159,19 @@ class AdoFieldMapper(FieldMapper):
         # Use custom mapping if available, otherwise use defaults
         field_mappings = self._get_field_mappings()
 
-        # Reverse mapping: canonical -> ADO field name
-        reverse_mappings = {v: k for k, v in field_mappings.items()}
+        # Build reverse mapping with preference for System.* fields over Microsoft.VSTS.Common.*
+        # This ensures write operations use the more common System.* fields (better Scrum compatibility)
+        reverse_mappings: dict[str, str] = {}
+        for ado_field, canonical in field_mappings.items():
+            if canonical not in reverse_mappings:
+                # First mapping for this canonical field - use it
+                reverse_mappings[canonical] = ado_field
+            else:
+                # Multiple mappings exist - prefer System.* over Microsoft.VSTS.Common.*
+                current_ado_field = reverse_mappings[canonical]
+                # Prefer System.* fields for write operations (more common in Scrum)
+                if ado_field.startswith("System.") and not current_ado_field.startswith("System."):
+                    reverse_mappings[canonical] = ado_field
 
         ado_fields: dict[str, Any] = {}
 
@@ -195,6 +210,10 @@ class AdoFieldMapper(FieldMapper):
         """
         Extract field value from ADO fields dict using mapping.
 
+        Supports multiple field name alternatives for the same canonical field.
+        Checks all ADO fields that map to the canonical field and returns the first found value.
+        Priority: custom mapping > default mapping (handled by _get_field_mappings merge order).
+
         Args:
             fields_dict: ADO fields dict
             field_mappings: Field mappings (ADO field name -> canonical field name)
@@ -203,7 +222,8 @@ class AdoFieldMapper(FieldMapper):
         Returns:
             Field value or None if not found
         """
-        # Find ADO field name for this canonical field
+        # Find all ADO field names that map to this canonical field
+        # Check all alternatives and return the first found value
         for ado_field, canonical in field_mappings.items():
             if canonical == canonical_field:
                 value = fields_dict.get(ado_field)
