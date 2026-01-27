@@ -471,11 +471,19 @@ class TestPrintStartupChecks:
         # Should not print any warnings
         mock_console.print.assert_not_called()
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_outdated_templates(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock, tmp_path: Path
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
+        tmp_path: Path,
     ):
         """Test printing warning for outdated templates."""
         mock_templates.return_value = TemplateCheckResult(
@@ -511,11 +519,18 @@ class TestPrintStartupChecks:
                     return
         pytest.fail("Template warning message not found in console.print calls")
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_version_update_major(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
     ):
         """Test printing warning for major version update."""
         mock_templates.return_value = None
@@ -543,11 +558,18 @@ class TestPrintStartupChecks:
                     return
         pytest.fail("Major version update message not found in console.print calls")
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_version_update_minor(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
     ):
         """Test printing warning for minor version update."""
         mock_templates.return_value = None
@@ -596,9 +618,12 @@ class TestPrintStartupChecks:
         # Should not print version update (type is None)
         mock_console.print.assert_not_called()
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
-    def test_print_startup_checks_version_check_disabled(self, mock_version: MagicMock, mock_templates: MagicMock):
+    def test_print_startup_checks_version_check_disabled(
+        self, mock_version: MagicMock, mock_templates: MagicMock, _mock_version_meta: MagicMock
+    ):
         """Test that version check can be disabled."""
         print_startup_checks(check_version=False)
 

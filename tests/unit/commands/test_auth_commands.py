@@ -21,10 +21,11 @@ def test_auth_status_shows_tokens(tmp_path: Path, monkeypatch) -> None:
     _set_home(tmp_path, monkeypatch)
     save_tokens({"github": {"access_token": "token-123", "token_type": "bearer"}})
 
-    result = runner.invoke(app, ["auth", "status"])
+    result = runner.invoke(app, ["--skip-checks", "auth", "status"])
 
     assert result.exit_code == 0
-    assert "github" in result.stdout.lower()
+    # Use result.output which contains all printed output (combined stdout and stderr)
+    assert "github" in result.output.lower()
 
 
 def test_auth_clear_provider(tmp_path: Path, monkeypatch) -> None:
@@ -58,7 +59,7 @@ def test_auth_azure_devops_pat_option(tmp_path: Path, monkeypatch) -> None:
     """Test storing PAT via --pat option."""
     _set_home(tmp_path, monkeypatch)
 
-    result = runner.invoke(app, ["auth", "azure-devops", "--pat", "test-pat-token"])
+    result = runner.invoke(app, ["--skip-checks", "auth", "azure-devops", "--pat", "test-pat-token"])
 
     assert result.exit_code == 0
     tokens = load_tokens()
@@ -66,4 +67,5 @@ def test_auth_azure_devops_pat_option(tmp_path: Path, monkeypatch) -> None:
     token_data = tokens["azure-devops"]
     assert token_data["access_token"] == "test-pat-token"
     assert token_data["token_type"] == "basic"
-    assert "PAT" in result.stdout or "Personal Access Token" in result.stdout
+    # Use result.output which contains all printed output (combined stdout and stderr)
+    assert "PAT" in result.output or "Personal Access Token" in result.output
