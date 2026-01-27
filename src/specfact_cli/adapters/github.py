@@ -19,6 +19,7 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 from beartype import beartype
@@ -447,8 +448,21 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if git_config.exists():
             try:
                 config_content = git_config.read_text(encoding="utf-8")
-                if "github.com" in config_content.lower():
-                    return True
+                # Use proper URL parsing to avoid substring matching vulnerabilities
+                # Look for URL patterns in git config and validate the hostname
+                url_pattern = re.compile(r"url\s*=\s*(https?://[^\s]+|git@[^:]+:[^\s]+)")
+                for match in url_pattern.finditer(config_content):
+                    url_str = match.group(1)
+                    # Handle git@ format: git@github.com:user/repo.git -> https://github.com/user/repo.git
+                    if url_str.startswith("git@"):
+                        host_part = url_str.split(":")[0].replace("git@", "")
+                        if host_part == "github.com":
+                            return True
+                    else:
+                        # Parse HTTP/HTTPS URLs properly
+                        parsed = urlparse(url_str)
+                        if parsed.hostname and parsed.hostname.lower() == "github.com":
+                            return True
             except Exception:
                 pass
 

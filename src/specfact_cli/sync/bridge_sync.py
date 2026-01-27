@@ -13,6 +13,7 @@ import hashlib
 import re
 import subprocess
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 
 try:
@@ -1247,11 +1248,17 @@ class BridgeSync:
                                         if url_repo_match:
                                             entry["source_repo"] = url_repo_match.group(1)
                                         # Try ADO URL pattern - extract org, but we need project name from elsewhere
-                                        elif "dev.azure.com" in source_url:
-                                            # For ADO, we can't reliably extract project name from URL (GUID)
-                                            # The source_repo should have been saved in the hidden comment
-                                            # If not, we'll need to match by org only later
-                                            pass
+                                        else:
+                                            # Use proper URL parsing to validate ADO URLs
+                                            try:
+                                                parsed = urlparse(source_url)
+                                                if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
+                                                    # For ADO, we can't reliably extract project name from URL (GUID)
+                                                    # The source_repo should have been saved in the hidden comment
+                                                    # If not, we'll need to match by org only later
+                                                    pass
+                                            except Exception:
+                                                pass
                                 source_tracking_list.append(entry)
 
                 # Check for status indicators in proposal content or directory name
@@ -1539,16 +1546,21 @@ class BridgeSync:
                             return source_tracking
                     # Try ADO URL pattern (ADO URLs contain GUIDs, not project names)
                     # For ADO, match by org if target_repo contains the org
-                    elif "dev.azure.com" in source_url and "/" in target_repo:
-                        target_org = target_repo.split("/")[0]
-                        ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
-                        # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
-                        if (
-                            ado_org_match
-                            and ado_org_match.group(1) == target_org
-                            and (entry_type == "ado" or entry_type == "")
-                        ):
-                            return source_tracking
+                    elif "/" in target_repo:
+                        try:
+                            parsed = urlparse(source_url)
+                            if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
+                                target_org = target_repo.split("/")[0]
+                                ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                                # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
+                                if (
+                                    ado_org_match
+                                    and ado_org_match.group(1) == target_org
+                                    and (entry_type == "ado" or entry_type == "")
+                                ):
+                                    return source_tracking
+                        except Exception:
+                            pass
 
                 # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
                 # This prevents cross-project matches when both entry_repo and target_repo have project names
@@ -1617,16 +1629,21 @@ class BridgeSync:
                                     return entry
                             # Try ADO URL pattern (but note: ADO URLs contain GUIDs, not project names)
                             # For ADO, match by org if target_repo contains the org
-                            elif "dev.azure.com" in source_url and "/" in target_repo:
-                                target_org = target_repo.split("/")[0]
-                                ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
-                                # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
-                                if (
-                                    ado_org_match
-                                    and ado_org_match.group(1) == target_org
-                                    and (entry_type == "ado" or entry_type == "")
-                                ):
-                                    return entry
+                            elif "/" in target_repo:
+                                try:
+                                    parsed = urlparse(source_url)
+                                    if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
+                                        target_org = target_repo.split("/")[0]
+                                        ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                                        # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
+                                        if (
+                                            ado_org_match
+                                            and ado_org_match.group(1) == target_org
+                                            and (entry_type == "ado" or entry_type == "")
+                                        ):
+                                            return entry
+                                except Exception:
+                                    pass
 
                     # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
                     # This prevents cross-project matches when both entry_repo and target_repo have project names
