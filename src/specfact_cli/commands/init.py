@@ -157,6 +157,9 @@ def init(
     This command detects the IDE type (or uses --ide flag) and copies
     SpecFact prompt templates to the appropriate directory.
 
+    Also copies backlog field mapping templates to `.specfact/templates/backlog/field_mappings/`
+    for custom ADO field mapping configuration.
+
     Examples:
         specfact init                    # Auto-detect IDE
         specfact init --ide cursor       # Initialize for Cursor
