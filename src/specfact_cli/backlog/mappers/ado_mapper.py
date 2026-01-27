@@ -147,6 +147,9 @@ class AdoFieldMapper(FieldMapper):
         """
         Map canonical fields back to ADO field format.
 
+        When multiple ADO fields map to the same canonical field, prefers System.* fields
+        over Microsoft.VSTS.Common.* fields for better compatibility with Scrum templates.
+
         Args:
             canonical_fields: Dict of canonical field names to values
 
@@ -156,8 +159,19 @@ class AdoFieldMapper(FieldMapper):
         # Use custom mapping if available, otherwise use defaults
         field_mappings = self._get_field_mappings()
 
-        # Reverse mapping: canonical -> ADO field name
-        reverse_mappings = {v: k for k, v in field_mappings.items()}
+        # Build reverse mapping with preference for System.* fields over Microsoft.VSTS.Common.*
+        # This ensures write operations use the more common System.* fields (better Scrum compatibility)
+        reverse_mappings: dict[str, str] = {}
+        for ado_field, canonical in field_mappings.items():
+            if canonical not in reverse_mappings:
+                # First mapping for this canonical field - use it
+                reverse_mappings[canonical] = ado_field
+            else:
+                # Multiple mappings exist - prefer System.* over Microsoft.VSTS.Common.*
+                current_ado_field = reverse_mappings[canonical]
+                # Prefer System.* fields for write operations (more common in Scrum)
+                if ado_field.startswith("System.") and not current_ado_field.startswith("System."):
+                    reverse_mappings[canonical] = ado_field
 
         ado_fields: dict[str, Any] = {}
 

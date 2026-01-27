@@ -1432,10 +1432,13 @@ def map_fields(
 
     # Load existing mapping if it exists
     existing_mapping: dict[str, str] = {}
+    existing_work_item_type_mappings: dict[str, str] = {}
+    existing_config: FieldMappingConfig | None = None
     if custom_mapping_file.exists():
         try:
             existing_config = FieldMappingConfig.from_file(custom_mapping_file)
             existing_mapping = existing_config.field_mappings
+            existing_work_item_type_mappings = existing_config.work_item_type_mappings or {}
             console.print(f"[green]✓[/green] Loaded existing mapping from {custom_mapping_file}")
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Failed to load existing mapping: {e}")
@@ -1567,11 +1570,15 @@ def map_fields(
     final_mapping = existing_mapping.copy()
     final_mapping.update(new_mapping)
 
+    # Preserve existing work_item_type_mappings if they exist
+    # This prevents erasing custom work item type mappings when updating field mappings
+    work_item_type_mappings = existing_work_item_type_mappings.copy() if existing_work_item_type_mappings else {}
+
     # Create FieldMappingConfig
     config = FieldMappingConfig(
-        framework="default",
+        framework=existing_config.framework if existing_config else "default",
         field_mappings=final_mapping,
-        work_item_type_mappings={},  # Can be extended later
+        work_item_type_mappings=work_item_type_mappings,
     )
 
     # Save to file
