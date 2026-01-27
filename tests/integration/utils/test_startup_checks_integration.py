@@ -13,11 +13,18 @@ from specfact_cli.utils.startup_checks import print_startup_checks
 class TestStartupChecksIntegration:
     """Integration tests for startup checks."""
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_startup_checks_run_on_command(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
     ):
         """Test that startup checks run when a command is executed."""
         mock_templates.return_value = None
@@ -38,9 +45,17 @@ class TestStartupChecksIntegration:
         mock_templates.assert_called_once()
         mock_version.assert_called_once()
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
-    def test_startup_checks_graceful_failure(self, mock_version: MagicMock, mock_templates: MagicMock):
+    def test_startup_checks_graceful_failure(
+        self,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
+    ):
         """Test that startup check failures are handled gracefully at CLI level."""
         # Make template check raise an exception
         mock_templates.side_effect = Exception("Template check failed")
@@ -55,11 +70,19 @@ class TestStartupChecksIntegration:
         mock_templates.assert_called_once()
         # Version check may not be called if template check raises first
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_startup_checks_both_warnings(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock, tmp_path: Path
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
+        tmp_path: Path,
     ):
         """Test that both template and version warnings can be shown."""
         mock_templates.return_value = MagicMock(

@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+from datetime import UTC
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import requests
 from beartype import beartype
@@ -21,6 +22,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli import __version__
 from specfact_cli.utils.ide_setup import IDE_CONFIG, detect_ide, find_package_resources_path
+from specfact_cli.utils.metadata import (
+    get_last_checked_version,
+    get_last_version_check_timestamp,
+    is_version_check_needed,
+    update_metadata,
+)
 
 
 console = Console()
@@ -261,17 +268,38 @@ def check_pypi_version(package_name: str = "specfact-cli", timeout: int = 3) -> 
 
 
 @beartype
-def print_startup_checks(repo_path: Path | None = None, check_version: bool = True, show_progress: bool = True) -> None:
+def print_startup_checks(
+    repo_path: Path | None = None,
+    check_version: bool = True,
+    show_progress: bool = True,
+    skip_checks: bool = False,
+) -> None:
     """
     Print startup check warnings for templates and version updates.
+
+    Optimized to only run checks when needed:
+    - Template checks: Only run if CLI version has changed since last check
+    - Version checks: Only run if >= 24 hours since last check
 
     Args:
         repo_path: Repository path (default: current directory)
         check_version: Whether to check for version updates
         show_progress: Whether to show progress indicators during checks
+        skip_checks: If True, skip all checks (for CI/CD environments)
     """
     if repo_path is None:
         repo_path = Path.cwd()
+
+    if skip_checks:
+        return
+
+    # Check if template check should run (only if version changed)
+    last_checked_version = get_last_checked_version()
+    should_check_templates = last_checked_version != __version__
+
+    # Check if version check should run (only if >= 24 hours since last check)
+    last_version_check_timestamp = get_last_version_check_timestamp()
+    should_check_version = check_version and is_version_check_needed(last_version_check_timestamp)
 
     # Use progress indicator for checks that might take time
     with Progress(
@@ -280,13 +308,15 @@ def print_startup_checks(repo_path: Path | None = None, check_version: bool = Tr
         console=console,
         transient=True,  # Hide progress when done
     ) as progress:
-        # Check IDE templates
-        template_task = (
-            progress.add_task("[cyan]Checking IDE templates...[/cyan]", total=None) if show_progress else None
-        )
-        template_result = check_ide_templates(repo_path)
-        if template_task:
-            progress.update(template_task, description="[green]✓[/green] Checked IDE templates")
+        # Check IDE templates (only if version changed)
+        template_result = None
+        if should_check_templates:
+            template_task = (
+                progress.add_task("[cyan]Checking IDE templates...[/cyan]", total=None) if show_progress else None
+            )
+            template_result = check_ide_templates(repo_path)
+            if template_task:
+                progress.update(template_task, description="[green]✓[/green] Checked IDE templates")
 
         if template_result and template_result.templates_outdated:
             details = []
@@ -309,8 +339,9 @@ def print_startup_checks(repo_path: Path | None = None, check_version: bool = Tr
                 )
             )
 
-        # Check version updates
-        if check_version:
+        # Check version updates (only if >= 24 hours since last check)
+        version_result = None
+        if should_check_version:
             version_task = (
                 progress.add_task("[cyan]Checking for updates...[/cyan]", total=None) if show_progress else None
             )
@@ -331,7 +362,21 @@ def print_startup_checks(repo_path: Path | None = None, check_version: bool = Tr
                         "[bold red]⚠ Breaking changes may be present![/bold red]\n"
                         "Review release notes before upgrading.\n\n"
                     )
-                update_message += "Update with: [bold]pip install --upgrade specfact-cli[/bold]"
+                update_message += (
+                    "Upgrade with: [bold]specfact upgrade[/bold] or [bold]pip install --upgrade specfact-cli[/bold]"
+                )
 
                 console.print()
                 console.print(Panel(update_message, border_style=update_type_color))
+
+        # Update metadata after checks complete
+        from datetime import datetime
+
+        metadata_updates: dict[str, Any] = {}
+        if should_check_templates or should_check_version:
+            metadata_updates["last_checked_version"] = __version__
+        if should_check_version:
+            metadata_updates["last_version_check_timestamp"] = datetime.now(UTC).isoformat()
+
+        if metadata_updates:
+            update_metadata(**metadata_updates)

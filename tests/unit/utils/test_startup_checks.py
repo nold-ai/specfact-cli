@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import sys
 import time
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
 
+from specfact_cli.utils.metadata import (
+    update_metadata,
+)
 from specfact_cli.utils.startup_checks import (
     TemplateCheckResult,
     VersionCheckResult,
@@ -467,11 +471,19 @@ class TestPrintStartupChecks:
         # Should not print any warnings
         mock_console.print.assert_not_called()
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_outdated_templates(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock, tmp_path: Path
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
+        tmp_path: Path,
     ):
         """Test printing warning for outdated templates."""
         mock_templates.return_value = TemplateCheckResult(
@@ -507,11 +519,18 @@ class TestPrintStartupChecks:
                     return
         pytest.fail("Template warning message not found in console.print calls")
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_version_update_major(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
     ):
         """Test printing warning for major version update."""
         mock_templates.return_value = None
@@ -539,11 +558,18 @@ class TestPrintStartupChecks:
                     return
         pytest.fail("Major version update message not found in console.print calls")
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_version_update_minor(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_timestamp: MagicMock,
+        _mock_version_meta: MagicMock,
     ):
         """Test printing warning for minor version update."""
         mock_templates.return_value = None
@@ -592,9 +618,12 @@ class TestPrintStartupChecks:
         # Should not print version update (type is None)
         mock_console.print.assert_not_called()
 
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
-    def test_print_startup_checks_version_check_disabled(self, mock_version: MagicMock, mock_templates: MagicMock):
+    def test_print_startup_checks_version_check_disabled(
+        self, mock_version: MagicMock, mock_templates: MagicMock, _mock_version_meta: MagicMock
+    ):
         """Test that version check can be disabled."""
         print_startup_checks(check_version=False)
 
@@ -602,3 +631,200 @@ class TestPrintStartupChecks:
         mock_version.assert_not_called()
         # Template check should still be called
         mock_templates.assert_called_once()
+
+
+class TestPrintStartupChecksOptimization:
+    """Test optimized startup checks with metadata tracking."""
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_skip_template_check_when_version_unchanged(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that template check is skipped when version hasn't changed."""
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+
+        # Set metadata with current version
+        from specfact_cli import __version__
+
+        update_metadata(last_checked_version=__version__)
+
+        print_startup_checks(repo_path=tmp_path, check_version=False)
+
+        # Template check should be skipped
+        mock_check_templates.assert_not_called()
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_run_template_check_when_version_changed(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that template check runs when version has changed."""
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+
+        # Set metadata with different version
+        update_metadata(last_checked_version="0.9.0")
+        mock_check_templates.return_value = None
+
+        print_startup_checks(repo_path=tmp_path, check_version=False)
+
+        # Template check should run
+        mock_check_templates.assert_called_once()
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_skip_version_check_when_recent(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that version check is skipped when < 24 hours since last check."""
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+
+        # Set recent timestamp
+        from datetime import datetime
+
+        recent_timestamp = datetime.now(UTC).isoformat()
+        update_metadata(last_version_check_timestamp=recent_timestamp)
+
+        print_startup_checks(repo_path=tmp_path, check_version=True)
+
+        # Version check should be skipped
+        mock_check_version.assert_not_called()
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_run_version_check_when_old(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that version check runs when >= 24 hours since last check."""
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+
+        # Set old timestamp
+        from datetime import datetime, timedelta
+
+        old_timestamp = (datetime.now(UTC) - timedelta(hours=25)).isoformat()
+        update_metadata(last_version_check_timestamp=old_timestamp)
+        mock_check_version.return_value = VersionCheckResult(
+            current_version="1.0.0",
+            latest_version="1.0.0",
+            update_available=False,
+            update_type=None,
+            error=None,
+        )
+
+        print_startup_checks(repo_path=tmp_path, check_version=True)
+
+        # Version check should run
+        mock_check_version.assert_called_once()
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_first_time_user_runs_all_checks(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that first-time users (no metadata) get all checks."""
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+
+        # No metadata file exists
+        mock_check_templates.return_value = None
+        mock_check_version.return_value = VersionCheckResult(
+            current_version="1.0.0",
+            latest_version="1.0.0",
+            update_available=False,
+            update_type=None,
+            error=None,
+        )
+
+        print_startup_checks(repo_path=tmp_path, check_version=True)
+
+        # Both checks should run
+        mock_check_templates.assert_called_once()
+        mock_check_version.assert_called_once()
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    def test_skip_checks_flag_skips_all(
+        self,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test that --skip-checks flag skips all checks."""
+        print_startup_checks(repo_path=tmp_path, check_version=True, skip_checks=True)
+
+        # No checks should run
+        mock_check_templates.assert_not_called()
+        mock_check_version.assert_not_called()
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_metadata_updated_after_checks(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that metadata is updated after checks complete."""
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+
+        # No metadata exists (first run)
+        mock_check_templates.return_value = None
+        mock_check_version.return_value = VersionCheckResult(
+            current_version="1.0.0",
+            latest_version="1.0.0",
+            update_available=False,
+            update_type=None,
+            error=None,
+        )
+
+        print_startup_checks(repo_path=tmp_path, check_version=True)
+
+        # Metadata should be updated
+        mock_update_metadata.assert_called()
+        call_kwargs = mock_update_metadata.call_args[1]
+        assert "last_checked_version" in call_kwargs
+        assert "last_version_check_timestamp" in call_kwargs

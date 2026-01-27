@@ -61,7 +61,7 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 - `--state STATE` - Filter by state (case-insensitive, e.g., "open", "closed", "Active", "New")
 - `--assignee USERNAME` - Filter by assignee (case-insensitive):
   - **GitHub**: Login or @username (e.g., "johndoe" or "@johndoe")
-  - **ADO**: displayName, uniqueName, or mail (e.g., "Jane Doe" or "jane.doe@example.com")
+  - **ADO**: displayName, uniqueName, or mail (e.g., "Jane Doe" or `"jane.doe@example.com"`)
 - `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1", case-insensitive)
 - `--sprint SPRINT` - Filter by sprint (case-insensitive):
   - **ADO**: Use full iteration path (e.g., "Project\\Sprint 1") to avoid ambiguity when multiple sprints share the same name
@@ -80,7 +80,21 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 ### Preview and Writeback
 
 - `--preview` / `--no-preview` - Preview mode: show what will be written without updating backlog (default: --preview)
+  - **Preview mode shows**: Full item details (title, body, metrics, acceptance_criteria, work_item_type, etc.)
+  - **Preview mode skips**: Interactive refinement prompts (use `--write` to enable interactive refinement)
 - `--write` - Write mode: explicitly opt-in to update remote backlog (requires --write flag)
+
+### Export/Import for Copilot Processing
+
+- `--export-to-tmp` - Export backlog items to temporary file for copilot processing (default: `/tmp/specfact-backlog-refine-<timestamp>.md`)
+- `--import-from-tmp` - Import refined content from temporary file after copilot processing (default: `/tmp/specfact-backlog-refine-<timestamp>-refined.md`)
+- `--tmp-file PATH` - Custom temporary file path (overrides default)
+
+**Export/Import Workflow**:
+
+1. Export items: `specfact backlog refine --adapter github --export-to-tmp --repo-owner OWNER --repo-name NAME`
+2. Process with copilot: Open exported file, use copilot to refine items, save as `-refined.md`
+3. Import refined: `specfact backlog refine --adapter github --import-from-tmp --repo-owner OWNER --repo-name NAME --write`
 
 ### Definition of Ready (DoR)
 
@@ -177,19 +191,30 @@ Display refinement results:
 
 - `title`: Updated if changed during refinement
 - `body_markdown`: Updated with refined content
+- `acceptance_criteria`: Updated if extracted/refined (provider-specific mapping)
+- `story_points`: Updated if extracted/refined (provider-specific mapping)
+- `business_value`: Updated if extracted/refined (provider-specific mapping)
+- `priority`: Updated if extracted/refined (provider-specific mapping)
+- `value_points`: Updated if calculated (SAFe: business_value / story_points)
+- `work_item_type`: Updated if extracted/refined (provider-specific mapping)
 
 **Fields that will be PRESERVED** (not modified):
 
 - `assignees`: Preserved
 - `tags`: Preserved
 - `state`: Preserved (original state maintained)
-- `priority`: Preserved (if present in provider_fields)
-- `due_date`: Preserved (if present in provider_fields)
-- `story_points`: Preserved (if present in provider_fields)
 - `sprint`: Preserved (if present)
 - `release`: Preserved (if present)
+- `iteration`: Preserved (if present)
+- `area`: Preserved (if present)
 - `source_state`: Preserved for cross-adapter state mapping (stored in bundle entries)
 - All other metadata: Preserved in provider_fields
+
+**Provider-Specific Field Mapping**:
+
+- **GitHub**: Fields are extracted from markdown body (headings, labels, etc.) and mapped to canonical fields
+- **ADO**: Fields are extracted from separate ADO fields (System.Description, System.AcceptanceCriteria, Microsoft.VSTS.Common.StoryPoints, etc.) and mapped to canonical fields
+- **Custom Mapping**: ADO supports custom field mapping via `.specfact/templates/backlog/field_mappings/ado_custom.yaml` or `SPECFACT_ADO_CUSTOM_MAPPING` environment variable
 
 **Cross-Adapter State Preservation**:
 

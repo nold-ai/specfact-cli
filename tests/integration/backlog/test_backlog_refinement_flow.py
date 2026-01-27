@@ -110,7 +110,9 @@ I can access my account and protected resources
 - User is redirected to dashboard on success"""
 
         # Step 5: Validate refined content
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         assert validation_result.confidence >= 0.85
         assert validation_result.has_todo_markers is False
@@ -155,7 +157,9 @@ to add something
 ## Acceptance Criteria
 - [TODO: add criteria]"""
 
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         # Should have lower confidence due to TODO markers
         assert validation_result.confidence < 0.85
@@ -195,7 +199,9 @@ I can accomplish my goal
 There's ambiguity about whether to prioritize X or Y.
 The original request mentioned both, but they may conflict."""
 
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         # Should have lower confidence due to NOTES section
         assert validation_result.confidence < 0.85

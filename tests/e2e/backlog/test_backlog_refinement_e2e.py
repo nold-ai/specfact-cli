@@ -130,7 +130,9 @@ I can access my account and protected resources
 - Error message is shown on invalid credentials"""
 
         # Step 5: Validate refined content
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         assert validation_result.confidence >= 0.85
         assert validation_result.has_todo_markers is False
@@ -146,7 +148,7 @@ I can access my account and protected resources
         assert backlog_item.body_markdown == refined_content
         assert backlog_item.refinement_applied is True
         assert backlog_item.detected_template == "user_story_v1"
-        assert backlog_item.template_confidence >= 0.85
+        assert backlog_item.template_confidence is not None and backlog_item.template_confidence >= 0.85
 
     @beartype
     def test_e2e_ado_work_item_to_defect(self, full_template_registry: TemplateRegistry) -> None:
@@ -210,7 +212,9 @@ User should be logged in and redirected to dashboard.
 Page crashes with JavaScript error."""
 
         # Step 5: Validate refined content
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         assert validation_result.confidence >= 0.85
 
@@ -263,7 +267,9 @@ I can accomplish my goal
 ## Acceptance Criteria
 - Feature is available"""
 
-        validation_result = refiner.validate_and_score_refinement(refined_content, backlog_item.body_markdown, template)
+        validation_result = refiner.validate_and_score_refinement(
+            refined_content, backlog_item.body_markdown, template, backlog_item
+        )
 
         backlog_item.refined_body = validation_result.refined_body
         backlog_item.apply_refinement()

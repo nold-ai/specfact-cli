@@ -25,6 +25,7 @@ from specfact_cli.adapters.backlog_base import BacklogAdapterMixin
 from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
@@ -1271,13 +1272,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 try:
                     cache_options = TokenCachePersistenceOptions(
                         name="specfact-azure-devops",
-                        allow_unencrypted_cache=False,  # Prefer encrypted
+                        allow_unencrypted_storage=False,  # Prefer encrypted
                     )
                 except Exception:
                     # Encrypted cache not available, try unencrypted
                     cache_options = TokenCachePersistenceOptions(
                         name="specfact-azure-devops",
-                        allow_unencrypted_cache=True,  # Fallback: unencrypted
+                        allow_unencrypted_storage=True,  # Fallback: unencrypted
                     )
             except Exception:
                 # Persistent cache completely unavailable, can't refresh
@@ -1285,9 +1286,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             # Create credential with same cache - it will use cached refresh token
             credential = DeviceCodeCredential(cache_persistence_options=cache_options)
-            # Use the same resource as auth command
+            # Use the same resource and scopes as auth command
+            # Note: Refresh tokens are automatically obtained via persistent token cache
+            # offline_access is a reserved scope and cannot be explicitly requested
             azure_devops_resource = "499b84ac-1321-427f-aa17-267ca6975798/.default"
-            token = credential.get_token(azure_devops_resource)
+            azure_devops_scopes = [azure_devops_resource]
+            token = credential.get_token(*azure_devops_scopes)
 
             # Return refreshed token data
             from datetime import UTC, datetime
@@ -3046,9 +3050,29 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if update_fields is None or "title" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
 
+        # Use AdoFieldMapper for field writeback (honor custom field mappings)
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+        canonical_fields: dict[str, Any] = {
+            "description": item.body_markdown,
+            "acceptance_criteria": item.acceptance_criteria,
+            "story_points": item.story_points,
+            "business_value": item.business_value,
+            "priority": item.priority,
+            "value_points": item.value_points,
+            "work_item_type": item.work_item_type,
+        }
+
+        # Map canonical fields to ADO fields (uses custom mappings if provided)
+        ado_fields = ado_mapper.map_from_canonical(canonical_fields)
+
+        # Get reverse mapping to find ADO field names for canonical fields
+        field_mappings = ado_mapper._get_field_mappings()
+        reverse_mappings = {v: k for k, v in field_mappings.items()}
+
+        # Update description (body_markdown) - always use System.Description
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
             # Convert TODO markers to proper Markdown checkboxes for ADO rendering
-            # Convert patterns like "* [TODO: ...]" or "- [TODO: ...]" to "- [ ] ..."
             import re
 
             markdown_content = item.body_markdown
@@ -3061,12 +3085,47 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 flags=re.MULTILINE | re.IGNORECASE,
             )
 
+            # Get mapped description field name (honors custom mappings)
+            description_field = reverse_mappings.get("description", "System.Description")
             # Set multiline field format to Markdown FIRST (before setting content)
-            # This ensures ADO recognizes the format before processing the content
-            # Use "add" operation (consistent with other methods) - ADO will handle if it already exists
-            operations.append({"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": "Markdown"})
+            operations.append({"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": "Markdown"})
             # Then set description content with Markdown format
-            operations.append({"op": "replace", "path": "/fields/System.Description", "value": markdown_content})
+            operations.append({"op": "replace", "path": f"/fields/{description_field}", "value": markdown_content})
+
+        # Update acceptance criteria using mapped field name (honors custom mappings)
+        if update_fields is None or "acceptance_criteria" in update_fields:
+            acceptance_criteria_field = reverse_mappings.get("acceptance_criteria")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            if acceptance_criteria_field and item.acceptance_criteria and acceptance_criteria_field in ado_fields:
+                operations.append(
+                    {"op": "replace", "path": f"/fields/{acceptance_criteria_field}", "value": item.acceptance_criteria}
+                )
+
+        # Update story points using mapped field name (honors custom mappings)
+        if update_fields is None or "story_points" in update_fields:
+            story_points_field = reverse_mappings.get("story_points")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            # Handle both Microsoft.VSTS.Common.StoryPoints and Microsoft.VSTS.Scheduling.StoryPoints
+            if story_points_field and item.story_points is not None and story_points_field in ado_fields:
+                operations.append(
+                    {"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points}
+                )
+
+        # Update business value using mapped field name (honors custom mappings)
+        if update_fields is None or "business_value" in update_fields:
+            business_value_field = reverse_mappings.get("business_value")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            if business_value_field and item.business_value is not None and business_value_field in ado_fields:
+                operations.append(
+                    {"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value}
+                )
+
+        # Update priority using mapped field name (honors custom mappings)
+        if update_fields is None or "priority" in update_fields:
+            priority_field = reverse_mappings.get("priority")
+            # Check if field exists in mapped fields (means it's available in ADO) and has value
+            if priority_field and item.priority is not None and priority_field in ado_fields:
+                operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
 
         if update_fields is None or "state" in update_fields:
             operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})

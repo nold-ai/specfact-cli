@@ -1,0 +1,23 @@
+# ADO Scrum process template field mapping
+# Optimized for Scrum process template with Product Backlog Items, Story Points, Sprint tracking
+
+framework: scrum
+
+# Field mappings: ADO field name -> canonical field name
+field_mappings:
+  System.Description: description
+  System.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+  Microsoft.VSTS.Common.BusinessValue: business_value
+  Microsoft.VSTS.Common.Priority: priority
+  System.WorkItemType: work_item_type
+  System.IterationPath: iteration
+  System.AreaPath: area
+
+# Work item type mappings: ADO work item type -> canonical work item type
+work_item_type_mappings:
+  Product Backlog Item: User Story
+  Bug: Bug
+  Task: Task
+  Impediment: Task
+  Epic: Epic
