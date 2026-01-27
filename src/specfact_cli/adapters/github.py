@@ -450,21 +450,27 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 config_content = git_config.read_text(encoding="utf-8")
                 # Use proper URL parsing to avoid substring matching vulnerabilities
                 # Look for URL patterns in git config and validate the hostname
-                url_pattern = re.compile(r"url\s*=\s*(https?://[^\s]+|git@[^:]+:[^\s]+)")
+                # Match: https?://, ssh://, git://, and scp-style git@host:path URLs
+                url_pattern = re.compile(r"url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)")
                 # Official GitHub SSH hostnames
                 github_ssh_hosts = {"github.com", "ssh.github.com"}
                 for match in url_pattern.finditer(config_content):
                     url_str = match.group(1)
-                    # Handle git@ format: git@github.com:user/repo.git or git@ssh.github.com:user/repo.git
+                    # Handle scp-style git@ format: git@github.com:user/repo.git or git@ssh.github.com:user/repo.git
                     if url_str.startswith("git@"):
                         host_part = url_str.split(":")[0].replace("git@", "")
                         if host_part in github_ssh_hosts:
                             return True
                     else:
-                        # Parse HTTP/HTTPS URLs properly
+                        # Parse HTTP/HTTPS/SSH/GIT URLs properly
                         parsed = urlparse(url_str)
-                        if parsed.hostname and parsed.hostname.lower() == "github.com":
-                            return True
+                        if parsed.hostname:
+                            hostname_lower = parsed.hostname.lower()
+                            # Check for GitHub hostnames (github.com for all schemes, ssh.github.com for SSH)
+                            if hostname_lower == "github.com":
+                                return True
+                            if parsed.scheme == "ssh" and hostname_lower == "ssh.github.com":
+                                return True
             except Exception:
                 pass
 
