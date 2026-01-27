@@ -3067,8 +3067,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         ado_fields = ado_mapper.map_from_canonical(canonical_fields)
 
         # Get reverse mapping to find ADO field names for canonical fields
+        # Use same preference logic as map_from_canonical: prefer System.* over Microsoft.VSTS.Common.*
         field_mappings = ado_mapper._get_field_mappings()
-        reverse_mappings = {v: k for k, v in field_mappings.items()}
+        reverse_mappings: dict[str, str] = {}
+        for ado_field, canonical in field_mappings.items():
+            if canonical not in reverse_mappings:
+                # First mapping for this canonical field - use it
+                reverse_mappings[canonical] = ado_field
+            else:
+                # Multiple mappings exist - prefer System.* over Microsoft.VSTS.Common.*
+                current_ado_field = reverse_mappings[canonical]
+                # Prefer System.* fields for write operations (more common in Scrum)
+                if ado_field.startswith("System.") and not current_ado_field.startswith("System."):
+                    reverse_mappings[canonical] = ado_field
 
         # Update description (body_markdown) - always use System.Description
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
