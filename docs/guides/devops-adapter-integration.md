@@ -27,11 +27,13 @@ SpecFact CLI supports **bidirectional synchronization** between OpenSpec change 
 Currently supported DevOps adapters:
 
 - **GitHub Issues** (`--adapter github`) - Full support for issue creation and progress comments
-- **Azure DevOps** (`--adapter ado`) - ✅ Available - Work item creation, status sync, and progress tracking
+- **Azure DevOps** (`--adapter ado`) - ✅ Available - Work item creation, status sync, progress tracking, and interactive field mapping
 - **Linear** (`--adapter linear`) - Planned
 - **Jira** (`--adapter jira`) - Planned
 
 This guide focuses on GitHub Issues integration. Azure DevOps integration follows similar patterns with ADO-specific configuration.
+
+**Azure DevOps Field Mapping**: Use `specfact backlog map-fields` to interactively discover and map ADO fields for your specific process template. See [Custom Field Mapping Guide](./custom-field-mapping.md) for complete documentation.
 
 **Related**: See [Backlog Refinement Guide](../guides/backlog-refinement.md) 🆕 **NEW FEATURE** for AI-assisted template-driven refinement of backlog items with persona/framework filtering, sprint/iteration support, DoR validation, and preview/write safety.
 

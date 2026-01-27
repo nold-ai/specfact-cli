@@ -141,6 +141,160 @@ class TestBacklogFiltering:
         assert all(item.id in ["1", "3"] for item in filtered)
 
     @beartype
+    def test_filter_by_assignee_ado_displayname(self) -> None:
+        """Test filtering ADO items by displayName."""
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        # Create ADO items with different assignee identifiers
+        ado_items = [
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 1,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/1",
+                    "fields": {
+                        "System.Title": "Item 1",
+                        "System.Description": "",
+                        "System.State": "New",
+                        "System.AssignedTo": {"displayName": "John Doe", "uniqueName": "john@example.com"},
+                    },
+                }
+            ),
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 2,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/2",
+                    "fields": {
+                        "System.Title": "Item 2",
+                        "System.Description": "",
+                        "System.State": "New",
+                        "System.AssignedTo": {"displayName": "Jane Smith", "uniqueName": "jane@example.com"},
+                    },
+                }
+            ),
+        ]
+
+        # Filter by displayName
+        filtered = _apply_filters(ado_items, assignee="John Doe")
+        assert len(filtered) == 1
+        assert filtered[0].id == "1"
+
+    @beartype
+    def test_filter_by_assignee_ado_unique_name(self) -> None:
+        """Test filtering ADO items by uniqueName."""
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        ado_items = [
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 1,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/1",
+                    "fields": {
+                        "System.Title": "Item 1",
+                        "System.Description": "",
+                        "System.State": "New",
+                        "System.AssignedTo": {"displayName": "John Doe", "uniqueName": "john@example.com"},
+                    },
+                }
+            ),
+        ]
+
+        # Filter by uniqueName (should match even though displayName is different)
+        filtered = _apply_filters(ado_items, assignee="john@example.com")
+        assert len(filtered) == 1
+        assert filtered[0].id == "1"
+
+    @beartype
+    def test_filter_by_assignee_ado_mail(self) -> None:
+        """Test filtering ADO items by mail field."""
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        ado_items = [
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 1,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/1",
+                    "fields": {
+                        "System.Title": "Item 1",
+                        "System.Description": "",
+                        "System.State": "New",
+                        "System.AssignedTo": {
+                            "displayName": "Bob Johnson",
+                            "uniqueName": "bob@example.com",
+                            "mail": "bob.johnson@example.com",
+                        },
+                    },
+                }
+            ),
+        ]
+
+        # Filter by mail field
+        filtered = _apply_filters(ado_items, assignee="bob.johnson@example.com")
+        assert len(filtered) == 1
+        assert filtered[0].id == "1"
+
+    @beartype
+    def test_filter_by_assignee_case_insensitive(self) -> None:
+        """Test that assignee filtering is case-insensitive."""
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        ado_items = [
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 1,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/1",
+                    "fields": {
+                        "System.Title": "Item 1",
+                        "System.Description": "",
+                        "System.State": "New",
+                        "System.AssignedTo": {"displayName": "John Doe", "uniqueName": "john@example.com"},
+                    },
+                }
+            ),
+        ]
+
+        # Filter with different case
+        filtered = _apply_filters(ado_items, assignee="JOHN DOE")
+        assert len(filtered) == 1
+        assert filtered[0].id == "1"
+
+    @beartype
+    def test_filter_by_assignee_unassigned(self) -> None:
+        """Test filtering for unassigned items."""
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        ado_items = [
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 1,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/1",
+                    "fields": {
+                        "System.Title": "Item 1",
+                        "System.Description": "",
+                        "System.State": "New",
+                        # No System.AssignedTo field
+                    },
+                }
+            ),
+            convert_ado_work_item_to_backlog_item(
+                {
+                    "id": 2,
+                    "url": "https://dev.azure.com/org/project/_apis/wit/workitems/2",
+                    "fields": {
+                        "System.Title": "Item 2",
+                        "System.Description": "",
+                        "System.State": "New",
+                        "System.AssignedTo": {"displayName": "John Doe"},
+                    },
+                }
+            ),
+        ]
+
+        # Filter by assignee should only return assigned items
+        filtered = _apply_filters(ado_items, assignee="John Doe")
+        assert len(filtered) == 1
+        assert filtered[0].id == "2"
+
+    @beartype
     def test_filter_by_sprint(self, backlog_items: list[BacklogItem]) -> None:
         """Test filtering by sprint."""
         filtered = _apply_filters(backlog_items, sprint="Sprint 1")

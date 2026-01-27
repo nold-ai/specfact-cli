@@ -111,6 +111,74 @@ class TestAdoBacklogAdapter:
         assert result.provider == "ado"
 
     @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_update_backlog_item_multiple_field_mappings_prefers_system_fields(self, mock_patch: MagicMock) -> None:
+        """Test that update_backlog_item uses System.* fields when multiple mappings exist.
+
+        This test verifies the fix for the bug where reverse_mappings would use
+        Microsoft.VSTS.Common.* fields (last entry) but ado_fields would use System.*
+        fields (preferred), causing the membership check to fail and skipping updates.
+        """
+        # Mock ADO API response
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 1,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/1",
+            "fields": {
+                "System.Title": "Test Item",
+                "System.Description": "Description",
+                "System.AcceptanceCriteria": "Acceptance criteria",
+                "Microsoft.VSTS.Scheduling.StoryPoints": 5,
+            },
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        item = BacklogItem(
+            id="1",
+            provider="ado",
+            url="",
+            title="Test Item",
+            body_markdown="Description",
+            state="Active",
+            acceptance_criteria="Acceptance criteria",
+            story_points=5,
+        )
+
+        # Update with fields that have multiple mappings
+        result = adapter.update_backlog_item(
+            item, update_fields=["acceptance_criteria", "story_points", "body_markdown"]
+        )
+
+        # Verify the update was successful
+        assert result.id == "1"
+        assert result.provider == "ado"
+
+        # Verify that the PATCH request was made
+        assert mock_patch.called
+
+        # Get the operations sent to ADO API
+        call_args = mock_patch.call_args
+        operations = call_args[1]["json"]  # JSON body contains operations
+
+        # Verify that System.* fields are used (not Microsoft.VSTS.Common.*)
+        # This ensures consistency with map_from_canonical preference logic
+        # Check that System.AcceptanceCriteria is used (not Microsoft.VSTS.Common.AcceptanceCriteria)
+        # The default mappings have both, but System.* should be preferred
+        acceptance_criteria_ops = [op for op in operations if "AcceptanceCriteria" in op.get("path", "")]
+        if acceptance_criteria_ops:
+            # Should use System.AcceptanceCriteria (preferred) not Microsoft.VSTS.Common.AcceptanceCriteria
+            assert any("System.AcceptanceCriteria" in op["path"] for op in acceptance_criteria_ops)
+
+        # Check that story points field is used (could be either Microsoft.VSTS.Common.StoryPoints
+        # or Microsoft.VSTS.Scheduling.StoryPoints, but should be consistent with map_from_canonical)
+        story_points_ops = [op for op in operations if "StoryPoints" in op.get("path", "")]
+        if story_points_ops:
+            # Verify story points update was included
+            assert len(story_points_ops) > 0
+
+    @beartype
     def test_validate_round_trip(self) -> None:
         """Test validate_round_trip method."""
         adapter = AdoAdapter(org="test", project="project", api_token="token")

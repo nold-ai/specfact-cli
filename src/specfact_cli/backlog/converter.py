@@ -220,9 +220,27 @@ def convert_ado_work_item_to_backlog_item(
     assigned_to = fields.get("System.AssignedTo", {})
     if assigned_to:
         if isinstance(assigned_to, dict):
-            assignees = [assigned_to.get("displayName", assigned_to.get("uniqueName", ""))]
+            # Extract all available identifiers (displayName, uniqueName, mail) for flexible filtering
+            # This allows filtering to work with any of these identifiers as mentioned in help text
+            # Priority order: displayName (for display) > uniqueName > mail
+            assignee_candidates = []
+            if assigned_to.get("displayName"):
+                assignee_candidates.append(assigned_to["displayName"].strip())
+            if assigned_to.get("uniqueName"):
+                assignee_candidates.append(assigned_to["uniqueName"].strip())
+            if assigned_to.get("mail"):
+                assignee_candidates.append(assigned_to["mail"].strip())
+
+            # Remove duplicates while preserving order (displayName first)
+            seen = set()
+            for candidate in assignee_candidates:
+                if candidate and candidate not in seen:
+                    assignees.append(candidate)
+                    seen.add(candidate)
         else:
-            assignees = [str(assigned_to)]
+            assignee_str = str(assigned_to).strip()
+            if assignee_str:
+                assignees = [assignee_str]
 
     tags = []
     ado_tags = fields.get("System.Tags", "")

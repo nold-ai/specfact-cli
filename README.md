@@ -173,21 +173,26 @@ specfact validate sidecar run my-project /path/to/repo
 - **Agile/scrum ready** - DoR checklists, story points, dependencies
 - **Backlog standardization** 🆕 - Template-driven refinement with persona/framework filtering
 - **Sprint/iteration filtering** 🆕 - Filter by sprint, release, iteration for agile workflows
+- **Interactive field mapping** 🆕 - Discover and map Azure DevOps fields with arrow-key navigation
+- **Azure DevOps integration** 🆕 - Full support for ADO work items with automatic token resolution
 
 👉 **[Agile/Scrum Workflows](docs/guides/agile-scrum-workflows.md)** - Team collaboration guide  
-👉 **[Backlog Refinement](docs/guides/backlog-refinement.md)** 🆕 - Standardize backlog items with templates
+👉 **[Backlog Refinement](docs/guides/backlog-refinement.md)** 🆕 - Standardize backlog items with templates  
+👉 **[Custom Field Mapping](docs/guides/custom-field-mapping.md)** 🆕 - Map ADO fields interactively
 
 ### 🔌 Integrations
 
 - **VS Code, Cursor** - Catch bugs before you commit
 - **GitHub Actions** - Automated quality gates
 - **AI IDEs** - Generate prompts for fixing gaps
-- **DevOps tools** - Sync with GitHub Issues, Linear, Jira
+- **DevOps tools** - Sync with GitHub Issues, Azure DevOps, Linear, Jira
 - **Backlog Refinement** 🆕 - AI-assisted template-driven refinement for standardizing work items
+- **Azure DevOps field mapping** 🆕 - Interactive field discovery and mapping for custom ADO process templates
 - **Spec-Kit, OpenSpec, Specmatic** - Works with your existing tools
 
 👉 **[Integrations Overview](docs/guides/integrations-overview.md)** - All integration options  
-👉 **[Backlog Refinement Guide](docs/guides/backlog-refinement.md)** 🆕 **NEW** - Template-driven backlog standardization
+👉 **[Backlog Refinement Guide](docs/guides/backlog-refinement.md)** 🆕 **NEW** - Template-driven backlog standardization  
+👉 **[Custom Field Mapping](docs/guides/custom-field-mapping.md)** 🆕 **NEW** - Interactive ADO field mapping
 
 ---
 
@@ -252,8 +257,9 @@ specfact validate sidecar run my-project /path/to/repo
 - **[Spec-Kit Journey](docs/guides/speckit-journey.md)** - From Spec-Kit to SpecFact
 - **[OpenSpec Journey](docs/guides/openspec-journey.md)** - OpenSpec integration
 - **[Specmatic Integration](docs/guides/specmatic-integration.md)** - API contract testing
-- **[DevOps Adapter Integration](docs/guides/devops-adapter-integration.md)** - GitHub Issues, Linear, Jira
+- **[DevOps Adapter Integration](docs/guides/devops-adapter-integration.md)** - GitHub Issues, Azure DevOps, Linear, Jira
 - **[Backlog Refinement](docs/guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven backlog standardization
+- **[Custom Field Mapping](docs/guides/custom-field-mapping.md)** 🆕 **NEW** - Interactive Azure DevOps field mapping
 
 👉 **[Full Documentation Index](docs/README.md)** - Browse all documentation  
 👉 **[Online Documentation](https://docs.specfact.io/)** - Complete documentation site

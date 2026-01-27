@@ -339,6 +339,9 @@ class TestOpenSpecBridgeWorkflowE2E:
             ],
         )
 
+        # Access stdout immediately to prevent I/O operation on closed file error
+        _ = result.stdout
+
         # Should succeed
         assert result.exit_code == 0
 
