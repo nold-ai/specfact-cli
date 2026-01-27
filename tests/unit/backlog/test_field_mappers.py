@@ -201,6 +201,72 @@ class TestAdoFieldMapper:
         fields = mapper.extract_fields(item_data)
         assert fields["acceptance_criteria"] == "AC1\nAC2"
 
+    def test_extract_acceptance_criteria_from_microsoft_vsts_common(self) -> None:
+        """Test extracting acceptance criteria from Microsoft.VSTS.Common.AcceptanceCriteria field."""
+        mapper = AdoFieldMapper()
+        item_data = {
+            "fields": {
+                "System.Description": "Description",
+                "Microsoft.VSTS.Common.AcceptanceCriteria": "AC1\nAC2\nAC3",
+                "System.Title": "Test Item",
+            }
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["acceptance_criteria"] == "AC1\nAC2\nAC3"
+
+    def test_extract_acceptance_criteria_multiple_alternatives(self) -> None:
+        """Test that both System.AcceptanceCriteria and Microsoft.VSTS.Common.AcceptanceCriteria work."""
+        mapper = AdoFieldMapper()
+        
+        # Test with Microsoft.VSTS.Common.AcceptanceCriteria (preferred in many ADO templates)
+        item_data_common = {
+            "fields": {
+                "System.Description": "Description",
+                "Microsoft.VSTS.Common.AcceptanceCriteria": "Common AC",
+                "System.Title": "Test Item",
+            }
+        }
+        fields_common = mapper.extract_fields(item_data_common)
+        assert fields_common["acceptance_criteria"] == "Common AC"
+        
+        # Test with System.AcceptanceCriteria (backward compatibility)
+        item_data_system = {
+            "fields": {
+                "System.Description": "Description",
+                "System.AcceptanceCriteria": "System AC",
+                "System.Title": "Test Item",
+            }
+        }
+        fields_system = mapper.extract_fields(item_data_system)
+        assert fields_system["acceptance_criteria"] == "System AC"
+        
+        # Test priority: if both exist, should use first found (order in DEFAULT_FIELD_MAPPINGS)
+        item_data_both = {
+            "fields": {
+                "System.Description": "Description",
+                "System.AcceptanceCriteria": "System AC",
+                "Microsoft.VSTS.Common.AcceptanceCriteria": "Common AC",
+                "System.Title": "Test Item",
+            }
+        }
+        fields_both = mapper.extract_fields(item_data_both)
+        # Should extract first found value (order in DEFAULT_FIELD_MAPPINGS)
+        assert fields_both["acceptance_criteria"] in ["System AC", "Common AC"]
+
+    def test_backward_compatibility_system_acceptance_criteria(self) -> None:
+        """Test backward compatibility: existing System.AcceptanceCriteria mapping still works."""
+        mapper = AdoFieldMapper()
+        item_data = {
+            "fields": {
+                "System.Description": "Description",
+                "System.AcceptanceCriteria": "Legacy AC",
+                "System.Title": "Test Item",
+            }
+        }
+        fields = mapper.extract_fields(item_data)
+        # Should still work with System.AcceptanceCriteria
+        assert fields["acceptance_criteria"] == "Legacy AC"
+
     def test_extract_story_points_from_microsoft_vsts_common(self) -> None:
         """Test extracting story points from Microsoft.VSTS.Common.StoryPoints."""
         mapper = AdoFieldMapper()
@@ -322,8 +388,15 @@ class TestAdoFieldMapper:
         ado_fields = mapper.map_from_canonical(canonical_fields)
         assert "System.Description" in ado_fields
         assert ado_fields["System.Description"] == "Main description"
-        assert "System.AcceptanceCriteria" in ado_fields
-        assert ado_fields["System.AcceptanceCriteria"] == "Criterion 1"
+        # Acceptance criteria can map to either System.AcceptanceCriteria or Microsoft.VSTS.Common.AcceptanceCriteria
+        # Reverse mapping picks first match in DEFAULT_FIELD_MAPPINGS
+        assert (
+            "System.AcceptanceCriteria" in ado_fields or "Microsoft.VSTS.Common.AcceptanceCriteria" in ado_fields
+        )
+        acceptance_criteria_value = ado_fields.get("System.AcceptanceCriteria") or ado_fields.get(
+            "Microsoft.VSTS.Common.AcceptanceCriteria"
+        )
+        assert acceptance_criteria_value == "Criterion 1"
         # ADO mapper may use either Microsoft.VSTS.Common.StoryPoints or Microsoft.VSTS.Scheduling.StoryPoints
         # Both are valid, check for either (reverse mapping picks first match)
         assert (
