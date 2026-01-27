@@ -99,7 +99,7 @@ docs/internal/
 /specs/
 
 # Include openspec/specs/ directory
-!openspec/specs/
+!openspec/
 
 # Ignore specfact-cli prompt templates
 .cursor/commands/specfact-*
