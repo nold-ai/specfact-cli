@@ -98,6 +98,9 @@ docs/internal/
 .cursor/commands/speckit.*
 specs/
 
+# Include openspec/specs/ directory
+!openspec/specs/
+
 # Ignore specfact-cli prompt templates
 .cursor/commands/specfact-*
 .github/prompts/specfact-*

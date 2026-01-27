@@ -324,7 +324,7 @@ class TestProjectUnlock:
         os.environ["TEST_MODE"] = "true"
 
         # First lock
-        runner.invoke(
+        lock_result = runner.invoke(
             app,
             [
                 "project",
@@ -340,6 +340,8 @@ class TestProjectUnlock:
                 "--no-interactive",
             ],
         )
+        # Access stdout immediately to prevent I/O operation on closed file error
+        _ = lock_result.stdout
 
         # Then unlock (unlock doesn't require persona)
         result = runner.invoke(
@@ -356,6 +358,8 @@ class TestProjectUnlock:
                 "--no-interactive",
             ],
         )
+        # Access stdout immediately to prevent I/O operation on closed file error
+        _ = result.stdout
 
         assert result.exit_code == 0
 
