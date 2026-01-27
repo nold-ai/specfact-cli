@@ -9,6 +9,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.9] - 2026-01-27
+
+### Fixed (0.26.9)
+
+- **GitHub Remote Detection**: Extended URL pattern matching to support all valid GitHub URL formats
+  - **Added Support**: Now detects `ssh://git@github.com/owner/repo.git` and `git://github.com/owner/repo.git` formats
+  - **Root Cause**: Previous regex only matched `https?://` and scp-style `git@host:path` URLs, causing regression for repos using `ssh://` or `git://` schemes
+  - **Solution**: Extended regex pattern to include `ssh://` and `git://` schemes, with proper URL parsing for hostname validation
+  - **Impact**: All valid GitHub URL formats are now properly detected, ensuring GitHub adapter is selected correctly
+
+- **Code Scanning Vulnerabilities**: Mitigated all 13 code scanning findings
+  - **ReDoS Fix**: Replaced regex-based section removal with line-by-line processing in `github_mapper.py`
+  - **URL Sanitization**: Replaced substring matching with proper URL parsing using `urllib.parse.urlparse()` in multiple files
+  - **Workflow Permissions**: Added explicit `permissions: contents: read` blocks to 7 GitHub Actions jobs
+  - **SSH Host Aliases**: Added support for `ssh.github.com` SSH host alias detection
+  - **Test Fixes**: Fixed async cleanup issues in test mode for progress display utilities
+
 ## [0.26.8] - 2026-01-27
 
 ### Fixed (0.26.8)
