@@ -20,16 +20,23 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). By participat
 - Use the GitHub issue tracker with the "enhancement" label
 - Describe the feature and its benefits clearly
 - Consider the impact on existing functionality
+- **Spec-Driven Development (SDD)**: All feature requests should ideally be accompanied by a spec update in the [`openspec/`](./openspec/) folder
+  - Review existing specs in [`openspec/specs/`](./openspec/specs/) to understand current capabilities
+  - Create a change proposal in [`openspec/changes/`](./openspec/changes/) following the [OpenSpec workflow](./openspec/AGENTS.md)
+  - This ensures clear requirements, scenarios, and implementation guidance before coding begins
 
 ### Code Contributions
 
 1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/your-feature-name`
-3. **Make your changes** following the coding standards below
-4. **Test your changes**: Run `hatch test --cover -v` to ensure all tests pass
-5. **Commit your changes**: Use [Conventional Commits](https://www.conventionalcommits.org/) format
-6. **Push to your fork**: `git push origin feature/your-feature-name`
-7. **Create a Pull Request**: Provide a clear description of your changes
+2. **Review OpenSpec specs**: Check [`openspec/specs/`](./openspec/specs/) to understand existing capabilities
+3. **Create spec proposal** (if needed): For new features, create a change proposal in [`openspec/changes/`](./openspec/changes/) following the [OpenSpec workflow](./openspec/AGENTS.md)
+4. **Create a feature branch**: `git checkout -b feature/your-feature-name`
+5. **Make your changes** following the coding standards below
+6. **Update specs**: Ensure [`openspec/specs/`](./openspec/specs/) reflects your changes
+7. **Test your changes**: Run `hatch test --cover -v` to ensure all tests pass
+8. **Commit your changes**: Use [Conventional Commits](https://www.conventionalcommits.org/) format
+9. **Push to your fork**: `git push origin feature/your-feature-name`
+10. **Create a Pull Request**: Provide a clear description of your changes and reference any OpenSpec change proposals
 
 ## Development Setup
 
@@ -127,6 +134,42 @@ hatch test --cover -v tests/unit/specfact_cli/test_cli.py
 - Use descriptive test names following `test_<command>_<scenario>` pattern
 - Ensure tests are deterministic and fast
 
+## Spec-Driven Development (SDD)
+
+SpecFact CLI uses **Spec-Driven Development (SDD)** via [OpenSpec](./openspec/) to ensure clear requirements and maintainable code.
+
+### OpenSpec Workflow
+
+1. **Review existing specs**: Check [`openspec/specs/`](./openspec/specs/) to understand current capabilities
+2. **Create change proposals**: For new features or significant changes, create proposals in [`openspec/changes/`](./openspec/changes/)
+3. **Follow OpenSpec guidelines**: See [`openspec/AGENTS.md`](./openspec/AGENTS.md) for detailed workflow instructions
+4. **Update specs**: When implementing changes, update the relevant spec files to reflect the new behavior
+
+### When to Create Spec Proposals
+
+**Create a spec proposal when:**
+
+- Adding new features or functionality
+- Making breaking changes (API, schema)
+- Changing architecture or patterns
+- Optimizing performance (changes behavior)
+- Updating security patterns
+
+**Skip spec proposals for:**
+
+- Bug fixes (restore intended behavior)
+- Typos, formatting, comments
+- Dependency updates (non-breaking)
+- Configuration changes
+- Tests for existing behavior
+
+### OpenSpec Resources
+
+- **Project overview**: [`openspec/project.md`](./openspec/project.md) - High-level development conventions
+- **Workflow guide**: [`openspec/AGENTS.md`](./openspec/AGENTS.md) - Detailed OpenSpec instructions for AI assistants
+- **Current specs**: [`openspec/specs/`](./openspec/specs/) - Specifications for all capabilities
+- **Active changes**: [`openspec/changes/`](./openspec/changes/) - Proposed changes and implementations
+
 ## Documentation
 
 ### Updating Documentation
@@ -135,11 +178,17 @@ hatch test --cover -v tests/unit/specfact_cli/test_cli.py
 - Include code examples where appropriate
 - Follow the existing documentation style
 - Test documentation examples
+- **Update OpenSpec specs**: When implementing features, ensure [`openspec/specs/`](./openspec/specs/) reflects the new behavior
 
 ### Documentation Structure
 
 - `README.md`: Project overview and quick start
 - `AGENTS.md`: Repository guidelines and development patterns
+- `openspec/`: Spec-Driven Development (SDD) specifications and change proposals
+  - `openspec/project.md`: Project conventions and architecture
+  - `openspec/AGENTS.md`: OpenSpec workflow instructions
+  - `openspec/specs/`: Current capability specifications
+  - `openspec/changes/`: Proposed changes and implementations
 - `.cursor/rules/`: Cursor AI development rules
 - `CONTRIBUTING.md`: Contribution guidelines and workflow
 
