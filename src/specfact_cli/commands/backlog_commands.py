@@ -84,12 +84,18 @@ def _apply_filters(
         filtered = [item for item in filtered if BacklogFilters.normalize_filter_value(item.state) == normalized_state]
 
     # Filter by assignee (case-insensitive)
+    # Matches against any identifier in assignees list (displayName, uniqueName, or mail for ADO)
     if assignee:
         normalized_assignee = BacklogFilters.normalize_filter_value(assignee)
         filtered = [
             item
             for item in filtered
-            if any(BacklogFilters.normalize_filter_value(a) == normalized_assignee for a in item.assignees)
+            if item.assignees  # Only check items with assignees
+            and any(
+                BacklogFilters.normalize_filter_value(a) == normalized_assignee
+                for a in item.assignees
+                if a  # Skip None or empty strings
+            )
         ]
 
     # Filter by iteration (case-insensitive)
@@ -410,117 +416,145 @@ def refine(
     - This command validates and processes the refined content
     """
     try:
-        # Initialize template registry and load templates
-        registry = TemplateRegistry()
+        # Show initialization progress to provide feedback during setup
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as init_progress:
+            # Initialize template registry and load templates
+            init_task = init_progress.add_task("[cyan]Initializing templates...[/cyan]", total=None)
+            registry = TemplateRegistry()
 
-        # Determine template directories (built-in first so custom overrides take effect)
-        from specfact_cli.utils.ide_setup import find_package_resources_path
+            # Determine template directories (built-in first so custom overrides take effect)
+            from specfact_cli.utils.ide_setup import find_package_resources_path
 
-        current_dir = Path.cwd()
+            current_dir = Path.cwd()
 
-        # 1. Load built-in templates from resources/templates/backlog/ (preferred location)
-        # Try to find resources directory using package resource finder (for installed packages)
-        resources_path = find_package_resources_path("specfact_cli", "resources/templates/backlog")
-        built_in_loaded = False
-        if resources_path and resources_path.exists():
-            registry.load_templates_from_directory(resources_path)
-            built_in_loaded = True
-        else:
-            # Fallback: Try relative to repo root (development mode)
-            repo_root = Path(__file__).parent.parent.parent.parent
-            resources_templates_dir = repo_root / "resources" / "templates" / "backlog"
-            if resources_templates_dir.exists():
-                registry.load_templates_from_directory(resources_templates_dir)
+            # 1. Load built-in templates from resources/templates/backlog/ (preferred location)
+            # Try to find resources directory using package resource finder (for installed packages)
+            resources_path = find_package_resources_path("specfact_cli", "resources/templates/backlog")
+            built_in_loaded = False
+            if resources_path and resources_path.exists():
+                registry.load_templates_from_directory(resources_path)
                 built_in_loaded = True
             else:
-                # 2. Fallback to src/specfact_cli/templates/ for backward compatibility
-                src_templates_dir = Path(__file__).parent.parent / "templates"
-                if src_templates_dir.exists():
-                    registry.load_templates_from_directory(src_templates_dir)
+                # Fallback: Try relative to repo root (development mode)
+                repo_root = Path(__file__).parent.parent.parent.parent
+                resources_templates_dir = repo_root / "resources" / "templates" / "backlog"
+                if resources_templates_dir.exists():
+                    registry.load_templates_from_directory(resources_templates_dir)
                     built_in_loaded = True
+                else:
+                    # 2. Fallback to src/specfact_cli/templates/ for backward compatibility
+                    src_templates_dir = Path(__file__).parent.parent / "templates"
+                    if src_templates_dir.exists():
+                        registry.load_templates_from_directory(src_templates_dir)
+                        built_in_loaded = True
 
-        if not built_in_loaded:
-            console.print(
-                "[yellow]⚠ No built-in backlog templates found; continuing with custom templates only.[/yellow]"
-            )
-
-        # 3. Load custom templates from project directory (highest priority)
-        project_templates_dir = current_dir / ".specfact" / "templates" / "backlog"
-        if project_templates_dir.exists():
-            registry.load_templates_from_directory(project_templates_dir)
-
-        # Initialize template detector
-        detector = TemplateDetector(registry)
-
-        # Initialize AI refiner (prompt generator and validator)
-        refiner = BacklogAIRefiner()
-
-        # Get adapter registry for writeback
-        adapter_registry = AdapterRegistry()
-
-        # Load DoR configuration (if --check-dor flag set)
-        dor_config: DefinitionOfReady | None = None
-        if check_dor:
-            repo_path = Path(".")
-            dor_config = DefinitionOfReady.load_from_repo(repo_path)
-            if dor_config:
-                console.print("[green]✓ Loaded DoR configuration from .specfact/dor.yaml[/green]")
-            else:
-                console.print("[yellow]⚠ DoR config not found (.specfact/dor.yaml), using default DoR rules[/yellow]")
-                # Use default DoR rules
-                dor_config = DefinitionOfReady(
-                    rules={
-                        "story_points": True,
-                        "value_points": False,  # Optional by default
-                        "priority": True,
-                        "business_value": True,
-                        "acceptance_criteria": True,
-                        "dependencies": False,  # Optional by default
-                    }
+            if not built_in_loaded:
+                console.print(
+                    "[yellow]⚠ No built-in backlog templates found; continuing with custom templates only.[/yellow]"
                 )
 
-        # Normalize adapter, framework, and persona to lowercase for template matching
-        # Template metadata in YAML uses lowercase (e.g., provider: github, framework: scrum)
-        # This ensures case-insensitive matching regardless of CLI input case
-        normalized_adapter = adapter.lower() if adapter else None
-        normalized_framework = framework.lower() if framework else None
-        normalized_persona = persona.lower() if persona else None
+            # 3. Load custom templates from project directory (highest priority)
+            project_templates_dir = current_dir / ".specfact" / "templates" / "backlog"
+            if project_templates_dir.exists():
+                registry.load_templates_from_directory(project_templates_dir)
 
-        # Validate adapter-specific required parameters
-        if normalized_adapter == "github" and (not repo_owner or not repo_name):
-            console.print("[red]Error:[/red] GitHub adapter requires both --repo-owner and --repo-name options")
-            console.print(
-                "[yellow]Example:[/yellow] specfact backlog refine github "
-                "--repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
-            )
-            sys.exit(1)
-        if normalized_adapter == "ado" and (not ado_org or not ado_project):
-            console.print("[red]Error:[/red] Azure DevOps adapter requires both --ado-org and --ado-project options")
-            console.print(
-                "[yellow]Example:[/yellow] specfact backlog refine ado --ado-org 'my-org' --ado-project 'my-project' --state Active"
-            )
-            sys.exit(1)
+            init_progress.update(init_task, description="[green]✓[/green] Templates initialized")
 
-        # Validate and set custom field mapping (if provided)
-        if custom_field_mapping:
-            mapping_path = Path(custom_field_mapping)
-            if not mapping_path.exists():
-                console.print(f"[red]Error:[/red] Custom field mapping file not found: {custom_field_mapping}")
-                sys.exit(1)
-            if not mapping_path.is_file():
-                console.print(f"[red]Error:[/red] Custom field mapping path is not a file: {custom_field_mapping}")
-                sys.exit(1)
-            # Validate file format by attempting to load it
-            try:
-                from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+            # Initialize template detector
+            detector_task = init_progress.add_task("[cyan]Initializing template detector...[/cyan]", total=None)
+            detector = TemplateDetector(registry)
+            init_progress.update(detector_task, description="[green]✓[/green] Template detector ready")
 
-                FieldMappingConfig.from_file(mapping_path)
-                console.print(f"[green]✓[/green] Validated custom field mapping: {custom_field_mapping}")
-            except (FileNotFoundError, ValueError, yaml.YAMLError) as e:
-                console.print(f"[red]Error:[/red] Invalid custom field mapping file: {e}")
+            # Initialize AI refiner (prompt generator and validator)
+            refiner_task = init_progress.add_task("[cyan]Initializing AI refiner...[/cyan]", total=None)
+            refiner = BacklogAIRefiner()
+            init_progress.update(refiner_task, description="[green]✓[/green] AI refiner ready")
+
+            # Get adapter registry for writeback
+            adapter_task = init_progress.add_task("[cyan]Initializing adapter...[/cyan]", total=None)
+            adapter_registry = AdapterRegistry()
+            init_progress.update(adapter_task, description="[green]✓[/green] Adapter registry ready")
+
+            # Load DoR configuration (if --check-dor flag set)
+            dor_config: DefinitionOfReady | None = None
+            if check_dor:
+                dor_task = init_progress.add_task("[cyan]Loading DoR configuration...[/cyan]", total=None)
+                repo_path = Path(".")
+                dor_config = DefinitionOfReady.load_from_repo(repo_path)
+                if dor_config:
+                    init_progress.update(dor_task, description="[green]✓[/green] DoR configuration loaded")
+                else:
+                    init_progress.update(dor_task, description="[yellow]⚠[/yellow] Using default DoR rules")
+                    # Use default DoR rules
+                    dor_config = DefinitionOfReady(
+                        rules={
+                            "story_points": True,
+                            "value_points": False,  # Optional by default
+                            "priority": True,
+                            "business_value": True,
+                            "acceptance_criteria": True,
+                            "dependencies": False,  # Optional by default
+                        }
+                    )
+
+            # Normalize adapter, framework, and persona to lowercase for template matching
+            # Template metadata in YAML uses lowercase (e.g., provider: github, framework: scrum)
+            # This ensures case-insensitive matching regardless of CLI input case
+            normalized_adapter = adapter.lower() if adapter else None
+            normalized_framework = framework.lower() if framework else None
+            normalized_persona = persona.lower() if persona else None
+
+            # Validate adapter-specific required parameters
+            validate_task = init_progress.add_task("[cyan]Validating adapter configuration...[/cyan]", total=None)
+            if normalized_adapter == "github" and (not repo_owner or not repo_name):
+                init_progress.stop()
+                console.print("[red]Error:[/red] GitHub adapter requires both --repo-owner and --repo-name options")
+                console.print(
+                    "[yellow]Example:[/yellow] specfact backlog refine github "
+                    "--repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
+                )
                 sys.exit(1)
-            # Set environment variable for converter to use
-            os.environ["SPECFACT_ADO_CUSTOM_MAPPING"] = str(mapping_path.absolute())
+            if normalized_adapter == "ado" and (not ado_org or not ado_project):
+                init_progress.stop()
+                console.print(
+                    "[red]Error:[/red] Azure DevOps adapter requires both --ado-org and --ado-project options"
+                )
+                console.print(
+                    "[yellow]Example:[/yellow] specfact backlog refine ado --ado-org 'my-org' --ado-project 'my-project' --state Active"
+                )
+                sys.exit(1)
+
+            # Validate and set custom field mapping (if provided)
+            if custom_field_mapping:
+                mapping_path = Path(custom_field_mapping)
+                if not mapping_path.exists():
+                    init_progress.stop()
+                    console.print(f"[red]Error:[/red] Custom field mapping file not found: {custom_field_mapping}")
+                    sys.exit(1)
+                if not mapping_path.is_file():
+                    init_progress.stop()
+                    console.print(f"[red]Error:[/red] Custom field mapping path is not a file: {custom_field_mapping}")
+                    sys.exit(1)
+                # Validate file format by attempting to load it
+                try:
+                    from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+
+                    FieldMappingConfig.from_file(mapping_path)
+                    init_progress.update(validate_task, description="[green]✓[/green] Field mapping validated")
+                except (FileNotFoundError, ValueError, yaml.YAMLError) as e:
+                    init_progress.stop()
+                    console.print(f"[red]Error:[/red] Invalid custom field mapping file: {e}")
+                    sys.exit(1)
+                # Set environment variable for converter to use
+                os.environ["SPECFACT_ADO_CUSTOM_MAPPING"] = str(mapping_path.absolute())
+            else:
+                init_progress.update(validate_task, description="[green]✓[/green] Configuration validated")
 
         # Fetch backlog items with filters
         with Progress(
@@ -774,6 +808,7 @@ def refine(
                 console.print(f"[bold]URL:[/bold] {item.url}")
                 console.print(f"[bold]State:[/bold] {item.state}")
                 console.print(f"[bold]Provider:[/bold] {item.provider}")
+                console.print(f"[bold]Assignee:[/bold] {', '.join(item.assignees) if item.assignees else 'Unassigned'}")
 
                 # Show metrics if available
                 if item.story_points is not None or item.business_value is not None or item.priority is not None:
@@ -789,16 +824,29 @@ def refine(
                     if item.work_item_type:
                         console.print(f"  - Work Item Type: {item.work_item_type}")
 
-                # Show acceptance criteria if available
-                if item.acceptance_criteria:
-                    console.print("\n[bold]Acceptance Criteria:[/bold]")
-                    console.print(Panel(item.acceptance_criteria))
-
-                # Show body
-                console.print("\n[bold]Body:[/bold]")
-                console.print(
-                    Panel(item.body_markdown[:1000] + "..." if len(item.body_markdown) > 1000 else item.body_markdown)
+                # Always show acceptance criteria if it's a required section, even if empty
+                # This helps copilot understand what fields need to be added
+                is_acceptance_criteria_required = (
+                    target_template.required_sections and "Acceptance Criteria" in target_template.required_sections
                 )
+                if is_acceptance_criteria_required or item.acceptance_criteria:
+                    console.print("\n[bold]Acceptance Criteria:[/bold]")
+                    if item.acceptance_criteria:
+                        console.print(Panel(item.acceptance_criteria))
+                    else:
+                        # Show empty state so copilot knows to add it
+                        console.print(Panel("[dim](empty - required field)[/dim]", border_style="dim"))
+
+                # Always show body (Description is typically required)
+                console.print("\n[bold]Body:[/bold]")
+                body_content = (
+                    item.body_markdown[:1000] + "..." if len(item.body_markdown) > 1000 else item.body_markdown
+                )
+                if not body_content.strip():
+                    # Show empty state so copilot knows to add it
+                    console.print(Panel("[dim](empty - required field)[/dim]", border_style="dim"))
+                else:
+                    console.print(Panel(body_content))
 
                 # Show template info
                 console.print(
@@ -1139,3 +1187,407 @@ def refine(
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from e
+
+
+@app.command("map-fields")
+@require(
+    lambda ado_org, ado_project: isinstance(ado_org, str)
+    and len(ado_org) > 0
+    and isinstance(ado_project, str)
+    and len(ado_project) > 0,
+    "ADO org and project must be non-empty strings",
+)
+@beartype
+def map_fields(
+    ado_org: str = typer.Option(..., "--ado-org", help="Azure DevOps organization (required)"),
+    ado_project: str = typer.Option(..., "--ado-project", help="Azure DevOps project (required)"),
+    ado_token: str | None = typer.Option(
+        None, "--ado-token", help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)"
+    ),
+    ado_base_url: str | None = typer.Option(
+        None, "--ado-base-url", help="Azure DevOps base URL (defaults to https://dev.azure.com)"
+    ),
+    reset: bool = typer.Option(
+        False, "--reset", help="Reset custom field mapping to defaults (deletes ado_custom.yaml)"
+    ),
+) -> None:
+    """
+    Interactive command to map ADO fields to canonical field names.
+
+    Fetches available fields from Azure DevOps API and guides you through
+    mapping them to canonical field names (description, acceptance_criteria, etc.).
+    Saves the mapping to .specfact/templates/backlog/field_mappings/ado_custom.yaml.
+
+    Examples:
+        specfact backlog map-fields --ado-org myorg --ado-project myproject
+        specfact backlog map-fields --ado-org myorg --ado-project myproject --ado-token <token>
+        specfact backlog map-fields --ado-org myorg --ado-project myproject --reset
+    """
+    import base64
+    import re
+    import sys
+
+    import questionary
+    import requests
+
+    from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+    from specfact_cli.utils.auth_tokens import get_token
+
+    def _find_potential_match(canonical_field: str, available_fields: list[dict[str, Any]]) -> str | None:
+        """
+        Find a potential ADO field match for a canonical field using regex/fuzzy matching.
+
+        Args:
+            canonical_field: Canonical field name (e.g., "acceptance_criteria")
+            available_fields: List of ADO field dicts with "referenceName" and "name"
+
+        Returns:
+            Reference name of best matching field, or None if no good match found
+        """
+        # Convert canonical field to search patterns
+        # e.g., "acceptance_criteria" -> ["acceptance", "criteria"]
+        field_parts = re.split(r"[_\s-]+", canonical_field.lower())
+
+        best_match: tuple[str, int] | None = None
+        best_score = 0
+
+        for field in available_fields:
+            ref_name = field.get("referenceName", "")
+            name = field.get("name", ref_name)
+
+            # Search in both reference name and display name
+            search_text = f"{ref_name} {name}".lower()
+
+            # Calculate match score
+            score = 0
+            matched_parts = 0
+
+            for part in field_parts:
+                # Exact match in reference name (highest priority)
+                if part in ref_name.lower():
+                    score += 10
+                    matched_parts += 1
+                # Exact match in display name
+                elif part in name.lower():
+                    score += 5
+                    matched_parts += 1
+                # Partial match (contains substring)
+                elif part in search_text:
+                    score += 2
+                    matched_parts += 1
+
+            # Bonus for matching all parts
+            if matched_parts == len(field_parts):
+                score += 5
+
+            # Prefer Microsoft.VSTS.Common.* fields
+            if ref_name.startswith("Microsoft.VSTS.Common."):
+                score += 3
+
+            if score > best_score and matched_parts > 0:
+                best_score = score
+                best_match = (ref_name, score)
+
+        # Only return if we have a reasonable match (score >= 5)
+        if best_match and best_score >= 5:
+            return best_match[0]
+
+        return None
+
+    # Resolve token (explicit > env var > stored token)
+    api_token: str | None = None
+    auth_scheme = "basic"
+    if ado_token:
+        api_token = ado_token
+        auth_scheme = "basic"
+    elif os.environ.get("AZURE_DEVOPS_TOKEN"):
+        api_token = os.environ.get("AZURE_DEVOPS_TOKEN")
+        auth_scheme = "basic"
+    elif stored_token := get_token("azure-devops", allow_expired=False):
+        # Valid, non-expired token found
+        api_token = stored_token.get("access_token")
+        token_type = (stored_token.get("token_type") or "bearer").lower()
+        auth_scheme = "bearer" if token_type == "bearer" else "basic"
+    elif stored_token_expired := get_token("azure-devops", allow_expired=True):
+        # Token exists but is expired - use it anyway for this command (user can refresh later)
+        api_token = stored_token_expired.get("access_token")
+        token_type = (stored_token_expired.get("token_type") or "bearer").lower()
+        auth_scheme = "bearer" if token_type == "bearer" else "basic"
+        console.print(
+            "[yellow]⚠[/yellow] Using expired stored token. If authentication fails, refresh with: specfact auth azure-devops"
+        )
+
+    if not api_token:
+        console.print("[red]Error:[/red] Azure DevOps token required")
+        console.print("[yellow]Options:[/yellow]")
+        console.print("  1. Use --ado-token option")
+        console.print("  2. Set AZURE_DEVOPS_TOKEN environment variable")
+        console.print("  3. Use: specfact auth azure-devops")
+        raise typer.Exit(1)
+
+    # Build base URL
+    base_url = (ado_base_url or "https://dev.azure.com").rstrip("/")
+
+    # Fetch fields from ADO API
+    console.print("[cyan]Fetching fields from Azure DevOps...[/cyan]")
+    fields_url = f"{base_url}/{ado_org}/{ado_project}/_apis/wit/fields?api-version=7.1"
+
+    # Prepare authentication headers based on auth scheme
+    headers: dict[str, str] = {}
+    if auth_scheme == "bearer":
+        headers["Authorization"] = f"Bearer {api_token}"
+    else:
+        # Basic auth for PAT tokens
+        auth_header = base64.b64encode(f":{api_token}".encode()).decode()
+        headers["Authorization"] = f"Basic {auth_header}"
+
+    try:
+        response = requests.get(fields_url, headers=headers, timeout=30)
+        response.raise_for_status()
+        fields_data = response.json()
+    except requests.exceptions.RequestException as e:
+        console.print(f"[red]Error:[/red] Failed to fetch fields from Azure DevOps: {e}")
+        raise typer.Exit(1) from e
+
+    # Extract fields and filter out system-only fields
+    all_fields = fields_data.get("value", [])
+    system_only_fields = {
+        "System.Id",
+        "System.Rev",
+        "System.ChangedDate",
+        "System.CreatedDate",
+        "System.ChangedBy",
+        "System.CreatedBy",
+        "System.AreaId",
+        "System.IterationId",
+        "System.TeamProject",
+        "System.NodeName",
+        "System.AreaLevel1",
+        "System.AreaLevel2",
+        "System.AreaLevel3",
+        "System.AreaLevel4",
+        "System.AreaLevel5",
+        "System.AreaLevel6",
+        "System.AreaLevel7",
+        "System.AreaLevel8",
+        "System.AreaLevel9",
+        "System.AreaLevel10",
+        "System.IterationLevel1",
+        "System.IterationLevel2",
+        "System.IterationLevel3",
+        "System.IterationLevel4",
+        "System.IterationLevel5",
+        "System.IterationLevel6",
+        "System.IterationLevel7",
+        "System.IterationLevel8",
+        "System.IterationLevel9",
+        "System.IterationLevel10",
+    }
+
+    # Filter relevant fields
+    relevant_fields = [
+        field
+        for field in all_fields
+        if field.get("referenceName") not in system_only_fields
+        and not field.get("referenceName", "").startswith("System.History")
+        and not field.get("referenceName", "").startswith("System.Watermark")
+    ]
+
+    # Sort fields by reference name
+    relevant_fields.sort(key=lambda f: f.get("referenceName", ""))
+
+    # Canonical fields to map
+    canonical_fields = {
+        "description": "Description",
+        "acceptance_criteria": "Acceptance Criteria",
+        "story_points": "Story Points",
+        "business_value": "Business Value",
+        "priority": "Priority",
+        "work_item_type": "Work Item Type",
+    }
+
+    # Load default mappings from AdoFieldMapper
+    from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
+
+    default_mappings = AdoFieldMapper.DEFAULT_FIELD_MAPPINGS
+    # Reverse default mappings: canonical -> list of ADO fields
+    default_mappings_reversed: dict[str, list[str]] = {}
+    for ado_field, canonical in default_mappings.items():
+        if canonical not in default_mappings_reversed:
+            default_mappings_reversed[canonical] = []
+        default_mappings_reversed[canonical].append(ado_field)
+
+    # Handle --reset flag
+    current_dir = Path.cwd()
+    custom_mapping_file = current_dir / ".specfact" / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
+
+    if reset:
+        if custom_mapping_file.exists():
+            custom_mapping_file.unlink()
+            console.print(f"[green]✓[/green] Reset custom field mapping (deleted {custom_mapping_file})")
+            console.print("[dim]Custom mappings removed. Default mappings will be used.[/dim]")
+        else:
+            console.print("[yellow]⚠[/yellow] No custom mapping file found. Nothing to reset.")
+        return
+
+    # Load existing mapping if it exists
+    existing_mapping: dict[str, str] = {}
+    existing_work_item_type_mappings: dict[str, str] = {}
+    existing_config: FieldMappingConfig | None = None
+    if custom_mapping_file.exists():
+        try:
+            existing_config = FieldMappingConfig.from_file(custom_mapping_file)
+            existing_mapping = existing_config.field_mappings
+            existing_work_item_type_mappings = existing_config.work_item_type_mappings or {}
+            console.print(f"[green]✓[/green] Loaded existing mapping from {custom_mapping_file}")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Failed to load existing mapping: {e}")
+
+    # Build combined mapping: existing > default (checking which defaults exist in fetched fields)
+    combined_mapping: dict[str, str] = {}
+    # Get list of available ADO field reference names
+    available_ado_refs = {field.get("referenceName", "") for field in relevant_fields}
+
+    # First add defaults, but only if they exist in the fetched ADO fields
+    for canonical_field in canonical_fields:
+        if canonical_field in default_mappings_reversed:
+            # Find which default mappings actually exist in the fetched ADO fields
+            # Prefer more common field names (Microsoft.VSTS.Common.* over System.*)
+            default_options = default_mappings_reversed[canonical_field]
+            existing_defaults = [ado_field for ado_field in default_options if ado_field in available_ado_refs]
+
+            if existing_defaults:
+                # Prefer Microsoft.VSTS.Common.* over System.* for better compatibility
+                preferred = None
+                for ado_field in existing_defaults:
+                    if ado_field.startswith("Microsoft.VSTS.Common."):
+                        preferred = ado_field
+                        break
+                # If no Microsoft.VSTS.Common.* found, use first existing
+                if preferred is None:
+                    preferred = existing_defaults[0]
+                combined_mapping[preferred] = canonical_field
+            else:
+                # No default mapping exists - try to find a potential match using regex/fuzzy matching
+                potential_match = _find_potential_match(canonical_field, relevant_fields)
+                if potential_match:
+                    combined_mapping[potential_match] = canonical_field
+    # Then override with existing mappings
+    combined_mapping.update(existing_mapping)
+
+    # Interactive mapping
+    console.print()
+    console.print(Panel("[bold cyan]Interactive Field Mapping[/bold cyan]", border_style="cyan"))
+    console.print("[dim]Use ↑↓ to navigate, ⏎ to select. Map ADO fields to canonical field names.[/dim]")
+    console.print()
+
+    new_mapping: dict[str, str] = {}
+
+    # Build choice list with display names
+    field_choices_display: list[str] = ["<no mapping>"]
+    field_choices_refs: list[str] = ["<no mapping>"]
+    for field in relevant_fields:
+        ref_name = field.get("referenceName", "")
+        name = field.get("name", ref_name)
+        display = f"{ref_name} ({name})"
+        field_choices_display.append(display)
+        field_choices_refs.append(ref_name)
+
+    for canonical_field, display_name in canonical_fields.items():
+        # Find current mapping (existing > default)
+        current_ado_fields = [
+            ado_field for ado_field, canonical in combined_mapping.items() if canonical == canonical_field
+        ]
+
+        # Determine default selection
+        default_selection = "<no mapping>"
+        if current_ado_fields:
+            # Find the current mapping in the choices list
+            current_ref = current_ado_fields[0]
+            if current_ref in field_choices_refs:
+                default_selection = field_choices_display[field_choices_refs.index(current_ref)]
+            else:
+                # If current mapping not in available fields, use "<no mapping>"
+                default_selection = "<no mapping>"
+
+        # Use interactive selection menu with questionary
+        console.print(f"[bold]{display_name}[/bold] (canonical: {canonical_field})")
+        if current_ado_fields:
+            console.print(f"[dim]Current: {', '.join(current_ado_fields)}[/dim]")
+        else:
+            console.print("[dim]Current: <no mapping>[/dim]")
+
+        # Find default index
+        default_index = 0
+        if default_selection != "<no mapping>" and default_selection in field_choices_display:
+            default_index = field_choices_display.index(default_selection)
+
+        # Use questionary for interactive selection with arrow keys
+        try:
+            selected_display = questionary.select(
+                f"Select ADO field for {display_name}",
+                choices=field_choices_display,
+                default=field_choices_display[default_index] if default_index < len(field_choices_display) else None,
+                use_arrow_keys=True,
+                use_jk_keys=False,
+            ).ask()
+            if selected_display is None:
+                selected_display = "<no mapping>"
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Selection cancelled.[/yellow]")
+            sys.exit(0)
+
+        # Convert display name back to reference name
+        if selected_display and selected_display != "<no mapping>" and selected_display in field_choices_display:
+            selected_ref = field_choices_refs[field_choices_display.index(selected_display)]
+            new_mapping[selected_ref] = canonical_field
+
+        console.print()
+
+    # Validate mapping
+    console.print("[cyan]Validating mapping...[/cyan]")
+    duplicate_ado_fields = {}
+    for ado_field, canonical in new_mapping.items():
+        if ado_field in duplicate_ado_fields:
+            duplicate_ado_fields[ado_field].append(canonical)
+        else:
+            # Check if this ADO field is already mapped to a different canonical field
+            for other_ado, other_canonical in new_mapping.items():
+                if other_ado == ado_field and other_canonical != canonical:
+                    if ado_field not in duplicate_ado_fields:
+                        duplicate_ado_fields[ado_field] = []
+                    duplicate_ado_fields[ado_field].extend([canonical, other_canonical])
+
+    if duplicate_ado_fields:
+        console.print("[yellow]⚠[/yellow] Warning: Some ADO fields are mapped to multiple canonical fields:")
+        for ado_field, canonicals in duplicate_ado_fields.items():
+            console.print(f"  {ado_field}: {', '.join(set(canonicals))}")
+        if not Confirm.ask("Continue anyway?", default=False):
+            console.print("[yellow]Mapping cancelled.[/yellow]")
+            raise typer.Exit(0)
+
+    # Merge with existing mapping (new mapping takes precedence)
+    final_mapping = existing_mapping.copy()
+    final_mapping.update(new_mapping)
+
+    # Preserve existing work_item_type_mappings if they exist
+    # This prevents erasing custom work item type mappings when updating field mappings
+    work_item_type_mappings = existing_work_item_type_mappings.copy() if existing_work_item_type_mappings else {}
+
+    # Create FieldMappingConfig
+    config = FieldMappingConfig(
+        framework=existing_config.framework if existing_config else "default",
+        field_mappings=final_mapping,
+        work_item_type_mappings=work_item_type_mappings,
+    )
+
+    # Save to file
+    custom_mapping_file.parent.mkdir(parents=True, exist_ok=True)
+    with custom_mapping_file.open("w", encoding="utf-8") as f:
+        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+
+    console.print()
+    console.print(Panel("[bold green]✓ Mapping saved successfully[/bold green]", border_style="green"))
+    console.print(f"[green]Location:[/green] {custom_mapping_file}")
+    console.print()
+    console.print("[dim]You can now use this mapping with specfact backlog refine.[/dim]")

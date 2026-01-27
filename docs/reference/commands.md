@@ -3888,6 +3888,64 @@ specfact backlog refine ado \
 - **Work Items Batch GET**: GET to `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1` (organization-level endpoint)
 - **api-version Parameter**: Required for all ADO API calls (default: `7.1`)
 
+**Preview Output Features**:
+
+- **Progress Indicators**: Shows detailed progress during initialization (templates, detector, AI refiner, adapter, DoR config, validation)
+- **Required Fields Always Displayed**: All required fields from the template are always shown, even when empty, with `(empty - required field)` indicator to help copilot identify missing elements
+- **Assignee Display**: Always shows assignee(s) or "Unassigned" status
+- **Acceptance Criteria Display**: Always shows acceptance criteria if required by template (even when empty)
+
+#### `backlog map-fields`
+
+Interactively map Azure DevOps fields to canonical field names. This command helps you discover available ADO fields and create custom field mappings for your specific ADO process template.
+
+```bash
+specfact backlog map-fields [OPTIONS]
+```
+
+**Options:**
+
+- `--ado-org` - Azure DevOps organization or collection name (required)
+- `--ado-project` - Azure DevOps project (required)
+- `--ado-token` - Azure DevOps PAT (optional, uses token resolution priority: explicit > env var > stored token)
+- `--ado-base-url` - Azure DevOps base URL (optional, defaults to `https://dev.azure.com`)
+- `--reset` - Reset custom field mapping to defaults (deletes `ado_custom.yaml` and restores default mappings)
+
+**Token Resolution Priority:**
+
+1. Explicit `--ado-token` parameter
+2. `AZURE_DEVOPS_TOKEN` environment variable
+3. Stored token via `specfact auth azure-devops`
+4. Expired stored token (shows warning with options to refresh)
+
+**Features:**
+
+- **Interactive Menu**: Uses arrow-key navigation (↑↓ to navigate, Enter to select) similar to `openspec archive`
+- **Default Pre-population**: Automatically pre-populates default mappings from `AdoFieldMapper.DEFAULT_FIELD_MAPPINGS`
+- **Smart Field Preference**: Prefers `Microsoft.VSTS.Common.*` fields over `System.*` fields for better compatibility
+- **Fuzzy Matching**: Uses regex/fuzzy matching to suggest potential matches when no default mapping exists
+- **Pre-selection**: Automatically pre-selects best match (existing custom > default > fuzzy match > "<no mapping>")
+- **Automatic Usage**: Custom mappings are automatically used by all subsequent backlog operations in that directory (no restart needed)
+
+**Examples:**
+
+```bash
+# Interactive mapping (uses stored token automatically)
+specfact backlog map-fields --ado-org myorg --ado-project myproject
+
+# Override with explicit token
+specfact backlog map-fields --ado-org myorg --ado-project myproject --ado-token your_token
+
+# Reset to default mappings
+specfact backlog map-fields --ado-org myorg --ado-project myproject --reset
+```
+
+**Output Location:**
+
+Mappings are saved to `.specfact/templates/backlog/field_mappings/ado_custom.yaml` and automatically detected by `AdoFieldMapper` for all subsequent operations.
+
+**See Also**: [Custom Field Mapping Guide](../guides/custom-field-mapping.md) for complete documentation on field mapping templates and best practices.
+
 **ADO Troubleshooting**:
 
 **Error: "No HTTP resource was found that matches the request URI"**
@@ -4703,7 +4761,14 @@ specfact init --ide cursor --install-deps
 2. Copies prompt templates from `resources/prompts/` to IDE-specific location **at the repository root level**
 3. Creates/updates VS Code settings.json if needed (for VS Code/Copilot)
 4. Makes slash commands available in your IDE
-5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
+5. **Copies default ADO field mapping templates** to `.specfact/templates/backlog/field_mappings/` for review and customization:
+   - `ado_default.yaml` - Default field mappings
+   - `ado_scrum.yaml` - Scrum process template mappings
+   - `ado_agile.yaml` - Agile process template mappings
+   - `ado_safe.yaml` - SAFe process template mappings
+   - `ado_kanban.yaml` - Kanban process template mappings
+   - Templates are only copied if they don't exist (use `--force` to overwrite)
+6. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
    - `beartype>=0.22.4` - Runtime type checking
    - `icontract>=2.7.1` - Design-by-contract decorators
    - `crosshair-tool>=0.0.97` - Contract exploration

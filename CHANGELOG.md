@@ -9,6 +9,89 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.8] - 2026-01-27
+
+### Fixed (0.26.8)
+
+- **ADO Field Mapping - Acceptance Criteria**: Fixed missing Acceptance Criteria field in backlog refinement output for Azure DevOps
+  - **Root Cause**: Default field mappings used `System.AcceptanceCriteria`, but ADO API returns `Microsoft.VSTS.Common.AcceptanceCriteria` for many process templates
+  - **Solution**: Added `Microsoft.VSTS.Common.AcceptanceCriteria` as alternative mapping for `acceptance_criteria` canonical field (backward compatible with `System.AcceptanceCriteria`)
+  - **Impact**: Acceptance criteria now properly extracted and displayed in `specfact backlog refine` preview output
+  - **Templates Updated**: All default ADO field mapping templates (`ado_default.yaml`, `ado_scrum.yaml`, `ado_agile.yaml`, `ado_safe.yaml`, `ado_kanban.yaml`) updated with alternative field mappings
+
+- **ADO Field Mapping - Assignee Display**: Fixed missing assignee information in backlog refinement preview output
+  - **Root Cause**: Assignee was extracted from ADO work items but not displayed in preview output
+  - **Solution**: Added assignee display to preview output showing all assignees or "Unassigned" status
+  - **Impact**: Users can now see assignee information in preview mode and filter by assignee
+
+- **ADO Assignee Extraction**: Improved assignee extraction from ADO `System.AssignedTo` object
+  - **Enhanced Logic**: Now extracts `displayName`, `uniqueName`, and `mail` fields from ADO assignee object
+  - **Deduplication**: Filters out empty strings and duplicate assignee identifiers
+  - **Priority**: Prioritizes `displayName` over `uniqueName` for better user experience
+  - **Impact**: More reliable assignee extraction and filtering across different ADO configurations
+
+### Added (0.26.8)
+
+- **Interactive Field Mapping Command**: Added `specfact backlog map-fields` command for guided ADO field mapping
+  - **Purpose**: Helps users discover available ADO fields and map them to canonical field names interactively
+  - **Features**:
+    - Fetches live ADO fields from API (`_apis/wit/fields` endpoint)
+    - Filters out system-only fields (e.g., `System.Id`, `System.Rev`)
+    - Interactive selection of ADO fields for each canonical field (description, acceptance_criteria, story_points, business_value, priority, work_item_type)
+    - Supports multiple field alternatives for same canonical field
+    - Validates mappings before saving
+    - Saves to `.specfact/templates/backlog/field_mappings/ado_custom.yaml` (per-project configuration)
+  - **Usage**: `specfact backlog map-fields --ado-org <org> --ado-project <project> --ado-token <token>`
+  - **Benefits**: Eliminates need for manual YAML creation and API exploration for custom ADO process templates
+
+- **Template Initialization in `specfact init`**: Extended `specfact init` command to copy backlog field mapping templates
+  - **New Behavior**: Automatically creates `.specfact/templates/backlog/field_mappings/` directory during initialization
+  - **Templates Copied**: Copies all default ADO field mapping templates (`ado_default.yaml`, `ado_scrum.yaml`, `ado_agile.yaml`, `ado_safe.yaml`, `ado_kanban.yaml`) from `resources/templates/backlog/field_mappings/`
+  - **Smart Copying**: Skips existing files unless `--force` flag is used
+  - **User Benefit**: Users can review and modify templates directly in their project after initialization
+
+### Changed (0.26.8)
+
+- **AdoFieldMapper Field Extraction**: Enhanced `_extract_field()` method to support multiple field name alternatives
+  - **Behavior**: Now checks all alternative ADO field names that map to the same canonical field
+  - **Backward Compatibility**: Existing mappings continue to work (e.g., `System.AcceptanceCriteria` still supported)
+  - **Flexibility**: Supports custom ADO process templates with different field naming conventions
+
+- **Backlog Filtering - Assignee**: Improved assignee filtering logic in `specfact backlog refine`
+  - **Enhanced Matching**: Now matches against `displayName`, `uniqueName`, and `mail` fields (case-insensitive)
+  - **Robustness**: Handles empty assignee fields and unassigned items correctly
+  - **User Experience**: More reliable filtering when using `--assignee` filter option
+
+### Documentation (0.26.8)
+
+- **Custom Field Mapping Guide**: Extensively updated `docs/guides/custom-field-mapping.md`
+  - **New Section**: "Discovering Available ADO Fields" with API endpoint instructions
+  - **New Section**: "Using Interactive Mapping Command (Recommended)" with step-by-step instructions
+  - **Enhanced Section**: "Manually Creating Field Mapping Files" with YAML schema reference and examples
+  - **Updated Section**: "Default Field Mappings" to mention multiple field alternatives
+  - **New Section**: "Troubleshooting" covering common issues (fields not extracted, mappings not applied, interactive mapping failures)
+
+- **Backlog Refinement Guide**: Updated `docs/guides/backlog-refinement.md`
+  - **Preview Mode Section**: Explicitly states that assignee information and acceptance criteria are now displayed
+  - **Filtering Section**: Enhanced assignee filtering documentation
+
+### Testing (0.26.8)
+
+- **Unit Tests**: Added comprehensive unit tests for new and modified functionality
+  - **AdoFieldMapper**: Tests for multiple field alternatives, backward compatibility
+  - **Converter**: Tests for assignee extraction (displayName, uniqueName, mail, combinations, unassigned)
+  - **Backlog Commands**: Tests for assignee display, interactive mapping command, field fetching, system field filtering
+  - **Backlog Filtering**: Tests for assignee filtering (case-insensitive matching, unassigned items)
+  - **Init Command**: E2E tests for template copying, skipping existing files, force overwrite
+
+- **Test Coverage**: Maintained ≥80% test coverage with all new features fully tested
+
+### Related Issues
+
+- **GitHub Issue #144**: Fixed missing Acceptance Criteria and Assignee fields in ADO backlog refinement output
+
+---
+
 ## [0.26.7] - 2026-01-27
 
 ### Fixed (0.26.7)

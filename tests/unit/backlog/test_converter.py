@@ -200,8 +200,108 @@ class TestADOWorkItemConverter:
 
         item = convert_ado_work_item_to_backlog_item(work_item_data)
 
+        assert item.assignees == ["John Doe", "john@example.com"]  # Both displayName and uniqueName extracted
+
+    @beartype
+    def test_convert_ado_work_item_with_assignee_displayname_only(self) -> None:
+        """Test converting ADO work item with assignee having only displayName."""
+        work_item_data = {
+            "id": 790,
+            "url": "https://dev.azure.com/org/project/_apis/wit/workitems/790",
+            "fields": {
+                "System.Title": "Test Work Item",
+                "System.Description": "",
+                "System.State": "New",
+                "System.AssignedTo": {"displayName": "Jane Smith"},
+            },
+        }
+
+        item = convert_ado_work_item_to_backlog_item(work_item_data)
+
+        assert item.assignees == ["Jane Smith"]
+
+    @beartype
+    def test_convert_ado_work_item_with_assignee_unique_name_only(self) -> None:
+        """Test converting ADO work item with assignee having only uniqueName."""
+        work_item_data = {
+            "id": 791,
+            "url": "https://dev.azure.com/org/project/_apis/wit/workitems/791",
+            "fields": {
+                "System.Title": "Test Work Item",
+                "System.Description": "",
+                "System.State": "New",
+                "System.AssignedTo": {"uniqueName": "user@example.com"},
+            },
+        }
+
+        item = convert_ado_work_item_to_backlog_item(work_item_data)
+
+        assert item.assignees == ["user@example.com"]
+
+    @beartype
+    def test_convert_ado_work_item_with_assignee_mail(self) -> None:
+        """Test converting ADO work item with assignee having mail field."""
+        work_item_data = {
+            "id": 792,
+            "url": "https://dev.azure.com/org/project/_apis/wit/workitems/792",
+            "fields": {
+                "System.Title": "Test Work Item",
+                "System.Description": "",
+                "System.State": "New",
+                "System.AssignedTo": {
+                    "displayName": "Bob Johnson",
+                    "uniqueName": "bob@example.com",
+                    "mail": "bob.johnson@example.com",
+                },
+            },
+        }
+
+        item = convert_ado_work_item_to_backlog_item(work_item_data)
+
+        # Should extract all three: displayName, uniqueName, mail
+        assert "Bob Johnson" in item.assignees
+        assert "bob@example.com" in item.assignees
+        assert "bob.johnson@example.com" in item.assignees
+        assert len(item.assignees) == 3
+
+    @beartype
+    def test_convert_ado_work_item_with_unassigned(self) -> None:
+        """Test converting ADO work item with no assignee."""
+        work_item_data = {
+            "id": 793,
+            "url": "https://dev.azure.com/org/project/_apis/wit/workitems/793",
+            "fields": {
+                "System.Title": "Test Work Item",
+                "System.Description": "",
+                "System.State": "New",
+                # No System.AssignedTo field
+            },
+        }
+
+        item = convert_ado_work_item_to_backlog_item(work_item_data)
+
+        assert item.assignees == []
+
+    @beartype
+    def test_convert_ado_work_item_with_empty_assignee_fields(self) -> None:
+        """Test converting ADO work item with empty assignee fields (should filter out empty strings)."""
+        work_item_data = {
+            "id": 794,
+            "url": "https://dev.azure.com/org/project/_apis/wit/workitems/794",
+            "fields": {
+                "System.Title": "Test Work Item",
+                "System.Description": "",
+                "System.State": "New",
+                "System.AssignedTo": {"displayName": "", "uniqueName": "user@example.com"},  # Empty displayName
+            },
+        }
+
+        item = convert_ado_work_item_to_backlog_item(work_item_data)
+
+        # Should only include non-empty values (empty displayName is filtered out)
         assert len(item.assignees) == 1
-        assert "John Doe" in item.assignees
+        assert "user@example.com" in item.assignees
+        assert "" not in item.assignees  # Empty strings should be filtered out
 
     @beartype
     def test_convert_arbitrary_ado_work_item(self) -> None:

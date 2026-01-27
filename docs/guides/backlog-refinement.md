@@ -179,8 +179,66 @@ Once validated, the refinement can be previewed or applied:
 **Preview Mode (Default - Safe)**:
 
 - Shows what will be updated (title, body) vs preserved (assignees, tags, state, priority, etc.)
+- **Displays assignee information**: Always shows assignee(s) or "Unassigned" status for each item
+- **Displays acceptance criteria**: Always shows acceptance criteria if required by template (even when empty, shows `(empty - required field)` indicator)
+- **Displays required fields**: All required fields from the template are always displayed, even when empty, to help copilot identify missing elements
 - Displays original vs refined content diff
 - **Does NOT write to remote backlog** (safe by default)
+
+**Progress Indicators**:
+
+During initialization (typically 5-10 seconds, longer in corporate environments with security scans/firewalls), the command shows detailed progress:
+
+```bash
+⏱️  Started: 2026-01-27 15:34:05
+⠋ ✓ Templates initialized   0:00:02
+⠋ ✓ Template detector ready 0:00:00
+⠋ ✓ AI refiner ready        0:00:00
+⠋ ✓ Adapter registry ready  0:00:00
+⠋ ✓ Configuration validated 0:00:00
+⠸ ✓ Fetched backlog items 0:00:01
+```
+
+This provides clear feedback during the initialization phase, especially important in corporate environments where network latency and security scans can cause delays.
+
+**Complete Preview Output Example**:
+
+```
+Preview Mode: Full Item Details
+Title: Fix the error
+URL: https://dev.azure.com/dominikusnold/69b5d0c2-2400-470d-b937-b5205503a679/_apis/wit/workItems/185
+State: new
+Provider: ado
+Assignee: Unassigned
+
+Story Metrics:
+  - Priority: 2 (1=highest)
+  - Work Item Type: User Story
+
+Acceptance Criteria:
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ <div><ul><li>quality of this story needs to comply with devops scrum standards. </li> </ul> </div>                        │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Body:
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ <div>This story is here to be refined. </div>                                                                             │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Target Template: Azure DevOps Work Item (ID: ado_work_item_v1)
+Template Description: Work item template optimized for Azure DevOps with area path and iteration path support
+```
+
+**Note**: If a required field (like Acceptance Criteria) is empty but required by the template, it will show:
+
+```
+Acceptance Criteria:
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ (empty - required field)                                                                                                 │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+This helps copilot identify missing elements that need to be added during refinement.
 
 **Write Mode (Explicit Opt-in)**:
 
@@ -875,6 +933,7 @@ specfact backlog refine ado \
 #### ADO API Endpoint Requirements
 
 **WIQL Query Endpoint** (POST):
+
 - **URL**: `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1`
 - **Method**: POST
 - **Body**: `{"query": "SELECT [System.Id] FROM WorkItems WHERE ..."}`
@@ -882,6 +941,7 @@ specfact backlog refine ado \
 - **Note**: The `api-version` parameter is **required** for all ADO API calls
 
 **Work Items Batch GET Endpoint**:
+
 - **URL**: `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1`
 - **Method**: GET
 - **Note**: This endpoint is at the **organization level** (not project level) for fetching work item details by IDs
@@ -889,14 +949,17 @@ specfact backlog refine ado \
 #### Common ADO API Errors
 
 **Error: "No HTTP resource was found that matches the request URI"**
+
 - **Cause**: Missing `api-version` parameter or incorrect URL format
 - **Solution**: Ensure `api-version=7.1` is included in all ADO API URLs
 
 **Error: "The requested resource does not support http method 'GET'"**
+
 - **Cause**: Attempting to use GET on WIQL endpoint (which requires POST)
 - **Solution**: WIQL queries must use POST method with JSON body
 
 **Error: Organization removed from request string**
+
 - **Cause**: Incorrect base URL format (may already include organization/collection)
 - **Solution**: Check if base URL already includes collection, adjust `--ado-org` parameter accordingly
 

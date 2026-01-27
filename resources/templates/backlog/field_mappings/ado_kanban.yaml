@@ -7,6 +7,7 @@ framework: kanban
 field_mappings:
   System.Description: description
   System.AcceptanceCriteria: acceptance_criteria
+  Microsoft.VSTS.Common.AcceptanceCriteria: acceptance_criteria  # Alternative field name
   Microsoft.VSTS.Common.Priority: priority
   System.WorkItemType: work_item_type
   System.State: state
