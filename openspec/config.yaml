@@ -1,0 +1,63 @@
+schema: spec-driven
+
+# Project context (injected into ALL artifact requests)
+# Keep concise - focus on tech stack, key constraints, and conventions that often get ignored
+context: |
+  Tech stack: Python 3.11+, Typer (CLI), Pydantic (data models), hatch (build)
+  Contracts: @icontract (runtime validation), @beartype (type checking)
+  Testing: pytest, CrossHair (symbolic execution), Hypothesis (property-based)
+  Distribution: uvx, PyPI, Docker
+
+  Philosophy: Brownfield-first legacy modernization tool. Reverse-engineer contracts from existing code, then enforce to prevent regressions. Offline-first, no vendor lock-in, no cloud dependencies.
+
+  Architecture patterns:
+  - Bridge Adapter: Tool-agnostic adapters (GitHub, GitLab, Linear, Jira, Spec-Kit, OpenSpec)
+  - Plugin Registry: Dynamic adapter registration, no hardcoded dependencies
+  - Sidecar Validation: External workspace pattern, no target repo modifications required
+  - Multi-Repository: Code and specs can live in different repos, cross-repo workflows supported
+  - Contract-First: Runtime enforcement prevents regressions, contracts replace redundant unit tests
+
+  Key constraints:
+  - Must support external repositories (no hardcoded paths)
+  - Must work without SpecFact CLI adoption in target repo
+  - Must support multi-repository configurations
+  - Must maintain backward compatibility during modernization
+  - Must prevent regressions via contracts (not just linting)
+  - Must be offline-first (no cloud dependencies, no vendor lock-in)
+
+  Code style: 4-space indentation, Black line length 120, Google-style docstrings, basedpyright strict mode
+  Logging: Use common.logger_setup.get_logger() (avoid print())
+  Naming: snake_case (files/modules/functions), PascalCase (classes), UPPER_SNAKE_CASE (constants)
+
+  Contract requirements: ALL public APIs MUST have @icontract (@require/@ensure) and @beartype decorators
+  Testing: Contract-first (primary), minimum 80% coverage, unit/integration/E2E tests required for all changes
+
+# Per-artifact rules (only injected into matching artifacts)
+rules:
+  proposal:
+    - Reference existing architecture patterns (Bridge Adapter, Plugin Registry, Sidecar, Multi-Repo)
+    - Consider impact on backward compatibility and regression prevention
+    - Address offline-first constraint (no cloud dependencies)
+    - Include rollback plan for risky changes
+    - Check for conflicts with existing bridge adapters or plugin registry
+
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Reference existing patterns in openspec/specs/ before inventing new ones
+    - Ensure specs support multi-repository workflows where applicable
+    - Document contract requirements (@icontract, @beartype) for new APIs
+    - Include offline-first validation scenarios
+
+  design:
+    - Document bridge adapter integration if external tools involved
+    - Include sequence diagrams for complex multi-repo flows
+    - Address plugin registry extensibility
+    - Document contract enforcement strategy
+    - Include fallback strategies for offline scenarios
+
+  tasks:
+    - Break into 2-hour maximum chunks
+    - Include contract decorator tasks (@icontract, @beartype) for all public APIs
+    - Include test tasks: unit, integration, and E2E
+    - Include quality gate tasks: format, lint, type-check, test coverage
+    - Reference existing test patterns in tests/unit/, tests/integration/, tests/e2e/

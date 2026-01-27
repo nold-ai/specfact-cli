@@ -32,18 +32,39 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 
 **Azure DevOps Adapter:**
 
-- `--ado-org ORG` - Azure DevOps organization (required for ADO adapter)
+- `--ado-org ORG` - Azure DevOps organization or collection name (required for ADO adapter, except when collection is in base_url)
 - `--ado-project PROJECT` - Azure DevOps project (required for ADO adapter)
-- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)
+- `--ado-team TEAM` - Azure DevOps team name (optional, defaults to project name for iteration lookup)
+- `--ado-base-url URL` - Azure DevOps base URL (optional, defaults to `https://dev.azure.com` for cloud)
+  - **Cloud**: `https://dev.azure.com` (default)
+  - **On-premise**: `https://server` or `https://server/tfs/collection` (if collection included)
+- `--ado-token TOKEN` - Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var or stored token if not provided)
+
+**ADO Configuration Notes:**
+
+- **Cloud (Azure DevOps Services)**: Always requires `--ado-org` and `--ado-project`. Base URL defaults to `https://dev.azure.com`.
+- **On-premise (Azure DevOps Server)**:
+  - If base URL includes collection (e.g., `https://server/tfs/DefaultCollection`), `--ado-org` is optional.
+  - If base URL doesn't include collection, provide collection name via `--ado-org`.
+- **API Endpoints**:
+  - WIQL queries use POST to `{base_url}/{org}/{project}/_apis/wit/wiql?api-version=7.1` (project-level)
+  - Work items batch GET uses `{base_url}/{org}/_apis/wit/workitems?ids={ids}&api-version=7.1` (organization-level)
+  - The `api-version` parameter is **required** for all ADO API calls
 
 ### Filters
 
 - `--labels LABELS` or `--tags TAGS` - Filter by labels/tags (comma-separated, e.g., "feature,enhancement")
-- `--state STATE` - Filter by state (open, closed, etc.)
-- `--assignee USERNAME` - Filter by assignee username
-- `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1")
-- `--sprint SPRINT` - Filter by sprint identifier
-- `--release RELEASE` - Filter by release identifier
+- `--state STATE` - Filter by state (case-insensitive, e.g., "open", "closed", "Active", "New")
+- `--assignee USERNAME` - Filter by assignee (case-insensitive):
+  - **GitHub**: Login or @username (e.g., "johndoe" or "@johndoe")
+  - **ADO**: displayName, uniqueName, or mail (e.g., "Jane Doe" or `"jane.doe@example.com"`)
+- `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1", case-insensitive)
+- `--sprint SPRINT` - Filter by sprint (case-insensitive):
+  - **ADO**: Use full iteration path (e.g., "Project\\Sprint 1") to avoid ambiguity when multiple sprints share the same name
+  - If omitted, defaults to current active iteration for the team
+  - Ambiguous name-only matches will prompt for explicit iteration path
+- `--release RELEASE` - Filter by release identifier (case-insensitive)
+- `--limit N` - Maximum number of items to process in this refinement session (caps batch size)
 - `--persona PERSONA` - Filter templates by persona (product-owner, architect, developer)
 - `--framework FRAMEWORK` - Filter templates by framework (agile, scrum, safe, kanban)
 
@@ -55,7 +76,21 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 ### Preview and Writeback
 
 - `--preview` / `--no-preview` - Preview mode: show what will be written without updating backlog (default: --preview)
+  - **Preview mode shows**: Full item details (title, body, metrics, acceptance_criteria, work_item_type, etc.)
+  - **Preview mode skips**: Interactive refinement prompts (use `--write` to enable interactive refinement)
 - `--write` - Write mode: explicitly opt-in to update remote backlog (requires --write flag)
+
+### Export/Import for Copilot Processing
+
+- `--export-to-tmp` - Export backlog items to temporary file for copilot processing (default: `/tmp/specfact-backlog-refine-<timestamp>.md`)
+- `--import-from-tmp` - Import refined content from temporary file after copilot processing (default: `/tmp/specfact-backlog-refine-<timestamp>-refined.md`)
+- `--tmp-file PATH` - Custom temporary file path (overrides default)
+
+**Export/Import Workflow**:
+
+1. Export items: `specfact backlog refine --adapter github --export-to-tmp --repo-owner OWNER --repo-name NAME`
+2. Process with copilot: Open exported file, use copilot to refine items, save as `-refined.md`
+3. Import refined: `specfact backlog refine --adapter github --import-from-tmp --repo-owner OWNER --repo-name NAME --write`
 
 ### Definition of Ready (DoR)
 
@@ -81,6 +116,7 @@ Execute the SpecFact CLI command with user-provided arguments:
 specfact backlog refine $ADAPTER \
   [--labels LABELS] [--state STATE] [--assignee USERNAME] \
   [--iteration PATH] [--sprint SPRINT] [--release RELEASE] \
+  [--limit N] \
   [--persona PERSONA] [--framework FRAMEWORK] \
   [--template TEMPLATE_ID] [--auto-accept-high-confidence] \
   [--preview] [--write] \
@@ -117,6 +153,11 @@ specfact backlog refine $ADAPTER \
    - Accept or reject refinement
    - If accepted and --write flag set, CLI updates remote backlog
 
+4. **Session control**:
+   - Use `:skip` to skip the current item without updating
+   - Use `:quit` or `:abort` to cancel the entire session gracefully
+   - Session cancellation shows summary and exits without error
+
 ### Step 3: Present Results
 
 Display refinement results:
@@ -146,19 +187,30 @@ Display refinement results:
 
 - `title`: Updated if changed during refinement
 - `body_markdown`: Updated with refined content
+- `acceptance_criteria`: Updated if extracted/refined (provider-specific mapping)
+- `story_points`: Updated if extracted/refined (provider-specific mapping)
+- `business_value`: Updated if extracted/refined (provider-specific mapping)
+- `priority`: Updated if extracted/refined (provider-specific mapping)
+- `value_points`: Updated if calculated (SAFe: business_value / story_points)
+- `work_item_type`: Updated if extracted/refined (provider-specific mapping)
 
 **Fields that will be PRESERVED** (not modified):
 
 - `assignees`: Preserved
 - `tags`: Preserved
 - `state`: Preserved (original state maintained)
-- `priority`: Preserved (if present in provider_fields)
-- `due_date`: Preserved (if present in provider_fields)
-- `story_points`: Preserved (if present in provider_fields)
 - `sprint`: Preserved (if present)
 - `release`: Preserved (if present)
+- `iteration`: Preserved (if present)
+- `area`: Preserved (if present)
 - `source_state`: Preserved for cross-adapter state mapping (stored in bundle entries)
 - All other metadata: Preserved in provider_fields
+
+**Provider-Specific Field Mapping**:
+
+- **GitHub**: Fields are extracted from markdown body (headings, labels, etc.) and mapped to canonical fields
+- **ADO**: Fields are extracted from separate ADO fields (System.Description, System.AcceptanceCriteria, Microsoft.VSTS.Common.StoryPoints, etc.) and mapped to canonical fields
+- **Custom Mapping**: ADO supports custom field mapping via `.specfact/templates/backlog/field_mappings/ado_custom.yaml` or `SPECFACT_ADO_CUSTOM_MAPPING` environment variable
 
 **Cross-Adapter State Preservation**:
 
@@ -202,11 +254,22 @@ SpecFact CLI follows a CLI-first architecture:
 ✓ Refinement completed (Preview Mode)
 
 Found 5 backlog items
+Limited to 3 items (found 5 total)
 Refined: 3
-Skipped: 2
+Skipped: 0
 
 Preview mode: Refinement will NOT be written to backlog
 Use --write flag to explicitly opt-in to writeback
+```
+
+### Success (Cancelled Session)
+
+```text
+Session cancelled by user
+
+Found 5 backlog items
+Refined: 1
+Skipped: 1
 ```
 
 ### Success (Write Mode)
@@ -230,8 +293,23 @@ Items updated in remote backlog:
 # Refine GitHub issues with feature label (requires repo-owner and repo-name)
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --labels feature
 
-# Refine ADO work items in specific sprint (requires ado-org and ado-project)
-/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --sprint "Sprint 1"
+# Refine ADO work items (Azure DevOps Services - cloud) with full iteration path
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --sprint "MyProject\\Sprint 1"
+
+# Refine ADO work items using current active iteration (sprint omitted)
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --ado-team "My Team" --state Active
+
+# Refine ADO work items (Azure DevOps Server - on-premise, collection in base_url)
+/specfact.backlog-refine --adapter ado --ado-base-url "https://devops.company.com/tfs/DefaultCollection" --ado-project my-project --state Active
+
+# Refine ADO work items (Azure DevOps Server - on-premise, collection provided)
+/specfact.backlog-refine --adapter ado --ado-base-url "https://devops.company.com" --ado-org "DefaultCollection" --ado-project my-project --state Active
+
+# Refine with batch limit (process max 10 items)
+/specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --limit 10 --labels feature
+
+# Refine with case-insensitive filters
+/specfact.backlog-refine --adapter ado --ado-org my-org --ado-project my-project --state "new" --assignee "jane doe"
 
 # Refine with Scrum framework and Product Owner persona
 /specfact.backlog-refine --adapter github --repo-owner nold-ai --repo-name specfact-cli --framework scrum --persona product-owner
@@ -258,6 +336,30 @@ Items updated in remote backlog:
 # Then sync to GitHub (state will be automatically mapped: New → open, Closed → closed)
 # specfact sync bridge --adapter github --repo-owner my-org --repo-name my-repo --mode bidirectional
 ```
+
+## Troubleshooting
+
+### ADO API Errors
+
+**Error: "No HTTP resource was found that matches the request URI"**
+
+- **Cause**: Missing `api-version` parameter or incorrect URL format
+- **Solution**: Ensure `api-version=7.1` is included in all ADO API URLs. Check base URL format for on-premise installations.
+
+**Error: "The requested resource does not support http method 'GET'"**
+
+- **Cause**: Attempting to use GET on WIQL endpoint (which requires POST)
+- **Solution**: WIQL queries must use POST method with JSON body containing the query. This is handled automatically by SpecFact CLI.
+
+**Error: Organization removed from request string**
+
+- **Cause**: Incorrect base URL format (may already include organization/collection)
+- **Solution**: For on-premise, check if base URL already includes collection. If yes, omit `--ado-org` or adjust base URL accordingly.
+
+**Error: "Azure DevOps API token required"**
+
+- **Cause**: Missing authentication token
+- **Solution**: Provide token via `--ado-token`, `AZURE_DEVOPS_TOKEN` environment variable, or use `specfact auth azure-devops` for device code flow.
 
 ## Context
 
