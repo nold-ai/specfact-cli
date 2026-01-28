@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.11] - 2026-01-27
+
+### Fixed (0.26.11)
+
+- **Backlog refine --import-from-tmp**: Implemented import path so refined content from a temporary file is applied to backlog items
+  - **Parser**: Added `_parse_refined_export_markdown()` to parse the same markdown format produced by `--export-to-tmp` (## Item blocks, **ID**, **Body** in ```markdown ... ```, **Acceptance Criteria**, optional **Metrics**)
+  - **Import flow**: When `--import-from-tmp` (and optional `--tmp-file`) is used, the CLI reads the file, matches blocks to fetched items by ID, updates `body_markdown`, `acceptance_criteria`, and optionally title/metrics; without `--write` shows "Would update N item(s)", with `--write` calls `adapter.update_backlog_item()` for each and prints success summary
+  - **Removed**: "Import functionality pending implementation" message and TODO
+  - **Tests**: Unit tests for the parser (single item, acceptance criteria and metrics, header-only, blocks without ID)
+
+---
+
 ## [0.26.10] - 2026-01-27
 
 ### Added (0.26.10)
