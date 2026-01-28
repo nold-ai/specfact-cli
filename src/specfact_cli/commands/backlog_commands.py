@@ -203,14 +203,55 @@ def _build_adapter_kwargs(
     return kwargs
 
 
+def _extract_body_from_block(block: str) -> str:
+    """
+    Extract **Body** content from a refined export block, handling nested fenced code.
+
+    The body is wrapped in ```markdown ... ```. If the body itself contains fenced
+    code blocks (e.g. ```python ... ```), the closing fence is matched by tracking
+    depth: a line that is exactly ``` closes the current fence (body or inner).
+    """
+    start_marker = "**Body**:"
+    fence_open = "```markdown"
+    if start_marker not in block or fence_open not in block:
+        return ""
+    idx = block.find(start_marker)
+    rest = block[idx + len(start_marker) :].lstrip()
+    if not rest.startswith("```"):
+        return ""
+    if not rest.startswith(fence_open + "\n") and not rest.startswith(fence_open + "\r\n"):
+        return ""
+    after_open = rest[len(fence_open) :].lstrip("\n\r")
+    if not after_open:
+        return ""
+    lines = after_open.split("\n")
+    body_lines: list[str] = []
+    depth = 1
+    for line in lines:
+        stripped = line.rstrip()
+        if stripped == "```":
+            if depth == 1:
+                break
+            depth -= 1
+            body_lines.append(line)
+        elif stripped.startswith("```") and stripped != "```":
+            depth += 1
+            body_lines.append(line)
+        else:
+            body_lines.append(line)
+    return "\n".join(body_lines).strip()
+
+
 def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
     """
     Parse refined export markdown (same format as --export-to-tmp) into id -> fields.
 
     Splits by ## Item blocks, extracts **ID**, **Body** (from ```markdown ... ```),
     **Acceptance Criteria**, and optionally title and **Metrics** (story_points,
-    business_value, priority). Returns a dict mapping item id to parsed fields
-    (body_markdown, acceptance_criteria, title?, story_points?, business_value?, priority?).
+    business_value, priority). Body extraction is fence-aware so bodies containing
+    nested code blocks are parsed correctly. Returns a dict mapping item id to
+    parsed fields (body_markdown, acceptance_criteria, title?, story_points?,
+    business_value?, priority?).
     """
     result: dict[str, dict[str, Any]] = {}
     blocks = re.split(r"\n## Item \d+:", content)
@@ -224,11 +265,7 @@ def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
         item_id = id_match.group(1).strip()
         fields: dict[str, Any] = {}
 
-        body_match = re.search(r"\*\*Body\*\*:\s*```markdown\n(.*?)```", block, re.DOTALL)
-        if body_match:
-            fields["body_markdown"] = body_match.group(1).strip()
-        else:
-            fields["body_markdown"] = ""
+        fields["body_markdown"] = _extract_body_from_block(block)
 
         ac_match = re.search(r"\*\*Acceptance Criteria\*\*:\s*\n(.*?)(?=\n\*\*|\n---|\Z)", block, re.DOTALL)
         if ac_match:

@@ -296,3 +296,36 @@ nope
 """
         result = _parse_refined_export_markdown(content)
         assert result == {}
+
+    def test_body_with_nested_fenced_code_blocks(self) -> None:
+        """Parser preserves full body when it contains fenced code blocks."""
+        content = """
+## Item 1: Bug with code sample
+
+**ID**: issue-99
+**URL**: https://github.com/org/repo/issues/99
+**State**: open
+**Provider**: github
+
+**Body**:
+```markdown
+Reproduction: run this:
+
+```python
+def foo():
+    return 42
+```
+
+Then we see the error.
+```
+---
+"""
+        result = _parse_refined_export_markdown(content)
+        assert "issue-99" in result
+        body = result["issue-99"]["body_markdown"]
+        assert "Reproduction: run this:" in body
+        assert "```python" in body
+        assert "def foo():" in body
+        assert "return 42" in body
+        assert "```" in body
+        assert "Then we see the error." in body
