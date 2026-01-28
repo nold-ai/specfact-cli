@@ -32,7 +32,11 @@ class BacklogItem(BaseModel):
     # Identity fields
     id: str = Field(..., description="Backlog item identifier (provider-specific)")
     provider: str = Field(..., description="Provider name (github, ado, jira, linear, etc.)")
-    url: str = Field(..., description="Backlog item URL")
+    url: str = Field(..., description="Backlog item URL (API or provider URL)")
+    canonical_url: str | None = Field(
+        default=None,
+        description="User-friendly URL for opening in browser (e.g. ADO: org/project-name/_workitems/edit/id)",
+    )
 
     # Content fields
     title: str = Field(..., description="Backlog item title")
