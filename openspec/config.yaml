@@ -35,11 +35,15 @@ context: |
 # Per-artifact rules (only injected into matching artifacts)
 rules:
   proposal:
+    - Include required sections: Why, What Changes, Capabilities, Impact
+    - Capabilities section is critical: Each capability listed will need a spec file in specs/<capability>/spec.md
     - Reference existing architecture patterns (Bridge Adapter, Plugin Registry, Sidecar, Multi-Repo)
     - Consider impact on backward compatibility and regression prevention
     - Address offline-first constraint (no cloud dependencies)
     - Include rollback plan for risky changes
     - Check for conflicts with existing bridge adapters or plugin registry
+    - For public-facing changes: Include Source Tracking section with GitHub issue reference (format: `## Source Tracking` with `- **GitHub Issue**: #<number>`, `- **Issue URL**: <url>`, `- **Repository**: <owner>/<name>`, `- **Last Synced Status**: <status>`)
+    - Source tracking: Only track public repos (specfact-cli, platform-frontend). Skip for internal repos (specfact-cli-internal)
 
   specs:
     - Use Given/When/Then format for scenarios
@@ -61,3 +65,11 @@ rules:
     - Include test tasks: unit, integration, and E2E
     - Include quality gate tasks: format, lint, type-check, test coverage
     - Reference existing test patterns in tests/unit/, tests/integration/, tests/e2e/
+    - Include git workflow tasks: branch creation (first task), PR creation (last task)
+    - For public-facing changes in public repos (specfact-cli, platform-frontend):
+      - Include GitHub issue creation task with format:
+        - title `[Change] <Brief Description>`
+        - labels `enhancement` and `change-proposal`
+        - body following `.github/ISSUE_TEMPLATE/change_proposal.md` template (Why, What Changes sections from proposal)
+        - footer `*OpenSpec Change Proposal: `<change-id>`*`
+      - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status.

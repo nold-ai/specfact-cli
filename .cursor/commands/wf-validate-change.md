@@ -36,10 +36,12 @@ Perform a dry-run validation of an OpenSpec change proposal to detect breaking c
 **If no change ID provided:**
 
 1. Search for active changes in workspace:
-   - Run: `openspec list` to get active changes
+   - Run: `openspec list --json` to get active changes
+   - Parse JSON to extract change information
    - Display numbered list of changes with:
      - Change ID
-     - Status (from proposal.md)
+     - Schema (from JSON, default "spec-driven")
+     - Status (from proposal.md or JSON)
      - Brief description (from proposal.md summary)
      - Last modified date (if available)
 2. Prompt user: "Select change to validate (enter number, or provide change-id):"
@@ -50,40 +52,72 @@ Perform a dry-run validation of an OpenSpec change proposal to detect breaking c
 
 ### Step 2: Read and Parse Change Proposal
 
-**2.1: Read Change Artifacts**
+**2.1: Check Change Status and Read Artifacts**
 
-1. **Verify proposal.md format:**
+1. **Read openspec/config.yaml for validation rules:**
+   - Read `openspec/config.yaml` to understand:
+     - Project context (tech stack, constraints, architecture patterns)
+     - Per-artifact rules (proposal, specs, design, tasks)
+   - Use these rules to validate artifact compliance
+
+2. **Check change status using OPSX pattern:**
+
+   ```bash
+   openspec status --change "<change-id>" --json
+   ```
+
+   - Parse JSON to understand:
+     - `schemaName`: The workflow being used (e.g., "spec-driven")
+     - `artifacts`: Array of artifacts with their status ("done", "ready", "blocked")
+     - `isComplete`: Boolean indicating if all artifacts are complete
+   - Verify all required artifacts exist before validation
+
+3. **Get artifact context using OPSX pattern:**
+
+   ```bash
+   openspec instructions apply --change "<change-id>" --json
+   ```
+
+   - This returns context files to read
+   - For spec-driven schema: proposal, specs, design, tasks
+
+4. **Verify proposal.md format (per config.yaml rules):**
    - Check title format: Must be `# Change: [Brief description]` (not `# [Title]` or `# Change:[Title]` without space)
-   - Check required sections: Must have `## Why`, `## What Changes`, `## Impact` (in this order)
+   - Check required sections: Must have `## Why`, `## What Changes`, `## Capabilities`, `## Impact` (per config.yaml)
    - Check "What Changes" format: Must use bullet list with NEW/EXTEND/MODIFY markers
+   - Check "Capabilities" section: Critical - each capability listed will need a spec file
    - Check "Impact" format: Must list Affected specs, Affected code, Integration points
    - If format issues found, note them for reporting
 
-2. Read `proposal.md`:
-   - Extract: summary (from "Why" section), rationale (from "Why" section), scope (from "What Changes" section), affected files/modules
+5. **Read `proposal.md`:**
+   - Extract: summary (from "Why" section), rationale (from "Why" section), scope (from "What Changes" section), capabilities (from "Capabilities" section), affected files/modules
    - Identify: breaking changes markers, dependencies
-   - Note: target repository, estimated effort
+   - Note: target repository, Source Tracking section (if present)
 
-3. **Verify tasks.md format:**
+6. **Verify tasks.md format (per config.yaml rules):**
    - Check section headers: Must use hierarchical numbered format (`## 1.`, `## 2.`, etc., not `## Task 1:` or `## Phase 1:`)
    - Check task format: Must use `- [ ] 1.1 [Description]` (not `- Task 1:` or `- [ ] Task 1:`)
    - Check sub-task format: Must use `- [ ] 1.1.1 [Description]` (indented, not `- [ ] 1.1.1:` without description)
+   - Verify tasks follow config.yaml rules: 2-hour maximum chunks, contract decorator tasks, test tasks, quality gate tasks, git workflow tasks
    - If format issues found, note them for reporting
 
-4. Read `tasks.md`:
+7. **Read `tasks.md`:**
    - Extract: implementation tasks
    - Identify: files to create/modify/delete
    - Note: dependencies between tasks
+   - Verify: Branch creation is first task, PR creation is last task (per config.yaml)
 
-3. Read `design.md` (if exists):
+8. **Read `design.md` (if exists):**
    - Extract: architectural decisions, trade-offs
    - Identify: interface changes, contract modifications
    - Note: migration plans, risks
+   - Verify: Bridge adapter integration documented, sequence diagrams for multi-repo flows (per config.yaml)
 
-4. Read spec deltas (`specs/<capability>/spec.md`):
+9. **Read spec deltas (`specs/<capability>/spec.md`):**
    - Extract: ADDED/MODIFIED/REMOVED requirements
    - Identify: interface changes, parameter changes, contract changes
    - Note: cross-references to other capabilities
+   - Verify: Specs use Given/When/Then format, reference existing patterns (per config.yaml)
 
 **2.2: Identify Change Scope**
 
@@ -304,29 +338,40 @@ Impact Assessment: <High/Medium/Low>
 
 **5.4: OpenSpec Validation (Safety Check)**
 
-1. **Run OpenSpec validation:**
+1. **Check change status before validation:**
+
+   ```bash
+   openspec status --change "<change-id>" --json
+   ```
+
+   - Verify all required artifacts are complete (status: "done")
+   - Check artifact dependencies are satisfied
+
+2. **Run OpenSpec validation:**
 
    ```bash
    openspec validate <change-id> --strict
    ```
 
-2. **If validation fails:**
+3. **If validation fails:**
    - Read validation errors
    - Fix issues in proposal.md, tasks.md, design.md (if exists), or spec deltas
    - **If proposal was updated** (scope extended or adjusted in Step 5.3):
      - Re-validate the updated proposal
      - Ensure all changes are properly reflected in OpenSpec artifacts
+     - Re-check status: `openspec status --change "<change-id>" --json`
    - Re-run validation
    - Continue until validation passes
 
-3. **If validation passes:**
+4. **If validation passes:**
    - Proceed to Step 6 (Create Validation Report)
    - Note validation status in CHANGE_VALIDATION.md
 
-4. **Validation status:**
+5. **Validation status:**
    - Document OpenSpec validation result in validation report
    - Include any fixes made during validation
    - Note if proposal was updated and re-validated
+   - Document schema used (from status JSON)
 
 **Output:** Validated change proposal, passing OpenSpec validation
 
@@ -400,15 +445,31 @@ Impact Assessment: <High/Medium/Low>
    
    - **proposal.md Format**: <Pass/Fail>
      - Title format: <Correct/Incorrect>
-     - Required sections: <All present/Missing sections>
+     - Required sections: <All present/Missing sections> (Why, What Changes, Capabilities, Impact per config.yaml)
      - "What Changes" format: <Correct/Incorrect>
+     - "Capabilities" section: <Present/Missing> (critical per config.yaml)
      - "Impact" format: <Correct/Incorrect>
+     - Source Tracking section: <Present/Missing> (if public-facing change per config.yaml)
    - **tasks.md Format**: <Pass/Fail>
      - Section headers: <Correct/Incorrect>
      - Task format: <Correct/Incorrect>
      - Sub-task format: <Correct/Incorrect>
+     - Config.yaml compliance: <Pass/Fail>
+       - 2-hour maximum chunks: <Verified/Not verified>
+       - Contract decorator tasks: <Present/Missing>
+       - Test tasks: <Present/Missing>
+       - Quality gate tasks: <Present/Missing>
+       - Git workflow tasks: <Present/Missing> (branch creation first, PR creation last)
+       - GitHub issue creation task: <Present/Missing> (if public-facing change per config.yaml)
+   - **specs Format**: <Pass/Fail>
+     - Given/When/Then format: <Verified/Not verified>
+     - References existing patterns: <Verified/Not verified>
+   - **design.md Format**: <Pass/Fail> (if exists)
+     - Bridge adapter integration: <Documented/Missing>
+     - Sequence diagrams: <Present/Missing> (if multi-repo flows)
    - **Format Issues Found**: <count>
    - **Format Issues Fixed**: <count>
+   - **Config.yaml Compliance**: <Pass/Fail>
    
    ## OpenSpec Validation
    
@@ -473,7 +534,7 @@ Next Steps:
 **7.2: Provide Next Actions**
 
 1. **If validation passed:**
-   - Inform: "Change is safe to implement. OpenSpec validation passed. Proceed with `/openspec-apply <change-id>`"
+   - Inform: "Change is safe to implement. OpenSpec validation passed. Proceed with `/opsx:apply <change-id>` (OPSX workflow) or `/openspec-apply <change-id>` (legacy)"
 
 2. **If scope was extended:**
    - Inform: "Change scope extended. Review updated proposal.md and tasks.md"
@@ -491,9 +552,10 @@ Next Steps:
 
 **Reference**
 
-- OpenSpec proposal command: `/openspec-proposal`
-- OpenSpec apply command: `/openspec-apply`
-- OpenSpec list command: `openspec list`
+- OPSX commands: `/opsx:new`, `/opsx:ff`, `/opsx:continue`, `/opsx:apply`, `/opsx:verify`, `/opsx:archive`
+- OpenSpec config: `openspec/config.yaml` (project context and per-artifact rules)
+- Legacy commands: `/openspec-proposal` (use `/opsx:ff` instead), `/openspec-apply` (use `/opsx:apply` instead)
+- OpenSpec CLI: `openspec list`, `openspec status`, `openspec instructions`, `openspec validate`
 - Project rules: `specfact-cli/.cursor/rules/`
 - OpenSpec conventions: `openspec/AGENTS.md`
 
@@ -516,7 +578,7 @@ Next Steps:
 # Validate before implementation
 /wf-validate-change <change-id>
 # Then review CHANGE_VALIDATION.md
-# Then proceed with /openspec-apply <change-id>
+# Then proceed with /opsx:apply <change-id> (or /openspec-apply <change-id> for legacy)
 ```
 
 **Technical Notes**

@@ -199,79 +199,89 @@ Analyze the plan for:
 
 **Output:** Confirmed plan ready for OpenSpec proposal creation
 
-### Step 4: OpenSpec Proposal Creation
+### Step 4: OpenSpec Change Creation (OPSX)
 
-**4.1: Execute OpenSpec Proposal Command**
+**4.1: Determine Change Name from Plan**
 
-Execute the `/openspec-proposal` command with plan context:
+1. **Extract change name from plan:**
+   - Use plan title (first H1 heading) as basis
+   - Convert to kebab-case (e.g., "Documentation Improvement Plan" → `documentation-improvement-plan`)
+   - Or derive from plan purpose/scope if title is too generic
+   - Ensure name is unique (check existing changes with `openspec list`)
 
-1. **Prepare context for openspec-proposal:**
-   - Plan document path and content
-   - Validated plan understanding
-   - Resolved clarifications
-   - Target repository information
+2. **Store change name:**
+   - Change name in kebab-case format
+   - Will be used for `/opsx:ff` command
 
-2. **Call openspec-proposal workflow:**
+**4.2: Execute OPSX Fast-Forward Command**
+
+Execute the `/opsx:ff` command to create all artifacts at once:
+
+1. **Call OPSX fast-forward workflow:**
+
+   ```bash
+   /opsx:ff <change-name>
+   ```
+
    - Use the plan as the source of requirements
    - Map plan phases/tasks to OpenSpec capabilities
-   - Create change proposal following OpenSpec conventions (see format requirements below)
-   - Generate proposal.md, tasks.md, design.md (if needed), spec deltas
-   - **CRITICAL Format Requirements**:
-     - **proposal.md** MUST follow OpenSpec format:
-       - Title: `# Change: [Brief description]`
-       - Sections: `## Why`, `## What Changes`, `## Impact`
-       - "What Changes" must use bullet list with NEW/EXTEND/MODIFY markers
-       - "Impact" must list: Affected specs, Affected code, Integration points
-     - **tasks.md** MUST follow hierarchical numbered format:
-       - Section headers: `## 1. [Section Name]`, `## 2. [Section Name]`, etc.
-       - Tasks: `- [ ] 1.1 [Task description]`
-       - Sub-tasks: `- [ ] 1.1.1 [Sub-task description]` (indented)
-       - See OpenSpec AGENTS.md for format reference
-   - **Note**: After openspec-proposal completes, Step 5 will add git workflow tasks (branch creation and PR creation)
+   - The OPSX workflow will:
+     - Create change directory: `openspec/changes/<change-name>/`
+     - Use `openspec/changes/<change-name>/config.yaml` for project context and rules
+     - Generate all required artifacts: proposal.md, specs/, design.md, tasks.md
+     - Follow artifact dependencies defined by the schema (spec-driven: proposal → specs → design → tasks)
 
-3. **Monitor openspec-proposal execution:**
-   - Ensure it follows the guardrails from openspec-proposal.md
+2. **OPSX workflow will automatically:**
+   - Read `openspec/config.yaml` for project context and per-artifact rules
+   - Inject context into all artifact creation requests
+   - Apply artifact-specific rules (proposal, specs, design, tasks) from config.yaml
+   - Create artifacts following the schema's dependency order
+   - Use `openspec instructions <artifact-id> --change "<name>" --json` for each artifact
+
+3. **Monitor OPSX execution:**
+   - Ensure it follows the OPSX workflow patterns
    - Verify it creates proper OpenSpec structure
-   - Check for any errors or warnings
+   - Check that config.yaml rules are applied (source tracking format, GitHub issue creation policy, etc.)
+   - Verify artifacts follow format requirements from config.yaml
 
-**4.2: Extract Change ID**
+4. **Artifact format requirements (from config.yaml):**
+   - **proposal.md**: Must include Why, What Changes, Capabilities, Impact sections. Capabilities section is critical - each capability needs a spec file.
+   - **specs/<capability>/spec.md**: Use Given/When/Then format for scenarios. Reference existing patterns in openspec/specs/.
+   - **design.md**: Document bridge adapter integration, sequence diagrams for multi-repo flows, contract enforcement strategy.
+   - **tasks.md**: Break into 2-hour maximum chunks. Include contract decorator tasks, test tasks, quality gate tasks, git workflow tasks (branch creation first, PR creation last).
 
-1. Identify the created change ID from openspec-proposal output
+5. **Note**: After OPSX completes, Step 5 will add git workflow tasks (branch creation and PR creation) and quality standards if not already included.
+
+**4.3: Extract Change ID**
+
+1. Identify the created change ID from OPSX output (or use the change name)
 2. Verify change directory exists: `openspec/changes/<change-id>/`
-3. Store change ID for later steps
+3. Verify artifacts were created: proposal.md, tasks.md, and specs/ directory
+4. Store change ID for later steps
 
 **Output:** Change ID, path to change proposal directory
 
 ### Step 5: Proposal Review and Improvement
 
-**5.1: Review Against Project Rules**
+**5.1: Review Against Project Rules and Config**
 
-Read and apply rules from `specfact-cli/.cursor/rules/`:
+1. **Read openspec/config.yaml:**
+   - Project context (tech stack, constraints, architecture patterns)
+   - Per-artifact rules (proposal, specs, design, tasks)
+   - Verify artifacts follow config.yaml rules
 
-1. **spec-fact-cli-rules.mdc:**
-   - Problem analysis over quick fixes
-   - Centralize and idempotent logic
-   - Code cleanup and refactoring
-   - Testing requirements (smart test coverage system)
-   - Contract-first approach
-   - Type checking requirements
+2. **Read and apply rules from `specfact-cli/.cursor/rules/`:**
+   - **spec-fact-cli-rules.mdc**: Problem analysis, centralize logic, testing requirements, contract-first approach
+   - **testing-and-build-guide.mdc**: Contract-bound testing, contract-first test commands, coverage requirements
+   - **clean-code-principles.mdc**: Code quality standards, refactoring guidelines
+   - **python-github-rules.mdc**: Python code standards, GitHub integration patterns
+   - **markdown-rules.mdc**: Markdown formatting standards (for documentation changes)
 
-2. **testing-and-build-guide.mdc:**
-   - Contract-bound testing strategy
-   - Contract-first test commands
-   - Hatch test command usage
-   - Coverage requirements
-
-3. **clean-code-principles.mdc:**
-   - Code quality standards
-   - Refactoring guidelines
-
-4. **python-github-rules.mdc:**
-   - Python code standards
-   - GitHub integration patterns
-
-5. **markdown-rules.mdc:**
-   - Markdown formatting standards (for documentation changes)
+3. **Verify config.yaml rules are applied:**
+   - Proposal includes Source Tracking section (if public-facing change)
+   - Tasks include GitHub issue creation task (if public-facing change in public repo)
+   - Tasks follow 2-hour maximum chunk rule
+   - All artifacts reference existing architecture patterns where applicable
 
 **5.2: Update Tasks with Quality Standards and Git Workflow**
 
@@ -383,7 +393,7 @@ For each task in `tasks.md` (after branch creation task), ensure it includes:
          - [ ] N.3.7.1 Get PR item ID: `PR_ITEM_ID=$(gh api graphql -f query='{organization(login: "nold-ai") {projectV2(number: 1) {items(first: 20) {nodes {id content {... on PullRequest {number}}}}}}}' | jq -r '.data.organization.projectV2.items.nodes[] | select(.content.number == <PR_NUMBER>) | .id')`
          - [ ] N.3.7.2 Update status: `gh project item-edit --id "$PR_ITEM_ID" --field-id PVTSSF_lADODWwjB84BKws4zg6iOak --project-id PVT_kwDODWwjB84BKws4 --single-select-option-id 47fc9ee4` (Status field ID: `PVTSSF_lADODWwjB84BKws4zg6iOak`, "In Progress" option ID: `47fc9ee4`, Project ID: `PVT_kwDODWwjB84BKws4`)
        - [ ] N.3.8 Verify Development link: PR and branch automatically linked to issue (if issue exists - check issue page "Development" section)
-       - [ ] N.3.9 Verify project link: PR appears in project board (https://github.com/orgs/nold-ai/projects/1) (if target is specfact-cli)
+       - [ ] N.3.9 Verify project link: PR appears in project board (<https://github.com/orgs/nold-ai/projects/1>) (if target is specfact-cli)
        - [ ] N.3.10 Cleanup PR body file: `rm /tmp/pr-body-<change-id>.md`
 
      **Python script for PR body generation** (use in N.2.2):
@@ -480,7 +490,7 @@ For each task in `tasks.md` (after branch creation task), ensure it includes:
      - Fixes/New Features: Include issue number if GitHub issue was created
      - Contract References: List any contracts affected (if applicable)
      - Type of Change: Mark appropriate checkboxes based on change type
-   - **Development Link**: 
+   - **Development Link**:
      - **Automatic linking**:
        - Branch: `gh issue develop <issue-number>` (Step 1.1.2) automatically links the branch to the issue
        - PR: PR body containing `Fixes <repo>#<issue-number>` or `Closes <repo>#<issue-number>` should automatically link the PR to the issue
@@ -531,12 +541,26 @@ Update `proposal.md` to include:
      - Sub-tasks use format: `- [ ] 1.1.1 [Description]` (indented)
    - If format issues found, fix them before proceeding
 
-2. Run: `openspec validate <change-id> --strict`
-3. **If validation fails:**
-   - Read validation errors
-   - Fix issues in proposal.md, tasks.md, or spec deltas
-   - Re-run validation
-   - Continue until validation passes
+2. **Check change status:**
+
+   ```bash
+   openspec status --change "<change-id>" --json
+   ```
+
+   - Verify all required artifacts are complete (status: "done")
+   - Check artifact dependencies are satisfied
+
+3. **Run OpenSpec validation:**
+
+   ```bash
+   openspec validate <change-id> --strict
+   ```
+
+   - **If validation fails:**
+     - Read validation errors
+     - Fix issues in proposal.md, tasks.md, design.md (if exists), or spec deltas
+     - Re-run validation
+     - Continue until validation passes
 
 4. **If validation passes:**
    - Proceed to Step 5.5 (Markdown Linting)
@@ -696,10 +720,13 @@ Update `proposal.md` to include:
 
 3. **Create sanitized content:**
    - Format according to GitHub issue template: `specfact-cli/.github/ISSUE_TEMPLATE/change_proposal.md`
-   - Structure:
-     - `## Why` (sanitized rationale)
-     - `## What Changes` (sanitized description)
-     - `## Acceptance Criteria` (from proposal, user-facing only)
+   - Follow config.yaml rules for GitHub issue format:
+     - Title: `[Change] <Brief Description>`
+     - Labels: `enhancement` and `change-proposal`
+     - Body structure:
+       - `## Why` (sanitized rationale from proposal)
+       - `## What Changes` (sanitized description from proposal)
+       - `## Acceptance Criteria` (from proposal, user-facing only)
      - Footer: `*OpenSpec Change Proposal:`<change-id>`*`
 
 4. **User review:**
@@ -738,11 +765,13 @@ Update `proposal.md` to include:
 
    ```bash
    # Create issue first (without project flag - more reliable)
+   # Follow config.yaml format: title `[Change] <Brief Description>`, labels `enhancement` and `change-proposal`
    ISSUE_OUTPUT=$(gh issue create \
      --repo nold-ai/specfact-cli \
      --title "[Change] <title>" \
      --body-file /tmp/github-issue-<change-id>.md \
-     --label "enhancement" 2>&1)
+     --label "enhancement" \
+     --label "change-proposal" 2>&1)
    
    # Extract issue number from output
    # Handle both formats: "https://github.com/.../issues/123" and "Created issue #123"
@@ -766,11 +795,13 @@ Update `proposal.md` to include:
 
    ```bash
    # Create issue without project linking
+   # Follow config.yaml format: title `[Change] <Brief Description>`, labels `enhancement` and `change-proposal`
    ISSUE_OUTPUT=$(gh issue create \
      --repo <target-owner>/<target-name> \
      --title "[Change] <title>" \
      --body-file /tmp/github-issue-<change-id>.md \
-     --label "enhancement" 2>&1)
+     --label "enhancement" \
+     --label "change-proposal" 2>&1)
    
    # Extract issue number from output
    ISSUE_NUMBER=$(echo "$ISSUE_OUTPUT" | grep -oP 'issues/\K[0-9]+' || echo "$ISSUE_OUTPUT" | grep -oP '#\K[0-9]+')
@@ -909,7 +940,7 @@ Next Steps:
   3. Verify git workflow tasks are included:
      - First task: Create branch `<branch-type>/<change-id>`
      - Last task: Create PR to `dev` branch
-  4. Apply change when ready: /openspec-apply <change-id>
+  4. Apply change when ready: /opsx:apply <change-id> (or /openspec-apply <change-id> for legacy)
 ```
 
 **8.2: Provide Next Actions**
@@ -930,8 +961,9 @@ Next Steps:
 
 **Reference**
 
-- OpenSpec proposal command: `/openspec-proposal`
-- OpenSpec apply command: `/openspec-apply`
+- OPSX commands: `/opsx:new`, `/opsx:ff`, `/opsx:continue`, `/opsx:apply`, `/opsx:verify`, `/opsx:archive`
+- OpenSpec config: `openspec/config.yaml` (project context and per-artifact rules)
+- Legacy commands: `/openspec-proposal` (use `/opsx:ff` instead), `/openspec-apply` (use `/opsx:apply` instead)
 - Sync backlog command: `/specfact.sync-backlog`
 - Project rules: `specfact-cli/.cursor/rules/`
 - GitHub issue template: `specfact-cli/.github/ISSUE_TEMPLATE/change_proposal.md`
