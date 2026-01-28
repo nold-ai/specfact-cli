@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
+from specfact_cli.commands.backlog_commands import _parse_refined_export_markdown
 from specfact_cli.models.backlog_item import BacklogItem
 
 
@@ -210,3 +211,88 @@ class TestInteractiveMappingCommand:
         # Should fail with error about missing token
         assert result.exit_code != 0
         assert "token required" in result.stdout.lower() or "error" in result.stdout.lower()
+
+
+class TestParseRefinedExportMarkdown:
+    """Tests for _parse_refined_export_markdown (refine --import-from-tmp parser)."""
+
+    def test_parses_single_item_with_body_and_id(self) -> None:
+        """Parser extracts ID and body from export-format block."""
+        content = """
+# SpecFact Backlog Refinement Export
+
+**Export Date**: 2026-01-27
+**Adapter**: github
+**Items**: 1
+
+---
+
+## Item 1: My Title
+
+**ID**: issue-42
+**URL**: https://github.com/org/repo/issues/42
+**State**: open
+**Provider**: github
+
+**Body**:
+```markdown
+Refined body text here.
+```
+"""
+        result = _parse_refined_export_markdown(content)
+        assert "issue-42" in result
+        assert result["issue-42"]["body_markdown"] == "Refined body text here."
+        assert result["issue-42"].get("title") == "My Title"
+
+    def test_parses_acceptance_criteria_and_metrics(self) -> None:
+        """Parser extracts acceptance criteria and metrics when present."""
+        content = """
+## Item 1: Story title
+
+**ID**: 123
+**URL**: u
+**State**: open
+**Provider**: ado
+
+**Metrics**:
+- Story Points: 5
+- Business Value: 8
+- Priority: 1 (1=highest)
+
+**Acceptance Criteria**:
+- AC one
+- AC two
+
+**Body**:
+```markdown
+Body content
+```
+---
+"""
+        result = _parse_refined_export_markdown(content)
+        assert "123" in result
+        assert result["123"]["acceptance_criteria"] == "- AC one\n- AC two"
+        assert result["123"]["story_points"] == 5
+        assert result["123"]["business_value"] == 8
+        assert result["123"]["priority"] == 1
+        assert result["123"]["body_markdown"] == "Body content"
+
+    def test_returns_empty_for_header_only(self) -> None:
+        """Parser returns empty dict when no ## Item blocks."""
+        content = "# SpecFact Backlog Refinement Export\n\n**Items**: 0\n\n---\n\n"
+        result = _parse_refined_export_markdown(content)
+        assert result == {}
+
+    def test_skips_blocks_without_id(self) -> None:
+        """Parser skips blocks that do not contain **ID**:."""
+        content = """
+## Item 1: No ID here
+
+**URL**: x
+**Body**:
+```markdown
+nope
+```
+"""
+        result = _parse_refined_export_markdown(content)
+        assert result == {}
