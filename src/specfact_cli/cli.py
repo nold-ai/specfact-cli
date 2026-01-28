@@ -75,7 +75,7 @@ from specfact_cli.commands import (
     validate,
 )
 from specfact_cli.modes import OperationalMode, detect_mode
-from specfact_cli.runtime import get_configured_console, set_debug_mode
+from specfact_cli.runtime import get_configured_console, init_debug_log_file, set_debug_mode
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
 
@@ -246,7 +246,7 @@ def main(
     debug: bool = typer.Option(
         False,
         "--debug",
-        help="Enable debug output (shows detailed logging and diagnostic information)",
+        help="Enable debug output: console diagnostics and log file at ~/.specfact/logs/specfact-debug.log (operation metadata for file I/O and API calls)",
     ),
     skip_checks: bool = typer.Option(
         False,
@@ -297,6 +297,8 @@ def main(
 
     # Set debug mode
     set_debug_mode(debug)
+    if debug:
+        init_debug_log_file()
 
     runtime.configure_io_formats(input_format=input_format, output_format=output_format)
     # Invert logic: --interactive means not non-interactive, --no-interactive means non-interactive

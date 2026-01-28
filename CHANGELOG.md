@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.12] - 2026-01-28
+
+### Added (0.26.12)
+
+- **Debug logs under ~/.specfact/logs**: When `--debug` is enabled, debug output is written to both console and a rotating log file at `~/.specfact/logs/specfact-debug.log`
+  - **User-level directory**: `get_specfact_home_logs_dir()` returns `~/.specfact/logs` (created with mode 0o755 on first use)
+  - **debug_print()**: Routes to console and to the debug log file when debug is on
+  - **debug_log_operation()**: New helper to log structured operation metadata (operation, target, status, error, extra) when debug is on; no-op when debug is off; target/extra redacted via LoggerSetup.redact_secrets
+  - **Adapters**: ADO (WIQL, Work Items GET, PATCH) and GitHub (API GET) log operation metadata when debug is on
+  - **Commands**: backlog refine export/import and init template resolution log file read/write and template resolution steps when debug is on
+  - **CLI**: After `set_debug_mode(debug)`, `init_debug_log_file()` is called when debug is True so the log file is ready for the first write
+
+---
+
 ## [0.26.11] - 2026-01-27
 
 ### Fixed (0.26.11)

@@ -78,6 +78,24 @@ def get_runtime_logs_dir() -> str:
     return runtime_logs_dir
 
 
+@beartype
+@ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty string path")
+def get_specfact_home_logs_dir() -> str:
+    """
+    Get the path to the user-level debug logs directory (~/.specfact/logs) and ensure it exists.
+
+    Used when --debug is enabled to write debug output to a persistent location.
+    Creates the directory with mode 0o755 on first use.
+
+    Returns:
+        str: Path to ~/.specfact/logs (expanded from HOME).
+    """
+    logs_dir = os.path.join(os.path.expanduser("~"), ".specfact", "logs")
+    with contextlib.suppress(PermissionError):
+        os.makedirs(logs_dir, mode=0o755, exist_ok=True)
+    return os.path.abspath(logs_dir)
+
+
 class MessageFlowFormatter(logging.Formatter):
     """
     Custom formatter that recognizes message flow patterns and formats them accordingly

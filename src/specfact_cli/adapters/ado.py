@@ -11,7 +11,8 @@ This follows the backlog adapter patterns established by the GitHub adapter.
 from __future__ import annotations
 
 import os
-import re
+
+# import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -31,7 +32,7 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
-from specfact_cli.runtime import debug_print
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token, set_token
 
 
@@ -372,6 +373,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         rationale = ""
         impact = ""
 
+        import re
+
         # Parse markdown sections (Why, What Changes)
         if description_raw:
             # Extract "Why" section (stop at What Changes or OpenSpec footer)
@@ -696,6 +699,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             ValueError: If required configuration is missing
             requests.RequestException: If Azure DevOps API call fails
         """
+        import re as _re
+
         if not self.api_token:
             msg = (
                 "Azure DevOps API token required. Options:\n"
@@ -751,7 +756,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                                 parsed = urlparse(source_url)
                                 if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
                                     target_org = target_repo.split("/")[0]
-                                    ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+                                    ado_org_match = _re.search(r"dev\.azure\.com/([^/]+)/", source_url)
                                     if ado_org_match and ado_org_match.group(1) == target_org:
                                         # Org matches - this is likely the same ADO organization
                                         work_item_id = entry.get("source_id")
@@ -773,8 +778,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
                         # This prevents matching org/project-a with org/project-b when both have known project names
                         source_url = entry.get("source_url", "")
-                        entry_has_guid = source_url and re.search(
-                            r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
+                        entry_has_guid = source_url and _re.search(
+                            r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, _re.IGNORECASE
                         )
                         project_unknown = (
                             not entry_project  # Entry has no project part
@@ -967,8 +972,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Tuple of (org, project, work_item_id)
         """
+        import re as _re
+
         cleaned = item_ref.strip().lstrip("#")
-        url_match = re.search(r"dev\.azure\.com/([^/]+)/([^/]+)/.*?/(\d+)", cleaned, re.IGNORECASE)
+        url_match = _re.search(r"dev\.azure\.com/([^/]+)/([^/]+)/.*?/(\d+)", cleaned, _re.IGNORECASE)
         if url_match:
             return url_match.group(1), url_match.group(2), int(url_match.group(3))
 
@@ -1439,6 +1446,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = requests.post(url, json=wiql, headers=headers, timeout=10)
+            if is_debug_mode():
+                debug_log_operation(
+                    "ado_wiql",
+                    url,
+                    str(response.status_code),
+                    error=None if response.ok else (response.text[:200] if response.text else None),
+                )
             if response.status_code != 200:
                 return None
             work_items = response.json().get("workItems", [])
@@ -1453,7 +1467,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "source_type": "ado",
                 "source_repo": f"{org}/{project}",
             }
-        except requests.RequestException:
+        except requests.RequestException as e:
+            if is_debug_mode():
+                debug_log_operation("ado_wiql", url, "error", error=str(e))
             return None
 
     def _create_work_item_from_proposal(
@@ -1473,6 +1489,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
+        import re as _re
+
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
@@ -1489,7 +1507,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         else:
             body_parts = []
 
-            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+            display_title = _re.sub(r"^\[change\]\s*", "", title, flags=_re.IGNORECASE).strip()
             if display_title:
                 body_parts.append(f"# {display_title}")
                 body_parts.append("")
@@ -1572,6 +1590,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            if is_debug_mode():
+                debug_log_operation(
+                    "ado_patch",
+                    url,
+                    str(response.status_code),
+                    error=None if response.ok else (response.text[:200] if response.text else None),
+                )
             response.raise_for_status()
             work_item_data = response.json()
 
@@ -1617,6 +1642,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "state": ado_state,
             }
         except requests.RequestException as e:
+            if is_debug_mode():
+                debug_log_operation("ado_patch", url, "error", error=str(e))
             msg = f"Failed to create Azure DevOps work item: {e}"
             console.print(f"[bold red]✗[/bold red] {msg}")
             raise
@@ -1740,6 +1767,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
+        import re as _re
+
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
@@ -1756,7 +1785,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         else:
             body_parts = []
 
-            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+            display_title = _re.sub(r"^\[change\]\s*", "", title, flags=_re.IGNORECASE).strip()
             if display_title:
                 body_parts.append(f"# {display_title}")
                 body_parts.append("")
@@ -2908,8 +2937,22 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
             try:
                 response = requests.get(url, headers=workitems_headers, params=params, timeout=30)
+                if is_debug_mode():
+                    debug_log_operation(
+                        "ado_workitems_get",
+                        url,
+                        str(response.status_code),
+                        error=None if response.ok else (response.text[:200] if response.text else None),
+                    )
                 response.raise_for_status()
             except requests.HTTPError as e:
+                if is_debug_mode():
+                    debug_log_operation(
+                        "ado_workitems_get",
+                        url,
+                        "error",
+                        error=str(e.response.status_code) if e.response is not None else str(e),
+                    )
                 # Provide better error message with URL details
                 error_detail = ""
                 if e.response is not None:
@@ -3095,11 +3138,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Update description (body_markdown) - always use System.Description
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
-            # Convert TODO markers to proper Markdown checkboxes for ADO rendering
             import re
 
-            markdown_content = item.body_markdown
-            # Pattern matches: * [TODO: ...] or - [TODO: ...] or *[TODO: ...] or -[TODO: ...]
+            # Never send null: ADO rejects null for /fields/System.Description (HTTP 400)
+            raw_body = item.body_markdown
+            markdown_content = raw_body if raw_body is not None else ""
+            # Convert TODO markers to proper Markdown checkboxes for ADO rendering
             todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
             markdown_content = re.sub(
                 todo_pattern,
@@ -3108,11 +3152,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 flags=re.MULTILINE | re.IGNORECASE,
             )
 
-            # Get mapped description field name (honors custom mappings)
             description_field = reverse_mappings.get("description", "System.Description")
-            # Set multiline field format to Markdown FIRST (before setting content)
+            # Set multiline field format to Markdown first (optional; many ADO instances return 400 for this path)
             operations.append({"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": "Markdown"})
-            # Then set description content with Markdown format
             operations.append({"op": "replace", "path": f"/fields/{description_field}", "value": markdown_content})
 
         # Update acceptance criteria using mapped field name (honors custom mappings)
@@ -3158,7 +3200,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             response = requests.patch(url, headers=headers, json=operations, timeout=30)
             response.raise_for_status()
         except requests.HTTPError as e:
-            # Handle various error cases
+            # Handle 400/422: often caused by /multilineFieldsFormat/ not being supported by ADO API
+            response = None
             if e.response and e.response.status_code in (400, 422):
                 error_message = ""
                 try:
@@ -3167,91 +3210,72 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 except Exception:
                     pass
 
-                # Check if error is about multilineFieldsFormat already existing (use "replace" instead)
-                if "already exists" in error_message.lower() or "cannot add" in error_message.lower():
-                    # Try with "replace" operation for multilineFieldsFormat
+                # First retry: omit multilineFieldsFormat entirely (only /fields/ updates).
+                # Many ADO instances reject /multilineFieldsFormat/ path with 400 Bad Request.
+                operations_no_format = [
+                    op for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")
+                ]
+                if operations_no_format != operations:
+                    try:
+                        resp = requests.patch(url, headers=headers, json=operations_no_format, timeout=30)
+                        resp.raise_for_status()
+                        response = resp
+                    except requests.HTTPError:
+                        pass
+
+                if response is None and (
+                    "already exists" in error_message.lower() or "cannot add" in error_message.lower()
+                ):
+                    # Second: try "replace" instead of "add" for multilineFieldsFormat
                     operations_replace = []
                     for op in operations:
-                        if op.get("path") == "/multilineFieldsFormat/System.Description":
-                            # Change to replace operation
-                            operations_replace.append({"op": "replace", "path": op["path"], "value": op["value"]})
+                        path = op.get("path") or ""
+                        if path.startswith("/multilineFieldsFormat/"):
+                            operations_replace.append({"op": "replace", "path": path, "value": op["value"]})
                         else:
                             operations_replace.append(op)
-
                     try:
-                        response = requests.patch(url, headers=headers, json=operations_replace, timeout=30)
-                        response.raise_for_status()
+                        resp = requests.patch(url, headers=headers, json=operations_replace, timeout=30)
+                        resp.raise_for_status()
+                        response = resp
                     except requests.HTTPError:
-                        # If replace also fails, fallback to HTML conversion
-                        console.print("[yellow]⚠ Markdown format not supported, converting to HTML[/yellow]")
-                        operations_html = [
-                            op for op in operations if "/multilineFieldsFormat/" not in op.get("path", "")
-                        ]
-                        # Find description operation and convert markdown to HTML
-                        for op in operations_html:
-                            if op.get("path") == "/fields/System.Description":
-                                # Convert TODO markers to HTML checkboxes before converting to HTML
-                                import re
+                        pass
 
-                                markdown_for_html = op["value"]
-                                # Convert TODO markers to checkboxes first
-                                todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
-                                markdown_for_html = re.sub(
-                                    todo_pattern,
-                                    r"\1- [ ] \2",
-                                    markdown_for_html,
-                                    flags=re.MULTILINE | re.IGNORECASE,
-                                )
-                                # Simple markdown to HTML conversion (basic)
-                                try:
-                                    import markdown
+                if response is None:
+                    # Third: HTML fallback (no multilineFieldsFormat, description as HTML)
+                    import re as _re
 
-                                    html_body = markdown.markdown(
-                                        markdown_for_html, extensions=["fenced_code", "tables"]
-                                    )
-                                    op["value"] = html_body
-                                except ImportError:
-                                    # markdown library not available - use raw text
-                                    console.print("[yellow]⚠ markdown library not available, using raw text[/yellow]")
-                                    # Keep original markdown as-is (ADO may still render it)
-                                break
-
-                        response = requests.patch(url, headers=headers, json=operations_html, timeout=30)
-                        response.raise_for_status()
-                else:
-                    # Other 400/422 errors - try HTML fallback
-                    console.print("[yellow]⚠ Markdown format not supported, converting to HTML[/yellow]")
-                    operations_html = [op for op in operations if "/multilineFieldsFormat/" not in op.get("path", "")]
-                    # Find description operation and convert markdown to HTML
+                    console.print("[yellow]⚠ Markdown format not supported, converting description to HTML[/yellow]")
+                    operations_html = [
+                        op for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")
+                    ]
+                    description_field = reverse_mappings.get("description", "System.Description")
+                    desc_path = f"/fields/{description_field}"
                     for op in operations_html:
-                        if op.get("path") == "/fields/System.Description":
-                            # Convert TODO markers to HTML checkboxes before converting to HTML
-                            import re
-
-                            markdown_for_html = op["value"]
-                            # Convert TODO markers to checkboxes first
+                        if op.get("path") == desc_path:
+                            markdown_for_html = op.get("value") or ""
                             todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
-                            markdown_for_html = re.sub(
+                            markdown_for_html = _re.sub(
                                 todo_pattern,
                                 r"\1- [ ] \2",
                                 markdown_for_html,
-                                flags=re.MULTILINE | re.IGNORECASE,
+                                flags=_re.MULTILINE | _re.IGNORECASE,
                             )
-                            # Simple markdown to HTML conversion (basic)
                             try:
                                 import markdown
 
-                                html_body = markdown.markdown(markdown_for_html, extensions=["fenced_code", "tables"])
-                                op["value"] = html_body
+                                op["value"] = markdown.markdown(markdown_for_html, extensions=["fenced_code", "tables"])
                             except ImportError:
-                                # markdown library not available - use raw text
-                                console.print("[yellow]⚠ markdown library not available, using raw text[/yellow]")
-                                # Keep original markdown as-is (ADO may still render it)
+                                pass
                             break
+                    try:
+                        resp = requests.patch(url, headers=headers, json=operations_html, timeout=30)
+                        resp.raise_for_status()
+                        response = resp
+                    except requests.HTTPError:
+                        raise
 
-                    response = requests.patch(url, headers=headers, json=operations_html, timeout=30)
-                    response.raise_for_status()
-            else:
+            if response is None:
                 raise
 
         updated_work_item = response.json()

@@ -5,10 +5,12 @@ Unit tests for runtime configuration helpers.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 from specfact_cli.runtime import (
     TerminalMode,
+    debug_log_operation,
     debug_print,
     get_configured_console,
     get_terminal_mode,
@@ -139,3 +141,44 @@ class TestDebugMode:
         set_debug_mode(False)
         # Should not raise exception, but output should be suppressed
         debug_print("test message")
+
+    def test_debug_print_writes_to_file_when_debug_on(self, tmp_path: Path) -> None:
+        """When debug is on, debug_print also writes to debug log file."""
+        with (
+            patch("specfact_cli.runtime.get_specfact_home_logs_dir", return_value=str(tmp_path)),
+            patch("specfact_cli.runtime._debug_logger", None),
+            patch("specfact_cli.runtime._debug_file_handler", None),
+        ):
+            import specfact_cli.runtime as runtime_mod
+
+            runtime_mod._debug_logger = None
+            runtime_mod._debug_file_handler = None
+            set_debug_mode(True)
+            debug_print("hello debug")
+        log_file = tmp_path / "specfact-debug.log"
+        assert log_file.exists()
+        assert "hello debug" in log_file.read_text()
+
+    def test_debug_log_operation_no_op_when_debug_off(self) -> None:
+        """debug_log_operation does nothing when debug is off."""
+        set_debug_mode(False)
+        debug_log_operation("file_read", "/tmp/foo", "success")
+        # No exception; no file written (we don't create log dir when off)
+
+    def test_debug_log_operation_writes_when_debug_on(self, tmp_path: Path) -> None:
+        """When debug is on, debug_log_operation writes structured line to file."""
+        with (
+            patch("specfact_cli.runtime.get_specfact_home_logs_dir", return_value=str(tmp_path)),
+        ):
+            import specfact_cli.runtime as runtime_mod
+
+            runtime_mod._debug_logger = None
+            runtime_mod._debug_file_handler = None
+            set_debug_mode(True)
+            debug_log_operation("api_request", "https://example.com", "200", error=None, extra=None)
+        log_file = tmp_path / "specfact-debug.log"
+        assert log_file.exists()
+        content = log_file.read_text()
+        assert "debug_log_operation" in content
+        assert "api_request" in content
+        assert "200" in content

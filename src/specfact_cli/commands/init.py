@@ -17,7 +17,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 
-from specfact_cli.runtime import debug_print
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.env_manager import EnvManager, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
@@ -460,7 +460,16 @@ def init(
                 except Exception as e:
                     console.print(f"[yellow]⚠[/yellow] Error with __file__ fallback: {type(e).__name__}: {e}")
 
+        if templates_dir and templates_dir.exists() and is_debug_mode():
+            debug_log_operation("template_resolution", str(templates_dir), "success")
         if not templates_dir or not templates_dir.exists():
+            if is_debug_mode() and tried_locations:
+                debug_log_operation(
+                    "template_resolution",
+                    str(tried_locations[-1]) if tried_locations else "unknown",
+                    "failure",
+                    error="Templates directory not found after all attempts",
+                )
             console.print()
             console.print("[red]Error:[/red] Templates directory not found after all attempts")
             console.print()
