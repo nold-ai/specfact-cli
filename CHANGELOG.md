@@ -9,6 +9,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.10] - 2026-01-27
+
+### Fixed (0.26.10)
+
+- **Version Bump**: Corrected package version to 0.26.10 for PyPI publish (fixes incorrect version 0.26.9 publish issue)
+  - Synced version across `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py`
+
+---
+
 ## [0.26.9] - 2026-01-27
 
 ### Fixed (0.26.9)
