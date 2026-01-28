@@ -6,6 +6,8 @@ Tests complete workflows from OpenSpec artifacts to SpecFact project bundles.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 from textwrap import dedent
 
@@ -322,28 +324,28 @@ class TestOpenSpecBridgeWorkflowE2E:
         main_repo = tmp_path / "main-repo"
         main_repo.mkdir()
 
-        # Sync with external base path
-        result = runner.invoke(
-            app,
-            [
-                "sync",
-                "bridge",
-                "--repo",
-                str(main_repo),
-                "--adapter",
-                "openspec",
-                "--mode",
-                "read-only",
-                "--external-base-path",
-                str(external_repo),
-            ],
+        # Sync with external base path. Use subprocess to avoid "I/O operation on
+        # closed file" when Click's isolation streams are closed by Azure Identity
+        # or Rich during the command (runner.invoke then fails in its finally block).
+        args = [
+            "sync",
+            "bridge",
+            "--repo",
+            str(main_repo),
+            "--adapter",
+            "openspec",
+            "--mode",
+            "read-only",
+            "--external-base-path",
+            str(external_repo),
+        ]
+        proc = subprocess.run(
+            [sys.executable, "-m", "specfact_cli", *args],
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
-
-        # Access stdout immediately to prevent I/O operation on closed file error
-        _ = result.stdout
-
-        # Should succeed
-        assert result.exit_code == 0
+        assert proc.returncode == 0, f"stdout: {proc.stdout!r}\nstderr: {proc.stderr!r}"
 
         # Verify bundle was created in main repo
         bundle_dir = main_repo / SpecFactStructure.PROJECTS / "main"

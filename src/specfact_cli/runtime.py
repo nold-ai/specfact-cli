@@ -7,21 +7,31 @@ and preferred structured data formats for inputs/outputs.
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import os
 import sys
 from enum import Enum
 from logging.handlers import RotatingFileHandler
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure
 from rich.console import Console
 
-from specfact_cli.common.logger_setup import LoggerSetup, get_specfact_home_logs_dir
+from specfact_cli.common.logger_setup import (
+    LoggerSetup,
+    format_debug_log_message,
+    get_specfact_home_logs_dir,
+)
 from specfact_cli.modes import OperationalMode
 from specfact_cli.utils.structured_io import StructuredFormat
 from specfact_cli.utils.terminal import detect_terminal_capabilities, get_console_config
+
+
+DEBUG_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
+DEBUG_LOG_FORMAT = "%(asctime)s | %(message)s"
 
 
 class TerminalMode(str, Enum):
@@ -181,6 +191,20 @@ def get_configured_console() -> Console:
     return _console_cache[mode]
 
 
+def _get_debug_caller() -> str:
+    """Return module:function for the caller of debug_print/debug_log_operation (first frame outside runtime)."""
+    for frame_info in inspect.stack():
+        module = inspect.getmodule(frame_info.frame)
+        if module is None:
+            continue
+        name = getattr(module, "__name__", "") or ""
+        if "specfact_cli.runtime" in name:
+            continue
+        func = frame_info.function
+        return f"{name}:{func}"
+    return "unknown"
+
+
 def _ensure_debug_log_file() -> None:
     """Initialize debug log file under ~/.specfact/logs when debug is on (lazy, once per run)."""
     global _debug_file_handler, _debug_logger
@@ -197,7 +221,7 @@ def _ensure_debug_log_file() -> None:
             encoding="utf-8",
         )
         _debug_file_handler.setLevel(logging.DEBUG)
-        _debug_file_handler.setFormatter(logging.Formatter("%(message)s"))
+        _debug_file_handler.setFormatter(logging.Formatter(DEBUG_LOG_FORMAT, datefmt=DEBUG_LOG_DATEFMT))
         _debug_logger = logging.getLogger("specfact.debug")
         _debug_logger.setLevel(logging.DEBUG)
         _debug_logger.propagate = False
@@ -220,8 +244,21 @@ def init_debug_log_file() -> None:
         _ensure_debug_log_file()
 
 
+def _append_debug_log(*args: Any, **kwargs: Any) -> None:
+    """Write print-style message to the debug log file. No-op if debug off or file unavailable."""
+    if not _debug_mode:
+        return
+    _ensure_debug_log_file()
+    if _debug_logger is None:
+        return
+    plain = format_debug_log_message(*args, **kwargs)
+    if plain:
+        caller = _get_debug_caller()
+        _debug_logger.debug("%s | %s", caller, plain)
+
+
 @beartype
-def debug_print(*args: object, **kwargs: object) -> None:
+def debug_print(*args: Any, **kwargs: Any) -> None:
     """
     Print debug messages only if debug mode is enabled.
 
@@ -233,13 +270,8 @@ def debug_print(*args: object, **kwargs: object) -> None:
         **kwargs: Keyword arguments to pass to console.print()
     """
     if _debug_mode:
-        console = get_configured_console()
-        console.print(*args, **kwargs)
-        _ensure_debug_log_file()
-        if _debug_logger is not None:
-            line = " ".join(str(a) for a in args)
-            if line:
-                _debug_logger.debug("%s", line)
+        get_configured_console().print(*args, **kwargs)
+        _append_debug_log(*args, **kwargs)
 
 
 @beartype
@@ -249,20 +281,22 @@ def debug_log_operation(
     status: str,
     error: str | None = None,
     extra: dict[str, object] | None = None,
+    caller: str | None = None,
 ) -> None:
     """
     Log structured operation metadata to the debug log file when debug mode is enabled.
 
     No-op when debug is off. When debug is on, writes a structured line (operation, target,
-    status, error, extra) to ~/.specfact/logs/specfact-debug.log. Redacts target/extra
-    via LoggerSetup.redact_secrets.
+    status, error, extra, caller) to ~/.specfact/logs/specfact-debug.log. Redacts target/extra
+    via LoggerSetup.redact_secrets. Caller (module/method) is included when provided or inferred.
 
     Args:
         operation: Operation type (e.g. file_read, api_request).
         target: Target path or URL (will be redacted).
-        status: Status or result (e.g. success, 200, failure).
+        status: Status or result (e.g. success, 200, failure, prepared, finished, failed).
         error: Optional error message.
-        extra: Optional dict of extra fields (will be redacted).
+        extra: Optional dict of extra fields (will be redacted); for API: payload, response, reason.
+        caller: Optional module:function for context; if None, inferred from call stack.
     """
     if not _debug_mode:
         return
@@ -273,6 +307,7 @@ def debug_log_operation(
         "operation": operation,
         "target": LoggerSetup.redact_secrets(target),
         "status": status,
+        "caller": caller if caller is not None else _get_debug_caller(),
     }
     if error is not None:
         payload["error"] = error

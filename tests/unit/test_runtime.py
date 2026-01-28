@@ -5,6 +5,7 @@ Unit tests for runtime configuration helpers.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -157,7 +158,10 @@ class TestDebugMode:
             debug_print("hello debug")
         log_file = tmp_path / "specfact-debug.log"
         assert log_file.exists()
-        assert "hello debug" in log_file.read_text()
+        content = log_file.read_text()
+        assert "hello debug" in content
+        # Formatter adds timestamp (YYYY-MM-DD HH:MM:SS) and caller (module:function)
+        assert re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \| .+ \| hello debug", content)
 
     def test_debug_log_operation_no_op_when_debug_off(self) -> None:
         """debug_log_operation does nothing when debug is off."""
@@ -182,3 +186,4 @@ class TestDebugMode:
         assert "debug_log_operation" in content
         assert "api_request" in content
         assert "200" in content
+        assert '"caller"' in content

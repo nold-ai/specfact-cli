@@ -18,6 +18,7 @@ runner = CliRunner()
 class TestSemgrepIntegrationE2E:
     """End-to-end tests for Semgrep integration in CodeAnalyzer."""
 
+    @pytest.mark.timeout(30)
     def test_semgrep_detects_fastapi_routes(self):
         """Test that Semgrep detects FastAPI routes and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -73,6 +74,7 @@ class TestSemgrepIntegrationE2E:
                     # API endpoint detection adds +0.1 to confidence
                     assert feature.confidence >= 0.3
 
+    @pytest.mark.timeout(30)
     def test_semgrep_detects_flask_routes(self):
         """Test that Semgrep detects Flask routes and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -96,6 +96,56 @@ def get_specfact_home_logs_dir() -> str:
     return os.path.abspath(logs_dir)
 
 
+# Rich markup pattern: [tag] or [/tag] (e.g. [dim], [/dim], [bold])
+_RICH_MARKUP_PATTERN = re.compile(r"\[/?[^\]]*\]")
+
+
+@beartype
+@require(lambda text: isinstance(text, str), "Text must be string")
+@ensure(lambda result: isinstance(result, str), "Must return string")
+def plain_text_for_debug_log(text: str) -> str:
+    """
+    Convert Rich-marked or other formatted text to plain text suitable for debug log files.
+
+    Strips Rich markup (e.g. [dim], [/dim], [bold]) and normalizes whitespace so the
+    log file contains readable plain text without console formatting codes.
+
+    Use this when writing debug log content that may contain Rich markup, so callers
+    can pass the same string to console (with markup) and to file (plain) without
+    maintaining two versions.
+
+    Args:
+        text: String that may contain Rich markup or extra whitespace.
+
+    Returns:
+        Plain-text string with markup removed and whitespace normalized.
+    """
+    stripped = _RICH_MARKUP_PATTERN.sub("", text)
+    return " ".join(stripped.split())
+
+
+@beartype
+@ensure(lambda result: isinstance(result, str), "Must return string")
+def format_debug_log_message(*args: Any, **kwargs: Any) -> str:
+    """
+    Format print-style arguments into a single plain-text line for debug log files.
+
+    Use this when writing debug log content that mirrors console.print(*args, **kwargs).
+    Strips Rich markup and normalizes whitespace so call sites do not duplicate
+    formatting or markup-stripping logic. kwargs are ignored for file output but
+    accepted for signature compatibility with print.
+
+    Args:
+        *args: Objects to stringify and join (same as passed to console.print).
+        **kwargs: Ignored for file output; present for compatibility with print.
+
+    Returns:
+        Plain-text string suitable for writing to the debug log file.
+    """
+    line = " ".join(str(a) for a in args)
+    return plain_text_for_debug_log(line) if line else ""
+
+
 class MessageFlowFormatter(logging.Formatter):
     """
     Custom formatter that recognizes message flow patterns and formats them accordingly

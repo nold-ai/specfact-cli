@@ -65,6 +65,58 @@ The system SHALL support logging structured operation metadata when debug mode i
 - **AND** on failure, logs error snippet or response body (redacted)
 - **AND** does not log full request/response bodies that may contain secrets
 
+### Requirement: Debug log standard (consistent pattern for anomaly analysis and bug reports)
+
+The system SHALL apply a consistent debug log pattern for every significant operation when debug mode is enabled, so that logs support anomaly analysis, unexpected error/failure diagnosis, reporting, and bug reports (production-tool quality).
+
+#### Scenario: Every significant operation has started, progress, and outcome
+
+- **GIVEN** debug mode is enabled
+- **WHEN** a significant operation is performed (auth flow, file I/O, API call, template resolution, or any operation that can fail or affect behavior)
+- **THEN** the implementation logs at least: **started/prepared** (once at begin), **attempt** (for each distinct step if multi-step), and **outcome** (exactly once: success with reason/method/cache or failed with error and reason)
+- **AND** no operation is represented by only a single INFO-style line without outcome and reason
+- **AND** structured lines include operation, target (redacted), status, and when applicable error, extra (payload/response/reason sanitized), caller
+
+#### Scenario: Reference implementation
+
+- **GIVEN** the auth azure-devops flow
+- **WHEN** debug mode is enabled and the user runs the OAuth flow
+- **THEN** the debug log contains: started → cache_prepared → attempt (interactive_browser) → success or fallback (with reason) → attempt (device_code) → success or failed (with error/reason) → success (token_stored with method/cache)
+- **AND** a reader can determine from the log alone whether the flow succeeded or failed and why
+
+### Requirement: Debug log context (timestamp, caller, file/API details)
+
+The system SHALL include context in every debug log line when debug mode is enabled.
+
+#### Scenario: Timestamp on every line
+
+- **GIVEN** debug mode is enabled and debug log file is initialized
+- **WHEN** any line is written to the debug log file (via debug_print or debug_log_operation)
+- **THEN** the line is prefixed with a timestamp (e.g. `%(asctime)s | %(message)s` with datefmt `%Y-%m-%d %H:%M:%S`)
+
+#### Scenario: Caller (module/method) in structured lines
+
+- **GIVEN** debug mode is enabled
+- **WHEN** `debug_log_operation(..., caller=...)` is called with a caller string (e.g. `module:function`)
+- **THEN** the structured log line includes the caller in the payload
+- **AND** call sites may infer caller via inspect or pass explicitly
+
+#### Scenario: File operations log prepared / finished / failed
+
+- **GIVEN** debug mode is enabled
+- **WHEN** a command or adapter performs file IO (read/write)
+- **THEN** it logs operation metadata with status prepared/started before the operation
+- **AND** logs again with status finished or failed and error/reason when applicable
+- **AND** target is the path (redacted if sensitive); extra may include size, mime, etc.
+
+#### Scenario: API operations log operation, URL, payload (sanitized), response, status, error, reason
+
+- **GIVEN** debug mode is enabled
+- **WHEN** an adapter performs an API request
+- **THEN** it logs operation metadata with operation type, target (URL redacted), status (HTTP or success/failure)
+- **AND** extra includes payload (sanitized via LoggerSetup.redact_secrets), response (sanitized), and reason when applicable
+- **AND** on failure, error and reason are included
+
 ### Requirement: Backward compatibility
 
 The system SHALL preserve existing behavior when debug mode is disabled.
