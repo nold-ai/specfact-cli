@@ -14,6 +14,7 @@ SpecFact CLI Architecture:
 from __future__ import annotations
 
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -200,6 +201,97 @@ def _build_adapter_kwargs(
         if ado_token:
             kwargs["api_token"] = ado_token
     return kwargs
+
+
+def _extract_body_from_block(block: str) -> str:
+    """
+    Extract **Body** content from a refined export block, handling nested fenced code.
+
+    The body is wrapped in ```markdown ... ```. If the body itself contains fenced
+    code blocks (e.g. ```python ... ```), the closing fence is matched by tracking
+    depth: a line that is exactly ``` closes the current fence (body or inner).
+    """
+    start_marker = "**Body**:"
+    fence_open = "```markdown"
+    if start_marker not in block or fence_open not in block:
+        return ""
+    idx = block.find(start_marker)
+    rest = block[idx + len(start_marker) :].lstrip()
+    if not rest.startswith("```"):
+        return ""
+    if not rest.startswith(fence_open + "\n") and not rest.startswith(fence_open + "\r\n"):
+        return ""
+    after_open = rest[len(fence_open) :].lstrip("\n\r")
+    if not after_open:
+        return ""
+    lines = after_open.split("\n")
+    body_lines: list[str] = []
+    depth = 1
+    for line in lines:
+        stripped = line.rstrip()
+        if stripped == "```":
+            if depth == 1:
+                break
+            depth -= 1
+            body_lines.append(line)
+        elif stripped.startswith("```") and stripped != "```":
+            depth += 1
+            body_lines.append(line)
+        else:
+            body_lines.append(line)
+    return "\n".join(body_lines).strip()
+
+
+def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
+    """
+    Parse refined export markdown (same format as --export-to-tmp) into id -> fields.
+
+    Splits by ## Item blocks, extracts **ID**, **Body** (from ```markdown ... ```),
+    **Acceptance Criteria**, and optionally title and **Metrics** (story_points,
+    business_value, priority). Body extraction is fence-aware so bodies containing
+    nested code blocks are parsed correctly. Returns a dict mapping item id to
+    parsed fields (body_markdown, acceptance_criteria, title?, story_points?,
+    business_value?, priority?).
+    """
+    result: dict[str, dict[str, Any]] = {}
+    blocks = re.split(r"\n## Item \d+:", content)
+    for block in blocks:
+        block = block.strip()
+        if not block or block.startswith("# SpecFact") or "**ID**:" not in block:
+            continue
+        id_match = re.search(r"\*\*ID\*\*:\s*(.+?)(?:\n|$)", block)
+        if not id_match:
+            continue
+        item_id = id_match.group(1).strip()
+        fields: dict[str, Any] = {}
+
+        fields["body_markdown"] = _extract_body_from_block(block)
+
+        ac_match = re.search(r"\*\*Acceptance Criteria\*\*:\s*\n(.*?)(?=\n\*\*|\n---|\Z)", block, re.DOTALL)
+        if ac_match:
+            fields["acceptance_criteria"] = ac_match.group(1).strip() or None
+        else:
+            fields["acceptance_criteria"] = None
+
+        first_line = block.split("\n")[0].strip() if block else ""
+        if first_line and not first_line.startswith("**"):
+            fields["title"] = first_line
+
+        if "Story Points:" in block:
+            sp_match = re.search(r"Story Points:\s*(\d+)", block)
+            if sp_match:
+                fields["story_points"] = int(sp_match.group(1))
+        if "Business Value:" in block:
+            bv_match = re.search(r"Business Value:\s*(\d+)", block)
+            if bv_match:
+                fields["business_value"] = int(bv_match.group(1))
+        if "Priority:" in block:
+            pri_match = re.search(r"Priority:\s*(\d+)", block)
+            if pri_match:
+                fields["priority"] = int(pri_match.group(1))
+
+        result[item_id] = fields
+    return result
 
 
 def _fetch_backlog_items(
@@ -680,9 +772,65 @@ def refine(
                 raise typer.Exit(1)
 
             console.print(f"[bold cyan]Importing refined content from: {import_file}[/bold cyan]")
-            # TODO: Implement import logic to parse refined content and apply to items
-            console.print("[yellow]⚠ Import functionality pending implementation[/yellow]")
-            console.print("[dim]For now, use interactive refinement with --write flag[/dim]")
+            raw = import_file.read_text(encoding="utf-8")
+            parsed_by_id = _parse_refined_export_markdown(raw)
+            if not parsed_by_id:
+                console.print(
+                    "[yellow]No valid item blocks found in import file (expected ## Item N: and **ID**:)[/yellow]"
+                )
+                raise typer.Exit(1)
+
+            updated_items: list[BacklogItem] = []
+            for item in items:
+                if item.id not in parsed_by_id:
+                    continue
+                data = parsed_by_id[item.id]
+                item.body_markdown = data.get("body_markdown", item.body_markdown or "")
+                if "acceptance_criteria" in data:
+                    item.acceptance_criteria = data["acceptance_criteria"]
+                if data.get("title"):
+                    item.title = data["title"]
+                if "story_points" in data:
+                    item.story_points = data["story_points"]
+                if "business_value" in data:
+                    item.business_value = data["business_value"]
+                if "priority" in data:
+                    item.priority = data["priority"]
+                updated_items.append(item)
+
+            if not write:
+                console.print(f"[green]Would update {len(updated_items)} item(s)[/green]")
+                console.print("[dim]Run with --write to apply changes to the backlog[/dim]")
+                return
+
+            writeback_kwargs = _build_adapter_kwargs(
+                adapter,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                github_token=github_token,
+                ado_org=ado_org,
+                ado_project=ado_project,
+                ado_team=ado_team,
+                ado_token=ado_token,
+            )
+            adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
+            if not isinstance(adapter_instance, BacklogAdapter):
+                console.print("[bold red]✗[/bold red] Adapter does not support backlog updates")
+                raise typer.Exit(1)
+
+            for item in updated_items:
+                update_fields_list = ["title", "body_markdown"]
+                if item.acceptance_criteria:
+                    update_fields_list.append("acceptance_criteria")
+                if item.story_points is not None:
+                    update_fields_list.append("story_points")
+                if item.business_value is not None:
+                    update_fields_list.append("business_value")
+                if item.priority is not None:
+                    update_fields_list.append("priority")
+                adapter_instance.update_backlog_item(item, update_fields=update_fields_list)
+                console.print(f"[green]✓ Updated backlog item: {item.url}[/green]")
+            console.print(f"[green]✓ Updated {len(updated_items)} backlog item(s)[/green]")
             return
 
         # Apply limit if specified
@@ -1231,7 +1379,7 @@ def map_fields(
     import re
     import sys
 
-    import questionary
+    import questionary  # type: ignore[reportMissingImports]
     import requests
 
     from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
