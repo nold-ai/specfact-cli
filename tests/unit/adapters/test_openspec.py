@@ -84,6 +84,23 @@ class TestOpenSpecAdapter:
         """Test detecting non-OpenSpec repository."""
         assert openspec_adapter.detect(tmp_path) is False
 
+    def test_detect_same_repo_opsx_config_yaml_only(self, openspec_adapter: OpenSpecAdapter, tmp_path: Path) -> None:
+        """Test detecting OpenSpec when only OPSX config.yaml exists (no project.md)."""
+        openspec_dir = tmp_path / "openspec"
+        openspec_dir.mkdir()
+        (openspec_dir / "config.yaml").write_text("schema: spec-driven\ncontext: |\n  Tech stack: Python, Typer.\n")
+        assert openspec_adapter.detect(tmp_path) is True
+
+    def test_detect_cross_repo_opsx_config_yaml(self, openspec_adapter: OpenSpecAdapter, tmp_path: Path) -> None:
+        """Test detecting OpenSpec in cross-repo when external has only config.yaml (OPSX)."""
+        external_path = tmp_path / "external"
+        openspec_dir = external_path / "openspec"
+        openspec_dir.mkdir(parents=True)
+        (openspec_dir / "config.yaml").write_text("schema: spec-driven\n")
+        bridge_config = BridgeConfig.preset_openspec()
+        bridge_config.external_base_path = external_path
+        assert openspec_adapter.detect(tmp_path, bridge_config) is True
+
     def test_get_capabilities(self, openspec_adapter: OpenSpecAdapter, openspec_repo: Path) -> None:
         """Test getting adapter capabilities."""
         capabilities = openspec_adapter.get_capabilities(openspec_repo)
@@ -159,6 +176,31 @@ class TestOpenSpecAdapter:
         assert "Test project" in project_bundle.idea.narrative or "OpenSpec integration" in str(
             project_bundle.idea.narrative
         )
+
+    def test_import_artifact_project_context_config_yaml(
+        self, openspec_adapter: OpenSpecAdapter, tmp_path: Path
+    ) -> None:
+        """Test importing project context from OPSX config.yaml."""
+        from specfact_cli.models.plan import Product
+        from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
+
+        openspec_dir = tmp_path / "openspec"
+        openspec_dir.mkdir()
+        (openspec_dir / "config.yaml").write_text(
+            "schema: spec-driven\ncontext: |\n  Tech stack: Python 3.11, Typer.\n  Testing: pytest.\n"
+        )
+        manifest = BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
+        product = Product(themes=[], releases=[])
+        project_bundle = ProjectBundle(manifest=manifest, bundle_name="test", product=product, features={})
+        config_path = tmp_path / "openspec" / "config.yaml"
+        bridge_config = BridgeConfig.preset_openspec()
+        openspec_adapter.import_artifact("project_context", config_path, project_bundle, bridge_config)
+        assert project_bundle.idea is not None
+        assert "Python 3.11" in project_bundle.idea.narrative or "pytest" in project_bundle.idea.narrative
 
     def test_import_artifact_change_proposal(self, openspec_adapter: OpenSpecAdapter, openspec_repo: Path) -> None:
         """Test importing change proposal artifact."""

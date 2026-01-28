@@ -787,9 +787,10 @@ The OpenSpec adapter provides read-only sync (Phase 1) for importing OpenSpec sp
 ```python
 class OpenSpecAdapter(BridgeAdapter):
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
-        # Detects openspec/project.md or openspec/specs/ directory
+        # Detects openspec/config.yaml (OPSX), openspec/project.md (legacy), or openspec/specs/
         base_path = bridge_config.external_base_path if bridge_config and bridge_config.external_base_path else repo_path
-        return (base_path / "openspec" / "project.md").exists() or (base_path / "openspec" / "specs").exists()
+        openspec = base_path / "openspec"
+        return (openspec / "config.yaml").exists() or (openspec / "project.md").exists() or (openspec / "specs").exists()
     
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         # Returns OpenSpec-specific capabilities

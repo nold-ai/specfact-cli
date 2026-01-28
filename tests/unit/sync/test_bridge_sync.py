@@ -81,6 +81,34 @@ class TestBridgeSync:
 
         assert resolved == tmp_path / "docs" / "specs" / "001-auth" / "spec.md"
 
+    def test_resolve_artifact_path_openspec_project_context_prefers_config_yaml(self, tmp_path):
+        """OpenSpec project_context resolves to config.yaml (OPSX) if present, else project.md."""
+        bridge_config = BridgeConfig.preset_openspec()
+        openspec_dir = tmp_path / "openspec"
+        openspec_dir.mkdir()
+        config_yaml = openspec_dir / "config.yaml"
+        project_md = openspec_dir / "project.md"
+        config_yaml.write_text("schema: spec-driven\ncontext: |\n  Tech: Python\n", encoding="utf-8")
+        project_md.write_text("# Project\n", encoding="utf-8")
+
+        sync = BridgeSync(tmp_path, bridge_config=bridge_config)
+        resolved = sync.resolve_artifact_path("project_context", "idea", "test-bundle")
+
+        assert resolved == config_yaml
+
+    def test_resolve_artifact_path_openspec_project_context_fallback_to_project_md(self, tmp_path):
+        """OpenSpec project_context resolves to project.md when config.yaml is absent."""
+        bridge_config = BridgeConfig.preset_openspec()
+        openspec_dir = tmp_path / "openspec"
+        openspec_dir.mkdir()
+        project_md = openspec_dir / "project.md"
+        project_md.write_text("# Project\n", encoding="utf-8")
+
+        sync = BridgeSync(tmp_path, bridge_config=bridge_config)
+        resolved = sync.resolve_artifact_path("project_context", "idea", "test-bundle")
+
+        assert resolved == project_md
+
     def test_import_artifact_not_found(self, tmp_path):
         """Test importing artifact when file doesn't exist."""
         bridge_config = BridgeConfig(

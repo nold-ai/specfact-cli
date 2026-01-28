@@ -24,7 +24,7 @@ The system SHALL support OpenSpec as a bridge adapter type.
   - `adapter = AdapterType.OPENSPEC`
   - Artifact mappings for:
     - `specification`: `openspec/specs/{feature_id}/spec.md`
-    - `project_context`: `openspec/project.md`
+    - `project_context`: `openspec/config.yaml` (OPSX) if present, else `openspec/project.md` (legacy)
     - `change_proposal`: `openspec/changes/{change_name}/proposal.md`
     - `change_tasks`: `openspec/changes/{change_name}/tasks.md`
     - `change_spec_delta`: `openspec/changes/{change_name}/specs/{feature_id}/spec.md`
@@ -57,7 +57,8 @@ The system SHALL detect OpenSpec installations (same-repo and cross-repo).
 - **GIVEN** a repository with `openspec/` directory
 - **WHEN** `BridgeProbe.detect()` is called
 - **THEN** detects OpenSpec if:
-  - `openspec/project.md` exists
+  - `openspec/config.yaml` exists (OPSX), or
+  - `openspec/project.md` exists (legacy), or
   - `openspec/specs/` directory exists
 - **AND** returns `ToolCapabilities` with `tool="openspec"`
 
@@ -66,7 +67,7 @@ The system SHALL detect OpenSpec installations (same-repo and cross-repo).
 - **GIVEN** bridge config with `external_base_path` pointing to OpenSpec repo
 - **WHEN** `BridgeProbe.detect()` is called
 - **THEN** checks external path for OpenSpec structure
-- **AND** detects OpenSpec if external path has `openspec/project.md` and `openspec/specs/`
+- **AND** detects OpenSpec if external path has `openspec/config.yaml` (OPSX) or `openspec/project.md` (legacy), and `openspec/specs/`
 - **AND** returns `ToolCapabilities` with `tool="openspec"`
 
 #### Scenario: Auto-Generate Bridge Config for OpenSpec
@@ -78,20 +79,15 @@ The system SHALL detect OpenSpec installations (same-repo and cross-repo).
 
 ### Requirement: OpenSpec Parser
 
-The system SHALL parse OpenSpec format files (project.md, specs/, changes/).
+The system SHALL parse OpenSpec format files (config.yaml or project.md for project context, specs/, changes/).
 
-#### Scenario: Parse Project Context
+#### Scenario: Parse Project Context (OPSX or Legacy)
 
-- **GIVEN** an OpenSpec `project.md` file
-- **WHEN** `OpenSpecParser.parse_project_md(path)` is called
-- **THEN** parses markdown sections:
-  - Purpose
-  - Tech Stack
-  - Project Conventions
-  - Domain Context
-  - Constraints
-  - External Dependencies
-- **AND** returns structured dict with parsed content
+- **GIVEN** an OpenSpec project context file: `openspec/config.yaml` (OPSX) or `openspec/project.md` (legacy)
+- **WHEN** project context is imported (adapter resolves to config.yaml if present, else project.md)
+- **THEN** for config.yaml: `OpenSpecParser.parse_config_yaml(path)` parses `context:` (and optional `rules:`)
+- **AND** for project.md: `OpenSpecParser.parse_project_md(path)` parses markdown sections (Purpose, Tech Stack, Conventions, Context, Constraints, Dependencies)
+- **AND** returns structured dict compatible with Idea/narrative update
 - **AND** handles missing file gracefully (returns None or empty dict)
 
 #### Scenario: Parse Feature Specification
@@ -144,11 +140,11 @@ The system SHALL import OpenSpec artifacts into SpecFact (read-only, no writes t
 
 #### Scenario: Import OpenSpec Project Context
 
-- **GIVEN** an OpenSpec `project.md` file
-- **WHEN** `BridgeSync._import_openspec_artifact("project_context", path, bundle)` is called
-- **THEN** parses project context using `OpenSpecParser.parse_project_md()`
-- **AND** maps to SpecFact aspects (Idea, Business, Product)
-- **AND** stores conventions in `BundleManifest.bundle.metadata`
+- **GIVEN** an OpenSpec project context file (path resolved to `openspec/config.yaml` if present, else `openspec/project.md`)
+- **WHEN** `BridgeSync` imports `project_context` (adapter receives resolved path)
+- **THEN** parses using `OpenSpecParser.parse_config_yaml(path)` for config.yaml or `OpenSpecParser.parse_project_md(path)` for project.md
+- **AND** maps to SpecFact aspects (Idea narrative, etc.)
+- **AND** stores conventions in bundle metadata
 - **AND** stores OpenSpec path in `source_tracking`
 
 #### Scenario: Import OpenSpec Change Proposal

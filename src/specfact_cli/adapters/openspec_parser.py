@@ -2,7 +2,8 @@
 OpenSpec parser for adapter-specific OpenSpec format parsing.
 
 This module provides parsing functionality for OpenSpec artifacts:
-- project.md (project context)
+- project.md (project context, legacy)
+- config.yaml (OPSX project context)
 - spec.md (feature specifications)
 - proposal.md (change proposals)
 - spec.md with ADDED/MODIFIED/REMOVED markers (delta specs)
@@ -13,6 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import yaml
 from beartype import beartype
 from icontract import ensure, require
 
@@ -53,6 +55,37 @@ class OpenSpecParser:
             return parsed
         except Exception:
             # Return None on parse error (consistent with missing file)
+            return None
+
+    @beartype
+    @require(lambda path: isinstance(path, Path), "Path must be Path")
+    @ensure(lambda result: result is None or isinstance(result, dict), "Must return dict or None")
+    def parse_config_yaml(self, path: Path) -> dict[str, Any] | None:
+        """
+        Parse OpenSpec OPSX config.yaml (project context).
+
+        Args:
+            path: Path to openspec/config.yaml file
+
+        Returns:
+            Dictionary compatible with project context import:
+            - "context": List of context string(s) from context: block
+            - "purpose": Optional (empty list if not in YAML)
+            - "raw_content": Full file content
+        """
+        if not path.exists():
+            return None
+
+        try:
+            content = path.read_text(encoding="utf-8")
+            data = yaml.safe_load(content) or {}
+            result: dict[str, Any] = {"purpose": [], "context": [], "raw_content": content}
+            if isinstance(data.get("context"), str):
+                result["context"] = [data["context"].strip()]
+            elif isinstance(data.get("context"), list):
+                result["context"] = [str(c).strip() for c in data["context"] if c]
+            return result
+        except Exception:
             return None
 
     @beartype

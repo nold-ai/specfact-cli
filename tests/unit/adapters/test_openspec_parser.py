@@ -82,6 +82,30 @@ class TestOpenSpecParser:
 
         assert parsed is None
 
+    def test_parse_config_yaml_valid(self, parser: OpenSpecParser, tmp_path: Path) -> None:
+        """Test parsing OPSX config.yaml (project context)."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            "schema: spec-driven\ncontext: |\n  Tech stack: Python 3.11+\n  Testing: pytest\n",
+            encoding="utf-8",
+        )
+        parsed = parser.parse_config_yaml(config_path)
+
+        assert parsed is not None
+        assert "context" in parsed
+        assert len(parsed["context"]) == 1
+        assert "Tech stack: Python 3.11+" in parsed["context"][0]
+        assert "Testing: pytest" in parsed["context"][0]
+        assert "purpose" in parsed
+        assert parsed["purpose"] == []
+
+    def test_parse_config_yaml_missing(self, parser: OpenSpecParser, tmp_path: Path) -> None:
+        """Test parsing missing config.yaml file."""
+        config_path = tmp_path / "nonexistent" / "config.yaml"
+        parsed = parser.parse_config_yaml(config_path)
+
+        assert parsed is None
+
     def test_parse_spec_md_valid(self, parser: OpenSpecParser, openspec_repo: Path) -> None:
         """Test parsing valid spec.md file."""
         spec_path = openspec_repo / "openspec" / "specs" / "001-auth" / "spec.md"
