@@ -200,6 +200,18 @@ class TestBridgeProbe:
 
         assert capabilities.tool == "openspec"
 
+    def test_detect_openspec_opsx(self, tmp_path):
+        """Test detecting OpenSpec when only OPSX config.yaml exists (no project.md)."""
+        openspec_dir = tmp_path / "openspec"
+        openspec_dir.mkdir()
+        (openspec_dir / "config.yaml").write_text("schema: spec-driven\ncontext: |\n  Tech stack: Python, Typer.\n")
+
+        probe = BridgeProbe(tmp_path)
+        capabilities = probe.detect()
+
+        assert capabilities.tool == "openspec"
+        assert capabilities.version is None
+
     def test_auto_generate_bridge_openspec(self, tmp_path):
         """Test auto-generating bridge config for OpenSpec."""
         openspec_dir = tmp_path / "openspec"

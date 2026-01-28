@@ -57,11 +57,12 @@ class OpenSpecAdapter(BridgeAdapter):
         if bridge_config and bridge_config.external_base_path:
             base_path = bridge_config.external_base_path
 
-        # Check for OpenSpec structure
+        # Check for OpenSpec structure (OPSX: config.yaml; legacy: project.md; or specs dir)
+        config_yaml = base_path / "openspec" / "config.yaml"
         project_md = base_path / "openspec" / "project.md"
         specs_dir = base_path / "openspec" / "specs"
 
-        return project_md.exists() or (specs_dir.exists() and specs_dir.is_dir())
+        return config_yaml.exists() or project_md.exists() or (specs_dir.exists() and specs_dir.is_dir())
 
     @beartype
     @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
@@ -179,8 +180,9 @@ class OpenSpecAdapter(BridgeAdapter):
         """
         config = BridgeConfig.preset_openspec()
 
-        # Check if OpenSpec is in external repo
-        if not (repo_path / "openspec" / "project.md").exists():
+        # Check if OpenSpec is in external repo (OPSX: config.yaml; legacy: project.md)
+        openspec_dir = repo_path / "openspec"
+        if not (openspec_dir / "config.yaml").exists() and not (openspec_dir / "project.md").exists():
             # Try to find external OpenSpec (this is a simple heuristic)
             # In practice, external_base_path should be provided via CLI option
             pass
@@ -422,10 +424,13 @@ class OpenSpecAdapter(BridgeAdapter):
         bridge_config: BridgeConfig | None,
         base_path: Path | None,
     ) -> None:
-        """Import project context from OpenSpec project.md."""
+        """Import project context from OpenSpec project.md (legacy) or config.yaml (OPSX)."""
         from specfact_cli.models.plan import Idea
 
-        parsed = self.parser.parse_project_md(project_md_path)
+        if project_md_path.name == "config.yaml" or project_md_path.suffix in (".yaml", ".yml"):
+            parsed = self.parser.parse_config_yaml(project_md_path)
+        else:
+            parsed = self.parser.parse_project_md(project_md_path)
 
         # Create Idea if it doesn't exist
         if not hasattr(project_bundle, "idea") or project_bundle.idea is None:

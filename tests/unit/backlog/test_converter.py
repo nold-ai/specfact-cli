@@ -183,6 +183,7 @@ class TestADOWorkItemConverter:
         assert item.title == "Test Work Item"
         assert item.body_markdown == "Work item description"
         assert item.state == "new"
+        assert item.canonical_url is None
 
     @beartype
     def test_convert_ado_work_item_with_assignee(self) -> None:
@@ -365,3 +366,40 @@ Please prioritize.""",
 
         with pytest.raises(ValueError, match="must have 'url'"):
             convert_ado_work_item_to_backlog_item(work_item_data)
+
+    @beartype
+    def test_convert_ado_work_item_sets_canonical_url_when_base_org_project_provided(self) -> None:
+        """Test that canonical URL is set when base_url, org, and project_name are provided."""
+        work_item_data = {
+            "id": 42,
+            "url": "https://dev.azure.com/myorg/abc123-def456/_apis/wit/workItems/42",
+            "fields": {
+                "System.Title": "User Story",
+                "System.Description": "",
+                "System.State": "New",
+            },
+        }
+        item = convert_ado_work_item_to_backlog_item(
+            work_item_data,
+            base_url="https://dev.azure.com",
+            org="myorg",
+            project_name="My Project",
+        )
+        assert item.url == "https://dev.azure.com/myorg/abc123-def456/_apis/wit/workItems/42"
+        assert item.canonical_url == "https://dev.azure.com/myorg/My%20Project/_workitems/edit/42"
+
+    @beartype
+    def test_convert_ado_work_item_canonical_url_project_name_url_encoded(self) -> None:
+        """Test that project name with special characters is URL-encoded in canonical URL."""
+        work_item_data = {
+            "id": 99,
+            "url": "https://dev.azure.com/org/guid/_apis/wit/workItems/99",
+            "fields": {"System.Title": "Task", "System.Description": "", "System.State": "Active"},
+        }
+        item = convert_ado_work_item_to_backlog_item(
+            work_item_data,
+            base_url="https://dev.azure.com",
+            org="myorg",
+            project_name="Project/With-Special",
+        )
+        assert item.canonical_url == "https://dev.azure.com/myorg/Project%2FWith-Special/_workitems/edit/99"

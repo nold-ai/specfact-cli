@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from beartype import beartype
 from icontract import ensure, require
@@ -157,7 +158,12 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
 @require(lambda provider: isinstance(provider, str) and len(provider) > 0, "Provider must be non-empty string")
 @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
 def convert_ado_work_item_to_backlog_item(
-    item_data: dict[str, Any], provider: str = "ado", custom_mapping_file: str | Path | None = None
+    item_data: dict[str, Any],
+    provider: str = "ado",
+    custom_mapping_file: str | Path | None = None,
+    base_url: str | None = None,
+    org: str | None = None,
+    project_name: str | None = None,
 ) -> BacklogItem:
     """
     Convert Azure DevOps work item data to BacklogItem.
@@ -167,6 +173,10 @@ def convert_ado_work_item_to_backlog_item(
     Args:
         item_data: ADO work item data from API (dict)
         provider: Provider name (default: "ado")
+        custom_mapping_file: Optional path to custom ADO field mapping file.
+        base_url: ADO base URL (e.g. https://dev.azure.com) for canonical URL.
+        org: ADO organization name for canonical URL.
+        project_name: ADO project name (URL-encoded in canonical URL) for opening in browser.
 
     Returns:
         BacklogItem instance with normalized fields
@@ -294,10 +304,17 @@ def convert_ado_work_item_to_backlog_item(
         "_links": item_data.get("_links", {}),
     }
 
+    canonical_url = None
+    if base_url and org and project_name:
+        base = base_url.rstrip("/")
+        encoded_project = quote(project_name, safe="")
+        canonical_url = f"{base}/{org}/{encoded_project}/_workitems/edit/{work_item_id}"
+
     return BacklogItem(
         id=work_item_id,
         provider=provider,
         url=url,
+        canonical_url=canonical_url,
         title=title,
         body_markdown=body_markdown,
         state=state,

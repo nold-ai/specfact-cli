@@ -98,7 +98,7 @@ When user requests a change, immediately:
    **For ad-hoc changes (no plan document):**
    - Use: `/openspec-proposal` command directly
    - Follow the command steps:
-     - Review `openspec/project.md` and existing specs
+     - Review `openspec/config.yaml` (OPSX) or `openspec/project.md` (legacy) and existing specs
      - Choose unique verb-led `change-id`
      - Scaffold `proposal.md`, `tasks.md`, optional `design.md`
      - Create spec deltas in `changes/<id>/specs/<capability>/spec.md`

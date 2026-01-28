@@ -9,6 +9,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.10] - 2026-01-27
+
+### Added (0.26.10)
+
+- **OpenSpec OPSX migration documentation**: Align docs and references with [OPSX](https://github.com/Fission-AI/OpenSpec/blob/main/docs/opsx.md) and [migration guide](https://github.com/Fission-AI/OpenSpec/blob/main/docs/migration-guide.md)
+  - **New**: `docs/openspec-opsx-migration.md` — OPSX vs legacy, project context resolution (config.yaml primary, project.md fallback), contributor guidance
+  - **Canonical spec**: `openspec/specs/bridge-adapter/spec.md` updated for project_context = config.yaml (OPSX) or project.md (legacy), detection and parse scenarios
+
+### Changed (0.26.10)
+
+- **OpenSpec OPSX documentation updates**: Point contributors to OPSX and config.yaml while keeping legacy project.md references where relevant
+  - **CONTRIBUTING.md**: OpenSpec workflow links to OPSX migration doc; OpenSpec Resources and Documentation Structure list `openspec/config.yaml` (OPSX) first, `openspec/project.md` (legacy)
+  - **docs/reference/architecture.md**: Adapter detect snippet and comment updated to config.yaml (OPSX), project.md (legacy), specs/
+  - **docs/getting-started/tutorial-openspec-speckit.md**: `ls openspec/` comment updated for config.yaml (OPSX) and legacy project.md/AGENTS.md
+  - **.cursor/rules/automatic-openspec-workflow.mdc**: Review step uses config.yaml (OPSX) or project.md (legacy)
+
+### Fixed (0.26.10)
+
+- **Version Bump**: Corrected package version to 0.26.10 for PyPI publish (fixes incorrect version 0.26.9 publish issue)
+  - **Synced locations**: `pyproject.toml` (project.version), `setup.py` (version=), `src/__init__.py` (__version__), `src/specfact_cli/__init__.py` (__version__)
+  - When bumping version, update all four locations and add a CHANGELOG entry
+
+---
+
 ## [0.26.9] - 2026-01-27
 
 ### Fixed (0.26.9)

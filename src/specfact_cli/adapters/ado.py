@@ -2938,7 +2938,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
 
             for work_item in work_items_data.get("value", []):
-                backlog_item = convert_ado_work_item_to_backlog_item(work_item, provider="ado")
+                backlog_item = convert_ado_work_item_to_backlog_item(
+                    work_item,
+                    provider="ado",
+                    base_url=self.base_url,
+                    org=self.org,
+                    project_name=self.project,
+                )
                 items.append(backlog_item)
 
         # Apply post-fetch filters that ADO API doesn't support directly
@@ -3258,4 +3264,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Convert back to BacklogItem
         from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
 
-        return convert_ado_work_item_to_backlog_item(updated_work_item, provider="ado")
+        return convert_ado_work_item_to_backlog_item(
+            updated_work_item,
+            provider="ado",
+            base_url=self.base_url,
+            org=self.org,
+            project_name=self.project,
+        )

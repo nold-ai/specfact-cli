@@ -31,7 +31,7 @@ from rich.progress import Progress
 from rich.table import Table
 
 from specfact_cli.adapters.registry import AdapterRegistry
-from specfact_cli.models.bridge import BridgeConfig
+from specfact_cli.models.bridge import AdapterType, BridgeConfig
 from specfact_cli.runtime import get_configured_console
 from specfact_cli.sync.bridge_probe import BridgeProbe
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
@@ -187,6 +187,19 @@ class BridgeSync:
         if self.bridge_config is None:
             msg = "Bridge config not initialized"
             raise ValueError(msg)
+
+        base_path = self.repo_path
+        if self.bridge_config.external_base_path is not None:
+            base_path = self.bridge_config.external_base_path
+
+        if artifact_key == "project_context" and self.bridge_config.adapter == AdapterType.OPENSPEC:
+            config_yaml = base_path / "openspec" / "config.yaml"
+            project_md = base_path / "openspec" / "project.md"
+            if config_yaml.exists():
+                return config_yaml
+            if project_md.exists():
+                return project_md
+            return project_md
 
         context = {
             "feature_id": feature_id,

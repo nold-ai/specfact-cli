@@ -635,6 +635,8 @@ def refine(
                 export_content += f"## Item {idx}: {item.title}\n\n"
                 export_content += f"**ID**: {item.id}\n"
                 export_content += f"**URL**: {item.url}\n"
+                if item.canonical_url:
+                    export_content += f"**Canonical URL**: {item.canonical_url}\n"
                 export_content += f"**State**: {item.state}\n"
                 export_content += f"**Provider**: {item.provider}\n"
 
@@ -806,6 +808,8 @@ def refine(
                 console.print("\n[bold]Preview Mode: Full Item Details[/bold]")
                 console.print(f"[bold]Title:[/bold] {item.title}")
                 console.print(f"[bold]URL:[/bold] {item.url}")
+                if item.canonical_url:
+                    console.print(f"[bold]Canonical URL:[/bold] {item.canonical_url}")
                 console.print(f"[bold]State:[/bold] {item.state}")
                 console.print(f"[bold]Provider:[/bold] {item.provider}")
                 console.print(f"[bold]Assignee:[/bold] {', '.join(item.assignees) if item.assignees else 'Unassigned'}")

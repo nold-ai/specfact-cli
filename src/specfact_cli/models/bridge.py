@@ -499,7 +499,7 @@ class BridgeConfig(BaseModel):
         Returns:
             BridgeConfig for OpenSpec integration with artifact mappings for:
             - specification: openspec/specs/{feature_id}/spec.md
-            - project_context: openspec/project.md
+            - project_context: openspec/config.yaml (OPSX) if present, else openspec/project.md (legacy)
             - change_proposal: openspec/changes/{change_name}/proposal.md
             - change_tasks: openspec/changes/{change_name}/tasks.md
             - change_spec_delta: openspec/changes/{change_name}/specs/{feature_id}/spec.md

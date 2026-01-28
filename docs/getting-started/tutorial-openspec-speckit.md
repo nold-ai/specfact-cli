@@ -99,7 +99,7 @@ cd /path/to/your-openspec-project
 
 # Verify OpenSpec structure exists
 ls openspec/
-# Should show: specs/, changes/, project.md, AGENTS.md
+# Should show: specs/, changes/, and config.yaml (OPSX); project.md and AGENTS.md are legacy (optional)
 ```
 
 **If you don't have OpenSpec yet:**

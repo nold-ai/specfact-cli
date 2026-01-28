@@ -72,6 +72,28 @@ As a user, I want to log in so that I can access the system.
 
 
 @pytest.fixture
+def openspec_repo_opsx(tmp_path: Path) -> Path:
+    """Create OpenSpec repo with OPSX config.yaml only (no project.md)."""
+    openspec_dir = tmp_path / "openspec"
+    openspec_dir.mkdir()
+    (openspec_dir / "config.yaml").write_text(
+        dedent(
+            """\
+            schema: spec-driven
+            context: |
+              Tech stack: Python 3.11, Typer.
+              Testing: pytest, contract tests.
+              OPSX project context.
+            """
+        )
+    )
+    specs_dir = openspec_dir / "specs" / "001-auth"
+    specs_dir.mkdir(parents=True)
+    (specs_dir / "spec.md").write_text("# Authentication Feature\n\n## Overview\n\nOPSX test feature.\n")
+    return tmp_path
+
+
+@pytest.fixture
 def openspec_bridge_config() -> BridgeConfig:
     """Create OpenSpec bridge config for testing."""
     return BridgeConfig.preset_openspec()
@@ -136,6 +158,51 @@ class TestOpenSpecBridgeSyncIntegration:
             "test project" in project_bundle.idea.narrative.lower()
             or "purpose" in project_bundle.idea.narrative.lower()
         )
+
+    @beartype
+    def test_import_project_context_from_openspec_opsx(
+        self, openspec_repo_opsx: Path, openspec_bridge_config: BridgeConfig
+    ) -> None:
+        """Test importing project context from OPSX config.yaml (no project.md)."""
+        from specfact_cli.models.project import BundleManifest, BundleVersions, Product, ProjectBundle
+        from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        bundle_dir = openspec_repo_opsx / SpecFactStructure.PROJECTS / "main"
+        bundle_dir.mkdir(parents=True)
+        manifest = BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
+        product = Product(themes=[], releases=[])
+        project_bundle = ProjectBundle(
+            manifest=manifest,
+            bundle_name="main",
+            product=product,
+            features={},
+        )
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+        adapter = AdapterRegistry.get_adapter("openspec")
+        config_path = openspec_repo_opsx / "openspec" / "config.yaml"
+        adapter.import_artifact("project_context", config_path, project_bundle, openspec_bridge_config)
+        save_project_bundle(project_bundle, bundle_dir, atomic=True)
+
+        project_bundle = load_project_bundle(bundle_dir)
+        assert project_bundle is not None
+        assert project_bundle.idea is not None
+        assert "OPSX" in project_bundle.idea.narrative or "Typer" in project_bundle.idea.narrative
+
+    @beartype
+    def test_detect_openspec_repository_opsx(self, openspec_repo_opsx: Path) -> None:
+        """Test detecting OpenSpec when only OPSX config.yaml exists."""
+        from specfact_cli.sync.bridge_probe import BridgeProbe
+
+        probe = BridgeProbe(openspec_repo_opsx)
+        capabilities = probe.detect()
+        assert capabilities.tool == "openspec"
+        assert capabilities.layout == "openspec"
 
     @beartype
     def test_import_specification_from_openspec(
