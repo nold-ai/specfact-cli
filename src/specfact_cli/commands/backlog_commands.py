@@ -1342,7 +1342,7 @@ def map_fields(
     import re
     import sys
 
-    import questionary
+    import questionary  # type: ignore[reportMissingImports]
     import requests
 
     from specfact_cli.backlog.mappers.template_config import FieldMappingConfig

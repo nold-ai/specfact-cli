@@ -164,9 +164,9 @@ class TestBridgeProbe:
         capabilities = ToolCapabilities(tool="unknown")
         # Unknown tool should raise ViolationError (contract precondition fails before method body)
         # The @require decorator checks capabilities.tool != "unknown" before the method executes
-        import icontract
+        from icontract import ViolationError
 
-        with pytest.raises(icontract.errors.ViolationError, match="Tool must be detected"):
+        with pytest.raises(ViolationError, match="Tool must be detected"):
             probe.auto_generate_bridge(capabilities)
 
     def test_detect_openspec(self, tmp_path):
