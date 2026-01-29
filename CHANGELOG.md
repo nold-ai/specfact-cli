@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed (0.26.14)
 
-- **ADO backlog refine error logging and user-facing error UX** (fixes [#162](https://github.com/nold-ai/specfact-cli/issues/162))
+- **ADO backlog refine error logging and user-facing error UX** (fixes [#162](httsps://github.com/nold-ai/specfact-cli/issues/162))
   - **Debug log**: On ADO PATCH failure (backlog refine body, status update, comment, create work item), debug log now includes response body snippet and patch paths via `debug_log_operation(..., extra={"response_body": snippet, "patch_paths": [...]})` when `--debug` is set; snippet truncated (~1–2 KB) and redacted via `LoggerSetup.redact_secrets`
   - **User-facing messages**: Console shows ADO error message (e.g. "Cannot find field System.AcceptanceCriteria") and actionable hint ("Check custom field mapping; see ado_custom.yaml or documentation."); when ADO message contains a field reference, visible message quotes it (e.g. "Field 'System.AcceptanceCriteria' not found")
   - **Helper**: New `_log_ado_patch_failure()` in `ado.py` used at all PATCH failure sites for consistent logging and user messages; re-raised exception carries ADO context
@@ -50,7 +50,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed (0.26.11)
 
 - **Backlog refine --import-from-tmp**: Implemented import path so refined content from a temporary file is applied to backlog items
-  - **Parser**: Added `_parse_refined_export_markdown()` to parse the same markdown format produced by `--export-to-tmp` (## Item blocks, **ID**, **Body** in ```markdown ... ```, **Acceptance Criteria**, optional **Metrics**)
+  - **Parser**: Added `_parse_refined_export_markdown()` to parse the same markdown format produced by `--export-to-tmp` (## Item blocks, **ID**, **Body** in ```markdown ...```, **Acceptance Criteria**, optional **Metrics**)
   - **Import flow**: When `--import-from-tmp` (and optional `--tmp-file`) is used, the CLI reads the file, matches blocks to fetched items by ID, updates `body_markdown`, `acceptance_criteria`, and optionally title/metrics; without `--write` shows "Would update N item(s)", with `--write` calls `adapter.update_backlog_item()` for each and prints success summary
   - **Removed**: "Import functionality pending implementation" message and TODO
   - **Tests**: Unit tests for the parser (single item, acceptance criteria and metrics, header-only, blocks without ID)
@@ -76,7 +76,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed (0.26.10)
 
 - **Version Bump**: Corrected package version to 0.26.10 for PyPI publish (fixes incorrect version 0.26.9 publish issue)
-  - **Synced locations**: `pyproject.toml` (project.version), `setup.py` (version=), `src/__init__.py` (__version__), `src/specfact_cli/__init__.py` (__version__)
+  - **Synced locations**: `pyproject.toml` (project.version), `setup.py` (version=), `src/__init__.py` (**version**), `src/specfact_cli/__init__.py` (**version**)
   - When bumping version, update all four locations and add a CHANGELOG entry
 
 ---
