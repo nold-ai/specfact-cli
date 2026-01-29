@@ -765,6 +765,28 @@ The command automatically uses tokens in this order:
 4. **Validate schema**: Ensure the file matches `FieldMappingConfig` schema
 5. **Automatic detection**: Custom mappings are automatically detected - no restart needed. If not working, check file path and syntax.
 
+### Backlog refine or work item PATCH fails (400/422)
+
+**Issue**: `specfact backlog refine ado ... --write` or work item update fails with HTTP 400/422 (e.g. "400 Client Error: Bad Request") or an ADO message like "TF51535: Cannot find field System.AcceptanceCriteria."
+
+**Cause**: The Azure DevOps project may use a custom process template where field names or paths differ from defaults (e.g. no `System.AcceptanceCriteria`). The JSON Patch sent by the CLI targets a field that does not exist or is not writable in that project.
+
+**Solutions**:
+
+1. **Read the console message** – The CLI prints the ADO error text and a hint, e.g. "Check custom field mapping; see ado_custom.yaml or documentation." If a field is named (e.g. "Field 'System.AcceptanceCriteria' not found"), that is the one to fix in mapping or template.
+
+2. **Run with `--debug` and inspect the log** – This gives you the exact ADO response and the patch paths that were sent:
+   - Run: `specfact --debug backlog refine ado --ado-org <org> --ado-project <project> ...` (or the failing command).
+   - Open `~/.specfact/logs/specfact-debug.log` and search for `"operation": "ado_patch"` and `"status": "failed"`.
+   - In that line, `extra.response_body` is a redacted snippet of the ADO error payload; `extra.patch_paths` lists the JSON Patch paths (e.g. `["/fields/System.AcceptanceCriteria", ...]`). Use these to see which field path failed.
+
+3. **Fix field mapping** – If the error is about a missing or wrong field:
+   - Ensure `.specfact/templates/backlog/field_mappings/ado_custom.yaml` exists and maps your canonical fields to the field names/paths that exist in your ADO project.
+   - Use `specfact backlog map-fields --ado-org <org> --ado-project <project>` to discover available fields in the project.
+   - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../reference/debug-logging.md#examining-ado-api-errors).
+
+4. **Check project process template** – Custom ADO process templates can rename or remove fields. Align your mapping with the actual work item type and process in the project.
+
 ---
 
 ## Getting Help

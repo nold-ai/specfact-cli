@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -445,12 +446,12 @@ def refine(
     export_to_tmp: bool = typer.Option(
         False,
         "--export-to-tmp",
-        help="Export backlog items to temporary file for copilot processing (default: /tmp/specfact-backlog-refine-<timestamp>.md)",
+        help="Export backlog items to temporary file for copilot processing (default: <system-temp>/specfact-backlog-refine-<timestamp>.md)",
     ),
     import_from_tmp: bool = typer.Option(
         False,
         "--import-from-tmp",
-        help="Import refined content from temporary file after copilot processing (default: /tmp/specfact-backlog-refine-<timestamp>-refined.md)",
+        help="Import refined content from temporary file after copilot processing (default: <system-temp>/specfact-backlog-refine-<timestamp>-refined.md)",
     ),
     tmp_file: Path | None = typer.Option(
         None,
@@ -713,7 +714,7 @@ def refine(
         # Handle export mode
         if export_to_tmp:
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            export_file = tmp_file or Path(f"/tmp/specfact-backlog-refine-{timestamp}.md")
+            export_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-backlog-refine-{timestamp}.md")
 
             console.print(f"[bold cyan]Exporting {len(items)} backlog item(s) to: {export_file}[/bold cyan]")
 
@@ -764,7 +765,7 @@ def refine(
         # Handle import mode
         if import_from_tmp:
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            import_file = tmp_file or Path(f"/tmp/specfact-backlog-refine-{timestamp}-refined.md")
+            import_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-backlog-refine-{timestamp}-refined.md")
 
             if not import_file.exists():
                 console.print(f"[bold red]✗[/bold red] Import file not found: {import_file}")

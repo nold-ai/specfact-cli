@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import re
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -557,7 +558,7 @@ class BridgeSync:
             change_ids: Optional list of change proposal IDs to filter. If None, exports all active proposals.
             export_to_tmp: If True, export proposal content to temporary file for LLM review.
             import_from_tmp: If True, import sanitized content from temporary file after LLM review.
-            tmp_file: Optional custom temporary file path. Default: `/tmp/specfact-proposal-<change-id>.md`.
+            tmp_file: Optional custom temporary file path. Default: <system-temp>/specfact-proposal-<change-id>.md.
 
         Returns:
             SyncResult with operation details
@@ -904,7 +905,7 @@ class BridgeSync:
                     # Handle temporary file workflow if requested
                     if export_to_tmp:
                         # Export proposal content to temporary file for LLM review
-                        tmp_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}.md")
+                        tmp_file_path = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}.md")
                         try:
                             # Create markdown content from proposal
                             proposal_content = self._format_proposal_for_export(proposal)
@@ -919,7 +920,9 @@ class BridgeSync:
 
                     if import_from_tmp:
                         # Import sanitized content from temporary file
-                        sanitized_file_path = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+                        sanitized_file_path = tmp_file or (
+                            Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md"
+                        )
                         try:
                             if not sanitized_file_path.exists():
                                 errors.append(
@@ -933,7 +936,7 @@ class BridgeSync:
                             proposal_to_export = self._parse_sanitized_proposal(sanitized_content, proposal)
                             # Cleanup temporary files after import
                             try:
-                                original_tmp = Path(f"/tmp/specfact-proposal-{change_id}.md")
+                                original_tmp = Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}.md"
                                 if original_tmp.exists():
                                     original_tmp.unlink()
                                 if sanitized_file_path.exists():
@@ -2504,7 +2507,7 @@ class BridgeSync:
         # Handle sanitized content updates (when import_from_tmp is used)
         if import_from_tmp:
             change_id = proposal.get("change_id", "unknown")
-            sanitized_file = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+            sanitized_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md")
             if sanitized_file.exists():
                 sanitized_content = sanitized_file.read_text(encoding="utf-8")
                 proposal_for_hash = {
@@ -2603,7 +2606,9 @@ class BridgeSync:
             try:
                 if import_from_tmp:
                     change_id = proposal.get("change_id", "unknown")
-                    sanitized_file = tmp_file or Path(f"/tmp/specfact-proposal-{change_id}-sanitized.md")
+                    sanitized_file = tmp_file or (
+                        Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md"
+                    )
                     if sanitized_file.exists():
                         sanitized_content = sanitized_file.read_text(encoding="utf-8")
                         proposal_for_update = {

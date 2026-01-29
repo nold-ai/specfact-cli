@@ -61,7 +61,7 @@ When `--debug` is on, the CLI logs:
 | **auth azure-devops** | Start, success (PAT or OAuth), or error; key steps (OAuth flow, device code) when `--debug` is on. |
 | **init** | Template resolution: paths tried, success/failure, fallbacks (e.g. development path, package path, `importlib` fallbacks). |
 | **backlog refine** | File read for import: path, success/error (e.g. `--import-from-tmp`). File write for export: path, success/error (e.g. `--export-to-tmp`). |
-| **Azure DevOps adapter** | WIQL request (redacted URL, method, status); Work Items GET (redacted URL, status); Work Items PATCH (redacted URL, status); on failure, error snippet. |
+| **Azure DevOps adapter** | WIQL request (redacted URL, method, status); Work Items GET (redacted URL, status); Work Items PATCH (redacted URL, status). On PATCH failure: structured log with `operation=ado_patch`, `status=failed`, and `extra` containing `response_body` (redacted snippet of ADO error payload) and `patch_paths` (JSON Patch paths attempted). |
 | **GitHub adapter** | API request/response (redacted URL, method, status); on failure, redacted error snippet. |
 
 ### Example Log Snippets
@@ -96,6 +96,27 @@ When `--debug` is on, the CLI logs:
    - **api_request** – GitHub (or other) API calls with status and optional error.
 
 See also [Troubleshooting](../guides/troubleshooting.md).
+
+### Examining ADO API Errors
+
+When an Azure DevOps PATCH fails (e.g. HTTP 400 during `backlog refine ado` or work item update), the CLI does two things:
+
+1. **Console** – You see the ADO error message and a short hint (e.g. "Check custom field mapping; see ado_custom.yaml or documentation."). If the ADO message names a field (e.g. "Cannot find field System.AcceptanceCriteria"), that field is highlighted so you can fix mapping or template issues.
+
+2. **Debug log** (only when `--debug` is on) – One structured line is written with:
+   - **operation**: `ado_patch`
+   - **status**: `failed`
+   - **error**: Parsed ADO message or short summary
+   - **extra.response_body**: Redacted snippet of the ADO response (up to ~1–2 KB). Use this to see the exact server error (e.g. TF51535, field name).
+   - **extra.patch_paths**: List of JSON Patch paths that were sent (e.g. `["/fields/System.AcceptanceCriteria", "/fields/System.Description"]`). Use this to see which field path failed.
+
+To analyze an ADO API error:
+
+1. Run the command with `--debug` and reproduce the failure.
+2. In the console, read the red error line: it contains the ADO message and the custom-mapping hint.
+3. Open `~/.specfact/logs/specfact-debug.log` and search for `"operation": "ado_patch"` and `"status": "failed"`.
+4. In that line, use `extra.response_body` to see the server’s error text and `extra.patch_paths` to see which field paths were attempted.
+5. If the error is about a missing or invalid field (e.g. custom process template), update [custom field mapping](../guides/custom-field-mapping.md) (e.g. `.specfact/templates/backlog/field_mappings/ado_custom.yaml`) or see [Azure DevOps Issues](../guides/troubleshooting.md#azure-devops-issues) in Troubleshooting.
 
 ---
 

@@ -339,7 +339,7 @@ hatch run contract-test-full
 
 - 💬 **Questions?** [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
 - 🐛 **Found a bug?** [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
-- 🔍 **Debugging I/O or API issues?** Run with `--debug`; logs are written to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](docs/reference/debug-logging.md).
+- 🔍 **Debugging I/O or API issues?** Run with `--debug`; logs are written to `~/.specfact/logs/specfact-debug.log`. With `--debug`, ADO API errors include response snippet and patch paths in the log. See [Debug Logging](docs/reference/debug-logging.md).
 - 📧 **Need help?** [hello@noldai.com](mailto:hello@noldai.com)
 - 🌐 **Learn more:** [specfact.com](https://specfact.com) • [specfact.io](https://specfact.io) • [specfact.dev](https://specfact.dev)
 

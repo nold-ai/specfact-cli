@@ -182,6 +182,10 @@ adapter = AdoAdapter(
 3. Copy the token (it's only shown once)
 4. Set as environment variable: `export AZURE_DEVOPS_TOKEN='your-token'`
 
+### Error diagnostics (PATCH failures)
+
+When a work item PATCH fails (e.g. HTTP 400 during backlog refine or status update), the CLI shows the ADO error message and a hint in the console. With `--debug`, the log includes the ADO response snippet and the JSON Patch paths attempted so you can identify the failing field. See [Debug Logging – Examining ADO API Errors](../reference/debug-logging.md#examining-ado-api-errors) and [Troubleshooting – Backlog refine or work item PATCH fails (400/422)](../guides/troubleshooting.md#backlog-refine-or-work-item-patch-fails-400422).
+
 ## Usage Examples
 
 ### Export Change Proposal to Azure DevOps

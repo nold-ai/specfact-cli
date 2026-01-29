@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.14] - 2026-01-29
+
+### Fixed (0.26.14)
+
+- **ADO backlog refine error logging and user-facing error UX** (fixes [#162](https://github.com/nold-ai/specfact-cli/issues/162))
+  - **Debug log**: On ADO PATCH failure (backlog refine body, status update, comment, create work item), debug log now includes response body snippet and patch paths via `debug_log_operation(..., extra={"response_body": snippet, "patch_paths": [...]})` when `--debug` is set; snippet truncated (~1–2 KB) and redacted via `LoggerSetup.redact_secrets`
+  - **User-facing messages**: Console shows ADO error message (e.g. "Cannot find field System.AcceptanceCriteria") and actionable hint ("Check custom field mapping; see ado_custom.yaml or documentation."); when ADO message contains a field reference, visible message quotes it (e.g. "Field 'System.AcceptanceCriteria' not found")
+  - **Helper**: New `_log_ado_patch_failure()` in `ado.py` used at all PATCH failure sites for consistent logging and user messages; re-raised exception carries ADO context
+  - **Non-JSON/large body**: Non-JSON or oversized response body handled safely (no crash, truncated safe string in log/user message)
+  - **Docs**: debug-logging.md (ADO PATCH failure content, "Examining ADO API Errors"), troubleshooting.md ("Backlog refine or work item PATCH fails (400/422)"), adapters/azuredevops.md (error diagnostics link), README.md (debug note for ADO errors)
+  - **OS temp dir**: Export/import default paths use system temp directory (`tempfile.gettempdir()`) in backlog refine and sync bridge (backlog_commands.py, bridge_sync.py); help strings describe "<system-temp>/..."
+
+---
+
 ## [0.26.13] - 2026-01-29
 
 ### Fixed (0.26.13)
