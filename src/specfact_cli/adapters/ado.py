@@ -3220,8 +3220,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         resp = requests.patch(url, headers=headers, json=operations_no_format, timeout=30)
                         resp.raise_for_status()
                         response = resp
-                    except requests.HTTPError:
-                        pass
+                    except requests.HTTPError as retry_error:
+                        # Retry with operations_no_format failed; continue to next fallback strategy.
+                        if is_debug_mode():
+                            debug_log_operation(
+                                "ADO multilineFieldsFormat retry failed",
+                                error=str(retry_error),
+                            )
 
                 if response is None and (
                     "already exists" in error_message.lower() or "cannot add" in error_message.lower()
