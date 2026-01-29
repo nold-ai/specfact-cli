@@ -19,6 +19,7 @@ from rich.table import Table
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig, EnforcementPreset
 from specfact_cli.models.sdd import SDDManifest
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.utils.yaml_utils import dump_yaml
@@ -54,6 +55,9 @@ def stage(
         specfact enforce stage --preset strict
         specfact enforce stage --preset minimal
     """
+    if is_debug_mode():
+        debug_log_operation("command", "enforce stage", "started", extra={"preset": preset})
+        debug_print("[dim]enforce stage: started[/dim]")
     telemetry_metadata = {
         "preset": preset.lower(),
     }
@@ -65,6 +69,14 @@ def stage(
             raise typer.Exit(1)
 
         if preset.lower() not in ("minimal", "balanced", "strict"):
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "enforce stage",
+                    "failed",
+                    error=f"Unknown preset: {preset}",
+                    extra={"reason": "invalid_preset"},
+                )
             console.print(f"[bold red]✗[/bold red] Unknown preset: {preset}")
             console.print("Valid presets: minimal, balanced, strict")
             raise typer.Exit(1)
@@ -75,6 +87,10 @@ def stage(
         try:
             preset_enum = EnforcementPreset(preset)
         except ValueError as err:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command", "enforce stage", "failed", error=str(err), extra={"reason": "invalid_preset"}
+                )
             console.print(f"[bold red]✗[/bold red] Unknown preset: {preset}")
             console.print("Valid presets: minimal, balanced, strict")
             raise typer.Exit(1) from err
@@ -103,6 +119,11 @@ def stage(
         dump_yaml(config.model_dump(mode="json"), config_path)
 
         record({"config_saved": True, "enabled": config.enabled})
+        if is_debug_mode():
+            debug_log_operation(
+                "command", "enforce stage", "success", extra={"preset": preset, "config_path": str(config_path)}
+            )
+            debug_print("[dim]enforce stage: success[/dim]")
 
         console.print(f"\n[bold green]✓[/bold green] Enforcement mode set to {preset}")
         console.print(f"[dim]Configuration saved to: {config_path}[/dim]")
@@ -168,6 +189,11 @@ def enforce_sdd(
         specfact enforce sdd auth-module --output-format json --out validation-report.json
         specfact enforce sdd legacy-api --no-interactive
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command", "enforce sdd", "started", extra={"bundle": bundle, "output_format": output_format}
+        )
+        debug_print("[dim]enforce sdd: started[/dim]")
     from rich.console import Console
 
     from specfact_cli.models.sdd import SDDManifest
@@ -180,6 +206,10 @@ def enforce_sdd(
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(Path("."))
         if bundle is None:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command", "enforce sdd", "failed", error="Bundle name required", extra={"reason": "no_bundle"}
+                )
             console.print("[bold red]✗[/bold red] Bundle name required")
             console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
             raise typer.Exit(1)
@@ -203,6 +233,14 @@ def enforce_sdd(
         base_path = Path(".")
         bundle_dir = SpecFactStructure.project_dir(base_path=base_path, bundle_name=bundle)
         if not bundle_dir.exists():
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "enforce sdd",
+                    "failed",
+                    error=f"Bundle not found: {bundle_dir}",
+                    extra={"reason": "bundle_missing"},
+                )
             console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
             console.print(f"[dim]Create one with: specfact plan init {bundle}[/dim]")
             raise typer.Exit(1)
@@ -213,6 +251,14 @@ def enforce_sdd(
         base_path = Path(".")
         discovered_sdd = find_sdd_for_bundle(bundle, base_path, sdd)
         if discovered_sdd is None:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "enforce sdd",
+                    "failed",
+                    error="SDD manifest not found",
+                    extra={"reason": "sdd_not_found", "bundle": bundle},
+                )
             console.print("[bold red]✗[/bold red] SDD manifest not found")
             console.print(f"[dim]Searched for: .specfact/projects/{bundle}/sdd.yaml (bundle-specific)[/dim]")
             console.print(f"[dim]Create one with: specfact plan harden {bundle}[/dim]")
@@ -238,6 +284,14 @@ def enforce_sdd(
             project_hash = summary.content_hash
 
             if not project_hash:
+                if is_debug_mode():
+                    debug_log_operation(
+                        "command",
+                        "enforce sdd",
+                        "failed",
+                        error="Failed to compute project bundle hash",
+                        extra={"reason": "hash_compute_failed"},
+                    )
                 console.print("[bold red]✗[/bold red] Failed to compute project bundle hash")
                 raise typer.Exit(1)
 
@@ -464,13 +518,30 @@ def enforce_sdd(
                     console.print("   2. Add contracts: Review features and add @icontract decorators")
                     console.print("   3. Re-validate: Run this command again after fixes")
 
+                if is_debug_mode():
+                    debug_log_operation(
+                        "command",
+                        "enforce sdd",
+                        "failed",
+                        error="SDD validation failed",
+                        extra={"reason": "deviations", "total_deviations": report.total_deviations},
+                    )
                 record({"passed": False, "deviations": report.total_deviations})
                 raise typer.Exit(1)
 
             console.print("\n[bold green]✓[/bold green] SDD validation passed")
             record({"passed": True, "deviations": 0})
+            if is_debug_mode():
+                debug_log_operation(
+                    "command", "enforce sdd", "success", extra={"bundle": bundle, "report_path": str(out)}
+                )
+                debug_print("[dim]enforce sdd: success[/dim]")
 
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command", "enforce sdd", "failed", error=str(e), extra={"reason": type(e).__name__}
+                )
             console.print(f"[bold red]✗[/bold red] Validation failed: {e}")
             raise typer.Exit(1) from e
 

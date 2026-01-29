@@ -21,6 +21,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 
 from specfact_cli import __version__
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils.metadata import update_metadata
 from specfact_cli.utils.startup_checks import check_pypi_version
 
@@ -208,15 +209,40 @@ def upgrade(
         # Check and install without confirmation
         specfact upgrade --yes
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "upgrade",
+            "started",
+            extra={"check_only": check_only, "yes": yes},
+        )
+        debug_print("[dim]upgrade: started[/dim]")
+
     # Check for updates
     console.print("[cyan]Checking for updates...[/cyan]")
     version_result = check_pypi_version()
 
     if version_result.error:
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "upgrade",
+                "failed",
+                error=version_result.error or "Unknown error",
+                extra={"reason": "check_error"},
+            )
         console.print(f"[red]Error checking for updates: {version_result.error}[/red]")
         sys.exit(1)
 
     if not version_result.update_available:
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "upgrade",
+                "success",
+                extra={"reason": "up_to_date", "version": version_result.current_version},
+            )
+            debug_print("[dim]upgrade: success (up to date)[/dim]")
         console.print(f"[green]✓ You're up to date![/green] (version {version_result.current_version})")
         # Update metadata even if no update available
         from datetime import datetime
@@ -260,9 +286,20 @@ def upgrade(
         success = install_update(method, yes=yes)
 
         if success:
+            if is_debug_mode():
+                debug_log_operation("command", "upgrade", "success", extra={"reason": "installed"})
+                debug_print("[dim]upgrade: success[/dim]")
             console.print("\n[green]✓ Update complete![/green]")
             console.print("[dim]Run 'specfact --version' to verify the new version.[/dim]")
         else:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "upgrade",
+                    "failed",
+                    error="Update was not installed",
+                    extra={"reason": "install_failed"},
+                )
             console.print("\n[yellow]Update was not installed.[/yellow]")
             console.print("[dim]You can manually update using the command shown above.[/dim]")
             sys.exit(1)

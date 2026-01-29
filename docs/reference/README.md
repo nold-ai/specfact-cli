@@ -13,6 +13,7 @@ Complete technical reference for SpecFact CLI.
 - **[Commands](commands.md)** - Complete command reference with all options
 - **[Authentication](authentication.md)** - Device code auth flows and token storage
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
+- **[Debug Logging](debug-logging.md)** - Where and what is logged when using `--debug`
 - **[Operational Modes](modes.md)** - CI/CD vs CoPilot modes
 - **[Specmatic API](specmatic.md)** - Specmatic integration API reference (functions, classes, integration points)
 - **[Telemetry](telemetry.md)** - Opt-in analytics and privacy guarantees

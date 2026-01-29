@@ -22,6 +22,8 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - **Clear separation**: Plans (versioned) vs reports (ephemeral)
 - **CLI-first**: All artifacts are local, no cloud storage required
 
+**User-level debug logs**: When you run with `--debug`, the CLI also writes a rotating debug log under your home directory: `~/.specfact/logs/specfact-debug.log`. This is separate from repo-level `.specfact/` and is used only for global debug output. See [Debug Logging](debug-logging.md).
+
 ## Canonical Structure
 
 ```bash

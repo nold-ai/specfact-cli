@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.table import Table
 
 from specfact_cli.models.quality import CodeQuality, QualityTracking
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_success
 from specfact_cli.utils.progress import load_bundle_with_progress
@@ -63,12 +64,23 @@ def analyze_contracts(
     **Examples:**
         specfact analyze contracts --repo . --bundle legacy-api
     """
+    if is_debug_mode():
+        debug_log_operation("command", "analyze contracts", "started", extra={"repo": str(repo), "bundle": bundle})
+        debug_print("[dim]analyze contracts: started[/dim]")
     console = Console()
 
     # Use active plan as default if bundle not provided
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
         if bundle is None:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "analyze contracts",
+                    "failed",
+                    error="Bundle name required",
+                    extra={"reason": "no_bundle"},
+                )
             console.print("[bold red]✗[/bold red] Bundle name required")
             console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
             raise typer.Exit(1)
@@ -78,6 +90,14 @@ def analyze_contracts(
     bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
 
     if not bundle_dir.exists():
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "analyze contracts",
+                "failed",
+                error=f"Bundle not found: {bundle_dir}",
+                extra={"reason": "bundle_missing"},
+            )
         print_error(f"Project bundle not found: {bundle_dir}")
         raise typer.Exit(1)
 
@@ -200,6 +220,14 @@ def analyze_contracts(
                 "files_with_crosshair": files_with_crosshair,
             }
         )
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "analyze contracts",
+                "success",
+                extra={"files_analyzed": files_analyzed, "bundle": bundle},
+            )
+            debug_print("[dim]analyze contracts: success[/dim]")
 
 
 def _analyze_file_quality(file_path: Path) -> CodeQuality:

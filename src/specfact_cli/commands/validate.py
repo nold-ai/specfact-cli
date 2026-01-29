@@ -13,7 +13,7 @@ import typer
 from beartype import beartype
 from icontract import require
 
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.validators.sidecar.crosshair_summary import format_summary_line
 from specfact_cli.validators.sidecar.models import SidecarConfig
 from specfact_cli.validators.sidecar.orchestrator import initialize_sidecar_workspace, run_sidecar_validation
@@ -142,6 +142,15 @@ def init(
     **Next steps:**
     After initialization, run `specfact validate sidecar run` to execute validation.
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "validate sidecar init",
+            "started",
+            extra={"bundle_name": bundle_name, "repo_path": str(repo_path)},
+        )
+        debug_print("[dim]validate sidecar init: started[/dim]")
+
     config = SidecarConfig.create(bundle_name, repo_path)
 
     console.print(f"[bold]Initializing sidecar workspace for bundle: {bundle_name}[/bold]")
@@ -152,6 +161,14 @@ def init(
         if config.django_settings_module:
             console.print(f"  Django settings: {config.django_settings_module}")
     else:
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "validate sidecar init",
+                "failed",
+                error="Failed to initialize sidecar workspace",
+                extra={"reason": "init_failed", "bundle_name": bundle_name},
+            )
         console.print("[red]✗[/red] Failed to initialize sidecar workspace")
         raise typer.Exit(1)
 
@@ -197,10 +214,25 @@ def run(
     ```
 
     **Output:**
+
     - Validation results displayed in console
     - Reports saved to `.specfact/projects/<bundle>/reports/sidecar/`
     - Progress indicators for long-running operations
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "validate sidecar run",
+            "started",
+            extra={
+                "bundle_name": bundle_name,
+                "repo_path": str(repo_path),
+                "run_crosshair": run_crosshair,
+                "run_specmatic": run_specmatic,
+            },
+        )
+        debug_print("[dim]validate sidecar run: started[/dim]")
+
     config = SidecarConfig.create(bundle_name, repo_path)
     config.tools.run_crosshair = run_crosshair
     config.tools.run_specmatic = run_specmatic
@@ -271,3 +303,12 @@ def run(
             success = value.get("success", False)
             status = "[green]✓[/green]" if success else "[red]✗[/red]"
             console.print(f"  {status} {key}")
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "validate sidecar run",
+            "success",
+            extra={"bundle_name": bundle_name, "routes_extracted": results.get("routes_extracted", 0)},
+        )
+        debug_print("[dim]validate sidecar run: success[/dim]")

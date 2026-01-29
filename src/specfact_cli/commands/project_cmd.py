@@ -27,6 +27,7 @@ from specfact_cli.models.project import (
     ProjectMetadata,
     SectionLock,
 )
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_section, print_success, print_warning
 from specfact_cli.utils.progress import load_bundle_with_progress, save_bundle_with_progress
 from specfact_cli.utils.structure import SpecFactStructure
@@ -407,6 +408,14 @@ def export_persona(
         specfact project export --bundle legacy-api --persona architect --output-dir docs/plans
         specfact project export --bundle legacy-api --persona developer --stdout
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "project export",
+            "started",
+            extra={"repo": str(repo), "bundle": bundle, "persona": persona},
+        )
+        debug_print("[dim]project export: started[/dim]")
 
     # Get bundle name
     if bundle is None:
@@ -417,6 +426,14 @@ def export_persona(
 
             plans = SpecFactStructure.list_plans(repo)
             if not plans:
+                if is_debug_mode():
+                    debug_log_operation(
+                        "command",
+                        "project export",
+                        "failed",
+                        error="No project bundles found",
+                        extra={"reason": "no_bundles"},
+                    )
                 print_error("No project bundles found")
                 raise typer.Exit(1)
             bundle_names = [str(p["name"]) for p in plans if p.get("name")]
@@ -436,6 +453,14 @@ def export_persona(
     # Get bundle directory
     bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
     if not bundle_dir.exists():
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "project export",
+                "failed",
+                error=f"Project bundle not found: {bundle_dir}",
+                extra={"reason": "bundle_not_found", "bundle": bundle},
+            )
         print_error(f"Project bundle not found: {bundle_dir}")
         raise typer.Exit(1)
 
@@ -542,6 +567,14 @@ def export_persona(
                 print_error(f"Export failed: {e}")
                 raise typer.Exit(1) from e
 
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "project export",
+                "success",
+                extra={"bundle": bundle, "persona": persona, "output_path": str(output_path)},
+            )
+            debug_print("[dim]project export: success[/dim]")
         print_success(f"Exported persona '{persona}' sections to {output_path}")
         print_info(f"Template: {persona}.md.j2")
 
@@ -605,6 +638,15 @@ def import_persona(
         specfact project import --bundle legacy-api --persona product-owner --input product-owner.md
         specfact project import --bundle legacy-api --persona architect --input architect.md --dry-run
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "project import",
+            "started",
+            extra={"repo": str(repo), "bundle": bundle, "persona": persona, "input_file": str(input_file)},
+        )
+        debug_print("[dim]project import: started[/dim]")
+
     from specfact_cli.models.persona_template import PersonaTemplate, SectionType, TemplateSection
     from specfact_cli.parsers.persona_importer import PersonaImporter, PersonaImportError
 
@@ -898,6 +940,14 @@ def lock_section(
         specfact project lock --bundle legacy-api --section idea --persona product-owner
         specfact project lock --bundle legacy-api --section "features.*.stories" --persona product-owner
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "project lock",
+            "started",
+            extra={"repo": str(repo), "bundle": bundle, "section": section, "persona": persona},
+        )
+        debug_print("[dim]project lock: started[/dim]")
 
     # Get bundle name
     if bundle is None:

@@ -12,7 +12,7 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console
 from specfact_cli.utils.auth_tokens import (
     clear_all_tokens,
     clear_token,
@@ -232,6 +232,8 @@ def auth_azure_devops(
             # Users should set expiration when creating PAT (up to 1 year)
         }
         set_token("azure-devops", token_data)
+        debug_log_operation("auth", "azure-devops", "success", extra={"method": "pat"})
+        debug_print("[dim]auth azure-devops: PAT stored[/dim]")
         console.print("[bold green]✓[/bold green] Personal Access Token stored")
         console.print(
             "[dim]PAT stored successfully. PATs can have expiration up to 1 year when created in Azure DevOps.[/dim]"
@@ -241,6 +243,8 @@ def auth_azure_devops(
 
     # OAuth flow with persistent token cache (automatic refresh)
     # Try interactive browser first, fall back to device code if it fails
+    debug_log_operation("auth", "azure-devops", "started", extra={"flow": "oauth"})
+    debug_print("[dim]auth azure-devops: OAuth flow started[/dim]")
     console.print("[bold]Starting Azure DevOps OAuth authentication...[/bold]")
 
     # Enable persistent token cache for automatic token refresh (like Azure CLI)
@@ -260,6 +264,8 @@ def auth_azure_devops(
                 name="specfact-azure-devops",  # Shared cache name across processes
                 allow_unencrypted_storage=False,  # Prefer encrypted storage
             )
+            debug_log_operation("auth", "azure-devops", "cache_prepared", extra={"cache": "encrypted"})
+            debug_print("[dim]auth azure-devops: token cache prepared (encrypted)[/dim]")
             # Don't claim encrypted cache is enabled until we verify it works
             # We'll print a message after successful authentication
             # Check if we're on Linux and provide helpful info
@@ -284,6 +290,13 @@ def auth_azure_devops(
                     allow_unencrypted_storage=True,  # Fallback: unencrypted storage
                 )
                 use_unencrypted_cache = True
+                debug_log_operation(
+                    "auth",
+                    "azure-devops",
+                    "cache_prepared",
+                    extra={"cache": "unencrypted", "reason": "encrypted_unavailable"},
+                )
+                debug_print("[dim]auth azure-devops: token cache prepared (unencrypted fallback)[/dim]")
                 console.print(
                     "[yellow]Note:[/yellow] Encrypted cache unavailable (keyring locked). "
                     "Using unencrypted cache instead.\n"
@@ -320,6 +333,13 @@ def auth_azure_devops(
                         )
             except Exception:
                 # Persistent cache completely unavailable, use in-memory only
+                debug_log_operation(
+                    "auth",
+                    "azure-devops",
+                    "cache_prepared",
+                    extra={"cache": "none", "reason": "persistent_unavailable"},
+                )
+                debug_print("[dim]auth azure-devops: no persistent cache, in-memory only[/dim]")
                 console.print(
                     "[yellow]Note:[/yellow] Persistent cache not available, using in-memory cache only. "
                     "Tokens will need to be refreshed manually after expiration."
@@ -405,21 +425,45 @@ def auth_azure_devops(
     # Try interactive browser first (better UX), fall back to device code if it fails
     token = None
     if not use_device_code:
+        debug_log_operation("auth", "azure-devops", "attempt", extra={"method": "interactive_browser"})
+        debug_print("[dim]auth azure-devops: attempting interactive browser[/dim]")
         try:
             console.print("[dim]Trying interactive browser authentication...[/dim]")
             token = try_authenticate_with_fallback(InteractiveBrowserCredential, {})
+            debug_log_operation("auth", "azure-devops", "success", extra={"method": "interactive_browser"})
+            debug_print("[dim]auth azure-devops: interactive browser succeeded[/dim]")
             console.print("[bold green]✓[/bold green] Interactive browser authentication successful")
         except Exception as e:
             # Interactive browser failed (no display, headless environment, etc.)
+            debug_log_operation(
+                "auth",
+                "azure-devops",
+                "fallback",
+                error=str(e),
+                extra={"method": "interactive_browser", "reason": "unavailable"},
+            )
+            debug_print(f"[dim]auth azure-devops: interactive browser failed, falling back: {e!s}[/dim]")
             console.print(f"[yellow]⚠[/yellow] Interactive browser unavailable: {type(e).__name__}")
             console.print("[dim]Falling back to device code flow...[/dim]")
 
     # Use device code flow if interactive browser failed or was explicitly requested
     if token is None:
+        debug_log_operation("auth", "azure-devops", "attempt", extra={"method": "device_code"})
+        debug_print("[dim]auth azure-devops: trying device code[/dim]")
         console.print("[bold]Using device code authentication...[/bold]")
         try:
             token = try_authenticate_with_fallback(DeviceCodeCredential, {"prompt_callback": prompt_callback})
+            debug_log_operation("auth", "azure-devops", "success", extra={"method": "device_code"})
+            debug_print("[dim]auth azure-devops: device code succeeded[/dim]")
         except Exception as e:
+            debug_log_operation(
+                "auth",
+                "azure-devops",
+                "failed",
+                error=str(e),
+                extra={"method": "device_code", "reason": type(e).__name__},
+            )
+            debug_print(f"[dim]auth azure-devops: device code failed: {e!s}[/dim]")
             console.print(f"[bold red]✗[/bold red] Authentication failed: {e}")
             raise typer.Exit(1) from e
 
@@ -456,6 +500,18 @@ def auth_azure_devops(
     }
     set_token("azure-devops", token_data)
 
+    cache_type = (
+        "encrypted"
+        if cache_options and not use_unencrypted_cache
+        else ("unencrypted" if use_unencrypted_cache else "none")
+    )
+    debug_log_operation(
+        "auth",
+        "azure-devops",
+        "success",
+        extra={"method": "oauth", "cache": cache_type, "reason": "token_stored"},
+    )
+    debug_print("[dim]auth azure-devops: OAuth complete, token stored[/dim]")
     console.print("[bold green]✓[/bold green] Azure DevOps authentication complete")
     console.print("Stored token for provider: azure-devops")
 

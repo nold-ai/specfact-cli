@@ -773,7 +773,11 @@ If you're still experiencing issues:
 
 1. **Check logs**:
 
+   - **Debug log file** (when using `--debug`): Debug output and structured operation metadata are written to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](../reference/debug-logging.md) for what is logged and how to use it.
+   - **Verbose repro** (ad-hoc capture):
+
    ```bash
+   specfact --debug <command> <args>   # Writes to ~/.specfact/logs/specfact-debug.log
    specfact repro --verbose 2>&1 | tee debug.log
    ```
 

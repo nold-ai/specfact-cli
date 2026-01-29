@@ -197,6 +197,7 @@ specfact [OPTIONS] COMMAND [ARGS]...
 - `--help`, `-h` - Show help message and exit
 - `--help-advanced`, `-ha` - Show all options including advanced configuration (progressive disclosure)
 - `--no-banner` - Hide ASCII art banner (useful for CI/CD)
+- `--debug` - Enable debug mode: show debug messages in the console and write them (plus structured operation metadata) to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](debug-logging.md).
 - `--verbose` - Enable verbose output
 - `--quiet` - Suppress non-error output
 - `--mode {cicd|copilot}` - Operational mode (default: auto-detect)

@@ -23,7 +23,7 @@ from specfact_cli import runtime
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.terminal import get_progress_config
 
@@ -1231,6 +1231,15 @@ def sync_bridge(
 
     See docs/guides/devops-adapter-integration.md for complete documentation.
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "sync bridge",
+            "started",
+            extra={"repo": str(repo), "bundle": bundle, "adapter": adapter, "bidirectional": bidirectional},
+        )
+        debug_print("[dim]sync bridge: started[/dim]")
+
     # Auto-detect adapter if not specified
     from specfact_cli.sync.bridge_probe import BridgeProbe
 
@@ -1899,6 +1908,9 @@ def sync_bridge(
             overwrite=overwrite,
             adapter_type=adapter_type,
         )
+        if is_debug_mode():
+            debug_log_operation("command", "sync bridge", "success", extra={"adapter": adapter, "bundle": bundle})
+            debug_print("[dim]sync bridge: success[/dim]")
         record({"sync_completed": True})
 
 
@@ -1961,6 +1973,15 @@ def sync_repository(
     Example:
         specfact sync repository --repo . --confidence 0.5
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "sync repository",
+            "started",
+            extra={"repo": str(repo), "target": str(target) if target else None, "watch": watch},
+        )
+        debug_print("[dim]sync repository: started[/dim]")
+
     from specfact_cli.sync.repository_sync import RepositorySync
 
     telemetry_metadata = {
@@ -2061,6 +2082,14 @@ def sync_repository(
                     task = progress.add_task("Tracking deviations...", total=None)
                     progress.update(task, description=f"✓ Found {len(result.deviations)} deviations")
 
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "sync repository",
+                "success",
+                extra={"code_changes": len(result.code_changes)},
+            )
+            debug_print("[dim]sync repository: success[/dim]")
         # Record sync results
         record(
             {
@@ -2182,6 +2211,14 @@ def sync_intelligent(
         specfact sync intelligent my-bundle --repo . --watch
         specfact sync intelligent my-bundle --repo . --code-to-spec auto --spec-to-code llm-prompt --tests specmatic
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "sync intelligent",
+            "started",
+            extra={"bundle": bundle, "repo": str(repo), "watch": watch},
+        )
+        debug_print("[dim]sync intelligent: started[/dim]")
 
     from specfact_cli.utils.structure import SpecFactStructure
 
@@ -2308,4 +2345,7 @@ def sync_intelligent(
         else:
             perform_sync()
 
+        if is_debug_mode():
+            debug_log_operation("command", "sync intelligent", "success", extra={"bundle": bundle})
+            debug_print("[dim]sync intelligent: success[/dim]")
         record({"sync_completed": True})
