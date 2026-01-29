@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.13] - 2026-01-29
+
+### Fixed (0.26.13)
+
+- **Debug log parity for `specfact upgrade`**: When `--debug` is set, the "up to date" success path now writes to `~/.specfact/logs/specfact-debug.log` (same as the "installed" path), with `debug_log_operation` and narrative "upgrade: success (up to date)" including version in extra
+
+---
+
 ## [0.26.12] - 2026-01-28
 
 ### Added (0.26.12)

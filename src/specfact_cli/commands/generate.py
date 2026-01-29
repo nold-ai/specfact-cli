@@ -15,7 +15,7 @@ from icontract import ensure, require
 from specfact_cli.generators.contract_generator import ContractGenerator
 from specfact_cli.migrations.plan_migrator import load_plan_bundle
 from specfact_cli.models.sdd import SDDManifest
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
 from specfact_cli.utils.env_manager import (
@@ -105,6 +105,12 @@ def generate_contracts(
         "no_interactive": no_interactive,
     }
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command", "generate contracts", "started", extra={"bundle": bundle, "repo": str(repo or ".")}
+        )
+        debug_print("[dim]generate contracts: started[/dim]")
+
     with telemetry.track_command("generate.contracts", telemetry_metadata) as record:
         try:
             # Determine repository path
@@ -124,6 +130,14 @@ def generate_contracts(
             if bundle:
                 bundle_dir = SpecFactStructure.project_dir(base_path=base_path, bundle_name=bundle)
                 if not bundle_dir.exists():
+                    if is_debug_mode():
+                        debug_log_operation(
+                            "command",
+                            "generate contracts",
+                            "failed",
+                            error=f"Project bundle not found: {bundle_dir}",
+                            extra={"reason": "bundle_not_found", "bundle": bundle},
+                        )
                     print_error(f"Project bundle not found: {bundle_dir}")
                     print_info(f"Create one with: specfact plan init {bundle}")
                     raise typer.Exit(1)
@@ -135,6 +149,14 @@ def generate_contracts(
             else:
                 # Use --plan and --sdd paths if provided
                 if plan is None:
+                    if is_debug_mode():
+                        debug_log_operation(
+                            "command",
+                            "generate contracts",
+                            "failed",
+                            error="Bundle or plan path is required",
+                            extra={"reason": "no_plan_or_bundle"},
+                        )
                     print_error("Bundle or plan path is required")
                     print_info("Run 'specfact plan init <bundle-name>' then rerun with --bundle <name>")
                     raise typer.Exit(1)
@@ -188,6 +210,14 @@ def generate_contracts(
                 if fallback_sdd.exists():
                     sdd_path = fallback_sdd
                 else:
+                    if is_debug_mode():
+                        debug_log_operation(
+                            "command",
+                            "generate contracts",
+                            "failed",
+                            error=f"SDD manifest not found: {sdd_path}",
+                            extra={"reason": "sdd_not_found"},
+                        )
                     print_error(f"SDD manifest not found: {sdd_path}")
                     print_info("Run 'specfact plan harden' to create SDD manifest")
                     raise typer.Exit(1)
@@ -283,6 +313,17 @@ def generate_contracts(
                     print_error(f"  - {error}")
 
             if result["generated_files"]:
+                if is_debug_mode():
+                    debug_log_operation(
+                        "command",
+                        "generate contracts",
+                        "success",
+                        extra={
+                            "generated_files": len(result["generated_files"]),
+                            "contracts_dir": str(contracts_dir),
+                        },
+                    )
+                    debug_print("[dim]generate contracts: success[/dim]")
                 print_success(f"Generated {len(result['generated_files'])} contract file(s):")
                 for file_path in result["generated_files"]:
                     print_info(f"  - {file_path}")
@@ -334,6 +375,14 @@ def generate_contracts(
                 print_warning("No contract files generated (no contracts/invariants found in SDD HOW section)")
 
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "generate contracts",
+                    "failed",
+                    error=str(e),
+                    extra={"reason": type(e).__name__},
+                )
             print_error(f"Failed to generate contracts: {e}")
             record({"error": str(e)})
             raise typer.Exit(1) from e
@@ -572,6 +621,15 @@ def generate_contracts_prompt(
         print_error(f"Invalid contract types: {', '.join(invalid_contracts)}")
         print_error(f"Valid types: 'all-contracts', {', '.join(valid_contracts)}")
         raise typer.Exit(1)
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "generate contracts-prompt",
+            "started",
+            extra={"files_count": len(file_paths), "bundle": bundle, "contracts": contracts_to_apply},
+        )
+        debug_print("[dim]generate contracts-prompt: started[/dim]")
 
     telemetry_metadata = {
         "files_count": len(file_paths),
@@ -851,6 +909,14 @@ def generate_contracts_prompt(
         if output:
             console.print("[dim]Note: --output option is currently unused. Prompts saved to .specfact/prompts/[/dim]")
 
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "generate contracts-prompt",
+                "success",
+                extra={"generated_count": generated_count, "failed_count": failed_count},
+            )
+            debug_print("[dim]generate contracts-prompt: success[/dim]")
         record(
             {
                 "prompt_generated": generated_count > 0,
@@ -925,6 +991,15 @@ def apply_enhanced_contracts(
     from rich.prompt import Confirm
 
     repo_path = Path(".").resolve()
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "generate contracts-apply",
+            "started",
+            extra={"enhanced_file": str(enhanced_file), "original_file": str(original_file) if original_file else None},
+        )
+        debug_print("[dim]generate contracts-apply: started[/dim]")
 
     # Auto-detect original file if not provided
     if original_file is None:
@@ -1351,6 +1426,14 @@ def apply_enhanced_contracts(
     # Step 9: Apply changes (only if all validations passed)
     try:
         original_file.write_text(enhanced_content, encoding="utf-8")
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "generate contracts-apply",
+                "success",
+                extra={"original_file": str(original_file.relative_to(repo_path))},
+            )
+            debug_print("[dim]generate contracts-apply: success[/dim]")
         print_success(f"Enhanced code applied to: {original_file.relative_to(repo_path)}")
         console.print("\n[bold green]✓ All validations passed and changes applied successfully![/bold green]")
         console.print("\n[bold]Next Steps:[/bold]")
@@ -1358,6 +1441,14 @@ def apply_enhanced_contracts(
         console.print("2. Run full test suite: specfact repro (or pytest)")
         console.print("3. Commit the enhanced code")
     except Exception as e:
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "generate contracts-apply",
+                "failed",
+                error=str(e),
+                extra={"reason": type(e).__name__, "original_file": str(original_file)},
+            )
         print_error(f"Failed to apply changes: {e}")
         console.print("\n[yellow]This is a filesystem error. Please check file permissions.[/yellow]")
         raise typer.Exit(1) from e
@@ -1446,6 +1537,15 @@ def generate_fix_prompt(
         "bundle": bundle,
         "no_interactive": no_interactive,
     }
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "generate fix-prompt",
+            "started",
+            extra={"gap_id": gap_id, "bundle": bundle},
+        )
+        debug_print("[dim]generate fix-prompt: started[/dim]")
 
     with telemetry.track_command("generate.fix-prompt", telemetry_metadata) as record:
         try:
@@ -1675,11 +1775,27 @@ def generate_fix_prompt(
             console.print("3. Review and apply the suggested changes")
             console.print("4. Validate with `specfact enforce sdd`")
 
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "generate fix-prompt",
+                    "success",
+                    extra={"gap_id": gap_id, "output": str(output)},
+                )
+                debug_print("[dim]generate fix-prompt: success[/dim]")
             record({"action": "generate_prompt", "gap_id": gap_id, "output": str(output)})
 
         except typer.Exit:
             raise
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "generate fix-prompt",
+                    "failed",
+                    error=str(e),
+                    extra={"reason": type(e).__name__},
+                )
             print_error(f"Failed to generate fix prompt: {e}")
             record({"error": str(e)})
             raise typer.Exit(1) from e
@@ -1761,6 +1877,15 @@ def generate_test_prompt(
         "coverage_type": coverage_type,
         "no_interactive": no_interactive,
     }
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "generate test-prompt",
+            "started",
+            extra={"file": str(file) if file else None, "bundle": bundle},
+        )
+        debug_print("[dim]generate test-prompt: started[/dim]")
 
     with telemetry.track_command("generate.test-prompt", telemetry_metadata) as record:
         try:
@@ -1970,11 +2095,27 @@ def generate_test_prompt(
             console.print(f"4. Save to `tests/unit/test_{file.stem}.py`")
             console.print("5. Run tests with `pytest`")
 
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "generate test-prompt",
+                    "success",
+                    extra={"file": str(file_rel), "output": str(output)},
+                )
+                debug_print("[dim]generate test-prompt: success[/dim]")
             record({"action": "generate_prompt", "file": str(file_rel), "output": str(output)})
 
         except typer.Exit:
             raise
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "generate test-prompt",
+                    "failed",
+                    error=str(e),
+                    extra={"reason": type(e).__name__},
+                )
             print_error(f"Failed to generate test prompt: {e}")
             record({"error": str(e)})
             raise typer.Exit(1) from e

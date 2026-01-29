@@ -29,6 +29,7 @@ from specfact_cli.models.plan import Business, Feature, Idea, PlanBundle, Produc
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.models.sdd import SDDHow, SDDManifest, SDDWhat, SDDWhy
 from specfact_cli.modes import detect_mode
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import (
     display_summary,
@@ -103,6 +104,15 @@ def init(
         "scaffold": scaffold,
     }
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "plan init",
+            "started",
+            extra={"bundle": bundle, "interactive": interactive, "scaffold": scaffold},
+        )
+        debug_print("[dim]plan init: started[/dim]")
+
     with telemetry.track_command("plan.init", telemetry_metadata) as record:
         print_section("SpecFact CLI - Project Bundle Builder")
 
@@ -118,6 +128,14 @@ def init(
         # Get project bundle directory
         bundle_dir = SpecFactStructure.project_dir(bundle_name=bundle)
         if bundle_dir.exists():
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "plan init",
+                    "failed",
+                    error=f"Project bundle already exists: {bundle_dir}",
+                    extra={"reason": "bundle_exists", "bundle": bundle},
+                )
             print_error(f"Project bundle already exists: {bundle_dir}")
             print_info("Use a different bundle name or remove the existing bundle")
             raise typer.Exit(1)
@@ -147,12 +165,28 @@ def init(
                 }
             )
 
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "plan init",
+                    "success",
+                    extra={"bundle": bundle, "bundle_dir": str(bundle_dir)},
+                )
+                debug_print("[dim]plan init: success[/dim]")
             print_success(f"Project bundle created successfully: {bundle_dir}")
 
         except KeyboardInterrupt:
             print_warning("\nBundle creation cancelled")
             raise typer.Exit(1) from None
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "plan init",
+                    "failed",
+                    error=str(e),
+                    extra={"reason": type(e).__name__, "bundle": bundle},
+                )
             print_error(f"Failed to create bundle: {e}")
             raise typer.Exit(1) from e
 

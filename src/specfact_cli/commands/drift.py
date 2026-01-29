@@ -15,6 +15,7 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_success
 
@@ -75,6 +76,11 @@ def detect_drift(
         specfact drift detect legacy-api --repo .
         specfact drift detect my-bundle --repo . --format json --out drift-report.json
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command", "drift detect", "started", extra={"bundle": bundle, "repo": str(repo), "format": output_format}
+        )
+        debug_print("[dim]drift detect: started[/dim]")
     from rich.console import Console
 
     from specfact_cli.utils.structure import SpecFactStructure
@@ -85,6 +91,10 @@ def detect_drift(
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
         if bundle is None:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command", "drift detect", "failed", error="Bundle name required", extra={"reason": "no_bundle"}
+                )
             console.print("[bold red]✗[/bold red] Bundle name required")
             console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
             raise typer.Exit(1)
@@ -127,6 +137,14 @@ def detect_drift(
             else:
                 console.print(output)
         else:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "drift detect",
+                    "failed",
+                    error=f"Unknown format: {output_format}",
+                    extra={"reason": "invalid_format"},
+                )
             print_error(f"Unknown output format: {output_format}")
             raise typer.Exit(1)
 
@@ -156,6 +174,14 @@ def detect_drift(
                 "total_issues": total_issues,
             }
         )
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "drift detect",
+                "success",
+                extra={"bundle": bundle, "total_issues": total_issues},
+            )
+            debug_print("[dim]drift detect: success[/dim]")
 
 
 def _display_drift_report_table(report: Any) -> None:
