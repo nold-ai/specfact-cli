@@ -48,7 +48,6 @@ _output_format: StructuredFormat = StructuredFormat.YAML
 _non_interactive_override: bool | None = None
 _debug_mode: bool = False
 _console_cache: dict[TerminalMode, Console] = {}
-_debug_file_handler: RotatingFileHandler | None = None
 _debug_logger: logging.Logger | None = None
 
 
@@ -207,28 +206,27 @@ def _get_debug_caller() -> str:
 
 def _ensure_debug_log_file() -> None:
     """Initialize debug log file under ~/.specfact/logs when debug is on (lazy, once per run)."""
-    global _debug_file_handler, _debug_logger
+    global _debug_logger
     if _debug_logger is not None:
         return
     try:
         logs_dir = get_specfact_home_logs_dir()
         log_path = os.path.join(logs_dir, "specfact-debug.log")
-        _debug_file_handler = RotatingFileHandler(
+        handler = RotatingFileHandler(
             log_path,
             maxBytes=5 * 1024 * 1024,
             backupCount=5,
             mode="a",
             encoding="utf-8",
         )
-        _debug_file_handler.setLevel(logging.DEBUG)
-        _debug_file_handler.setFormatter(logging.Formatter(DEBUG_LOG_FORMAT, datefmt=DEBUG_LOG_DATEFMT))
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(DEBUG_LOG_FORMAT, datefmt=DEBUG_LOG_DATEFMT))
         _debug_logger = logging.getLogger("specfact.debug")
         _debug_logger.setLevel(logging.DEBUG)
         _debug_logger.propagate = False
         _debug_logger.handlers.clear()
-        _debug_logger.addHandler(_debug_file_handler)
+        _debug_logger.addHandler(handler)
     except (OSError, PermissionError):
-        _debug_file_handler = None
         _debug_logger = None
 
 
