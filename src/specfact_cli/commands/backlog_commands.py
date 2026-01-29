@@ -36,6 +36,7 @@ from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.dor_config import DefinitionOfReady
+from specfact_cli.runtime import debug_log_operation, is_debug_mode
 from specfact_cli.templates.registry import TemplateRegistry
 
 
@@ -772,7 +773,14 @@ def refine(
                 raise typer.Exit(1)
 
             console.print(f"[bold cyan]Importing refined content from: {import_file}[/bold cyan]")
-            raw = import_file.read_text(encoding="utf-8")
+            try:
+                raw = import_file.read_text(encoding="utf-8")
+                if is_debug_mode():
+                    debug_log_operation("file_read", str(import_file), "success")
+            except OSError as e:
+                if is_debug_mode():
+                    debug_log_operation("file_read", str(import_file), "error", error=str(e))
+                raise
             parsed_by_id = _parse_refined_export_markdown(raw)
             if not parsed_by_id:
                 console.print(
@@ -785,7 +793,8 @@ def refine(
                 if item.id not in parsed_by_id:
                     continue
                 data = parsed_by_id[item.id]
-                item.body_markdown = data.get("body_markdown", item.body_markdown or "")
+                body = data.get("body_markdown", item.body_markdown or "")
+                item.body_markdown = body if body is not None else (item.body_markdown or "")
                 if "acceptance_criteria" in data:
                     item.acceptance_criteria = data["acceptance_criteria"]
                 if data.get("title"):

@@ -28,6 +28,7 @@ from specfact_cli.integrations.specmatic import (
     generate_specmatic_tests,
     validate_spec_with_specmatic,
 )
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_success, print_warning, prompt_text
 from specfact_cli.utils.progress import load_bundle_with_progress
 from specfact_cli.utils.structure import SpecFactStructure
@@ -105,6 +106,15 @@ def validate(
     """
     from specfact_cli.telemetry import telemetry
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "spec validate",
+            "started",
+            extra={"spec_path": str(spec_path) if spec_path else None, "bundle": bundle},
+        )
+        debug_print("[dim]spec validate: started[/dim]")
+
     repo_path = Path(".").resolve()
 
     # Use active plan as default if bundle not provided
@@ -123,6 +133,14 @@ def validate(
         # Load all contracts from bundle
         bundle_dir = SpecFactStructure.project_dir(base_path=repo_path, bundle_name=bundle)
         if not bundle_dir.exists():
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "spec validate",
+                    "failed",
+                    error=f"Project bundle not found: {bundle_dir}",
+                    extra={"reason": "bundle_not_found", "bundle": bundle},
+                )
             print_error(f"Project bundle not found: {bundle_dir}")
             raise typer.Exit(1)
 
@@ -209,6 +227,14 @@ def validate(
         # Check if Specmatic is available
         is_available, error_msg = check_specmatic_available()
         if not is_available:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "spec validate",
+                    "failed",
+                    error=error_msg or "Specmatic not available",
+                    extra={"reason": "specmatic_unavailable"},
+                )
             print_error(f"Specmatic not available: {error_msg}")
             console.print("\n[bold]Installation:[/bold]")
             console.print("Visit https://docs.specmatic.io/ for installation instructions")
@@ -384,6 +410,15 @@ def validate(
                     for error in result.errors:
                         console.print(f"  - {error}")
                 failed_count += 1
+
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "spec validate",
+                "success",
+                extra={"validated": validated_count, "skipped": skipped_count, "failed": failed_count},
+            )
+            debug_print("[dim]spec validate: success[/dim]")
 
         # Summary
         if len(spec_paths) > 1:

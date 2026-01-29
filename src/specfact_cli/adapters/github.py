@@ -35,6 +35,7 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.runtime import debug_log_operation, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token
 
 
@@ -817,6 +818,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Accept": "application/vnd.github.v3+json",
         }
         response = requests.get(url, headers=headers, timeout=30)
+        if is_debug_mode():
+            debug_log_operation(
+                "github_api_get",
+                url,
+                str(response.status_code),
+                error=None if response.ok else (response.text[:200] if response.text else None),
+            )
         response.raise_for_status()
         return response.json()
 

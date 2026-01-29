@@ -17,6 +17,7 @@ from icontract import ensure, require
 from rich.console import Console
 
 from specfact_cli.models.plan import Feature
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
 from specfact_cli.utils.progress import load_bundle_with_progress, save_bundle_with_progress
 from specfact_cli.utils.structure import SpecFactStructure
@@ -71,6 +72,15 @@ def cleanup_legacy(
         specfact migrate cleanup-legacy --repo . --dry-run
         specfact migrate cleanup-legacy --repo . --force  # Remove even if files exist
     """
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "migrate cleanup-legacy",
+            "started",
+            extra={"repo": str(repo), "dry_run": dry_run, "force": force},
+        )
+        debug_print("[dim]migrate cleanup-legacy: started[/dim]")
+
     specfact_dir = repo / SpecFactStructure.ROOT
     if not specfact_dir.exists():
         console.print(f"[yellow]⚠[/yellow] No .specfact directory found at {specfact_dir}")
@@ -159,6 +169,14 @@ def cleanup_legacy(
             )
         if removed_count == 0 and skipped_count == 0:
             console.print("[dim]No legacy directories found to remove[/dim]")
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "migrate cleanup-legacy",
+            "success",
+            extra={"removed_count": removed_count, "skipped_count": skipped_count},
+        )
+        debug_print("[dim]migrate cleanup-legacy: success[/dim]")
 
 
 @app.command("to-contracts")
@@ -251,6 +269,15 @@ def to_contracts(
         "validate_with_specmatic": validate_with_specmatic,
         "dry_run": dry_run,
     }
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "migrate to-contracts",
+            "started",
+            extra={"bundle": bundle, "repo": str(repo_path), "dry_run": dry_run},
+        )
+        debug_print("[dim]migrate to-contracts: started[/dim]")
 
     with telemetry.track_command("migrate.to_contracts", telemetry_metadata) as record:
         console.print(f"[bold cyan]Migrating bundle:[/bold cyan] {bundle}")
@@ -413,6 +440,18 @@ def to_contracts(
                 if clean_verbose_specs:
                     console.print(f"[dim]Would clean verbose specs in {verbose_specs_cleaned} stories[/dim]")
 
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "migrate to-contracts",
+                    "success",
+                    extra={
+                        "contracts_created": contracts_created,
+                        "contracts_validated": contracts_validated,
+                        "verbose_specs_cleaned": verbose_specs_cleaned,
+                    },
+                )
+                debug_print("[dim]migrate to-contracts: success[/dim]")
             record(
                 {
                     "contracts_created": contracts_created,
@@ -422,6 +461,14 @@ def to_contracts(
             )
 
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "migrate to-contracts",
+                    "failed",
+                    error=str(e),
+                    extra={"reason": type(e).__name__},
+                )
             print_error(f"Migration failed: {e}")
             record({"error": str(e)})
             raise typer.Exit(1) from e
@@ -612,6 +659,15 @@ def migrate_artifacts(
             print_error("No project bundles found. Create one with 'specfact plan init' or 'specfact import from-code'")
             raise typer.Exit(1)
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "migrate artifacts",
+            "started",
+            extra={"bundles": bundles_to_migrate, "repo": str(repo_path), "dry_run": dry_run},
+        )
+        debug_print("[dim]migrate artifacts: started[/dim]")
+
     console.print(f"[bold cyan]Migrating artifacts for {len(bundles_to_migrate)} bundle(s)[/bold cyan]")
     if dry_run:
         print_warning("DRY RUN MODE - No changes will be made")
@@ -663,6 +719,19 @@ def migrate_artifacts(
 
     if dry_run:
         print_warning("DRY RUN - No changes were made. Run without --dry-run to perform migration.")
+
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "migrate artifacts",
+            "success",
+            extra={
+                "bundles_processed": len(bundles_to_migrate),
+                "total_moved": total_moved,
+                "total_errors": total_errors,
+            },
+        )
+        debug_print("[dim]migrate artifacts: success[/dim]")
 
 
 def _migrate_reports(base_path: Path, bundle_name: str, bundle_dir: Path, dry_run: bool, backup: bool) -> int:

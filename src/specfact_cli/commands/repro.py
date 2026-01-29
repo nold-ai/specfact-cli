@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.env_manager import check_tool_in_env, detect_env_manager, detect_source_directories
 from specfact_cli.utils.structure import SpecFactStructure
@@ -206,6 +207,15 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "repro",
+            "started",
+            extra={"repo": str(repo), "budget": budget, "sidecar": sidecar, "sidecar_bundle": sidecar_bundle},
+        )
+        debug_print("[dim]repro: started[/dim]")
+
     # Type checking for parameters (after subcommand check)
     if not _is_valid_repo_path(repo):
         raise typer.BadParameter("Repo path must exist and be directory")
@@ -299,6 +309,18 @@ def main(
             console.print(f"  [dim]Skipped: {report.skipped_checks}[/dim]")
         console.print(f"  Total duration: {report.total_duration:.2f}s")
 
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "repro",
+                "success",
+                extra={
+                    "total_checks": report.total_checks,
+                    "passed": report.passed_checks,
+                    "failed": report.failed_checks,
+                },
+            )
+            debug_print("[dim]repro: success[/dim]")
         record_event(
             {
                 "checks_total": report.total_checks,
@@ -407,6 +429,7 @@ def setup(
     """
     Set up CrossHair configuration for contract exploration.
 
+
     Automatically generates [tool.crosshair] configuration in pyproject.toml
     to enable contract exploration with CrossHair during repro runs.
 
@@ -487,11 +510,22 @@ def setup(
     }
 
     if _update_pyproject_crosshair_config(pyproject_path, crosshair_config):
+        if is_debug_mode():
+            debug_log_operation("command", "repro setup", "success", extra={"pyproject_path": str(pyproject_path)})
+            debug_print("[dim]repro setup: success[/dim]")
         console.print(f"[green]✓[/green] Updated {pyproject_path.relative_to(repo)} with CrossHair configuration")
         console.print("\n[bold]CrossHair Configuration:[/bold]")
         for key, value in crosshair_config.items():
             console.print(f"  {key} = {value}")
     else:
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "repro setup",
+                "failed",
+                error=f"Failed to update {pyproject_path}",
+                extra={"reason": "update_failed"},
+            )
         console.print(f"[red]✗[/red] Failed to update {pyproject_path.relative_to(repo)}")
         raise typer.Exit(1)
 

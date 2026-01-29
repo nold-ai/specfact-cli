@@ -16,7 +16,7 @@ from icontract import ensure, require
 from rich.table import Table
 
 from specfact_cli.enrichers.constitution_enricher import ConstitutionEnricher
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_success
 from specfact_cli.utils.sdd_discovery import list_all_sdds
 from specfact_cli.utils.structure import SpecFactStructure
@@ -73,6 +73,10 @@ def sdd_list(
         specfact sdd list
         specfact sdd list --repo /path/to/repo
     """
+    if is_debug_mode():
+        debug_log_operation("command", "sdd list", "started", extra={"repo": str(repo)})
+        debug_print("[dim]sdd list: started[/dim]")
+
     console.print("\n[bold cyan]SpecFact CLI - SDD Manifest List[/bold cyan]")
     console.print("=" * 60)
 
@@ -80,6 +84,9 @@ def sdd_list(
     all_sdds = list_all_sdds(base_path)
 
     if not all_sdds:
+        if is_debug_mode():
+            debug_log_operation("command", "sdd list", "success", extra={"count": 0, "reason": "none_found"})
+            debug_print("[dim]sdd list: success (none found)[/dim]")
         console.print("[yellow]No SDD manifests found[/yellow]")
         console.print(f"[dim]Searched in: {base_path / SpecFactStructure.PROJECTS}/*/sdd.yaml[/dim]")
         console.print(
@@ -141,6 +148,9 @@ def sdd_list(
     console.print()
     console.print(table)
     console.print(f"\n[dim]Total SDD manifests: {len(all_sdds)}[/dim]")
+    if is_debug_mode():
+        debug_log_operation("command", "sdd list", "success", extra={"count": len(all_sdds)})
+        debug_print("[dim]sdd list: success[/dim]")
 
     # Show layout information
     bundle_specific_count = sum(1 for path, _ in all_sdds if "/projects/" in str(path) or "\\projects\\" in str(path))

@@ -23,7 +23,7 @@ from specfact_cli import runtime
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
-from specfact_cli.runtime import get_configured_console
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.performance import track_performance
 from specfact_cli.utils.progress import save_bundle_with_progress
@@ -1949,6 +1949,15 @@ def from_bridge(
     from specfact_cli.sync.bridge_probe import BridgeProbe
     from specfact_cli.utils.structure import SpecFactStructure
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "import from-bridge",
+            "started",
+            extra={"repo": str(repo), "adapter": adapter, "dry_run": dry_run, "write": write},
+        )
+        debug_print("[dim]import from-bridge: started[/dim]")
+
     # Auto-detect adapter if not specified
     if adapter == "speckit" or adapter == "auto":
         probe = BridgeProbe(repo)
@@ -1956,6 +1965,14 @@ def from_bridge(
         # Use detected tool directly (e.g., "speckit", "openspec", "github")
         # BridgeProbe already tries all registered adapters
         if detected_capabilities.tool == "unknown":
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "import from-bridge",
+                    "failed",
+                    error="Could not auto-detect adapter",
+                    extra={"reason": "adapter_unknown"},
+                )
             console.print("[bold red]✗[/bold red] Could not auto-detect adapter")
             console.print("[dim]No registered adapter detected this repository structure[/dim]")
             registered = AdapterRegistry.list_adapters()
@@ -2326,6 +2343,18 @@ def from_bridge(
         console.print("[dim]Semgrep Rules: .semgrep/async-anti-patterns.yml[/dim]")
         console.print("[dim]GitHub Action: .github/workflows/specfact-gate.yml[/dim]")
 
+        if is_debug_mode():
+            debug_log_operation(
+                "command",
+                "import from-bridge",
+                "success",
+                extra={
+                    "protocol_states": len(protocol.states) if protocol else 0,
+                    "features": len(plan_bundle.features) if plan_bundle else 0,
+                },
+            )
+            debug_print("[dim]import from-bridge: success[/dim]")
+
         # Record import results
         if protocol and plan_bundle:
             record(
@@ -2449,10 +2478,27 @@ def from_code(
     from specfact_cli.modes import get_router
     from specfact_cli.utils.structure import SpecFactStructure
 
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "import from-code",
+            "started",
+            extra={"bundle": bundle, "repo": str(repo), "force": force, "shadow_only": shadow_only},
+        )
+        debug_print("[dim]import from-code: started[/dim]")
+
     # Use active plan as default if bundle not provided
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
         if bundle is None:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "import from-code",
+                    "failed",
+                    error="Bundle name required",
+                    extra={"reason": "no_bundle"},
+                )
             console.print("[bold red]✗[/bold red] Bundle name required")
             console.print("[yellow]→[/yellow] Use --bundle option or run 'specfact plan select' to set active plan")
             raise typer.Exit(1)
@@ -2825,6 +2871,15 @@ def from_code(
 
             _generate_report(repo, bundle_dir, plan_bundle, confidence, enrichment, report)
 
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "import from-code",
+                    "success",
+                    extra={"bundle": bundle, "bundle_dir": str(bundle_dir), "report": str(report)},
+                )
+                debug_print("[dim]import from-code: success[/dim]")
+
             # Phase 4.10: Print performance report if slow operations detected
             perf_report = perf_monitor.get_report()
             if perf_report.slow_operations and not os.environ.get("CI"):
@@ -2838,5 +2893,13 @@ def from_code(
             # Re-raise typer.Exit (used for clean exits)
             raise
         except Exception as e:
+            if is_debug_mode():
+                debug_log_operation(
+                    "command",
+                    "import from-code",
+                    "failed",
+                    error=str(e),
+                    extra={"reason": type(e).__name__, "bundle": bundle},
+                )
             console.print(f"[bold red]✗ Import failed:[/bold red] {e}")
             raise typer.Exit(1) from e
