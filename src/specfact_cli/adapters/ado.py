@@ -11,8 +11,7 @@ This follows the backlog adapter patterns established by the GitHub adapter.
 from __future__ import annotations
 
 import os
-
-# import re
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,6 +27,7 @@ from specfact_cli.adapters.base import BridgeAdapter
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
+from specfact_cli.common.logger_setup import LoggerSetup
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
@@ -36,7 +36,66 @@ from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token, set_token
 
 
+_MAX_RESPONSE_BODY_LOG = 2048
+
 console = Console()
+
+
+def _log_ado_patch_failure(
+    response: requests.Response | None,
+    operations: list[dict[str, Any]],
+    url: str,
+    context: str = "",
+) -> str:
+    """
+    Log ADO PATCH failure to debug log (when debug on) and return user-facing message.
+
+    Parses response body (JSON message or truncated text), extracts patch paths,
+    redacts/truncates for debug log, and builds a user message with ADO text and hint.
+    """
+    paths = [op.get("path", "") for op in operations if isinstance(op, dict)]
+    snippet = ""
+    if response is not None:
+        try:
+            body = response.json()
+            snippet = str(body.get("message", response.text[:500]))
+        except Exception:
+            snippet = (response.text or "")[:_MAX_RESPONSE_BODY_LOG]
+        snippet = snippet[:_MAX_RESPONSE_BODY_LOG]
+        snippet = str(LoggerSetup.redact_secrets(snippet))
+
+    if is_debug_mode():
+        debug_log_operation(
+            "ado_patch",
+            url,
+            "failed",
+            error=context or snippet[:500],
+            extra={"response_body": snippet, "patch_paths": paths},
+        )
+
+    return _build_ado_user_message(response)
+
+
+def _build_ado_user_message(response: requests.Response | None) -> str:
+    """Build user-facing error message from ADO response and append mapping hint."""
+    hint = " Check custom field mapping; see ado_custom.yaml or documentation."
+    if response is None:
+        return f"Azure DevOps request failed.{hint}"
+    try:
+        body = response.json()
+        msg = body.get("message", "") or (response.text or "")[:500]
+    except Exception:
+        msg = (response.text or "")[:500]
+    if not msg:
+        return f"Azure DevOps request failed (HTTP {getattr(response, 'status_code', '')}).{hint}"
+
+    m = re.search(r"Cannot find field\s+([^\s]+)", msg, re.IGNORECASE)
+    if m:
+        field = m.group(1).strip().rstrip(".")
+        user_msg = f"Field '{field}' not found.{hint}"
+    else:
+        user_msg = f"{msg}{hint}"
+    return user_msg
 
 
 class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
@@ -1642,10 +1701,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "state": ado_state,
             }
         except requests.RequestException as e:
-            if is_debug_mode():
-                debug_log_operation("ado_patch", url, "error", error=str(e))
-            msg = f"Failed to create Azure DevOps work item: {e}"
-            console.print(f"[bold red]✗[/bold red] {msg}")
+            resp = getattr(e, "response", None)
+            user_msg = _log_ado_patch_failure(resp, patch_document, url)
+            e.ado_user_message = user_msg
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
     def _update_work_item_status(
@@ -1744,8 +1803,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "state": ado_state,
             }
         except requests.RequestException as e:
-            msg = f"Failed to update Azure DevOps work item #{work_item_id}: {e}"
-            console.print(f"[bold red]✗[/bold red] {msg}")
+            resp = getattr(e, "response", None)
+            user_msg = _log_ado_patch_failure(resp, patch_document, url)
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
     def _update_work_item_body(
@@ -1876,8 +1936,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "state": ado_state,
             }
         except requests.RequestException as e:
-            msg = f"Failed to update Azure DevOps work item #{work_item_id}: {e}"
-            console.print(f"[bold red]✗[/bold red] {msg}")
+            resp = getattr(e, "response", None)
+            user_msg = _log_ado_patch_failure(resp, patch_document, url)
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
     @beartype
@@ -1983,8 +2044,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "new_state": ado_state,
             }
         except requests.RequestException as e:
-            msg = f"Failed to sync status to Azure DevOps work item #{work_item_id}: {e}"
-            console.print(f"[bold red]✗[/bold red] {msg}")
+            resp = getattr(e, "response", None)
+            user_msg = _log_ado_patch_failure(resp, patch_document, url)
+            e.ado_user_message = user_msg
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
     @beartype
@@ -2361,8 +2424,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "comment_added": True,
             }
         except requests.RequestException as e:
-            msg = f"Failed to add comment to Azure DevOps work item #{work_item_id}: {e}"
-            console.print(f"[bold red]✗[/bold red] {msg}")
+            resp = getattr(e, "response", None)
+            user_msg = _log_ado_patch_failure(resp, [], url)
+            e.ado_user_message = user_msg
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
     @beartype
@@ -3200,7 +3265,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             response = requests.patch(url, headers=headers, json=operations, timeout=30)
             response.raise_for_status()
         except requests.HTTPError as e:
-            # Handle 400/422: often caused by /multilineFieldsFormat/ not being supported by ADO API
+            user_msg = _log_ado_patch_failure(e.response, operations, url)
+            e.ado_user_message = user_msg
             response = None
             if e.response and e.response.status_code in (400, 422):
                 error_message = ""
@@ -3221,14 +3287,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         resp.raise_for_status()
                         response = resp
                     except requests.HTTPError as retry_error:
-                        # Retry with operations_no_format failed; continue to next fallback strategy.
-                        if is_debug_mode():
-                            debug_log_operation(
-                                "ado_patch",
-                                url,
-                                "failed",
-                                error=str(retry_error),
-                            )
+                        _log_ado_patch_failure(
+                            retry_error.response,
+                            operations_no_format,
+                            url,
+                            context=str(retry_error),
+                        )
 
                 if response is None and (
                     "already exists" in error_message.lower() or "cannot add" in error_message.lower()
@@ -3280,9 +3344,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         resp.raise_for_status()
                         response = resp
                     except requests.HTTPError:
+                        console.print(f"[bold red]✗[/bold red] {user_msg}")
                         raise
 
             if response is None:
+                console.print(f"[bold red]✗[/bold red] {user_msg}")
                 raise
 
         updated_work_item = response.json()

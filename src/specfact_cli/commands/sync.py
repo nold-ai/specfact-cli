@@ -1099,19 +1099,19 @@ def sync_bridge(
     export_to_tmp: bool = typer.Option(
         False,
         "--export-to-tmp",
-        help="Export proposal content to temporary file for LLM review (default: /tmp/specfact-proposal-<change-id>.md).",
+        help="Export proposal content to temporary file for LLM review (default: <system-temp>/specfact-proposal-<change-id>.md).",
         hidden=True,
     ),
     import_from_tmp: bool = typer.Option(
         False,
         "--import-from-tmp",
-        help="Import sanitized content from temporary file after LLM review (default: /tmp/specfact-proposal-<change-id>-sanitized.md).",
+        help="Import sanitized content from temporary file after LLM review (default: <system-temp>/specfact-proposal-<change-id>-sanitized.md).",
         hidden=True,
     ),
     tmp_file: Path | None = typer.Option(
         None,
         "--tmp-file",
-        help="Custom temporary file path (default: /tmp/specfact-proposal-<change-id>.md).",
+        help="Custom temporary file path (default: <system-temp>/specfact-proposal-<change-id>.md).",
         hidden=True,
     ),
     update_existing: bool = typer.Option(
