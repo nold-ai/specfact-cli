@@ -3224,7 +3224,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         # Retry with operations_no_format failed; continue to next fallback strategy.
                         if is_debug_mode():
                             debug_log_operation(
-                                "ADO multilineFieldsFormat retry failed",
+                                "ado_patch",
+                                url,
+                                "failed",
                                 error=str(retry_error),
                             )
 

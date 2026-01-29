@@ -148,12 +148,10 @@ class TestDebugMode:
         with (
             patch("specfact_cli.runtime.get_specfact_home_logs_dir", return_value=str(tmp_path)),
             patch("specfact_cli.runtime._debug_logger", None),
-            patch("specfact_cli.runtime._debug_file_handler", None),
         ):
             import specfact_cli.runtime as runtime_mod
 
             runtime_mod._debug_logger = None
-            runtime_mod._debug_file_handler = None
             set_debug_mode(True)
             debug_print("hello debug")
         log_file = tmp_path / "specfact-debug.log"
@@ -177,7 +175,6 @@ class TestDebugMode:
             import specfact_cli.runtime as runtime_mod
 
             runtime_mod._debug_logger = None
-            runtime_mod._debug_file_handler = None
             set_debug_mode(True)
             debug_log_operation("api_request", "https://example.com", "200", error=None, extra=None)
         log_file = tmp_path / "specfact-debug.log"
