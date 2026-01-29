@@ -2,10 +2,10 @@
 
 ## 1. Create git branch from dev
 
-- [ ] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-- [ ] 1.2 Create branch with Development link to issue: `gh issue develop 162 --repo nold-ai/specfact-cli --name bugfix/improve-ado-backlog-refine-error-logging --checkout`
-- [ ] 1.3 Or create branch without issue link: `git checkout -b bugfix/improve-ado-backlog-refine-error-logging` (if no issue)
-- [ ] 1.4 Verify branch was created: `git branch --show-current`
+- [x] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
+- [x] 1.2 Create branch with Development link to issue: `gh issue develop 162 --repo nold-ai/specfact-cli --name bugfix/improve-ado-backlog-refine-error-logging --checkout`
+- [x] 1.3 Or create branch without issue link: `git checkout -b bugfix/improve-ado-backlog-refine-error-logging` (if no issue)
+- [x] 1.4 Verify branch was created: `git branch --show-current`
 
 ## 2. Verify spec deltas (SDD: specs first)
 
@@ -66,8 +66,8 @@
 
 ## 7. Create Pull Request to dev
 
-- [ ] 7.1 Ensure all changes are committed: `git add .` and `git commit -m "fix: improve ADO backlog refine error logging and user-facing error UX (fixes nold-ai/specfact-cli#162)"`
-- [ ] 7.2 Push to remote: `git push origin bugfix/improve-ado-backlog-refine-error-logging`
-- [ ] 7.3 Create PR body with Fixes nold-ai/specfact-cli#162, summary from proposal, and OpenSpec change ID: `improve-ado-backlog-refine-error-logging`
-- [ ] 7.4 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head bugfix/improve-ado-backlog-refine-error-logging --title "fix: improve ADO backlog refine error logging and user-facing error UX" --body-file <path>`
-- [ ] 7.5 Verify PR and branch are linked to issue #162 (Development section).
+- [x] 7.1 Ensure all changes are committed: `git add .` and `git commit -m "fix: improve ADO backlog refine error logging and user-facing error UX (fixes nold-ai/specfact-cli#162)"`
+- [x] 7.2 Push to remote: `git push origin bugfix/improve-ado-backlog-refine-error-logging`
+- [x] 7.3 Create PR body with Fixes nold-ai/specfact-cli#162, summary from proposal, and OpenSpec change ID: `improve-ado-backlog-refine-error-logging`
+- [x] 7.4 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head bugfix/improve-ado-backlog-refine-error-logging --title "fix: improve ADO backlog refine error logging and user-facing error UX" --body-file <path>`
+- [x] 7.5 Verify PR and branch are linked to issue #162 (Development section).
