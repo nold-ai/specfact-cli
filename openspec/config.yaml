@@ -29,8 +29,21 @@ context: |
   Logging: Use common.logger_setup.get_logger() (avoid print())
   Naming: snake_case (files/modules/functions), PascalCase (classes), UPPER_SNAKE_CASE (constants)
 
+  Documentation (critical for every change): User-facing docs are published at https://docs.specfact.io (GitHub Pages). Source: docs/ with Jekyll front-matter (layout, title, permalink, description), docs/index.md as landing, docs/_layouts/default.html for sidebar/menu navigation. README.md is the repo entry point.
+  - Every change must include documentation research and review:
+    - (1) Identifies affected documentation: docs/ (reference, guides, adapters, getting-started), README.md, docs/index.md.
+    - (2) Updates or adds content so docs remain a great resource for new and existing users (learn, adopt, understand).
+    - (3) If adding or moving pages: ensure front-matter (layout, title, permalink, description) is correct and update docs/_layouts/default.html sidebar navigation so the new or moved page appears in the menu.
+    - Docs are published at https://docs.specfact.io (GitHub Pages).
+
   Contract requirements: ALL public APIs MUST have @icontract (@require/@ensure) and @beartype decorators
   Testing: Contract-first (primary), minimum 80% coverage, unit/integration/E2E tests required for all changes
+
+  Development discipline (SDD + TDD): SpecFact CLI adds the validation layer; we develop SpecFact itself using the same discipline to prove it works. Order is strict:
+  - (1) Specs first—spec deltas define behavior (Given/When/Then).
+  - (2) Tests second—write unit/integration tests from spec scenarios (one or more tests per scenario); run tests and expect failure.
+  - (3) Code last—implement until tests pass and behavior satisfies the spec. Code must batch (satisfy) both (a) spec scenarios and (b) tests.
+  - If the pattern does not work in practice, adjust the process until it does.
 
 # Per-artifact rules (only injected into matching artifacts)
 rules:
@@ -42,15 +55,19 @@ rules:
     - Address offline-first constraint (no cloud dependencies)
     - Include rollback plan for risky changes
     - Check for conflicts with existing bridge adapters or plugin registry
-    - For public-facing changes: Include Source Tracking section with GitHub issue reference (format: `## Source Tracking` with `- **GitHub Issue**: #<number>`, `- **Issue URL**: <url>`, `- **Repository**: <owner>/<name>`, `- **Last Synced Status**: <status>`)
+    - "Documentation impact (required for every change): Consider effect on docs published at https://docs.specfact.io. Identify affected areas: docs/ (reference, guides, adapters, getting-started), docs/index.md, README.md, docs/_layouts/default.html (sidebar/navigation).
+      - If the change is user-facing or alters API/CLI behavior, state in Impact which docs will be updated or added so new and existing users can learn, adopt, and understand the change."
+    - "For public-facing changes, include Source Tracking section with GitHub issue reference (format: ## Source Tracking with - **GitHub Issue**: #<number>, - **Issue URL**: <url>, - **Repository**: <owner>/<name>, - **Last Synced Status**: <status>).
+      - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status."
     - Source tracking: Only track public repos (specfact-cli, platform-frontend). Skip for internal repos (specfact-cli-internal)
 
   specs:
-    - Use Given/When/Then format for scenarios
+    - Use Given/When/Then format for scenarios (each scenario is the source of truth for one or more test cases)
     - Reference existing patterns in openspec/specs/ before inventing new ones
     - Ensure specs support multi-repository workflows where applicable
     - Document contract requirements (@icontract, @beartype) for new APIs
     - Include offline-first validation scenarios
+    - Specs are implemented first in the change; tests are derived from spec scenarios; then code is written to satisfy both
 
   design:
     - Document bridge adapter integration if external tools involved
@@ -60,16 +77,34 @@ rules:
     - Include fallback strategies for offline scenarios
 
   tasks:
+    - Enforce SDD+TDD order: 
+      - (1) Branch creation (first).
+      - (2) Write/add spec deltas if not already done.
+      - (3) Write tests from spec scenarios—translate each Given/When/Then scenario into test cases; run tests and expect failure (no implementation yet).
+      - (4) Implement code until tests pass and behavior satisfies the spec; code must batch (satisfy) both (a) spec scenarios and (b) tests.
+      - (5) Quality gates (format, lint, type-check).
+      - (6) Documentation research and review (see below).
+      - (7) PR creation (last).
+    - "Documentation research and review (required for every change): Include a task that:
+      - (1) Identifies affected documentation: docs/ (reference, guides, adapters, getting-started), README.md, docs/index.md.
+      - (2) Updates or adds content so docs remain a great resource for new and existing users (learn, adopt, understand).
+      - (3) If adding or moving pages: ensure front-matter (layout, title, permalink, description) is correct and update docs/_layouts/default.html sidebar navigation so the new or moved page appears in the menu.
+      - Docs are published at https://docs.specfact.io (GitHub Pages)."
     - Break into 2-hour maximum chunks
     - Include contract decorator tasks (@icontract, @beartype) for all public APIs
-    - Include test tasks: unit, integration, and E2E
+    - Test tasks MUST come before implementation tasks: write tests derived from specs first, then implement. Do not implement before tests exist for the changed behavior.
     - Include quality gate tasks: format, lint, type-check, test coverage
     - Reference existing test patterns in tests/unit/, tests/integration/, tests/e2e/
+    - "Version and changelog (required before PR): Include a task that 
+      - (1) bumps patch version when the change is a fix, or minor/major per semver when adding features or breaking;
+      - (2) syncs version in pyproject.toml, setup.py, src/__init__.py, src/specfact_cli/__init__.py;
+      - (3) adds a CHANGELOG.md entry under a new [X.Y.Z] - YYYY-MM-DD section with Fixed/Added/Changed as appropriate.
+      - Place this task after quality gates and documentation, before PR creation."
     - Include git workflow tasks: branch creation (first task), PR creation (last task)
     - For public-facing changes in public repos (specfact-cli, platform-frontend):
-      - Include GitHub issue creation task with format:
-        - title `[Change] <Brief Description>`
-        - labels `enhancement` and `change-proposal`
-        - body following `.github/ISSUE_TEMPLATE/change_proposal.md` template (Why, What Changes sections from proposal)
-        - footer `*OpenSpec Change Proposal: `<change-id>`*`
-      - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status.
+        - Include GitHub issue creation task with format:
+            - title `[Change] <Brief Description>`
+            - labels `enhancement` and `change-proposal`
+            - body following `.github/ISSUE_TEMPLATE/change_proposal.md` template (Why, What Changes sections from proposal)
+            - footer `*OpenSpec Change Proposal: <change-id>*`
+        - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status.
