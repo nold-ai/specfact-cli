@@ -454,6 +454,7 @@ def cli_main() -> None:
         console.print()  # Empty line after banner
     elif not is_help_or_version and not is_test_mode:
         # Show simple version line like other CLIs (skip for help/version commands and in test mode)
+        # Printed before startup checks so users see output immediately (important with slow checks e.g. xagt)
         print_version_line()
 
     # Run startup checks (template validation and version check)

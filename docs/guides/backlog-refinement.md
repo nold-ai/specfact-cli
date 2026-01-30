@@ -11,6 +11,8 @@ permalink: /guides/backlog-refinement/
 
 This guide explains how to use SpecFact CLI's backlog refinement feature to standardize work items from GitHub Issues, Azure DevOps, and other backlog tools into corporate templates (user stories, defects, spikes, enablers).
 
+**Tutorial**: For an end-to-end walkthrough with your AI IDE (Cursor, VS Code, etc.)—including interactive slash prompt, story quality, underspecification, splitting, and DoR—see **[Tutorial: Backlog Refine with AI IDE](../getting-started/tutorial-backlog-refine-ai-ide.md)**.
+
 ## Overview
 
 **Why This Matters**: DevOps teams often create backlog items with informal, unstructured descriptions. Template-driven refinement helps enforce corporate standards while maintaining lossless synchronization with your backlog tools.
@@ -171,6 +173,16 @@ specfact backlog refine github --search "is:open"
 # 3. Validate and score the refinement
 # 4. Ask for confirmation before applying
 ```
+
+### Story scope and specification level
+
+During interactive refinement (e.g. when using the slash prompt in your AI IDE), the team should assess each story’s **specification level** so you can improve quality and respect Definition of Ready:
+
+- **Under-specified**: Missing acceptance criteria, vague scope, unclear “so that” or user value. The AI should list what’s missing (e.g. “No AC”, “Scope could mean X or Y”) so the team can add detail before approving.
+- **Over-specified**: Too much implementation detail, too many sub-steps for one story, or solution prescribed instead of outcome. The AI should suggest what to trim or move so the story stays fit for one sprint or one outcome.
+- **Fit for scope and intent**: Clear persona, capability, benefit, and testable AC; appropriate size. The AI should state briefly why it’s ready (and, if you use DoR, that DoR is satisfied).
+
+Include this assessment in the **interactive feedback loop**: present story → assess under-/over-/fit → list ambiguities → ask clarification → re-refine until the PO/stakeholder approves. That way the DevOps team gets to know if a story is under-/over-specified or actually fitting for scope and intent before updating the backlog.
 
 ### Step 4: Preview and Apply Refinement
 
@@ -413,6 +425,8 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 - `--search`, `-s` - Search query to filter backlog items
 - `--template`, `-t` - Target template ID (default: auto-detect)
+- `--ignore-refined` / `--no-ignore-refined` - When using `--limit N`, apply limit to items that need refinement (default: ignore already-refined items so you see N items that actually need work)
+- `--id` - Refine only the backlog item with the given issue or work item ID
 - `--auto-accept-high-confidence` - Auto-accept refinements with confidence >= 0.85
 - `--bundle`, `-b` - OpenSpec bundle path to import refined items
 - `--auto-bundle` - Auto-import refined items to OpenSpec bundle

@@ -296,6 +296,44 @@ def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
     return result
 
 
+@beartype
+def _item_needs_refinement(
+    item: BacklogItem,
+    detector: TemplateDetector,
+    registry: TemplateRegistry,
+    template_id: str | None,
+    normalized_adapter: str | None,
+    normalized_framework: str | None,
+    normalized_persona: str | None,
+) -> bool:
+    """
+    Return True if the item needs refinement (should be processed); False if already refined (skip).
+
+    Mirrors the "already refined" skip logic used in the refine loop: checkboxes + all required
+    sections, or high confidence with no missing fields.
+    """
+    detection_result = detector.detect_template(
+        item,
+        provider=normalized_adapter,
+        framework=normalized_framework,
+        persona=normalized_persona,
+    )
+    if detection_result.template_id:
+        target = registry.get_template(detection_result.template_id) if detection_result.template_id else None
+        if target and target.required_sections:
+            has_checkboxes = bool(
+                re.search(r"^[\s]*- \[[ x]\]", item.body_markdown or "", re.MULTILINE | re.IGNORECASE)
+            )
+            all_present = all(
+                bool(re.search(rf"^#+\s+{re.escape(s)}\s*$", item.body_markdown or "", re.MULTILINE | re.IGNORECASE))
+                for s in target.required_sections
+            )
+            if has_checkboxes and all_present and not detection_result.missing_fields:
+                return False
+    already_refined = template_id is None and detection_result.confidence >= 0.8 and not detection_result.missing_fields
+    return not already_refined
+
+
 def _fetch_backlog_items(
     adapter_name: str,
     search_query: str | None = None,
@@ -423,6 +461,16 @@ def refine(
         None,
         "--limit",
         help="Maximum number of items to process in this refinement session. Use to cap batch size and avoid processing too many items at once.",
+    ),
+    ignore_refined: bool = typer.Option(
+        True,
+        "--ignore-refined/--no-ignore-refined",
+        help="When set (default), exclude already-refined items from the batch so --limit applies to items that need refinement. Use --no-ignore-refined to process the first N items in order (already-refined skipped in loop).",
+    ),
+    issue_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Refine only this backlog item (issue or work item ID). Other items are ignored.",
     ),
     template_id: str | None = typer.Option(None, "--template", "-t", help="Target template ID (default: auto-detect)"),
     auto_accept_high_confidence: bool = typer.Option(
@@ -651,6 +699,10 @@ def refine(
                 init_progress.update(validate_task, description="[green]✓[/green] Configuration validated")
 
         # Fetch backlog items with filters
+        # When ignore_refined and limit are set, fetch more candidates so we have enough after filtering
+        fetch_limit: int | None = limit
+        if ignore_refined and limit is not None and limit > 0:
+            fetch_limit = limit * 5
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -668,7 +720,7 @@ def refine(
                 iteration=iteration,
                 sprint=sprint,
                 release=release,
-                limit=limit,
+                limit=fetch_limit,
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 github_token=github_token,
@@ -705,6 +757,34 @@ def refine(
             else:
                 console.print("[yellow]No backlog items found.[/yellow]")
             return
+
+        # Filter by issue ID when --id is set
+        if issue_id is not None:
+            items = [i for i in items if str(i.id) == str(issue_id)]
+            if not items:
+                console.print(
+                    f"[bold red]✗[/bold red] No backlog item with id {issue_id!r} found. "
+                    "Check filters and adapter configuration."
+                )
+                raise typer.Exit(1)
+
+        # When ignore_refined (default), keep only items that need refinement; then apply limit
+        if ignore_refined:
+            items = [
+                i
+                for i in items
+                if _item_needs_refinement(
+                    i, detector, registry, template_id, normalized_adapter, normalized_framework, normalized_persona
+                )
+            ]
+            if limit is not None and len(items) > limit:
+                items = items[:limit]
+            if ignore_refined and (limit is not None or issue_id is not None):
+                console.print(
+                    f"[dim]Filtered to {len(items)} item(s) needing refinement"
+                    + (f" (limit {limit})" if limit is not None else "")
+                    + "[/dim]"
+                )
 
         # Validate export/import flags
         if export_to_tmp and import_from_tmp:
@@ -843,8 +923,8 @@ def refine(
             console.print(f"[green]✓ Updated {len(updated_items)} backlog item(s)[/green]")
             return
 
-        # Apply limit if specified
-        if limit and len(items) > limit:
+        # Apply limit if specified (when not ignore_refined; when ignore_refined we already filtered and sliced)
+        if not ignore_refined and limit is not None and len(items) > limit:
             items = items[:limit]
             console.print(f"[yellow]Limited to {limit} items (found {len(items)} total)[/yellow]")
         else:

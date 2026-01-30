@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.15] - 2026-01-30
+
+### Added (0.26.15)
+
+- **Backlog refine: ignore-refined and single-item by ID** (OpenSpec change `improve-backlog-refine-and-cli-startup`, fixes [#166](https://github.com/nold-ai/specfact-cli/issues/166))
+  - **`--ignore-refined` / `--no-ignore-refined`**: Default on; when set, only items that need refinement are shown (limit applies to unrefined items). Use `--no-ignore-refined` to include already-refined items.
+  - **`--id <issue-id>`**: Refine only the backlog item with the given issue or work item ID; exits with error if not found.
+  - **Helper**: `_item_needs_refinement(item)` in `backlog_commands.py` to decide if an item needs refinement (missing sections or low confidence).
+  - **Fetch behavior**: When both `--ignore-refined` and `--limit` are set, fetches more candidates (e.g. limit × 5) then filters and slices so limit applies to items needing refinement.
+  - **Docs**: `docs/guides/backlog-refinement.md` documents `--ignore-refined`, `--no-ignore-refined`, and `--id`; AGENTS.md documents `--skip-checks` for faster startup.
+  - **Prompt**: `resources/prompts/specfact.backlog-refine.md` adds "Interactive refinement (Copilot mode)" with loop: present story → list ambiguities → ask clarification → re-refine until user approves → then mark done and next story.
+  - **Startup**: Comment in `cli.py` confirms version line is printed before startup checks.
+
+### Changed (0.26.15)
+
+- **Version**: Bumped to 0.26.15; synced in `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py`.
+
+---
+
 ## [0.26.14] - 2026-01-29
 
 ### Fixed (0.26.14)

@@ -6,20 +6,52 @@ on:
   pull_request:
     branches: [main, dev]
     paths-ignore:
+      - "**/*.md"
+      - "**/*.mdc"
       - "docs/**"
-      - "**.md"
-      - "**.mdc"
   push:
     branches: [main, dev]
     paths-ignore:
+      - "**/*.md"
+      - "**/*.mdc"
       - "docs/**"
-      - "**.md"
-      - "**.mdc"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code_changed: ${{ steps.out.outputs.code_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!**/*.mdc'
+              - '!docs/**'
+      - id: out
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code_changed=${{ steps.filter.outputs.code }}" >> "$GITHUB_OUTPUT"
+          fi
+
   tests:
     name: Tests (Python 3.12)
+    needs: [changes]
+    if: needs.changes.outputs.code_changed == 'true'
     outputs:
       run_unit_coverage: ${{ steps.detect-unit.outputs.run_unit_coverage }}
     permissions:
