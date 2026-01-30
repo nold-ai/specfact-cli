@@ -413,6 +413,8 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 - `--search`, `-s` - Search query to filter backlog items
 - `--template`, `-t` - Target template ID (default: auto-detect)
+- `--ignore-refined` / `--no-ignore-refined` - When using `--limit N`, apply limit to items that need refinement (default: ignore already-refined items so you see N items that actually need work)
+- `--id` - Refine only the backlog item with the given issue or work item ID
 - `--auto-accept-high-confidence` - Auto-accept refinements with confidence >= 0.85
 - `--bundle`, `-b` - OpenSpec bundle path to import refined items
 - `--auto-bundle` - Auto-import refined items to OpenSpec bundle

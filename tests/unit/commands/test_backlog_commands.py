@@ -10,9 +10,14 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.cli import app
-from specfact_cli.commands.backlog_commands import _parse_refined_export_markdown
+from specfact_cli.commands.backlog_commands import (
+    _item_needs_refinement,
+    _parse_refined_export_markdown,
+)
 from specfact_cli.models.backlog_item import BacklogItem
+from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
 runner = CliRunner()
@@ -329,3 +334,54 @@ Then we see the error.
         assert "return 42" in body
         assert "```" in body
         assert "Then we see the error." in body
+
+
+class TestItemNeedsRefinement:
+    """Tests for _item_needs_refinement helper."""
+
+    def test_needs_refinement_when_missing_sections(self) -> None:
+        """Item needs refinement when required sections are missing."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="user-story",
+                name="User Story",
+                description="",
+                required_sections=["As a", "I want", "Acceptance Criteria"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="1",
+            provider="github",
+            url="https://github.com/org/repo/issues/1",
+            title="Story",
+            body_markdown="As a user I want...",
+            state="open",
+            assignees=[],
+        )
+        assert _item_needs_refinement(item, detector, registry, None, "github", None, None) is True
+
+    def test_does_not_need_refinement_when_high_confidence_no_missing(self) -> None:
+        """Item does not need refinement when confidence >= 0.8 and no missing fields."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="user-story",
+                name="User Story",
+                description="",
+                required_sections=["Acceptance Criteria"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="2",
+            provider="github",
+            url="https://github.com/org/repo/issues/2",
+            title="Story",
+            body_markdown="As a user I want X.\n\n## Acceptance Criteria\n- [ ] Done",
+            state="open",
+            assignees=[],
+        )
+        result = _item_needs_refinement(item, detector, registry, None, "github", None, None)
+        assert result is False
