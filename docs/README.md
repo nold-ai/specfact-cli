@@ -20,7 +20,8 @@ SpecFact isn't just a technical tool—it's designed for **real-world agile/scru
 
 👉 **[Agile/Scrum Workflows Guide](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Complete guide to persona-based team collaboration  
 👉 **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows  
-👉 **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items
+👉 **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items  
+👉 **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** 🆕 - End-to-end for agile DevOps: slash prompt, story quality, underspecification, DoR, custom templates
 
 ---
 
