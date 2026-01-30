@@ -21,8 +21,9 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 1. **[Installation](getting-started/installation.md)** - Get started in 60 seconds
 2. **[First Steps](getting-started/first-steps.md)** - Run your first command
-3. **[Modernizing Legacy Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
-4. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+3. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
+4. **[Modernizing Legacy Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
+5. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
 
 ### Using GitHub Spec-Kit?
 
@@ -59,6 +60,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
   - **Status Synchronization**: Keep OpenSpec and backlog status in sync
 
 - **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven refinement for standardizing work items
+  - **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - End-to-end tutorial for agile DevOps teams (slash prompt, DoR, split stories, underspec/overspec)
   - **Template Detection**: Automatically detect which template matches a backlog item with priority-based resolution
   - **AI-Assisted Refinement**: Generate prompts for IDE AI copilots to refine unstructured input
   - **Confidence Scoring**: Validate refined content and provide confidence scores

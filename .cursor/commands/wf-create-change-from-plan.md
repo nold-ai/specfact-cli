@@ -16,6 +16,7 @@ Create an OpenSpec change proposal from a plan document (e.g., documentation imp
 
 **Guardrails**
 
+- **Read `openspec/config.yaml`** during the workflow (before or at Step 5) to get project context and the TDD/SDD rules; use them when updating tasks.md so that tests-before-code is enforced.
 - Favor straightforward, minimal implementations first and add complexity only when it is requested or clearly required.
 - Keep changes tightly scoped to the requested outcome.
 - Never proceed with ambiguities or conflicts - always ask for clarification interactively.
@@ -24,6 +25,7 @@ Create an OpenSpec change proposal from a plan document (e.g., documentation imp
 - **CRITICAL**: Only create GitHub issues in the target repository specified by the plan. Never create issues in a different repository than the plan's target.
 - For public-facing changes, always sanitize content before creating GitHub issues.
 - **CRITICAL Git Workflow**: Always add tasks to create a git branch (feature/bugfix/hotfix based on change-id) BEFORE any code modifications, and create a Pull Request to `dev` branch AFTER all tasks are complete. Never work directly on protected branches (main/dev). Branch naming: `<branch-type>/<change-id>`.
+- **CRITICAL TDD**: Per config.yaml, test tasks MUST come before implementation tasks. Write tests from spec scenarios first; run tests and expect failure; then implement until tests pass.
 
 **Workflow Steps**
 
@@ -248,9 +250,9 @@ Execute the `/opsx:ff` command to create all artifacts at once:
    - **proposal.md**: Must include Why, What Changes, Capabilities, Impact sections. Capabilities section is critical - each capability needs a spec file.
    - **specs/<capability>/spec.md**: Use Given/When/Then format for scenarios. Reference existing patterns in openspec/specs/.
    - **design.md**: Document bridge adapter integration, sequence diagrams for multi-repo flows, contract enforcement strategy.
-   - **tasks.md**: Break into 2-hour maximum chunks. Include contract decorator tasks, test tasks, quality gate tasks, git workflow tasks (branch creation first, PR creation last).
+   - **tasks.md**: Break into 2-hour maximum chunks. **Per config.yaml:** Test tasks MUST come before implementation tasks (TDD). Include contract decorator tasks, test tasks, quality gate tasks, git workflow tasks (branch creation first, PR creation last). Step 5.2.4 will add a TDD order section and reorder tasks so tests-before-code is explicit.
 
-5. **Note**: After OPSX completes, Step 5 will add git workflow tasks (branch creation and PR creation) and quality standards if not already included.
+5. **Note**: After OPSX completes, Step 5 will read config.yaml, add git workflow tasks (branch creation and PR creation), **enforce TDD-first in tasks.md** (Step 5.2.4), and add quality standards if not already included.
 
 **4.3: Extract Change ID**
 
@@ -265,10 +267,12 @@ Execute the `/opsx:ff` command to create all artifacts at once:
 
 **5.1: Review Against Project Rules and Config**
 
-1. **Read openspec/config.yaml:**
-   - Project context (tech stack, constraints, architecture patterns)
-   - Per-artifact rules (proposal, specs, design, tasks)
-   - Verify artifacts follow config.yaml rules
+1. **Required: Read `openspec/config.yaml`** (in the specfact-cli repo: `openspec/config.yaml`):
+   - **Project context**: Tech stack, constraints, architecture patterns.
+   - **Development discipline (SDD + TDD)** in context: (1) Specs first, (2) Tests second—write unit/integration tests from spec scenarios; run tests and **expect failure**, (3) Code last—implement until tests pass.
+   - **Per-artifact rules**: `rules.tasks` in config.yaml—Enforce SDD+TDD order: (1) Branch creation, (2) Spec deltas, (3) Write tests from spec scenarios; run tests and expect failure (no implementation yet), (4) Implement code until tests pass, (5) Quality gates, (6) Documentation, (7) PR creation. Also: "Test tasks MUST come before implementation tasks: write tests derived from specs first, then implement. Do not implement before tests exist for the changed behavior."
+   - Use this context for Step 5.2.4 (TDD enforcement in tasks.md).
+   - Verify artifacts follow config.yaml rules.
 
 2. **Read and apply rules from `specfact-cli/.cursor/rules/`:**
    - **spec-fact-cli-rules.mdc**: Problem analysis, centralize logic, testing requirements, contract-first approach
@@ -281,6 +285,7 @@ Execute the `/opsx:ff` command to create all artifacts at once:
    - Proposal includes Source Tracking section (if public-facing change)
    - Tasks include GitHub issue creation task (if public-facing change in public repo)
    - Tasks follow 2-hour maximum chunk rule
+   - **Tasks enforce TDD: test tasks before implementation tasks** (see Step 5.2.4)
    - All artifacts reference existing architecture patterns where applicable
 
 **5.2: Update Tasks with Quality Standards and Git Workflow**
@@ -349,7 +354,24 @@ For each task in `tasks.md` (after branch creation task), ensure it includes:
    - Prerequisite changes
    - External dependencies
 
-**5.2.4: Add Pull Request Creation Task (LAST TASK)**
+**5.2.4: Enforce TDD-first in tasks.md (use config.yaml)**
+
+**Required:** Use the Development discipline and `rules.tasks` from `openspec/config.yaml` (read in Step 5.1). Ensure tasks.md enforces tests before code.
+
+1. **Add a "TDD / SDD order (enforced)" section** at the top of `tasks.md` (after the title, before the first numbered task section, e.g. before `## 1. Create git branch`):
+   - State that per `openspec/config.yaml`, **tests before code** apply to any task that adds or changes behavior.
+   - List the order: (1) Spec deltas define behavior (Given/When/Then), (2) **Tests second**—write unit/integration tests from those scenarios; run tests and **expect failure** (no implementation yet), (3) **Code last**—implement until tests pass and behavior satisfies the spec.
+   - Add: "Do not implement production code for new behavior until the corresponding tests exist and have been run (expecting failure)."
+   - Use a horizontal rule `---` to separate this block from the numbered tasks.
+
+2. **For each task section that adds or changes behavior** (e.g. a section that has both "add tests" and "implement" subtasks):
+   - **Reorder** so that "write tests from spec scenarios" (and "run tests; expect failure") appears **before** any "implement" or "add code" tasks for that behavior.
+   - If the current order is "implement 3.1, 3.2, 3.3, then add tests 3.4", rewrite to: "**Tests first:** 3.1 Write tests from change spec scenarios (e.g. `changes/.../specs/<capability>/spec.md`); run tests; **expect failure**. 3.2–3.N Implement (add options, helper, etc.). 3.N+1 Run tests again; **expect pass**; then quality gates."
+   - Add a short **TDD for this section** reminder in the section heading or first bullet where applicable (e.g. "TDD: tests first, then code").
+
+3. **Verify:** Scan tasks.md for any block that has both test tasks and implementation tasks; ensure test tasks come first. Config.yaml: "Test tasks MUST come before implementation tasks."
+
+**5.2.5: Add Pull Request Creation Task (LAST TASK)**
 
 **Add as the LAST task in `tasks.md` (after all implementation tasks are complete):**
 
@@ -924,9 +946,10 @@ Location: openspec/changes/<change-id>/
 Validation:
   ✓ OpenSpec validation passed
   ✓ Markdown linting passed (auto-fixed where possible)
-  ✓ Project rules applied
+  ✓ Project rules applied (config.yaml read; TDD-first enforced in tasks.md)
   ✓ Quality standards integrated
   ✓ Git workflow tasks added (branch creation + PR creation)
+  ✓ TDD order section and test-before-code task order applied
 
 GitHub Issue (if target repository supports issues):
   ✓ Issue #<number> created in <target-repo>: <url>
@@ -937,7 +960,9 @@ GitHub Issue (if target repository supports issues):
 Next Steps:
   1. Review proposal: openspec/changes/<change-id>/proposal.md
   2. Review tasks: openspec/changes/<change-id>/tasks.md
-  3. Verify git workflow tasks are included:
+  3. Verify TDD and git workflow are reflected:
+     - tasks.md has "TDD / SDD order (enforced)" section at top
+     - For behavior changes: test tasks before implementation tasks
      - First task: Create branch `<branch-type>/<change-id>`
      - Last task: Create PR to `dev` branch
   4. Apply change when ready: /opsx:apply <change-id> (or /openspec-apply <change-id> for legacy)

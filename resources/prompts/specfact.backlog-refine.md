@@ -69,6 +69,8 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
   - Ambiguous name-only matches will prompt for explicit iteration path
 - `--release RELEASE` - Filter by release identifier (case-insensitive)
 - `--limit N` - Maximum number of items to process in this refinement session (caps batch size)
+- `--ignore-refined` / `--no-ignore-refined` - When set (default), exclude already-refined items so `--limit` applies to items that need refinement. Use `--no-ignore-refined` to process the first N items in order.
+- `--id ISSUE_ID` - Refine only this backlog item (issue or work item ID). Other items are ignored.
 - `--persona PERSONA` - Filter templates by persona (product-owner, architect, developer)
 - `--framework FRAMEWORK` - Filter templates by framework (agile, scrum, safe, kanban)
 
@@ -161,6 +163,30 @@ specfact backlog refine $ADAPTER \
    - Use `:skip` to skip the current item without updating
    - Use `:quit` or `:abort` to cancel the entire session gracefully
    - Session cancellation shows summary and exits without error
+
+### Interactive refinement (Copilot mode)
+
+When refining backlog items in Copilot mode (e.g. after export to tmp or during a refinement session), follow this **per-story loop** so the PO and stakeholders can review and approve before any update:
+
+1. **For each story** (one at a time):
+   - **Present** the refined story in a clear, readable format:
+     - Use headings for Title, Body, Acceptance Criteria, Metrics.
+     - Use tables or panels for structured data so it is easy to scan.
+   - **Assess specification level** so the DevOps team knows if the story is ready, under-specified, or over-specified:
+     - **Under-specified**: Missing acceptance criteria, vague scope, unclear "so that" or user value. List evidence (e.g. "No AC", "Scope could mean X or Y"). Suggest what to add.
+     - **Over-specified**: Too much implementation detail, too many sub-steps for one story, or solution prescribed instead of outcome. List evidence and suggest what to trim or split.
+     - **Fit for scope and intent**: Clear persona, capability, benefit, and testable AC; appropriate size. State briefly why it is ready (and, if DoR is in use, that DoR is satisfied).
+   - **List ambiguities** or open questions (e.g. unclear scope, missing acceptance criteria, conflicting assumptions).
+   - **Ask** the PO and other stakeholders for clarification: "Please review the refined story above. Do you want any changes? Any ambiguities to resolve? Should this story be split?"
+   - **If the user provides feedback**: Re-refine the story incorporating the feedback, then repeat from "Present" for this story.
+   - **Only when the user explicitly approves** (e.g. "looks good", "approved", "no changes"): Mark this story as done and move to the **next** story.
+   - **Do not update** the backlog item (or write to the refined file as final) until the user has approved this story.
+
+2. **Formatting**:
+   - Use clear headings, bullet lists, and optional tables/panels so refinement sessions are easy to follow and enjoyable.
+   - Keep each story’s block self-contained so stakeholders can focus on one item at a time.
+
+3. **Rule**: The backlog item (or exported block) must only be updated/finalized **after** the user has approved the refined content for that story. Then proceed to the next story with the same process.
 
 ### Step 3: Present Results
 

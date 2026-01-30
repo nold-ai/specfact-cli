@@ -43,6 +43,7 @@
 - Format only: `hatch run format`
 - Type check: `hatch run type-check` (basedpyright)
 - Dev shell: `hatch shell`
+- **Faster startup**: Use `specfact --skip-checks <command>` to skip template and version checks (useful in CI or when security scanning causes delay).
 
 ## Coding Style & Naming Conventions
 
