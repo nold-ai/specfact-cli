@@ -366,7 +366,7 @@ The system SHALL support importing refined backlog content from a temporary mark
 
 #### Scenario: Import refined content from temporary file
 
-- **GIVEN** a markdown file in the same format as the export from `specfact backlog refine --export-to-tmp` (header, then per-item blocks with `## Item N:`, **ID**, **Body** in ```markdown ... ```, **Acceptance Criteria**)
+- **GIVEN** a markdown file in the same format as the export from `specfact backlog refine --export-to-tmp` (header, then per-item blocks with `## Item N:`, **ID**, **Body** in ```markdown ...```, **Acceptance Criteria**)
 - **AND** the user runs `specfact backlog refine --import-from-tmp --tmp-file <path>` with the same adapter and filters as used for export (so the same set of items is fetched)
 - **WHEN** the import file exists and is readable
 - **THEN** the system parses the file and matches each block to a fetched item by **ID**
@@ -417,3 +417,4 @@ The system SHALL support `--id ISSUE_ID` to refine only the backlog item with th
 - **GIVEN** the user runs `specfact backlog refine <adapter> --id 999` (with required adapter options)
 - **WHEN** no item with id 999 is in the fetched set
 - **THEN** the system prints a clear error (e.g. "No backlog item with id 999 found") and exits with non-zero status
+

@@ -21,7 +21,7 @@ Do not implement production code for new behavior until the corresponding tests 
 ## 2. Startup: first output before checks
 
 - [x] 2.1 Verify in `cli.py` that version line (or welcome) is printed before `print_startup_checks()`; add comment if order is correct
-- [ ] 2.2 Optional: add timeout (e.g. 3s) to `check_pypi_version()` in `startup_checks.py`
+- [x] 2.2 Optional: add timeout (e.g. 3s) to `check_pypi_version()` in `startup_checks.py`
 - [x] 2.3 Document `--skip-checks` in AGENTS.md or docs for faster startup in CI/slow environments
 - [x] 2.4 Run `hatch run format` and `hatch run type-check`; run contract and unit tests for touched files
 
@@ -41,12 +41,13 @@ Do not implement production code for new behavior until the corresponding tests 
 - [x] 4.1 Edit `resources/prompts/specfact.backlog-refine.md`: add section "Interactive refinement (Copilot mode)" with loop: present story → list ambiguities → ask clarification → re-refine until user approves → then mark done and next story; add formatting guidance for readability
 - [x] 4.2 Ensure prompt states backlog item is updated only after user approval for that story
 
-## 5. OpenSpec spec delta and docs
+## 5. Docs and release
 
-- [x] 5.1 Merge spec delta from `changes/improve-backlog-refine-and-cli-startup/specs/backlog-refinement/spec.md` into `openspec/specs/backlog-refinement/spec.md` when applying change
-- [x] 5.2 Update backlog refine docs (if any) for `--ignore-refined`, `--no-ignore-refined`, `--id`
-- [x] 5.3 Update patch version and sync across files (`pyproject.toml`, `setup.py`, `__init__.py`)
-- [x] 5.4 Update `CHANGELOG.md` with the new version number and the changes made in this change
+Specs are updated only when the change is **archived** (not during apply). Do not add tasks to merge spec delta into main spec during implementation.
+
+- [x] 5.1 Update backlog refine docs (if any) for `--ignore-refined`, `--no-ignore-refined`, `--id`
+- [x] 5.2 Update patch version and sync across files (`pyproject.toml`, `setup.py`, `__init__.py`)
+- [x] 5.3 Update `CHANGELOG.md` with the new version number and the changes made in this change
 
 ## 6. Validation and PR
 

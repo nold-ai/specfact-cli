@@ -2,15 +2,10 @@
 
 ## Why
 
-Four improvements are needed:
-
-1. **Startup delay**: On machines with security scanning (e.g. xagt), the CLI takes 5–10s before first output. Global startup checks (template validation, PyPI version check) and backlog refine init block the first message. Users need faster feedback (e.g. version line before checks).
-
-2. **Backlog refine --limit loop**: With `--limit N`, the first N items are processed; already-refined items are skipped in the loop. If the first N are all already refined, the user gets N skips every run—always the same stories. We need `--ignore-refined` (default) so limit applies to items that *need* refinement.
-
-3. **Focused refinement**: There is no way to refine a single story by ID. Users need `--id ISSUE_ID` for focused refinement.
-
-4. **Copilot interactive refinement**: The backlog-refine prompt does not instruct the AI to show each story, explain ambiguities, ask for clarification, re-refine until the user approves, then update. The experience should be interactive and stakeholder-friendly (MEB goal) at the prompt level.
+1. **Startup delay**: CLI can take 5–10s before first output (e.g. under xagt). Users need version line before any checks.
+2. **Backlog refine --limit**: With `--limit N`, if the first N items are already refined, the user gets N skips every run. We need `--ignore-refined` (default) so limit applies to items that need refinement.
+3. **Focused refinement**: No way to refine one story by ID. Add `--id ISSUE_ID`.
+4. **Copilot loop**: Prompt should instruct AI to present story → ambiguities → clarify → re-refine until approved → update (interactive, stakeholder-friendly).
 
 ## What Changes
 

@@ -1,4 +1,4 @@
-# backlog-refinement Spec Delta: Improve Backlog Refine and CLI Startup
+# backlog-refinement (delta)
 
 ## ADDED Requirements
 
