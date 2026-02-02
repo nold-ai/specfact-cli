@@ -26,5 +26,7 @@ Reporting findings is not enough; teams love tools that propose fixes they can s
 
 ## Source Tracking
 
+- **GitHub Issue**: #177
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/177>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

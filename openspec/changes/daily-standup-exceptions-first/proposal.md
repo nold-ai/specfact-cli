@@ -25,5 +25,7 @@ The archived change `daily-standup-progress-support` (#168) delivers standup vie
 
 ## Source Tracking
 
+- **GitHub Issue**: #175
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/175>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

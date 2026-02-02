@@ -29,5 +29,7 @@ Teams love tools that enforce working agreements consistently. Today DoR/DoD are
 
 ## Source Tracking
 
+- **GitHub Issue**: #176
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/176>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed
