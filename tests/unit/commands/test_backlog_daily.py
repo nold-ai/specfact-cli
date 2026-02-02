@@ -188,8 +188,9 @@ class TestBacklogDailyCli:
         """Backlog daily has --sprint and --iteration options."""
         result = runner.invoke(app, ["backlog", "daily", "--help"])
         assert result.exit_code == 0
-        assert "--sprint" in result.output
-        assert "--iteration" in result.output
+        # Help may include ANSI codes (e.g. on CI); check option names as substrings
+        assert "sprint" in result.output.lower()
+        assert "iteration" in result.output.lower()
 
     def test_daily_accepts_show_unassigned_and_unassigned_only(self) -> None:
         """Backlog daily has --show-unassigned and --unassigned-only options."""

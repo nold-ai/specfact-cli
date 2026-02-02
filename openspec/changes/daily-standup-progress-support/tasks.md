@@ -173,5 +173,5 @@ Do not implement production code for new behavior until the corresponding tests 
 
 - [x] 24.1 Ensure all changes are committed: `git add .` and `git commit -m "feat(backlog): daily standup defaults, iteration/sprint, unassigned items view"`
 - [x] 24.2 Push to remote: `git push origin feature/daily-standup-progress-support`
-- [ ] 24.3 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/daily-standup-progress-support --title "feat(backlog): daily standup defaults, iteration/sprint, unassigned items view" --body-file <path>` (use repo PR template; add OpenSpec change ID `daily-standup-progress-support` and summary; reference GitHub issue with `Fixes nold-ai/specfact-cli#168`).
-- [ ] 24.4 Verify PR and branch are linked to issue in Development section.
+- [x] 24.3 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/daily-standup-progress-support --title "feat(backlog): daily standup defaults, iteration/sprint, unassigned items view" --body-file <path>` (use repo PR template; add OpenSpec change ID `daily-standup-progress-support` and summary; reference GitHub issue with `Fixes nold-ai/specfact-cli#168`). **Created**: <https://github.com/nold-ai/specfact-cli/pull/174>
+- [x] 24.4 Verify PR and branch are linked to issue in Development section.
