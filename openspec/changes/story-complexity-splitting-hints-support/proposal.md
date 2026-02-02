@@ -10,10 +10,11 @@ The backlog-refinement spec (openspec/specs/backlog-refinement/spec.md) includes
 - **NEW**: Add splitting detection that suggests split points and rationale (e.g. by acceptance criteria or logical boundaries).
 - **EXTEND**: Integrate into **backlog refine** flow (`specfact backlog refine`): when refinement completes for a complex story, include a "Story splitting suggestion" block in the output (and in export-to-tmp format) with recommended split points and rationale. All agile/backlog features stay under the backlog command group; no top-level scrum/refine command.
 - **EXTEND**: Documentation (backlog-refinement guide, reference) for complexity and splitting hints.
+- **EXTEND** (plan E3): Splitting suggestions SHALL consider dependency edges (minimize cross-team coupling) and "blast radius" signals (modules touched, component tags when available). Provide patch output (patch-mode-preview-apply): "split proposal" as suggested child stories with titles + AC + links. **Acceptance**: Splitting recommendation includes "dependency impact" section.
 
 ## Capabilities
 
-- **story-complexity**: Complexity score (story_points, business_value), needs_splitting predicate (configurable threshold), splitting suggestion (rationale + split points), integration into refinement output/export.
+- **story-complexity**: Complexity score (story_points, business_value), needs_splitting predicate (configurable threshold), splitting suggestion (rationale + split points), integration into refinement output/export; dependency-aware splitting (edges, blast radius) and patch output for split proposal when dependency analysis and patch mode are available.
 
 ## Impact
 
