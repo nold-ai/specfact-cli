@@ -2645,6 +2645,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         "Updated item must preserve id and provider",
     )
     @beartype
+    def supports_add_comment(self) -> bool:
+        """Whether this adapter can add comments (requires token and repo)."""
+        return bool(self.api_token and self.repo_owner and self.repo_name)
+
+    @beartype
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to a GitHub issue.
@@ -2680,6 +2685,31 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return True
         except Exception:
             return False
+
+    @beartype
+    def get_comments(self, item: BacklogItem) -> list[str]:
+        """
+        Fetch comments for a GitHub issue.
+
+        Args:
+            item: BacklogItem to fetch comments for
+
+        Returns:
+            List of comment body strings, or empty list on error
+        """
+        if not self.repo_owner or not self.repo_name:
+            return []
+        issue_number: int | None = None
+        if item.id.isdigit():
+            issue_number = int(item.id)
+        elif item.url:
+            match = re.search(r"/issues/(\d+)", item.url)
+            if match:
+                issue_number = int(match.group(1))
+        if not issue_number:
+            return []
+        raw = self._get_issue_comments(self.repo_owner, self.repo_name, issue_number)
+        return [str(c.get("body", "")).strip() for c in raw if isinstance(c, dict)]
 
     def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
         """

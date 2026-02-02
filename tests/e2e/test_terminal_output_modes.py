@@ -55,8 +55,9 @@ class TestTerminalOutputE2E:
             assert mode == TerminalMode.MINIMAL
 
     def test_console_consistency(self, tmp_path: Path) -> None:
-        """Test that get_configured_console returns consistent instances."""
+        """Test that get_configured_console returns Console with consistent config."""
         console1 = get_configured_console()
         console2 = get_configured_console()
-        # Should return the same instance (cached)
-        assert console1 is console2
+        # In test mode we do not cache (avoids closed-stream refs); config should be consistent.
+        assert console1 is not None and console2 is not None
+        assert console1.width == console2.width

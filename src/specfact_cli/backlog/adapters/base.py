@@ -148,6 +148,20 @@ class BacklogAdapter(ABC):
         return None
 
     @beartype
+    @ensure(lambda result: isinstance(result, bool), "Must return boolean")
+    def supports_add_comment(self) -> bool:
+        """
+        Whether this adapter supports adding comments to backlog items.
+
+        Returns:
+            True if add_comment will attempt to post, False otherwise
+
+        Note:
+            Default is False. Override in adapters that support issue comments.
+        """
+        return False
+
+    @beartype
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to a backlog item (optional).
@@ -164,3 +178,20 @@ class BacklogAdapter(ABC):
             can use the default False implementation.
         """
         return False
+
+    @beartype
+    def get_comments(self, item: BacklogItem) -> list[str]:
+        """
+        Fetch comments for a backlog item (optional).
+
+        Args:
+            item: BacklogItem to fetch comments for
+
+        Returns:
+            List of comment body strings, or empty list if not supported or on error
+
+        Note:
+            This is an optional method. Adapters that don't support fetching comments
+            can use the default empty list implementation.
+        """
+        return []

@@ -9,6 +9,39 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.16] - 2026-02-02
+
+### Added (0.26.16)
+
+- **Daily standup and progress support** (OpenSpec change `daily-standup-progress-support`, fixes [#168](https://github.com/nold-ai/specfact-cli/issues/168))
+  - **`specfact backlog daily <adapter>`**: Standup view listing my/filtered backlog items with id, title, status, last-updated; optional standup summary lines (yesterday/today/blockers) when present in item body (parsed from `**Yesterday:**`, `**Today:**`, `**Blockers:**`).
+  - **`--assignee`, `--state`, `--labels`, `--limit`**: Filter items; assignee filter for "my items" standup.
+  - **`--post` with `--yesterday`, `--today`, `--blockers`**: Post standup comment to the first item's linked issue when the adapter supports comments (GitHub/ADO); adapters that do not support comments report clearly without attempting to post.
+  - **Adapter capability**: `BacklogAdapter.supports_add_comment()` (default `False`); GitHub and ADO adapters override to return `True` when configured; `add_comment(item, body)` used for posting.
+  - **Docs**: `docs/guides/agile-scrum-workflows.md` (daily standup bullet), `docs/guides/devops-adapter-integration.md` (standup comments).
+- **Daily standup defaults, iteration/sprint, unassigned items view** (OpenSpec change `daily-standup-progress-support`, extends [#168](https://github.com/nold-ai/specfact-cli/issues/168))
+  - **Default standup scope**: When `--state`/`--limit`/`--assignee` are not passed, defaults apply (state=open, limit=20, optional assignee from config). Configure via `SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, `SPECFACT_STANDUP_ASSIGNEE` or optional `.specfact/standup.yaml`; CLI options override config/env.
+  - **`--iteration` and `--sprint`**: Filter standup view to current iteration/sprint when adapter supports it (e.g. ADO); pass-through to fetch and filters. Sprint/iteration end date displayed when provided by adapter or config (`standup.sprint_end_date`, `SPECFACT_STANDUP_SPRINT_END`).
+  - **Unassigned/pending items**: Second table **Pending / open for commitment** with unassigned items (same scope); `--show-unassigned`/`--no-show-unassigned` (default true), `--unassigned-only` to show only unassigned.
+  - **`--blockers-first`**: Sort so items with non-empty blockers appear first. Optional priority/value column when `show_priority` or `show_value` in standup config and BacklogItem has priority/business_value (value-driven/SAFe).
+  - **Docs**: `docs/guides/agile-scrum-workflows.md` (daily standup: default scope, iteration/sprint, unassigned, blockers-first, priority, Kanban vs Scrum/SAFe, out-of-scope); `docs/guides/devops-adapter-integration.md` (standup config, iteration/sprint and sprint end date per adapter, blockers-first/priority, sprint goal in board/sprint settings).
+- **Interactive step-by-step review and Copilot export** (OpenSpec change `daily-standup-progress-support`, extends [#168](https://github.com/nold-ai/specfact-cli/issues/168))
+  - **`--interactive`**: Step-by-step review with arrow-key selection (questionary): pick a story to view full detail (refine-like: description, acceptance criteria, standup fields, comments from adapter when available); navigation: Next story, Previous story, Back to list, Exit. Complementary to the backlog; not a replacement.
+  - **`--copilot-export <path>`**: Write summarized progress per story (same scope as daily) to a Markdown file for Copilot slash-command use during standup; one section per item (ID, title, status, assignees, last updated, progress, blockers, optional value score).
+  - **`--suggest-next`**: In interactive mode, show suggested next item by value score (business_value / max(1, story_points × priority)) for pending items.
+  - **Adapter**: Optional `get_comments(item)` on BacklogAdapter (default `[]`); GitHub adapter implements to fetch issue comments for interactive detail view.
+  - **Docs**: `docs/guides/agile-scrum-workflows.md` (interactive review, Copilot export); `docs/guides/devops-adapter-integration.md` (comment fetch, value score/suggestions).
+- **Project backlog context** (OpenSpec change `daily-standup-progress-support`, extends [#168](https://github.com/nold-ai/specfact-cli/issues/168))
+  - **`.specfact/backlog.yaml`**: Store org/project per adapter (e.g. `github.repo_owner`, `github.repo_name`; `ado.org`, `ado.project`, `ado.team`); no tokens; resolution order: CLI args > env (`SPECFACT_GITHUB_REPO_OWNER`, `SPECFACT_ADO_ORG`, etc.) > file. Used by all backlog commands (daily, refine, sync bridge) so adapter context can be omitted after one-time config.
+  - **Git remote inference**: When org/repo or org/project are still missing after CLI/env/config, infer from `git remote get-url origin` when run from a clone (GitHub HTTPS/SSH; ADO HTTPS, SSH with keys `git@ssh.dev.azure.com:v3/...`, other SSH `user@dev.azure.com:v3/...`). Clear error with guidance if inference fails.
+  - **Docs**: `docs/guides/devops-adapter-integration.md` (project backlog context, git fallback); tutorial and agile-scrum updated for auto-detect.
+- **Daily standup: slash prompt, summarize, and tutorial** (OpenSpec change `daily-standup-progress-support`, extends [#168](https://github.com/nold-ai/specfact-cli/issues/168))
+  - **`resources/prompts/specfact.backlog-daily.md`**: Slash-command prompt for interactive walkthrough with DevOps team (story-by-story, current focus, issues/open questions, discussion notes as comments); use as `specfact.daily` or `specfact.backlog-daily`.
+  - **`--summarize`** (stdout) and **`--summarize-to <path>`**: Output a prompt (instruction + filter context + standup data) for slash command or Copilot to generate a standup summary. Per-item data includes **body (description)** and **comments (annotations)** when adapter supports `get_comments`; wrapped in `--- BEGIN STANDUP PROMPT ---` / `--- END STANDUP PROMPT ---` for extraction. Command returns after output (no standup tables when summarizing).
+  - **Tutorial**: `docs/getting-started/tutorial-daily-standup-sprint-review.md`; linked in `docs/_layouts/default.html` and `docs/index.md`.
+
+---
+
 ## [0.26.15] - 2026-01-30
 
 ### Added (0.26.15)
