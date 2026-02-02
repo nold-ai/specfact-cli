@@ -2,9 +2,11 @@
 
 ## Why
 
+
 Bridge comments and sync already support exporting/updating change proposals and issues. For daily standup there is no structured "standup" view that aggregates my items, recent activity, and blockers; progress/standup notes are not first-class (e.g. yesterday/today/blockers format) that could be pushed to issue comments. Teams duplicate standup info in tools; SpecFact can surface progress from OpenSpec/bridge and optionally publish to GitHub/ADO so standup updates are visible where the team works. Daily standups should focus on current iteration/sprint, unassigned work for commitment, and early visibility of blockers and time-critical items so DevOps teams can deliver the right features.
 
 ## What Changes
+
 
 - **NEW**: Add a lightweight standup/progress view under the backlog command group: list my change proposals or backlog items (by assignee or filter), with last-updated and status; optional one-line summary for yesterday/today/blockers from proposal or linked issue body. Expose as `specfact backlog daily` (no top-level `specfact standup`).
 - **NEW**: Optional mode to post standup summary as a comment on linked issues via `specfact backlog daily` (e.g. `--post`) or reuse of `specfact sync bridge --add-progress-comment` with standup format (e.g. GitHub issue comment).
@@ -22,7 +24,6 @@ Bridge comments and sync already support exporting/updating change proposals and
 - **NEW**: `--summarize` flag: when set, the CLI produces a **prompt** (instructions plus applied filters and filtered standup output) suitable for use in an interactive slash-command prompt (e.g. `specfact.daily`) or copy-paste to Copilot, so an LLM can generate a meaningful **summary of the daily standup status**. Output includes filter context (adapter, state, sprint, assignee, limit) and the same per-item data as `--copilot-export`; format is prompt-ready for "generate a standup summary from this data."
 
 ## Capabilities
-
 - **daily-standup**: Standup view (list my/filtered items with status and last activity; optional standup summary lines; default scope for state/assignee/limit; current iteration/sprint and sprint end date when supported; separate unassigned/pending items for commitment; optional blockers-first and priority/value for time-critical and value-driven focus; Kanban/Scrum/SAFe usage) and optional post standup comment to linked issue via adapter.
 - **daily-standup-interactive**: Interactive selection (arrow-key, e.g. questionary) for step-by-step walkthrough of user stories in scope; per-item detail view (refine-like: description, acceptance criteria, progress, existing comments); optional next-best-item suggestion using value score (e.g. business value / (story points × priority)) when sprint goal/complexity/value/priority are available; alignment with sprint goal when defined and available.
 - **daily-standup-copilot-export**: Export to file (e.g. `--copilot-export <path>`) of summarized progress per story (active/blocked/todo in current iteration/sprint) for Copilot slash-command use during standup—next steps and current progress per story for team discussion; complementary aid, not replacement for backlog.
@@ -30,24 +31,12 @@ Bridge comments and sync already support exporting/updating change proposals and
 - **daily-standup-prompt**: Slash-command prompt file `specfact.backlog-daily.md` for interactive walkthrough with DevOps team (story-by-story, current focus, issues/open questions, discussion notes as comments); usable as `specfact.daily` or `specfact.backlog-daily`.
 - **daily-standup-summarize**: `--summarize` flag outputs a prompt (filters + filtered standup data) for slash command or Copilot to generate a standup summary.
 
-## Impact
-
-- **Affected specs**: `openspec/changes/daily-standup-progress-support/specs/daily-standup/spec.md` (Given/When/Then for standup view, comment, interactive selection, Copilot export).
-- **Affected code**: `src/specfact_cli/commands/` (extend backlog command group with `backlog daily` for standup view, optional comment post, `--interactive`, `--copilot-export`, `--summarize`); `_load_backlog_config()` and `_build_adapter_kwargs()`; bridge/adapters; reuse comment-fetch and refine-detail logic for interactive and export. **Affected resources**: `resources/prompts/specfact.backlog-daily.md` (new prompt for slash command / interactive team walkthrough).
-- **Affected documentation** (<https://docs.specfact.io>): docs/guides/agile-scrum-workflows.md, docs/guides/devops-adapter-integration.md for daily standup workflow, interactive review, and Copilot export; **docs/getting-started/tutorial-daily-standup-sprint-review.md** (new tutorial); **docs/_layouts/default.html** (sidebar) and **docs/index.md** (Quick Start and DevOps section) updated to include the daily standup tutorial. Git remote auto-detect is documented for both GitHub and Azure DevOps (ADO SSH keys: `git@ssh.dev.azure.com:v3/...`; other SSH: `user@dev.azure.com:v3/...`; HTTPS unchanged).
-- **Integration points**: Existing `specfact sync bridge`, GitHub/ADO adapters; OpenSpec change proposals and backlog items.
-- **Backward compatibility**: Additive only; existing sync/bridge behavior unchanged unless user opts into standup view, comment post, interactive mode, or Copilot export.
-
-## Out of scope / Nice to have (not in this change)
-
-- **Stale / at-risk items** (e.g. "no update in N days"): Not a requirement; many teams get what they need from "last updated" + blockers. May be addressed as future work.
-- **Sprint goal**: Not displayed or edited by this change; when adapter or config provides sprint goal, interactive/export may use it for alignment hint only (optional). Users see sprint goal in their board/sprint settings.
-- **Structured "blocked by"** (e.g. link to another issue): Only free-text blockers are in scope; BacklogItem has no first-class `blocked_by`. Acceptable for typical standups.
-- **Replacement for backlog**: This change is a complementary aid and guidance for standups; it does not replace the backlog or board.
+---
 
 ## Source Tracking
 
+<!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #168
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/168>
-- **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed
+<!-- content_hash: 0908d647c2941d20 -->
