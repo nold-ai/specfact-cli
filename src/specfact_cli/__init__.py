@@ -9,6 +9,6 @@ This package provides command-line tools for:
 - Validating reproducibility
 """
 
-__version__ = "0.26.16"
+__version__ = "0.26.17"
 
 __all__ = ["__version__"]

@@ -20,6 +20,7 @@ Scenarios from openspec/changes/daily-standup-progress-support/specs/daily-stand
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -42,6 +43,12 @@ from specfact_cli.models.backlog_item import BacklogItem
 
 
 runner = CliRunner()
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from CLI output."""
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def _item(
@@ -388,6 +395,27 @@ class TestBuildCopilotExportContent:
         assert "Title" in content
         assert "- " in content or "* " in content or "\n" in content
 
+    def test_copilot_export_includes_description_and_comments_when_enabled(self) -> None:
+        """When enabled, Copilot export includes description and comment annotations."""
+        items = [
+            _item(
+                "1",
+                "Story one",
+                state="open",
+                body_markdown="This is the issue description and context.",
+            ),
+        ]
+        comments_by_id = {"1": ["Comment from Alice: In progress.", "Comment from Bob: Blocked on API."]}
+        content = _build_copilot_export_content(
+            items,
+            include_value_score=False,
+            include_comments=True,
+            comments_by_item_id=comments_by_id,
+        )
+        assert "Description" in content and "issue description" in content
+        assert "Comments" in content or "annotations" in content
+        assert "In progress" in content and "Blocked on API" in content
+
 
 class TestFormatDailyItemDetail:
     """Scenario: Interactive detail view refine-like (13.1)."""
@@ -428,6 +456,13 @@ class TestBacklogDailyInteractiveAndExportOptions:
         result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
         assert result.exit_code == 0
         assert "summarize" in result.output.lower()
+
+    def test_daily_help_shows_comment_annotations(self) -> None:
+        """Backlog daily has --comments/--annotations option for exports."""
+        result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
+        assert result.exit_code == 0
+        output = _strip_ansi(result.output)
+        assert "--comments" in output or "--annotations" in output
 
 
 class TestBuildSummarizePromptContent:

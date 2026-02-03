@@ -378,20 +378,66 @@ def _format_daily_item_detail(item: BacklogItem, comments: list[str]) -> str:
     return "\n".join(parts)
 
 
+def _collect_comment_annotations(
+    adapter: str,
+    items: list[BacklogItem],
+    *,
+    repo_owner: str | None,
+    repo_name: str | None,
+    github_token: str | None,
+    ado_org: str | None,
+    ado_project: str | None,
+    ado_token: str | None,
+) -> dict[str, list[str]]:
+    """
+    Collect comment annotations for backlog items when the adapter supports get_comments().
+
+    Returns a mapping of item ID -> list of comment strings. Returns empty dict if not supported.
+    """
+    comments_by_item_id: dict[str, list[str]] = {}
+    try:
+        adapter_kwargs = _build_adapter_kwargs(
+            adapter,
+            repo_owner=repo_owner,
+            repo_name=repo_name,
+            github_token=github_token,
+            ado_org=ado_org,
+            ado_project=ado_project,
+            ado_token=ado_token,
+        )
+        registry = AdapterRegistry()
+        adapter_instance = registry.get_adapter(adapter, **adapter_kwargs)
+        if not isinstance(adapter_instance, BacklogAdapter):
+            return comments_by_item_id
+        get_comments_fn = getattr(adapter_instance, "get_comments", None)
+        if not callable(get_comments_fn):
+            return comments_by_item_id
+        for item in items:
+            with contextlib.suppress(Exception):
+                raw = get_comments_fn(item)
+                comments_by_item_id[item.id] = list(raw) if isinstance(raw, list) else []
+    except Exception:
+        return comments_by_item_id
+    return comments_by_item_id
+
+
 @beartype
 def _build_copilot_export_content(
     items: list[BacklogItem],
     include_value_score: bool = False,
+    include_comments: bool = False,
+    comments_by_item_id: dict[str, list[str]] | None = None,
 ) -> str:
     """
     Build Markdown content for Copilot export: one section per item.
 
     Per item: ID, title, status, assignees, last updated, progress summary (standup fields),
-    blockers, and optionally value score.
+    blockers, optional value score, and optionally description/comments when enabled.
     """
     lines: list[str] = []
     lines.append("# Daily standup – Copilot export")
     lines.append("")
+    comments_map = comments_by_item_id or {}
     for item in items:
         lines.append(f"## {item.id} - {item.title}")
         lines.append("")
@@ -402,11 +448,26 @@ def _build_copilot_export_content(
             item.updated_at.strftime("%Y-%m-%d %H:%M") if hasattr(item.updated_at, "strftime") else str(item.updated_at)
         )
         lines.append(f"- **Last updated:** {updated}")
+        if include_comments:
+            body = (item.body_markdown or "").strip()
+            if body:
+                snippet = body[:_SUMMARIZE_BODY_TRUNCATE]
+                if len(body) > _SUMMARIZE_BODY_TRUNCATE:
+                    snippet += "\n..."
+                lines.append("- **Description:**")
+                for line in snippet.splitlines():
+                    lines.append(f"  {line}" if line else "  ")
         yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
         if yesterday or today:
             lines.append(f"- **Progress:** Yesterday: {yesterday or '—'}; Today: {today or '—'}")
         if blockers:
             lines.append(f"- **Blockers:** {blockers}")
+        if include_comments:
+            item_comments = comments_map.get(item.id, [])
+            if item_comments:
+                lines.append("- **Comments (annotations):**")
+                for c in item_comments:
+                    lines.append(f"  - {c}")
         if item.story_points is not None:
             lines.append(f"- **Story points:** {item.story_points}")
         if item.priority is not None:
@@ -559,7 +620,7 @@ def _run_interactive_daily(
             console.print(Panel(detail, title=f"Story: {item.id}", border_style="cyan"))
 
             if suggest_next and n > 1:
-                pending = [i for i in items if not i.assignees or item.story_points is not None]
+                pending = [i for i in items if not i.assignees or i.story_points is not None]
                 if pending:
                     best: BacklogItem | None = None
                     best_score: float = -1.0
@@ -1030,6 +1091,12 @@ def daily(
         "--copilot-export",
         help="Write summarized progress per story to a file for Copilot slash-command use during standup.",
     ),
+    include_comments: bool = typer.Option(
+        False,
+        "--comments",
+        "--annotations",
+        help="Include item comments/annotations in summarize/copilot export (adapter must support get_comments).",
+    ),
     summarize: bool = typer.Option(
         False,
         "--summarize",
@@ -1118,10 +1185,28 @@ def daily(
         console.print("[yellow]No backlog items found.[/yellow]")
         return
 
+    comments_by_item_id: dict[str, list[str]] = {}
+    if include_comments and (copilot_export is not None or summarize or summarize_to is not None):
+        comments_by_item_id = _collect_comment_annotations(
+            adapter,
+            filtered,
+            repo_owner=repo_owner,
+            repo_name=repo_name,
+            github_token=github_token,
+            ado_org=ado_org,
+            ado_project=ado_project,
+            ado_token=ado_token,
+        )
+
     if copilot_export is not None:
         include_score = suggest_next or bool(standup_config.get("suggest_next"))
         export_path = Path(copilot_export)
-        content = _build_copilot_export_content(filtered, include_value_score=include_score)
+        content = _build_copilot_export_content(
+            filtered,
+            include_value_score=include_score,
+            include_comments=include_comments,
+            comments_by_item_id=comments_by_item_id or None,
+        )
         export_path.write_text(content, encoding="utf-8")
         console.print(f"[dim]Exported {len(filtered)} item(s) to {export_path}[/dim]")
 
@@ -1134,27 +1219,6 @@ def daily(
             "assignee": effective_assignee or "—",
             "limit": effective_limit,
         }
-        comments_by_item_id: dict[str, list[str]] = {}
-        try:
-            adapter_kwargs_sum = _build_adapter_kwargs(
-                adapter,
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                github_token=github_token,
-                ado_org=ado_org,
-                ado_project=ado_project,
-                ado_token=ado_token,
-            )
-            registry_sum = AdapterRegistry()
-            adapter_instance_sum = registry_sum.get_adapter(adapter, **adapter_kwargs_sum)
-            get_comments_fn = getattr(adapter_instance_sum, "get_comments", None)
-            if callable(get_comments_fn):
-                for it in filtered:
-                    with contextlib.suppress(Exception):
-                        raw = get_comments_fn(it)
-                        comments_by_item_id[it.id] = list(raw) if isinstance(raw, list) else []
-        except Exception:
-            pass
         content = _build_summarize_prompt_content(
             filtered,
             filter_context=filter_ctx,
