@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+import re
 from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
@@ -42,6 +43,12 @@ from specfact_cli.models.backlog_item import BacklogItem
 
 
 runner = CliRunner()
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from CLI output."""
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def _item(
@@ -454,7 +461,8 @@ class TestBacklogDailyInteractiveAndExportOptions:
         """Backlog daily has --comments/--annotations option for exports."""
         result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
         assert result.exit_code == 0
-        assert "--comments" in result.output or "--annotations" in result.output
+        output = _strip_ansi(result.output)
+        assert "--comments" in output or "--annotations" in output
 
 
 class TestBuildSummarizePromptContent:
