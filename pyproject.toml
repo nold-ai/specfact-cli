@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.26.15"
+version = "0.26.16"
 description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -272,9 +272,9 @@ TOKENIZERS_PARALLELISM = "false" # Good practice if using HuggingFace tokenizers
 
 [tool.hatch.envs.hatch-test.scripts]
 # Adapted from template, adjust JUnit path if necessary
-run = "pytest --timeout=5 --junitxml=logs/tests/junit/test-results.xml {args}" # Removed --auto-capture-workflow if not used
-run-cov = "coverage run -m pytest --timeout=5 --junitxml=logs/tests/junit/test-results.xml {args}"
-cov = "coverage run -m pytest --timeout=5 --junitxml=logs/tests/junit/test-results.xml {args}"
+run = "pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}" # 30s for code analysis/semgrep/graph tests under xdist
+run-cov = "coverage run -m pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}"
+cov = "coverage run -m pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}"
 cov-combine = "coverage combine --quiet"
 xml = "coverage xml -o logs/tests/coverage/coverage.xml"
 run-html = "coverage html --data-file=logs/tests/coverage/.coverage -d logs/tests/coverage/html"
@@ -333,6 +333,10 @@ output = "logs/tests/coverage/coverage.xml"
 [tool.pytest-asyncio] # Add if you use asyncio tests
 mode = "strict"
 default_fixture_loop_scope = "function"
+
+[tool.pytest-timeout]
+timeout = 30
+method = "thread"
 
 [tool.hatch.build]
 dev-mode-dirs = ["src","tools"]

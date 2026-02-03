@@ -19,6 +19,7 @@ SpecFact CLI supports **bidirectional synchronization** between OpenSpec change 
 
 - **Issue Creation**: Export OpenSpec change proposals as GitHub Issues (or other DevOps backlog items)
 - **Progress Tracking**: Automatically detect code changes and add progress comments to issues
+- **Standup Comments**: Use `specfact backlog daily --post` with `--yesterday`, `--today`, `--blockers` to post a standup summary as a comment on the linked issue (GitHub/ADO adapters that support comments). Standup config: set defaults via env (`SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, `SPECFACT_STANDUP_ASSIGNEE`, `SPECFACT_STANDUP_SPRINT_END`) or optional `.specfact/standup.yaml` (e.g. `default_state`, `limit`, `sprint`, `show_priority`, `suggest_next`). Iteration/sprint and sprint end date support depend on the adapter (ADO supports current iteration and iteration path; see adapter docs). Use `--blockers-first` and config `show_priority`/`show_value` for time-critical and value-driven standups. **Interactive review** (`--interactive`): step-through stories with arrow-key selection; detail view shows **existing comments annotated to each issue** when the adapter implements `get_comments(item)` (GitHub adapter supports it). **Value score / suggested next**: when BacklogItem has `story_points`, `business_value`, and `priority`, use `--suggest-next` or config `suggest_next` to show suggested next item (business_value / (story_points × priority)). **Standup summary prompt** (`--summarize` or `--summarize-to PATH`): output a prompt (instruction + filter context + standup data) for slash command or Copilot to generate a standup summary. **Slash prompt** `specfact.backlog-daily` (or `specfact.daily`): use with IDE/Copilot for interactive team walkthrough story-by-story (current focus, issues/open questions, discussion notes as comments); prompt file at `resources/prompts/specfact.backlog-daily.md`. **Sprint goal** is stored in your board/sprint settings and is not displayed or edited by the CLI.
 - **Content Sanitization**: Protect internal information when syncing to public repositories
 - **Separate Repository Support**: Handle cases where OpenSpec proposals and source code are in different repositories
 
@@ -191,6 +192,56 @@ specfact sync bridge --adapter github --mode export-only \
   --change-ids add-feature-x,update-api \
   --repo /path/to/openspec-repo
 ```
+
+### Project backlog context (.specfact/backlog.yaml)
+
+Store project-level adapter context (org, repo, project per adapter) so you do not have to pass `--repo-owner`, `--repo-name`, `--ado-org`, `--ado-project`, or `--ado-team` on every backlog command after authenticating once.
+
+**Resolution order**: Explicit CLI options override environment variables; environment variables override the config file. **Tokens are never read from the file**—only from CLI or env.
+
+**Config search path**: `SPECFACT_CONFIG_DIR` (if set) or `.specfact/` in the current working directory. File name: `backlog.yaml`.
+
+**File format** (YAML; optional top-level `backlog` key for nesting):
+
+```yaml
+# Optional: wrap under top-level key
+backlog:
+  github:
+    repo_owner: your-org
+    repo_name: your-repo
+  ado:
+    org: your-org
+    project: YourProject
+    team: Your Team
+```
+
+Or without the top-level key:
+
+```yaml
+github:
+  repo_owner: your-org
+  repo_name: your-repo
+ado:
+  org: your-org
+  project: YourProject
+  team: Your Team
+```
+
+**Environment variables** (override file; CLI overrides env):
+
+| Adapter | Env vars |
+|--------|----------|
+| GitHub | `SPECFACT_GITHUB_REPO_OWNER`, `SPECFACT_GITHUB_REPO_NAME` |
+| Azure DevOps | `SPECFACT_ADO_ORG`, `SPECFACT_ADO_PROJECT`, `SPECFACT_ADO_TEAM` |
+
+**Git fallback (auto-detect from clone)**:
+
+- **GitHub**: When repo is not set via CLI, env, or file, SpecFact infers `repo_owner` and `repo_name` from `git remote get-url origin` when run inside a **GitHub** clone (e.g. `https://github.com/owner/repo` or `git@github.com:owner/repo.git`). No `--repo-owner`/`--repo-name` needed when you run from the repo root.
+- **Azure DevOps**: When org/project are not set via CLI, env, or file, SpecFact infers `org` and `project` from the remote URL when run inside an **ADO** clone. Supported formats: `https://dev.azure.com/org/project/_git/repo`; SSH with keys: `git@ssh.dev.azure.com:v3/org/project/repo`; SSH without keys (other auth): `user@dev.azure.com:v3/org/project/repo` (no `ssh.` subdomain). No `--ado-org`/`--ado-project` needed when you run from the repo root.
+
+So after authenticating once, **running from the repo root is enough** for both GitHub and ADO—org/repo or org/project are detected automatically from the git remote.
+
+Applies to all backlog commands: `specfact backlog daily`, `specfact backlog refine`, `specfact sync bridge`, etc.
 
 ---
 

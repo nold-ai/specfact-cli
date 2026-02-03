@@ -19,6 +19,14 @@ from icontract import ensure, require
 # Add TRACE level (5) - more detailed than DEBUG (10)
 logging.addLevelName(5, "TRACE")
 
+
+def _safe_console_stream() -> Any:
+    """Return a stream for console logging that is not closed by pytest/CliRunner capture."""
+    if os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST"):
+        return sys.__stdout__
+    return sys.stdout
+
+
 # Circular dependency protection flag
 # Note: Platform base infrastructure removed for lean CLI
 # The logger setup is now standalone without agent-system dependencies
@@ -340,7 +348,7 @@ class LoggerSetup:
             file_handler.setFormatter(formatter)
             file_handler.setLevel(logging.INFO)
             # Also stream to console so run_local.sh can colorize per agent
-            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler = logging.StreamHandler(_safe_console_stream())
             console_handler.setFormatter(formatter)
             console_handler.setLevel(logging.INFO)
 
@@ -507,7 +515,7 @@ class LoggerSetup:
             log_queue = Queue(-1)
             cls._log_queues[logger_name] = log_queue
 
-            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler = logging.StreamHandler(_safe_console_stream())
             console_handler.setFormatter(log_format)
             console_handler.setLevel(level)
 
@@ -520,7 +528,7 @@ class LoggerSetup:
 
         # Add a console handler for non-test environments or when no file is specified
         if "pytest" not in sys.modules and not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler = logging.StreamHandler(_safe_console_stream())
             console_handler.setFormatter(log_format)
             console_handler.setLevel(level)
             logger.addHandler(console_handler)

@@ -36,14 +36,24 @@ This tutorial walks agile DevOps teams through integrating SpecFact CLI backlog 
 
 ## Step 1: Run Backlog Refine and Get Items
 
-From your repo root (or where your backlog lives):
+From your **repo root** (or where your backlog lives):
 
 ```bash
-# GitHub: fetch open items that need refinement (default: ignore already-refined)
-specfact backlog refine github --repo-owner OWNER --repo-name REPO --search "is:open label:feature" --limit 5 --preview
+# GitHub: org/repo are auto-detected from git remote when run from a GitHub clone
+specfact backlog refine github --search "is:open label:feature" --limit 5 --preview
 
 # Or export to a temp file for your AI IDE to process (recommended for interactive loop)
-specfact backlog refine github --repo-owner OWNER --repo-name REPO --export-to-tmp --search "is:open label:feature" --limit 5
+specfact backlog refine github --export-to-tmp --search "is:open label:feature" --limit 5
+```
+
+**Auto-detect from clone**: When you run from a **GitHub** clone (e.g. `https://github.com/owner/repo` or `git@github.com:owner/repo.git`), SpecFact infers `repo_owner` and `repo_name` from `git remote get-url origin`—no `--repo-owner`/`--repo-name` needed. When you run from an **Azure DevOps** clone (e.g. `https://dev.azure.com/org/project/_git/repo`; SSH keys: `git@ssh.dev.azure.com:v3/org/project/repo`; other SSH: `user@dev.azure.com:v3/org/project/repo`), org and project are inferred. Override with `.specfact/backlog.yaml`, env vars (`SPECFACT_GITHUB_REPO_OWNER`, `SPECFACT_ADO_ORG`, etc.), or CLI options when not in the repo or to override.
+
+If you're **not** in a clone, pass adapter context explicitly:
+
+```bash
+specfact backlog refine github --repo-owner OWNER --repo-name REPO --search "is:open label:feature" --limit 5 --preview
+# or ADO:
+specfact backlog refine ado --ado-org ORG --ado-project PROJECT --state Active --limit 5 --preview
 ```
 
 - Use `--ignore-refined` (default) so `--limit` applies to items that **need** refinement
@@ -116,10 +126,11 @@ When you’re satisfied with the refined content:
 
 ```bash
 # If you used --export-to-tmp, save the refined file as ...-refined.md, then:
-specfact backlog refine github --repo-owner OWNER --repo-name REPO --import-from-tmp --write
+# (From repo root, org/repo or org/project are auto-detected from git remote)
+specfact backlog refine github --import-from-tmp --write
 
 # Or run refine interactively with --write (use with care; confirm each item)
-specfact backlog refine github --repo-owner OWNER --repo-name REPO --write --labels feature --limit 3
+specfact backlog refine github --write --labels feature --limit 3
 ```
 
 Use `--preview` (default) until you’re confident; use `--write` only when you want to update the remote backlog.

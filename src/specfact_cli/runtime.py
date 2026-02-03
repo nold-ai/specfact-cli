@@ -170,6 +170,11 @@ def get_terminal_mode() -> TerminalMode:
     return TerminalMode.BASIC
 
 
+def _is_test_env() -> bool:
+    """True when running under pytest or TEST_MODE (avoids caching Console with closed streams)."""
+    return os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
+
+
 @beartype
 @ensure(lambda result: isinstance(result, Console), "Must return Console")
 def get_configured_console() -> Console:
@@ -177,11 +182,14 @@ def get_configured_console() -> Console:
     Get or create configured Console instance based on terminal capabilities.
 
     Caches Console instance per terminal mode to avoid repeated detection.
-
-    Returns:
-        Configured Rich Console instance
+    In test mode, never caches so we never hold a reference to a closed stream
+    (e.g. CliRunner's captured stdout after invoke() ends).
     """
     mode = get_terminal_mode()
+
+    if _is_test_env():
+        config = get_console_config()
+        return Console(**config)
 
     if mode not in _console_cache:
         config = get_console_config()

@@ -13,22 +13,26 @@ SpecFact CLI Architecture:
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
+import subprocess
 import sys
 import tempfile
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import typer
 import yaml
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Confirm
+from rich.table import Table
 
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.backlog.adapters.base import BacklogAdapter
@@ -131,6 +135,456 @@ def _apply_filters(
     return filtered
 
 
+def _parse_standup_from_body(body: str) -> tuple[str | None, str | None, str | None]:
+    """Extract yesterday/today/blockers lines from body (standup format)."""
+    yesterday: str | None = None
+    today: str | None = None
+    blockers: str | None = None
+    if not body:
+        return yesterday, today, blockers
+    for line in body.splitlines():
+        line_stripped = line.strip()
+        if re.match(r"^\*\*[Yy]esterday(?:\*\*|:)\s*\*\*\s*", line_stripped):
+            yesterday = re.sub(r"^\*\*[Yy]esterday(?:\*\*|:)\s*\*\*\s*", "", line_stripped).strip()
+        elif re.match(r"^\*\*[Tt]oday(?:\*\*|:)\s*\*\*\s*", line_stripped):
+            today = re.sub(r"^\*\*[Tt]oday(?:\*\*|:)\s*\*\*\s*", "", line_stripped).strip()
+        elif re.match(r"^\*\*[Bb]lockers?(?:\*\*|:)\s*\*\*\s*", line_stripped):
+            blockers = re.sub(r"^\*\*[Bb]lockers?(?:\*\*|:)\s*\*\*\s*", "", line_stripped).strip()
+    return yesterday, today, blockers
+
+
+def _load_standup_config() -> dict[str, Any]:
+    """Load standup config from env and optional .specfact/standup.yaml. Env overrides file."""
+    config: dict[str, Any] = {}
+    config_dir = os.environ.get("SPECFACT_CONFIG_DIR")
+    search_paths: list[Path] = []
+    if config_dir:
+        search_paths.append(Path(config_dir))
+    search_paths.append(Path.cwd() / ".specfact")
+    for base in search_paths:
+        path = base / "standup.yaml"
+        if path.is_file():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                config = dict(data.get("standup", data))
+            except Exception:
+                pass
+            break
+    if os.environ.get("SPECFACT_STANDUP_STATE"):
+        config["default_state"] = os.environ["SPECFACT_STANDUP_STATE"]
+    if os.environ.get("SPECFACT_STANDUP_LIMIT"):
+        with contextlib.suppress(ValueError):
+            config["limit"] = int(os.environ["SPECFACT_STANDUP_LIMIT"])
+    if os.environ.get("SPECFACT_STANDUP_ASSIGNEE"):
+        config["default_assignee"] = os.environ["SPECFACT_STANDUP_ASSIGNEE"]
+    return config
+
+
+def _load_backlog_config() -> dict[str, Any]:
+    """Load project backlog context from .specfact/backlog.yaml (no secrets).
+    Same search path as standup: SPECFACT_CONFIG_DIR then .specfact in cwd.
+    When file has top-level 'backlog' key, that nested structure is returned.
+    """
+    config: dict[str, Any] = {}
+    config_dir = os.environ.get("SPECFACT_CONFIG_DIR")
+    search_paths: list[Path] = []
+    if config_dir:
+        search_paths.append(Path(config_dir))
+    search_paths.append(Path.cwd() / ".specfact")
+    for base in search_paths:
+        path = base / "backlog.yaml"
+        if path.is_file():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                if isinstance(data, dict) and "backlog" in data:
+                    nested = data["backlog"]
+                    config = dict(nested) if isinstance(nested, dict) else {}
+                else:
+                    config = dict(data) if isinstance(data, dict) else {}
+            except Exception:
+                pass
+            break
+    return config
+
+
+@beartype
+def _resolve_standup_options(
+    cli_state: str | None,
+    cli_limit: int | None,
+    cli_assignee: str | None,
+    config: dict[str, Any] | None,
+) -> tuple[str, int, str | None]:
+    """
+    Resolve effective state, limit, assignee from CLI options and config.
+    CLI options override config; config overrides built-in defaults.
+    Returns (state, limit, assignee).
+    """
+    cfg = config or _load_standup_config()
+    default_state = str(cfg.get("default_state", "open"))
+    default_limit = int(cfg.get("limit", 20)) if cfg.get("limit") is not None else 20
+    default_assignee = cfg.get("default_assignee")
+    if default_assignee is not None:
+        default_assignee = str(default_assignee)
+    state = cli_state if cli_state is not None else default_state
+    limit = cli_limit if cli_limit is not None else default_limit
+    assignee = cli_assignee if cli_assignee is not None else default_assignee
+    return (state, limit, assignee)
+
+
+@beartype
+def _split_assigned_unassigned(items: list[BacklogItem]) -> tuple[list[BacklogItem], list[BacklogItem]]:
+    """Split items into assigned and unassigned (assignees empty or None)."""
+    assigned: list[BacklogItem] = []
+    unassigned: list[BacklogItem] = []
+    for item in items:
+        if item.assignees:
+            assigned.append(item)
+        else:
+            unassigned.append(item)
+    return (assigned, unassigned)
+
+
+def _format_sprint_end_header(end_date: date) -> str:
+    """Format sprint end date as 'Sprint ends: YYYY-MM-DD (N days)'."""
+    today = date.today()
+    delta = (end_date - today).days
+    return f"Sprint ends: {end_date.isoformat()} ({delta} days)"
+
+
+@beartype
+def _sort_standup_rows_blockers_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sort standup rows so items with non-empty blockers appear first."""
+    with_blockers = [r for r in rows if (r.get("blockers") or "").strip()]
+    without = [r for r in rows if not (r.get("blockers") or "").strip()]
+    return with_blockers + without
+
+
+@beartype
+def _build_standup_rows(
+    items: list[BacklogItem],
+    include_priority: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Build standup view rows from backlog items (id, title, status, last_updated, optional yesterday/today/blockers).
+    When include_priority is True and item has priority/business_value, add to row.
+    """
+    rows: list[dict[str, Any]] = []
+    for item in items:
+        yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
+        row: dict[str, Any] = {
+            "id": item.id,
+            "title": item.title,
+            "status": item.state,
+            "last_updated": item.updated_at,
+            "yesterday": yesterday or "",
+            "today": today or "",
+            "blockers": blockers or "",
+        }
+        if include_priority and item.priority is not None:
+            row["priority"] = item.priority
+        elif include_priority and item.business_value is not None:
+            row["priority"] = item.business_value
+        rows.append(row)
+    return rows
+
+
+@beartype
+def _format_standup_comment(yesterday: str, today: str, blockers: str) -> str:
+    """Format standup text as a comment (Yesterday / Today / Blockers) with date prefix."""
+    prefix = f"Standup {date.today().isoformat()}"
+    parts = [prefix, ""]
+    if yesterday:
+        parts.append(f"**Yesterday:** {yesterday}")
+    if today:
+        parts.append(f"**Today:** {today}")
+    if blockers:
+        parts.append(f"**Blockers:** {blockers}")
+    return "\n".join(parts).strip()
+
+
+@beartype
+def _post_standup_comment_supported(adapter: BacklogAdapter, item: BacklogItem) -> bool:
+    """Return True if the adapter supports adding comments (e.g. for standup post)."""
+    return adapter.supports_add_comment()
+
+
+@beartype
+def _post_standup_to_item(adapter: BacklogAdapter, item: BacklogItem, body: str) -> bool:
+    """Post standup comment to the linked issue via adapter. Returns True on success."""
+    return adapter.add_comment(item, body)
+
+
+@beartype
+@ensure(
+    lambda result: result is None or (isinstance(result, (int, float)) and result >= 0),
+    "Value score is non-negative when present",
+)
+def _compute_value_score(item: BacklogItem) -> float | None:
+    """
+    Compute value score for next-best suggestion: business_value / max(1, story_points * priority).
+
+    Returns None when any of story_points, business_value, or priority is missing.
+    """
+    if item.story_points is None or item.business_value is None or item.priority is None:
+        return None
+    denom = max(1, (item.story_points or 0) * (item.priority or 1))
+    return item.business_value / denom
+
+
+@beartype
+def _format_daily_item_detail(item: BacklogItem, comments: list[str]) -> str:
+    """
+    Format a single backlog item for interactive detail view (refine-like).
+
+    Includes ID, title, status, assignees, last updated, description, acceptance criteria,
+    standup fields (yesterday/today/blockers), and comments when provided.
+    """
+    parts: list[str] = []
+    parts.append(f"## {item.id} - {item.title}")
+    parts.append(f"- **Status:** {item.state}")
+    assignee_str = ", ".join(item.assignees) if item.assignees else "—"
+    parts.append(f"- **Assignees:** {assignee_str}")
+    updated = (
+        item.updated_at.strftime("%Y-%m-%d %H:%M") if hasattr(item.updated_at, "strftime") else str(item.updated_at)
+    )
+    parts.append(f"- **Last updated:** {updated}")
+    if item.body_markdown:
+        parts.append("\n**Description:**")
+        parts.append(item.body_markdown.strip())
+    if item.acceptance_criteria:
+        parts.append("\n**Acceptance criteria:**")
+        parts.append(item.acceptance_criteria.strip())
+    yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
+    if yesterday or today or blockers:
+        parts.append("\n**Standup:**")
+        if yesterday:
+            parts.append(f"- Yesterday: {yesterday}")
+        if today:
+            parts.append(f"- Today: {today}")
+        if blockers:
+            parts.append(f"- Blockers: {blockers}")
+    if item.story_points is not None:
+        parts.append(f"\n- **Story points:** {item.story_points}")
+    if item.business_value is not None:
+        parts.append(f"- **Business value:** {item.business_value}")
+    if item.priority is not None:
+        parts.append(f"- **Priority:** {item.priority}")
+    if comments:
+        parts.append("\n**Comments:**")
+        for c in comments:
+            parts.append(f"- {c}")
+    return "\n".join(parts)
+
+
+@beartype
+def _build_copilot_export_content(
+    items: list[BacklogItem],
+    include_value_score: bool = False,
+) -> str:
+    """
+    Build Markdown content for Copilot export: one section per item.
+
+    Per item: ID, title, status, assignees, last updated, progress summary (standup fields),
+    blockers, and optionally value score.
+    """
+    lines: list[str] = []
+    lines.append("# Daily standup – Copilot export")
+    lines.append("")
+    for item in items:
+        lines.append(f"## {item.id} - {item.title}")
+        lines.append("")
+        lines.append(f"- **Status:** {item.state}")
+        assignee_str = ", ".join(item.assignees) if item.assignees else "—"
+        lines.append(f"- **Assignees:** {assignee_str}")
+        updated = (
+            item.updated_at.strftime("%Y-%m-%d %H:%M") if hasattr(item.updated_at, "strftime") else str(item.updated_at)
+        )
+        lines.append(f"- **Last updated:** {updated}")
+        yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
+        if yesterday or today:
+            lines.append(f"- **Progress:** Yesterday: {yesterday or '—'}; Today: {today or '—'}")
+        if blockers:
+            lines.append(f"- **Blockers:** {blockers}")
+        if item.story_points is not None:
+            lines.append(f"- **Story points:** {item.story_points}")
+        if item.priority is not None:
+            lines.append(f"- **Priority:** {item.priority}")
+        if include_value_score:
+            score = _compute_value_score(item)
+            if score is not None:
+                lines.append(f"- **Value score:** {score:.2f}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+_SUMMARIZE_BODY_TRUNCATE = 1200
+
+
+@beartype
+def _build_summarize_prompt_content(
+    items: list[BacklogItem],
+    filter_context: dict[str, Any],
+    include_value_score: bool = False,
+    comments_by_item_id: dict[str, list[str]] | None = None,
+) -> str:
+    """
+    Build prompt content for standup summary: instruction + filter context + per-item data.
+
+    Includes body (description) and annotations (comments) per item so an LLM can produce
+    a meaningful summary. For use with slash command (e.g. specfact.daily) or copy-paste to Copilot.
+    """
+    lines: list[str] = []
+    lines.append("--- BEGIN STANDUP PROMPT ---")
+    lines.append("Generate a concise daily standup summary from the following data.")
+    lines.append(
+        "Include: current focus, blockers, and pending items. Use each item's description and comments for context. Keep it short and actionable."
+    )
+    lines.append("")
+    lines.append("## Filter context")
+    lines.append(f"- Adapter: {filter_context.get('adapter', '—')}")
+    lines.append(f"- State: {filter_context.get('state', '—')}")
+    lines.append(f"- Sprint: {filter_context.get('sprint', '—')}")
+    lines.append(f"- Assignee: {filter_context.get('assignee', '—')}")
+    lines.append(f"- Limit: {filter_context.get('limit', '—')}")
+    lines.append("")
+    lines.append("## Standup data (with description and comments)")
+    lines.append("")
+    comments_map = comments_by_item_id or {}
+    for item in items:
+        lines.append(f"## {item.id} - {item.title}")
+        lines.append("")
+        lines.append(f"- **Status:** {item.state}")
+        assignee_str = ", ".join(item.assignees) if item.assignees else "—"
+        lines.append(f"- **Assignees:** {assignee_str}")
+        updated = (
+            item.updated_at.strftime("%Y-%m-%d %H:%M") if hasattr(item.updated_at, "strftime") else str(item.updated_at)
+        )
+        lines.append(f"- **Last updated:** {updated}")
+        body = (item.body_markdown or "").strip()
+        if body:
+            snippet = body[:_SUMMARIZE_BODY_TRUNCATE]
+            if len(body) > _SUMMARIZE_BODY_TRUNCATE:
+                snippet += "\n..."
+            lines.append("- **Description:**")
+            lines.append(snippet)
+            lines.append("")
+        yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
+        if yesterday or today:
+            lines.append(f"- **Progress:** Yesterday: {yesterday or '—'}; Today: {today or '—'}")
+        if blockers:
+            lines.append(f"- **Blockers:** {blockers}")
+        item_comments = comments_map.get(item.id, [])
+        if item_comments:
+            lines.append("- **Comments (annotations):**")
+            for c in item_comments:
+                lines.append(f"  - {c}")
+        if item.story_points is not None:
+            lines.append(f"- **Story points:** {item.story_points}")
+        if item.priority is not None:
+            lines.append(f"- **Priority:** {item.priority}")
+        if include_value_score:
+            score = _compute_value_score(item)
+            if score is not None:
+                lines.append(f"- **Value score:** {score:.2f}")
+        lines.append("")
+    lines.append("--- END STANDUP PROMPT ---")
+    return "\n".join(lines).strip()
+
+
+def _run_interactive_daily(
+    items: list[BacklogItem],
+    standup_config: dict[str, Any],
+    suggest_next: bool,
+    adapter: str,
+    repo_owner: str | None,
+    repo_name: str | None,
+    github_token: str | None,
+    ado_org: str | None,
+    ado_project: str | None,
+    ado_token: str | None,
+) -> None:
+    """
+    Run interactive step-by-step review: questionary selection, detail view, next/previous/back/exit.
+    """
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError:
+        console.print(
+            "[red]Interactive mode requires the 'questionary' package. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from None
+
+    adapter_kwargs = _build_adapter_kwargs(
+        adapter,
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        github_token=github_token,
+        ado_org=ado_org,
+        ado_project=ado_project,
+        ado_token=ado_token,
+    )
+    registry = AdapterRegistry()
+    adapter_instance = registry.get_adapter(adapter, **adapter_kwargs)
+    get_comments_fn = getattr(adapter_instance, "get_comments", lambda _: [])
+
+    n = len(items)
+    choices = [
+        f"{item.id} - {item.title[:50]}{'...' if len(item.title) > 50 else ''} [{item.state}] ({', '.join(item.assignees) or '—'})"
+        for item in items
+    ]
+    choices.append("Exit")
+
+    while True:
+        selected = questionary.select("Select a story to review (or Exit)", choices=choices).ask()
+        if selected is None or selected == "Exit":
+            return
+        try:
+            idx = choices.index(selected)
+        except ValueError:
+            return
+        if idx >= n:
+            return
+
+        current_idx = idx
+        while True:
+            item = items[current_idx]
+            comments: list[str] = []
+            if callable(get_comments_fn):
+                with contextlib.suppress(Exception):
+                    raw = get_comments_fn(item)
+                    comments = list(raw) if isinstance(raw, list) else []
+            detail = _format_daily_item_detail(item, comments)
+            console.print(Panel(detail, title=f"Story: {item.id}", border_style="cyan"))
+
+            if suggest_next and n > 1:
+                pending = [i for i in items if not i.assignees or item.story_points is not None]
+                if pending:
+                    best: BacklogItem | None = None
+                    best_score: float = -1.0
+                    for i in pending:
+                        s = _compute_value_score(i)
+                        if s is not None and s > best_score:
+                            best_score = s
+                            best = i
+                    if best is not None:
+                        console.print(
+                            f"[dim]Suggested next (value score {best_score:.2f}): {best.id} - {best.title}[/dim]"
+                        )
+
+            nav_choices = ["Next story", "Previous story", "Back to list", "Exit"]
+            nav = questionary.select("Navigation", choices=nav_choices).ask()
+            if nav is None or nav == "Exit":
+                return
+            if nav == "Back to list":
+                break
+            if nav == "Next story":
+                current_idx = (current_idx + 1) % n
+            elif nav == "Previous story":
+                current_idx = (current_idx - 1) % n
+
+
 def _extract_openspec_change_id(body: str) -> str | None:
     """
     Extract OpenSpec change proposal ID from issue body.
@@ -160,6 +614,88 @@ def _extract_openspec_change_id(body: str) -> str | None:
     return None
 
 
+def _infer_github_repo_from_cwd() -> tuple[str | None, str | None]:
+    """
+    Infer repo_owner and repo_name from git remote origin when run inside a GitHub clone.
+    Returns (owner, repo) or (None, None) if not a GitHub remote or git unavailable.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout or not result.stdout.strip():
+            return (None, None)
+        url = result.stdout.strip()
+        owner, repo = None, None
+        if url.startswith("git@"):
+            part = url.split(":", 1)[-1].strip()
+            if part.endswith(".git"):
+                part = part[:-4]
+            segments = part.split("/")
+            if len(segments) >= 2 and "github" in url.lower():
+                owner, repo = segments[-2], segments[-1]
+        else:
+            parsed = urlparse(url)
+            if parsed.hostname and "github" in parsed.hostname.lower() and parsed.path:
+                path = parsed.path.strip("/")
+                if path.endswith(".git"):
+                    path = path[:-4]
+                segments = path.split("/")
+                if len(segments) >= 2:
+                    owner, repo = segments[-2], segments[-1]
+        return (owner or None, repo or None)
+    except Exception:
+        return (None, None)
+
+
+def _infer_ado_context_from_cwd() -> tuple[str | None, str | None]:
+    """
+    Infer org and project from git remote origin when run inside an Azure DevOps clone.
+    Returns (org, project) or (None, None) if not an ADO remote or git unavailable.
+    Supports:
+    - HTTPS: https://dev.azure.com/org/project/_git/repo
+    - SSH (keys): git@ssh.dev.azure.com:v3/<org>/<project>/<repo>
+    - SSH (other): <user>@dev.azure.com:v3/<org>/<project>/<repo> (no ssh. subdomain)
+    """
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout or not result.stdout.strip():
+            return (None, None)
+        url = result.stdout.strip()
+        org, project = None, None
+        if "dev.azure.com" not in url.lower():
+            return (None, None)
+        if ":" in url and "v3/" in url:
+            idx = url.find("v3/")
+            if idx != -1:
+                part = url[idx + 3 :].strip()
+                segments = part.split("/")
+                if len(segments) >= 2:
+                    org, project = segments[0], segments[1]
+        else:
+            parsed = urlparse(url)
+            if parsed.path:
+                path = parsed.path.strip("/")
+                segments = path.split("/")
+                if len(segments) >= 2:
+                    org, project = segments[0], segments[1]
+        return (org or None, project or None)
+    except Exception:
+        return (None, None)
+
+
 def _build_adapter_kwargs(
     adapter: str,
     repo_owner: str | None = None,
@@ -171,35 +707,43 @@ def _build_adapter_kwargs(
     ado_token: str | None = None,
 ) -> dict[str, Any]:
     """
-    Build adapter kwargs based on adapter type and provided configuration.
-
-    Args:
-        adapter: Adapter name (github, ado, etc.)
-        repo_owner: GitHub repository owner
-        repo_name: GitHub repository name
-        github_token: GitHub API token
-        ado_org: Azure DevOps organization
-        ado_project: Azure DevOps project
-        ado_token: Azure DevOps PAT
-
-    Returns:
-        Dictionary of adapter kwargs
+    Build adapter kwargs from CLI args, then env, then .specfact/backlog.yaml.
+    Resolution order: explicit arg > env (SPECFACT_GITHUB_REPO_OWNER, etc.) > config.
+    Tokens are never read from config; only from explicit args (env handled by caller).
     """
+    cfg = _load_backlog_config()
     kwargs: dict[str, Any] = {}
     if adapter.lower() == "github":
-        if repo_owner:
-            kwargs["repo_owner"] = repo_owner
-        if repo_name:
-            kwargs["repo_name"] = repo_name
+        owner = (
+            repo_owner or os.environ.get("SPECFACT_GITHUB_REPO_OWNER") or (cfg.get("github") or {}).get("repo_owner")
+        )
+        name = repo_name or os.environ.get("SPECFACT_GITHUB_REPO_NAME") or (cfg.get("github") or {}).get("repo_name")
+        if not owner or not name:
+            inferred_owner, inferred_name = _infer_github_repo_from_cwd()
+            if inferred_owner and inferred_name:
+                owner = owner or inferred_owner
+                name = name or inferred_name
+        if owner:
+            kwargs["repo_owner"] = owner
+        if name:
+            kwargs["repo_name"] = name
         if github_token:
             kwargs["api_token"] = github_token
     elif adapter.lower() == "ado":
-        if ado_org:
-            kwargs["org"] = ado_org
-        if ado_project:
-            kwargs["project"] = ado_project
-        if ado_team:
-            kwargs["team"] = ado_team
+        org = ado_org or os.environ.get("SPECFACT_ADO_ORG") or (cfg.get("ado") or {}).get("org")
+        project = ado_project or os.environ.get("SPECFACT_ADO_PROJECT") or (cfg.get("ado") or {}).get("project")
+        team = ado_team or os.environ.get("SPECFACT_ADO_TEAM") or (cfg.get("ado") or {}).get("team")
+        if not org or not project:
+            inferred_org, inferred_project = _infer_ado_context_from_cwd()
+            if inferred_org and inferred_project:
+                org = org or inferred_org
+                project = project or inferred_project
+        if org:
+            kwargs["org"] = org
+        if project:
+            kwargs["project"] = project
+        if team:
+            kwargs["team"] = team
         if ado_token:
             kwargs["api_token"] = ado_token
     return kwargs
@@ -385,6 +929,27 @@ def _fetch_backlog_items(
         ado_token=ado_token,
     )
 
+    if adapter_name.lower() == "github" and (
+        not adapter_kwargs.get("repo_owner") or not adapter_kwargs.get("repo_name")
+    ):
+        console.print("[red]repo_owner and repo_name required for GitHub.[/red]")
+        console.print(
+            "Set via: [cyan]--repo-owner[/cyan]/[cyan]--repo-name[/cyan], "
+            "env [cyan]SPECFACT_GITHUB_REPO_OWNER[/cyan]/[cyan]SPECFACT_GITHUB_REPO_NAME[/cyan], "
+            "or [cyan].specfact/backlog.yaml[/cyan] (see docs/guides/devops-adapter-integration.md). "
+            "When run from a GitHub clone, org/repo are auto-detected from git remote."
+        )
+        raise typer.Exit(1)
+    if adapter_name.lower() == "ado" and (not adapter_kwargs.get("org") or not adapter_kwargs.get("project")):
+        console.print("[red]ado_org and ado_project required for Azure DevOps.[/red]")
+        console.print(
+            "Set via: [cyan]--ado-org[/cyan]/[cyan]--ado-project[/cyan], "
+            "env [cyan]SPECFACT_ADO_ORG[/cyan]/[cyan]SPECFACT_ADO_PROJECT[/cyan], "
+            "or [cyan].specfact/backlog.yaml[/cyan]. "
+            "When run from an ADO clone, org/project are auto-detected from git remote."
+        )
+        raise typer.Exit(1)
+
     adapter = registry.get_adapter(adapter_name, **adapter_kwargs)
 
     # Check if adapter implements BacklogAdapter interface
@@ -412,6 +977,322 @@ def _fetch_backlog_items(
         items = items[:limit]
 
     return items
+
+
+@beartype
+@app.command()
+@require(
+    lambda adapter: isinstance(adapter, str) and len(adapter) > 0,
+    "Adapter must be non-empty string",
+)
+def daily(
+    adapter: str = typer.Argument(..., help="Backlog adapter name (github, ado, etc.)"),
+    assignee: str | None = typer.Option(
+        None,
+        "--assignee",
+        help="Filter by assignee (e.g. 'me' or username). Only matching items are listed.",
+    ),
+    state: str | None = typer.Option(None, "--state", help="Filter by state (e.g. open, closed, Active)"),
+    labels: list[str] | None = typer.Option(None, "--labels", "--tags", help="Filter by labels/tags"),
+    limit: int | None = typer.Option(None, "--limit", help="Maximum number of items to show"),
+    iteration: str | None = typer.Option(
+        None,
+        "--iteration",
+        help="Filter by iteration (e.g. 'current' or literal path). ADO: full path; adapter must support.",
+    ),
+    sprint: str | None = typer.Option(
+        None,
+        "--sprint",
+        help="Filter by sprint (e.g. 'current' or name). Adapter must support iteration/sprint.",
+    ),
+    show_unassigned: bool = typer.Option(
+        True,
+        "--show-unassigned/--no-show-unassigned",
+        help="Show unassigned/pending items in a second table (default: true).",
+    ),
+    unassigned_only: bool = typer.Option(
+        False,
+        "--unassigned-only",
+        help="Show only unassigned items (single table).",
+    ),
+    blockers_first: bool = typer.Option(
+        False,
+        "--blockers-first",
+        help="Sort so items with non-empty blockers appear first.",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Step-by-step review: select items with arrow keys and view full detail (refine-like) and comments.",
+    ),
+    copilot_export: str | None = typer.Option(
+        None,
+        "--copilot-export",
+        help="Write summarized progress per story to a file for Copilot slash-command use during standup.",
+    ),
+    summarize: bool = typer.Option(
+        False,
+        "--summarize",
+        help="Output a prompt (instruction + filter context + standup data) for slash command or Copilot to generate a standup summary (prints to stdout).",
+    ),
+    summarize_to: str | None = typer.Option(
+        None,
+        "--summarize-to",
+        help="Write the summarize prompt to this file (alternative to --summarize stdout).",
+    ),
+    suggest_next: bool = typer.Option(
+        False,
+        "--suggest-next",
+        help="In interactive mode, show suggested next item by value score (business value / (story points * priority)).",
+    ),
+    post: bool = typer.Option(
+        False,
+        "--post",
+        help="Post standup comment to the first item's issue. Requires at least one of --yesterday, --today, --blockers with a value (adapter must support comments).",
+    ),
+    yesterday: str | None = typer.Option(
+        None,
+        "--yesterday",
+        help='Standup: what was done yesterday (used when posting with --post; pass a value e.g. --yesterday "Worked on X").',
+    ),
+    today: str | None = typer.Option(
+        None,
+        "--today",
+        help='Standup: what will be done today (used when posting with --post; pass a value e.g. --today "Will do Y").',
+    ),
+    blockers: str | None = typer.Option(
+        None,
+        "--blockers",
+        help='Standup: blockers (used when posting with --post; pass a value e.g. --blockers "None").',
+    ),
+    repo_owner: str | None = typer.Option(None, "--repo-owner", help="GitHub repository owner"),
+    repo_name: str | None = typer.Option(None, "--repo-name", help="GitHub repository name"),
+    github_token: str | None = typer.Option(None, "--github-token", help="GitHub API token"),
+    ado_org: str | None = typer.Option(None, "--ado-org", help="Azure DevOps organization"),
+    ado_project: str | None = typer.Option(None, "--ado-project", help="Azure DevOps project"),
+    ado_team: str | None = typer.Option(
+        None, "--ado-team", help="ADO team for current iteration (when --sprint current)"
+    ),
+    ado_token: str | None = typer.Option(None, "--ado-token", help="Azure DevOps PAT"),
+) -> None:
+    """
+    Show daily standup view: list my/filtered backlog items with status and last activity.
+
+    Optional standup summary lines (yesterday/today/blockers) are shown when present in item body.
+    Use --post with --yesterday, --today, --blockers to post a standup comment to the first item's linked issue
+    (only when the adapter supports comments, e.g. GitHub).
+    Default scope: state=open, limit=20 (overridable via SPECFACT_STANDUP_* env or .specfact/standup.yaml).
+    """
+    standup_config = _load_standup_config()
+    effective_state, effective_limit, effective_assignee = _resolve_standup_options(
+        state, limit, assignee, standup_config
+    )
+    items = _fetch_backlog_items(
+        adapter,
+        state=effective_state,
+        assignee=effective_assignee,
+        labels=labels,
+        limit=effective_limit,
+        iteration=iteration,
+        sprint=sprint,
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        github_token=github_token,
+        ado_org=ado_org,
+        ado_project=ado_project,
+        ado_team=ado_team,
+        ado_token=ado_token,
+    )
+    filtered = _apply_filters(
+        items,
+        labels=labels,
+        state=effective_state,
+        assignee=effective_assignee,
+        iteration=iteration,
+        sprint=sprint,
+    )
+    if len(filtered) > effective_limit:
+        filtered = filtered[:effective_limit]
+
+    if not filtered:
+        console.print("[yellow]No backlog items found.[/yellow]")
+        return
+
+    if copilot_export is not None:
+        include_score = suggest_next or bool(standup_config.get("suggest_next"))
+        export_path = Path(copilot_export)
+        content = _build_copilot_export_content(filtered, include_value_score=include_score)
+        export_path.write_text(content, encoding="utf-8")
+        console.print(f"[dim]Exported {len(filtered)} item(s) to {export_path}[/dim]")
+
+    if summarize or summarize_to is not None:
+        include_score = suggest_next or bool(standup_config.get("suggest_next"))
+        filter_ctx: dict[str, Any] = {
+            "adapter": adapter,
+            "state": effective_state or "—",
+            "sprint": sprint or iteration or "—",
+            "assignee": effective_assignee or "—",
+            "limit": effective_limit,
+        }
+        comments_by_item_id: dict[str, list[str]] = {}
+        try:
+            adapter_kwargs_sum = _build_adapter_kwargs(
+                adapter,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                github_token=github_token,
+                ado_org=ado_org,
+                ado_project=ado_project,
+                ado_token=ado_token,
+            )
+            registry_sum = AdapterRegistry()
+            adapter_instance_sum = registry_sum.get_adapter(adapter, **adapter_kwargs_sum)
+            get_comments_fn = getattr(adapter_instance_sum, "get_comments", None)
+            if callable(get_comments_fn):
+                for it in filtered:
+                    with contextlib.suppress(Exception):
+                        raw = get_comments_fn(it)
+                        comments_by_item_id[it.id] = list(raw) if isinstance(raw, list) else []
+        except Exception:
+            pass
+        content = _build_summarize_prompt_content(
+            filtered,
+            filter_context=filter_ctx,
+            include_value_score=include_score,
+            comments_by_item_id=comments_by_item_id or None,
+        )
+        if summarize_to:
+            Path(summarize_to).write_text(content, encoding="utf-8")
+            console.print(f"[dim]Summarize prompt written to {summarize_to} ({len(filtered)} item(s))[/dim]")
+        else:
+            console.print(content)
+        return
+
+    if interactive:
+        _run_interactive_daily(
+            filtered,
+            standup_config=standup_config,
+            suggest_next=suggest_next,
+            adapter=adapter,
+            repo_owner=repo_owner,
+            repo_name=repo_name,
+            github_token=github_token,
+            ado_org=ado_org,
+            ado_project=ado_project,
+            ado_token=ado_token,
+        )
+        return
+
+    first_item = filtered[0]
+    include_priority = bool(standup_config.get("show_priority") or standup_config.get("show_value"))
+    rows_unassigned: list[dict[str, Any]] = []
+    if unassigned_only:
+        _, filtered = _split_assigned_unassigned(filtered)
+        if not filtered:
+            console.print("[yellow]No unassigned items in scope.[/yellow]")
+            return
+        rows = _build_standup_rows(filtered, include_priority=include_priority)
+        if blockers_first:
+            rows = _sort_standup_rows_blockers_first(rows)
+    else:
+        assigned, unassigned = _split_assigned_unassigned(filtered)
+        rows = _build_standup_rows(assigned, include_priority=include_priority)
+        if blockers_first:
+            rows = _sort_standup_rows_blockers_first(rows)
+        if show_unassigned and unassigned:
+            rows_unassigned = _build_standup_rows(unassigned, include_priority=include_priority)
+
+    if post:
+        y = (yesterday or "").strip()
+        t = (today or "").strip()
+        b = (blockers or "").strip()
+        if not y and not t and not b:
+            console.print("[yellow]Use --yesterday, --today, and/or --blockers with values when using --post.[/yellow]")
+            console.print('[dim]Example: --yesterday "Worked on X" --today "Will do Y" --blockers "None" --post[/dim]')
+            return
+        body = _format_standup_comment(y, t, b)
+        item = first_item
+        registry = AdapterRegistry()
+        adapter_kwargs = _build_adapter_kwargs(
+            adapter,
+            repo_owner=repo_owner,
+            repo_name=repo_name,
+            github_token=github_token,
+            ado_org=ado_org,
+            ado_project=ado_project,
+            ado_token=ado_token,
+        )
+        adapter_instance = registry.get_adapter(adapter, **adapter_kwargs)
+        if not isinstance(adapter_instance, BacklogAdapter):
+            console.print("[red]Adapter does not implement BacklogAdapter.[/red]")
+            raise typer.Exit(1)
+        if not _post_standup_comment_supported(adapter_instance, item):
+            console.print("[yellow]Posting comments is not supported for this adapter.[/yellow]")
+            return
+        ok = _post_standup_to_item(adapter_instance, item, body)
+        if ok:
+            console.print(f"[green]✓ Standup comment posted to {item.url}[/green]")
+        else:
+            console.print("[red]Failed to post standup comment.[/red]")
+            raise typer.Exit(1)
+        return
+
+    sprint_end = standup_config.get("sprint_end_date") or os.environ.get("SPECFACT_STANDUP_SPRINT_END")
+    if sprint_end and (sprint or iteration):
+        try:
+            from datetime import datetime as dt
+
+            end_date = dt.strptime(str(sprint_end)[:10], "%Y-%m-%d").date()
+            console.print(f"[dim]{_format_sprint_end_header(end_date)}[/dim]")
+        except (ValueError, TypeError):
+            pass
+
+    def _add_standup_rows_to_table(tbl: Table, row_list: list[dict[str, Any]], include_pri: bool) -> None:
+        for r in row_list:
+            cells: list[Any] = [
+                str(r["id"]),
+                str(r["title"])[:50],
+                str(r["status"]),
+                r["last_updated"].strftime("%Y-%m-%d %H:%M")
+                if hasattr(r["last_updated"], "strftime")
+                else str(r["last_updated"]),
+                (r.get("yesterday") or "")[:30],
+                (r.get("today") or "")[:30],
+                (r.get("blockers") or "")[:20],
+            ]
+            if include_pri and "priority" in r:
+                cells.append(str(r["priority"]))
+            tbl.add_row(*cells)
+
+    table = Table(title="Daily standup", show_header=True, header_style="bold cyan")
+    table.add_column("ID", style="dim")
+    table.add_column("Title")
+    table.add_column("Status")
+    table.add_column("Last updated")
+    table.add_column("Yesterday", style="dim", max_width=30)
+    table.add_column("Today", style="dim", max_width=30)
+    table.add_column("Blockers", style="dim", max_width=20)
+    if include_priority:
+        table.add_column("Priority", style="dim")
+    _add_standup_rows_to_table(table, rows, include_priority)
+    console.print(table)
+    if not unassigned_only and show_unassigned and rows_unassigned:
+        table_pending = Table(
+            title="Pending / open for commitment",
+            show_header=True,
+            header_style="bold cyan",
+        )
+        table_pending.add_column("ID", style="dim")
+        table_pending.add_column("Title")
+        table_pending.add_column("Status")
+        table_pending.add_column("Last updated")
+        table_pending.add_column("Yesterday", style="dim", max_width=30)
+        table_pending.add_column("Today", style="dim", max_width=30)
+        table_pending.add_column("Blockers", style="dim", max_width=20)
+        if include_priority:
+            table_pending.add_column("Priority", style="dim")
+        _add_standup_rows_to_table(table_pending, rows_unassigned, include_priority)
+        console.print(table_pending)
 
 
 @beartype
@@ -652,25 +1533,36 @@ def refine(
             normalized_framework = framework.lower() if framework else None
             normalized_persona = persona.lower() if persona else None
 
-            # Validate adapter-specific required parameters
+            # Validate adapter-specific required parameters (use same resolution as daily: CLI > env > config > git)
             validate_task = init_progress.add_task("[cyan]Validating adapter configuration...[/cyan]", total=None)
-            if normalized_adapter == "github" and (not repo_owner or not repo_name):
+            writeback_kwargs = _build_adapter_kwargs(
+                adapter,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                github_token=github_token,
+                ado_org=ado_org,
+                ado_project=ado_project,
+                ado_team=ado_team,
+                ado_token=ado_token,
+            )
+            if normalized_adapter == "github" and (
+                not writeback_kwargs.get("repo_owner") or not writeback_kwargs.get("repo_name")
+            ):
                 init_progress.stop()
-                console.print("[red]Error:[/red] GitHub adapter requires both --repo-owner and --repo-name options")
+                console.print("[red]repo_owner and repo_name required for GitHub.[/red]")
                 console.print(
-                    "[yellow]Example:[/yellow] specfact backlog refine github "
-                    "--repo-owner 'nold-ai' --repo-name 'specfact-cli' --state open"
+                    "Set via: [cyan]--repo-owner[/cyan]/[cyan]--repo-name[/cyan], "
+                    "env [cyan]SPECFACT_GITHUB_REPO_OWNER[/cyan]/[cyan]SPECFACT_GITHUB_REPO_NAME[/cyan], "
+                    "or [cyan].specfact/backlog.yaml[/cyan] (see docs/guides/devops-adapter-integration.md)."
                 )
-                sys.exit(1)
-            if normalized_adapter == "ado" and (not ado_org or not ado_project):
+                raise typer.Exit(1)
+            if normalized_adapter == "ado" and (not writeback_kwargs.get("org") or not writeback_kwargs.get("project")):
                 init_progress.stop()
                 console.print(
-                    "[red]Error:[/red] Azure DevOps adapter requires both --ado-org and --ado-project options"
+                    "[red]ado_org and ado_project required for Azure DevOps.[/red] "
+                    "Set via --ado-org/--ado-project, env SPECFACT_ADO_ORG/SPECFACT_ADO_PROJECT, or .specfact/backlog.yaml."
                 )
-                console.print(
-                    "[yellow]Example:[/yellow] specfact backlog refine ado --ado-org 'my-org' --ado-project 'my-project' --state Active"
-                )
-                sys.exit(1)
+                raise typer.Exit(1)
 
             # Validate and set custom field mapping (if provided)
             if custom_field_mapping:

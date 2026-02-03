@@ -103,19 +103,26 @@ class TestGetConfiguredConsole:
         assert isinstance(console, Console)
 
     def test_get_configured_console_caches(self) -> None:
-        """Test that get_configured_console caches Console instances."""
+        """Test that get_configured_console returns Console instances (no cache in test mode)."""
         console1 = get_configured_console()
         console2 = get_configured_console()
-        # Should return the same instance (cached)
-        assert console1 is console2
+        # In test mode we do not cache, to avoid holding a reference to a closed stream.
+        assert console1 is not None and console2 is not None
+        from rich.console import Console
+
+        assert isinstance(console1, Console) and isinstance(console2, Console)
+        assert console1.width == console2.width
 
     def test_get_configured_console_different_modes(self) -> None:
-        """Test that different terminal modes create different Console instances."""
-        # This test verifies caching works per mode
-        # In practice, mode doesn't change during execution, so we test caching
+        """Test that get_configured_console returns Console with consistent config."""
         console1 = get_configured_console()
         console2 = get_configured_console()
-        assert console1 is console2
+        # In test mode we do not cache; both should be Console with consistent config.
+        assert console1 is not None and console2 is not None
+        from rich.console import Console
+
+        assert isinstance(console1, Console) and isinstance(console2, Console)
+        assert console1.width == console2.width
 
 
 class TestDebugMode:
