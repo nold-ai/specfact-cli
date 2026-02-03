@@ -19,7 +19,26 @@ SpecFact CLI supports **bidirectional synchronization** between OpenSpec change 
 
 - **Issue Creation**: Export OpenSpec change proposals as GitHub Issues (or other DevOps backlog items)
 - **Progress Tracking**: Automatically detect code changes and add progress comments to issues
-- **Standup Comments**: Use `specfact backlog daily --post` with `--yesterday`, `--today`, `--blockers` to post a standup summary as a comment on the linked issue (GitHub/ADO adapters that support comments). Standup config: set defaults via env (`SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, `SPECFACT_STANDUP_ASSIGNEE`, `SPECFACT_STANDUP_SPRINT_END`) or optional `.specfact/standup.yaml` (e.g. `default_state`, `limit`, `sprint`, `show_priority`, `suggest_next`). Iteration/sprint and sprint end date support depend on the adapter (ADO supports current iteration and iteration path; see adapter docs). Use `--blockers-first` and config `show_priority`/`show_value` for time-critical and value-driven standups. **Interactive review** (`--interactive`): step-through stories with arrow-key selection; detail view shows **existing comments annotated to each issue** when the adapter implements `get_comments(item)` (GitHub adapter supports it). **Value score / suggested next**: when BacklogItem has `story_points`, `business_value`, and `priority`, use `--suggest-next` or config `suggest_next` to show suggested next item (business_value / (story_points × priority)). **Standup summary prompt** (`--summarize` or `--summarize-to PATH`): output a prompt (instruction + filter context + standup data) for slash command or Copilot to generate a standup summary. **Slash prompt** `specfact.backlog-daily` (or `specfact.daily`): use with IDE/Copilot for interactive team walkthrough story-by-story (current focus, issues/open questions, discussion notes as comments); prompt file at `resources/prompts/specfact.backlog-daily.md`. **Sprint goal** is stored in your board/sprint settings and is not displayed or edited by the CLI.
+- **Standup Comments**: Use `specfact backlog daily --post` with `--yesterday`, `--today`, `--blockers` to post
+  a standup summary as a comment on the linked issue (GitHub/ADO adapters that support comments). Standup
+  config: set defaults via env (`SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`,
+  `SPECFACT_STANDUP_ASSIGNEE`, `SPECFACT_STANDUP_SPRINT_END`) or optional `.specfact/standup.yaml`
+  (e.g. `default_state`, `limit`, `sprint`, `show_priority`, `suggest_next`). Iteration/sprint and sprint
+  end date support depend on the adapter (ADO supports current iteration and iteration path; see adapter
+  docs). Use `--blockers-first` and config `show_priority`/`show_value` for time-critical and value-driven
+  standups. **Interactive review** (`--interactive`): step-through stories with arrow-key selection; detail
+  view shows **existing comments annotated to each issue** when the adapter implements `get_comments(item)`
+  (GitHub adapter supports it). **Comment annotations in exports**: add `--comments` (alias
+  `--annotations`) to include descriptions and comment annotations in `--copilot-export` and
+  `--summarize`/`--summarize-to` outputs when the adapter supports fetching comments. **Value score /
+  suggested next**: when BacklogItem has `story_points`, `business_value`, and `priority`, use
+  `--suggest-next` or config `suggest_next` to show suggested next item (business_value / (story_points ×
+  priority)). **Standup summary prompt** (`--summarize` or `--summarize-to PATH`): output a prompt
+  (instruction + filter context + standup data) for slash command or Copilot to generate a standup summary.
+  **Slash prompt** `specfact.backlog-daily` (or `specfact.daily`): use with IDE/Copilot for interactive
+  team walkthrough story-by-story (current focus, issues/open questions, discussion notes as comments);
+  prompt file at `resources/prompts/specfact.backlog-daily.md`. **Sprint goal** is stored in your
+  board/sprint settings and is not displayed or edited by the CLI.
 - **Content Sanitization**: Protect internal information when syncing to public repositories
 - **Separate Repository Support**: Handle cases where OpenSpec proposals and source code are in different repositories
 

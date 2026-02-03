@@ -20,8 +20,12 @@ This tutorial walks you through a complete **daily standup and sprint review** w
 - Use **`.specfact/backlog.yaml`** or environment variables when you're not in the repo (e.g. CI) or to override
 - **Post a standup comment** to the first (or selected) item with `--yesterday`, `--today`, `--blockers` and `--post`
 - Use **`--interactive`** for step-by-step story review (arrow-key selection, full detail, **existing comments on each issue** when the adapter supports them)
-- Use **`--copilot-export <path>`** to write a Markdown summary for Copilot slash-command during standup
-- Use **`--summarize`** or **`--summarize-to <path>`** to output a **prompt** (instruction + filter context + standup data) for a slash command (e.g. `specfact.daily`) or copy-paste to Copilot to **generate a standup summary**
+- Use **`--copilot-export <path>`** to write a Markdown summary for Copilot slash-command during standup;
+  add **`--comments`** (alias **`--annotations`**) to include descriptions and comment annotations when
+  the adapter supports fetching comments
+- Use **`--summarize`** or **`--summarize-to <path>`** to output a **prompt** (instruction + filter context
+  + standup data) for a slash command (e.g. `specfact.daily`) or copy-paste to Copilot to **generate a
+  standup summary**; add **`--comments`**/**`--annotations`** to include comment annotations in the prompt
 - Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the DevOps team story-by-story (focus, issues, open questions, discussion notes as comments)
 - Filter by **`--assignee`**, **`--sprint`** / **`--iteration`**, **`--blockers-first`**, and optional **`--suggest-next`**
 
@@ -121,10 +125,13 @@ Use **`--suggest-next`** to show a suggested next item by value score (business 
 To feed a **summary file** into your AI IDE (e.g. for a Copilot slash-command during standup):
 
 ```bash
-specfact backlog daily github --copilot-export ./standup-summary.md
+specfact backlog daily github --copilot-export ./standup-summary.md --comments
 ```
 
-The file contains one section per item (ID, title, status, assignees, last updated, progress, blockers). You can open it in your IDE and use it with Copilot. Same scope as the standup table (state, assignee, limit, etc.).
+The file contains one section per item (ID, title, status, assignees, last updated, progress, blockers).
+With `--comments`/`--annotations`, it also includes the item description and comment annotations when the
+adapter supports fetching comments. You can open it in your IDE and use it with Copilot. Same scope as
+the standup table (state, assignee, limit, etc.).
 
 ---
 
@@ -134,13 +141,17 @@ To get a **prompt** you can paste into Copilot or feed to a slash command (e.g. 
 
 ```bash
 # Print prompt to stdout (copy-paste to Copilot)
-specfact backlog daily github --summarize
+specfact backlog daily github --summarize --comments
 
 # Write prompt to a file (e.g. for slash command)
-specfact backlog daily github --summarize-to ./standup-prompt.md
+specfact backlog daily github --summarize-to ./standup-prompt.md --comments
 ```
 
-The output includes an instruction to generate a standup summary, the applied filter context (adapter, state, sprint, assignee, limit), and the same per-item data as `--copilot-export`. Use it with the **`specfact.backlog-daily`** slash prompt for interactive team walkthrough (story-by-story, current focus, issues/open questions, discussion notes as comments).
+The output includes an instruction to generate a standup summary, the applied filter context (adapter,
+state, sprint, assignee, limit), and the same per-item data as `--copilot-export`. With
+`--comments`/`--annotations`, the prompt includes comment annotations when supported. Use it with the
+**`specfact.backlog-daily`** slash prompt for interactive team walkthrough (story-by-story, current focus,
+issues/open questions, discussion notes as comments).
 
 ---
 
@@ -187,8 +198,8 @@ The output includes an instruction to generate a standup summary, the applied fi
 | Override or use outside repo | Use `.specfact/backlog.yaml`, env vars (`SPECFACT_GITHUB_REPO_OWNER`, etc.), or CLI `--repo-owner`/`--repo-name` or `--ado-org`/`--ado-project`. |
 | Post standup to first item | Use `--yesterday "..."` `--today "..."` `--blockers "..."` and `--post` (values required). |
 | Step through stories with full detail (including issue comments) | Use `--interactive`; optionally `--suggest-next`. |
-| Feed standup into Copilot | Use `--copilot-export <path>`. |
-| Generate standup summary via AI (slash command or Copilot) | Use `--summarize` (stdout) or `--summarize-to <path>`; use with `specfact.backlog-daily` slash prompt. |
+| Feed standup into Copilot | Use `--copilot-export <path>`; add `--comments`/`--annotations` for comment annotations. |
+| Generate standup summary via AI (slash command or Copilot) | Use `--summarize` (stdout) or `--summarize-to <path>`; add `--comments`/`--annotations` for comment annotations; use with `specfact.backlog-daily` slash prompt. |
 
 ---
 

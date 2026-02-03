@@ -14,7 +14,29 @@ SpecFact CLI supports real-world agile/scrum practices through:
 
 - **Definition of Ready (DoR)**: Automatic validation of story readiness for sprint planning
 - **Backlog Refinement** 🆕: AI-assisted template-driven refinement for standardizing work items from DevOps backlogs
-- **Daily Standup**: Use `specfact backlog daily <adapter>` to list my/filtered items with status and last activity. Default scope (state=open, limit=20, optional assignee=me) is applied when not overridden; configure via `SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, `SPECFACT_STANDUP_ASSIGNEE` or `.specfact/standup.yaml`. Use `--iteration` / `--sprint` (e.g. `--sprint current`) to focus on current iteration when the adapter supports it; sprint/iteration end date is shown when provided by adapter or config (`standup.sprint_end_date`). A second table **Pending / open for commitment** lists unassigned items (same scope); use `--show-unassigned`/`--no-show-unassigned` or `--unassigned-only`. Use `--blockers-first` to sort items with blockers first; enable `show_priority` or `show_value` in standup config for optional priority/value column (value-driven/SAFe). Optional standup summary (yesterday/today/blockers) from item body; optionally post standup comment to linked issue via `--post` when the adapter supports comments (e.g. GitHub). **Interactive step-by-step review**: Use `--interactive` to select stories with arrow keys (questionary) and view full detail (refine-like: description, acceptance criteria, standup fields, comments when adapter supports); navigate with Next/Previous/Back to list/Exit. Use `--suggest-next` to show suggested next item by value score (business_value / (story_points × priority)). **Copilot export**: Use `--copilot-export <path>` to write a summarized Markdown file of each story for use with Copilot slash-command during standup (complementary aid, not replacement for backlog). **Kanban**: omit iteration/sprint and use state + limit; unassigned = pullable work. **Scrum/SAFe**: use `--sprint current` and optional priority/value. **Out of scope**: Sprint goal is in your board/sprint settings (not displayed by CLI). Stale/at-risk flags (e.g. "no update in N days") are not in scope—use last updated + blockers. Structured "blocked by" (link to another issue) is not in scope; only free-text blockers are supported.
+- **Daily Standup**: Use `specfact backlog daily <adapter>` to list my/filtered items with status and last activity.
+  Default scope (state=open, limit=20, optional assignee=me) is applied when not overridden; configure via
+  `SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, `SPECFACT_STANDUP_ASSIGNEE` or
+  `.specfact/standup.yaml`. Use `--iteration` / `--sprint` (e.g. `--sprint current`) to focus on current
+  iteration when the adapter supports it; sprint/iteration end date is shown when provided by adapter or
+  config (`standup.sprint_end_date`). A second table **Pending / open for commitment** lists unassigned
+  items (same scope); use `--show-unassigned`/`--no-show-unassigned` or `--unassigned-only`. Use
+  `--blockers-first` to sort items with blockers first; enable `show_priority` or `show_value` in standup
+  config for optional priority/value column (value-driven/SAFe). Optional standup summary
+  (yesterday/today/blockers) from item body; optionally post standup comment to linked issue via `--post`
+  when the adapter supports comments (e.g. GitHub).
+  **Interactive step-by-step review**: Use `--interactive` to select stories with arrow keys (questionary)
+  and view full detail (refine-like: description, acceptance criteria, standup fields, comments when adapter
+  supports); navigate with Next/Previous/Back to list/Exit. Use `--suggest-next` to show suggested next
+  item by value score (business_value / (story_points × priority)).
+  **Copilot export**: Use `--copilot-export <path>` to write a summarized Markdown file of each story for
+  Copilot. Add `--comments` (alias `--annotations`) to include descriptions and comment annotations in
+  `--copilot-export` and `--summarize` outputs when the adapter supports `get_comments` (GitHub).
+  **Kanban**: omit iteration/sprint and use state + limit; unassigned = pullable work. **Scrum/SAFe**: use
+  `--sprint current` and optional priority/value. **Out of scope**: Sprint goal is in your board/sprint
+  settings (not displayed by CLI). Stale/at-risk flags (e.g. "no update in N days") are not in scope—use
+  last updated + blockers. Structured "blocked by" (link to another issue) is not in scope; only free-text
+  blockers are supported.
 - **Dependency Management**: Track story-to-story and feature-to-feature dependencies
 - **Prioritization**: Priority levels, ranking, and business value scoring
 - **Sprint Planning**: Target sprint/release assignment and story point tracking
@@ -56,13 +78,19 @@ specfact backlog daily github \
 # 4. Optional: interactive step-through, Copilot export, or standup summary prompt
 specfact backlog daily github --interactive   # step-through; detail view shows existing comments on each issue
 # or
-specfact backlog daily github --copilot-export ./standup.md
+specfact backlog daily github --copilot-export ./standup.md --comments
 # or
-specfact backlog daily github --summarize     # prompt to stdout for AI to generate standup summary
+specfact backlog daily github --summarize --comments     # prompt to stdout for AI to generate standup summary
 specfact backlog daily github --summarize-to ./standup-prompt.md
 ```
 
-Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the DevOps team story-by-story (current focus, issues/open questions, discussion notes as comments). Default scope: **state=open**, **limit=20**; configure via `SPECFACT_STANDUP_*` or `.specfact/standup.yaml`. Use `--assignee me`, `--sprint current`, `--blockers-first`, `--interactive`, `--suggest-next`, `--copilot-export <path>`, `--summarize`, and `--summarize-to <path>` as needed. See [Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md) for the full walkthrough.
+Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the
+DevOps team story-by-story (current focus, issues/open questions, discussion notes as comments). Default
+scope: **state=open**, **limit=20**; configure via `SPECFACT_STANDUP_*` or `.specfact/standup.yaml`. Use
+`--assignee me`, `--sprint current`, `--blockers-first`, `--interactive`, `--suggest-next`,
+`--copilot-export <path>`, `--summarize`, `--summarize-to <path>`, and `--comments`/`--annotations` as
+needed. See [Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)
+for the full walkthrough.
 
 ## Persona-Based Workflows
 
