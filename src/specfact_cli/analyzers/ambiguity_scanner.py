@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from beartype import beartype
@@ -19,7 +19,7 @@ from icontract import ensure, require
 from specfact_cli.models.plan import PlanBundle
 
 
-class AmbiguityStatus(str, Enum):
+class AmbiguityStatus(StrEnum):
     """Ambiguity status levels."""
 
     CLEAR = "Clear"
@@ -27,7 +27,7 @@ class AmbiguityStatus(str, Enum):
     MISSING = "Missing"
 
 
-class TaxonomyCategory(str, Enum):
+class TaxonomyCategory(StrEnum):
     """Taxonomy categories for ambiguity detection."""
 
     FUNCTIONAL_SCOPE = "Functional Scope & Behavior"
