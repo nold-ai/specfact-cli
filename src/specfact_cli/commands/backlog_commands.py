@@ -168,8 +168,8 @@ def _load_standup_config() -> dict[str, Any]:
                 with open(path, encoding="utf-8") as f:
                     data = yaml.safe_load(f) or {}
                 config = dict(data.get("standup", data))
-            except Exception:
-                pass
+            except Exception as exc:
+                debug_log_operation("config_load", str(path), "error", error=repr(exc))
             break
     if os.environ.get("SPECFACT_STANDUP_STATE"):
         config["default_state"] = os.environ["SPECFACT_STANDUP_STATE"]
@@ -203,8 +203,8 @@ def _load_backlog_config() -> dict[str, Any]:
                     config = dict(nested) if isinstance(nested, dict) else {}
                 else:
                     config = dict(data) if isinstance(data, dict) else {}
-            except Exception:
-                pass
+            except Exception as exc:
+                debug_log_operation("config_load", str(path), "error", error=repr(exc))
             break
     return config
 
@@ -489,19 +489,25 @@ def _build_summarize_prompt_content(
     filter_context: dict[str, Any],
     include_value_score: bool = False,
     comments_by_item_id: dict[str, list[str]] | None = None,
+    include_comments: bool = False,
 ) -> str:
     """
     Build prompt content for standup summary: instruction + filter context + per-item data.
 
-    Includes body (description) and annotations (comments) per item so an LLM can produce
-    a meaningful summary. For use with slash command (e.g. specfact.daily) or copy-paste to Copilot.
+    When include_comments is True, includes body (description) and annotations (comments) per item
+    so an LLM can produce a meaningful summary. When False, only metadata (id, title, status,
+    assignees, last updated) is included to avoid leaking sensitive or large context.
+    For use with slash command (e.g. specfact.daily) or copy-paste to Copilot.
     """
     lines: list[str] = []
     lines.append("--- BEGIN STANDUP PROMPT ---")
     lines.append("Generate a concise daily standup summary from the following data.")
-    lines.append(
-        "Include: current focus, blockers, and pending items. Use each item's description and comments for context. Keep it short and actionable."
-    )
+    if include_comments:
+        lines.append(
+            "Include: current focus, blockers, and pending items. Use each item's description and comments for context. Keep it short and actionable."
+        )
+    else:
+        lines.append("Include: current focus and pending items from the metadata below. Keep it short and actionable.")
     lines.append("")
     lines.append("## Filter context")
     lines.append(f"- Adapter: {filter_context.get('adapter', '—')}")
@@ -510,7 +516,8 @@ def _build_summarize_prompt_content(
     lines.append(f"- Assignee: {filter_context.get('assignee', '—')}")
     lines.append(f"- Limit: {filter_context.get('limit', '—')}")
     lines.append("")
-    lines.append("## Standup data (with description and comments)")
+    data_header = "Standup data (with description and comments)" if include_comments else "Standup data (metadata only)"
+    lines.append(f"## {data_header}")
     lines.append("")
     comments_map = comments_by_item_id or {}
     for item in items:
@@ -523,24 +530,25 @@ def _build_summarize_prompt_content(
             item.updated_at.strftime("%Y-%m-%d %H:%M") if hasattr(item.updated_at, "strftime") else str(item.updated_at)
         )
         lines.append(f"- **Last updated:** {updated}")
-        body = (item.body_markdown or "").strip()
-        if body:
-            snippet = body[:_SUMMARIZE_BODY_TRUNCATE]
-            if len(body) > _SUMMARIZE_BODY_TRUNCATE:
-                snippet += "\n..."
-            lines.append("- **Description:**")
-            lines.append(snippet)
-            lines.append("")
-        yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
-        if yesterday or today:
-            lines.append(f"- **Progress:** Yesterday: {yesterday or '—'}; Today: {today or '—'}")
-        if blockers:
-            lines.append(f"- **Blockers:** {blockers}")
-        item_comments = comments_map.get(item.id, [])
-        if item_comments:
-            lines.append("- **Comments (annotations):**")
-            for c in item_comments:
-                lines.append(f"  - {c}")
+        if include_comments:
+            body = (item.body_markdown or "").strip()
+            if body:
+                snippet = body[:_SUMMARIZE_BODY_TRUNCATE]
+                if len(body) > _SUMMARIZE_BODY_TRUNCATE:
+                    snippet += "\n..."
+                lines.append("- **Description:**")
+                lines.append(snippet)
+                lines.append("")
+            yesterday, today, blockers = _parse_standup_from_body(item.body_markdown or "")
+            if yesterday or today:
+                lines.append(f"- **Progress:** Yesterday: {yesterday or '—'}; Today: {today or '—'}")
+            if blockers:
+                lines.append(f"- **Blockers:** {blockers}")
+            item_comments = comments_map.get(item.id, [])
+            if item_comments:
+                lines.append("- **Comments (annotations):**")
+                for c in item_comments:
+                    lines.append(f"  - {c}")
         if item.story_points is not None:
             lines.append(f"- **Story points:** {item.story_points}")
         if item.priority is not None:
@@ -1224,6 +1232,7 @@ def daily(
             filter_context=filter_ctx,
             include_value_score=include_score,
             comments_by_item_id=comments_by_item_id or None,
+            include_comments=include_comments,
         )
         if summarize_to:
             Path(summarize_to).write_text(content, encoding="utf-8")
@@ -1309,7 +1318,7 @@ def daily(
             end_date = dt.strptime(str(sprint_end)[:10], "%Y-%m-%d").date()
             console.print(f"[dim]{_format_sprint_end_header(end_date)}[/dim]")
         except (ValueError, TypeError):
-            pass
+            console.print("[dim]Sprint end date could not be parsed; header skipped.[/dim]")
 
     def _add_standup_rows_to_table(tbl: Table, row_list: list[dict[str, Any]], include_pri: bool) -> None:
         for r in row_list:

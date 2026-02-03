@@ -502,7 +502,7 @@ class TestBuildSummarizePromptContent:
         assert "## " in content
 
     def test_summarize_prompt_includes_body_and_comments_when_provided(self) -> None:
-        """Summarize prompt includes description (body) and comments so LLM can create meaningful summary."""
+        """Summarize prompt includes description (body) and comments when include_comments=True."""
         items = [
             _item(
                 "1",
@@ -517,10 +517,34 @@ class TestBuildSummarizePromptContent:
             filter_context={"adapter": "github", "state": "open", "sprint": "—", "assignee": "—", "limit": 20},
             include_value_score=False,
             comments_by_item_id=comments_by_id,
+            include_comments=True,
         )
         assert "Description" in content and "issue description" in content
         assert "Comments" in content or "annotations" in content
         assert "In progress" in content and "Blocked on API" in content
+
+    def test_summarize_prompt_metadata_only_when_include_comments_false(self) -> None:
+        """Summarize prompt omits description and comments when include_comments=False (gated on --comments)."""
+        items = [
+            _item(
+                "1",
+                "Story one",
+                state="open",
+                body_markdown="This is the issue description and context.",
+            ),
+        ]
+        comments_by_id = {"1": ["Comment from Alice: In progress."]}
+        content = _build_summarize_prompt_content(
+            items,
+            filter_context={"adapter": "github", "state": "open", "sprint": "—", "assignee": "—", "limit": 20},
+            include_value_score=False,
+            comments_by_item_id=comments_by_id,
+            include_comments=False,
+        )
+        assert "metadata only" in content
+        assert "issue description" not in content
+        assert "In progress" not in content
+        assert "Status:" in content and "Story one" in content
 
     def test_summarize_prompt_has_start_end_markers(self) -> None:
         """Summarize prompt is wrapped in BEGIN/END markers for extraction or emphasis."""
