@@ -93,3 +93,23 @@ The system SHALL integrate complexity and splitting into `specfact backlog refin
 **Acceptance Criteria**:
 
 - Behavior is discoverable as part of existing `specfact backlog refine`; no new top-level commands.
+
+### Requirement: Dependency-aware splitting (E3 extension)
+
+The system SHALL consider dependency edges (minimize cross-team coupling) and blast radius (modules touched, component tags when available) when generating splitting suggestions. When patch mode (patch-mode-preview-apply) is available, SHALL provide "split proposal" as suggested child stories with titles, AC, and links. Splitting recommendation output SHALL include a "dependency impact" section when dependency data exists.
+
+**Rationale**: Plan E3—splitting should reduce cross-team coupling and surface blast radius.
+
+#### Scenario: Splitting suggestion includes dependency impact
+
+**Given**: Dependency graph (add-backlog-dependency-analysis-and-commands) and optional patch mode are available; item has dependencies or touched modules
+
+**When**: Splitting suggestion is generated for a complex story
+
+**Then**: The suggestion includes a "dependency impact" section (cross-team edges, blast radius when available)
+
+**And**: When patch mode is used, split proposal is emitted as suggested child stories (titles, AC, links)
+
+**Acceptance Criteria**:
+
+- Splitting recommendation includes "dependency impact" section when dependency data exists; patch output for split proposal when patch mode available.

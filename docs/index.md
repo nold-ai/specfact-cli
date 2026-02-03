@@ -22,8 +22,9 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 1. **[Installation](getting-started/installation.md)** - Get started in 60 seconds
 2. **[First Steps](getting-started/first-steps.md)** - Run your first command
 3. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
-4. **[Modernizing Legacy Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
-5. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+4. **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post comments, and Copilot export (GitHub/ADO)
+5. **[Modernizing Legacy Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
+6. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
 
 ### Using GitHub Spec-Kit?
 
@@ -61,6 +62,7 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 - **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven refinement for standardizing work items
   - **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - End-to-end tutorial for agile DevOps teams (slash prompt, DoR, split stories, underspec/overspec)
+  - **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post yesterday/today/blockers, interactive mode, Copilot export (GitHub/ADO)
   - **Template Detection**: Automatically detect which template matches a backlog item with priority-based resolution
   - **AI-Assisted Refinement**: Generate prompts for IDE AI copilots to refine unstructured input
   - **Confidence Scoring**: Validate refined content and provide confidence scores

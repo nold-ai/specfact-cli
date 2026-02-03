@@ -3108,6 +3108,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return filtered_items
 
     @beartype
+    def supports_add_comment(self) -> bool:
+        """Whether this adapter can add comments (requires token, org, project)."""
+        return bool(self.api_token and self.org and self.project)
+
+    @beartype
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to an Azure DevOps work item.

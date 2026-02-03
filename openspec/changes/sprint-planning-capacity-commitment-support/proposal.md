@@ -10,10 +10,11 @@ SpecFact CLI supports sprint/release assignment and story points at the backlog-
 - **NEW**: When exporting or listing backlog items filtered by sprint, compute total story points for that sprint and compare to capacity (if configured).
 - **NEW**: Add optional output (CLI and/or export) that shows: sprint id, total committed points, capacity, difference (over/under). Expose under the **backlog command group** as `specfact backlog sprint-summary` (or similar subcommand); do not add a top-level `specfact sprint` command.
 - **EXTEND**: Documentation (agile-scrum-workflows, backlog-refinement) for sprint planning support.
+- **EXTEND** (plan E2): Optional `sprint_goal` support in config; show alignment hints. Include risk rollup (explainable-risk-rollups) in sprint summary output. Add "DoR coverage" summary for sprint scope via Policy Engine (unify-policies-engine). **Acceptance**: Sprint summary includes: capacity, committed, risk, top blockers, DoR pass rate.
 
 ## Capabilities
 
-- **sprint-planning**: Capacity config load, commitment sum by sprint, over/under commitment comparison, sprint-summary CLI/export output.
+- **sprint-planning**: Capacity config load, commitment sum by sprint, over/under commitment comparison, sprint-summary CLI/export output; optional sprint_goal and alignment hints; risk rollup and DoR coverage when Policy Engine and risk rollups are available.
 
 ## Impact
 

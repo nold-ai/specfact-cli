@@ -279,3 +279,20 @@ The system SHALL support DevOps flow stages configuration in `.specfact/spec.yam
 
 - **THEN** `devops-flow` command uses these stage definitions
 - **AND** available actions for each stage are defined by configuration
+
+### Requirement: Dependency review packet and coordination artifacts (E4 extension)
+
+The system SHALL support exporting coordination artifacts from dependency analysis: "dependency contract" per edge (what/when/acceptance), ROAM list seed (for SAFe PI planning), and "critical path narrative" for humans (short, evidence-based). `specfact backlog analyze-deps` SHALL support `--export json|md` and SHALL be able to export a "dependency review packet" (Markdown).
+
+**Rationale**: Plan E4—teams need dependency review packet for coordination and SAFe ROAM.
+
+#### Scenario: Export dependency review packet
+
+- **GIVEN** a backlog graph has been built and analyzed
+- **WHEN** user runs `specfact backlog analyze-deps --export md` (or equivalent)
+- **THEN** the system emits a dependency review packet (Markdown) that includes: dependency contract per edge (what/when/acceptance), ROAM list seed when applicable, and critical path narrative (short, evidence-based)
+- **AND** `--export json` emits machine-readable equivalent when specified
+
+**Acceptance Criteria**:
+
+- `backlog analyze-deps` can export a "dependency review packet" (Markdown); coordination artifacts (dependency contract, ROAM seed, critical path narrative) are included when applicable.

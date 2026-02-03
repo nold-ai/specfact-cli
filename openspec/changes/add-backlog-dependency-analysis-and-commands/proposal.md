@@ -35,7 +35,7 @@ After implementing backlog adapters for ADO and GitHub with directional sync (v0
 - **EXTEND**: Extend `BacklogAdapterMixin` (or `BacklogAdapter` interface from `add-generic-backlog-abstraction`) with abstract methods `fetch_all_issues()` and `fetch_relationships()` for bulk backlog data fetching (required for dependency graph building).
 - **NOTE**: The `search_issues()` and `list_work_items()` methods from `add-template-driven-backlog-refinement` are wrapper methods that call `fetch_all_issues()` with filtering. Both changes coordinate on adapter method naming.
 - **EXTEND**: Add optional `backlog_graph: BacklogGraph | None` field to `ProjectBundle` model (v1.2) for storing dependency graph data in plan bundles, with separate JSON baseline files (`.specfact/backlog-baseline.json`) for delta comparison.
-
+- **EXTEND** (plan E4): Add outputs that teams can use directly: "dependency contract" per edge (what/when/acceptance), ROAM list seed (feeds SAFe safe-pi-planning-essentials), "critical path narrative" for humans (short, evidence-based). Add `--export json|md` for analyzers. **Acceptance**: `specfact backlog analyze-deps` can export a "dependency review packet" (Markdown).
 
 ---
 

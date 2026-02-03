@@ -75,3 +75,21 @@ The system SHALL expose sprint summary under the backlog command group (e.g. `sp
 **Acceptance Criteria**:
 
 - Command is discoverable under `specfact backlog --help`; behavior matches spec scenarios above.
+
+### Requirement: Sprint summary with risk and DoR (E2 extension)
+
+The system SHALL include in sprint summary output (when dependencies are available): risk rollup (top blockers, risk level), and DoR coverage (pass rate for sprint scope) via Policy Engine. Optional sprint_goal in config SHALL be shown as alignment hint when present.
+
+**Rationale**: Plan E2—teams need capacity, committed, risk, top blockers, and DoR pass rate in one view.
+
+#### Scenario: Sprint summary includes risk and DoR
+
+**Given**: Policy Engine (unify-policies-engine) and risk rollups (explainable-risk-rollups) are available; sprint has items with DoR state
+
+**When**: The user runs `specfact backlog sprint-summary` for that sprint
+
+**Then**: The output includes capacity, committed, and when available: risk level, top blockers, DoR pass rate; if sprint_goal is in config, show alignment hint
+
+**Acceptance Criteria**:
+
+- Sprint summary includes: capacity, committed, risk (when available), top blockers (when available), DoR pass rate (when Policy Engine available). Optional sprint_goal and alignment hints.
