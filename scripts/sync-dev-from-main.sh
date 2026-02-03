@@ -89,15 +89,19 @@ git checkout dev
 info "Merging main into dev..."
 if git merge main --no-edit; then
     success "Successfully merged main into dev"
-    # Report any openspec/changes files modified by the merge (may indicate main overwrote dev's plans)
-    CHANGED_OPENSPEC=$(git diff --name-only HEAD^1..HEAD -- "openspec/changes/" 2>/dev/null || true)
-    if [ -n "$CHANGED_OPENSPEC" ]; then
-        warn "The following openspec/changes files were modified by the merge (main's version was merged in):"
-        echo "$CHANGED_OPENSPEC" | sed 's/^/  /'
-        echo ""
-        echo "Review the changes. To restore dev's version of a file (before merge):"
-        echo "  git checkout HEAD^1 -- <file>"
-        echo ""
+    # Report any openspec/changes files modified by the merge only when a merge commit was created.
+    # When already up to date, Git does not create a merge commit; diffing HEAD^1..HEAD would then
+    # compare dev to its single parent and falsely report dev's own openspec changes as merge changes.
+    if git rev-parse --verify HEAD^2 >/dev/null 2>&1; then
+        CHANGED_OPENSPEC=$(git diff --name-only HEAD^1..HEAD -- "openspec/changes/" 2>/dev/null || true)
+        if [ -n "$CHANGED_OPENSPEC" ]; then
+            warn "The following openspec/changes files were modified by the merge (main's version was merged in):"
+            echo "$CHANGED_OPENSPEC" | sed 's/^/  /'
+            echo ""
+            echo "Review the changes. To restore dev's version of a file (before merge):"
+            echo "  git checkout HEAD^1 -- <file>"
+            echo ""
+        fi
     fi
 else
     error "Merge conflict detected!"
