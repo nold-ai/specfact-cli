@@ -54,6 +54,7 @@ One parent issue per main command for grouping. **Do not add an Epic label** —
 | Thorough validation | [Epic] Thorough codebase validation | [#190](https://github.com/nold-ai/specfact-cli/issues/190) |
 | Sidecar validation | [Epic] Sidecar validation | [#191](https://github.com/nold-ai/specfact-cli/issues/191) |
 | Bundle mapping | [Epic] Bundle/spec mapping | [#192](https://github.com/nold-ai/specfact-cli/issues/192) |
+| **Architecture** | [Epic] Architecture (CLI structure, modularity, performance) | [#194](https://github.com/nold-ai/specfact-cli/issues/194) |
 
 **Linking child issues**: On each change issue (e.g. #116, #173, #175, …), use the project **Type** and **Parent** (or GitHub Relationships) to associate it with the epic above. Type (Epic, Feature, Story, etc.) is set via the project **Type** property only; do not use an Epic or other type label.
 
