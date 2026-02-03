@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.17] - 2026-02-03
+
+### Changed (0.26.17)
+
+- **Version**: Bumped to 0.26.17 for issue [#179](https://github.com/nold-ai/specfact-cli/issues/179)
+
+---
+
 ## [0.26.16] - 2026-02-02
 
 ### Added (0.26.16)
