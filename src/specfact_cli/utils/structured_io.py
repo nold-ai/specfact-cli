@@ -6,7 +6,7 @@ Provides helpers to load and dump JSON/YAML consistently with format detection.
 
 import json
 import threading
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Optional
 
@@ -16,7 +16,7 @@ from icontract import ensure, require
 from specfact_cli.utils.yaml_utils import YAMLUtils
 
 
-class StructuredFormat(str, Enum):
+class StructuredFormat(StrEnum):
     """Supported structured data formats."""
 
     YAML = "yaml"

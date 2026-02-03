@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from beartype import beartype
@@ -18,7 +18,7 @@ from specfact_cli.models.project import ProjectBundle
 from specfact_cli.utils.bundle_loader import load_project_bundle
 
 
-class ChangeType(str, Enum):
+class ChangeType(StrEnum):
     """Change categories mapped to SemVer bumps."""
 
     NONE = "none"

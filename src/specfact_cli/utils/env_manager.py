@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from beartype import beartype
 from icontract import ensure, require
 
 
-class EnvManager(str, Enum):
+class EnvManager(StrEnum):
     """Python environment manager types."""
 
     HATCH = "hatch"

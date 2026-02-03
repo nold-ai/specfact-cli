@@ -8,13 +8,13 @@ based on environment and explicit flags.
 from __future__ import annotations
 
 import os
-from enum import Enum
+from enum import StrEnum
 
 from beartype import beartype
 from icontract import ensure, require
 
 
-class OperationalMode(str, Enum):
+class OperationalMode(StrEnum):
     """Operational modes for SpecFact CLI."""
 
     CICD = "cicd"

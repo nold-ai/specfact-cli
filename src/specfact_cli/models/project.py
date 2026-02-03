@@ -13,7 +13,7 @@ import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,7 @@ from specfact_cli.models.plan import (
 )
 
 
-class BundleFormat(str, Enum):
+class BundleFormat(StrEnum):
     """Bundle format types."""
 
     MONOLITHIC = "monolithic"  # Single file with all aspects

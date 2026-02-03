@@ -7,14 +7,14 @@ protocols, and actual implementation following the CLI-First specification.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
 
-class DeviationSeverity(str, Enum):
+class DeviationSeverity(StrEnum):
     """Deviation severity level."""
 
     HIGH = "HIGH"
@@ -22,7 +22,7 @@ class DeviationSeverity(str, Enum):
     LOW = "LOW"
 
 
-class DeviationType(str, Enum):
+class DeviationType(StrEnum):
     """Type of deviation."""
 
     MISSING_FEATURE = "missing_feature"

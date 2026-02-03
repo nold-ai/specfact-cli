@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import sys
-from enum import Enum
+from enum import StrEnum
 from logging.handlers import RotatingFileHandler
 from typing import Any
 
@@ -34,7 +34,7 @@ DEBUG_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 DEBUG_LOG_FORMAT = "%(asctime)s | %(message)s"
 
 
-class TerminalMode(str, Enum):
+class TerminalMode(StrEnum):
     """Terminal output modes for Rich Console and Progress."""
 
     GRAPHICAL = "graphical"  # Full Rich features (colors, animations)

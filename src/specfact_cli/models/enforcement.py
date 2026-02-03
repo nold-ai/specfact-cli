@@ -1,13 +1,13 @@
 """Enforcement configuration models for quality gates."""
 
-from enum import Enum
+from enum import StrEnum
 
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
 
-class EnforcementAction(str, Enum):
+class EnforcementAction(StrEnum):
     """Actions that can be taken when a deviation is detected."""
 
     BLOCK = "BLOCK"  # Fail the validation (exit code 1)
@@ -15,7 +15,7 @@ class EnforcementAction(str, Enum):
     LOG = "LOG"  # Only log, no warning (exit code 0)
 
 
-class EnforcementPreset(str, Enum):
+class EnforcementPreset(StrEnum):
     """Predefined enforcement presets."""
 
     MINIMAL = "minimal"  # Log everything, never block

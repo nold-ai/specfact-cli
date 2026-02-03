@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from beartype import beartype
@@ -14,7 +14,7 @@ from specfact_cli.models.deviation import Deviation, DeviationReport, Validation
 from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file
 
 
-class ReportFormat(str, Enum):
+class ReportFormat(StrEnum):
     """Report output format."""
 
     MARKDOWN = "markdown"
