@@ -7,6 +7,12 @@
 # 3. Checks out dev branch
 # 4. Merges main into dev
 # 5. Ensures you're on dev branch ready for new feature branches
+#
+# OpenSpec / plans: Files under openspec/changes/ (e.g. tasks.md, proposal.md)
+# are NOT overwritten by this script itself, but the merge can change them if
+# main has different versions. Always commit your dev-only plan edits before
+# running. After merge, the script reports any openspec/changes files that were
+# modified by the merge so you can review or restore dev's version if needed.
 
 set -e
 
@@ -83,6 +89,16 @@ git checkout dev
 info "Merging main into dev..."
 if git merge main --no-edit; then
     success "Successfully merged main into dev"
+    # Report any openspec/changes files modified by the merge (may indicate main overwrote dev's plans)
+    CHANGED_OPENSPEC=$(git diff --name-only HEAD^1..HEAD -- "openspec/changes/" 2>/dev/null || true)
+    if [ -n "$CHANGED_OPENSPEC" ]; then
+        warn "The following openspec/changes files were modified by the merge (main's version was merged in):"
+        echo "$CHANGED_OPENSPEC" | sed 's/^/  /'
+        echo ""
+        echo "Review the changes. To restore dev's version of a file (before merge):"
+        echo "  git checkout HEAD^1 -- <file>"
+        echo ""
+    fi
 else
     error "Merge conflict detected!"
     echo ""
