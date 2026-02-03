@@ -910,12 +910,8 @@ class AmbiguityScanner:
                                                             # Look for role/permission constants (e.g., ADMIN = "admin")
                                                             if (
                                                                 "role" in attr_name or "permission" in attr_name
-                                                            ) and isinstance(item.value, (ast.Str, ast.Constant)):
-                                                                role_value = (
-                                                                    item.value.s
-                                                                    if isinstance(item.value, ast.Str)
-                                                                    else item.value
-                                                                )
+                                                            ) and isinstance(item.value, ast.Constant):
+                                                                role_value = item.value.value
                                                                 if isinstance(role_value, str) and len(role_value) > 2:
                                                                     role_clean = role_value.strip().lower()
                                                                     if (
