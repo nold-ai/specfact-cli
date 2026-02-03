@@ -20,9 +20,9 @@ Scenarios from openspec/changes/daily-standup-progress-support/specs/daily-stand
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from pathlib import Path
-import re
 from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
