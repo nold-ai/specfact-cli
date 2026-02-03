@@ -620,7 +620,7 @@ def _run_interactive_daily(
             console.print(Panel(detail, title=f"Story: {item.id}", border_style="cyan"))
 
             if suggest_next and n > 1:
-                pending = [i for i in items if not i.assignees or item.story_points is not None]
+                pending = [i for i in items if not i.assignees or i.story_points is not None]
                 if pending:
                     best: BacklogItem | None = None
                     best_score: float = -1.0
