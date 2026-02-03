@@ -17,7 +17,7 @@ stored in bundle-specific contracts/ directories and linked to features.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +26,7 @@ from icontract import ensure, require
 from pydantic import BaseModel, Field
 
 
-class ContractStatus(str, Enum):
+class ContractStatus(StrEnum):
     """Contract status levels."""
 
     DRAFT = "draft"  # Initial contract, not validated

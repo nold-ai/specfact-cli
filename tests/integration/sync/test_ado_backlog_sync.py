@@ -89,7 +89,13 @@ class TestBidirectionalAdoBacklogSync:
         mock_patch.assert_called_once()
 
     @beartype
-    def test_ado_to_openspec_import(self, ado_adapter: AdoAdapter, tmp_path: Path) -> None:
+    @patch.object(AdoAdapter, "_get_work_item_comments", return_value=[])
+    def test_ado_to_openspec_import(
+        self,
+        mock_get_comments: MagicMock,
+        ado_adapter: AdoAdapter,
+        tmp_path: Path,
+    ) -> None:
         """Test ADO → OpenSpec import (ADO work item → change proposal)."""
         from unittest.mock import MagicMock
 

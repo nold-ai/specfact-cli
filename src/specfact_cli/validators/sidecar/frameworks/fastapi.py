@@ -182,12 +182,9 @@ class FastAPIExtractor(BaseFrameworkExtractor):
 
     @beartype
     def _extract_string_literal(self, node: ast.AST) -> str | None:
-        """Extract string literal from AST node."""
-        if isinstance(node, ast.Constant):
-            if isinstance(node.value, str):
-                return node.value
-        elif hasattr(ast, "Str") and isinstance(node, ast.Str):
-            return node.s  # type: ignore[attr-defined, deprecated]
+        """Extract string literal from AST node (Python 3.8+ uses ast.Constant)."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
         return None
 
     @beartype

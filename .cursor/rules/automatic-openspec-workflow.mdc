@@ -5,11 +5,31 @@ alwaysApply: true
 
 # Automatic OpenSpec Workflow
 
-This rule ensures that all code changes in the specfact-cli codebase are properly tracked through OpenSpec change proposals, following the spec-driven development workflow.
+This rule ensures that all code changes in the specfact-cli codebase are properly tracked through OpenSpec change proposals, following the spec-driven development workflow. **No application code may be modified without a corresponding OpenSpec change (new or delta) unless the user explicitly opts out.**
+
+## Critical: Before Any Code Modification
+
+**Do not add, modify, or delete any application code** (in `src/`, `tools/`, tests, or significant docs) until all of the following are done:
+
+1. **Read and apply `openspec/config.yaml`:**
+   - Use the project context (tech stack, constraints, architecture, SDD+TDD discipline) for all artifact work.
+   - Apply per-artifact rules (proposal, specs, design, tasks) when creating or updating any change artifact.
+
+2. **Ensure an OpenSpec change exists for the intended modification:**
+   - **New work:** Create a new change (e.g. via `/opsx:new`, `/opsx:ff`, or `/wf-create-change-from-plan`).
+   - **Existing change:** Update the existing change (proposal, specs, design, tasks) or create a **delta change** that updates the existing spec (e.g. via openspec archive after implementation).
+   - There must be no code change without a corresponding change proposal (new or delta) that describes it.
+
+3. **Validate the change before implementing:**
+   - Run `openspec validate <change-id> --strict`.
+   - Optionally run `/wf-validate-change <change-id>` for breaking-change and dependency analysis.
+   - Do not proceed to implementation until validation passes (or the user explicitly overrides).
+
+**Exception:** Only when the user explicitly says "skip openspec", "direct implementation", "simple fix", "just fix it", or similar, may you implement without creating or updating an OpenSpec change.
 
 ## When This Rule Applies
 
-This rule automatically triggers when the user requests to:
+This rule applies to **every** request that would result in:
 
 - **Add** new features, functions, classes, or capabilities
 - **Modify** existing code, functions, or behavior
@@ -19,23 +39,25 @@ This rule automatically triggers when the user requests to:
 - **Implement** new features or capabilities
 - **Enhance** existing functionality
 - **Remove** features or code (unless explicitly a simple deletion)
+- **Bug fixes** that restore intended behavior (including simple fixes)
+- **Tests for existing behavior** (adding tests to existing code)
+- **Typos, formatting, or comments** (cosmetic changes)
+- **Dependency updates** (breaking and non-breaking)
+- **Configuration changes** (including simple config updates)
+
+For any such request, **before** writing or modifying any code, follow the steps below so that a change (new or delta) exists and is validated. If the work relates to an already-implemented change, create an OpenSpec delta change to update the existing spec (e.g. via openspec archive after implementation).
 
 ## What This Rule Does NOT Apply To
 
-Skip OpenSpec workflow for:
+Skip OpenSpec workflow only when:
 
-- **Bug fixes** that restore intended behavior (simple fixes)
-- **Typos, formatting, or comments** (cosmetic changes)
-- **Dependency updates** (non-breaking)
-- **Configuration changes** (simple config updates)
-- **Tests for existing behavior** (adding tests to existing code)
-- **User explicitly says "skip openspec"** or "direct implementation"
+- **User explicitly says** "skip openspec", "no openspec", "direct implementation", "implement directly", "simple fix", or "just fix it"
 
 ## Automatic Workflow Steps
 
-### Step 1: Detect Change Request
+### Step 1: Detect Change Request (No Code Modification Yet)
 
-When user requests a change, immediately:
+When user requests a change, **do not write or modify any application code yet**. Instead:
 
 1. **Parse the request** to understand:
    - What is being changed (feature, function, module, etc.)
@@ -43,22 +65,24 @@ When user requests a change, immediately:
    - Affected files or modules (if mentioned)
 
 2. **Determine if OpenSpec workflow is needed:**
-   - If request matches "What This Rule Applies To" → proceed
+   - If request matches "When This Rule Applies" → proceed with Steps 2–4 (create/update change, validate), then implement only after change is ready
    - If request matches "What This Rule Does NOT Apply To" → skip OpenSpec, implement directly
    - If unclear → ask user: "Should this be tracked as an OpenSpec change, or is this a simple fix?"
+
+3. **Read `openspec/config.yaml`** before creating or updating any change artifact. Apply project context and per-artifact rules to all proposal, spec, design, and task content.
 
 ### Step 2: Search for Existing OpenSpec Changes
 
 **Before creating a new change, always check for existing work:**
 
-1. **Navigate to specfact-cli-internal workspace:**
-   - Change directory to `/home/dom/git/nold-ai/specfact-cli-internal`
+1. **Navigate to specfact-cli workspace:**
+   - Change directory to `specfact-cli` inside the project workspace
    - Verify `openspec/` directory exists
 
 2. **List active changes:**
 
    ```bash
-   cd /home/dom/git/nold-ai/specfact-cli-internal
+   cd <project-workspace>/specfact-cli
    openspec list
    ```
 
@@ -78,6 +102,8 @@ When user requests a change, immediately:
 
 ### Step 3: Create or Update OpenSpec Change
 
+**Required:** Use `openspec/config.yaml` (project context and per-artifact rules) for all artifact creation and updates. Do not create or update proposal, specs, design, or tasks without applying config.yaml rules.
+
 **If creating a new change:**
 
 1. **Gather requirements:**
@@ -96,16 +122,16 @@ When user requests a change, immediately:
 3. **Execute workflow command:**
 
    **For ad-hoc changes (no plan document):**
-   - Use: `/openspec-proposal` command directly
+   - Use: `/opsx-explore` to research codebase for potential conflicts, dependencies, and clarify, then use `/opsx-new` (or `/opsx:ff`) to create the change proposal
    - Follow the command steps:
-     - Review `openspec/config.yaml` (OPSX) or `openspec/project.md` (legacy) and existing specs
+     - Review `openspec/config.yaml` and existing specs
      - Choose unique verb-led `change-id`
      - Scaffold `proposal.md`, `tasks.md`, optional `design.md`
      - Create spec deltas in `changes/<id>/specs/<capability>/spec.md`
      - Validate with `openspec validate <id> --strict`
 
    **For changes from plan documents:**
-   - Use: `/specfact-cli-internal/wf-create-change-from-plan <plan-path>`
+   - Use: `/specfact-cli/wf-create-change-from-plan <plan-path>`
    - Follow the workflow steps:
      - Plan selection and discovery
      - Plan review and alignment check
@@ -125,25 +151,34 @@ When user requests a change, immediately:
    - Read `openspec/changes/<change-id>/proposal.md`
    - Read `openspec/changes/<change-id>/tasks.md`
    - Read `openspec/changes/<change-id>/specs/` (if exists)
+   - Read `openspec/changes/<change-id>/design.md` (if exists)
+   - Read `openspec/changes/<change-id>/CHANGE_VALIDATION.md` (if exists)
 
 2. **Update change artifacts:**
    - Update `proposal.md` if scope changed
-   - Add new tasks to `tasks.md` if needed
+   - Add new tasks to `tasks.md` if needed and adhere to config.yaml rules
    - Update spec deltas if requirements changed
+   - Update design.md if architectural decisions changed
 
 3. **Validate updated change:**
 
    ```bash
-   cd /home/dom/git/nold-ai/specfact-cli-internal
+   cd <project-workspace>/specfact-cli
    openspec validate <change-id> --strict
    ```
+
+   Then run `/specfact-cli/wf-validate-change <change-id>` to validate the updated change
+   - If validation fails, fix issues in proposal.md, tasks.md, design.md (if exists), or spec deltas
+   - Re-validate until passing
+   - Continue until validation passes
+   - If validation passes, update CHANGE_VALIDATION.md with validation result
 
 4. **Inform user:**
    - "Updated existing OpenSpec change: `<change-id>`"
 
 ### Step 4: Verify and Apply Change
 
-**After change is created or updated:**
+**After change is created or updated (still no code modification until user confirms):**
 
 1. **Review the change:**
    - Display summary of the change proposal
@@ -151,12 +186,12 @@ When user requests a change, immediately:
    - Confirm with user: "OpenSpec change ready. Proceed with implementation?"
 
 2. **If user confirms or if workflow requires immediate application:**
-   - Execute: `/specfact-cli-internal/wf-apply-change <change-id>`
+   - Execute: `/opsx:apply <change-id>` (or `/specfact-cli/wf-apply-change <change-id>`)
    - Follow workflow steps:
      - Change selection
      - Read change artifacts
      - Execute openspec-apply workflow
-     - Complete tasks sequentially
+     - Complete tasks sequentially (TDD: tests first, then code)
      - Update task checklist
      - Completion and summary
 
@@ -165,41 +200,62 @@ When user requests a change, immediately:
    - Suggest reviewing `proposal.md` and `tasks.md`
    - Wait for user confirmation before applying
 
+### Step 5: After Implementation—Verify, Validate, and Sync Backlog
+
+**After each code modification (at the end of implementation):**
+
+1. **Verify:**
+   - Run quality gates: `hatch run format`, `hatch run type-check`, `hatch run contract-test`, `hatch test` (or `hatch run smart-test`).
+   - Ensure all tests pass and contracts are satisfied.
+
+2. **Validate the change:**
+   - Run `openspec validate <change-id> --strict`.
+   - Optionally run `/wf-validate-change <change-id>` for breaking-change and dependency audit.
+   - If validation fails, fix proposal/specs/design/tasks and re-validate before considering the change complete.
+
+3. **Sync backlog (GitHub issues and Source Tracking):**
+   - **If the change targets a public repo** (e.g. specfact-cli, platform-frontend):
+     - **If no GitHub issue exists yet:** Create the issue per config.yaml (title `[Change] <Brief Description>`, labels `enhancement` and `change-proposal`, body from proposal). Update `proposal.md` Source Tracking section with issue number, URL, repository, and status.
+     - **If an issue already exists:** Sync the issue with the change (e.g. update issue body/status from proposal, ensure Development link to branch/PR). Update `proposal.md` Source Tracking section with current status (e.g. "Last Synced Status: in-progress" or "done").
+   - Ensure backlog and code stay in sync: proposal Source Tracking and the GitHub issue reflect the current state of the change.
+
 ## Implementation Pattern
 
 **Example workflow:**
 
-```
+```text
 User: "Add a new command to list all backlog items"
 
 AI (automatically):
-1. Detects: "Add" → triggers OpenSpec workflow
-2. Searches: `openspec list` → no related changes found
-3. Creates: `/openspec-proposal` (for ad-hoc changes)
-   - Asks for clarifications if needed
-   - Creates change proposal
-   - Validates change
-4. Verifies: Shows change summary
-5. Applies: `/specfact-cli-internal/wf-apply-change <change-id>`
-   - Implements the change
+1. Reads openspec/config.yaml (project context and per-artifact rules). Does not modify code yet.
+2. Detects: "Add" → triggers OpenSpec workflow
+3. Searches: openspec list → no related changes found
+4. Creates: /opsx-explore then /opsx-new (or /opsx:ff) or /wf-create-change-from-plan
+   - Applies config.yaml rules to all artifacts
+   - Creates change proposal, spec deltas, tasks
+   - Validates: openspec validate <id> --strict
+5. Verifies: Shows change summary; "Proceed with implementation?"
+6. Applies: /opsx:apply <change-id> (or /wf-apply-change <change-id>)
+   - Implements the change (TDD: tests first, then code)
    - Updates tasks
-   - Completes workflow
+7. After implementation: Verify (quality gates), validate (openspec validate), sync backlog
+   - Create or update GitHub issue if public repo; update proposal Source Tracking
 ```
 
 ## Error Handling
 
 - **If `openspec` command not found:**
-  - Inform user: "OpenSpec CLI not available. Proceeding with direct implementation."
-  - Skip OpenSpec workflow, implement directly
+  - Inform user: "OpenSpec CLI not available. No code modification will be made until an OpenSpec change exists (create one manually or install OpenSpec CLI)."
+  - Do not modify application code unless the user explicitly confirms: "Proceed without OpenSpec" or similar.
 
-- **If specfact-cli-internal workspace not accessible:**
-  - Inform user: "Cannot access OpenSpec workspace. Proceeding with direct implementation."
-  - Skip OpenSpec workflow, implement directly
+- **If specfact-cli workspace or openspec/ directory not accessible:**
+  - Inform user: "Cannot access OpenSpec workspace. No code modification will be made until a change exists."
+  - Do not modify application code unless the user explicitly confirms to proceed without OpenSpec.
 
 - **If change validation fails:**
-  - Fix validation errors
+  - Fix validation errors in proposal, specs, design, or tasks
   - Re-validate until passing
-  - Do not proceed with implementation until validation passes
+  - Do not proceed with implementation until validation passes (or user explicitly overrides)
 
 - **If user explicitly requests to skip:**
   - Respect user request: "Skipping OpenSpec workflow as requested."
@@ -227,6 +283,8 @@ This rule works alongside:
 ## Notes
 
 - This rule applies to the **specfact-cli** codebase specifically
+- **Mandatory before any code modification:** Read and apply `openspec/config.yaml` (project context and per-artifact rules). Ensure an OpenSpec change (new or delta) exists and is validated. No code change without a corresponding change proposal unless the user explicitly opts out.
+- **Mandatory after each implementation:** Verify (quality gates), validate (`openspec validate <id> --strict`), and sync backlog (create or update GitHub issue, update proposal Source Tracking) so backlog and code stay in sync.
 - For other repositories, this rule may not apply (check repository-specific rules)
 - **Important workspace distinction:**
   - **OpenSpec changes** are stored in `specfact-cli/openspec/changes/`

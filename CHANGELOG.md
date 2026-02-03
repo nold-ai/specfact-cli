@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.26.17] - 2026-02-03
+
+### Fixed (0.26.17)
+
+- **Daily standup exports: comment annotations** (fixes [#179](https://github.com/nold-ai/specfact-cli/issues/179))
+  - **`--comments` / `--annotations`**: Include item descriptions and comment annotations in `--copilot-export` and
+    `--summarize`/`--summarize-to` outputs when the adapter supports `get_comments` (GitHub).
+  - **Docs**: Updated daily standup tutorial and guides to document the new flags and outputs.
+
+### Changed (0.26.17)
+
+- **Version**: Bumped to 0.26.17 for issue [#179](https://github.com/nold-ai/specfact-cli/issues/179)
+
+---
 ## [0.26.16] - 2026-02-02
 
 ### Added (0.26.16)

@@ -7,7 +7,7 @@ including framework detection, tool configuration, and path settings.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from beartype import beartype
@@ -15,7 +15,7 @@ from icontract import ensure, require
 from pydantic import BaseModel, Field
 
 
-class FrameworkType(str, Enum):
+class FrameworkType(StrEnum):
     """Supported framework types for sidecar validation."""
 
     DJANGO = "django"

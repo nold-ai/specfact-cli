@@ -8,7 +8,7 @@ for persona-specific Markdown artifacts.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from beartype import beartype
@@ -16,7 +16,7 @@ from icontract import ensure, require
 from pydantic import BaseModel, Field
 
 
-class SectionType(str, Enum):
+class SectionType(StrEnum):
     """Section type classification."""
 
     REQUIRED = "required"  # Must be present in export/import

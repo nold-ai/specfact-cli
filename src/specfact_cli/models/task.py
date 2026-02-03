@@ -7,14 +7,14 @@ plan bundles and SDD manifests.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
 
-class TaskPhase(str, Enum):
+class TaskPhase(StrEnum):
     """Task execution phases."""
 
     SETUP = "setup"  # Project structure, dependencies, config
@@ -23,7 +23,7 @@ class TaskPhase(str, Enum):
     POLISH = "polish"  # Tests, docs, optimization
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """Task completion status."""
 
     PENDING = "pending"

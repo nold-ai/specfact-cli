@@ -12,7 +12,7 @@ ensuring they remain adapter-agnostic.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from icontract import ensure, require
@@ -22,7 +22,7 @@ from specfact_cli.models.plan import Feature
 from specfact_cli.models.source_tracking import SourceTracking
 
 
-class ChangeType(str, Enum):
+class ChangeType(StrEnum):
     """Change type for delta specs (tool-agnostic)."""
 
     ADDED = "added"

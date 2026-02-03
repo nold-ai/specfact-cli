@@ -8,7 +8,7 @@ enabling automatic conflict resolution based on section ownership.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from beartype import beartype
@@ -17,7 +17,7 @@ from icontract import ensure, require
 from specfact_cli.models.project import BundleManifest, ProjectBundle
 
 
-class MergeStrategy(str, Enum):
+class MergeStrategy(StrEnum):
     """Merge resolution strategy."""
 
     AUTO = "auto"  # Automatic resolution based on persona ownership
@@ -102,7 +102,7 @@ class PersonaMergeResolver:
         if self._sections_disjoint(ours, theirs):
             # No conflicts - merge all changes
             merged = self._merge_sections(base, ours, theirs)
-            return MergeResolution(merged_bundle=merged, conflicts=[], auto_resolved=0, manual_resolved=0, unresolved=0)
+            return MergeResolution(merged, [], 0, 0, 0)
 
         # Rule 2: Find conflicts and resolve based on persona ownership
         field_conflicts = self._find_conflicts(base, ours, theirs)
@@ -161,11 +161,11 @@ class PersonaMergeResolver:
             conflicts.append(conflict)
 
         return MergeResolution(
-            merged_bundle=merged,
-            conflicts=conflicts,
-            auto_resolved=auto_resolved,
-            manual_resolved=manual_resolved,
-            unresolved=unresolved,
+            merged,
+            conflicts,
+            auto_resolved,
+            manual_resolved,
+            unresolved,
         )
 
     @beartype

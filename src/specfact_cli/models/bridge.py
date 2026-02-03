@@ -9,7 +9,7 @@ future tool integrations using the same interface pattern.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from beartype import beartype
@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
 
 
-class AdapterType(str, Enum):
+class AdapterType(StrEnum):
     """Supported adapter types."""
 
     SPECKIT = "speckit"
