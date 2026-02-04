@@ -19,9 +19,25 @@ All notable changes to this project will be documented in this file.
   - **Module packages**: `src/specfact_cli/modules/` with per-package `metadata.yaml` (name, version, commands), `src/`, optional `resources/`; discovery registers package commands; example package included.
   - **Init module state**: `~/.specfact/registry/modules.json` stores per-module `id`, `version`, `enabled`; `specfact init --enable-module <id>` / `--disable-module <id>` (repeatable); disabled modules not registered on next run; message when modules disabled by configuration.
 
+### Fixed (0.27.0)
+
+- **Lazy delegate CLI (init, drift, repro, etc.)** – Commands under the lazy-loaded groups now receive options and subcommand args correctly.
+  - **`_LazyDelegateGroup`**: Added `context_settings={"ignore_unknown_options": True}` so options (e.g. `--ide`, `--repo`, `--force`) are passed through to the real command instead of causing "No such option" at the group level.
+  - **Single-command apps**: When the real app is a single TyperCommand (e.g. `drift` only has subcommand `detect`), the delegate now strips the leading subcommand name from args so the command receives e.g. `["bundle_name", "--repo", ...]` instead of `["detect", "bundle_name", ...]`.
+  - **Prog name for help**: Full program name is built by walking the Click context chain to the root (e.g. `specfact sync`), so subcommand help shows correct usage (e.g. `Usage: specfact sync bridge [OPTIONS]`) instead of duplicated names (e.g. `Usage: sync sync bridge [OPTIONS]`).
+- **Plan init interactive tests** – In CI or when `is_non_interactive()` is true, `plan init` was creating a minimal bundle; tests now pass `--interactive` so the interactive path runs with mocked prompts and bundle.idea/business/releases are populated as expected.
+- **Sync bridge help** – Usage line and paragraph breaks in `specfact sync bridge --help`: blank lines added before section headers in the `sync_bridge` docstring so Typer preserves paragraph breaks; usage line fixed via prog_name context chain (see above).
+
 ### Changed (0.27.0)
 
 - **Version**: Bumped to 0.27.0 (minor: new feature/refactor, backward compatible).
+- **Docs and positioning**: Updated USP/CTA messaging and onboarding flow across README and docs.
+  - **New visitor flow**: Simplified README structure with a clear start path, plain-language value props, and a “Missing Link” bridge for coders + DevOps teams.
+  - **Agile DevOps USP**: Emphasized backlog sync + ceremony support (Scrum/Kanban/SAFe) alongside validation and policy checks.
+  - **Docs hub refresh**: `docs/index.md` and `docs/README.md` aligned to the same narrative and paths; reduced jargon in section labels.
+  - **Navigation**: Updated docs layout links to point to the most useful entry points for new users.
+  - **Brand metadata**: PyPI/project descriptions and keywords aligned to the new positioning.
+  - **Badges**: Status and version badge colors updated for better visual clarity.
 
 ---
 

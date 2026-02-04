@@ -29,6 +29,8 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - `commands.json` – Command names and help text used for fast root `specfact --help` without loading every command module.
 - `modules.json` – Per-module state (id, version, enabled) for optional module packages; `specfact init --enable-module <id>` / `--disable-module <id>` persist here.
 
+For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Modules design](architecture.md#modules-design).
+
 ## Canonical Structure
 
 ```bash

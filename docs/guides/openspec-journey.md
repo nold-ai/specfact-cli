@@ -1,3 +1,9 @@
+---
+layout: default
+title: "The Journey: OpenSpec + SpecFact Integration"
+permalink: /guides/openspec-journey/
+---
+
 # The Journey: OpenSpec + SpecFact Integration
 
 > **OpenSpec and SpecFact are complementary, not competitive.**  

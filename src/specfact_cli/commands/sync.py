@@ -1162,6 +1162,7 @@ def sync_bridge(
     before syncing to OpenSpec bundles. See backlog refinement guide for details.
 
     Supported adapters:
+
     - speckit: Spec-Kit projects (specs/, .specify/) - import & sync
     - generic-markdown: Generic markdown-based specifications - import & sync
     - openspec: OpenSpec integration (openspec/) - read-only sync (Phase 1)
@@ -1172,6 +1173,7 @@ def sync_bridge(
     - notion: Notion pages (future) - planned
 
     **Sync Modes:**
+
     - read-only: OpenSpec → SpecFact (read specs, no writes) - OpenSpec adapter only
     - bidirectional: Full two-way sync (tool ↔ SpecFact) - Spec-Kit, GitHub, and ADO adapters
       - GitHub: Import issues as change proposals, export proposals as issues
@@ -1181,6 +1183,7 @@ def sync_bridge(
     - import-annotation: DevOps → SpecFact (import issues, annotate with findings) - future
 
     **🚀 Cross-Adapter Sync (Advanced Feature):**
+
     Enable lossless round-trip synchronization between different backlog adapters (GitHub ↔ ADO):
     - Use --bundle to preserve lossless content during cross-adapter syncs
     - Import from one adapter (e.g., GitHub) into a bundle, then export to another (e.g., ADO)
@@ -1188,6 +1191,7 @@ def sync_bridge(
     - Example: Import GitHub issue → bundle → export to ADO (no content loss)
 
     **Parameter Groups:**
+
     - **Target/Input**: --repo, --bundle
     - **Behavior/Options**: --bidirectional, --mode, --overwrite, --watch, --ensure-compliance
     - **Advanced/Configuration**: --adapter, --interval, --repo-owner, --repo-name, --github-token
@@ -1195,6 +1199,7 @@ def sync_bridge(
     - **ADO Options**: --ado-org, --ado-project, --ado-base-url, --ado-token, --ado-work-item-type
 
     **Basic Examples:**
+
         specfact sync bridge --adapter speckit --repo . --bidirectional
         specfact sync bridge --adapter openspec --repo . --mode read-only  # OpenSpec → SpecFact (read-only)
         specfact sync bridge --adapter openspec --repo . --external-base-path ../other-repo  # Cross-repo OpenSpec
@@ -1202,6 +1207,7 @@ def sync_bridge(
         specfact sync bridge --repo . --watch --interval 10
 
     **GitHub Examples:**
+
         specfact sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo  # Bidirectional sync
         specfact sync bridge --adapter github --mode export-only --repo-owner owner --repo-name repo  # Export only
         specfact sync bridge --adapter github --update-existing  # Update existing issues when content changes
@@ -1209,11 +1215,13 @@ def sync_bridge(
         specfact sync bridge --adapter github --add-progress-comment  # Add manual progress comment
 
     **Azure DevOps Examples:**
+
         specfact sync bridge --adapter ado --bidirectional --ado-org myorg --ado-project myproject  # Bidirectional sync
         specfact sync bridge --adapter ado --mode export-only --ado-org myorg --ado-project myproject  # Export only
         specfact sync bridge --adapter ado --mode export-only --ado-org myorg --ado-project myproject --bundle main  # Bundle export
 
     **Cross-Adapter Sync Examples:**
+
         # GitHub → ADO Migration (lossless round-trip)
         specfact sync bridge --adapter github --mode bidirectional --bundle migration --backlog-ids 123
         # Output shows: "✓ Imported GitHub issue #123 as change proposal: add-feature-x"
@@ -1225,6 +1233,7 @@ def sync_bridge(
         specfact sync bridge --adapter ado --mode export-only --bundle internal --change-ids <change-id>  # Export to ADO
 
     **Finding Change IDs:**
+
     - Change IDs are shown in import output: "✓ Imported as change proposal: <change-id>"
     - Or check bundle directory: ls .specfact/projects/<bundle>/change_tracking/proposals/
     - Or check OpenSpec directory: ls openspec/changes/

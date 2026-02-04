@@ -95,15 +95,18 @@ docs/internal/
 
 # Ignore .specify artifacts
 .specify/
-.cursor/commands/speckit.*
+.cursor/commands/speckit.*.md
 /specs/
 
 # Include openspec/specs/ directory
 !openspec/
 
 # Ignore specfact-cli prompt templates
-.cursor/commands/specfact-*
-.github/prompts/specfact-*
+.cursor/commands/specfact.*.md
+.cursor/commands/opsx-*.md
+
+.github/prompts/specfact.*.md
+.github/prompts/opsx-*.md
 
 # Semgrep rules (generated from tools/semgrep/ - source rules are versioned)
 .semgrep/
@@ -128,3 +131,8 @@ answers.json
 questions.json
 docs/project-plans/
 harness_contracts.py
+
+# semgrep artifacts
+lang.json
+Language.ml
+Language.mli

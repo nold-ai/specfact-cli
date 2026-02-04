@@ -338,13 +338,23 @@ class _LazyDelegateGroup(click.Group):
             ctx = click.get_current_context()
             real_typer = CommandRegistry.get_typer(cmd_name)
             click_cmd = get_command(real_typer)
-            prog_name = f"{ctx.parent.command.name} {cmd_name}" if ctx.parent and ctx.parent.command else cmd_name
+            # Build full prog name from root (e.g. "specfact sync") so usage shows "specfact sync bridge", not "sync sync bridge"
+            parts: list[str] = []
+            p = ctx.parent
+            while p and getattr(p, "command", None):
+                name = getattr(p.command, "name", None)
+                if name and name != "__delegate__":
+                    parts.append(name)
+                p = getattr(p, "parent", None)
+            prog_name = " ".join(reversed(parts)) if parts else cmd_name
             args_list = list(args)
             # When the real app is a single command (e.g. drift has only "detect"), Typer
             # builds a TyperCommand, not a Group. Then args are ["detect", "bundle", "--repo", ...]
             # and the command expects ["bundle", "--repo", ...] (no leading "detect").
-            if not isinstance(click_cmd, click.Group) and args_list and args_list[0] == getattr(
-                click_cmd, "name", None
+            if (
+                not isinstance(click_cmd, click.Group)
+                and args_list
+                and args_list[0] == getattr(click_cmd, "name", None)
             ):
                 args_list = args_list[1:]
             exit_code = click_cmd.main(args=args_list, prog_name=prog_name, standalone_mode=False)

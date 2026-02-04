@@ -1,15 +1,36 @@
 ---
 layout: default
 title: SpecFact CLI Documentation
-description: Brownfield-first CLI for reverse engineering legacy Python code into specs with runtime contract enforcement
+description: The swiss knife CLI that keeps backlog, specs, tests, and code in sync. Works for new and long-lived projects.
 permalink: /
 ---
 
 # SpecFact CLI Documentation
 
-**Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts**
+**The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow**  
+Keep backlog, specs, tests, and code in sync so AI-assisted changes don’t break production.
 
-SpecFact CLI helps you modernize legacy codebases by automatically extracting specifications from existing code and enforcing them at runtime to prevent regressions.
+**Built for both worlds**
+
+- **Vibe coders and new builders** who want to ship fast with guardrails and confidence.
+- **Legacy professionals** who want AI speed without lowering standards, plus end-to-end spec -> backlog -> code sync.
+
+**Core promise**: Works for new and long-lived projects with contract enforcement and validation.
+
+---
+
+## The Missing Link (Coder + DevOps Bridge)
+
+Most tools help **either** coders **or** agile teams. SpecFact does both:
+
+- **Backlog sync that is actually strong**: round-trip sync + refinement with GitHub, Azure DevOps, Jira, Linear.
+- **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
+- **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade stability.
+
+**Try it now**
+
+- **Coders**: [AI IDE Workflow](guides/ai-ide-workflow.md)
+- **Agile teams**: [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
 
 ---
 
@@ -17,21 +38,22 @@ SpecFact CLI helps you modernize legacy codebases by automatically extracting sp
 
 ### New to SpecFact CLI?
 
-**Primary Use Case**: Modernizing legacy Python codebases
+**Primary Use Case**: Understanding and improving existing codebases (and new projects)
 
 1. **[Installation](getting-started/installation.md)** - Get started in 60 seconds
 2. **[First Steps](getting-started/first-steps.md)** - Run your first command
 3. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
 4. **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post comments, and Copilot export (GitHub/ADO)
-5. **[Modernizing Legacy Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
-6. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+5. **[Working With Existing Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Legacy-first guide
+6. **[The Existing Code Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
 
-### Using GitHub Spec-Kit?
+### Using GitHub Spec-Kit or OpenSpec?
 
-**Secondary Use Case**: Add automated enforcement to your Spec-Kit projects
+**Secondary Use Case**: Add automated enforcement to your Spec-Kit or OpenSpec projects
 
 - **[From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
 - **[Spec-Kit Comparison](guides/speckit-comparison.md)** - Understand when to use each tool
+- **[From OpenSpec to SpecFact](guides/openspec-journey.md)** - Add enforcement to OpenSpec projects
 
 ## 📚 Documentation
 
@@ -90,7 +112,7 @@ specfact sync bridge --adapter github --mode export-only \
 specfact sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project your-project
 
-# Cross-adapter sync: GitHub → ADO (lossless round-trip)
+# Cross-adapter sync: GitHub -> ADO (lossless round-trip)
 specfact sync bridge --adapter github --mode bidirectional \
   --bundle main --backlog-ids 123
 specfact sync bridge --adapter ado --mode export-only \

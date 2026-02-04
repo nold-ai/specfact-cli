@@ -1,253 +1,113 @@
 # SpecFact CLI Documentation
 
-> **Everything you need to know about using SpecFact CLI**
+> **The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow.**  
+> Keep backlog, specs, tests, and code in sync so AI-assisted changes don’t break production.  
+> Works for brand-new projects and long-lived codebases — even if you’re new to coding.
+
+**Built for both worlds**
+
+- **Vibe coders and new builders** who want to ship fast with guardrails and confidence.
+- **Legacy professionals** who want AI speed without lowering standards, plus end-to-end spec -> backlog -> code sync.
 
 ---
 
-## Why SpecFact?
+## The Missing Link (Coder + DevOps Bridge)
 
-### **Built for Real-World Agile Teams**
+Most tools help **either** coders **or** agile teams. SpecFact does both:
 
-SpecFact isn't just a technical tool—it's designed for **real-world agile/scrum teams** with role-based workflows:
+- **Backlog sync that is actually strong**: round-trip sync + refinement for GitHub, Azure DevOps, Jira, Linear.
+- **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
+- **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade safety.
 
-- 👤 **Product Owners** → Work with backlog, DoR checklists, prioritization, dependencies, and sprint planning
-- 🏗️ **Architects** → Work with technical constraints, protocols, contracts, architectural decisions, and risk assessments
-- 💻 **Developers** → Work with implementation tasks, code mappings, test scenarios, and Definition of Done criteria
+**Try it now**
 
-**Each role works in their own Markdown files** (no YAML editing), and SpecFact syncs everything together automatically. Perfect for teams using agile/scrum practices with clear role separation.
-
-**🆕 NEW: DevOps Backlog Integration & Refinement** - SpecFact now integrates directly into your agile DevOps workflows! Bidirectionally sync OpenSpec change proposals with GitHub Issues, track implementation progress automatically, and **refine arbitrary backlog input into structured, template-compliant work items** using AI-assisted refinement.
-
-👉 **[Agile/Scrum Workflows Guide](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Complete guide to persona-based team collaboration  
-👉 **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows  
-👉 **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items  
-👉 **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** 🆕 - End-to-end for agile DevOps: slash prompt, story quality, underspecification, DoR, custom templates
+- **Coders**: [AI IDE Workflow](guides/ai-ide-workflow.md)
+- **Agile teams**: [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
 
 ---
 
-### **Love GitHub Spec-Kit or OpenSpec? SpecFact Adds What's Missing**
+## Start Here (Pick Your Path)
 
-**Use together:** Keep using Spec-Kit for new features, OpenSpec for change tracking, add SpecFact for legacy code modernization.
+**Pick your path**
 
-**If you've tried GitHub Spec-Kit or OpenSpec**, you know they're great for documenting new features and tracking changes. SpecFact adds what's missing for legacy code modernization:
-
-👉 **[OpenSpec Journey Guide](guides/openspec-journey.md)** 🆕 ⭐ - Complete integration guide with DevOps export, visual workflows, and brownfield modernization examples
-
-- ✅ **Runtime contract enforcement** → Spec-Kit/OpenSpec generate docs; SpecFact prevents regressions with executable contracts
-- ✅ **Brownfield-first** → Spec-Kit/OpenSpec excel at new features; SpecFact understands existing code
-- ✅ **Formal verification** → Spec-Kit/OpenSpec use LLM suggestions; SpecFact uses mathematical proof (CrossHair)
-- ✅ **Team collaboration** → Spec-Kit is single-user focused; SpecFact supports persona-based workflows for agile teams
-- ✅ **DevOps integration** 🆕 → **Bidirectional backlog sync** - Sync change proposals to GitHub Issues and Azure DevOps Work Items (and future: Linear, Jira) with automatic progress tracking
-- ✅ **Backlog refinement** 🆕 → **Template-driven standardization** - Transform arbitrary DevOps backlog input into structured, template-compliant work items with AI assistance, persona/framework filtering, and sprint/iteration support
-- ✅ **Interactive field mapping** 🆕 → **Azure DevOps field discovery** - Discover and map ADO fields interactively with arrow-key navigation, automatic default pre-population, and fuzzy matching
-- ✅ **Definition of Ready (DoR)** 🆕 → **Sprint readiness validation** - Check DoR rules before adding items to sprints, with repo-level configuration
-- ✅ **GitHub Actions integration** → Works seamlessly with your existing GitHub workflows
-
-**Perfect together:**
-
-- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
-- ✅ **OpenSpec** for change tracking → Specification anchoring and delta tracking
-- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
-- ✅ **Bridge adapters** → Sync between all tools automatically
-- ✅ **Team workflows** → SpecFact adds persona-based collaboration for agile/scrum teams
-
-**Bottom line:** Use Spec-Kit for documenting new features. Use OpenSpec for change tracking. Use SpecFact for modernizing legacy code safely and enabling team collaboration. Use all three together for the best of all worlds.
-
-👉 **[See detailed comparison](guides/speckit-comparison.md)** | **[Journey from Spec-Kit](guides/speckit-journey.md)** | **[OpenSpec Journey](guides/openspec-journey.md)** 🆕 | **[Integrations Overview](guides/integrations-overview.md)** 🆕 | **[Bridge Adapters](reference/commands.md#sync-bridge)**
+- **Working with existing code**: [Getting Started](getting-started/README.md) and [Legacy Engineer Guide](guides/brownfield-engineer.md)
+- **Agile team workflows**: [Agile/Scrum Workflows](guides/agile-scrum-workflows.md) and [Backlog Refinement](guides/backlog-refinement.md)
+- **AI IDE workflow**: [AI IDE Workflow Guide](guides/ai-ide-workflow.md)
+- **Integrations**: [Integrations Overview](guides/integrations-overview.md)
 
 ---
 
-## 🎯 Find Your Path
+## Modules and Capabilities
 
-### New to SpecFact?
+**Core modules**
 
-**Primary Goal**: Analyze legacy Python → find gaps → enforce contracts
+- **Analyze**: Extract specs and plans from existing code.
+- **Validate**: Enforce contracts, run reproducible checks, and block regressions.
+- **Report**: CI/CD summaries and evidence outputs.
 
-1. **[Getting Started](getting-started/README.md)** - Install and run your first command
-2. **[Modernizing Legacy Code?](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Brownfield-first guide
-3. **[The Brownfield Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
-4. **[See It In Action](examples/dogfooding-specfact-cli.md)** - Real example (< 10 seconds)
-5. **[Use Cases](guides/use-cases.md)** - Common scenarios
+**Agile DevOps modules**
 
-**Time**: < 10 minutes | **Result**: Running your first brownfield analysis
+- **Backlog**: Refinement, dependency analysis, sprint summaries, risk rollups.
+- **Ceremony**: Standup, refinement, and planning entry points.
+- **Policy**: DoR, DoD, flow, PI readiness checks.
+- **Patch**: Preview, apply, and write changes safely.
 
----
+**Adapters and bridges**
 
-### Using AI IDEs? (Cursor, Copilot, Claude) 🆕
-
-**Primary Goal**: Let SpecFact find gaps, use your AI IDE to fix them
-
-```bash
-# 1. Run brownfield analysis and validation
-specfact import from-code my-project --repo .
-specfact repro --verbose
-
-# 2. Generate AI-ready prompt for a specific gap
-specfact generate fix-prompt GAP-001 --bundle my-project
-
-# 3. Copy to AI IDE → AI generates fix → Validate with SpecFact
-specfact enforce sdd --bundle my-project
-```
-
-**Why this approach?**
-
-- ✅ **You control the AI** - Use your preferred AI model
-- ✅ **SpecFact validates** - Ensure AI-generated code meets contracts
-- ✅ **No lock-in** - Works with any AI IDE
-
-👉 **[Command Reference - Generate Commands](reference/commands.md#generate---generate-artifacts)** - `fix-prompt` and `test-prompt` commands
+- **Specs**: Spec-Kit and OpenSpec
+- **Backlogs**: GitHub Issues, Azure DevOps, Jira, Linear
+- **Contracts**: Specmatic, OpenAPI
 
 ---
 
-### Working with an Agile/Scrum Team?
-
-**Primary Goal**: Enable team collaboration with role-based workflows and DevOps integration
-
-1. **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** ⭐ **START HERE** - Persona-based team collaboration
-2. **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into your agile DevOps workflows with bidirectional GitHub Issues sync
-3. **[Command Reference - Project Commands](reference/commands.md#project---project-bundle-management)** - `project export` and `project import` commands
-4. **[Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows)** - How Product Owners, Architects, and Developers work together
-5. **[Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor)** - DoR validation and sprint planning
-
-**Time**: 15-30 minutes | **Result**: Understanding how your team can collaborate with SpecFact and integrate with your DevOps backlog
-
----
-
-### Love GitHub Spec-Kit or OpenSpec?
-
-**Why SpecFact?** Keep using Spec-Kit for new features, OpenSpec for change tracking, add SpecFact for legacy code modernization.
-
-**Use together:**
-
-- ✅ **Spec-Kit** for new features → Fast spec generation with Copilot
-- ✅ **OpenSpec** for change tracking → Specification anchoring and delta tracking
-- ✅ **SpecFact** for legacy code → Runtime enforcement prevents regressions
-- ✅ **Bridge adapters** → Sync between all tools automatically
-- ✅ **GitHub Actions** → SpecFact integrates with your existing GitHub workflows
-
-1. **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](getting-started/tutorial-openspec-speckit.md)** ⭐ **START HERE** - Complete beginner-friendly step-by-step tutorial
-2. **[How SpecFact Compares to Spec-Kit](guides/speckit-comparison.md)** - See what SpecFact adds
-3. **[The Journey: From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
-4. **[The Journey: OpenSpec + SpecFact Integration](guides/openspec-journey.md)** 🆕 - Complete OpenSpec integration guide with DevOps export (✅) and bridge adapter (✅)
-5. **[DevOps Adapter Integration](guides/devops-adapter-integration.md)** - GitHub Issues and backlog tracking
-6. **[Bridge Adapters](reference/commands.md#sync-bridge)** - OpenSpec and DevOps integration
-7. **[Migration Use Case](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Step-by-step
-8. **[Bidirectional Sync](guides/use-cases.md#use-case-2-github-spec-kit-migration)** - Keep both tools in sync
-
-**Time**: 15-30 minutes | **Result**: Understand how SpecFact complements Spec-Kit and OpenSpec for legacy code modernization
-
----
-
-### Using SpecFact Daily?
-
-**Goal**: Use SpecFact effectively in your workflow
-
-1. **[Command Chains Reference](guides/command-chains.md)** ⭐ **NEW** - Complete workflows and command sequences
-2. **[Common Tasks Index](guides/common-tasks.md)** ⭐ **NEW** - Quick "How do I X?" reference
-3. **[Command Reference](reference/commands.md)** - All commands with examples
-4. **[Use Cases](guides/use-cases.md)** - Real-world scenarios
-5. **[IDE Integration](guides/ide-integration.md)** - Set up slash commands
-6. **[CoPilot Mode](guides/copilot-mode.md)** - Enhanced prompts
-
-**Time**: 30-60 minutes | **Result**: Master daily workflows
-
----
-
-### Contributing to SpecFact?
-
-**Goal**: Understand internals and contribute
-
-1. **[Architecture](reference/architecture.md)** - Technical design
-2. **[Development Setup](getting-started/installation.md#development-setup)** - Local setup
-3. **[Testing Procedures](technical/testing.md)** - How we test
-4. **[Technical Deep Dives](technical/README.md)** - Implementation details
-
-**Time**: 2-4 hours | **Result**: Ready to contribute
-
----
-
-## 📚 Documentation Sections
+## Documentation Sections
 
 ### Getting Started
 
-- [Installation](getting-started/installation.md) - All installation options
-- [Enhanced Analysis Dependencies](installation/enhanced-analysis-dependencies.md) - Optional dependencies for graph-based analysis
-- [First Steps](getting-started/first-steps.md) - Step-by-step first commands
+- [Installation](getting-started/installation.md)
+- [First Steps](getting-started/first-steps.md)
+- [Enhanced Analysis Dependencies](installation/enhanced-analysis-dependencies.md)
 
-### User Guides
+### Guides
 
-#### Primary Use Case: Brownfield Modernization ⭐
+- [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
+- [Backlog Refinement](guides/backlog-refinement.md)
+- [DevOps Adapter Integration](guides/devops-adapter-integration.md)
+- [AI IDE Workflow](guides/ai-ide-workflow.md)
+- [Sidecar Validation](guides/sidecar-validation.md)
+- [Use Cases](guides/use-cases.md)
 
-- [Brownfield Engineer Guide](guides/brownfield-engineer.md) ⭐ **PRIMARY** - Complete modernization guide
-- [The Brownfield Journey](guides/brownfield-journey.md) ⭐ **PRIMARY** - Step-by-step workflow
-- [Brownfield ROI](guides/brownfield-roi.md) ⭐ - Calculate savings
-- [Use Cases](guides/use-cases.md) ⭐ - Real-world scenarios (brownfield primary)
+### Integrations
 
-#### Secondary Use Case: Spec-Kit & OpenSpec Integration
-
-- [Spec-Kit Journey](guides/speckit-journey.md) - Add enforcement to Spec-Kit projects
-- [Spec-Kit Comparison](guides/speckit-comparison.md) - Understand when to use each tool
-- [OpenSpec Journey](guides/openspec-journey.md) 🆕 - OpenSpec integration with SpecFact (DevOps export ✅, bridge adapter ✅)
-- [DevOps Adapter Integration](guides/devops-adapter-integration.md) 🆕 **NEW FEATURE** - Bidirectional GitHub Issues sync, automatic progress tracking, and agile DevOps workflow integration
-- [Backlog Refinement](guides/backlog-refinement.md) 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items with persona/framework filtering, sprint/iteration support, and DoR validation
-- [Custom Field Mapping](guides/custom-field-mapping.md) 🆕 **NEW FEATURE** - Interactive Azure DevOps field discovery and mapping with arrow-key navigation
-- [Bridge Adapters](reference/commands.md#sync-bridge) - OpenSpec and DevOps integration
-
-#### Team Collaboration & Agile/Scrum
-
-- [Agile/Scrum Workflows](guides/agile-scrum-workflows.md) ⭐ **NEW** - Persona-based team collaboration with Product Owners, Architects, and Developers
-- [Persona Workflows](guides/agile-scrum-workflows.md#persona-based-workflows) - Role-based workflows for agile teams
-- [Definition of Ready](guides/agile-scrum-workflows.md#definition-of-ready-dor) - DoR validation and sprint planning
-- [Dependency Management](guides/agile-scrum-workflows.md#dependency-management) - Track story and feature dependencies
-- [Conflict Resolution](guides/agile-scrum-workflows.md#conflict-resolution) - Persona-aware merge conflict resolution
-
-#### Validation & Quality
-
-- [Sidecar Validation](guides/sidecar-validation.md) 🆕 - Validate external codebases without modifying source code
-- [Contract Testing Workflow](guides/contract-testing-workflow.md) - Contract testing patterns
-- [Specmatic Integration](guides/specmatic-integration.md) - API contract testing
-
-#### General Guides
-
-- [UX Features](guides/ux-features.md) - Progressive disclosure, context detection, intelligent suggestions, templates
-- [Workflows](guides/workflows.md) - Common daily workflows
-- [IDE Integration](guides/ide-integration.md) - Slash commands
-- [CoPilot Mode](guides/copilot-mode.md) - Enhanced prompts
-- [Troubleshooting](guides/troubleshooting.md) - Common issues and solutions
+- [Spec-Kit Journey](guides/speckit-journey.md)
+- [OpenSpec Journey](guides/openspec-journey.md)
+- [Specmatic Integration](guides/specmatic-integration.md)
+- [Custom Field Mapping](guides/custom-field-mapping.md)
 
 ### Reference
 
-- [Commands](reference/commands.md) - Complete command reference
-- [Architecture](reference/architecture.md) - Technical design
-- [Operational Modes](reference/modes.md) - CI/CD vs CoPilot modes
-- [Telemetry](reference/telemetry.md) - Privacy-first, opt-in analytics
-- [Feature Keys](reference/feature-keys.md) - Key normalization
-- [Directory Structure](reference/directory-structure.md) - Project layout
+- [Command Reference](reference/commands.md)
+- [Architecture](reference/architecture.md)
+- [Debug Logging](reference/debug-logging.md)
 
-### Examples
+### Contributing
 
-- [Dogfooding Example](examples/dogfooding-specfact-cli.md) - Main example
-- [Quick Examples](examples/quick-examples.md) - Code snippets
-
-### Technical
-
-- [Code2Spec Analysis](technical/code2spec-analysis-logic.md) - AI-first approach
-- [Testing Procedures](technical/testing.md) - Testing guidelines
+- [Development Setup](getting-started/installation.md#development-setup)
+- [Testing Procedures](technical/testing.md)
+- [Technical Deep Dives](technical/README.md)
 
 ---
 
-## 🆘 Getting Help
+## Helpful Shortcuts
 
-- 💬 [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
-- 🐛 [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
-- 📧 [hello@noldai.com](mailto:hello@noldai.com)
-
----
-
-**Happy building!** 🚀
+- **Command Chains**: [guides/command-chains.md](guides/command-chains.md)
+- **Common Tasks**: [guides/common-tasks.md](guides/common-tasks.md)
+- **Online Docs**: https://docs.specfact.io/
 
 ---
 
-Copyright © 2025-2026 Nold AI (Owner: Dominikus Nold)
+## Need Help?
 
-**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../TRADEMARKS.md) for more information.
+- **GitHub Discussions**: https://github.com/nold-ai/specfact-cli/discussions
+- **GitHub Issues**: https://github.com/nold-ai/specfact-cli/issues
+- **Email**: hello@noldai.com
