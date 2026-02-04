@@ -344,6 +344,7 @@ class _LazyDelegateGroup(click.Group):
             callback=_invoke,
             params=[click.Argument(["args"], nargs=-1, type=click.UNPROCESSED)],
             context_settings={"ignore_unknown_options": True},
+            add_help_option=False,  # Pass --help through to real Typer so "specfact backlog daily ado --help" shows correct usage
         )
 
     def resolve_command(
@@ -355,14 +356,46 @@ class _LazyDelegateGroup(click.Group):
         return self._delegate_cmd.name, self._delegate_cmd, list(args)
 
     def list_commands(self, ctx: click.Context) -> list[str]:
-        # Lazy-load real typer only for help/completion so subcommands appear.
+        # Lazy-load real typer so help and completion show real subcommands.
+        real_group = self._get_real_click_group()
+        if real_group is not None:
+            return list(real_group.commands.keys())
+        return []
+
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        # Delegate to real typer so format_commands() can show each subcommand's help.
+        real_group = self._get_real_click_group()
+        if real_group is not None:
+            return real_group.get_command(ctx, cmd_name)
+        return None
+
+    def _get_real_click_group(self) -> click.Group | None:
+        """Load and return the real command's Click Group, or None on failure."""
         from typer.main import get_command
 
         real_typer = CommandRegistry.get_typer(self._lazy_cmd_name)
         click_cmd = get_command(real_typer)
         if isinstance(click_cmd, click.Group):
-            return list(click_cmd.commands.keys())
-        return []
+            return click_cmd
+        return None
+
+    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        """Show the real Typer's Rich help instead of plain Click group help."""
+        from typer.main import get_command
+
+        real_typer = CommandRegistry.get_typer(self._lazy_cmd_name)
+        click_cmd = get_command(real_typer)
+        prog_name = (
+            f"{ctx.parent.command.name} {self._lazy_cmd_name}"
+            if ctx.parent and ctx.parent.command
+            else self._lazy_cmd_name
+        )
+        try:
+            click_cmd.main(args=["-h"], prog_name=prog_name, standalone_mode=False)
+        except SystemExit:
+            raise  # Re-raise so process exits (help was already printed with Rich)
+        # main() returned without exiting; Rich help was already printed, skip default formatter
+        return
 
 
 def _build_lazy_delegate_group(cmd_name: str, help_str: str) -> click.Group:
