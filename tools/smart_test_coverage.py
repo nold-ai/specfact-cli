@@ -361,9 +361,11 @@ class SmartCoverageManager:
         if test_path.exists():
             for py_file in test_path.rglob("*.py"):
                 if not self._should_exclude_file(py_file):
-                    # For e2e tests, only include files with 'e2e' in the name
-                    if test_level == "e2e" and "e2e" not in py_file.name.lower():
-                        continue
+                    # For e2e tests, include files with 'e2e' or 'workflow' in the name
+                    if test_level == "e2e":
+                        name_lower = py_file.name.lower()
+                        if "e2e" not in name_lower and "workflow" not in name_lower:
+                            continue
                     test_files.append(py_file)
         return test_files
 

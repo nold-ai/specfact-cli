@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: enforce
+version: "0.27.0"
+commands:
+  - enforce
+command_help:
+  enforce: "Configure quality gates"
+pip_dependencies: []
+module_dependencies: []
+tier: community

@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: migrate
+version: "0.27.0"
+commands:
+  - migrate
+command_help:
+  migrate: "Migrate project bundles between formats"
+pip_dependencies: []
+module_dependencies: []
+tier: community

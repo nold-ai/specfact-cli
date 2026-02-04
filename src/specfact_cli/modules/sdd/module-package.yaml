@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: sdd
+version: "0.27.0"
+commands:
+  - sdd
+command_help:
+  sdd: "Manage SDD (Spec-Driven Development) manifests"
+pip_dependencies: []
+module_dependencies: []
+tier: community

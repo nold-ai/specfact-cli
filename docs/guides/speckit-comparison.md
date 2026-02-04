@@ -1,3 +1,9 @@
+---
+layout: default
+title: "SpecFact vs. Spec-Kit"
+permalink: /guides/speckit-comparison/
+---
+
 # How SpecFact Compares to GitHub Spec-Kit
 
 > **Complementary positioning: When to use Spec-Kit, SpecFact, or both together**

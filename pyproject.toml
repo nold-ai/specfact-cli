@@ -4,15 +4,38 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.26.17"
-description = "Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts. Automate legacy code documentation and prevent modernization regressions."
+version = "0.27.0"
+description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE.md" }  # Apache License 2.0
 authors = [
     {name = "NOLD AI (Owner: Dominikus Nold)", email = "hello@noldai.com"}
 ]
-keywords = ["legacy-code", "brownfield", "code-to-spec", "reverse-engineering", "technical-debt", "code-documentation", "modernization", "refactoring", "spec-first", "contracts", "tdd", "async", "quality-gates", "contract-driven-development", "state-machine", "crosshair", "icontract", "beartype", "property-based-testing", "cli", "specfact"]
+keywords = [
+    "agile",
+    "devops",
+    "backlog",
+    "scrum",
+    "kanban",
+    "safe",
+    "ceremonies",
+    "existing-code",
+    "legacy",
+    "modernization",
+    "specs",
+    "contracts",
+    "validation",
+    "policy-as-code",
+    "tdd",
+    "contract-driven-development",
+    "property-based-testing",
+    "crosshair",
+    "icontract",
+    "beartype",
+    "cli",
+    "specfact",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -209,7 +232,7 @@ smart-test-e2e = "python tools/smart_test_coverage.py run --level e2e {args}"
 smart-test-full = "python tools/smart_test_coverage.py run --level full {args}"
 smart-test-auto = "python tools/smart_test_coverage.py run --level auto {args}"
 
-# Contract-First Smart Test System Scripts ⭐ NEW
+# Contract-First Smart Test System Scripts
 contract-test = "python tools/contract_first_smart_test.py run --level auto {args}"
 contract-test-contracts = "python tools/contract_first_smart_test.py contracts"
 contract-test-exploration = "python tools/contract_first_smart_test.py exploration {args}"
@@ -294,6 +317,7 @@ omit = [
     "src/**/__init__.py", # Omit init files
     "src/**/__main__.py", # Omit main files if they are just entry points
     "tools/**/__init__.py", # Omit init files in tools
+    "**/modules/example/**", # Optional example module (not in repo); avoids "No source for code" if stale
     # Add other specific files/patterns to omit for specfact-cli
 ]
 
@@ -305,6 +329,8 @@ source = [
 ]
 
 [tool.coverage.report]
+# Treat missing source (e.g. removed/optional modules like example) as warning, do not fail
+ignore_errors = true
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

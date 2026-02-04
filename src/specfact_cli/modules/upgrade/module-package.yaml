@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest. CLI command is "upgrade"; implementation in commands.update.
+name: upgrade
+version: "0.27.0"
+commands:
+  - upgrade
+command_help:
+  upgrade: "Check for and install SpecFact CLI updates"
+pip_dependencies: []
+module_dependencies: []
+tier: community

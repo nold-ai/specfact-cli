@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: repro
+version: "0.27.0"
+commands:
+  - repro
+command_help:
+  repro: "Run validation suite"
+pip_dependencies: []
+module_dependencies: []
+tier: community

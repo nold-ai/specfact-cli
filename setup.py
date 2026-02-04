@@ -7,8 +7,11 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.26.17",
-        description="SpecFact CLI - Spec -> Contract -> Sentinel tool for contract-driven development",
+        version="0.27.0",
+        description=(
+            "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
+            "validation and contract enforcement for new projects and long-lived codebases."
+        ),
         packages=find_packages(where="src"),
         package_dir={"": "src"},
         install_requires=[

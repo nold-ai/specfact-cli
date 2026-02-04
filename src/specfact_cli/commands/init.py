@@ -17,6 +17,10 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 
+from specfact_cli import __version__
+from specfact_cli.registry.help_cache import run_discovery_and_write_cache
+from specfact_cli.registry.module_packages import get_discovered_modules_for_state
+from specfact_cli.registry.module_state import write_modules_state
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.env_manager import EnvManager, build_tool_command, detect_env_manager
@@ -149,6 +153,16 @@ def init(
         help="IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q)",
         hidden=True,  # Hidden by default, shown with --help-advanced
     ),
+    enable_module: list[str] = typer.Option(
+        [],
+        "--enable-module",
+        help="Enable module by id (repeatable); persisted in ~/.specfact/registry/modules.json",
+    ),
+    disable_module: list[str] = typer.Option(
+        [],
+        "--disable-module",
+        help="Disable module by id (repeatable); persisted in ~/.specfact/registry/modules.json",
+    ),
 ) -> None:
     """
     Initialize SpecFact for IDE integration.
@@ -174,6 +188,22 @@ def init(
     }
 
     with telemetry.track_command("init", telemetry_metadata) as record:
+        # Update module state (enable/disable) and persist; then refresh help cache
+        modules_list = get_discovered_modules_for_state(
+            enable_ids=enable_module,
+            disable_ids=disable_module,
+        )
+        if modules_list:
+            write_modules_state(modules_list)
+            disabled = [m["id"] for m in modules_list if m.get("enabled") is False]
+            if disabled:
+                console.print()
+                console.print(
+                    f"[dim]The following modules are disabled by your configuration: {', '.join(disabled)}. "
+                    "Re-enable with specfact init --enable-module <id>.[/dim]"
+                )
+        run_discovery_and_write_cache(__version__)
+
         # Resolve repo path
         repo_path = repo.resolve()
 

@@ -526,67 +526,116 @@ class ChangeArchive(BaseModel):
 - **v1.1**: Extended with optional `change_tracking` and `change_archive` fields
 - **Automatic Detection**: Bundle loader checks schema version and conditionally loads change tracking via adapters
 
+## Modules Design
+
+**Introduced in v0.27**: The CLI uses a **modular command registry** so that command groups are discovered from **module packages** and loaded lazily. This keeps startup fast and allows optional modules to be enabled or disabled per user.
+
+### Command registry
+
+- **CommandRegistry** (`src/specfact_cli/registry/registry.py`): Registers command groups by name with a **loader** (callable that returns a Typer app) and **metadata** (help text, tier, addon_id). The loader is invoked only when that command is requested (e.g. `specfact sync …`), so help and completion can run without loading every module.
+- **Bootstrap** (`registry/bootstrap.py`): On startup, `register_builtin_commands()` calls `register_module_package_commands()`, which discovers module packages and registers only **enabled** modules’ commands.
+
+### Module packages
+
+- **Location**: `src/specfact_cli/modules/<name>/` (e.g. `sync`, `plan`, `init`).
+- **Manifest**: Each package has a `module-package.yaml` with:
+  - `name`, `version`, `commands` (list of command names the package provides)
+  - optional `command_help` (name → short help for root `specfact --help`)
+  - optional `pip_dependencies`, `module_dependencies`, `tier` (e.g. community/enterprise), `addon_id`
+- **Entry point**: Each package has `src/app.py` (or equivalent) that exposes a Typer `app`. Modules typically re-export the app from `specfact_cli.commands.<name>` so that the real implementation stays in `commands/` while modules act as discoverable wrappers.
+
+### Module state (user-level)
+
+- **File**: `~/.specfact/registry/modules.json` (created when you run `specfact init`).
+- **Content**: List of `{ "id", "version", "enabled" }` per module. Only modules with `enabled: true` have their commands registered.
+- **CLI**: `specfact init --enable-module <id>` and `--disable-module <id>` update this state and persist it to `modules.json`.
+
+### Registry package layout
+
+- **registry/registry.py** – CommandRegistry (lazy loaders, metadata, list_commands, get_typer).
+- **registry/module_packages.py** – Discovery of packages under `modules/`, parsing of `module-package.yaml`, building loaders, and registration with CommandRegistry; respects `modules.json` and `--enable-module` / `--disable-module`.
+- **registry/module_state.py** – Read/write `~/.specfact/registry/modules.json`.
+- **registry/metadata.py** – CommandMetadata (name, help, tier, addon_id).
+- **registry/bootstrap.py** – Single entry point that registers all built-in commands via module discovery.
+- **registry/help_cache.py** – Registry directory and optional `commands.json` cache for fast root help.
+
 ## Module Structure
 
 ```bash
 src/specfact_cli/
-├── cli.py                 # Main CLI entry point
-├── commands/              # CLI command implementations
-│   ├── import_cmd.py     # Import from external formats
-│   ├── analyze.py        # Code analysis
-│   ├── plan.py           # Plan management
-│   ├── enforce.py        # Enforcement configuration
-│   ├── repro.py          # Reproducibility validation
-│   └── sync.py           # Sync operations (Spec-Kit, repository)
+├── cli.py                 # Main CLI entry point (uses CommandRegistry; no top-level command imports)
+├── registry/               # Command registry and module discovery (v0.27+)
+│   ├── registry.py        # CommandRegistry: lazy-loaded Typer apps by name
+│   ├── bootstrap.py       # Registers commands from module packages
+│   ├── module_packages.py  # Discover modules, parse module-package.yaml, register loaders
+│   ├── module_state.py    # Read/write ~/.specfact/registry/modules.json
+│   ├── metadata.py        # CommandMetadata for help/tier/addon
+│   └── help_cache.py      # Registry dir and commands.json cache
+├── modules/               # Module packages (each provides one or more CLI commands)
+│   ├── init/              # e.g. init
+│   │   ├── module-package.yaml
+│   │   └── src/app.py
+│   ├── sync/
+│   │   ├── module-package.yaml
+│   │   └── src/app.py
+│   └── ...                # plan, analyze, enforce, repro, etc.
+├── commands/              # CLI command implementations (Typer apps)
+│   ├── import_cmd.py      # Import from external formats
+│   ├── analyze.py         # Code analysis
+│   ├── plan.py            # Plan management
+│   ├── enforce.py         # Enforcement configuration
+│   ├── repro.py           # Reproducibility validation
+│   ├── sync.py            # Sync operations (Spec-Kit, OpenSpec, repository)
+│   └── ...                # init, auth, backlog, generate, etc.
 ├── modes/                 # Operational mode management
-│   ├── detector.py       # Mode detection logic
-│   └── router.py         # Command routing
+│   ├── detector.py        # Mode detection logic
+│   └── router.py          # Command routing
 ├── utils/                 # Utilities
-│   └── ide_setup.py      # IDE integration (template copying)
+│   └── ide_setup.py       # IDE integration (template copying)
 ├── agents/                # Agent mode implementations
-│   ├── base.py           # Agent mode base class
-│   ├── analyze_agent.py # Analyze agent mode
-│   ├── plan_agent.py    # Plan agent mode
-│   └── sync_agent.py    # Sync agent mode
+│   ├── base.py            # Agent mode base class
+│   ├── analyze_agent.py   # Analyze agent mode
+│   ├── plan_agent.py      # Plan agent mode
+│   └── sync_agent.py      # Sync agent mode
 ├── adapters/              # Bridge adapter implementations
-│   ├── base.py           # BridgeAdapter base interface
-│   ├── registry.py       # AdapterRegistry for plugin-based architecture
-│   ├── openspec.py       # OpenSpec adapter (read-only sync)
-│   └── speckit.py        # Spec-Kit adapter (bidirectional sync)
+│   ├── base.py            # BridgeAdapter base interface
+│   ├── registry.py        # AdapterRegistry for plugin-based architecture
+│   ├── openspec.py        # OpenSpec adapter (read-only sync)
+│   └── speckit.py         # Spec-Kit adapter (bidirectional sync)
 ├── sync/                  # Sync operation modules
-│   ├── bridge_sync.py    # Bridge-based bidirectional sync (adapter-agnostic)
-│   ├── bridge_probe.py   # Bridge detection and auto-generation
-│   ├── bridge_watch.py   # Bridge-based watch mode
+│   ├── bridge_sync.py     # Bridge-based bidirectional sync (adapter-agnostic)
+│   ├── bridge_probe.py    # Bridge detection and auto-generation
+│   ├── bridge_watch.py    # Bridge-based watch mode
 │   ├── repository_sync.py # Repository sync
-│   └── watcher.py        # Watch mode for continuous sync
-├── models/               # Pydantic data models
-│   ├── plan.py          # Plan bundle models (legacy compatibility)
-│   ├── project.py       # Project bundle models (modular structure)
-│   ├── change.py         # Change tracking models (v1.1 schema)
-│   ├── bridge.py        # Bridge configuration models
-│   ├── protocol.py      # Protocol FSM models
-│   └── deviation.py     # Deviation models
-├── validators/          # Schema validators
-│   ├── schema.py        # Schema validation
-│   ├── contract.py      # Contract validation
-│   └── fsm.py           # FSM validation
-├── generators/          # Code generators
-│   ├── protocol.py      # Protocol generator
-│   ├── plan.py          # Plan generator
-│   └── report.py        # Report generator
-├── utils/               # CLI utilities
-│   ├── console.py       # Rich console output
-│   ├── git.py           # Git operations
-│   └── yaml_utils.py    # YAML helpers
-├── analyzers/          # Code analysis engines
-│   ├── code_analyzer.py # AST+Semgrep hybrid analysis
-│   ├── graph_analyzer.py # Dependency graph analysis
+│   └── watcher.py         # Watch mode for continuous sync
+├── models/                # Pydantic data models
+│   ├── plan.py            # Plan bundle models (legacy compatibility)
+│   ├── project.py         # Project bundle models (modular structure)
+│   ├── change.py          # Change tracking models (v1.1 schema)
+│   ├── bridge.py          # Bridge configuration models
+│   ├── protocol.py        # Protocol FSM models
+│   └── deviation.py       # Deviation models
+├── validators/            # Schema validators
+│   ├── schema.py          # Schema validation
+│   ├── contract.py        # Contract validation
+│   └── fsm.py             # FSM validation
+├── generators/            # Code generators
+│   ├── protocol.py        # Protocol generator
+│   ├── plan.py            # Plan generator
+│   └── report.py          # Report generator
+├── utils/                 # CLI utilities
+│   ├── console.py         # Rich console output
+│   ├── git.py             # Git operations
+│   └── yaml_utils.py      # YAML helpers
+├── analyzers/              # Code analysis engines
+│   ├── code_analyzer.py    # AST+Semgrep hybrid analysis
+│   ├── graph_analyzer.py   # Dependency graph analysis
 │   └── relationship_mapper.py # Relationship extraction
-└── common/              # Shared utilities
-    ├── logger_setup.py  # Logging infrastructure
-    ├── logging_utils.py # Logging helpers
-    ├── text_utils.py    # Text utilities
-    └── utils.py         # File/JSON utilities
+└── common/                 # Shared utilities
+    ├── logger_setup.py    # Logging infrastructure
+    ├── logging_utils.py   # Logging helpers
+    ├── text_utils.py      # Text utilities
+    └── utils.py           # File/JSON utilities
 ```
 
 ## Analysis Components
