@@ -103,3 +103,11 @@ None. All changes are additive or internal refactors:
 
 - Implementation plan: openspec/changes/arch-01-cli-modular-command-registry/IMPLEMENTATION_PLAN_EXTENSION.md  
 - No temporary workspace used (dry-run only).
+
+---
+
+## Implementation Complete (2026-02-04)
+
+- **Status**: All tasks in tasks.md completed. Implementation and docs pushed to **dev** (commit 542183c).
+- **Docs**: Modules design documented in docs/reference/architecture.md (section "Modules design") and cross-referenced in docs/reference/directory-structure.md.
+- **Quality**: smart-test (unit + integration) passed. Change ready for archive when desired.

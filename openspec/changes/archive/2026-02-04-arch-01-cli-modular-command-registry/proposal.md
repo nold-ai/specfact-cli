@@ -37,5 +37,5 @@ All CLI command groups are hard-wired in `cli.py` via top-level imports and `app
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #193
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/193>
-- **Last Synced Status**: proposed
+- **Last Synced Status**: done (implementation on dev, commit 542183c; docs: modules design in architecture and directory-structure)
 <!-- content_hash: 59a4c9bb737b870c -->
