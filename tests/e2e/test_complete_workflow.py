@@ -1005,7 +1005,7 @@ class TestPlanAddCommandsE2E:
         bundle_name = "test-bundle"
 
         # Step 1: Initialize plan
-        result = runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["--no-interactive", "plan", "init", bundle_name])
         assert result.exit_code == 0
         print("✅ Plan initialized")
 
@@ -1120,7 +1120,7 @@ class TestPlanAddCommandsE2E:
         bundle_name = "test-bundle"
 
         # Initialize plan
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["--no-interactive", "plan", "init", bundle_name])
 
         # Add first feature
         result1 = runner.invoke(

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -46,6 +47,7 @@ except ImportError:
     # shellingham not available, will use fallback logic
     pass
 
+import click
 import typer
 from beartype import beartype
 from icontract import ViolationError
@@ -309,25 +311,129 @@ def main(
 
 
 # Register command groups from CommandRegistry (bootstrap preserves display order).
-# Use lazy Typer per command so get_typer() is only called when that command is invoked.
-def _make_lazy_typer(cmd_name: str, help_str: str) -> typer.Typer:
-    """Return a Typer that delegates to the real command on first invocation (lazy load)."""
+# Use a custom Click Group so that "specfact plan init ..." passes full args to the real plan
+# Typer (no "No such command 'init'" from an empty group).
+# Global options (e.g. --no-interactive, --debug) must be passed before the command: specfact [OPTIONS] COMMAND [ARGS]...
 
-    lazy = typer.Typer(invoke_without_command=True, help=help_str)
 
-    @lazy.callback()
-    def _delegate(ctx: typer.Context) -> None:
+class _LazyDelegateGroup(click.Group):
+    """Click Group that delegates all args to the real command (lazy-loaded)."""
+
+    def __init__(self, cmd_name: str, help_str: str, name: str | None = None, help: str | None = None) -> None:
+        super().__init__(name=name or cmd_name, help=help or help_str)
+        self._lazy_cmd_name = cmd_name
+        self._lazy_help_str = help_str
+        self._delegate_cmd = self._make_delegate_command()
+
+    def _make_delegate_command(self) -> click.Command:
+        cmd_name = self._lazy_cmd_name
+
+        def _invoke(args: tuple[str, ...]) -> None:
+            from typer.main import get_command
+
+            ctx = click.get_current_context()
+            real_typer = CommandRegistry.get_typer(cmd_name)
+            click_cmd = get_command(real_typer)
+            prog_name = f"{ctx.parent.command.name} {cmd_name}" if ctx.parent and ctx.parent.command else cmd_name
+            exit_code = click_cmd.main(args=list(args), prog_name=prog_name, standalone_mode=False)
+            if exit_code and exit_code != 0:
+                raise SystemExit(exit_code)
+
+        return click.Command(
+            "__delegate__",
+            callback=_invoke,
+            params=[click.Argument(["args"], nargs=-1, type=click.UNPROCESSED)],
+            context_settings={"ignore_unknown_options": True},
+        )
+
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        # Pass through all args to the delegate so "plan init bundle" becomes args for the real plan Typer.
+        if not args:
+            return None, None, []
+        return self._delegate_cmd.name, self._delegate_cmd, list(args)
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        # Lazy-load real typer only for help/completion so subcommands appear.
         from typer.main import get_command
 
-        real_typer = CommandRegistry.get_typer(cmd_name)
+        real_typer = CommandRegistry.get_typer(self._lazy_cmd_name)
         click_cmd = get_command(real_typer)
-        prog_name = f"{ctx.parent.command.name} {cmd_name}" if ctx.parent and ctx.parent.command else cmd_name
-        click_cmd.main(args=list(ctx.args), prog_name=prog_name, standalone_mode=False)
+        if isinstance(click_cmd, click.Group):
+            return list(click_cmd.commands.keys())
+        return []
 
+
+def _build_lazy_delegate_group(cmd_name: str, help_str: str) -> click.Group:
+    """Build a Click Group that delegates to the real command with full args."""
+    return _LazyDelegateGroup(cmd_name, help_str, name=cmd_name, help=help_str)
+
+
+def _make_lazy_typer(cmd_name: str, help_str: str) -> typer.Typer:
+    """Return a Typer that, when built as Click, becomes a LazyDelegateGroup (see patched get_command)."""
+    lazy = typer.Typer(invoke_without_command=True, help=help_str)
+    lazy._specfact_lazy_delegate = True
+    lazy._specfact_lazy_cmd_name = cmd_name
+    lazy._specfact_lazy_help_str = help_str
     return lazy
 
 
+def _get_command(typer_instance: typer.Typer) -> click.Command:
+    """Wrapper around typer.main.get_command that returns LazyDelegateGroup for our lazy typers."""
+    if getattr(typer_instance, "_specfact_lazy_delegate", False):
+        cmd_name = getattr(typer_instance, "_specfact_lazy_cmd_name", "")
+        help_str = getattr(typer_instance, "_specfact_lazy_help_str", "")
+        return _build_lazy_delegate_group(cmd_name, help_str)
+    assert _typer_get_command_original is not None
+    return _typer_get_command_original(typer_instance)
+
+
+def _get_group_from_info_wrapper(
+    group_info: object,
+    *,
+    pretty_exceptions_short: bool,
+    suggest_commands: bool,
+    rich_markup_mode: object,
+) -> click.Group:
+    """Wrapper around typer.main.get_group_from_info that uses LazyDelegateGroup for our lazy typers."""
+    # TyperInfo has typer_instance and name
+    typer_instance = getattr(group_info, "typer_instance", None)
+    name = getattr(group_info, "name", None)
+    if typer_instance is not None and getattr(typer_instance, "_specfact_lazy_delegate", False):
+        cmd_name = getattr(typer_instance, "_specfact_lazy_cmd_name", "") or (name or "")
+        help_str = getattr(typer_instance, "_specfact_lazy_help_str", "")
+        return _build_lazy_delegate_group(cmd_name, help_str)
+    assert _typer_get_group_from_info_original is not None
+    return _typer_get_group_from_info_original(
+        group_info,
+        pretty_exceptions_short=pretty_exceptions_short,
+        suggest_commands=suggest_commands,
+        rich_markup_mode=rich_markup_mode,
+    )
+
+
+# Original Typer build functions (set once by _patch_typer_build so re-import of cli doesn't overwrite with our wrapper).
+_typer_get_group_from_info_original: Callable[..., click.Group] | None = None
+_typer_get_command_original: Callable[[typer.Typer], click.Command] | None = None
+
+
+# Patch so root app build uses our delegate group for lazy typers (built via get_group_from_info).
+def _patch_typer_build() -> None:
+    import typer.main as typer_main
+
+    global _typer_get_group_from_info_original, _typer_get_command_original
+    # Save originals only on first patch; avoid overwriting with our wrapper when cli is re-imported (e.g. by plan module).
+    if _typer_get_group_from_info_original is None:
+        _typer_get_group_from_info_original = typer_main.get_group_from_info
+    if _typer_get_command_original is None:
+        _typer_get_command_original = typer_main.get_command
+    typer_main.get_command = _get_command
+    typer_main.get_group_from_info = _get_group_from_info_wrapper
+
+
 register_builtin_commands()
+_patch_typer_build()
 for _name, _meta in CommandRegistry.list_commands_for_help():
     app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
 
