@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code_changed: ${{ steps.out.outputs.code_changed }}
+      skip_tests_dev_to_main: ${{ steps.out.outputs.skip_tests_dev_to_main }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,11 +45,20 @@ jobs:
               - '!**/*.mdc'
               - '!docs/**'
       - id: out
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "code_changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "code_changed=${{ steps.filter.outputs.code }}" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_BASE_REF" = "main" ] && [ "$PR_HEAD_REF" = "dev" ]; then
+            echo "skip_tests_dev_to_main=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_tests_dev_to_main=false" >> "$GITHUB_OUTPUT"
           fi
 
   tests:
@@ -62,9 +72,16 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - name: Skip full run (dev→main PR)
+        if: needs.changes.outputs.skip_tests_dev_to_main == 'true'
+        run: |
+          echo "✅ Dev→main PR: tests already passed on dev; skipping full test run."
+
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
 
       - name: Set up Python 3.12
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -73,31 +90,38 @@ jobs:
             pyproject.toml
 
       - name: Install hatch and coverage
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install hatch coverage
 
       - name: Create test output directories
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         run: |
           mkdir -p logs/tests/junit logs/tests/coverage logs/tests/workflows
 
-      - name: Detect unit tests (to decide if coverage should run)
+      - name: Set run_unit_coverage (or skip for dev→main)
         id: detect-unit
         shell: bash
         run: |
-          COUNT=$(find tests/unit -name "test_*.py" 2>/dev/null | wc -l)
-          if [ "$COUNT" -gt 0 ]; then
-            echo "run_unit_coverage=true" >> "$GITHUB_OUTPUT"
-            echo "RUN_UNIT_COVERAGE=true" >> "$GITHUB_ENV"
-            echo "Detected $COUNT unit test files. Will run coverage steps."
-          else
+          if [ "${{ needs.changes.outputs.skip_tests_dev_to_main }}" = "true" ]; then
             echo "run_unit_coverage=false" >> "$GITHUB_OUTPUT"
-            echo "RUN_UNIT_COVERAGE=false" >> "$GITHUB_ENV"
-            echo "No unit tests detected. Skipping coverage steps."
+          else
+            COUNT=$(find tests/unit -name "test_*.py" 2>/dev/null | wc -l)
+            if [ "$COUNT" -gt 0 ]; then
+              echo "run_unit_coverage=true" >> "$GITHUB_OUTPUT"
+              echo "RUN_UNIT_COVERAGE=true" >> "$GITHUB_ENV"
+              echo "Detected $COUNT unit test files. Will run coverage steps."
+            else
+              echo "run_unit_coverage=false" >> "$GITHUB_OUTPUT"
+              echo "RUN_UNIT_COVERAGE=false" >> "$GITHUB_ENV"
+              echo "No unit tests detected. Skipping coverage steps."
+            fi
           fi
 
       - name: Run contract-first tests (no coverage)
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         env:
           CONTRACT_FIRST_TESTING: "true"
@@ -110,14 +134,14 @@ jobs:
           echo "E2E tests..." && hatch run contract-test-e2e || echo "⚠️ E2E tests incomplete"
 
       - name: Run unit tests with coverage (3.12)
-        if: env.RUN_UNIT_COVERAGE == 'true'
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
         run: |
           echo "🧪 Running unit tests with coverage (3.12)..."
           hatch -e hatch-test.py3.12 run run-cov
           hatch -e hatch-test.py3.12 run xml
 
       - name: Upload coverage artifacts
-        if: env.RUN_UNIT_COVERAGE == 'true'
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
@@ -127,7 +151,8 @@ jobs:
   compat-py311:
     name: Compatibility (Python 3.11)
     runs-on: ubuntu-latest
-    needs: tests
+    needs: [changes, tests]
+    if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -154,7 +179,8 @@ jobs:
   contract-first-ci:
     name: Contract-First CI
     runs-on: ubuntu-latest
-    needs: [tests, compat-py311]
+    needs: [changes, tests, compat-py311]
+    if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -180,7 +206,8 @@ jobs:
   cli-validation:
     name: CLI Command Validation
     runs-on: ubuntu-latest
-    needs: contract-first-ci
+    needs: [changes, contract-first-ci]
+    if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -207,8 +234,8 @@ jobs:
   quality-gates:
     name: Quality Gates (Advisory)
     runs-on: ubuntu-latest
-    needs: [tests]
-    if: needs.tests.outputs.run_unit_coverage == 'true'
+    needs: [changes, tests]
+    if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && needs.tests.outputs.run_unit_coverage == 'true'
     permissions:
       contents: read
     steps:
@@ -245,7 +272,8 @@ jobs:
   type-checking:
     name: Type Checking (basedpyright)
     runs-on: ubuntu-latest
-    needs: [tests]
+    needs: [changes, tests]
+    if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -270,7 +298,8 @@ jobs:
   linting:
     name: Linting (ruff, pylint)
     runs-on: ubuntu-latest
-    needs: [tests]
+    needs: [changes, tests]
+    if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -435,7 +464,7 @@ jobs:
         run: |
           # Use version from publish-pypi job output
           VERSION="${{ needs.publish-pypi.outputs.version }}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "📦 Version: $VERSION"
 
       - name: Create GitHub Release
