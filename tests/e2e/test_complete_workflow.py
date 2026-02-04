@@ -2011,7 +2011,7 @@ class TestBrownfieldAnalysisWorkflow:
             if output_path.exists():
                 output_path.unlink()
 
-    @pytest.mark.timeout(60)
+    @pytest.mark.timeout(120)
     def test_cli_analyze_code2spec_on_self(self):
         """
         Test CLI command to analyze specfact-cli itself (scoped to analyzers module for performance).

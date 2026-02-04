@@ -122,6 +122,7 @@ SPECFACT_COMMANDS = [
     "specfact.07-contracts",
     "specfact.compare",
     "specfact.sync-backlog",
+    "specfact.backlog-daily",
     "specfact.backlog-refine",
     "specfact.validate",
 ]

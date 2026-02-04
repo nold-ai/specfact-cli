@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: spec
+version: "0.27.0"
+commands:
+  - spec
+command_help:
+  spec: "Specmatic integration for API contract testing"
+pip_dependencies: []
+module_dependencies: []
+tier: community

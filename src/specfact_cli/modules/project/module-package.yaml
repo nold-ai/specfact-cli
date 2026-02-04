@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: project
+version: "0.27.0"
+commands:
+  - project
+command_help:
+  project: "Manage project bundles with persona workflows"
+pip_dependencies: []
+module_dependencies: []
+tier: community

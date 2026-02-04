@@ -14,17 +14,17 @@ The CLI SHALL group functionality into **logical module packages** by feature (e
 
 **When**: Discovery runs (e.g. at startup or on specfact init)
 
-**Then**: The package folder contains at least: `metadata.yaml` (with name, version, commands list, optional pip_dependencies and module_dependencies), `src/` (Python code for the feature), and optionally `resources/` (prompts, templates) and `tests/`
+**Then**: The package folder contains at least: `module-package.yaml` (with name, version, commands list, optional pip_dependencies and module_dependencies), `src/` (Python code for the feature), and optionally `resources/` (prompts, templates) and `tests/`
 
 **Acceptance Criteria**:
 
-- metadata.yaml is valid and includes: name, version, commands (list of command names this package provides)
+- module-package.yaml is valid and includes: name, version, commands (list of command names this package provides)
 - metadata MAY include: pip_dependencies, module_dependencies, tier, addon_id
 - Package loader loads only that package's src (and its resources); no hard dependency on flat commands/ or resources/ layout for that feature
 
 #### Scenario: Discovery Registers Packages with Registry
 
-**Given**: Modules root contains one or more package folders with valid metadata.yaml
+**Given**: Modules root contains one or more package folders with valid module-package.yaml
 
 **When**: Module discovery runs
 

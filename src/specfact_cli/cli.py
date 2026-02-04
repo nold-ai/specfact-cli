@@ -52,29 +52,11 @@ from icontract import ViolationError
 from rich.panel import Panel
 
 from specfact_cli import __version__, runtime
-
-# Import command modules
-from specfact_cli.commands import (
-    analyze,
-    auth,
-    backlog_commands,
-    contract_cmd,
-    drift,
-    enforce,
-    generate,
-    import_cmd,
-    init,
-    migrate,
-    plan,
-    project_cmd,
-    repro,
-    sdd,
-    spec,
-    sync,
-    update,
-    validate,
-)
 from specfact_cli.modes import OperationalMode, detect_mode
+
+# Command groups are registered via CommandRegistry (bootstrap); no top-level command imports.
+from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry.bootstrap import register_builtin_commands
 from specfact_cli.runtime import get_configured_console, init_debug_log_file, set_debug_mode
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
@@ -326,66 +308,15 @@ def main(
     ctx.obj["mode"] = get_current_mode()
 
 
-# Register command groups in logical workflow order
-# 1. Setup & Initialization
-app.add_typer(init.app, name="init", help="Initialize SpecFact for IDE integration")
-
-# 1.5. Authentication
-app.add_typer(auth.app, name="auth", help="Authenticate with DevOps providers (GitHub, Azure DevOps)")
-
-# 1.6. Backlog Management
-app.add_typer(backlog_commands.app, name="backlog", help="Backlog refinement and template management")
-
-# 2. Import & Analysis
-app.add_typer(
-    import_cmd.app,
-    name="import",
-    help="Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)",
-)
-
-# 2.5. Migration
-app.add_typer(migrate.app, name="migrate", help="Migrate project bundles between formats")
-
-# 3. Planning
-app.add_typer(plan.app, name="plan", help="Manage development plans")
-
-# 3.5. Project Bundle Management
-app.add_typer(project_cmd.app, name="project", help="Manage project bundles with persona workflows")
-
-# 4. Code Generation
-app.add_typer(generate.app, name="generate", help="Generate artifacts from SDD and plans")
-
-# 5. Quality Enforcement
-app.add_typer(enforce.app, name="enforce", help="Configure quality gates")
-
-# 7. Workflow Orchestration
-
-# 8. Validation
-app.add_typer(repro.app, name="repro", help="Run validation suite")
-
-# 9. SDD Management
-app.add_typer(sdd.app, name="sdd", help="Manage SDD (Spec-Driven Development) manifests")
-
-# 10. API Contract Testing
-app.add_typer(spec.app, name="spec", help="Specmatic integration for API contract testing")
-
-# 10.5. OpenAPI Contract Management
-app.add_typer(contract_cmd.app, name="contract", help="Manage OpenAPI contracts for project bundles")
-
-# 11. Synchronization
-app.add_typer(
-    sync.app,
-    name="sync",
-    help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.)",
-)
-
-# 11.5. Drift Detection
-app.add_typer(drift.app, name="drift", help="Detect drift between code and specifications")
-
-# 11.6. Analysis
-app.add_typer(analyze.app, name="analyze", help="Analyze codebase for contract coverage and quality")
-app.add_typer(validate.app, name="validate", help="Validation commands including sidecar validation")
-app.add_typer(update.app, name="upgrade", help="Check for and install SpecFact CLI updates")
+# Register command groups from CommandRegistry (bootstrap preserves display order).
+# Required at import so CliRunner.invoke(app, ...) and direct app() see commands.
+register_builtin_commands()
+for _name, _meta in CommandRegistry.list_commands_for_help():
+    app.add_typer(
+        CommandRegistry.get_typer(_name),
+        name=_name,
+        help=_meta.help,
+    )
 
 
 def cli_main() -> None:

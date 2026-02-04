@@ -24,6 +24,11 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 **User-level debug logs**: When you run with `--debug`, the CLI also writes a rotating debug log under your home directory: `~/.specfact/logs/specfact-debug.log`. This is separate from repo-level `.specfact/` and is used only for global debug output. See [Debug Logging](debug-logging.md).
 
+**User-level registry** (v0.27+): After you run `specfact init`, the CLI creates `~/.specfact/registry/` with:
+
+- `commands.json` – Command names and help text used for fast root `specfact --help` without loading every command module.
+- `modules.json` – Per-module state (id, version, enabled) for optional module packages; `specfact init --enable-module <id>` / `--disable-module <id>` persist here.
+
 ## Canonical Structure
 
 ```bash

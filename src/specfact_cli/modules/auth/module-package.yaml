@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: auth
+version: "0.27.0"
+commands:
+  - auth
+command_help:
+  auth: "Authenticate with DevOps providers (GitHub, Azure DevOps)"
+pip_dependencies: []
+module_dependencies: []
+tier: community

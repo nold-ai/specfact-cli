@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: contract
+version: "0.27.0"
+commands:
+  - contract
+command_help:
+  contract: "Manage OpenAPI contracts for project bundles"
+pip_dependencies: []
+module_dependencies: []
+tier: community

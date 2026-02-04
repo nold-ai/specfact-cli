@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: analyze
+version: "0.27.0"
+commands:
+  - analyze
+command_help:
+  analyze: "Analyze codebase for contract coverage and quality"
+pip_dependencies: []
+module_dependencies: []
+tier: community
