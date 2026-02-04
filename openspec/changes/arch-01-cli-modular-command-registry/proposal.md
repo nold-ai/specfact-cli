@@ -2,11 +2,9 @@
 
 ## Why
 
-
 All CLI command groups are hard-wired in `cli.py` via top-level imports and `app.add_typer(...)`. Adding or reordering a command requires editing `cli.py`, which is a merge-conflict hotspot when multiple features touch the same file. Every command module is imported at startup even when the user runs a single command (e.g. `specfact init`), slowing startup. There is no clean extension point for addons or for gating commands by license (community vs enterprise). A registry-based, lazy-load design—mirroring the existing AdapterRegistry pattern—reduces conflicts, improves performance, and prepares for addons and licensing. **Logical packaging by feature** (e.g. "backlog refine", "backlog daily", "validate sidecar") with related resources (prompts, templates) in each package prepares for an extensible ecosystem and future selective install without blocking it in this refactor.
 
 ## What Changes
-
 
 - **NEW**: Introduce **CommandRegistry** (and optional **CommandMetadata** model) with `register(name, loader, metadata)`, `get_typer(name)` (lazy load), `list_commands()`, `list_commands_for_help()`.
 - **NEW**: Metadata schema: name, help string, tier (community/enterprise), optional addon_id, optional subcommand list.
@@ -18,11 +16,19 @@ All CLI command groups are hard-wired in `cli.py` via top-level imports and `app
 - **EXTEND** (optional in this change or follow-up): Tier and addon_id in metadata; filter list/help and execution by license. **Out of scope for this phase**: selective install and GitHub delivery with checksums; layout and metadata must not conflict with adding that later.
 
 ## Capabilities
+
 - **command-registry**: CommandRegistry with register, get_typer (lazy), list_commands, list_commands_for_help; CommandMetadata model; built-in commands registered via registry (no hard-wiring in cli.py).
 - **lazy-loading**: Root app adds command groups by name from registry; only the invoked command module is loaded at runtime.
 - **help-cache**: Discovery on specfact init writes ~/.specfact/registry/commands.json; root help uses cache when valid; cache invalidation on version change or init.
-- **module-packages**: Logical packages per feature (e.g. backlog-refine, backlog-daily, validate-sidecar) with folder structure (metadata.yaml, src/, resources/, tests/); discovery loads metadata and registers packages; design does not block future selective install.
+- **module-packages**: Logical packages per feature (e.g. backlog-refine, backlog-daily, validate-sidecar) with folder structure (module-package.yaml, src/, resources/, tests/); discovery loads metadata and registers packages; design does not block future selective install.
 - **init-module-state**: specfact init discovers modules, enables all by default, writes modules.json (version, enabled); --enable-module/--disable-module; persist overrides and inform user when modules are disabled by configuration.
+
+## Impact
+
+- **Affected specs**: (new) command-registry, lazy-loading, help-cache, module-packages, init-module-state.
+- **Affected code**: `cli.py`, `src/specfact_cli/registry/`, `src/specfact_cli/commands/` (or modules/), `specfact init` command, docs.
+- **Integration points**: Typer app construction, init flow, future addon/package discovery.
+- **Release version**: This change is released as a **new minor version**: **0.27.0** (SemVer minor: new feature/refactor, backward compatible).
 
 ---
 

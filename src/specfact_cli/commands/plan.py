@@ -29,7 +29,7 @@ from specfact_cli.models.plan import Business, Feature, Idea, PlanBundle, Produc
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.models.sdd import SDDHow, SDDManifest, SDDWhat, SDDWhy
 from specfact_cli.modes import detect_mode
-from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode, is_non_interactive
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import (
     display_summary,
@@ -69,11 +69,11 @@ def _save_bundle_with_progress(bundle: ProjectBundle, bundle_dir: Path, atomic: 
 def init(
     # Target/Input
     bundle: str = typer.Argument(..., help="Project bundle name (e.g., legacy-api, auth-module)"),
-    # Behavior/Options
-    interactive: bool = typer.Option(
-        True,
+    # Behavior/Options (interactive=None: use global --no-interactive from root when set)
+    interactive: bool | None = typer.Option(
+        None,
         "--interactive/--no-interactive",
-        help="Interactive mode with prompts. Default: True (interactive)",
+        help="Interactive mode with prompts. Default: follows global --no-interactive if set, else True",
     ),
     scaffold: bool = typer.Option(
         True,
@@ -92,11 +92,15 @@ def init(
     - **Behavior/Options**: --interactive/--no-interactive, --scaffold/--no-scaffold
 
     **Examples:**
-        specfact plan init legacy-api                    # Interactive with scaffold
-        specfact plan init auth-module --no-interactive  # Minimal bundle
-        specfact plan init my-project --no-scaffold      # Bundle without directory structure
+        specfact plan init legacy-api                      # Interactive with scaffold
+        specfact --no-interactive plan init auth-module    # Minimal bundle (global option first)
+        specfact plan init my-project --no-scaffold       # Bundle without directory structure
     """
     from specfact_cli.utils.structure import SpecFactStructure
+
+    # Respect global --no-interactive when passed before the command (specfact [OPTIONS] COMMAND)
+    if interactive is None:
+        interactive = not is_non_interactive()
 
     telemetry_metadata = {
         "bundle": bundle,

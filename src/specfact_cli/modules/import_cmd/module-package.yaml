@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest. Command name is "import"; package id import_cmd.
+name: import_cmd
+version: "0.27.0"
+commands:
+  - import
+command_help:
+  import: "Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)"
+pip_dependencies: []
+module_dependencies: []
+tier: community

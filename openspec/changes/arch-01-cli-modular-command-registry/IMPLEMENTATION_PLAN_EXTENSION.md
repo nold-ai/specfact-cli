@@ -35,7 +35,7 @@
 Each module under e.g. src/specfact_cli/modules/ or modules/ at repo root:
 
 - \<package_id\>/ (e.g. backlog_refine, backlog_daily, validate_sidecar)
-  - metadata.yaml: name, version, pip_dependencies, module_dependencies, commands[]
+  - module-package.yaml: name, version, pip_dependencies, module_dependencies, commands[]
   - src/: Python package for this module
   - resources/: prompts/, templates/ – package-specific
   - tests/

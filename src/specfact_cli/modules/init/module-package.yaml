@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: init
+version: "0.27.0"
+commands:
+  - init
+command_help:
+  init: "Initialize SpecFact for IDE integration"
+pip_dependencies: []
+module_dependencies: []
+tier: community

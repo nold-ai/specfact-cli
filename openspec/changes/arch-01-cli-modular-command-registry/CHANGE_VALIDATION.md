@@ -51,7 +51,7 @@ None. All changes are additive or internal refactors:
 - **Code Impact**: New registry module; cli.py refactor; init extended; new modules root and discovery; optional incremental move of commands/resources into packages.
 - **Test Impact**: New tests for registry, lazy load, help cache, module discovery, init module state; existing CLI/contract tests must remain passing.
 - **Documentation Impact**: docs/reference/directory-structure.md, docs/reference/commands.md, init behavior; README if CLI structure documented.
-- **Release Impact**: Minor (feature/refactor); backward compatibility maintained.
+- **Release Impact**: **Minor — version 0.27.0** (feature/refactor); backward compatibility maintained.
 
 ---
 

@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: drift
+version: "0.27.0"
+commands:
+  - drift
+command_help:
+  drift: "Detect drift between code and specifications"
+pip_dependencies: []
+module_dependencies: []
+tier: community

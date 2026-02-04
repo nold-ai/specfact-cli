@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.27.0] - 2026-02-04
+
+### Added (0.27.0)
+
+- **CLI modular command registry and lazy load** (OpenSpec change `arch-01-cli-modular-command-registry`, fixes [#193](https://github.com/nold-ai/specfact-cli/issues/193))
+  - **CommandRegistry**: Commands registered by name with loader and metadata; `get_typer(name)` lazy-loads on first use; no top-level command imports in `cli.py`.
+  - **Help cache**: `specfact init` writes `~/.specfact/registry/commands.json`; root `specfact --help` uses cache when valid (no command module load).
+  - **Module packages**: `src/specfact_cli/modules/` with per-package `metadata.yaml` (name, version, commands), `src/`, optional `resources/`; discovery registers package commands; example package included.
+  - **Init module state**: `~/.specfact/registry/modules.json` stores per-module `id`, `version`, `enabled`; `specfact init --enable-module <id>` / `--disable-module <id>` (repeatable); disabled modules not registered on next run; message when modules disabled by configuration.
+
+### Changed (0.27.0)
+
+- **Version**: Bumped to 0.27.0 (minor: new feature/refactor, backward compatible).
+
+---
+
 ## [0.26.17] - 2026-02-03
 
 ### Fixed (0.26.17)

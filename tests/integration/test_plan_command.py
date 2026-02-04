@@ -103,7 +103,7 @@ class TestPlanInitInteractive:
             ]
             mock_list.return_value = ["Testing"]  # Product themes
 
-            result = runner.invoke(app, ["plan", "init", "test-bundle"])
+            result = runner.invoke(app, ["plan", "init", "test-bundle", "--interactive"])
 
             assert result.exit_code == 0
             assert "created" in result.stdout.lower() or "successfully" in result.stdout.lower()
@@ -166,7 +166,7 @@ class TestPlanInitInteractive:
 
             mock_dict.return_value = {}  # No metrics
 
-            result = runner.invoke(app, ["plan", "init", bundle_name])
+            result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
 
             assert result.exit_code == 0
             assert "created" in result.stdout.lower() or "successfully" in result.stdout.lower()
@@ -213,7 +213,7 @@ class TestPlanInitInteractive:
                 ["Core"],  # product themes
             ]
 
-            result = runner.invoke(app, ["plan", "init", bundle_name])
+            result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
 
             assert result.exit_code == 0
 
@@ -232,7 +232,7 @@ class TestPlanInitInteractive:
         with patch("specfact_cli.commands.plan.prompt_text") as mock_text:
             mock_text.side_effect = KeyboardInterrupt()
 
-            result = runner.invoke(app, ["plan", "init", bundle_name])
+            result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
 
             assert result.exit_code == 1
             assert "cancelled" in result.stdout.lower() or "interrupt" in result.stdout.lower()
@@ -260,7 +260,7 @@ class TestPlanInitValidation:
             mock_confirm.side_effect = [False, False, False, False]
             mock_list.return_value = ["Testing"]
 
-            result = runner.invoke(app, ["plan", "init", bundle_name])
+            result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
 
             assert result.exit_code == 0
             # Validation happens during bundle creation, check that bundle was created
@@ -318,7 +318,7 @@ class TestPlanInitEdgeCases:
             ]
             mock_dict.return_value = {"efficiency": 0.8, "coverage": 0.9}
 
-            result = runner.invoke(app, ["plan", "init", bundle_name])
+            result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
 
             assert result.exit_code == 0
 
@@ -366,7 +366,7 @@ class TestPlanInitEdgeCases:
                 ["Performance"],  # release 2 risks
             ]
 
-            result = runner.invoke(app, ["plan", "init", bundle_name])
+            result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
 
             assert result.exit_code == 0
 

@@ -87,7 +87,7 @@ This change introduces a **CommandRegistry** (analogous to AdapterRegistry) so c
 
 - **Modules root**: e.g. `src/specfact_cli/modules/` (or repo-root `modules/`). One subfolder per package (e.g. `backlog_refine`, `backlog_daily`, `validate_sidecar`).
 - **Per-package structure**:
-  - `metadata.yaml`: `name`, `version`, `pip_dependencies` (list), `module_dependencies` (list of package ids), `commands` (list of command names this package provides). Optional: `tier`, `addon_id`.
+  - `module-package.yaml`: `name`, `version`, `pip_dependencies` (list), `module_dependencies` (list of package ids), `commands` (list of command names this package provides). Optional: `tier`, `addon_id`.
   - `src/`: Python package or module(s) for this feature.
   - `resources/`: package-specific prompts, templates, mappings (e.g. `prompts/`, `templates/`).
   - `tests/`: tests for this package.
@@ -95,7 +95,7 @@ This change introduces a **CommandRegistry** (analogous to AdapterRegistry) so c
 
 ### Discovery and registration
 
-- At startup (or on first use), a **module discovery** step scans the modules root, reads each `metadata.yaml`, and registers each package with the CommandRegistry (one or more command names per package, with a loader that imports that package’s src and returns the Typer app). Registry remains lazy: loaders invoked only when a command is invoked.
+- At startup (or on first use), a **module discovery** step scans the modules root, reads each `module-package.yaml` (or legacy `metadata.yaml`), and registers each package with the CommandRegistry (one or more command names per package, with a loader that imports that package’s src and returns the Typer app). Registry remains lazy: loaders invoked only when a command is invoked.
 - Help cache and command list can be package-aware (e.g. include module id in metadata) so future selective install can filter by installed packages.
 
 ### Future compatibility

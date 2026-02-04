@@ -1,0 +1,10 @@
+# SpecFact CLI module package manifest.
+name: backlog
+version: "0.27.0"
+commands:
+  - backlog
+command_help:
+  backlog: "Backlog refinement and template management"
+pip_dependencies: []
+module_dependencies: []
+tier: community
