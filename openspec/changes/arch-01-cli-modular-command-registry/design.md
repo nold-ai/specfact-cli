@@ -78,3 +78,36 @@ This change introduces a **CommandRegistry** (analogous to AdapterRegistry) so c
 
 - No network required: discovery and cache are local. Cache invalid → re-run discovery on next init or show help from in-memory registry metadata only (if we store metadata without loading Typer, we can list commands and help without loading any command module).
 - Offline-first: unchanged.
+
+---
+
+## Module Packages (Logical Features)
+
+### Package layout
+
+- **Modules root**: e.g. `src/specfact_cli/modules/` (or repo-root `modules/`). One subfolder per package (e.g. `backlog_refine`, `backlog_daily`, `validate_sidecar`).
+- **Per-package structure**:
+  - `metadata.yaml`: `name`, `version`, `pip_dependencies` (list), `module_dependencies` (list of package ids), `commands` (list of command names this package provides). Optional: `tier`, `addon_id`.
+  - `src/`: Python package or module(s) for this feature.
+  - `resources/`: package-specific prompts, templates, mappings (e.g. `prompts/`, `templates/`).
+  - `tests/`: tests for this package.
+- **Grouping rule**: Core = bootstrapping, registry, init scaffolding, auth/runtime/config, shared utils/models. Everything else is grouped into logical packages (e.g. backlog-refine, backlog-daily, validate-sidecar); each resource used only by one feature lives in that package’s folder.
+
+### Discovery and registration
+
+- At startup (or on first use), a **module discovery** step scans the modules root, reads each `metadata.yaml`, and registers each package with the CommandRegistry (one or more command names per package, with a loader that imports that package’s src and returns the Typer app). Registry remains lazy: loaders invoked only when a command is invoked.
+- Help cache and command list can be package-aware (e.g. include module id in metadata) so future selective install can filter by installed packages.
+
+### Future compatibility
+
+- Design does not block later: selective install (install/uninstall packages from GitHub or elsewhere), dependency version management, checksum validation. Metadata and layout are sufficient to add those without breaking this refactor.
+
+---
+
+## specfact init – Module state
+
+- **Discovery**: Enumerate all modules from modules root + metadata; default `enabled: true` for each.
+- **State file**: `~/.specfact/registry/modules.json` (or merged into existing registry file). Per module: `id`, `version`, `enabled` (bool). Create/update after init.
+- **Override rule**: If state file exists, read it; for each module present with `enabled: false`, keep it disabled. New modules (not in state) get `enabled: true`. CLI options `--enable-module <id>` / `--disable-module <id>` apply during this init and are persisted.
+- **Message**: After init, if any module is disabled and that is due to user override (saved in state), print: "The following modules are disabled by your configuration: <list>. Re-enable with specfact init --enable-module <id>."
+- **Behavior**: Only enabled modules’ commands are registered (or discovered for help). Disabled modules are not loaded.

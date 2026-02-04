@@ -19,12 +19,14 @@ Do not implement production code for new behavior until the corresponding tests 
   - [ ] 1.1.2 `git checkout -b feature/arch-01-cli-modular-command-registry` (or `gh issue develop <issue-number> --repo nold-ai/specfact-cli --name feature/arch-01-cli-modular-command-registry --checkout` if issue exists)
   - [ ] 1.1.3 `git branch --show-current`
 
-## 2. Tests first (CommandRegistry, lazy load, help cache)
+## 2. Tests first (CommandRegistry, lazy load, help cache, module packages, init module state)
 
 - [ ] 2.1 Write tests from spec: CommandRegistry register, get_typer (lazy), list_commands; unknown command raises; metadata without load.
 - [ ] 2.2 Write tests from spec: Invoke single command (e.g. specfact init --help) does not import other command modules; same CLI surface (specfact --help, specfact init --help, specfact backlog --help exit 0).
 - [ ] 2.3 Write tests from spec: Init writes ~/.specfact/registry/commands.json; root help uses cache when valid; cache invalidation (version/hash).
-- [ ] 2.4 Run tests: `hatch run smart-test-unit` (or folder for registry/commands); **expect failure**.
+- [ ] 2.4 Write tests from spec (module-packages): Discovery finds packages with metadata.yaml; package loader loads only that package; registry receives commands from discovered packages.
+- [ ] 2.5 Write tests from spec (init-module-state): First init writes modules.json with all enabled; second init respects enabled: false; --enable-module/--disable-module persist; message when modules disabled by configuration.
+- [ ] 2.6 Run tests: `hatch run smart-test-unit` (or folder for registry/commands); **expect failure**.
 
 ## 3. Implement CommandRegistry and metadata (TDD: tests first, then code)
 
@@ -46,6 +48,21 @@ Do not implement production code for new behavior until the corresponding tests 
 - [ ] 5.2 Root help path: when user runs specfact --help / -h / -ha, if cache exists and is valid (version/hash match), render from cache; else fall back to building from registry in memory (no load of Typer apps).
 - [ ] 5.3 Cache invalidation: on SpecFact version change or re-run init, refresh cache.
 - [ ] 5.4 Run tests for help-cache scenarios; **expect pass**.
+
+## 5A. Module packages (TDD: tests first, then code)
+
+- [ ] 5A.1 Define modules root (e.g. src/specfact_cli/modules/) and metadata schema (metadata.yaml: name, version, commands, pip_dependencies, module_dependencies).
+- [ ] 5A.2 Implement module discovery: scan modules root, read metadata.yaml per package, register each package's commands with CommandRegistry with loaders that load only that package's src (and resources).
+- [ ] 5A.3 Introduce at least one example package (e.g. backlog_refine or validate_sidecar) with metadata.yaml, src/, resources/ (or templates/), and wire it through discovery; move or copy minimal code/resources so package is self-contained. (Incremental move of remaining packages can follow.)
+- [ ] 5A.4 Run tests for module-packages scenarios; **expect pass**.
+
+## 5B. specfact init – module state (TDD: tests first, then code)
+
+- [ ] 5B.1 In specfact init (after discovery): read ~/.specfact/registry/modules.json if present; merge with discovered modules (new modules enabled: true; existing entries keep enabled flag).
+- [ ] 5B.2 Add CLI options --enable-module <id> and --disable-module <id> (multiple allowed); apply to state before writing.
+- [ ] 5B.3 Write modules.json after init with id, version, enabled per module; ensure only enabled modules' commands are registered (or discovery filters by enabled).
+- [ ] 5B.4 After init, if any module has enabled: false and was set by user (in state), print: "The following modules are disabled by your configuration: <list>. Re-enable with specfact init --enable-module <id>."
+- [ ] 5B.5 Run tests for init-module-state scenarios; **expect pass**.
 
 ## 6. Quality gates and documentation
 
