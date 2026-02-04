@@ -309,14 +309,27 @@ def main(
 
 
 # Register command groups from CommandRegistry (bootstrap preserves display order).
-# Required at import so CliRunner.invoke(app, ...) and direct app() see commands.
+# Use lazy Typer per command so get_typer() is only called when that command is invoked.
+def _make_lazy_typer(cmd_name: str, help_str: str) -> typer.Typer:
+    """Return a Typer that delegates to the real command on first invocation (lazy load)."""
+
+    lazy = typer.Typer(invoke_without_command=True, help=help_str)
+
+    @lazy.callback()
+    def _delegate(ctx: typer.Context) -> None:
+        from typer.main import get_command
+
+        real_typer = CommandRegistry.get_typer(cmd_name)
+        click_cmd = get_command(real_typer)
+        prog_name = f"{ctx.parent.command.name} {cmd_name}" if ctx.parent and ctx.parent.command else cmd_name
+        click_cmd.main(args=list(ctx.args), prog_name=prog_name, standalone_mode=False)
+
+    return lazy
+
+
 register_builtin_commands()
 for _name, _meta in CommandRegistry.list_commands_for_help():
-    app.add_typer(
-        CommandRegistry.get_typer(_name),
-        name=_name,
-        help=_meta.help,
-    )
+    app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
 
 
 def cli_main() -> None:
