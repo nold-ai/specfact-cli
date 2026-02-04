@@ -554,7 +554,7 @@ def cli_main() -> None:
     # Check test mode using same pattern as terminal.py
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
 
-    if show_banner:
+    if show_banner and not is_help_or_version and not is_test_mode:
         print_banner()
         console.print()  # Empty line after banner
     elif not is_help_or_version and not is_test_mode:
