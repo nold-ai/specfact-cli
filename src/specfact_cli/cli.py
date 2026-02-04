@@ -320,7 +320,11 @@ class _LazyDelegateGroup(click.Group):
     """Click Group that delegates all args to the real command (lazy-loaded)."""
 
     def __init__(self, cmd_name: str, help_str: str, name: str | None = None, help: str | None = None) -> None:
-        super().__init__(name=name or cmd_name, help=help or help_str)
+        super().__init__(
+            name=name or cmd_name,
+            help=help or help_str,
+            context_settings={"ignore_unknown_options": True},
+        )
         self._lazy_cmd_name = cmd_name
         self._lazy_help_str = help_str
         self._delegate_cmd = self._make_delegate_command()
@@ -335,7 +339,15 @@ class _LazyDelegateGroup(click.Group):
             real_typer = CommandRegistry.get_typer(cmd_name)
             click_cmd = get_command(real_typer)
             prog_name = f"{ctx.parent.command.name} {cmd_name}" if ctx.parent and ctx.parent.command else cmd_name
-            exit_code = click_cmd.main(args=list(args), prog_name=prog_name, standalone_mode=False)
+            args_list = list(args)
+            # When the real app is a single command (e.g. drift has only "detect"), Typer
+            # builds a TyperCommand, not a Group. Then args are ["detect", "bundle", "--repo", ...]
+            # and the command expects ["bundle", "--repo", ...] (no leading "detect").
+            if not isinstance(click_cmd, click.Group) and args_list and args_list[0] == getattr(
+                click_cmd, "name", None
+            ):
+                args_list = args_list[1:]
+            exit_code = click_cmd.main(args=args_list, prog_name=prog_name, standalone_mode=False)
             if exit_code and exit_code != 0:
                 raise SystemExit(exit_code)
 
