@@ -92,7 +92,7 @@ Do not implement production code for new behavior until the corresponding tests 
 
 ## 13. Create Pull Request to dev (last)
 
-- [ ] 13.1 Commit all changes with conventional commit message(s).
-- [ ] 13.2 Push branch: `git push origin feature/arch-02-module-package-separation`.
-- [ ] 13.3 Create PR to `dev` using repository template and include OpenSpec reference plus issue linkage (`Fixes nold-ai/specfact-cli#199`).
-- [ ] 13.4 Verify issue Development section links branch and PR.
+- [x] 13.1 Commit all changes with conventional commit message(s).
+- [x] 13.2 Push branch: `git push origin feature/arch-02-module-package-separation`.
+- [x] 13.3 Create PR to `dev` using repository template and include OpenSpec reference plus issue linkage (`Fixes nold-ai/specfact-cli#199`).
+- [x] 13.4 Verify issue Development section links branch and PR. (Verified via PR cross-reference on issue #199 with head branch `feature/arch-02-module-package-separation`.)
