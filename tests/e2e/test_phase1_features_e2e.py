@@ -151,7 +151,7 @@ class TestPhase1FeaturesE2E:
             assert "Import complete" in result.stdout
 
             # Load plan bundle (modular bundle)
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
@@ -207,7 +207,7 @@ class TestPhase1FeaturesE2E:
 
             assert result.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
@@ -255,7 +255,7 @@ class TestPhase1FeaturesE2E:
 
             assert result.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name
@@ -316,7 +316,7 @@ class TestPhase1FeaturesE2E:
 
             assert result_full.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             bundle_dir_full = test_repo / ".specfact" / "projects" / bundle_name_full
@@ -397,7 +397,7 @@ class TestPhase1FeaturesE2E:
 
             assert result.exit_code == 0
             # Load plan bundle (modular bundle)
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             bundle_dir = test_repo / ".specfact" / "projects" / bundle_name

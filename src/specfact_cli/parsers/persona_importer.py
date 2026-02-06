@@ -166,7 +166,7 @@ class PersonaImporter:
         Returns:
             Extracted sections dictionary for bundle update
         """
-        from specfact_cli.commands.project_cmd import match_section_pattern
+        from specfact_cli.utils.persona_ownership import match_section_pattern
 
         extracted: dict[str, Any] = {}
 
@@ -226,7 +226,7 @@ class PersonaImporter:
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def _parse_features_section(self, content: str, persona_mapping: PersonaMapping) -> dict[str, Any]:
         """Parse features section content."""
-        from specfact_cli.commands.project_cmd import match_section_pattern
+        from specfact_cli.utils.persona_ownership import match_section_pattern
 
         features: dict[str, Any] = {}
         # Basic parsing - extract feature keys and titles

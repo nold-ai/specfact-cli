@@ -1,6 +1,6 @@
-"""Generate command: re-export from commands package."""
+"""generate command entrypoint."""
 
-from specfact_cli.commands.generate import app
+from specfact_cli.modules.generate.src.commands import app
 
 
 __all__ = ["app"]

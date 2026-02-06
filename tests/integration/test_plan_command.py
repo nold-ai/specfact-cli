@@ -5,14 +5,14 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
+from specfact_cli.models.plan import Feature
+from specfact_cli.models.project import ProjectBundle
 
 # Import conversion functions from plan command module
-from specfact_cli.commands.plan import (
+from specfact_cli.modules.plan.src.commands import (
     _convert_plan_bundle_to_project_bundle,
     _convert_project_bundle_to_plan_bundle,
 )
-from specfact_cli.models.plan import Feature
-from specfact_cli.models.project import ProjectBundle
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
 
@@ -86,9 +86,9 @@ class TestPlanInitInteractive:
 
         # Mock all prompts for a minimal plan
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
-            patch("specfact_cli.commands.plan.prompt_list") as mock_list,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_list") as mock_list,
         ):
             # Setup responses
             mock_text.side_effect = [
@@ -124,10 +124,10 @@ class TestPlanInitInteractive:
         bundle_name = "test-bundle"
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
-            patch("specfact_cli.commands.plan.prompt_list") as mock_list,
-            patch("specfact_cli.commands.plan.prompt_dict") as mock_dict,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_list") as mock_list,
+            patch("specfact_cli.modules.plan.src.commands.prompt_dict") as mock_dict,
         ):
             # Setup complete workflow responses
             mock_text.side_effect = [
@@ -188,9 +188,9 @@ class TestPlanInitInteractive:
         bundle_name = "test-bundle"
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
-            patch("specfact_cli.commands.plan.prompt_list") as mock_list,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_list") as mock_list,
         ):
             mock_text.side_effect = [
                 "Business Project",  # idea title
@@ -229,7 +229,7 @@ class TestPlanInitInteractive:
         monkeypatch.chdir(tmp_path)
         bundle_name = "test-bundle"
 
-        with patch("specfact_cli.commands.plan.prompt_text") as mock_text:
+        with patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text:
             mock_text.side_effect = KeyboardInterrupt()
 
             result = runner.invoke(app, ["plan", "init", bundle_name, "--interactive"])
@@ -252,9 +252,9 @@ class TestPlanInitValidation:
         bundle_name = "test-bundle"
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
-            patch("specfact_cli.commands.plan.prompt_list") as mock_list,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_list") as mock_list,
         ):
             mock_text.side_effect = ["Schema Test", "Test for schema validation"]
             mock_confirm.side_effect = [False, False, False, False]
@@ -295,10 +295,10 @@ class TestPlanInitEdgeCases:
         bundle_name = "test-bundle"
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
-            patch("specfact_cli.commands.plan.prompt_list") as mock_list,
-            patch("specfact_cli.commands.plan.prompt_dict") as mock_dict,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_list") as mock_list,
+            patch("specfact_cli.modules.plan.src.commands.prompt_dict") as mock_dict,
         ):
             mock_text.side_effect = [
                 "Metrics Project",  # idea title
@@ -335,9 +335,9 @@ class TestPlanInitEdgeCases:
         bundle_name = "test-bundle"
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
-            patch("specfact_cli.commands.plan.prompt_list") as mock_list,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_list") as mock_list,
         ):
             mock_text.side_effect = [
                 "Release Project",  # idea title

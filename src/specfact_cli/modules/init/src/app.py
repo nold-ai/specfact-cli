@@ -1,6 +1,6 @@
-"""Init command: re-export from commands package."""
+"""init command entrypoint."""
 
-from specfact_cli.commands.init import app
+from specfact_cli.modules.init.src.commands import app
 
 
 __all__ = ["app"]

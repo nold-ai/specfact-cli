@@ -108,7 +108,7 @@ class PersonaExporter:
         Returns:
             Template context dictionary
         """
-        from specfact_cli.commands.project_cmd import match_section_pattern
+        from specfact_cli.utils.persona_ownership import match_section_pattern
 
         context: dict[str, Any] = {
             "bundle_name": bundle.bundle_name,

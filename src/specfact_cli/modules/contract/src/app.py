@@ -1,6 +1,6 @@
-"""Contract command: re-export from commands package."""
+"""contract command entrypoint."""
 
-from specfact_cli.commands.contract_cmd import app
+from specfact_cli.modules.contract.src.commands import app
 
 
 __all__ = ["app"]

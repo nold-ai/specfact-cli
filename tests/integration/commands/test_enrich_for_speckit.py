@@ -62,7 +62,7 @@ class TestEnrichForSpeckitFlag:
                     f"Project bundle not found. Exit code: {result.exit_code}, Output: {result.stdout}"
                 )
 
-                from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
                 from specfact_cli.utils.bundle_loader import load_project_bundle
 
                 project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -135,7 +135,7 @@ class TestEnrichForSpeckitFlag:
                 bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
                 assert bundle_dir.exists()
 
-                from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
                 from specfact_cli.utils.bundle_loader import load_project_bundle
 
                 project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -216,7 +216,7 @@ class TestEnrichForSpeckitFlag:
                 # Verify technology stack was extracted (modular bundle)
                 assert bundle_dir.exists()
 
-                from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+                from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
                 from specfact_cli.utils.bundle_loader import load_project_bundle
 
                 project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)

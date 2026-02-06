@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specfact_cli.commands.backlog_commands import (
+from specfact_cli.modules.backlog.src.commands import (
     _build_adapter_kwargs,
     _infer_ado_context_from_cwd,
     _load_backlog_config,
@@ -70,7 +70,7 @@ class TestBuildAdapterKwargsWithConfig:
     def test_github_uses_explicit_args_over_config(self) -> None:
         """When repo_owner/repo_name passed, they are used; config ignored for those."""
         with patch(
-            "specfact_cli.commands.backlog_commands._load_backlog_config",
+            "specfact_cli.modules.backlog.src.commands._load_backlog_config",
             return_value={"github": {"repo_owner": "fromfile", "repo_name": "fromfile"}},
         ):
             kwargs = _build_adapter_kwargs(
@@ -84,7 +84,7 @@ class TestBuildAdapterKwargsWithConfig:
     def test_github_uses_config_when_args_none(self) -> None:
         """When repo_owner/repo_name not passed, values from config are used."""
         with patch(
-            "specfact_cli.commands.backlog_commands._load_backlog_config",
+            "specfact_cli.modules.backlog.src.commands._load_backlog_config",
             return_value={"github": {"repo_owner": "myorg", "repo_name": "myrepo"}},
         ):
             kwargs = _build_adapter_kwargs("github", repo_owner=None, repo_name=None)
@@ -96,7 +96,7 @@ class TestBuildAdapterKwargsWithConfig:
         monkeypatch.setenv("SPECFACT_GITHUB_REPO_OWNER", "fromenv")
         monkeypatch.setenv("SPECFACT_GITHUB_REPO_NAME", "fromenv")
         with patch(
-            "specfact_cli.commands.backlog_commands._load_backlog_config",
+            "specfact_cli.modules.backlog.src.commands._load_backlog_config",
             return_value={"github": {"repo_owner": "fromfile", "repo_name": "fromfile"}},
         ):
             kwargs = _build_adapter_kwargs("github", repo_owner=None, repo_name=None)
@@ -106,7 +106,7 @@ class TestBuildAdapterKwargsWithConfig:
     def test_ado_uses_config_when_args_none(self) -> None:
         """When ado_org/ado_project not passed, values from config are used."""
         with patch(
-            "specfact_cli.commands.backlog_commands._load_backlog_config",
+            "specfact_cli.modules.backlog.src.commands._load_backlog_config",
             return_value={
                 "ado": {"org": "myorg", "project": "MyProject", "team": "My Team"},
             },
@@ -124,7 +124,7 @@ class TestBuildAdapterKwargsWithConfig:
     def test_tokens_never_from_config(self) -> None:
         """Tokens (api_token) are only from explicit args; config is not used for tokens."""
         with patch(
-            "specfact_cli.commands.backlog_commands._load_backlog_config",
+            "specfact_cli.modules.backlog.src.commands._load_backlog_config",
             return_value={
                 "github": {"repo_owner": "o", "repo_name": "r", "api_token": "never"},
             },
@@ -145,7 +145,7 @@ class TestInferAdoContextFromCwd:
     def test_returns_org_project_from_https_url(self) -> None:
         """HTTPS dev.azure.com/org/project/_git/repo returns (org, project)."""
         with patch(
-            "specfact_cli.commands.backlog_commands.subprocess.run",
+            "specfact_cli.modules.backlog.src.commands.subprocess.run",
             return_value=MagicMock(
                 returncode=0,
                 stdout="https://dev.azure.com/myorg/MyProject/_git/myrepo\n",
@@ -158,7 +158,7 @@ class TestInferAdoContextFromCwd:
     def test_returns_org_project_from_ssh_url(self) -> None:
         """SSH git@ssh.dev.azure.com:v3/org/project/repo returns (org, project)."""
         with patch(
-            "specfact_cli.commands.backlog_commands.subprocess.run",
+            "specfact_cli.modules.backlog.src.commands.subprocess.run",
             return_value=MagicMock(
                 returncode=0,
                 stdout="git@ssh.dev.azure.com:v3/myorg/MyProject/myrepo\n",
@@ -171,7 +171,7 @@ class TestInferAdoContextFromCwd:
     def test_returns_org_project_from_ssh_url_with_user(self) -> None:
         """SSH user@ssh.dev.azure.com:v3/org/project/repo (as in .git/config) returns (org, project)."""
         with patch(
-            "specfact_cli.commands.backlog_commands.subprocess.run",
+            "specfact_cli.modules.backlog.src.commands.subprocess.run",
             return_value=MagicMock(
                 returncode=0,
                 stdout="user@ssh.dev.azure.com:v3/myorg/MyProject/myrepo\n",
@@ -184,7 +184,7 @@ class TestInferAdoContextFromCwd:
     def test_returns_org_project_from_ssh_url_dev_azure_no_ssh_subdomain(self) -> None:
         """SSH user@dev.azure.com:v3/org/project/repo (no ssh. subdomain, as in some .git/config) returns (org, project)."""
         with patch(
-            "specfact_cli.commands.backlog_commands.subprocess.run",
+            "specfact_cli.modules.backlog.src.commands.subprocess.run",
             return_value=MagicMock(
                 returncode=0,
                 stdout="user@dev.azure.com:v3/myorg/MyProject/myrepo\n",
@@ -197,7 +197,7 @@ class TestInferAdoContextFromCwd:
     def test_returns_none_when_not_ado_remote(self) -> None:
         """GitHub remote returns (None, None)."""
         with patch(
-            "specfact_cli.commands.backlog_commands.subprocess.run",
+            "specfact_cli.modules.backlog.src.commands.subprocess.run",
             return_value=MagicMock(
                 returncode=0,
                 stdout="https://github.com/owner/repo\n",
@@ -211,11 +211,11 @@ class TestInferAdoContextFromCwd:
         """When ado_org/ado_project not passed, inferred from git is used."""
         with (
             patch(
-                "specfact_cli.commands.backlog_commands._load_backlog_config",
+                "specfact_cli.modules.backlog.src.commands._load_backlog_config",
                 return_value={},
             ),
             patch(
-                "specfact_cli.commands.backlog_commands._infer_ado_context_from_cwd",
+                "specfact_cli.modules.backlog.src.commands._infer_ado_context_from_cwd",
                 return_value=("inferred-org", "inferred-project"),
             ),
         ):

@@ -107,6 +107,10 @@ docs/internal/
 .github/prompts/specfact.*.md
 .github/prompts/opsx-*.md
 
+.claude/commands/opsx/
+.claude/skills/openspec-*/
+!.claude/skills/openspec-workflows/
+
 # Semgrep rules (generated from tools/semgrep/ - source rules are versioned)
 .semgrep/
 

@@ -15,7 +15,7 @@ runner = CliRunner()
 class TestPlanCommandTelemetry:
     """Test that plan commands track telemetry correctly."""
 
-    @patch("specfact_cli.commands.plan.telemetry")
+    @patch("specfact_cli.modules.plan.src.commands.telemetry")
     def test_plan_init_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan init command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
@@ -35,7 +35,7 @@ class TestPlanCommandTelemetry:
         assert "interactive" in call_args[0][1]
         assert "scaffold" in call_args[0][1]
 
-    @patch("specfact_cli.commands.plan.telemetry")
+    @patch("specfact_cli.modules.plan.src.commands.telemetry")
     def test_plan_add_feature_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan add-feature command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
@@ -57,7 +57,7 @@ class TestPlanCommandTelemetry:
         mock_telemetry.track_command.return_value.__exit__.return_value = None
 
         # Create modular bundle instead of single file
-        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.utils.structure import SpecFactStructure
 
@@ -89,7 +89,7 @@ class TestPlanCommandTelemetry:
         # Verify record was called with additional metadata
         mock_record.assert_called()
 
-    @patch("specfact_cli.commands.plan.telemetry")
+    @patch("specfact_cli.modules.plan.src.commands.telemetry")
     def test_plan_add_story_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan add-story command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
@@ -116,7 +116,7 @@ class TestPlanCommandTelemetry:
             clarifications=None,
         )
         # Create modular bundle instead of single file
-        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.utils.structure import SpecFactStructure
 
@@ -156,7 +156,7 @@ class TestPlanCommandTelemetry:
         # Verify record was called with additional metadata
         mock_record.assert_called()
 
-    @patch("specfact_cli.commands.plan.telemetry")
+    @patch("specfact_cli.modules.plan.src.commands.telemetry")
     def test_plan_compare_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path):
         """Test that plan compare command tracks telemetry."""
         from specfact_cli.generators.plan_generator import PlanGenerator
@@ -249,7 +249,7 @@ class TestPlanCommandTelemetry:
         record_calls = [call[0][0] for call in mock_record.call_args_list]
         assert any("total_deviations" in call for call in record_calls if isinstance(call, dict))
 
-    @patch("specfact_cli.commands.plan.telemetry")
+    @patch("specfact_cli.modules.plan.src.commands.telemetry")
     def test_plan_promote_tracks_telemetry(self, mock_telemetry: MagicMock, tmp_path, monkeypatch):
         """Test that plan promote command tracks telemetry."""
         monkeypatch.chdir(tmp_path)
@@ -268,7 +268,7 @@ class TestPlanCommandTelemetry:
             clarifications=None,
         )
         # Create modular bundle instead of single file
-        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
         from specfact_cli.utils.structure import SpecFactStructure
 

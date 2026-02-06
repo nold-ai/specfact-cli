@@ -222,7 +222,7 @@ class AuthService:
             assert bundle_dir.exists()
 
             # Load initial features
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             initial_project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)

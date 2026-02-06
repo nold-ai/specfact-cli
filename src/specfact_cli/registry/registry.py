@@ -6,10 +6,10 @@ Register command groups by name with a loader and metadata; resolve Typer only w
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeAlias
 
 from beartype import beartype
-from beartype.typing import Callable
 from icontract import ensure, require
 from typing_extensions import TypedDict
 
@@ -17,7 +17,7 @@ from specfact_cli.registry.metadata import CommandMetadata
 
 
 # Loader: callable that returns typer.Typer (invoked on first get_typer(name))
-Loader = Callable[[], Any]
+Loader: TypeAlias = Callable[[], Any]  # noqa: UP040
 
 
 class _Entry(TypedDict, total=False):
@@ -40,6 +40,16 @@ class CommandRegistry:
     _typer_cache: dict[str, Any] = {}
 
     @classmethod
+    def _ensure_bootstrapped(cls) -> None:
+        """Re-register commands if registry was cleared during runtime/tests."""
+        if cls._entries:
+            return
+        # Local import avoids circular import at module load time.
+        from specfact_cli.registry.bootstrap import register_builtin_commands
+
+        register_builtin_commands()
+
+    @classmethod
     @beartype
     @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
     @require(lambda metadata: isinstance(metadata, CommandMetadata), "Metadata must be CommandMetadata")
@@ -59,6 +69,7 @@ class CommandRegistry:
     @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
     def get_typer(cls, name: str) -> Any:
         """Return Typer app for name; invoke loader on first use and cache."""
+        cls._ensure_bootstrapped()
         if name in cls._typer_cache:
             return cls._typer_cache[name]
         for e in cls._entries:
@@ -77,6 +88,7 @@ class CommandRegistry:
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def list_commands(cls) -> list[str]:
         """Return all registered command names in registration order."""
+        cls._ensure_bootstrapped()
         return [e.get("name", "") for e in cls._entries if e.get("name")]
 
     @classmethod
@@ -84,11 +96,13 @@ class CommandRegistry:
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def list_commands_for_help(cls) -> list[tuple[str, CommandMetadata]]:
         """Return (name, metadata) for help display; does not invoke loaders."""
+        cls._ensure_bootstrapped()
         return [(e.get("name", ""), e["metadata"]) for e in cls._entries if e.get("name") and "metadata" in e]
 
     @classmethod
     def get_metadata(cls, name: str) -> CommandMetadata | None:
         """Return metadata for name without invoking loader."""
+        cls._ensure_bootstrapped()
         for e in cls._entries:
             if e.get("name") == name:
                 return e.get("metadata")
