@@ -28,7 +28,6 @@ All notable changes to this project will be documented in this file.
 - **Version**: Bumped to 0.29.0 (minor: new lifecycle features and UX improvements, backward compatible).
 
 ---
-
 ## [0.28.0] - 2026-02-06
 
 ### Added (0.28.0)
