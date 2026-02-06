@@ -328,7 +328,7 @@ As a user, I want to test features so that I can validate functionality.
             assert result.exit_code != 2, "Overwrite flag should be recognized"
 
     def test_plan_sync_shared_command(self) -> None:
-        """Test plan sync --shared command (convenience wrapper for bidirectional sync)."""
+        """Test plan sync --shared command delegates to sync bridge without import errors."""
         with TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
 
@@ -360,18 +360,20 @@ As a user, I want to test features so that I can validate functionality.
             project_bundle = _convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
+            plan_path = repo_path / ".specfact" / "plans" / "main.bundle.yaml"
+            plan_path.parent.mkdir(parents=True, exist_ok=True)
+            plan_path.write_text("version: 1.0\n")
+
             result = runner.invoke(
                 app,
                 [
+                    "plan",
                     "sync",
-                    "bridge",
-                    "--adapter",
-                    "speckit",
-                    "--bundle",
-                    bundle_name,
-                    "--bidirectional",
+                    "--shared",
                     "--repo",
                     str(repo_path),
+                    "--plan",
+                    str(plan_path),
                 ],
             )
 

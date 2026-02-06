@@ -2460,7 +2460,7 @@ def sync(
     """
     Sync shared plans between Spec-Kit and SpecFact (bidirectional sync).
 
-    This is a convenience wrapper around `specfact sync spec-kit --bidirectional`
+    This is a convenience wrapper around `specfact sync bridge --adapter speckit --bidirectional`
     that enables team collaboration through shared structured plans. The bidirectional
     sync keeps Spec-Kit artifacts and SpecFact plans synchronized automatically.
 
@@ -2489,7 +2489,7 @@ def sync(
         if not shared:
             print_error("This command requires --shared flag")
             print_info("Use 'specfact plan sync --shared' to enable shared plans sync")
-            print_info("Or use 'specfact sync spec-kit --bidirectional' for direct sync")
+            print_info("Or use 'specfact sync bridge --adapter speckit --bidirectional' for direct sync")
             raise typer.Exit(1)
 
         # Use default repo if not specified
@@ -2511,7 +2511,7 @@ def sync(
 
         # Call the underlying sync command
         try:
-            # Call sync_spec_kit with bidirectional=True
+            # Delegate to sync bridge via compatibility helper.
             sync_spec_kit(
                 repo=repo,
                 bidirectional=True,  # Always bidirectional for shared plans

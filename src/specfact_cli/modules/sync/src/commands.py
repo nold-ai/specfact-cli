@@ -83,6 +83,84 @@ def _infer_bundle_name(repo: Path) -> str | None:
 
 
 @beartype
+@require(lambda plan: isinstance(plan, Path), "Plan must be Path")
+@ensure(lambda result: result is None or isinstance(result, str), "Must return None or string")
+def _extract_bundle_name_from_plan_path(plan: Path) -> str | None:
+    """Extract a modular bundle name from a plan path when possible."""
+    plan_str = str(plan)
+    if "/projects/" in plan_str:
+        parts = plan_str.split("/projects/", 1)
+        if len(parts) > 1:
+            bundle_candidate = parts[1].split("/", 1)[0].strip()
+            if bundle_candidate:
+                return bundle_candidate
+    return None
+
+
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repo must be Path")
+@require(lambda bidirectional: isinstance(bidirectional, bool), "Bidirectional must be bool")
+@require(lambda plan: plan is None or isinstance(plan, Path), "Plan must be None or Path")
+@require(lambda overwrite: isinstance(overwrite, bool), "Overwrite must be bool")
+@require(lambda watch: isinstance(watch, bool), "Watch must be bool")
+@require(lambda interval: isinstance(interval, int) and interval >= 1, "Interval must be int >= 1")
+@ensure(lambda result: result is None, "Must return None")
+def sync_spec_kit(
+    repo: Path,
+    bidirectional: bool = False,
+    plan: Path | None = None,
+    overwrite: bool = False,
+    watch: bool = False,
+    interval: int = 5,
+) -> None:
+    """
+    Compatibility helper for callers that previously imported `sync_spec_kit`.
+
+    Delegates to `sync bridge --adapter speckit` with concrete Python defaults,
+    avoiding direct invocation of Typer `OptionInfo` defaults.
+    """
+    bundle = _extract_bundle_name_from_plan_path(plan) if plan is not None else None
+    if bundle is None:
+        bundle = _infer_bundle_name(repo)
+
+    sync_bridge(
+        repo=repo,
+        bundle=bundle,
+        bidirectional=bidirectional,
+        mode=None,
+        overwrite=overwrite,
+        watch=watch,
+        ensure_compliance=False,
+        adapter="speckit",
+        repo_owner=None,
+        repo_name=None,
+        external_base_path=None,
+        github_token=None,
+        use_gh_cli=True,
+        ado_org=None,
+        ado_project=None,
+        ado_base_url=None,
+        ado_token=None,
+        ado_work_item_type=None,
+        sanitize=None,
+        target_repo=None,
+        interactive=False,
+        change_ids=None,
+        backlog_ids=None,
+        backlog_ids_file=None,
+        export_to_tmp=False,
+        import_from_tmp=False,
+        tmp_file=None,
+        update_existing=False,
+        track_code_changes=False,
+        add_progress_comment=False,
+        code_repo=None,
+        include_archived=False,
+        interval=interval,
+    )
+
+
+@beartype
 @require(lambda repo: repo.exists(), "Repository path must exist")
 @require(lambda repo: repo.is_dir(), "Repository path must be a directory")
 @require(lambda bidirectional: isinstance(bidirectional, bool), "Bidirectional must be bool")
