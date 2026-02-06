@@ -31,12 +31,16 @@ uvx specfact-cli@latest
 pip install -U specfact-cli
 ```
 
-### Initialize IDE Integration (optional but recommended)
+### Bootstrap and IDE Setup
 
 ```bash
+# Bootstrap module registry and local config (~/.specfact)
 specfact init
-specfact init --ide cursor
-specfact init --ide vscode
+
+# Configure IDE prompts/templates (interactive selector by default)
+specfact init ide
+specfact init ide --ide cursor
+specfact init ide --ide vscode
 ```
 
 ### Run Your First Flow
@@ -133,6 +137,21 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 - **Specs**: Spec-Kit and OpenSpec
 - **Backlogs**: GitHub Issues, Azure DevOps, Jira, Linear
 - **Contracts**: Specmatic, OpenAPI
+
+### Module Lifecycle Baseline
+
+SpecFact now has a lifecycle-managed module system:
+
+- `specfact init` is bootstrap-first: initializes local CLI state, discovers installed modules, and reports prompt status.
+- `specfact init ide` handles IDE prompt/template sync and IDE settings updates.
+- `specfact init --list-modules` shows effective enabled/disabled state.
+- `specfact init --enable-module` / `--disable-module` support:
+  - interactive selection in interactive terminals when no module id is provided
+  - explicit ids in non-interactive mode (for automation)
+  - dependency-aware safety checks with `--force` cascading enable/disable behavior
+- Module manifests support dependency and core-version compatibility enforcement at registration time.
+
+This lifecycle model is the baseline for future granular module updates and enhancements. Module installation from third-party or open-source community providers is planned, but not implemented yet.
 
 ---
 

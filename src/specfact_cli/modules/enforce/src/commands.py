@@ -296,9 +296,9 @@ def enforce_sdd(
                 raise typer.Exit(1)
 
             # Convert to PlanBundle for compatibility with validation functions
-            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
 
-            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
 
             # Create validation report
             report = ValidationReport()

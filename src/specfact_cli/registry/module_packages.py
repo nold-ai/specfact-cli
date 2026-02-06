@@ -12,10 +12,14 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
+from packaging.specifiers import SpecifierSet
+from packaging.version import InvalidVersion, Version
 from pydantic import BaseModel, Field
 
+from specfact_cli import __version__ as cli_version
+from specfact_cli.common import get_bridge_logger
 from specfact_cli.registry.metadata import CommandMetadata
-from specfact_cli.registry.module_state import read_modules_state
+from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
 
 
@@ -30,6 +34,10 @@ class ModulePackageMetadata(BaseModel):
     )
     pip_dependencies: list[str] = Field(default_factory=list, description="Optional pip dependencies")
     module_dependencies: list[str] = Field(default_factory=list, description="Optional other package ids")
+    core_compatibility: str | None = Field(
+        default=None,
+        description="CLI core version compatibility (PEP 440 specifier, e.g. '>=0.28.0,<1.0.0')",
+    )
     tier: str = Field(default="community", description="Tier: community or enterprise")
     addon_id: str | None = Field(default=None, description="Optional addon identifier")
 
@@ -113,6 +121,7 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 command_help=command_help,
                 pip_dependencies=[str(d) for d in raw.get("pip_dependencies", [])],
                 module_dependencies=[str(d) for d in raw.get("module_dependencies", [])],
+                core_compatibility=str(raw["core_compatibility"]) if raw.get("core_compatibility") else None,
                 tier=str(raw.get("tier", "community")),
                 addon_id=str(raw["addon_id"]) if raw.get("addon_id") else None,
             )
@@ -120,6 +129,137 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
         except Exception:
             continue
     return result
+
+
+@beartype
+def _check_core_compatibility(meta: ModulePackageMetadata, current_cli_version: str) -> bool:
+    """Return True when module is compatible with the running CLI core version."""
+    if not meta.core_compatibility:
+        return True
+    try:
+        specifier = SpecifierSet(meta.core_compatibility)
+        return Version(current_cli_version) in specifier
+    except (InvalidVersion, Exception):
+        # Keep malformed metadata non-blocking; emit details in debug logs at call site.
+        return True
+
+
+@beartype
+def _validate_module_dependencies(
+    meta: ModulePackageMetadata,
+    enabled_map: dict[str, bool],
+) -> tuple[bool, list[str]]:
+    """Validate that declared dependencies exist and are enabled."""
+    missing: list[str] = []
+    for dep_id in meta.module_dependencies:
+        if dep_id not in enabled_map:
+            missing.append(f"{dep_id} (not found)")
+        elif not enabled_map[dep_id]:
+            missing.append(f"{dep_id} (disabled)")
+    return len(missing) == 0, missing
+
+
+@beartype
+def validate_disable_safe(
+    disable_ids: list[str],
+    packages: list[tuple[Path, ModulePackageMetadata]],
+    enabled_map: dict[str, bool],
+) -> dict[str, list[str]]:
+    """
+    Return blocked disable requests mapped to enabled dependents.
+
+    Empty dict means all disables are safe.
+    """
+    effective_map = {**enabled_map}
+    for mid in disable_ids:
+        effective_map[mid] = False
+
+    blocked: dict[str, list[str]] = {}
+    for mid in disable_ids:
+        dependents = find_dependents(mid, packages, effective_map)
+        if dependents:
+            blocked[mid] = dependents
+    return blocked
+
+
+@beartype
+def validate_enable_safe(
+    enable_ids: list[str],
+    packages: list[tuple[Path, ModulePackageMetadata]],
+    enabled_map: dict[str, bool],
+) -> dict[str, list[str]]:
+    """
+    Return blocked enable requests mapped to unmet dependencies.
+
+    Empty dict means all enables are dependency-safe in the effective map.
+    """
+    meta_by_name: dict[str, ModulePackageMetadata] = {meta.name: meta for _package_dir, meta in packages}
+    blocked: dict[str, list[str]] = {}
+    for mid in enable_ids:
+        meta = meta_by_name.get(mid)
+        if meta is None:
+            blocked[mid] = ["module not found"]
+            continue
+        deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
+        if not deps_ok:
+            blocked[mid] = missing
+    return blocked
+
+
+@beartype
+def expand_disable_with_dependents(
+    disable_ids: list[str],
+    packages: list[tuple[Path, ModulePackageMetadata]],
+    enabled_map: dict[str, bool],
+) -> list[str]:
+    """
+    Expand disable set with transitive enabled dependents.
+
+    Used by --force mode so disabling a dependency provider also disables
+    modules that depend on it.
+    """
+    reverse_deps: dict[str, set[str]] = {}
+    for _package_dir, meta in packages:
+        name = meta.name
+        for dep in meta.module_dependencies:
+            reverse_deps.setdefault(dep, set()).add(name)
+
+    expanded: set[str] = set(disable_ids)
+    queue = list(disable_ids)
+    while queue:
+        current = queue.pop(0)
+        for dependent in sorted(reverse_deps.get(current, set())):
+            if dependent in expanded:
+                continue
+            if not enabled_map.get(dependent, True):
+                continue
+            expanded.add(dependent)
+            queue.append(dependent)
+    return list(expanded)
+
+
+@beartype
+def expand_enable_with_dependencies(
+    enable_ids: list[str],
+    packages: list[tuple[Path, ModulePackageMetadata]],
+) -> list[str]:
+    """
+    Expand enable set with transitive dependencies.
+
+    Used by --force mode so enabling a module also enables required upstream
+    dependency providers.
+    """
+    dep_map: dict[str, list[str]] = {meta.name: list(meta.module_dependencies) for _package_dir, meta in packages}
+    expanded: set[str] = set(enable_ids)
+    queue = list(enable_ids)
+    while queue:
+        current = queue.pop(0)
+        for dep in dep_map.get(current, []):
+            if dep in expanded:
+                continue
+            expanded.add(dep)
+            queue.append(dep)
+    return list(expanded)
 
 
 def _make_package_loader(package_dir: Path, package_name: str, _command_name: str) -> Any:
@@ -200,14 +340,26 @@ def register_module_package_commands(
     discovered_list: list[tuple[str, str]] = [(meta.name, meta.version) for _dir, meta in packages]
     state = read_modules_state()
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
+    logger = get_bridge_logger(__name__)
+    skipped: list[tuple[str, str]] = []
     for package_dir, meta in packages:
         if not enabled_map.get(meta.name, True):
+            continue
+        compatible = _check_core_compatibility(meta, cli_version)
+        if not compatible:
+            skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
+            continue
+        deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
+        if not deps_ok:
+            skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
             continue
         for cmd_name in meta.commands:
             help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
             loader = _make_package_loader(package_dir, meta.name, cmd_name)
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
+    for module_id, reason in skipped:
+        logger.debug("Skipped module '%s': %s", module_id, reason)
 
 
 def get_discovered_modules_for_state(

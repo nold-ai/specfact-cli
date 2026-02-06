@@ -241,7 +241,7 @@ def generate_contracts(
             plan_hash = None
             if format_type == BundleFormat.MODULAR or bundle:
                 # Load modular ProjectBundle and convert to PlanBundle for compatibility
-                from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+                from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
 
                 project_bundle = load_bundle_with_progress(plan_path, validate_hashes=False, console_instance=console)
 
@@ -250,7 +250,7 @@ def generate_contracts(
                 plan_hash = summary.content_hash
 
                 # Convert to PlanBundle for ContractGenerator compatibility
-                plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
             else:
                 # Load monolithic PlanBundle
                 plan_bundle = load_plan_bundle(plan_path)

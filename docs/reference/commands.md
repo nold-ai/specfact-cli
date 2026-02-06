@@ -69,7 +69,7 @@ specfact auth status
 
 - `--input-format {yaml,json}` - Override default structured input detection for CLI commands (defaults to YAML)
 - `--output-format {yaml,json}` - Control how plan bundles and reports are written (JSON is ideal for CI/copilot automations)
-- `--interactive/--no-interactive` - Force prompt behavior (overrides auto-detection from CI/CD vs Copilot environments)
+- `--interactive/--no-interactive` - Force prompt behavior (default auto-detection from terminal + CI environment)
 
 ### Commands by Workflow
 
@@ -176,7 +176,8 @@ specfact auth status
 
 **Setup & Maintenance:**
 
-- `init` - Initialize IDE integration
+- `init` - Bootstrap CLI local state and manage enabled/disabled modules
+- `init ide` - Initialize IDE prompt/template integration
 - `upgrade` - Check for and install CLI updates
 
 **⚠️ Deprecated (v0.17.0):**
@@ -540,7 +541,7 @@ When working with multiple projects in a single repository, external tool integr
 
 - Use `--entry-point` to analyze each project separately
 - Create separate project bundles for each project (`.specfact/projects/<bundle-name>/`)
-- Run `specfact init` from the repository root to ensure IDE integration works correctly (templates are copied to root-level `.github/`, `.cursor/`, etc. directories)
+- Run `specfact init ide` from the repository root to ensure IDE integration works correctly (templates are copied to root-level `.github/`, `.cursor/`, etc. directories)
 
 ---
 
@@ -4717,65 +4718,99 @@ Replace `implement tasks` with the new AI IDE bridge workflow:
 
 ---
 
-### `init` - Initialize IDE Integration
+### `init` - Bootstrap and Module Lifecycle Management
 
-Set up SpecFact CLI for IDE integration by copying prompt templates to IDE-specific locations.
+Bootstrap SpecFact local state and manage enabled/disabled command modules.
 
 ```bash
 specfact init [OPTIONS]
 ```
 
-**Options:**
+**Common options:**
 
 - `--repo PATH` - Repository path (default: current directory)
-- `--force` - Overwrite existing files
-- `--install-deps` - Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) via pip
+- `--list-modules` - Show discovered modules with effective enabled/disabled state and exit
+- `--enable-module TEXT` - Enable module by id (repeatable)
+- `--disable-module TEXT` - Disable module by id (repeatable)
+- `--force` - Override dependency guards; cascades dependency updates
 
-**Advanced Options** (hidden by default, use `--help-advanced` or `-ha` to view):
+**Interactive behavior:**
 
-- `--ide TEXT` - IDE type (auto, cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q) (default: auto)
+- Default mode is auto-detected from terminal + CI environment.
+- In interactive terminals, passing `--enable-module` or `--disable-module` without ids opens an arrow-key selector.
+- In non-interactive mode, module ids are required (for example in CI/CD).
+
+**Dependency-aware behavior:**
+
+- Safe disable blocks disabling a module that is required by other enabled modules.
+- Safe enable blocks enabling a module when required dependencies are disabled.
+- `--force` performs dependency-aware cascading:
+  - disable cascades to enabled dependents
+  - enable cascades to required dependencies
 
 **Examples:**
 
 ```bash
-# Auto-detect IDE
+# Bootstrap only (no IDE prompt/template copy)
 specfact init
 
-# Specify IDE explicitly
-specfact init --ide cursor
-specfact init --ide vscode
-specfact init --ide copilot
+# List lifecycle state
+specfact init --list-modules
 
-# Force overwrite existing files
-specfact init --ide cursor --force
+# Interactive selection (TTY)
+specfact init --enable-module
+specfact init --disable-module
 
-# Install required packages for contract enhancement
-specfact init --install-deps
+# Non-interactive explicit ids
+specfact --no-interactive init --enable-module backlog
+specfact --no-interactive init --disable-module upgrade
 
-# Initialize IDE integration and install dependencies
-specfact init --ide cursor --install-deps
+# Force dependency cascade
+specfact init --enable-module sync --force
+specfact init --disable-module plan --force
 ```
 
 **What it does:**
 
-1. Detects your IDE (or uses `--ide` flag)
-2. Copies prompt templates from `resources/prompts/` to IDE-specific location **at the repository root level**
-3. Creates/updates VS Code settings.json if needed (for VS Code/Copilot)
-4. Makes slash commands available in your IDE
-5. **Copies default ADO field mapping templates** to `.specfact/templates/backlog/field_mappings/` for review and customization:
-   - `ado_default.yaml` - Default field mappings
-   - `ado_scrum.yaml` - Scrum process template mappings
-   - `ado_agile.yaml` - Agile process template mappings
-   - `ado_safe.yaml` - SAFe process template mappings
-   - `ado_kanban.yaml` - Kanban process template mappings
-   - Templates are only copied if they don't exist (use `--force` to overwrite)
-6. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
-   - `beartype>=0.22.4` - Runtime type checking
-   - `icontract>=2.7.1` - Design-by-contract decorators
-   - `crosshair-tool>=0.0.97` - Contract exploration
-   - `pytest>=8.4.2` - Testing framework
+1. Initializes/updates user-level registry state under `~/.specfact/registry/`.
+2. Discovers installed modules and applies enable/disable operations.
+3. Enforces module dependency and compatibility constraints.
+4. Reports IDE prompt status and points to `specfact init ide` for prompt/template setup.
 
-**Important:** Templates are always copied to the repository root level (where `.github/`, `.cursor/`, etc. directories must reside for IDE recognition). The `--repo` parameter specifies the repository root path. For multi-project codebases, run `specfact init` from the repository root to ensure IDE integration works correctly.
+### `init ide` - IDE Prompt/Template Setup
+
+Install and update prompt templates and IDE settings.
+
+```bash
+specfact init ide [OPTIONS]
+```
+
+**Options:**
+
+- `--repo PATH` - Repository path (default: current directory)
+- `--ide TEXT` - IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)
+- `--force` - Overwrite existing files
+- `--install-deps` - Install contract-enhancement dependencies (`beartype`, `icontract`, `crosshair-tool`, `pytest`)
+
+**Behavior:**
+
+- In interactive terminals, `specfact init ide` without `--ide` opens an arrow-key IDE selector.
+- In non-interactive mode, IDE auto-detection is used unless `--ide` is explicitly provided.
+- Prompt templates are copied to IDE-specific root-level locations (`.github/prompts`, `.cursor/commands`, etc.).
+
+**Examples:**
+
+```bash
+# Interactive IDE selection
+specfact init ide
+
+# Explicit IDE
+specfact init ide --ide cursor
+specfact init ide --ide vscode --force
+
+# Optional dependency installation
+specfact init ide --install-deps
+```
 
 **IDE-Specific Locations:**
 
@@ -4868,16 +4903,16 @@ Slash commands provide an intuitive interface for IDE integration (VS Code, Curs
 
 ```bash
 # Initialize IDE integration (one-time setup)
-specfact init --ide cursor
+specfact init ide --ide cursor
 
 # Or auto-detect IDE
-specfact init
+specfact init ide
 
 # Initialize and install required packages for contract enhancement
-specfact init --install-deps
+specfact init ide --install-deps
 
 # Initialize for specific IDE and install dependencies
-specfact init --ide cursor --install-deps
+specfact init ide --ide cursor --install-deps
 ```
 
 ### Usage
@@ -4903,7 +4938,7 @@ After initialization, use slash commands directly in your IDE's AI chat:
 
 **How it works:**
 
-Slash commands are **prompt templates** (markdown files) that are copied to IDE-specific locations by `specfact init`. The IDE automatically discovers and registers them as slash commands.
+Slash commands are **prompt templates** (markdown files) that are copied to IDE-specific locations by `specfact init ide`. The IDE automatically discovers and registers them as slash commands.
 
 **See [IDE Integration Guide](../guides/ide-integration.md)** for detailed setup instructions and supported IDEs.
 

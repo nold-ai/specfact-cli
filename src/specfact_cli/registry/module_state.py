@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
+from icontract import require
 
 from specfact_cli.registry.help_cache import get_registry_dir
 
@@ -58,3 +59,34 @@ def write_modules_state(modules: list[dict[str, Any]]) -> None:
     get_registry_dir().mkdir(parents=True, exist_ok=True)
     path = get_modules_state_path()
     path.write_text(json.dumps({"modules": modules}, indent=2), encoding="utf-8")
+
+
+@require(lambda module_id: isinstance(module_id, str) and len(module_id) > 0, "module_id must be non-empty")
+@beartype
+def find_dependents(
+    module_id: str,
+    packages: list[tuple[Path, Any]],
+    enabled_map: dict[str, bool],
+) -> list[str]:
+    """
+    Find enabled modules that depend on the given module ID.
+
+    Args:
+        module_id: Candidate module to disable.
+        packages: Discovered package tuples (package_dir, metadata).
+        enabled_map: Effective enabled state map.
+
+    Returns:
+        Sorted dependent module IDs currently enabled.
+    """
+    dependents: list[str] = []
+    for _package_dir, meta in packages:
+        name = str(getattr(meta, "name", ""))
+        if not name or name == module_id:
+            continue
+        if not enabled_map.get(name, True):
+            continue
+        module_dependencies = list(getattr(meta, "module_dependencies", []))
+        if module_id in module_dependencies:
+            dependents.append(name)
+    return sorted(dependents)

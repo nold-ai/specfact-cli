@@ -228,7 +228,7 @@ def _perform_sync_operation(
     if adapter_type == AdapterType.SPECKIT:
         constitution_path = repo / ".specify" / "memory" / "constitution.md"
         if constitution_path.exists():
-            from specfact_cli.modules.sdd.src.commands import is_constitution_minimal
+            from specfact_cli.utils.bundle_converters import is_constitution_minimal
 
             if is_constitution_minimal(constitution_path):
                 # Auto-generate in test mode, prompt in interactive mode
@@ -359,7 +359,7 @@ def _perform_sync_operation(
                     progress.update(task, description="[cyan]Parsing plan bundle YAML...[/cyan]")
                     # Check if path is a directory (modular bundle) - load it first
                     if plan_path.is_dir():
-                        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+                        from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
                         from specfact_cli.utils.progress import load_bundle_with_progress
 
                         project_bundle = load_bundle_with_progress(
@@ -367,7 +367,7 @@ def _perform_sync_operation(
                             validate_hashes=False,
                             console_instance=progress.console if hasattr(progress, "console") else None,
                         )
-                        loaded_plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                        loaded_plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
                         is_valid = True
                     else:
                         # It's a file (legacy monolithic bundle) - validate directly
@@ -443,7 +443,7 @@ def _perform_sync_operation(
                 # Fallback: load plan bundle from bundle name or default
                 plan_bundle_to_convert = None
                 if bundle:
-                    from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+                    from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
                     from specfact_cli.utils.progress import load_bundle_with_progress
 
                     bundle_dir = SpecFactStructure.project_dir(base_path=repo, bundle_name=bundle)
@@ -451,7 +451,7 @@ def _perform_sync_operation(
                         project_bundle = load_bundle_with_progress(
                             bundle_dir, validate_hashes=False, console_instance=console
                         )
-                        plan_bundle_to_convert = _convert_project_bundle_to_plan_bundle(project_bundle)
+                        plan_bundle_to_convert = convert_project_bundle_to_plan_bundle(project_bundle)
                 else:
                     # Use get_default_plan_path() to find the active plan (legacy compatibility)
                     plan_path: Path | None = None
@@ -461,7 +461,7 @@ def _perform_sync_operation(
                         progress.update(task, description="[cyan]Loading plan bundle...[/cyan]")
                         # Check if path is a directory (modular bundle) - load it first
                         if plan_path.is_dir():
-                            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+                            from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
                             from specfact_cli.utils.progress import load_bundle_with_progress
 
                             project_bundle = load_bundle_with_progress(
@@ -469,7 +469,7 @@ def _perform_sync_operation(
                                 validate_hashes=False,
                                 console_instance=progress.console if hasattr(progress, "console") else None,
                             )
-                            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                            plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
                             is_valid = True
                         else:
                             # It's a file (legacy monolithic bundle) - validate directly
@@ -730,7 +730,7 @@ def _sync_tool_to_specfact(
         # Check if path is a directory (modular bundle) - load it first
         if plan_path.is_dir():
             is_modular_bundle = True
-            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.progress import load_bundle_with_progress
 
             project_bundle = load_bundle_with_progress(
@@ -738,7 +738,7 @@ def _sync_tool_to_specfact(
                 validate_hashes=False,
                 console_instance=progress.console if hasattr(progress, "console") else None,
             )
-            bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+            bundle = convert_project_bundle_to_plan_bundle(project_bundle)
             is_valid = True
         else:
             # It's a file (legacy monolithic bundle) - validate directly
@@ -905,9 +905,9 @@ def _sync_tool_to_specfact(
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
     # Convert ProjectBundle to PlanBundle for merging logic
-    from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+    from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
 
-    converted_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+    converted_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
 
     # Merge with existing plan if it exists
     features_updated = 0
@@ -1670,9 +1670,9 @@ def sync_bridge(
                         bundle_dir, validate_hashes=False, console_instance=console
                     )
                     # Convert to PlanBundle for validation (legacy compatibility)
-                    from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+                    from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
 
-                    plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                    plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
                 else:
                     console.print(f"[yellow]⚠ Bundle '{bundle}' not found, skipping compliance check[/yellow]")
                     plan_bundle = None
@@ -1683,13 +1683,13 @@ def sync_bridge(
                     if plan_path and plan_path.exists():
                         # Check if path is a directory (modular bundle) - load it first
                         if plan_path.is_dir():
-                            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+                            from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
                             from specfact_cli.utils.progress import load_bundle_with_progress
 
                             project_bundle = load_bundle_with_progress(
                                 plan_path, validate_hashes=False, console_instance=console
                             )
-                            plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                            plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
                         else:
                             # It's a file (legacy monolithic bundle) - validate directly
                             validation_result = validate_plan_bundle(plan_path)
@@ -1913,7 +1913,7 @@ def sync_bridge(
         if bundle:
             import asyncio
 
-            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.progress import load_bundle_with_progress
             from specfact_cli.utils.structure import SpecFactStructure
 
@@ -1921,7 +1921,7 @@ def sync_bridge(
             if bundle_dir.exists():
                 console.print("\n[cyan]🔍 Validating OpenAPI contracts before sync...[/cyan]")
                 project_bundle = load_bundle_with_progress(bundle_dir, validate_hashes=False, console_instance=console)
-                plan_bundle = _convert_project_bundle_to_plan_bundle(project_bundle)
+                plan_bundle = convert_project_bundle_to_plan_bundle(project_bundle)
 
                 from specfact_cli.integrations.specmatic import (
                     check_specmatic_available,

@@ -27,7 +27,11 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 **User-level registry** (v0.27+): After you run `specfact init`, the CLI creates `~/.specfact/registry/` with:
 
 - `commands.json` – Command names and help text used for fast root `specfact --help` without loading every command module.
-- `modules.json` – Per-module state (id, version, enabled) for optional module packages; `specfact init --enable-module <id>` / `--disable-module <id>` persist here.
+- `modules.json` – Per-module state (id, version, enabled) for optional module packages.
+  - Managed by `specfact init --list-modules`, `specfact init --enable-module ...`, `specfact init --disable-module ...`
+  - Supports dependency-safe lifecycle operations with optional `--force` cascading behavior
+
+`specfact init` is bootstrap/module-lifecycle focused. IDE prompt/template setup is handled by `specfact init ide`.
 
 For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Modules design](architecture.md#modules-design).
 
@@ -442,19 +446,35 @@ specfact sync repository --repo . --watch --interval 5
 
 ### `specfact init`
 
+Bootstraps local module lifecycle state (without IDE template copy side effects):
+
+```bash
+# Bootstrap and discover modules
+specfact init
+
+# List enabled/disabled module state
+specfact init --list-modules
+
+# Manage modules (interactive selector in interactive terminals)
+specfact init --enable-module
+specfact init --disable-module
+```
+
+### `specfact init ide`
+
 Initializes IDE integration by copying prompt templates to IDE-specific locations:
 
 ```bash
 # Auto-detect IDE
-specfact init
+specfact init ide
 
 # Specify IDE explicitly
-specfact init --ide cursor
-specfact init --ide vscode
-specfact init --ide copilot
+specfact init ide --ide cursor
+specfact init ide --ide vscode
+specfact init ide --ide copilot
 ```
 
-**Creates IDE-specific directories:**
+**Creates/updates IDE-specific directories:**
 
 - **Cursor**: `.cursor/commands/` (markdown files)
 - **VS Code / Copilot**: `.github/prompts/` (`.prompt.md` files) + `.vscode/settings.json`

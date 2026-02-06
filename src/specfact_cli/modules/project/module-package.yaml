@@ -8,3 +8,4 @@ command_help:
 pip_dependencies: []
 module_dependencies: []
 tier: community
+core_compatibility: ">=0.28.0,<1.0.0"
