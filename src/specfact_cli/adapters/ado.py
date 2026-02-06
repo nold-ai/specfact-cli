@@ -14,7 +14,7 @@ import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import requests
@@ -549,7 +549,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         assigned_to = fields.get("System.AssignedTo")
         if assigned_to:
             if isinstance(assigned_to, dict):
-                assignee_name = assigned_to.get("displayName") or assigned_to.get("uniqueName", "")
+                assignee_dict = cast(dict[str, Any], assigned_to)
+                display_name = assignee_dict.get("displayName")
+                unique_name = assignee_dict.get("uniqueName")
+                if isinstance(display_name, str) and display_name.strip():
+                    assignee_name = display_name.strip()
+                elif isinstance(unique_name, str):
+                    assignee_name = unique_name
+                else:
+                    assignee_name = ""
             else:
                 assignee_name = str(assigned_to)
             if assignee_name and not owner:
