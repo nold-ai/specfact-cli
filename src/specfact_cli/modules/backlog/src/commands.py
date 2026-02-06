@@ -1538,14 +1538,16 @@ def refine(
                 built_in_loaded = True
             else:
                 # Fallback: Try relative to repo root (development mode)
-                repo_root = Path(__file__).parent.parent.parent.parent
+                # __file__ = src/specfact_cli/modules/backlog/src/commands.py → 6 parents to repo root
+                repo_root = Path(__file__).parent.parent.parent.parent.parent.parent
                 resources_templates_dir = repo_root / "resources" / "templates" / "backlog"
                 if resources_templates_dir.exists():
                     registry.load_templates_from_directory(resources_templates_dir)
                     built_in_loaded = True
                 else:
                     # 2. Fallback to src/specfact_cli/templates/ for backward compatibility
-                    src_templates_dir = Path(__file__).parent.parent / "templates"
+                    # __file__ → 4 parents to reach src/specfact_cli/
+                    src_templates_dir = Path(__file__).parent.parent.parent.parent / "templates"
                     if src_templates_dir.exists():
                         registry.load_templates_from_directory(src_templates_dir)
                         built_in_loaded = True

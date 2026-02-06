@@ -113,7 +113,7 @@ def init_contract(
             if not bundle_names:
                 print_error("No valid bundle names found")
                 raise typer.Exit(1)
-                bundle = Prompt.ask("Select bundle", choices=bundle_names)
+            bundle = Prompt.ask("Select bundle", choices=bundle_names)
         elif bundle is None:
             print_error("Bundle not specified and no active bundle found")
             raise typer.Exit(1)
@@ -278,7 +278,7 @@ def _update_contract_index(bundle: ProjectBundle, feature_key: str, contract_pat
             endpoints_count = count_endpoints(contract_data)
             checksum = hashlib.sha256(contract_file.read_bytes()).hexdigest()
         except Exception:
-            pass
+            print_warning(f"Failed to load or analyze contract file '{contract_file}'. Using default metadata.")
 
     contract_index = ContractIndex(
         feature_key=feature_key,
