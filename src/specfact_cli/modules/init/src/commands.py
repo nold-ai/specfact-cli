@@ -36,7 +36,7 @@ from specfact_cli.registry.module_packages import (
 from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode, is_non_interactive
 from specfact_cli.telemetry import telemetry
-from specfact_cli.utils.env_manager import EnvManager, build_tool_command, detect_env_manager
+from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
     SPECFACT_COMMANDS,
@@ -128,6 +128,29 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
 app = typer.Typer(help="Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)")
 console = Console()
 MODULE_SELECT_SENTINEL = "__interactive_select__"
+
+
+def _install_contract_enhancement_dependencies(repo_path: Path, env_info: EnvManagerInfo) -> None:
+    """Install contract enhancement dependencies in the detected environment."""
+    required_packages = [
+        "beartype>=0.22.4",
+        "icontract>=2.7.1",
+        "crosshair-tool>=0.0.97",
+        "pytest>=8.4.2",
+    ]
+    install_cmd = build_tool_command(env_info, ["pip", "install", "-U", *required_packages])
+    result = subprocess.run(
+        install_cmd,
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(repo_path),
+        timeout=300,
+    )
+    if result.returncode == 0:
+        console.print("[green]✓[/green] Dependencies installed")
+    else:
+        console.print("[yellow]⚠[/yellow] Dependency installation reported issues")
 
 
 def _questionary_style() -> Any:
@@ -384,25 +407,7 @@ def init_ide(
         console.print()
 
     if install_deps:
-        required_packages = [
-            "beartype>=0.22.4",
-            "icontract>=2.7.1",
-            "crosshair-tool>=0.0.97",
-            "pytest>=8.4.2",
-        ]
-        install_cmd = build_tool_command(env_info, ["pip", "install", "-U", *required_packages])
-        result = subprocess.run(
-            install_cmd,
-            capture_output=True,
-            text=True,
-            check=False,
-            cwd=str(repo_path),
-            timeout=300,
-        )
-        if result.returncode == 0:
-            console.print("[green]✓[/green] Dependencies installed")
-        else:
-            console.print("[yellow]⚠[/yellow] Dependency installation reported issues")
+        _install_contract_enhancement_dependencies(repo_path, env_info)
 
     templates_dir = _resolve_templates_dir(repo_path)
     if not templates_dir or not templates_dir.exists():
@@ -508,6 +513,7 @@ def init(
     with telemetry.track_command("init", telemetry_metadata) as record:
         if ctx.invoked_subcommand is not None:
             return
+        repo_path = repo.resolve()
         module_management_requested = any(
             [
                 bool(enable_module),
@@ -594,6 +600,9 @@ def init(
                     "Re-enable with specfact init --enable-module <id>.[/dim]"
                 )
         run_discovery_and_write_cache(__version__)
+        if install_deps:
+            env_info = detect_env_manager(repo_path)
+            _install_contract_enhancement_dependencies(repo_path, env_info)
         if list_modules:
             console.print()
             _render_modules_table(modules_list)
@@ -601,7 +610,6 @@ def init(
         if module_management_requested:
             console.print("[green]✓[/green] Module state updated.")
             return
-        repo_path = repo.resolve()
         enabled_count = len([m for m in modules_list if bool(m.get("enabled", True))])
         disabled_count = len(modules_list) - enabled_count
         console.print(

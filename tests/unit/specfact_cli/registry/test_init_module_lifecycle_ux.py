@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from specfact_cli.cli import app
 from specfact_cli.registry.module_packages import ModulePackageMetadata
+from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo
 
 
 runner = CliRunner()
@@ -129,6 +130,50 @@ def test_init_bootstrap_only_does_not_run_ide_setup(tmp_path: Path, monkeypatch)
     result = runner.invoke(app, ["init", "--repo", str(tmp_path)])
     assert result.exit_code == 0
     assert "Use `specfact init ide`" in result.stdout
+
+
+def test_init_install_deps_runs_without_ide_template_copy(tmp_path: Path, monkeypatch) -> None:
+    """Top-level init --install-deps installs dependencies without invoking IDE template copy."""
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
+        lambda enable_ids=None, disable_ids=None: [
+            {"id": "sync", "version": "0.1.0", "enabled": True},
+        ],
+    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.write_modules_state", lambda modules: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda version: None)
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.detect_env_manager",
+        lambda repo_path: EnvManagerInfo(
+            manager=EnvManager.PIP,
+            available=True,
+            command_prefix=[],
+            message="pip",
+        ),
+    )
+
+    calls: list[list[str]] = []
+
+    class _Result:
+        returncode = 0
+
+    def _fake_run(cmd, capture_output, text, check, cwd, timeout):
+        calls.append(list(cmd))
+        return _Result()
+
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.subprocess.run", _fake_run)
+
+    def _fail_copy(*args, **kwargs):
+        raise AssertionError("copy_templates_to_ide must not be called by top-level init --install-deps")
+
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.copy_templates_to_ide", _fail_copy)
+
+    result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--install-deps"])
+
+    assert result.exit_code == 0
+    assert calls, "Expected dependency installation command to run"
+    assert calls[0][:4] == ["pip", "install", "-U", "beartype>=0.22.4"]
 
 
 def test_init_force_disable_cascades_to_dependents(tmp_path: Path, monkeypatch) -> None:
