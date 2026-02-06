@@ -132,7 +132,7 @@ class TestCompleteWorkflowWithNewStructure:
         assert bundle_dir.exists()
         assert (bundle_dir / "bundle.manifest.yaml").exists()
 
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -157,8 +157,8 @@ class TestCompleteWorkflowWithNewStructure:
         )
 
         # Save as modular bundle
-        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
         from specfact_cli.generators.plan_generator import PlanGenerator
+        from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
 
         manual_project_bundle = _convert_plan_bundle_to_project_bundle(manual_plan, bundle_name_manual)
@@ -311,8 +311,8 @@ class TestCompleteWorkflowWithNewStructure:
 
         # Step 5: Create temporary PlanBundle files for comparison (plan compare expects file paths)
         # This is a workaround until plan compare is updated to support modular bundles directly
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
         from specfact_cli.generators.plan_generator import PlanGenerator
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
 
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
@@ -532,7 +532,7 @@ class TestMigrationScenarios:
         assert result.exit_code == 0
 
         # Step 3: Migrate old plan to new structure (modular bundle)
-        from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
         from specfact_cli.utils.bundle_loader import save_project_bundle
 
         # Load old plan
@@ -580,8 +580,8 @@ class Test:
         assert result.exit_code == 0
 
         # Compare (create temporary PlanBundle files for comparison)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
         from specfact_cli.generators.plan_generator import PlanGenerator
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
 
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
@@ -707,8 +707,8 @@ class AuthService:
         assert result.exit_code == 0
 
         # Step 5: CI/CD: Compare with plan (create temporary PlanBundle files for comparison)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
         from specfact_cli.generators.plan_generator import PlanGenerator
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
 
         plans_dir = tmp_path / ".specfact" / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
@@ -821,8 +821,8 @@ class FeatureService:
         assert (auto_bundle_dir / "bundle.manifest.yaml").exists()
 
         # Step 4: Developer B compares (create temporary PlanBundle files for comparison)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
         from specfact_cli.generators.plan_generator import PlanGenerator
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         plans_dir = tmp_path / ".specfact" / "plans"

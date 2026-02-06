@@ -6,5 +6,6 @@ commands:
 command_help:
   plan: "Manage development plans"
 pip_dependencies: []
-module_dependencies: []
+module_dependencies:
+  - sync
 tier: community

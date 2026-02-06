@@ -51,7 +51,7 @@ The Dual-Stack Enrichment Pattern is a technical architecture that enforces CLI-
 
 The validation loop pattern is implemented in:
 
-- `src/specfact_cli/commands/generate.py`:
+- `src/specfact_cli/modules/generate/src/commands.py`:
   - `generate_contracts_prompt()` - Generates structured prompts
   - `apply_enhanced_contracts()` - Validates and applies enhanced code
 
@@ -140,7 +140,7 @@ The `cli_first_validator.py` module provides:
 ## Related Code
 
 - `src/specfact_cli/validators/cli_first_validator.py` - Validation utilities
-- `src/specfact_cli/commands/generate.py` - Contract enhancement commands
+- `src/specfact_cli/modules/generate/src/commands.py` - Contract enhancement commands
 - `resources/prompts/shared/cli-enforcement.md` - CLI enforcement rules
 - `resources/prompts/specfact.*.md` - Slash command prompts with dual-stack workflow
 

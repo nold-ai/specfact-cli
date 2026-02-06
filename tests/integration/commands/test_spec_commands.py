@@ -14,8 +14,8 @@ runner = CliRunner()
 class TestSpecValidateCommand:
     """Test suite for spec validate command."""
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
-    @patch("specfact_cli.commands.spec.validate_spec_with_specmatic")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.validate_spec_with_specmatic")
     def test_validate_command_success(self, mock_validate, mock_check, tmp_path):
         """Test successful validation command."""
         mock_check.return_value = (True, None)
@@ -51,7 +51,7 @@ class TestSpecValidateCommand:
         assert "Validating specification" in result.stdout
         assert "✓ Specification is valid" in result.stdout
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
     def test_validate_command_specmatic_not_available(self, mock_check, tmp_path):
         """Test validation when Specmatic is not available."""
         mock_check.return_value = (False, "Specmatic CLI not found")
@@ -69,8 +69,8 @@ class TestSpecValidateCommand:
         assert result.exit_code == 1
         assert "Specmatic not available" in result.stdout
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
-    @patch("specfact_cli.commands.spec.validate_spec_with_specmatic")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.validate_spec_with_specmatic")
     def test_validate_command_failure(self, mock_validate, mock_check, tmp_path):
         """Test validation command with validation failures."""
         mock_check.return_value = (True, None)
@@ -106,8 +106,8 @@ class TestSpecValidateCommand:
 class TestSpecBackwardCompatCommand:
     """Test suite for spec backward-compat command."""
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
-    @patch("specfact_cli.commands.spec.check_backward_compatibility")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.check_backward_compatibility")
     def test_backward_compat_command_success(self, mock_check_compat, mock_check, tmp_path):
         """Test successful backward compatibility check."""
         mock_check.return_value = (True, None)
@@ -134,8 +134,8 @@ class TestSpecBackwardCompatCommand:
         assert "Checking backward compatibility" in result.stdout
         assert "✓ Specifications are backward compatible" in result.stdout
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
-    @patch("specfact_cli.commands.spec.check_backward_compatibility")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.check_backward_compatibility")
     def test_backward_compat_command_breaking_changes(self, mock_check_compat, mock_check, tmp_path):
         """Test backward compatibility check with breaking changes."""
         mock_check.return_value = (True, None)
@@ -166,8 +166,8 @@ class TestSpecBackwardCompatCommand:
 class TestSpecGenerateTestsCommand:
     """Test suite for spec generate-tests command."""
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
-    @patch("specfact_cli.commands.spec.generate_specmatic_tests")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.generate_specmatic_tests")
     def test_generate_tests_command_success(self, mock_generate, mock_check, tmp_path):
         """Test successful test generation."""
         mock_check.return_value = (True, None)
@@ -202,8 +202,8 @@ class TestSpecGenerateTestsCommand:
 class TestSpecMockCommand:
     """Test suite for spec mock command."""
 
-    @patch("specfact_cli.commands.spec.check_specmatic_available")
-    @patch("specfact_cli.commands.spec.create_mock_server")
+    @patch("specfact_cli.modules.spec.src.commands.check_specmatic_available")
+    @patch("specfact_cli.modules.spec.src.commands.create_mock_server")
     def test_mock_command_success(self, mock_create, mock_check, tmp_path):
         """Test successful mock server creation."""
         mock_check.return_value = (True, None)

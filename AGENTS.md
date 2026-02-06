@@ -4,7 +4,8 @@
 
 - `src/specfact_cli/` contains the CLI command implementation
   - `cli.py` - Main Typer application entry point
-  - `commands/` - Command modules (import, analyze, plan, compare, enforce, repro)
+  - `modules/<module>/src/commands.py` - Primary command implementations (module-local)
+  - `commands/` - Legacy compatibility shims (app-only re-exports from module-local commands)
   - `models/` - Pydantic data models (plan, protocol, deviation)
   - `generators/` - Code generators (protocol, plan, report)
   - `validators/` - Validation logic (schema, contract, FSM)
@@ -86,6 +87,10 @@
 ## CLI Command Development Notes
 
 - All commands extend `typer.Typer()` for consistent CLI interface
+- New command logic belongs in `src/specfact_cli/modules/<module>/src/commands.py`
+- Legacy import path compatibility is limited to `from specfact_cli.commands.<name> import app`
+- Replacement path for module code is `from specfact_cli.modules.<module>.src.commands import ...`
+- Compatibility shims are planned for removal no earlier than `v0.30` (or next major migration window)
 - Use `rich.console.Console()` for beautiful terminal output
 - Validate inputs with Pydantic models at command boundaries
 - Apply `@icontract` decorators to enforce contracts at runtime

@@ -1,6 +1,6 @@
-"""Enforce command: re-export from commands package."""
+"""enforce command entrypoint."""
 
-from specfact_cli.commands.enforce import app
+from specfact_cli.modules.enforce.src.commands import app
 
 
 __all__ = ["app"]

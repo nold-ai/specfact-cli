@@ -136,6 +136,19 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 
 ---
 
+## Developer Note: Command Layout
+
+- Primary command implementations live in `src/specfact_cli/modules/<module>/src/commands.py`.
+- Legacy imports from `src/specfact_cli/commands/*.py` are compatibility shims and only guarantee `app` re-exports.
+- Preferred imports for module code:
+  - `from specfact_cli.modules.<module>.src.commands import app`
+  - `from specfact_cli.modules.<module>.src.commands import <symbol>`
+- Shim deprecation timeline:
+  - Legacy shim usage is deprecated for non-`app` symbols now.
+  - Shim removal is planned no earlier than `v0.30` (or the next major migration window).
+
+---
+
 ## Where SpecFact Fits
 
 SpecFact complements your stack rather than replacing it.

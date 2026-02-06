@@ -542,7 +542,16 @@ class ChangeArchive(BaseModel):
   - `name`, `version`, `commands` (list of command names the package provides)
   - optional `command_help` (name → short help for root `specfact --help`)
   - optional `pip_dependencies`, `module_dependencies`, `tier` (e.g. community/enterprise), `addon_id`
-- **Entry point**: Each package has `src/app.py` (or equivalent) that exposes a Typer `app`. Modules typically re-export the app from `specfact_cli.commands.<name>` so that the real implementation stays in `commands/` while modules act as discoverable wrappers.
+- **Entry point**: Each package has `src/app.py` that exposes a Typer `app` by importing from module-local `src/commands.py`.
+
+### Legacy shim policy and timeline
+
+- Legacy files under `src/specfact_cli/commands/*.py` are compatibility shims.
+- Supported legacy surface: `from specfact_cli.commands.<name> import app`.
+- Preferred replacement imports:
+  - `from specfact_cli.modules.<module>.src.commands import app`
+  - `from specfact_cli.modules.<module>.src.commands import <symbol>`
+- Deprecation timeline: non-`app` legacy shim usage is deprecated now; shim removal is planned no earlier than `v0.30` (or next major migration window).
 
 ### Module state (user-level)
 
@@ -579,14 +588,12 @@ src/specfact_cli/
 │   │   ├── module-package.yaml
 │   │   └── src/app.py
 │   └── ...                # plan, analyze, enforce, repro, etc.
-├── commands/              # CLI command implementations (Typer apps)
-│   ├── import_cmd.py      # Import from external formats
-│   ├── analyze.py         # Code analysis
-│   ├── plan.py            # Plan management
-│   ├── enforce.py         # Enforcement configuration
-│   ├── repro.py           # Reproducibility validation
-│   ├── sync.py            # Sync operations (Spec-Kit, OpenSpec, repository)
-│   └── ...                # init, auth, backlog, generate, etc.
+├── commands/              # Legacy app-only compatibility shims
+│   ├── import_cmd.py      # -> modules/import_cmd/src/commands.py
+│   ├── analyze.py         # -> modules/analyze/src/commands.py
+│   ├── plan.py            # -> modules/plan/src/commands.py
+│   ├── enforce.py         # -> modules/enforce/src/commands.py
+│   └── ...                # auth, backlog, contract, drift, etc.
 ├── modes/                 # Operational mode management
 │   ├── detector.py        # Mode detection logic
 │   └── router.py          # Command routing

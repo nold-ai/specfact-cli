@@ -47,9 +47,9 @@ class TestWatchModeE2E:
             bundle_dir.mkdir(parents=True)
 
             # Create minimal bundle manifest
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle
             from specfact_cli.models.project import Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -155,8 +155,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir.mkdir(parents=True)
 
             # Create minimal bundle
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -200,11 +200,11 @@ As a user, I want to test features so that I can validate functionality.
 
             # Modify SpecFact bundle while watch mode is running
             # Load, modify, and save the bundle
-            from specfact_cli.commands.plan import (
+            from specfact_cli.models.plan import Feature
+            from specfact_cli.modules.plan.src.commands import (
                 _convert_plan_bundle_to_project_bundle,
                 _convert_project_bundle_to_plan_bundle,
             )
-            from specfact_cli.models.plan import Feature
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -262,8 +262,8 @@ As a user, I want to test features so that I can validate functionality.
                 bundle_dir.mkdir(parents=True)
 
                 # Create minimal bundle
-                from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
                 from specfact_cli.models.plan import PlanBundle, Product
+                from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
                 from specfact_cli.utils.bundle_loader import save_project_bundle
 
                 plan_bundle = PlanBundle(
@@ -330,11 +330,11 @@ As a user, I want to test features so that I can validate functionality.
                 assert (bundle_dir / "bundle.manifest.yaml").exists(), "Bundle manifest should exist after sync"
 
                 # Then modify SpecFact bundle
-                from specfact_cli.commands.plan import (
+                from specfact_cli.models.plan import Feature
+                from specfact_cli.modules.plan.src.commands import (
                     _convert_plan_bundle_to_project_bundle,
                     _convert_project_bundle_to_plan_bundle,
                 )
-                from specfact_cli.models.plan import Feature
                 from specfact_cli.utils.bundle_loader import load_project_bundle
 
                 updated_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -431,8 +431,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir.mkdir(parents=True)
 
             # Create minimal bundle
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -506,8 +506,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir.mkdir(parents=True)
 
             # Create minimal bundle
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -587,8 +587,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir.mkdir(parents=True)
 
             # Create minimal bundle
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(

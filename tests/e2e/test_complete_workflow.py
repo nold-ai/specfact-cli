@@ -1056,7 +1056,7 @@ class TestPlanAddCommandsE2E:
         print("✅ Story added via CLI")
 
         # Step 4: Verify plan structure (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         bundle_dir = workspace / ".specfact" / "projects" / bundle_name
@@ -1171,7 +1171,7 @@ class TestPlanAddCommandsE2E:
         assert result3.exit_code == 0
 
         # Verify all features exist (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         bundle_dir = workspace / ".specfact" / "projects" / bundle_name
@@ -2075,7 +2075,7 @@ class TestBrownfieldAnalysisWorkflow:
             assert report_path.exists(), "Should create analysis report"
 
             # Verify bundle content (modular bundle)
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)

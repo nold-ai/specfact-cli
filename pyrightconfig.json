@@ -9,6 +9,8 @@
     ],
     "pythonVersion": "3.11",
     "typeCheckingMode": "standard",
+    "reportMissingImports": "none",
+    "reportMissingModuleSource": "none",
     "reportUnknownMemberType": "warning",
     "reportAttributeAccessIssue": "warning",
     "useLibraryCodeForTypes": true,

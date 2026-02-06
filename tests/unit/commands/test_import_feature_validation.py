@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from specfact_cli.commands.import_cmd import _validate_existing_features
 from specfact_cli.models.plan import Feature, PlanBundle, Product, SourceTracking, Story
+from specfact_cli.modules.import_cmd.src.commands import _validate_existing_features
 
 
 @pytest.fixture

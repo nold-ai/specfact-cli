@@ -6,5 +6,6 @@ commands:
 command_help:
   generate: "Generate artifacts from SDD and plans"
 pip_dependencies: []
-module_dependencies: []
+module_dependencies:
+  - plan
 tier: community

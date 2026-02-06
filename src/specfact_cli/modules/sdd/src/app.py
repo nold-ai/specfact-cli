@@ -1,6 +1,6 @@
-"""SDD command: re-export from commands package."""
+"""sdd command entrypoint."""
 
-from specfact_cli.commands.sdd import app
+from specfact_cli.modules.sdd.src.commands import app
 
 
 __all__ = ["app"]

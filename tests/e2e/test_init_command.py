@@ -198,7 +198,7 @@ class TestInitCommandE2E:
         )
         # Also mock in the init command module where it's imported
         monkeypatch.setattr(
-            "specfact_cli.commands.init.get_package_installation_locations",
+            "specfact_cli.modules.init.src.commands.get_package_installation_locations",
             mock_get_locations,
         )
 
@@ -212,7 +212,7 @@ class TestInitCommandE2E:
         )
         # Also mock in the init command module where it's imported
         monkeypatch.setattr(
-            "specfact_cli.commands.init.find_package_resources_path",
+            "specfact_cli.modules.init.src.commands.find_package_resources_path",
             mock_find_resources,
         )
 

@@ -1,6 +1,6 @@
-"""Backlog command: re-export from commands package."""
+"""backlog command entrypoint."""
 
-from specfact_cli.commands.backlog_commands import app
+from specfact_cli.modules.backlog.src.commands import app
 
 
 __all__ = ["app"]

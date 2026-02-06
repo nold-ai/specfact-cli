@@ -108,7 +108,7 @@ def incomplete_plan(workspace: Path) -> Path:
     )
 
     # Convert to modular bundle
-    from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+    from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
     from specfact_cli.utils.bundle_loader import save_project_bundle
 
     project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
@@ -344,7 +344,7 @@ class TestBatchFeatureUpdates:
 
         # Verify updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -386,7 +386,7 @@ class TestBatchFeatureUpdates:
 
         # Read original plan
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         # Load original bundle (modular bundle)
@@ -420,7 +420,7 @@ class TestBatchFeatureUpdates:
 
         # Verify partial updates
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -486,7 +486,7 @@ class TestBatchStoryUpdates:
 
         # Verify updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -511,7 +511,7 @@ class TestBatchStoryUpdates:
 
         # Add a story to FEATURE-002 first
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         # Load bundle (modular bundle)
@@ -536,7 +536,7 @@ class TestBatchStoryUpdates:
             )
 
             # Save bundle (modular bundle)
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             project_bundle = _convert_plan_bundle_to_project_bundle(
@@ -586,7 +586,7 @@ class TestBatchStoryUpdates:
 
         # Verify both stories were updated
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -617,8 +617,8 @@ class TestInteractiveSelectiveUpdates:
         monkeypatch.chdir(workspace)
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
         ):
             # Setup responses for interactive update
             mock_text.side_effect = [
@@ -661,8 +661,8 @@ class TestInteractiveSelectiveUpdates:
         monkeypatch.chdir(workspace)
 
         with (
-            patch("specfact_cli.commands.plan.prompt_text") as mock_text,
-            patch("specfact_cli.commands.plan.prompt_confirm") as mock_confirm,
+            patch("specfact_cli.modules.plan.src.commands.prompt_text") as mock_text,
+            patch("specfact_cli.modules.plan.src.commands.prompt_confirm") as mock_confirm,
         ):
             # Setup responses for interactive update
             mock_text.side_effect = [
@@ -779,7 +779,7 @@ class TestCompleteBatchWorkflow:
 
         # Step 4: Verify updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -882,7 +882,7 @@ class TestCompleteBatchWorkflow:
 
         # Step 5: Verify all updates were applied
         # Load bundle (modular bundle)
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)

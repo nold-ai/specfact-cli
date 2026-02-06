@@ -355,7 +355,7 @@ class PersonaMergeResolver:
         Returns:
             Persona name if persona owns section, None otherwise
         """
-        from specfact_cli.commands.project_cmd import check_persona_ownership
+        from specfact_cli.utils.persona_ownership import check_persona_ownership
 
         if check_persona_ownership(persona, manifest, section_path):
             return persona
