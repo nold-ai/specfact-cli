@@ -352,9 +352,9 @@ def _select_ide_interactive(default_ide: str) -> str:
     return label_to_ide[str(selected)]
 
 
-def _is_valid_repo_path(path: Path) -> bool:
+def _is_valid_repo_path(repo: Path) -> bool:
     """Check if path exists and is a directory."""
-    return path.exists() and path.is_dir()
+    return repo.exists() and repo.is_dir()
 
 
 @app.command("ide")
