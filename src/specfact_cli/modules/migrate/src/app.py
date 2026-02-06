@@ -1,6 +1,6 @@
-"""Migrate command: re-export from commands package."""
+"""migrate command entrypoint."""
 
-from specfact_cli.commands.migrate import app
+from specfact_cli.modules.migrate.src.commands import app
 
 
 __all__ = ["app"]

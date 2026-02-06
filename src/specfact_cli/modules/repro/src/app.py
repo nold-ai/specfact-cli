@@ -1,6 +1,6 @@
-"""Repro command: re-export from commands package."""
+"""repro command entrypoint."""
 
-from specfact_cli.commands.repro import app
+from specfact_cli.modules.repro.src.commands import app
 
 
 __all__ = ["app"]

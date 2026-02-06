@@ -131,27 +131,27 @@ Parameters must be organized into logical groups in the following order:
 The following parameters have been renamed:
 
 1. **`--base-path` → `--repo`** ✅
-   - **File**: `src/specfact_cli/commands/generate.py`
+   - **File**: `src/specfact_cli/modules/generate/src/commands.py`
    - **Command**: `generate contracts`
    - **Status**: Completed - Parameter renamed and all references updated
 
 2. **`--output` → `--out`** ✅
-   - **File**: `src/specfact_cli/commands/constitution.py`
-   - **Command**: `constitution bootstrap`
+   - **File**: `src/specfact_cli/modules/sdd/src/commands.py`
+   - **Command**: `sdd constitution bootstrap`
    - **Status**: Completed - Parameter renamed and all references updated
 
 3. **`--format` → `--output-format`** ✅
    - **Files**:
-     - `src/specfact_cli/commands/plan.py` (plan compare command)
-     - `src/specfact_cli/commands/enforce.py` (enforce sdd command)
+     - `src/specfact_cli/modules/plan/src/commands.py` (plan compare command)
+     - `src/specfact_cli/modules/enforce/src/commands.py` (enforce sdd command)
    - **Status**: Completed - Parameters renamed and all references updated
 
 4. **`--non-interactive` → `--no-interactive`** ✅
    - **Files**:
      - `src/specfact_cli/cli.py` (global flag)
-     - `src/specfact_cli/commands/plan.py` (multiple commands)
-     - `src/specfact_cli/commands/enforce.py` (enforce sdd command)
-     - `src/specfact_cli/commands/generate.py` (generate contracts command)
+     - `src/specfact_cli/modules/plan/src/commands.py` (multiple commands)
+     - `src/specfact_cli/modules/enforce/src/commands.py` (enforce sdd command)
+     - `src/specfact_cli/modules/generate/src/commands.py` (generate contracts command)
    - **Status**: Completed - Global flag and all command flags updated, interaction logic fixed
 
 ### Phase 1.3: Verify `--bundle` Parameter ✅ **COMPLETED**

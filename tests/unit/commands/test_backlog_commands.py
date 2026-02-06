@@ -12,11 +12,11 @@ from typer.testing import CliRunner
 
 from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.cli import app
-from specfact_cli.commands.backlog_commands import (
+from specfact_cli.models.backlog_item import BacklogItem
+from specfact_cli.modules.backlog.src.commands import (
     _item_needs_refinement,
     _parse_refined_export_markdown,
 )
-from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 

@@ -225,7 +225,7 @@ class TestSDDContractTracking:
         sdd = SDDManifest.model_validate(sdd_data)
 
         # Calculate coverage
-        from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
         from specfact_cli.validators.contract_validator import calculate_contract_density
 
         # Convert ProjectBundle to PlanBundle for compatibility

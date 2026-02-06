@@ -29,7 +29,8 @@ from typer.testing import CliRunner
 
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.cli import app
-from specfact_cli.commands.backlog_commands import (
+from specfact_cli.models.backlog_item import BacklogItem
+from specfact_cli.modules.backlog.src.commands import (
     _apply_filters,
     _build_copilot_export_content,
     _build_standup_rows,
@@ -39,7 +40,6 @@ from specfact_cli.commands.backlog_commands import (
     _format_standup_comment,
     _post_standup_comment_supported,
 )
-from specfact_cli.models.backlog_item import BacklogItem
 
 
 runner = CliRunner()
@@ -161,7 +161,7 @@ class TestPostStandupCommentViaAdapter:
 
     def test_post_standup_comment_calls_adapter_add_comment(self) -> None:
         """When user opts in and adapter supports comments, add_comment is called."""
-        from specfact_cli.commands.backlog_commands import _post_standup_to_item
+        from specfact_cli.modules.backlog.src.commands import _post_standup_to_item
 
         mock = MagicMock(spec=BacklogAdapter)
         mock.add_comment.return_value = True
@@ -173,7 +173,7 @@ class TestPostStandupCommentViaAdapter:
 
     def test_post_standup_comment_failure_reported(self) -> None:
         """When add_comment returns False, success is False."""
-        from specfact_cli.commands.backlog_commands import _post_standup_to_item
+        from specfact_cli.modules.backlog.src.commands import _post_standup_to_item
 
         mock = MagicMock(spec=BacklogAdapter)
         mock.add_comment.return_value = False
@@ -217,7 +217,7 @@ class TestDefaultStandupScope:
 
     def test_resolve_standup_options_uses_defaults_when_none(self) -> None:
         """When state/limit/assignee not passed, effective state is open and limit is 20."""
-        from specfact_cli.commands.backlog_commands import _resolve_standup_options
+        from specfact_cli.modules.backlog.src.commands import _resolve_standup_options
 
         state, limit, assignee = _resolve_standup_options(None, None, None, None)
         assert state == "open"
@@ -226,7 +226,7 @@ class TestDefaultStandupScope:
 
     def test_resolve_standup_options_explicit_overrides_defaults(self) -> None:
         """Explicit --state and --limit override defaults."""
-        from specfact_cli.commands.backlog_commands import _resolve_standup_options
+        from specfact_cli.modules.backlog.src.commands import _resolve_standup_options
 
         state, limit, assignee = _resolve_standup_options("closed", 10, None, None)
         assert state == "closed"
@@ -282,7 +282,7 @@ class TestUnassignedItems:
 
     def test_split_assigned_vs_unassigned(self) -> None:
         """Standup view splits items into assigned and unassigned."""
-        from specfact_cli.commands.backlog_commands import _split_assigned_unassigned
+        from specfact_cli.modules.backlog.src.commands import _split_assigned_unassigned
 
         items = [
             _item("1", "Mine", assignees=["me"]),
@@ -296,7 +296,7 @@ class TestUnassignedItems:
 
     def test_unassigned_only_filters_to_unassigned(self) -> None:
         """When unassigned_only, only unassigned items in scope."""
-        from specfact_cli.commands.backlog_commands import _split_assigned_unassigned
+        from specfact_cli.modules.backlog.src.commands import _split_assigned_unassigned
 
         items = [
             _item("1", "A", assignees=["me"]),
@@ -314,7 +314,7 @@ class TestSprintIterationEndDate:
         """When sprint end date provided, format as 'Sprint ends: YYYY-MM-DD (N days)'."""
         from datetime import date
 
-        from specfact_cli.commands.backlog_commands import _format_sprint_end_header
+        from specfact_cli.modules.backlog.src.commands import _format_sprint_end_header
 
         end = date(2025, 2, 15)
         header = _format_sprint_end_header(end)
@@ -327,7 +327,7 @@ class TestBlockersFirstAndOptionalPriority:
 
     def test_standup_rows_blockers_first(self) -> None:
         """When blockers-first, items with non-empty blockers appear first."""
-        from specfact_cli.commands.backlog_commands import _build_standup_rows, _sort_standup_rows_blockers_first
+        from specfact_cli.modules.backlog.src.commands import _build_standup_rows, _sort_standup_rows_blockers_first
 
         body_no = "Description only."
         body_yes = "**Blockers:** Waiting on API."
@@ -343,7 +343,7 @@ class TestBlockersFirstAndOptionalPriority:
 
     def test_standup_rows_include_priority_when_enabled(self) -> None:
         """When config enables priority and BacklogItem has priority, row has priority."""
-        from specfact_cli.commands.backlog_commands import _build_standup_rows
+        from specfact_cli.modules.backlog.src.commands import _build_standup_rows
 
         items = [_item("1", "P1 item", priority=1)]
         rows = _build_standup_rows(items, include_priority=True)

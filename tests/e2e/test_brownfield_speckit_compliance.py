@@ -95,7 +95,7 @@ class TestBrownfieldSpeckitComplianceE2E:
             assert bundle_dir.exists()
             assert (bundle_dir / "bundle.manifest.yaml").exists()
 
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -213,7 +213,7 @@ class TestBrownfieldSpeckitComplianceE2E:
             bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
             assert bundle_dir.exists()
 
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
@@ -270,7 +270,7 @@ class TestBrownfieldSpeckitComplianceE2E:
             bundle_dir = brownfield_repo / ".specfact" / "projects" / bundle_name
             assert bundle_dir.exists()
 
-            from specfact_cli.commands.plan import _convert_project_bundle_to_plan_bundle
+            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)

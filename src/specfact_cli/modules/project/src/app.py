@@ -1,6 +1,6 @@
-"""Project command: re-export from commands package."""
+"""project command entrypoint."""
 
-from specfact_cli.commands.project_cmd import app
+from specfact_cli.modules.project.src.commands import app
 
 
 __all__ = ["app"]

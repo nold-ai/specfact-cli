@@ -290,4 +290,7 @@ class PlanBundle(BaseModel):
                 external_dependencies=[],
                 summary=None,
             )
-        self.metadata.summary = self.compute_summary(include_hash=include_hash)
+        metadata = self.metadata
+        if metadata is None:
+            return
+        metadata.summary = self.compute_summary(include_hash=include_hash)

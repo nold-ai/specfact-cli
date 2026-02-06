@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.28.0] - 2026-02-06
+
+### Added (0.28.0)
+
+- **Module package separation for command implementations** (OpenSpec change `arch-02-module-package-separation`, fixes [#199](https://github.com/nold-ai/specfact-cli/issues/199))
+  - **Module-local command sources**: command implementations now live under `src/specfact_cli/modules/<module>/src/commands.py` and module app entrypoints import from local command modules.
+  - **Boundary regression checks**: added tests to prevent new non-`app` dependencies from `specfact_cli.commands.*` and protect module encapsulation.
+  - **Shared helper extraction**: common cross-command helpers moved to stable shared utilities to reduce coupling between module command packages.
+
+### Changed (0.28.0)
+
+- **Compatibility shims for migration**: legacy `src/specfact_cli/commands/*.py` files are now compatibility shims focused on `app` export, preserving CLI behavior during transition while reducing symbol-level coupling.
+- **Version**: Bumped to 0.28.0 (minor: architectural feature/refactor, backward compatible).
+
+---
+
 ## [0.27.0] - 2026-02-04
 
 ### Added (0.27.0)

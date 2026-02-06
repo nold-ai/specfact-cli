@@ -195,7 +195,7 @@ version = "0.1.0"
         assert result.exit_code == 0
         # Should still complete successfully, using "." as fallback
 
-    @patch("specfact_cli.commands.repro.check_tool_in_env")
+    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
     def test_setup_warns_when_crosshair_not_available(self, mock_check_tool, tmp_path: Path, monkeypatch):
         """Test setup warns when crosshair-tool is not available."""
         monkeypatch.chdir(tmp_path)
@@ -213,7 +213,7 @@ version = "0.1.0"
         assert "crosshair-tool not available" in result.stdout
         assert "Tip:" in result.stdout
 
-    @patch("specfact_cli.commands.repro.check_tool_in_env")
+    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
     def test_setup_shows_crosshair_available(self, mock_check_tool, tmp_path: Path, monkeypatch):
         """Test setup shows success when crosshair-tool is available."""
         monkeypatch.chdir(tmp_path)
@@ -231,7 +231,7 @@ version = "0.1.0"
         assert "crosshair-tool is available" in result.stdout
 
     @patch("subprocess.run")
-    @patch("specfact_cli.commands.repro.check_tool_in_env")
+    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
     def test_setup_installs_crosshair_when_requested(
         self, mock_check_tool, mock_subprocess, tmp_path: Path, monkeypatch
     ):
@@ -256,7 +256,7 @@ version = "0.1.0"
         mock_subprocess.assert_called_once()
 
     @patch("subprocess.run")
-    @patch("specfact_cli.commands.repro.check_tool_in_env")
+    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
     def test_setup_handles_installation_failure(self, mock_check_tool, mock_subprocess, tmp_path: Path, monkeypatch):
         """Test setup handles crosshair-tool installation failure gracefully."""
         monkeypatch.chdir(tmp_path)
@@ -296,7 +296,7 @@ packages = ["src/test_package"]
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        with patch("specfact_cli.commands.repro.check_tool_in_env") as mock_check:
+        with patch("specfact_cli.modules.repro.src.commands.check_tool_in_env") as mock_check:
             mock_check.return_value = (False, "Tool 'crosshair' not found")
 
             result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])

@@ -13,7 +13,7 @@ import requests
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.commands.auth import AZURE_DEVOPS_RESOURCE
+from specfact_cli.modules.auth.src.commands import AZURE_DEVOPS_RESOURCE
 from specfact_cli.utils.auth_tokens import load_tokens
 
 

@@ -6,5 +6,7 @@ commands:
 command_help:
   sync: "Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.)"
 pip_dependencies: []
-module_dependencies: []
+module_dependencies:
+  - plan
+  - sdd
 tier: community

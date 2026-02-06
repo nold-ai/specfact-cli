@@ -1,6 +1,6 @@
-"""Analyze command: re-export from commands package."""
+"""analyze command entrypoint."""
 
-from specfact_cli.commands.analyze import app
+from specfact_cli.modules.analyze.src.commands import app
 
 
 __all__ = ["app"]

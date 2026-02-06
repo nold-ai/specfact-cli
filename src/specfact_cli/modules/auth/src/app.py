@@ -1,6 +1,6 @@
-"""Auth command: re-export from commands package."""
+"""auth command entrypoint."""
 
-from specfact_cli.commands.auth import app
+from specfact_cli.modules.auth.src.commands import app
 
 
 __all__ = ["app"]

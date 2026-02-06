@@ -445,7 +445,7 @@ The `OpenSpecAdapter` is an example of a bidirectional sync adapter with change 
 **✅ DO:**
 
 ```python
-# In commands/sync.py
+# In modules/sync/src/commands.py
 adapter = AdapterRegistry.get_adapter(adapter_name)
 if adapter:
     adapter_instance = adapter()

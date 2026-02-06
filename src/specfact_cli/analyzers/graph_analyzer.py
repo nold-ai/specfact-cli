@@ -370,11 +370,11 @@ class GraphAnalyzer:
 
         Tries multiple strategies:
         1. Exact match
-        2. Last part match (e.g., "import_cmd" matches "src.specfact_cli.commands.import_cmd")
-        3. Partial path match (e.g., "specfact_cli.commands" matches "src.specfact_cli.commands.import_cmd")
+        2. Last part match (e.g., "import_cmd" matches "src.specfact_cli.modules.import_cmd.src.commands")
+        3. Partial path match (e.g., "specfact_cli.commands" matches "src.specfact_cli.modules.import_cmd.src.commands")
 
         Args:
-            imported: Imported module name (e.g., "specfact_cli.commands.import_cmd")
+            imported: Imported module name (e.g., "specfact_cli.modules.import_cmd.src.commands")
             known_modules: List of known module names in the graph
 
         Returns:
@@ -385,14 +385,14 @@ class GraphAnalyzer:
             return imported
 
         # Strategy 2: Last part match
-        # e.g., "import_cmd" matches "src.specfact_cli.commands.import_cmd"
+        # e.g., "import_cmd" matches "src.specfact_cli.modules.import_cmd.src.commands"
         imported_last = imported.split(".")[-1]
         for module in known_modules:
             if module.endswith(f".{imported_last}") or module == imported_last:
                 return module
 
         # Strategy 3: Partial path match
-        # e.g., "specfact_cli.commands" matches "src.specfact_cli.commands.import_cmd"
+        # e.g., "specfact_cli.commands" matches "src.specfact_cli.modules.import_cmd.src.commands"
         for module in known_modules:
             # Check if imported is a prefix of module
             if module.startswith(imported + ".") or module == imported:
@@ -406,7 +406,7 @@ class GraphAnalyzer:
         for module in known_modules:
             module_parts = module.split(".")
             # Check if there's overlap in the path
-            # e.g., "commands.import_cmd" might match "src.specfact_cli.commands.import_cmd"
+            # e.g., "commands.import_cmd" might match "src.specfact_cli.modules.import_cmd.src.commands"
             if len(imported_parts) >= 2 and len(module_parts) >= 2 and imported_parts[-2:] == module_parts[-2:]:
                 return module
 

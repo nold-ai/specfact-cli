@@ -13,8 +13,8 @@ import pytest
 from beartype import beartype
 
 from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
-from specfact_cli.commands.backlog_commands import _apply_filters
 from specfact_cli.models.backlog_item import BacklogItem
+from specfact_cli.modules.backlog.src.commands import _apply_filters
 
 
 @pytest.fixture

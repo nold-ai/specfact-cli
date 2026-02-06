@@ -9,9 +9,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import git
 from beartype import beartype
-from git import Repo
+from git.exc import InvalidGitRepositoryError
+from git.repo import Repo
 from icontract import ensure, require
 
 
@@ -43,7 +43,7 @@ class GitOperations:
         try:
             _ = Repo(self.repo_path)
             return True
-        except git.exc.InvalidGitRepositoryError:
+        except InvalidGitRepositoryError:
             return False
 
     def init(self) -> None:

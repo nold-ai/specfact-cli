@@ -7,8 +7,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
-from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
 from specfact_cli.models.plan import Idea, PlanBundle, Product
+from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
 
 

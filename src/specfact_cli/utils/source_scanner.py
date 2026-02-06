@@ -105,6 +105,9 @@ class SourceArtifactScanner:
         """
         if feature.source_tracking is None:
             feature.source_tracking = SourceTracking()
+        source_tracking = feature.source_tracking
+        if source_tracking is None:
+            return
 
         # Initialize caches if not provided (for backward compatibility)
         if file_functions_cache is None:
@@ -177,16 +180,16 @@ class SourceArtifactScanner:
 
         # Add matched implementation files to feature
         for rel_path in matched_impl_files:
-            if rel_path not in feature.source_tracking.implementation_files:
-                feature.source_tracking.implementation_files.append(rel_path)
+            if rel_path not in source_tracking.implementation_files:
+                source_tracking.implementation_files.append(rel_path)
                 # Use cached hash if available (all hashes should be pre-computed)
                 if rel_path in file_hashes_cache:
-                    feature.source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
+                    source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
                 else:
                     # Fallback: compute hash if not in cache (shouldn't happen, but safe fallback)
                     file_path = repo_path / rel_path
                     if file_path.exists():
-                        feature.source_tracking.update_hash(file_path)
+                        source_tracking.update_hash(file_path)
 
         # Check if feature key matches any test file stem directly (O(1))
         if feature_key_lower in test_files_by_stem:
@@ -230,16 +233,16 @@ class SourceArtifactScanner:
 
         # Add matched test files to feature
         for rel_path in matched_test_files:
-            if rel_path not in feature.source_tracking.test_files:
-                feature.source_tracking.test_files.append(rel_path)
+            if rel_path not in source_tracking.test_files:
+                source_tracking.test_files.append(rel_path)
                 # Use cached hash if available (all hashes should be pre-computed)
                 if rel_path in file_hashes_cache:
-                    feature.source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
+                    source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
                 else:
                     # Fallback: compute hash if not in cache (shouldn't happen, but safe fallback)
                     file_path = repo_path / rel_path
                     if file_path.exists():
-                        feature.source_tracking.update_hash(file_path)
+                        source_tracking.update_hash(file_path)
 
         # Extract function mappings for stories using cached results
         # Optimization: Use sets for O(1) lookups instead of O(n) list membership checks
@@ -250,7 +253,7 @@ class SourceArtifactScanner:
             source_functions_set = set(story.source_functions) if story.source_functions else set()
             test_functions_set = set(story.test_functions) if story.test_functions else set()
 
-            for impl_file in feature.source_tracking.implementation_files:
+            for impl_file in source_tracking.implementation_files:
                 # Use cached functions if available (all functions should be pre-computed)
                 if impl_file in file_functions_cache:
                     functions = file_functions_cache[impl_file]
@@ -264,7 +267,7 @@ class SourceArtifactScanner:
                     if func_mapping not in source_functions_set:
                         source_functions_set.add(func_mapping)
 
-            for test_file in feature.source_tracking.test_files:
+            for test_file in source_tracking.test_files:
                 # Use cached test functions if available (all test functions should be pre-computed)
                 if test_file in file_test_functions_cache:
                     test_functions = file_test_functions_cache[test_file]
@@ -283,7 +286,7 @@ class SourceArtifactScanner:
             story.test_functions = list(test_functions_set)
 
         # Update sync timestamp
-        feature.source_tracking.update_sync_timestamp()
+        source_tracking.update_sync_timestamp()
 
     @beartype
     @require(lambda self, features: isinstance(features, list), "Features must be list")

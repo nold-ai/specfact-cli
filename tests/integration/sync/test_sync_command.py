@@ -44,8 +44,8 @@ class TestSyncCommandIntegration:
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -84,8 +84,8 @@ class TestSyncCommandIntegration:
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -154,8 +154,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -205,8 +205,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -291,8 +291,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -344,8 +344,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -412,8 +412,8 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
-            from specfact_cli.commands.plan import _convert_plan_bundle_to_project_bundle
             from specfact_cli.models.plan import PlanBundle, Product
+            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
