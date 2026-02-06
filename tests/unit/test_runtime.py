@@ -16,11 +16,11 @@ from specfact_cli.runtime import (
     debug_print,
     get_configured_console,
     get_terminal_mode,
-    is_non_interactive,
     is_debug_mode,
+    is_non_interactive,
+    set_debug_mode,
     set_non_interactive_override,
     set_operational_mode,
-    set_debug_mode,
 )
 from specfact_cli.utils.terminal import TerminalCapabilities
 
