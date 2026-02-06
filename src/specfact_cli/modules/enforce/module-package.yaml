@@ -6,6 +6,7 @@ commands:
 command_help:
   enforce: "Configure quality gates"
 pip_dependencies: []
-module_dependencies: []
+module_dependencies:
+  - plan
 tier: community
 core_compatibility: ">=0.28.0,<1.0.0"
