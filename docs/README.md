@@ -58,6 +58,18 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 - **Backlogs**: GitHub Issues, Azure DevOps, Jira, Linear
 - **Contracts**: Specmatic, OpenAPI
 
+## Module Lifecycle System
+
+SpecFact CLI uses a lifecycle-managed module system:
+
+- `specfact init` bootstraps local state and manages module enable/disable lifecycle.
+- `specfact init ide` handles IDE prompt/template installation and updates.
+- `specfact init --list-modules` shows current enabled/disabled state.
+- `--enable-module` and `--disable-module` support interactive selection in interactive terminals and explicit ids in non-interactive mode.
+- Dependency and compatibility guards prevent invalid module states; `--force` enables dependency-aware cascades.
+
+This is the baseline for future granular module updates and enhancements. Third-party/community module installation is planned, but not available yet.
+
 ---
 
 ## Documentation Sections

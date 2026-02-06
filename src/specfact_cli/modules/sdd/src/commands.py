@@ -402,30 +402,7 @@ def constitution_validate(
 
 
 def is_constitution_minimal(constitution_path: Path) -> bool:
-    """
-    Check if constitution is minimal (essentially empty).
+    """Check constitution minimality via shared core helper."""
+    from specfact_cli.utils.bundle_converters import is_constitution_minimal as _core_is_constitution_minimal
 
-    Args:
-        constitution_path: Path to constitution file
-
-    Returns:
-        True if constitution is minimal, False otherwise
-    """
-    if not constitution_path.exists():
-        return True
-
-    try:
-        content = constitution_path.read_text(encoding="utf-8").strip()
-        # Check if it's just a header or very minimal
-        if not content or content == "# Constitution" or len(content) < 100:
-            return True
-
-        # Check if it has mostly placeholders
-        import re
-
-        placeholder_pattern = r"\[[A-Z_0-9]+\]"
-        placeholders = re.findall(placeholder_pattern, content)
-        lines = [line.strip() for line in content.split("\n") if line.strip()]
-        return bool(lines and len(placeholders) > len(lines) * 0.5)
-    except Exception:
-        return True
+    return _core_is_constitution_minimal(constitution_path)

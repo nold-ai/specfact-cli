@@ -4462,60 +4462,18 @@ def review(
 
 
 def _convert_project_bundle_to_plan_bundle(project_bundle: ProjectBundle) -> PlanBundle:
-    """
-    Convert ProjectBundle to PlanBundle for compatibility with existing extraction functions.
+    """Convert ProjectBundle to PlanBundle via shared core helper."""
+    from specfact_cli.utils.bundle_converters import convert_project_bundle_to_plan_bundle
 
-    Args:
-        project_bundle: ProjectBundle instance
-
-    Returns:
-        PlanBundle instance
-    """
-    return PlanBundle(
-        version="1.0",
-        idea=project_bundle.idea,
-        business=project_bundle.business,
-        product=project_bundle.product,
-        features=list(project_bundle.features.values()),
-        metadata=None,  # ProjectBundle doesn't use Metadata, uses manifest instead
-        clarifications=project_bundle.clarifications,
-    )
+    return convert_project_bundle_to_plan_bundle(project_bundle)
 
 
 @beartype
 def _convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name: str) -> ProjectBundle:
-    """
-    Convert PlanBundle to ProjectBundle (modular).
+    """Convert PlanBundle to ProjectBundle via shared core helper."""
+    from specfact_cli.utils.bundle_converters import convert_plan_bundle_to_project_bundle
 
-    Args:
-        plan_bundle: PlanBundle instance to convert
-        bundle_name: Project bundle name
-
-    Returns:
-        ProjectBundle instance
-    """
-    from specfact_cli.models.project import BundleManifest, BundleVersions
-
-    # Create manifest
-    manifest = BundleManifest(
-        versions=BundleVersions(schema="1.0", project="0.1.0"),
-        schema_metadata=None,
-        project_metadata=None,
-    )
-
-    # Convert features list to dict
-    features_dict: dict[str, Feature] = {f.key: f for f in plan_bundle.features}
-
-    # Create and return ProjectBundle
-    return ProjectBundle(
-        manifest=manifest,
-        bundle_name=bundle_name,
-        idea=plan_bundle.idea,
-        business=plan_bundle.business,
-        product=plan_bundle.product,
-        features=features_dict,
-        clarifications=plan_bundle.clarifications,
-    )
+    return convert_plan_bundle_to_project_bundle(plan_bundle, bundle_name)
 
 
 def _find_bundle_dir(bundle: str | None) -> Path | None:

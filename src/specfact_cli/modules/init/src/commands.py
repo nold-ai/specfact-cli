@@ -1,8 +1,8 @@
 """
-Init command - Initialize SpecFact for IDE integration.
+Init commands for bootstrap, module lifecycle management, and IDE setup.
 
-This module provides the `specfact init` command to copy prompt templates
-to IDE-specific locations for slash command integration.
+`specfact init` handles bootstrap and module enable/disable lifecycle state.
+`specfact init ide` handles IDE prompt/template setup and optional dependency installation.
 """
 
 from __future__ import annotations
@@ -10,22 +10,36 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
+import click
 import typer
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
+from rich.rule import Rule
+from rich.table import Table
 
 from specfact_cli import __version__
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
-from specfact_cli.registry.module_packages import get_discovered_modules_for_state
-from specfact_cli.registry.module_state import write_modules_state
-from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
+from specfact_cli.registry.module_packages import (
+    discover_package_metadata,
+    expand_disable_with_dependents,
+    expand_enable_with_dependencies,
+    get_discovered_modules_for_state,
+    get_modules_root,
+    merge_module_state,
+    validate_disable_safe,
+    validate_enable_safe,
+)
+from specfact_cli.registry.module_state import read_modules_state, write_modules_state
+from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode, is_non_interactive
 from specfact_cli.telemetry import telemetry
-from specfact_cli.utils.env_manager import EnvManager, build_tool_command, detect_env_manager
+from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
+    SPECFACT_COMMANDS,
     copy_templates_to_ide,
     detect_ide,
     find_package_resources_path,
@@ -111,13 +125,304 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
         console.print("[dim]Backlog field mapping templates already exist (use --force to overwrite)[/dim]")
 
 
-app = typer.Typer(help="Initialize SpecFact for IDE integration")
+app = typer.Typer(help="Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)")
 console = Console()
+MODULE_SELECT_SENTINEL = "__interactive_select__"
+
+
+def _install_contract_enhancement_dependencies(repo_path: Path, env_info: EnvManagerInfo) -> None:
+    """Install contract enhancement dependencies in the detected environment."""
+    required_packages = [
+        "beartype>=0.22.4",
+        "icontract>=2.7.1",
+        "crosshair-tool>=0.0.97",
+        "pytest>=8.4.2",
+    ]
+    install_cmd = build_tool_command(env_info, ["pip", "install", "-U", *required_packages])
+    result = subprocess.run(
+        install_cmd,
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(repo_path),
+        timeout=300,
+    )
+    if result.returncode == 0:
+        console.print("[green]✓[/green] Dependencies installed")
+    else:
+        console.print("[yellow]⚠[/yellow] Dependency installation reported issues")
+
+
+def _questionary_style() -> Any:
+    """Return a shared questionary color theme for interactive selectors."""
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError:
+        return None
+    return questionary.Style(
+        [
+            ("qmark", "fg:#00af87 bold"),
+            ("question", "bold"),
+            ("answer", "fg:#00af87 bold"),
+            ("pointer", "fg:#5f87ff bold"),
+            ("highlighted", "fg:#5f87ff bold"),
+            ("selected", "fg:#00af87 bold"),
+            ("instruction", "fg:#808080 italic"),
+            ("separator", "fg:#808080"),
+            ("text", ""),
+            ("disabled", "fg:#6c6c6c"),
+        ]
+    )
+
+
+def _render_modules_table(modules_list: list[dict[str, Any]]) -> None:
+    """Render discovered modules with effective enabled/disabled state."""
+    table = Table(title="Installed Modules")
+    table.add_column("Module", style="cyan")
+    table.add_column("Version", style="magenta")
+    table.add_column("State", style="green")
+    for module in modules_list:
+        module_id = str(module.get("id", ""))
+        version = str(module.get("version", ""))
+        enabled = bool(module.get("enabled", True))
+        state = "enabled" if enabled else "disabled"
+        table.add_row(module_id, version, state)
+    console.print(table)
+
+
+def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any]]) -> list[str]:
+    """Select one or more module IDs interactively via arrow-key checkbox menu."""
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError as e:
+        console.print(
+            "[red]Interactive module selection requires 'questionary'. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from e
+
+    target_enabled = action == "disable"
+    candidates = [m for m in modules_list if bool(m.get("enabled", True)) is target_enabled]
+    if not candidates:
+        console.print(f"[yellow]No modules available to {action}.[/yellow]")
+        return []
+
+    action_title = "Enable" if action == "enable" else "Disable"
+    current_state = "disabled" if action == "enable" else "enabled"
+    console.print()
+    console.print(
+        Panel(
+            f"[bold cyan]{action_title} Modules[/bold cyan]\n"
+            f"Choose one or more currently [bold]{current_state}[/bold] modules.",
+            border_style="cyan",
+        )
+    )
+    console.print(
+        "[dim]Controls: ↑↓ navigate • Space toggle • Enter confirm • Type to search/filter • Ctrl+C cancel[/dim]"
+    )
+
+    action_title = "Enable" if action == "enable" else "Disable"
+    current_state = "disabled" if action == "enable" else "enabled"
+    display_to_id: dict[str, str] = {}
+    choices: list[str] = []
+    for module in candidates:
+        module_id = str(module.get("id", ""))
+        version = str(module.get("version", ""))
+        state = "enabled" if bool(module.get("enabled", True)) else "disabled"
+        marker = "✗" if state == "disabled" else "✓"
+        display = f"{marker} {module_id:<14}  [{state}]  v{version}"
+        display_to_id[display] = module_id
+        choices.append(display)
+
+    selected: list[str] | None = questionary.checkbox(
+        f"{action_title} module(s) from currently {current_state}:",
+        choices=choices,
+        instruction="(multi-select)",
+        style=_questionary_style(),
+    ).ask()
+    if not selected:
+        return []
+    return [display_to_id[s] for s in selected if s in display_to_id]
+
+
+def _resolve_templates_dir(repo_path: Path) -> Path | None:
+    """Resolve templates directory from repo checkout or installed package."""
+    dev_templates_dir = (repo_path / "resources" / "prompts").resolve()
+    if dev_templates_dir.exists():
+        return dev_templates_dir
+    try:
+        import importlib.resources
+
+        resources_ref = importlib.resources.files("specfact_cli")
+        templates_ref = resources_ref / "resources" / "prompts"
+        package_templates_dir = Path(str(templates_ref)).resolve()
+        if package_templates_dir.exists():
+            return package_templates_dir
+    except Exception:
+        pass
+    return find_package_resources_path("specfact_cli", "resources/prompts")
+
+
+def _audit_prompt_installation(repo_path: Path) -> None:
+    """Report prompt installation health and next steps without mutating files."""
+    detected_ide = detect_ide("auto")
+    config = IDE_CONFIG[detected_ide]
+    ide_dir = repo_path / str(config["folder"])
+    format_type = str(config["format"])
+    if format_type == "prompt.md":
+        expected_files = [f"{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    elif format_type == "toml":
+        expected_files = [f"{cmd}.toml" for cmd in SPECFACT_COMMANDS]
+    else:
+        expected_files = [f"{cmd}.md" for cmd in SPECFACT_COMMANDS]
+
+    if not ide_dir.exists():
+        console.print(
+            f"[yellow]Prompt status:[/yellow] no prompts found for detected IDE ({detected_ide}). "
+            f"Run [bold]specfact init ide --ide {detected_ide}[/bold]."
+        )
+        return
+
+    missing = [name for name in expected_files if not (ide_dir / name).exists()]
+    templates_dir = _resolve_templates_dir(repo_path)
+    outdated = 0
+    if templates_dir:
+        for cmd in SPECFACT_COMMANDS:
+            src = templates_dir / f"{cmd}.md"
+            if format_type == "prompt.md":
+                dest = ide_dir / f"{cmd}.prompt.md"
+            elif format_type == "toml":
+                dest = ide_dir / f"{cmd}.toml"
+            else:
+                dest = ide_dir / f"{cmd}.md"
+            if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
+                outdated += 1
+
+    if not missing and outdated == 0:
+        console.print(f"[green]Prompt status:[/green] {detected_ide} prompts are present and up to date.")
+        return
+
+    console.print(
+        f"[yellow]Prompt status:[/yellow] missing={len(missing)}, outdated={outdated} for detected IDE ({detected_ide})."
+    )
+    console.print(f"[dim]Run: specfact init ide --ide {detected_ide}{' --force' if outdated > 0 else ''}[/dim]")
+
+
+def _select_ide_interactive(default_ide: str) -> str:
+    """Select IDE interactively with up/down controls."""
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError as e:
+        console.print(
+            "[red]Interactive IDE selection requires 'questionary'. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from e
+
+    choices: list[str] = []
+    label_to_ide: dict[str, str] = {}
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]IDE Prompt Setup[/bold cyan]\nSelect your editor/assistant integration target.",
+            border_style="cyan",
+        )
+    )
+    console.print("[dim]Controls: ↑↓ navigate • Enter select • Type to filter • Ctrl+C cancel[/dim]")
+    for ide_id, cfg in IDE_CONFIG.items():
+        default_marker = "★" if ide_id == default_ide else " "
+        label = f"{default_marker} {cfg['name']:<24} ({ide_id})"
+        label_to_ide[label] = ide_id
+        choices.append(label)
+
+    default_label = next((lbl for lbl, iid in label_to_ide.items() if iid == default_ide), choices[0])
+    selected = questionary.select(
+        "Select IDE for prompt setup",
+        choices=choices,
+        default=default_label,
+        style=_questionary_style(),
+    ).ask()
+    if not selected:
+        raise typer.Exit(1)
+    console.print(Rule(style="dim"))
+    return label_to_ide[str(selected)]
 
 
 def _is_valid_repo_path(path: Path) -> bool:
     """Check if path exists and is a directory."""
     return path.exists() and path.is_dir()
+
+
+@app.command("ide")
+@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
+@ensure(lambda result: result is None, "Command should return None")
+@beartype
+def init_ide(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Repository path (default: current directory)",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing files"),
+    install_deps: bool = typer.Option(
+        False,
+        "--install-deps",
+        help="Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest)",
+    ),
+    ide: str | None = typer.Option(
+        None,
+        "--ide",
+        help="IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)",
+    ),
+) -> None:
+    """Initialize IDE prompt templates and settings."""
+    repo_path = repo.resolve()
+    detected_default = detect_ide("auto")
+    if ide is not None:
+        selected_ide = detect_ide(ide)
+    elif is_non_interactive():
+        selected_ide = detected_default
+    else:
+        selected_ide = _select_ide_interactive(detected_default)
+
+    ide_config = IDE_CONFIG[selected_ide]
+    ide_name = str(ide_config["name"])
+
+    console.print()
+    console.print(Panel("[bold cyan]SpecFact IDE Setup[/bold cyan]", border_style="cyan"))
+    console.print(f"[cyan]Repository:[/cyan] {repo_path}")
+    console.print(f"[cyan]IDE:[/cyan] {ide_name} ({selected_ide})")
+    console.print()
+
+    env_info = detect_env_manager(repo_path)
+    if env_info.manager == EnvManager.UNKNOWN:
+        console.print(
+            Panel(
+                "[bold yellow]⚠ No Compatible Environment Manager Detected[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+        console.print("[dim]Supported tools: hatch, poetry, uv, pip[/dim]")
+        console.print()
+
+    if install_deps:
+        _install_contract_enhancement_dependencies(repo_path, env_info)
+
+    templates_dir = _resolve_templates_dir(repo_path)
+    if not templates_dir or not templates_dir.exists():
+        console.print("[red]Error:[/red] Templates directory not found.")
+        raise typer.Exit(1)
+
+    console.print(f"[cyan]Templates:[/cyan] {templates_dir}")
+    copied_files, settings_path = copy_templates_to_ide(repo_path, selected_ide, templates_dir, force)
+    _copy_backlog_field_mapping_templates(repo_path, force, console)
+
+    console.print()
+    console.print(Panel("[bold green]✓ IDE Initialization Complete[/bold green]", border_style="green"))
+    console.print(f"[green]Copied {len(copied_files)} template(s) to {ide_config['folder']}[/green]")
+    if settings_path:
+        console.print(f"[green]Updated VS Code settings:[/green] {settings_path}")
 
 
 @app.callback(invoke_without_command=True)
@@ -126,6 +431,7 @@ def _is_valid_repo_path(path: Path) -> bool:
 @ensure(lambda result: result is None, "Command should return None")
 @beartype
 def init(
+    ctx: click.Context,
     # Target/Input
     repo: Path = typer.Option(
         Path("."),
@@ -139,12 +445,18 @@ def init(
     force: bool = typer.Option(
         False,
         "--force",
-        help="Overwrite existing files",
+        help=(
+            "Override module dependency safety checks. In force mode, disable cascades to dependents "
+            "and enable cascades to required dependencies."
+        ),
     ),
     install_deps: bool = typer.Option(
         False,
         "--install-deps",
-        help="Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) using detected environment manager",
+        help=(
+            "Install required packages for contract enhancement. Prefer `specfact init ide --install-deps` "
+            "for IDE setup flow."
+        ),
     ),
     # Advanced/Configuration
     ide: str = typer.Option(
@@ -156,42 +468,127 @@ def init(
     enable_module: list[str] = typer.Option(
         [],
         "--enable-module",
-        help="Enable module by id (repeatable); persisted in ~/.specfact/registry/modules.json",
+        help=(
+            "Enable module by id (repeatable); if provided without value in interactive mode, "
+            "opens selector. In non-interactive mode, a module id is required."
+        ),
     ),
     disable_module: list[str] = typer.Option(
         [],
         "--disable-module",
-        help="Disable module by id (repeatable); persisted in ~/.specfact/registry/modules.json",
+        help=(
+            "Disable module by id (repeatable); if provided without value in interactive mode, "
+            "opens selector. In non-interactive mode, a module id is required."
+        ),
+    ),
+    list_modules: bool = typer.Option(
+        False,
+        "--list-modules",
+        help="List discovered installed modules with enabled/disabled status and exit.",
     ),
 ) -> None:
     """
-    Initialize SpecFact for IDE integration.
+    Bootstrap SpecFact local state and manage module lifecycle.
 
-    Copies prompt templates to IDE-specific locations so slash commands work.
-    This command detects the IDE type (or uses --ide flag) and copies
-    SpecFact prompt templates to the appropriate directory.
-
-    Also copies backlog field mapping templates to `.specfact/templates/backlog/field_mappings/`
-    for custom ADO field mapping configuration.
+    This command initializes/updates user-level module registry state, discovers
+    installed modules, and manages enabled/disabled module lifecycle with dependency
+    safety checks. Use `specfact init ide` for IDE prompt/template setup.
 
     Examples:
-        specfact init                    # Auto-detect IDE
-        specfact init --ide cursor       # Initialize for Cursor
-        specfact init --ide vscode --force  # Overwrite existing files
-        specfact init --repo /path/to/repo --ide copilot
-        specfact init --install-deps     # Install required packages for contract enhancement
+        specfact init                              # Bootstrap and discover modules
+        specfact init --list-modules              # Show enabled/disabled modules
+        specfact init --enable-module             # Interactive module selector (TTY)
+        specfact init --disable-module sync       # Disable explicit module
+        specfact init --enable-module plan --force  # Cascade-enable dependencies
+        specfact init ide --ide cursor            # IDE prompt/template setup
+        specfact init ide --install-deps          # Install contract enhancement dependencies
     """
     telemetry_metadata = {
         "ide": ide,
         "force": force,
         "install_deps": install_deps,
+        "list_modules": list_modules,
     }
 
     with telemetry.track_command("init", telemetry_metadata) as record:
+        if ctx.invoked_subcommand is not None:
+            return
+        repo_path = repo.resolve()
+        module_management_requested = any(
+            [
+                bool(enable_module),
+                bool(disable_module),
+                list_modules,
+            ]
+        )
+        enable_ids = list(enable_module)
+        disable_ids = list(disable_module)
+
+        requested_enable_interactive = MODULE_SELECT_SENTINEL in enable_ids
+        requested_disable_interactive = MODULE_SELECT_SENTINEL in disable_ids
+        enable_ids = [mid for mid in enable_ids if mid and mid != MODULE_SELECT_SENTINEL]
+        disable_ids = [mid for mid in disable_ids if mid and mid != MODULE_SELECT_SENTINEL]
+
+        if is_non_interactive() and (requested_enable_interactive or requested_disable_interactive):
+            console.print(
+                "[red]Error:[/red] Non-interactive mode requires explicit module id values. "
+                "Use --enable-module <id> or --disable-module <id>."
+            )
+            raise typer.Exit(1)
+
+        if requested_enable_interactive:
+            discovered = get_discovered_modules_for_state(enable_ids=[], disable_ids=[])
+            selected = _select_module_ids_interactive("enable", discovered)
+            enable_ids.extend(selected)
+            if selected:
+                module_management_requested = True
+
+        if requested_disable_interactive:
+            discovered = get_discovered_modules_for_state(enable_ids=[], disable_ids=[])
+            selected = _select_module_ids_interactive("disable", discovered)
+            disable_ids.extend(selected)
+            if selected:
+                module_management_requested = True
+
+        packages = discover_package_metadata(get_modules_root())
+        discovered_list = [(meta.name, meta.version) for _package_dir, meta in packages]
+        state = read_modules_state()
+
+        if force and enable_ids:
+            enable_ids = expand_enable_with_dependencies(enable_ids, packages)
+
+        enabled_map = merge_module_state(discovered_list, state, enable_ids, [])
+
+        if enable_ids and not force:
+            blocked_enable = validate_enable_safe(enable_ids, packages, enabled_map)
+            if blocked_enable:
+                for module_id, missing in blocked_enable.items():
+                    console.print(
+                        f"[red]Error:[/red] Cannot enable '{module_id}': missing required dependencies: "
+                        f"{', '.join(missing)}"
+                    )
+                console.print(
+                    "[dim]Hint: Enable dependencies first, or use --force to auto-enable required dependencies[/dim]"
+                )
+                raise typer.Exit(1)
+
+        if disable_ids:
+            if force:
+                disable_ids = expand_disable_with_dependents(disable_ids, packages, enabled_map)
+            blocked = validate_disable_safe(disable_ids, packages, enabled_map)
+            if blocked and not force:
+                for module_id, dependents in blocked.items():
+                    console.print(
+                        f"[red]Error:[/red] Cannot disable '{module_id}': required by enabled modules: "
+                        f"{', '.join(dependents)}"
+                    )
+                console.print("[dim]Hint: Disable dependent modules first, or use --force to override[/dim]")
+                raise typer.Exit(1)
+
         # Update module state (enable/disable) and persist; then refresh help cache
         modules_list = get_discovered_modules_for_state(
-            enable_ids=enable_module,
-            disable_ids=disable_module,
+            enable_ids=enable_ids,
+            disable_ids=disable_ids,
         )
         if modules_list:
             write_modules_state(modules_list)
@@ -203,6 +600,25 @@ def init(
                     "Re-enable with specfact init --enable-module <id>.[/dim]"
                 )
         run_discovery_and_write_cache(__version__)
+        if install_deps:
+            env_info = detect_env_manager(repo_path)
+            _install_contract_enhancement_dependencies(repo_path, env_info)
+        if list_modules:
+            console.print()
+            _render_modules_table(modules_list)
+            return
+        if module_management_requested:
+            console.print("[green]✓[/green] Module state updated.")
+            return
+        enabled_count = len([m for m in modules_list if bool(m.get("enabled", True))])
+        disabled_count = len(modules_list) - enabled_count
+        console.print(
+            f"[green]✓[/green] Bootstrap complete. Modules discovered: {len(modules_list)} "
+            f"(enabled={enabled_count}, disabled={disabled_count})."
+        )
+        _audit_prompt_installation(repo_path)
+        console.print("[dim]Use `specfact init ide` to install/update IDE prompts and settings.[/dim]")
+        return
 
         # Resolve repo path
         repo_path = repo.resolve()

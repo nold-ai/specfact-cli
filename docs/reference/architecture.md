@@ -90,7 +90,7 @@ specfact import from-code my-project --repo .
 specfact --mode copilot import from-code my-project --repo .
 
 # IDE integration (slash commands)
-# First, initialize: specfact init --ide cursor
+# First, initialize: specfact init ide --ide cursor
 # Then use in IDE chat:
 /specfact.01-import legacy-api --repo . --confidence 0.7
 /specfact.02-plan init legacy-api
@@ -541,7 +541,7 @@ class ChangeArchive(BaseModel):
 - **Manifest**: Each package has a `module-package.yaml` with:
   - `name`, `version`, `commands` (list of command names the package provides)
   - optional `command_help` (name → short help for root `specfact --help`)
-  - optional `pip_dependencies`, `module_dependencies`, `tier` (e.g. community/enterprise), `addon_id`
+  - optional `pip_dependencies`, `module_dependencies`, `core_compatibility`, `tier` (e.g. community/enterprise), `addon_id`
 - **Entry point**: Each package has `src/app.py` that exposes a Typer `app` by importing from module-local `src/commands.py`.
 
 ### Legacy shim policy and timeline
@@ -557,7 +557,20 @@ class ChangeArchive(BaseModel):
 
 - **File**: `~/.specfact/registry/modules.json` (created when you run `specfact init`).
 - **Content**: List of `{ "id", "version", "enabled" }` per module. Only modules with `enabled: true` have their commands registered.
-- **CLI**: `specfact init --enable-module <id>` and `--disable-module <id>` update this state and persist it to `modules.json`.
+- **CLI**:
+  - `specfact init --list-modules` shows effective state.
+  - `specfact init --enable-module <id>` and `--disable-module <id>` update persisted state.
+  - In interactive terminals, `specfact init --enable-module` and `specfact init --disable-module` (without ids) open an interactive selector.
+  - In non-interactive mode, explicit module ids are required.
+  - Safe dependency guards block invalid enable/disable actions unless `--force` is used.
+  - With `--force`, enable cascades to required dependencies and disable cascades to enabled dependents.
+
+### Lifecycle notes and roadmap
+
+- `specfact init` is bootstrap/module-lifecycle focused.
+- `specfact init ide` is responsible for IDE prompt/template setup.
+- This lifecycle architecture is the baseline for future granular module updates and enhancements.
+- Third-party/community module installation is planned as a next step, but not implemented yet.
 
 ### Registry package layout
 

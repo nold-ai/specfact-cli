@@ -9,3 +9,4 @@ pip_dependencies: []
 module_dependencies:
   - sync
 tier: community
+core_compatibility: ">=0.28.0,<1.0.0"

@@ -11,7 +11,6 @@ import inspect
 import json
 import logging
 import os
-import sys
 from enum import StrEnum
 from logging.handlers import RotatingFileHandler
 from typing import Any
@@ -102,19 +101,16 @@ def is_non_interactive() -> bool:
 
     Priority:
         1. Explicit override
-        2. CI/CD mode
-        3. TTY detection
+        2. Terminal/environment auto-detection (CI and TTY)
     """
     if _non_interactive_override is not None:
         return _non_interactive_override
 
-    if _operational_mode == OperationalMode.CICD:
-        return True
-
     try:
-        stdin_tty = bool(sys.stdin and sys.stdin.isatty())
-        stdout_tty = bool(sys.stdout and sys.stdout.isatty())
-        return not (stdin_tty and stdout_tty)
+        caps = detect_terminal_capabilities()
+        if caps.is_ci:
+            return True
+        return not caps.is_interactive
     except Exception:  # pragma: no cover - defensive fallback
         return True
 
