@@ -20,7 +20,7 @@ def _sample_feature() -> Feature:
 def _sample_plan_bundle() -> PlanBundle:
     return PlanBundle(
         version="1.0",
-        idea=Idea(title="Idea", narrative="Narrative"),
+        idea=Idea(title="Idea", narrative="Narrative", metrics=None),
         business=Business(),
         product=Product(),
         features=[_sample_feature()],
@@ -31,9 +31,13 @@ def _sample_plan_bundle() -> PlanBundle:
 
 def _sample_project_bundle() -> ProjectBundle:
     return ProjectBundle(
-        manifest=BundleManifest(versions=BundleVersions(schema="1.0", project="0.1.0")),
+        manifest=BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        ),
         bundle_name="demo",
-        idea=Idea(title="Idea", narrative="Narrative"),
+        idea=Idea(title="Idea", narrative="Narrative", metrics=None),
         business=Business(),
         product=Product(),
         features={"FEATURE-001": _sample_feature()},
