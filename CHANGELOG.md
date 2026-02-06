@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.29.0] - 2026-02-06
+
+### Added (0.29.0)
+
+- **Module lifecycle management and dependency safety** (OpenSpec change `arch-03-module-lifecycle-management`, fixes [#203](https://github.com/nold-ai/specfact-cli/issues/203))
+  - Added module manifest lifecycle validation for dependency integrity and CLI core compatibility (`core_compatibility`) during command registration.
+  - Added module lifecycle UX in `specfact init`: `--list-modules`, interactive arrow-key enable/disable selection in interactive mode, and explicit-id enforcement in non-interactive mode.
+  - Added force-mode dependency cascades:
+    - `--force` disable cascades to enabled dependents.
+    - `--force` enable cascades to required upstream dependencies.
+  - Added `specfact init ide` for dedicated IDE prompt/template setup, while keeping `specfact init` bootstrap/module-lifecycle focused.
+
+### Changed (0.29.0)
+
+- **Interaction default behavior**: Updated runtime prompt auto-detection to be interactive-by-default in interactive terminals, while remaining non-interactive in CI/non-interactive environments.
+- **Docs**: Updated README and docs reference pages for the new init/init-ide split, module lifecycle behavior, and roadmap positioning for future granular module enhancements and planned third-party/community module installation.
+- **Version**: Bumped to 0.29.0 (minor: new lifecycle features and UX improvements, backward compatible).
+
+---
 ## [0.28.0] - 2026-02-06
 
 ### Added (0.28.0)

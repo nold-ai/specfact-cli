@@ -4,7 +4,8 @@ version: "0.27.0"
 commands:
   - init
 command_help:
-  init: "Initialize SpecFact for IDE integration"
+  init: "Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)"
 pip_dependencies: []
 module_dependencies: []
 tier: community
+core_compatibility: ">=0.28.0,<1.0.0"

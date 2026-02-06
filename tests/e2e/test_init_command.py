@@ -32,7 +32,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -56,7 +56,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -79,7 +79,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "vscode", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "vscode", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -106,7 +106,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "copilot", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "copilot", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -135,7 +135,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path)])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path)])
         finally:
             os.chdir(old_cwd)
 
@@ -164,7 +164,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -220,7 +220,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path)])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path)])
         finally:
             os.chdir(old_cwd)
 
@@ -254,7 +254,7 @@ class TestInitCommandE2E:
 
                         shutil.rmtree(ide_dir)
 
-                result = runner.invoke(app, ["init", "--ide", ide, "--repo", str(tmp_path), "--force"])
+                result = runner.invoke(app, ["init", "ide", "--ide", ide, "--repo", str(tmp_path), "--force"])
                 assert result.exit_code == 0, f"Failed for IDE: {ide}\n{result.stdout}\n{result.stderr}"
                 assert "Initialization Complete" in result.stdout or "Copied" in result.stdout
         finally:
@@ -279,7 +279,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -313,7 +313,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -338,7 +338,7 @@ class TestInitCommandE2E:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -373,7 +373,7 @@ packages = ["src/test_package"]
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -401,7 +401,7 @@ packages = ["src/test_package"]
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -437,7 +437,7 @@ packages = ["src/test_package"]
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path)])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path)])
         finally:
             os.chdir(old_cwd)
 
@@ -473,7 +473,7 @@ packages = ["src/test_package"]
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -505,7 +505,7 @@ version = "0.1.0"
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -527,7 +527,7 @@ version = "0.1.0"
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 
@@ -557,7 +557,7 @@ dev-dependencies = []
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["init", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
         finally:
             os.chdir(old_cwd)
 

@@ -257,7 +257,7 @@ def main(
         bool | None,
         typer.Option(
             "--interactive/--no-interactive",
-            help="Force interaction mode (default auto based on CI/CD detection)",
+            help="Force interaction mode (default auto based on terminal/CI detection)",
         ),
     ] = None,
 ) -> None:
@@ -274,6 +274,10 @@ def main(
     - Explicit --mode flag (highest priority)
     - Auto-detect from environment (CoPilot API, IDE integration)
     - Default to CI/CD mode
+
+    Interaction Detection:
+    - Explicit --interactive/--no-interactive (highest priority)
+    - Auto-detect from terminal and CI environment
     """
     global _show_banner
     # Set banner flag based on --banner option
@@ -332,6 +336,33 @@ class _LazyDelegateGroup(click.Group):
     def _make_delegate_command(self) -> click.Command:
         cmd_name = self._lazy_cmd_name
 
+        def _normalize_init_optional_module_flags(argv: list[str]) -> list[str]:
+            """
+            Normalize bare init module flags to sentinel values.
+
+            Typer/Click options declared with value types require an argument. To support
+            UX like `specfact init --enable-module` in interactive mode, rewrite bare flags
+            to include a sentinel token consumed by init command logic.
+            """
+            if cmd_name != "init":
+                return argv
+            out: list[str] = []
+            i = 0
+            while i < len(argv):
+                token = argv[i]
+                if token in ("--enable-module", "--disable-module"):
+                    out.append(token)
+                    if i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+                        out.append(argv[i + 1])
+                        i += 2
+                        continue
+                    out.append("__interactive_select__")
+                    i += 1
+                    continue
+                out.append(token)
+                i += 1
+            return out
+
         def _invoke(args: tuple[str, ...]) -> None:
             from typer.main import get_command
 
@@ -348,6 +379,7 @@ class _LazyDelegateGroup(click.Group):
                 p = getattr(p, "parent", None)
             prog_name = " ".join(reversed(parts)) if parts else cmd_name
             args_list = list(args)
+            args_list = _normalize_init_optional_module_flags(args_list)
             # When the real app is a single command (e.g. drift has only "detect"), Typer
             # builds a TyperCommand, not a Group. Then args are ["detect", "bundle", "--repo", ...]
             # and the command expects ["bundle", "--repo", ...] (no leading "detect").

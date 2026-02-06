@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from unittest.mock import patch
 
+from specfact_cli.modes import OperationalMode
 from specfact_cli.runtime import (
     TerminalMode,
     debug_log_operation,
@@ -16,7 +17,10 @@ from specfact_cli.runtime import (
     get_configured_console,
     get_terminal_mode,
     is_debug_mode,
+    is_non_interactive,
     set_debug_mode,
+    set_non_interactive_override,
+    set_operational_mode,
 )
 from specfact_cli.utils.terminal import TerminalCapabilities
 
@@ -89,6 +93,61 @@ class TestGetTerminalMode:
             )
             mode = get_terminal_mode()
             assert mode == TerminalMode.GRAPHICAL
+
+
+class TestInteractionMode:
+    """Test interactive/non-interactive runtime behavior."""
+
+    def test_explicit_override_true(self) -> None:
+        """Explicit override forces non-interactive."""
+        with patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect:
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=True,
+                is_interactive=True,
+                is_ci=False,
+            )
+            set_non_interactive_override(True)
+            assert is_non_interactive() is True
+            set_non_interactive_override(None)
+
+    def test_explicit_override_false(self) -> None:
+        """Explicit override forces interactive."""
+        with patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect:
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=False,
+                is_interactive=False,
+                is_ci=True,
+            )
+            set_non_interactive_override(False)
+            assert is_non_interactive() is False
+            set_non_interactive_override(None)
+
+    def test_default_interactive_tty_even_in_cicd_mode(self) -> None:
+        """Interactive TTY defaults to interactive regardless of operational mode."""
+        with patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect:
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=True,
+                is_interactive=True,
+                is_ci=False,
+            )
+            set_non_interactive_override(None)
+            set_operational_mode(OperationalMode.CICD)
+            assert is_non_interactive() is False
+
+    def test_default_non_interactive_in_ci(self) -> None:
+        """CI defaults to non-interactive."""
+        with patch("specfact_cli.runtime.detect_terminal_capabilities") as mock_detect:
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=False,
+                is_interactive=True,
+                is_ci=True,
+            )
+            set_non_interactive_override(None)
+            assert is_non_interactive() is True
 
 
 class TestGetConfiguredConsole:
