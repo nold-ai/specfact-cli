@@ -59,9 +59,8 @@ def test_no_cross_module_non_app_command_imports_in_module_sources() -> None:
                     continue
                 if imported_module == "sync" and module_name == "plan" and imported_symbols == ["sync_spec_kit"]:
                     continue
-                if imported_module != module_name:
-                    rel = py_file.relative_to(PROJECT_ROOT)
-                    violations.append(f"{rel}:{match.group(0)}")
+                rel = py_file.relative_to(PROJECT_ROOT)
+                violations.append(f"{rel}:{match.group(0)}")
 
     assert not violations, (
         "Cross-module src.commands imports found (use specfact_cli.utils for shared helpers):\n"

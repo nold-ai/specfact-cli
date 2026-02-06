@@ -257,8 +257,14 @@ def _resolve_templates_dir(repo_path: Path) -> Path | None:
         package_templates_dir = Path(str(templates_ref)).resolve()
         if package_templates_dir.exists():
             return package_templates_dir
-    except Exception:
-        pass
+    except Exception as exc:
+        if is_debug_mode():
+            debug_log_operation(
+                "template_resolution",
+                "importlib.resources(specfact_cli/resources/prompts)",
+                "error",
+                error=repr(exc),
+            )
     return find_package_resources_path("specfact_cli", "resources/prompts")
 
 
@@ -352,7 +358,7 @@ def _is_valid_repo_path(path: Path) -> bool:
 
 
 @app.command("ide")
-@require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
+@require(_is_valid_repo_path, "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
 @beartype
 def init_ide(
