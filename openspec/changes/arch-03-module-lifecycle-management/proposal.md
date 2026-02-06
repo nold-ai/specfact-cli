@@ -2,11 +2,13 @@
 
 ## Why
 
+
 `arch-02` completed module package separation, but module lifecycle constraints are still unenforced at runtime. `module_dependencies` is currently declarative-only, module manifests do not constrain CLI core compatibility, and `init --disable-module` can disable required modules without preflight protection.
 
 This creates avoidable runtime breakage and weakens contract-first guarantees for modular command loading. We need registry-time lifecycle validation and safe-disable protection while preserving backward compatibility.
 
 ## What Changes
+
 
 - **NEW**: Add module lifecycle validation at registration time for dependency existence/enabled state and `core_compatibility` version constraints.
 - **NEW**: Extend module manifests with `core_compatibility` (PEP 440 specifier string) across all module packages.
@@ -20,20 +22,14 @@ This creates avoidable runtime breakage and weakens contract-first guarantees fo
 - **EXTEND**: Update user-facing documentation and changelog/version synchronization for lifecycle management behavior and module manifest schema.
 
 ## Capabilities
-
 - **module-lifecycle-management**: Enforce module dependency integrity, version compatibility, safe-disable semantics, and module boundary hygiene.
 
-## Impact
-
-- **Affected specs**: New `openspec/changes/arch-03-module-lifecycle-management/specs/module-lifecycle-management/spec.md`.
-- **Affected code**: `src/specfact_cli/registry/`, `src/specfact_cli/modules/*/module-package.yaml`, `src/specfact_cli/modules/init/src/commands.py`, and shared utility extraction under `src/specfact_cli/utils/`.
-- **Affected tests**: Registry/unit test coverage, module boundary guard tests, and utility conversion tests.
-- **Affected documentation** (<https://docs.specfact.io>): CLI/module docs and contributor guidance that describe module metadata, lifecycle constraints, and disable behavior.
-- **Backward compatibility**: Preserved for command-level behavior; lifecycle checks prevent invalid module states earlier with actionable errors.
+---
 
 ## Source Tracking
 
+<!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #203
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/203>
-- **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed
+<!-- content_hash: d31176ea7ec82ec0 -->
