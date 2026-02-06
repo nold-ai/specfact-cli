@@ -1,8 +1,8 @@
 """
-Init command - Initialize SpecFact for IDE integration.
+Init commands for bootstrap, module lifecycle management, and IDE setup.
 
-This module provides the `specfact init` command to copy prompt templates
-to IDE-specific locations for slash command integration.
+`specfact init` handles bootstrap and module enable/disable lifecycle state.
+`specfact init ide` handles IDE prompt/template setup and optional dependency installation.
 """
 
 from __future__ import annotations
@@ -125,7 +125,7 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
         console.print("[dim]Backlog field mapping templates already exist (use --force to overwrite)[/dim]")
 
 
-app = typer.Typer(help="Initialize SpecFact for IDE integration")
+app = typer.Typer(help="Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)")
 console = Console()
 MODULE_SELECT_SENTINEL = "__interactive_select__"
 
@@ -440,12 +440,18 @@ def init(
     force: bool = typer.Option(
         False,
         "--force",
-        help="Overwrite existing files",
+        help=(
+            "Override module dependency safety checks. In force mode, disable cascades to dependents "
+            "and enable cascades to required dependencies."
+        ),
     ),
     install_deps: bool = typer.Option(
         False,
         "--install-deps",
-        help="Install required packages for contract enhancement (beartype, icontract, crosshair-tool, pytest) using detected environment manager",
+        help=(
+            "Install required packages for contract enhancement. Prefer `specfact init ide --install-deps` "
+            "for IDE setup flow."
+        ),
     ),
     # Advanced/Configuration
     ide: str = typer.Option(
@@ -477,21 +483,20 @@ def init(
     ),
 ) -> None:
     """
-    Initialize SpecFact for IDE integration.
+    Bootstrap SpecFact local state and manage module lifecycle.
 
-    Copies prompt templates to IDE-specific locations so slash commands work.
-    This command detects the IDE type (or uses --ide flag) and copies
-    SpecFact prompt templates to the appropriate directory.
-
-    Also copies backlog field mapping templates to `.specfact/templates/backlog/field_mappings/`
-    for custom ADO field mapping configuration.
+    This command initializes/updates user-level module registry state, discovers
+    installed modules, and manages enabled/disabled module lifecycle with dependency
+    safety checks. Use `specfact init ide` for IDE prompt/template setup.
 
     Examples:
-        specfact init                    # Auto-detect IDE
-        specfact init --ide cursor       # Initialize for Cursor
-        specfact init --ide vscode --force  # Overwrite existing files
-        specfact init --repo /path/to/repo --ide copilot
-        specfact init --install-deps     # Install required packages for contract enhancement
+        specfact init                              # Bootstrap and discover modules
+        specfact init --list-modules              # Show enabled/disabled modules
+        specfact init --enable-module             # Interactive module selector (TTY)
+        specfact init --disable-module sync       # Disable explicit module
+        specfact init --enable-module plan --force  # Cascade-enable dependencies
+        specfact init ide --ide cursor            # IDE prompt/template setup
+        specfact init ide --install-deps          # Install contract enhancement dependencies
     """
     telemetry_metadata = {
         "ide": ide,
