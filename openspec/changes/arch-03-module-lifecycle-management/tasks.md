@@ -78,9 +78,9 @@ Do not implement production code for new behavior until the corresponding tests 
 
 ## 11. Create Pull Request to dev (last)
 
-- [ ] 11.1 Commit with conventional commit message
-- [ ] 11.2 Push branch: `git push origin feature/arch-03-module-lifecycle-management`
-- [ ] 11.3 Create PR to `dev` using repository template and include `Fixes nold-ai/specfact-cli#<issue-number>`
+- [x] 11.1 Commit with conventional commit message
+- [x] 11.2 Push branch: `git push origin feature/arch-03-module-lifecycle-management`
+- [x] 11.3 Create PR to `dev` using repository template and include `Fixes nold-ai/specfact-cli#<issue-number>`
 - [ ] 11.4 Verify issue Development links include branch and PR
 
 ## 12. Extend module lifecycle UX for listing and interactive selection
