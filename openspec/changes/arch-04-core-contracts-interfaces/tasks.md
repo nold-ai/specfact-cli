@@ -242,9 +242,9 @@ Tests MUST come before implementation tasks in each section below.
 
 ## 20. Create pull request to dev
 
-- [ ] 20.1 Prepare commit:
-  - [ ] 20.1.1 `git add .`
-  - [ ] 20.1.2 Commit with conventional message:
+- [x] 20.1 Prepare commit:
+  - [x] 20.1.1 `git add .`
+  - [x] 20.1.2 Commit with conventional message:
 
     ```bash
     git commit -m "$(cat <<'EOF'
@@ -262,17 +262,17 @@ Tests MUST come before implementation tasks in each section below.
     )"
     ```
 
-  - [ ] 20.1.3 `git push origin feature/arch-04-core-contracts-interfaces`
-- [ ] 20.2 Create PR body from `.github/pull_request_template.md`:
-  - [ ] 20.2.1 Use full repo path for issue ref: `Fixes nold-ai/specfact-cli#<number>`
-  - [ ] 20.2.2 Include OpenSpec change ID in description
-  - [ ] 20.2.3 List key deliverables: protocol, isolation test, schema versioning, module updates, docs
-- [ ] 20.3 Create PR:
+  - [x] 20.1.3 `git push origin feature/arch-04-core-contracts-interfaces`
+- [x] 20.2 Create PR body from `.github/pull_request_template.md`:
+  - [x] 20.2.1 Use full repo path for issue ref: `Fixes nold-ai/specfact-cli#<number>`
+  - [x] 20.2.2 Include OpenSpec change ID in description
+  - [x] 20.2.3 List key deliverables: protocol, isolation test, schema versioning, module updates, docs
+- [x] 20.3 Create PR:
 
   ```bash
   gh pr create --repo nold-ai/specfact-cli --base dev --head feature/arch-04-core-contracts-interfaces --title "feat: Core Contracts and Module Interface Formalization" --body-file /tmp/pr-body-arch-04.md
   ```
 
-- [ ] 20.4 Link PR to project: `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+- [x] 20.4 Link PR to project: `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 - [ ] 20.5 Verify Development link appears on GitHub issue
 - [ ] 20.6 Update project board status to "In Progress" (if applicable)
