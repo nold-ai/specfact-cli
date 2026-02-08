@@ -4,6 +4,8 @@
 
 `arch-05-bridge-registry` enables modular interoperability, but marketplace readiness still lacks trust guarantees for published modules. To prevent tampering and unsafe dependency drift, module manifests must carry integrity metadata and installation must verify checksums/signatures before enabling modules.
 
+This change depends on `arch-05-bridge-registry` for stable lifecycle/protocol reporting behavior. Protocol false-legacy classification and duplicate lifecycle warning cleanup are owned by `arch-05`, not this change.
+
 ## What Changes
 
 - **MODIFY**: Extend module manifest metadata (`ModulePackageMetadata`) with publisher identity, integrity fields, and versioned dependency entries.
@@ -41,6 +43,7 @@
 - **Integration points**: module manifest parsing, module install/registration paths, CI packaging/signing pipeline.
 - **Backward compatibility**: Backward compatible by default; unsigned modules remain possible only with explicit opt-in policy.
 - **Rollback plan**: Disable signature enforcement and fallback to checksum-only or legacy manifest fields while preserving compatibility parsing.
+- **Out of scope**: ModuleIOContract migration completion and protocol warning deduplication (addressed in `arch-05-bridge-registry`).
 
 ---
 
