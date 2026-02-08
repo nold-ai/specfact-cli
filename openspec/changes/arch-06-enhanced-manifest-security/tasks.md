@@ -16,6 +16,7 @@ Do not implement production code for changed behavior until corresponding tests 
 
 - [ ] 1.1 Ensure `dev` is current and create `feature/arch-06-enhanced-manifest-security`
 - [ ] 1.2 Verify current branch is `feature/arch-06-enhanced-manifest-security`
+- [ ] 1.3 Confirm `arch-05-bridge-registry` protocol-reporting fixes are merged or explicitly cherry-picked prerequisite for this change
 
 ## 2. Tests: manifest security metadata models (TDD)
 

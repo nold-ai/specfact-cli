@@ -60,52 +60,69 @@ Do not implement production code for new behavior until corresponding tests exis
 - [ ] 7.4 Ensure no direct core imports from module command internals
 - [ ] 7.5 Run `pytest tests/unit/registry/test_module_bridge_registration.py -v` and expect pass
 
-## 8. Tests: backlog bridge converters (TDD)
+## 8. Tests: protocol reporting accuracy and warning deduplication (TDD)
 
-- [ ] 8.1 Add tests under `tests/unit/modules/backlog/` for converter contract compliance
-- [ ] 8.2 Add tests for ADO, Jira, Linear, GitHub converter mapping behavior
-- [ ] 8.3 Add tests for custom mapping override loading behavior
-- [ ] 8.4 Run `pytest tests/unit/modules/backlog -k converter -v` and expect failure
+- [ ] 8.1 Extend `tests/unit/specfact_cli/registry/test_module_packages.py` with protocol compliance detection assertions for full/partial/legacy modules
+- [ ] 8.2 Add test coverage ensuring lifecycle warnings are not emitted twice for the same module condition
+- [ ] 8.3 Add CLI smoke assertion (`specfact -v`) for single summary emission pattern
+- [ ] 8.4 Run targeted registry tests and expect failure
 
-## 9. Implementation: backlog bridge converters
+## 9. Implementation: protocol reporting and logging cleanup
 
-- [ ] 9.1 Add converter modules under `src/specfact_cli/modules/backlog/src/adapters/`
-- [ ] 9.2 Update backlog module manifest to declare `service_bridges`
-- [ ] 9.3 Ensure converters satisfy `SchemaConverter` protocol and contract decorators
-- [ ] 9.4 Run `pytest tests/unit/modules/backlog -k converter -v` and expect pass
+- [ ] 9.1 Update protocol inspection path in `src/specfact_cli/registry/module_packages.py` to classify compliant modules correctly
+- [ ] 9.2 Ensure protocol operations are persisted on `ModulePackageMetadata.protocol_operations` from effective runtime interface
+- [ ] 9.3 Eliminate duplicate warning emission in lifecycle startup logs (registry/logger integration)
+- [ ] 9.4 Run targeted registry tests and expect pass
 
-## 10. Quality gates and validation
+## 10. Tests: backlog bridge converters (TDD)
 
-- [ ] 10.1 Run `hatch run format`
-- [ ] 10.2 Run `hatch run lint`
-- [ ] 10.3 Run `hatch run type-check`
-- [ ] 10.4 Run `hatch run contract-test`
-- [ ] 10.5 Run `hatch run smart-test`
-- [ ] 10.6 Run `openspec validate arch-05-bridge-registry --strict`
+- [ ] 10.1 Add tests under `tests/unit/modules/backlog/` for converter contract compliance
+- [ ] 10.2 Add tests for ADO, Jira, Linear, GitHub converter mapping behavior
+- [ ] 10.3 Add tests for custom mapping override loading behavior
+- [ ] 10.4 Run `pytest tests/unit/modules/backlog -k converter -v` and expect failure
 
-## 11. Documentation research and review
+## 11. Implementation: backlog bridge converters and module protocol migration completion
 
-- [ ] 11.1 Identify affected docs: `docs/reference/`, `docs/guides/`, `README.md`, `docs/index.md`
-- [ ] 11.2 Add `docs/reference/bridge-registry.md` with contract and usage examples
-- [ ] 11.3 Add `docs/guides/creating-custom-bridges.md` with manifest and converter examples
-- [ ] 11.4 Update `docs/reference/architecture.md` with bridge registry integration notes
-- [ ] 11.5 Update `docs/_layouts/default.html` sidebar links for new docs
+- [ ] 11.1 Add converter modules under `src/specfact_cli/modules/backlog/src/adapters/`
+- [ ] 11.2 Update backlog module manifest to declare `service_bridges`
+- [ ] 11.3 Ensure converters satisfy `SchemaConverter` protocol and contract decorators
+- [ ] 11.4 Upgrade remaining modules to implement/ expose ModuleIOContract operations required for non-legacy classification
+- [ ] 11.5 Run `pytest tests/unit/modules/backlog -k converter -v` and expect pass
+- [ ] 11.6 Run module protocol tests and verify improved compliance summary
 
-## 12. Version and changelog
+## 12. Quality gates and validation
 
-- [ ] 12.1 Determine semantic version bump for new capability
-- [ ] 12.2 Sync version updates in `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py`
-- [ ] 12.3 Add CHANGELOG entry for bridge registry and manifest bridge metadata support
+- [ ] 12.1 Run `hatch run format`
+- [ ] 12.2 Run `hatch run lint`
+- [ ] 12.3 Run `hatch run type-check`
+- [ ] 12.4 Run `hatch run contract-test`
+- [ ] 12.5 Run `hatch run smart-test`
+- [ ] 12.6 Run `openspec validate arch-05-bridge-registry --strict`
 
-## 13. GitHub issue creation
+## 13. Documentation research and review
 
-- [ ] 13.1 Create issue in `nold-ai/specfact-cli` with title `[Change] Bridge Registry for Cross-Module Service Interoperability`
-- [ ] 13.2 Use labels `enhancement` and `change-proposal`
-- [ ] 13.3 Build issue body from proposal Why/What Changes and append footer `*OpenSpec Change Proposal: arch-05-bridge-registry*`
-- [ ] 13.4 Update `proposal.md` Source Tracking with issue number and URL
+- [ ] 13.1 Identify affected docs: `docs/reference/`, `docs/guides/`, `README.md`, `docs/index.md`
+- [ ] 13.2 Add `docs/reference/bridge-registry.md` with contract and usage examples
+- [ ] 13.3 Add `docs/guides/creating-custom-bridges.md` with manifest and converter examples
+- [ ] 13.4 Update `docs/reference/architecture.md` with bridge registry integration notes
+- [ ] 13.5 Document protocol compliance reporting behavior and migration status in reference docs
+- [ ] 13.6 Update `docs/_layouts/default.html` sidebar links for new docs
 
-## 14. Create pull request to dev (LAST)
+## 14. Version and changelog
 
-- [ ] 14.1 Commit all completed work with conventional commit message
-- [ ] 14.2 Push branch `feature/arch-05-bridge-registry`
-- [ ] 14.3 Create PR to `dev` with OpenSpec change reference and quality gate evidence
+- [ ] 14.1 Determine semantic version bump for new capability
+- [ ] 14.2 Sync version updates in `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py`
+- [ ] 14.3 Add CHANGELOG entry for bridge registry, protocol-reporting fixes, and manifest bridge metadata support
+
+## 15. GitHub issue creation
+
+- [ ] 15.1 Create issue in `nold-ai/specfact-cli` with title `[Change] Bridge Registry for Cross-Module Service Interoperability`
+- [ ] 15.2 Use labels `enhancement` and `change-proposal`
+- [ ] 15.3 Build issue body from proposal Why/What Changes and append footer `*OpenSpec Change Proposal: arch-05-bridge-registry*`
+- [ ] 15.4 Update `proposal.md` Source Tracking with issue number and URL
+
+## 16. Create pull request to dev (LAST)
+
+- [ ] 16.1 Commit all completed work with conventional commit message
+- [ ] 16.2 Push branch `feature/arch-05-bridge-registry`
+- [ ] 16.3 Create PR to `dev` with OpenSpec change reference and quality gate evidence
