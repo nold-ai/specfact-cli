@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 from pydantic import ValidationError
 
@@ -37,5 +39,5 @@ def test_schema_version_validation() -> None:
             manifest=BundleManifest(schema_metadata=None, project_metadata=None),
             bundle_name="test-bundle",
             product=Product(),
-            schema_version=1,
+            schema_version=cast(Any, 1),
         )

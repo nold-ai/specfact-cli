@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -75,4 +75,4 @@ def test_validation_report_model_structure() -> None:
     assert set(report.summary.keys()) == {"total_checks", "passed", "failed", "warnings"}
 
     with pytest.raises(ValidationError):
-        ValidationReport(status="invalid")
+        ValidationReport(status=cast(Any, "invalid"))

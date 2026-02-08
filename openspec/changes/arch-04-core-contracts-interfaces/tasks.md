@@ -207,7 +207,7 @@ Tests MUST come before implementation tasks in each section below.
 - [x] 17.6 Update `README.md`:
   - [x] 17.6.1 Add brief mention of contract-first module architecture (if relevant to main intro)
 - [ ] 17.7 Run documentation link checker: `markdownlint --config .markdownlint.json docs/`
-- [ ] 17.8 Verify docs render correctly at <https://docs.specfact.io> (local preview with Jekyll)
+- [x] 17.8 Verify docs render correctly at <https://docs.specfact.io> (local preview with Jekyll)
 
 ## 18. Version and changelog
 
@@ -274,5 +274,5 @@ Tests MUST come before implementation tasks in each section below.
   ```
 
 - [x] 20.4 Link PR to project: `gh project item-add 1 --owner nold-ai --url <PR_URL>`
-- [ ] 20.5 Verify Development link appears on GitHub issue
-- [ ] 20.6 Update project board status to "In Progress" (if applicable)
+- [x] 20.5 Verify Development link appears on GitHub issue
+- [x] 20.6 Update project board status to "In Progress" (if applicable)
