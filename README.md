@@ -153,6 +153,12 @@ SpecFact now has a lifecycle-managed module system:
 
 This lifecycle model is the baseline for future granular module updates and enhancements. Module installation from third-party or open-source community providers is planned, but not implemented yet.
 
+Contract-first module architecture highlights:
+
+- `ModuleIOContract` formalizes module IO operations (`import`, `export`, `sync`, `validate`) on `ProjectBundle`.
+- Core-module isolation is enforced by static analysis (`core` never imports `specfact_cli.modules.*` directly).
+- Registration tracks protocol operation coverage and schema compatibility metadata.
+
 ---
 
 ## Developer Note: Command Layout

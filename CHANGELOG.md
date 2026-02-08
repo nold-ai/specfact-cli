@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.30.0] - 2026-02-08
+
+### Added (0.30.0)
+
+- ModuleIOContract protocol for formal module interfaces.
+- Static analysis enforcement of core-module isolation.
+- ProjectBundle schema versioning (`schema_version` field).
+- ValidationReport model for structured validation results.
+- Protocol compliance tracking in module metadata.
+
+### Changed (0.30.0)
+
+- Updated modules `backlog`, `sync`, `plan`, `generate`, and `enforce` to expose ModuleIOContract operations.
+- Added module contracts documentation and ProjectBundle schema reference docs.
+- Reference: `(fixes #206)`.
+
+---
+
 ## [0.29.0] - 2026-02-06
 
 ### Added (0.29.0)

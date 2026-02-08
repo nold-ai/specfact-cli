@@ -259,6 +259,28 @@ transitions:
 
 ### 2. Contract Layer
 
+## Contract-First Module Development
+
+SpecFact module development follows a contract-first pattern:
+
+- `ModuleIOContract` formalizes module IO on top of `ProjectBundle`.
+- `ValidationReport` standardizes module validation output.
+- Registration validates supported protocol operations and declared schema compatibility.
+
+### Core-Module Isolation Principle
+
+Core runtime paths (`cli.py`, `registry/`, `models/`, `utils/`, `contracts/`) must not import from
+`specfact_cli.modules.*` directly.
+
+- Core invokes module capabilities through `CommandRegistry`.
+- Modules are discovered and loaded lazily.
+- Static isolation tests enforce this boundary in CI.
+
+See also:
+
+- [Module Contracts](module-contracts.md)
+- [ProjectBundle Schema](projectbundle-schema.md)
+
 #### Runtime Contracts (icontract)
 
 ```python
