@@ -61,6 +61,10 @@ jobs:
           hatch env create || true
           pip install -e .
 
+      - name: Enforce Core-Module Isolation
+        run: |
+          hatch run pytest tests/unit/test_core_module_isolation.py -v
+
       - name: Set validation parameters
         id: validation
         run: |

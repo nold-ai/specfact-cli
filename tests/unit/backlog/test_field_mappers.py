@@ -476,7 +476,8 @@ class TestCustomTemplateMapping:
 
     def test_fallback_to_defaults_when_custom_not_found(self) -> None:
         """Test that mapper falls back to defaults when custom mapping file not found."""
-        mapper = AdoFieldMapper(custom_mapping_file=Path("/nonexistent/file.yaml"))
+        with pytest.warns(UserWarning, match="Failed to load custom field mapping"):
+            mapper = AdoFieldMapper(custom_mapping_file=Path("/nonexistent/file.yaml"))
 
         # Should still work with defaults (warns but continues)
         item_data = {
