@@ -177,8 +177,8 @@ Tests MUST come before implementation tasks in each section below.
 - [x] 16.1 Run formatters: `hatch run format`
 - [x] 16.2 Run type checking: `hatch run type-check` (expect no errors)
 - [x] 16.3 Run contract tests: `hatch run contract-test` (CrossHair symbolic execution)
-- [ ] 16.4 Run full test suite: `hatch test --cover -v` (expect >80% coverage)
-- [ ] 16.5 Run linting: `hatch run lint` (expect no errors)
+- [x] 16.4 Run full test suite: `hatch test --cover -v` (expect >80% coverage)
+- [x] 16.5 Run linting: `hatch run lint` (expect no errors)
 - [x] 16.6 Validate OpenSpec change: `openspec validate arch-04-core-contracts-interfaces --strict`
 
 ## 17. Documentation research and review
@@ -206,7 +206,7 @@ Tests MUST come before implementation tasks in each section below.
   - [x] 17.5.2 Add link to Module Contracts under Reference section
 - [x] 17.6 Update `README.md`:
   - [x] 17.6.1 Add brief mention of contract-first module architecture (if relevant to main intro)
-- [ ] 17.7 Run documentation link checker: `markdownlint --config .markdownlint.json docs/`
+- [x] 17.7 Run documentation link checker: `markdownlint --config .markdownlint.json docs/`
 - [x] 17.8 Verify docs render correctly at <https://docs.specfact.io> (local preview with Jekyll)
 
 ## 18. Version and changelog
