@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.models.module_package import ModulePackageMetadata, ServiceBridgeMetadata
 
 
 def test_metadata_includes_schema_version() -> None:
@@ -39,7 +39,10 @@ def test_metadata_supports_service_bridges() -> None:
         name="backlog",
         commands=["backlog"],
         service_bridges=[
-            {"id": "ado", "converter_class": "specfact_cli.modules.backlog.src.adapters.ado.AdoConverter"}
+            ServiceBridgeMetadata(
+                id="ado",
+                converter_class="specfact_cli.modules.backlog.src.adapters.ado.AdoConverter",
+            )
         ],
     )
     assert len(metadata.service_bridges) == 1
@@ -52,7 +55,7 @@ def test_service_bridge_requires_converter_class_path() -> None:
         ModulePackageMetadata(
             name="backlog",
             commands=["backlog"],
-            service_bridges=[{"id": "ado"}],
+            service_bridges=[ServiceBridgeMetadata(id="ado", converter_class="")],
         )
 
 
@@ -62,5 +65,5 @@ def test_service_bridge_converter_class_must_be_dotted_path() -> None:
         ModulePackageMetadata(
             name="backlog",
             commands=["backlog"],
-            service_bridges=[{"id": "ado", "converter_class": "InvalidClassPath"}],
+            service_bridges=[ServiceBridgeMetadata(id="ado", converter_class="InvalidClassPath")],
         )

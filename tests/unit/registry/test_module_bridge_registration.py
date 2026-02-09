@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.models.module_package import ModulePackageMetadata, ServiceBridgeMetadata
 from specfact_cli.registry import CommandRegistry, module_packages
 from specfact_cli.registry.bridge_registry import BridgeRegistry
 
@@ -24,7 +24,7 @@ def _metadata_with_bridges(*, converter_class: str) -> ModulePackageMetadata:
         name="backlog",
         version="0.1.0",
         commands=["backlog"],
-        service_bridges=[{"id": "ado", "converter_class": converter_class}],
+        service_bridges=[ServiceBridgeMetadata(id="ado", converter_class=converter_class)],
     )
 
 
