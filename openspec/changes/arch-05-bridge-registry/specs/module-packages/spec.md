@@ -32,3 +32,13 @@ The system SHALL validate service bridge metadata structure before module regist
 
 - **WHEN** a manifest contains valid bridge declarations
 - **THEN** the parsed `ModulePackageMetadata` SHALL expose those declarations for lifecycle registration.
+
+### Requirement: Protocol metadata reflects real module operations
+
+The system SHALL derive protocol operation metadata from the effective module interface used at runtime.
+
+#### Scenario: Protocol operations are populated from runtime-accessible module interface
+
+- **WHEN** module metadata is loaded for an enabled module
+- **THEN** protocol operation detection SHALL inspect the runtime-accessible interface used by lifecycle registration
+- **AND** detected operations SHALL be persisted in `ModulePackageMetadata.protocol_operations`.

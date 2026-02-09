@@ -1,3 +1,6 @@
-"""Contract property modules for CrossHair analysis."""
+"""Contract exports for protocol and validation integrations."""
 
-__all__ = ["crosshair_props"]
+from specfact_cli.models.validation import ValidationReport
+
+
+__all__ = ["ValidationReport", "crosshair_props"]

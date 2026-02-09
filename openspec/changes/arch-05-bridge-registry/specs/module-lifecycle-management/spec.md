@@ -36,3 +36,19 @@ The system SHALL degrade gracefully when individual bridge declarations fail.
 - **WHEN** a module declares a converter class that cannot be imported
 - **THEN** lifecycle registration SHALL skip that bridge declaration
 - **AND** continue registering other valid modules and bridges.
+
+### Requirement: Lifecycle protocol reporting is accurate and non-duplicative
+
+The system SHALL report ModuleIOContract compliance based on actual module capabilities and avoid duplicate warning emission.
+
+#### Scenario: Compliant module is not misreported as legacy
+
+- **WHEN** lifecycle registration inspects an enabled module that exposes required ModuleIOContract operations
+- **THEN** compliance reporting SHALL classify it as full or partial support
+- **AND** SHALL NOT classify it as legacy due to inspection-path mismatch.
+
+#### Scenario: Warning output is emitted once per condition
+
+- **WHEN** lifecycle registration logs protocol warnings during startup
+- **THEN** each warning condition SHALL be emitted once per module/event
+- **AND** a single summary line SHALL report aggregate full/partial/legacy counts.

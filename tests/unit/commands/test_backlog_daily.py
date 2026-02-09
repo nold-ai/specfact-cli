@@ -25,6 +25,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import click
+import typer.main
 from typer.testing import CliRunner
 
 from specfact_cli.backlog.adapters.base import BacklogAdapter
@@ -49,6 +51,23 @@ def _strip_ansi(text: str) -> str:
     """Remove ANSI escape codes from CLI output."""
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
+
+
+def _get_daily_command_option_names() -> set[str]:
+    """Return all option names registered on `specfact backlog daily`."""
+    root_cmd = typer.main.get_command(app)
+    root_ctx = click.Context(root_cmd)
+    backlog_cmd = root_cmd.get_command(root_ctx, "backlog")
+    assert backlog_cmd is not None
+    backlog_ctx = click.Context(backlog_cmd)
+    daily_cmd = backlog_cmd.get_command(backlog_ctx, "daily")
+    assert daily_cmd is not None
+    option_names: set[str] = set()
+    for param in daily_cmd.params:
+        if isinstance(param, click.Option):
+            option_names.update(param.opts)
+            option_names.update(param.secondary_opts)
+    return option_names
 
 
 def _item(
@@ -186,30 +205,27 @@ class TestBacklogDailyCli:
     """CLI: specfact backlog daily."""
 
     def test_daily_help(self) -> None:
-        """Backlog daily subcommand exists and shows help."""
-        result = runner.invoke(app, ["backlog", "daily", "--help"])
-        assert result.exit_code == 0
-        assert "daily" in result.output.lower()
+        """Backlog daily subcommand exists."""
+        option_names = _get_daily_command_option_names()
+        assert len(option_names) > 0
 
     def test_daily_accepts_sprint_and_iteration_options(self) -> None:
         """Backlog daily has --sprint and --iteration options."""
-        result = runner.invoke(app, ["backlog", "daily", "--help"])
-        assert result.exit_code == 0
-        # Help may include ANSI codes (e.g. on CI); check option names as substrings
-        assert "sprint" in result.output.lower()
-        assert "iteration" in result.output.lower()
+        option_names = _get_daily_command_option_names()
+        assert "--sprint" in option_names
+        assert "--iteration" in option_names
 
     def test_daily_accepts_show_unassigned_and_unassigned_only(self) -> None:
         """Backlog daily has --show-unassigned and --unassigned-only options."""
-        result = runner.invoke(app, ["backlog", "daily", "--help"])
-        assert result.exit_code == 0
-        assert "unassigned" in result.output.lower()
+        option_names = _get_daily_command_option_names()
+        assert "--show-unassigned" in option_names
+        assert "--no-show-unassigned" in option_names
+        assert "--unassigned-only" in option_names
 
     def test_daily_accepts_blockers_first(self) -> None:
         """Backlog daily has --blockers-first option."""
-        result = runner.invoke(app, ["backlog", "daily", "--help"])
-        assert result.exit_code == 0
-        assert "blockers-first" in result.output or "blockers" in result.output.lower()
+        option_names = _get_daily_command_option_names()
+        assert "--blockers-first" in option_names
 
 
 class TestDefaultStandupScope:
@@ -441,28 +457,25 @@ class TestBacklogDailyInteractiveAndExportOptions:
 
     def test_daily_help_shows_interactive(self) -> None:
         """Backlog daily has --interactive option."""
-        result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
-        assert result.exit_code == 0
-        assert "--interactive" in result.output or "interactive" in result.output.lower()
+        option_names = _get_daily_command_option_names()
+        assert "--interactive" in option_names
 
     def test_daily_help_shows_copilot_export(self) -> None:
         """Backlog daily has --copilot-export option."""
-        result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
-        assert result.exit_code == 0
-        assert "copilot-export" in result.output or "copilot" in result.output.lower()
+        option_names = _get_daily_command_option_names()
+        assert "--copilot-export" in option_names
 
     def test_daily_help_shows_summarize(self) -> None:
         """Backlog daily has --summarize and --summarize-to options."""
-        result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
-        assert result.exit_code == 0
-        assert "summarize" in result.output.lower()
+        option_names = _get_daily_command_option_names()
+        assert "--summarize" in option_names
+        assert "--summarize-to" in option_names
 
     def test_daily_help_shows_comment_annotations(self) -> None:
         """Backlog daily has --comments/--annotations option for exports."""
-        result = runner.invoke(app, ["backlog", "daily", "--help-advanced"])
-        assert result.exit_code == 0
-        output = _strip_ansi(result.output)
-        assert "--comments" in output or "--annotations" in output
+        option_names = _get_daily_command_option_names()
+        assert "--comments" in option_names
+        assert "--annotations" in option_names
 
 
 class TestBuildSummarizePromptContent:

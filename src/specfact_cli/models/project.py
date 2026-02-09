@@ -19,7 +19,7 @@ from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictStr
 
 from specfact_cli.models.change import ChangeArchive, ChangeProposal, ChangeTracking, FeatureDelta
 from specfact_cli.models.contract import ContractIndex
@@ -173,10 +173,18 @@ class BundleManifest(BaseModel):
 
 
 class ProjectBundle(BaseModel):
-    """Modular project bundle (replaces monolithic PlanBundle)."""
+    """Modular project bundle (replaces monolithic PlanBundle).
+
+    The ``schema_version`` field tracks module IO compatibility independently
+    from manifest schema evolution to support forward-compatible module loading.
+    """
 
     manifest: BundleManifest = Field(..., description="Bundle manifest with metadata")
     bundle_name: str = Field(..., description="Project bundle name (directory name, e.g., 'legacy-api')")
+    schema_version: StrictStr = Field(
+        default="1",
+        description="ProjectBundle IO schema version used by module contracts for compatibility checks.",
+    )
     idea: Idea | None = None
     business: Business | None = None
     product: Product = Field(..., description="Product definition")

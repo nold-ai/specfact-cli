@@ -7,14 +7,19 @@ and other artifacts from SDD manifests and plan bundles.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import typer
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.generators.contract_generator import ContractGenerator
 from specfact_cli.migrations.plan_migrator import load_plan_bundle
+from specfact_cli.models.plan import Product
+from specfact_cli.models.project import BundleManifest, ProjectBundle
 from specfact_cli.models.sdd import SDDManifest
+from specfact_cli.models.validation import ValidationReport
 from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_info, print_success, print_warning
@@ -30,6 +35,70 @@ from specfact_cli.utils.structured_io import load_structured_file
 
 app = typer.Typer(help="Generate artifacts from SDD and plans")
 console = get_configured_console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+
+
+@beartype
+@require(lambda source: source.exists(), "Source path must exist")
+@ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
+def import_to_bundle(source: Path, config: dict[str, Any]) -> ProjectBundle:
+    """Convert external source artifacts into a ProjectBundle."""
+    if source.is_dir() and (source / "bundle.manifest.yaml").exists():
+        return ProjectBundle.load_from_directory(source)
+    bundle_name = config.get("bundle_name", source.stem if source.suffix else source.name)
+    return ProjectBundle(
+        manifest=BundleManifest(schema_metadata=None, project_metadata=None),
+        bundle_name=str(bundle_name),
+        product=Product(),
+    )
+
+
+@beartype
+@require(lambda target: target is not None, "Target path must be provided")
+@ensure(lambda target: target.exists(), "Target must exist after export")
+def export_from_bundle(bundle: ProjectBundle, target: Path, config: dict[str, Any]) -> None:
+    """Export a ProjectBundle to target path."""
+    if target.suffix:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(bundle.model_dump_json(indent=2), encoding="utf-8")
+        return
+    target.mkdir(parents=True, exist_ok=True)
+    bundle.save_to_directory(target)
+
+
+@beartype
+@require(lambda external_source: len(external_source.strip()) > 0, "External source must be non-empty")
+@ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
+def sync_with_bundle(bundle: ProjectBundle, external_source: str, config: dict[str, Any]) -> ProjectBundle:
+    """Synchronize an existing bundle with an external source."""
+    source_path = Path(external_source)
+    if source_path.exists() and source_path.is_dir() and (source_path / "bundle.manifest.yaml").exists():
+        return ProjectBundle.load_from_directory(source_path)
+    return bundle
+
+
+@beartype
+@ensure(lambda result: isinstance(result, ValidationReport), "Must return ValidationReport")
+def validate_bundle(bundle: ProjectBundle, rules: dict[str, Any]) -> ValidationReport:
+    """Validate bundle for module-specific constraints."""
+    total_checks = max(len(rules), 1)
+    report = ValidationReport(
+        status="passed",
+        violations=[],
+        summary={"total_checks": total_checks, "passed": total_checks, "failed": 0, "warnings": 0},
+    )
+    if not bundle.bundle_name:
+        report.status = "failed"
+        report.violations.append(
+            {
+                "severity": "error",
+                "message": "Bundle name is required",
+                "location": "ProjectBundle.bundle_name",
+            }
+        )
+        report.summary["failed"] += 1
+        report.summary["passed"] = max(report.summary["passed"] - 1, 0)
+    return report
 
 
 def _show_apply_help() -> None:

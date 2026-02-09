@@ -11,7 +11,10 @@
 - **NEW**: Add `src/specfact_cli/registry/bridge_registry.py` with `SchemaConverter` protocol and `BridgeRegistry` for converter registration/discovery.
 - **MODIFY**: Extend module package metadata to declare `service_bridges` in `module-package.yaml`.
 - **MODIFY**: Extend module lifecycle registration to validate and register declared service bridges without direct core-to-module imports.
+- **MODIFY**: Fix module protocol compliance detection so lifecycle reporting reflects real ModuleIOContract support (no false legacy results for compliant modules).
+- **MODIFY**: Reduce lifecycle protocol logging noise (no duplicate warning lines; clear summary-first reporting).
 - **MODIFY**: Add backlog bridge converter implementations (ADO, Jira, Linear, GitHub) under module-local adapters and register them via manifest metadata.
+- **MODIFY**: Complete ModuleIOContract migration coverage for remaining modules and verify registry reporting against upgraded modules.
 - **NEW**: Add user and developer documentation for bridge registry usage and custom bridge mappings.
 - **NEW**: Add tests for bridge registry behavior, manifest parsing, registration-time validation, and module integration.
 
@@ -23,7 +26,7 @@
 ### Modified Capabilities
 
 - `module-packages`: Extend module package manifest schema with declarative bridge metadata.
-- `module-lifecycle-management`: Extend discovery/registration flow to validate and register bridge converters safely.
+- `module-lifecycle-management`: Extend discovery/registration flow to validate/register bridge converters safely and report protocol compliance accurately without duplicate warnings.
 - `backlog-adapter`: Add bridge converter implementations and mapping behaviors for backlog service integrations.
 
 ## Impact
@@ -32,10 +35,13 @@
 - **Affected code**:
   - `src/specfact_cli/registry/bridge_registry.py` (new)
   - `src/specfact_cli/registry/module_packages.py` (bridge metadata loading and registration)
+  - `src/specfact_cli/common/logger_setup.py` (logging deduplication path if required by lifecycle reporting changes)
   - `src/specfact_cli/models/module_package.py` (service bridge metadata)
+  - `src/specfact_cli/modules/*/src/commands.py` (remaining ModuleIOContract migration where missing)
   - `src/specfact_cli/modules/backlog/src/adapters/*.py` (new converter modules)
   - `tests/unit/registry/test_bridge_registry.py` (new)
   - `tests/unit/registry/test_module_bridge_registration.py` (new)
+  - `tests/unit/specfact_cli/registry/test_module_packages.py` (protocol detection and reporting assertions)
 - **Affected documentation**:
   - `docs/reference/bridge-registry.md` (new)
   - `docs/guides/creating-custom-bridges.md` (new)
