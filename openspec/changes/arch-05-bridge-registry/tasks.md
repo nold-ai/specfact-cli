@@ -64,7 +64,7 @@ Do not implement production code for new behavior until corresponding tests exis
 
 - [x] 8.1 Extend `tests/unit/specfact_cli/registry/test_module_packages.py` with protocol compliance detection assertions for full/partial/legacy modules
 - [x] 8.2 Add test coverage ensuring lifecycle warnings are not emitted twice for the same module condition
-- [ ] 8.3 Add CLI smoke assertion (`specfact -v`) for single summary emission pattern
+- [x] 8.3 Add CLI smoke assertion (`specfact -v`) for single summary emission pattern
 - [x] 8.4 Run targeted registry tests and expect failure
 
 ## 9. Implementation: protocol reporting and logging cleanup
@@ -93,7 +93,7 @@ Do not implement production code for new behavior until corresponding tests exis
 ## 12. Quality gates and validation
 
 - [x] 12.1 Run `hatch run format`
-- [ ] 12.2 Run `hatch run lint`
+- [x] 12.2 Run `hatch run lint`
 - [x] 12.3 Run `hatch run type-check`
 - [x] 12.4 Run `hatch run contract-test`
 - [x] 12.5 Run `hatch run smart-test`

@@ -141,3 +141,11 @@ class TestStartupPerformance:
         # Should be fast (< 1 second for version command)
         assert elapsed < 1.0, f"CLI startup took {elapsed:.2f}s, expected < 1.0s"
         assert result.exit_code == 0
+
+    def test_cli_version_emits_single_protocol_summary_line(self) -> None:
+        """CLI smoke test: protocol summary line should be emitted once per startup."""
+        runner = CliRunner()
+        result = runner.invoke(app, ["--version"])
+
+        assert result.exit_code == 0
+        assert result.output.count("Protocol-compliant:") <= 1

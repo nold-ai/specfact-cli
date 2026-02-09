@@ -134,9 +134,14 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
 
 @beartype
 @require(lambda class_path: class_path.strip() != "", "Converter class path must not be empty")
+@require(lambda class_path: "." in class_path, "Converter class path must include module and class name")
 @ensure(lambda result: isinstance(result, type), "Resolved converter must be a class")
 def _resolve_converter_class(class_path: str) -> type[SchemaConverter]:
-    """Resolve a converter class from dotted path."""
+    """Resolve a converter class from dotted path.
+
+    Raises:
+        ImportError/AttributeError/TypeError: when path cannot be resolved to a class.
+    """
     module_path, class_name = class_path.rsplit(".", 1)
     module = importlib.import_module(module_path)
     converter_class = getattr(module, class_name)
@@ -367,8 +372,7 @@ def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
         return commands_interface
     # Module app entrypoints often only expose `app`; load module-local commands for protocol detection.
     try:
-        commands_module = importlib.import_module(f"specfact_cli.modules.{package_name}.src.commands")
-        return commands_module
+        return importlib.import_module(f"specfact_cli.modules.{package_name}.src.commands")
     except Exception:
         pass
     return module_obj

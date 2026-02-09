@@ -41,3 +41,12 @@ def test_custom_mapping_override_loading(tmp_path: Path) -> None:
 
     assert bundle["id"] == 901
     assert bundle["title"] == "Custom title"
+
+
+def test_converter_uses_default_mapping_without_mapping_file() -> None:
+    """Converters should initialize and use defaults when no mapping file is provided."""
+    converter = GitHubConverter()
+    bundle = converter.to_bundle({"number": 42, "title": "Default mapping"})
+
+    assert bundle["id"] == 42
+    assert bundle["title"] == "Default mapping"

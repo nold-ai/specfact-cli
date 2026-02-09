@@ -40,7 +40,9 @@ class BridgeRegistry:
         if bridge_id in self._converters:
             existing_owner = self._owners.get(bridge_id, "unknown")
             raise ValueError(
-                f"Duplicate bridge ID '{bridge_id}' declared by '{owner}'. Already registered by '{existing_owner}'."
+                f"Duplicate bridge ID '{bridge_id}' declared by '{owner}'. "
+                f"Already registered by '{existing_owner}'. "
+                "Choose a unique bridge ID or update module declarations to avoid conflicts."
             )
         self._converters[bridge_id] = converter
         self._owners[bridge_id] = owner
@@ -49,7 +51,7 @@ class BridgeRegistry:
     @require(lambda bridge_id: bridge_id.strip() != "", "Bridge ID must not be empty")
     @ensure(lambda result: isinstance(result, SchemaConverter), "Lookup result must satisfy SchemaConverter")
     def get_converter(self, bridge_id: str) -> SchemaConverter:
-        """Return converter for bridge ID or raise LookupError."""
+        """Return converter for bridge ID or raise LookupError for missing registrations."""
         if bridge_id not in self._converters:
             raise LookupError(f"No converter registered for bridge ID '{bridge_id}'.")
         return self._converters[bridge_id]

@@ -10,6 +10,7 @@ import logging
 import os
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -133,20 +134,20 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_runtime_interfac
     from specfact_cli.registry import module_packages as module_packages_impl
 
     class _RuntimeFull:
-        def import_to_bundle(self, source, config):  # type: ignore[no-untyped-def]
+        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
             return None
 
-        def export_from_bundle(self, bundle, target, config):  # type: ignore[no-untyped-def]
+        def export_from_bundle(self, bundle: Any, target: Any, config: dict[str, Any]) -> None:
             return None
 
-        def sync_with_bundle(self, source, target, config):  # type: ignore[no-untyped-def]
+        def sync_with_bundle(self, source: Any, target: Any, config: dict[str, Any]) -> None:
             return None
 
-        def validate_bundle(self, bundle):  # type: ignore[no-untyped-def]
+        def validate_bundle(self, bundle: Any) -> list[str]:
             return []
 
     class _RuntimePartial:
-        def import_to_bundle(self, source, config):  # type: ignore[no-untyped-def]
+        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
             return None
 
     caplog.set_level(logging.INFO)
@@ -205,7 +206,7 @@ def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, ca
     from specfact_cli.registry import module_packages as module_packages_impl
 
     class _CommandsModule:
-        def import_to_bundle(self, source, config):  # type: ignore[no-untyped-def]
+        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
             return None
 
     caplog.set_level(logging.INFO)
@@ -218,7 +219,7 @@ def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, ca
         "discover_package_metadata",
         lambda _root: [(tmp_path / "backlog", ModulePackageMetadata(name="backlog", commands=[]))],
     )
-    monkeypatch.setattr(module_packages_impl, "read_modules_state", lambda: {})
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: object())
     monkeypatch.setattr(module_packages_impl.importlib, "import_module", lambda _path: _CommandsModule())
 

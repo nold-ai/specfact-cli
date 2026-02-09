@@ -42,3 +42,14 @@ def test_missing_bridge_lookup_error_contains_bridge_id() -> None:
 
     with pytest.raises(LookupError, match="jira"):
         registry.get_converter("jira")
+
+
+def test_list_bridge_ids_and_owner_tracking() -> None:
+    """Bridge helper methods should expose owners and sorted IDs."""
+    registry = BridgeRegistry()
+    registry.register_converter("jira", _ExampleConverter(), "mod-b")
+    registry.register_converter("ado", _ExampleConverter(), "mod-a")
+
+    assert registry.list_bridge_ids() == ["ado", "jira"]
+    assert registry.get_owner("ado") == "mod-a"
+    assert registry.get_owner("missing") is None
