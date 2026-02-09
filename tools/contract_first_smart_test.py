@@ -32,6 +32,7 @@ class ContractFirstTestManager(SmartCoverageManager):
     """Contract-first test manager extending the smart coverage system."""
 
     STANDARD_CROSSHAIR_TIMEOUT = 60
+    CROSSHAIR_SKIP_RE = re.compile(r"(?mi)^\s*(?:#\s*)?CrossHair:\s*(?:skip|ignore)\b")
 
     def __init__(
         self,
@@ -133,6 +134,14 @@ class ContractFirstTestManager(SmartCoverageManager):
             if match:
                 return match.group(0).strip()
         return None
+
+    def _is_crosshair_skipped(self, file_path: Path) -> bool:
+        """Check if file opts out from CrossHair exploration."""
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError:
+            return False
+        return bool(self.CROSSHAIR_SKIP_RE.search(content))
 
     def _check_contract_tools(self) -> dict[str, bool]:
         """Check if contract tools are available."""
@@ -339,6 +348,31 @@ class ContractFirstTestManager(SmartCoverageManager):
                         "timestamp": datetime.now().isoformat(),
                         "cached": True,
                         "fast_mode": cache_entry.get("fast_mode", False),
+                    }
+                    continue
+
+                if self._is_crosshair_skipped(file_path):
+                    print(f"      ⏭️  CrossHair skipped for {display_path} (file marked 'CrossHair: skip')")
+                    exploration_results[file_key] = {
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "timestamp": datetime.now().isoformat(),
+                        "cached": False,
+                        "fast_mode": False,
+                        "skipped": True,
+                        "reason": "CrossHair skip marker",
+                    }
+                    exploration_cache[file_key] = {
+                        "hash": file_hash,
+                        "status": "skipped",
+                        "fast_mode": False,
+                        "prefer_fast": False,
+                        "timestamp": datetime.now().isoformat(),
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "reason": "CrossHair skip marker",
                     }
                     continue
 

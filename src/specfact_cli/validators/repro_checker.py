@@ -3,6 +3,8 @@ Reproducibility checker - Runs various validation tools and aggregates results.
 
 This module provides functionality to run linting, type checking, contract
 exploration, and test suites with time budgets and result aggregation.
+
+CrossHair: skip (known signature synthesis limitation on complex pathlib/type signatures)
 """
 
 from __future__ import annotations

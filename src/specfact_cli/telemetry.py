@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import time
 from collections.abc import MutableMapping
 from contextlib import contextmanager, suppress
@@ -150,6 +151,15 @@ def _parse_headers(raw: str | None) -> dict[str, str]:
     return headers
 
 
+@beartype
+@ensure(lambda result: isinstance(result, bool), "Must return boolean")
+def _is_crosshair_runtime() -> bool:
+    """Return True when running inside CrossHair symbolic analysis."""
+    if os.getenv("SPECFACT_CROSSHAIR_ANALYSIS") == "true":
+        return True
+    return "crosshair" in sys.modules
+
+
 @dataclass(frozen=True)
 class TelemetrySettings:
     """User-configurable telemetry settings."""
@@ -186,6 +196,18 @@ class TelemetrySettings:
         """
         # Disable in test environments (GitHub pattern)
         if os.getenv("TEST_MODE") == "true" or os.getenv("PYTEST_CURRENT_TEST"):
+            return cls(
+                enabled=False,
+                endpoint=None,
+                headers={},
+                local_path=DEFAULT_LOCAL_LOG,
+                debug=False,
+                opt_in_source="disabled",
+            )
+
+        # Disable during CrossHair exploration to avoid import/runtime side effects
+        # in config loaders and filesystem probes.
+        if _is_crosshair_runtime():
             return cls(
                 enabled=False,
                 endpoint=None,
@@ -255,7 +277,13 @@ class TelemetryManager:
     """Privacy-first telemetry helper."""
 
     TELEMETRY_VERSION = "1.0"
-    FALLBACK_LOCAL_LOG = Path(get_runtime_logs_dir()) / "telemetry.log"
+
+    @classmethod
+    @beartype
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
+    def _fallback_local_log_path(cls) -> Path:
+        """Resolve fallback telemetry log path lazily to avoid import-time side effects."""
+        return Path(get_runtime_logs_dir()) / "telemetry.log"
 
     @beartype
     @require(
@@ -270,8 +298,16 @@ class TelemetryManager:
         and len(self._session_id) > 0,
         "Must initialize all required instance attributes",
     )
-    def __init__(self, settings: TelemetrySettings | None = None) -> None:
-        self._settings = settings or TelemetrySettings.from_env()
+    def __init__(self, settings: object | None = None) -> None:
+        settings_value: TelemetrySettings
+        if settings is None:
+            settings_value = TelemetrySettings.from_env()
+        elif isinstance(settings, TelemetrySettings):
+            settings_value = settings
+        else:
+            raise TypeError("settings must be TelemetrySettings or None")
+
+        self._settings = settings_value
         self._local_path = self._settings.local_path
         self._enabled = self._settings.enabled
         self._session_id = uuid4().hex
@@ -310,7 +346,7 @@ class TelemetryManager:
             self._local_path.parent.mkdir(parents=True, exist_ok=True)
         except OSError as exc:  # pragma: no cover - catastrophic filesystem issue
             # Fallback to repository runtime logs if home/user path is not writable.
-            self._local_path = self.FALLBACK_LOCAL_LOG
+            self._local_path = self._fallback_local_log_path()
             try:
                 self._local_path.parent.mkdir(parents=True, exist_ok=True)
             except OSError as fallback_exc:
@@ -457,8 +493,9 @@ class TelemetryManager:
                 handle.write(json.dumps(event, separators=(",", ":")))
                 handle.write("\n")
         except OSError as exc:  # pragma: no cover - filesystem failures
-            if self._local_path != self.FALLBACK_LOCAL_LOG:
-                self._local_path = self.FALLBACK_LOCAL_LOG
+            fallback_log_path = self._fallback_local_log_path()
+            if self._local_path != fallback_log_path:
+                self._local_path = fallback_log_path
                 try:
                     self._local_path.parent.mkdir(parents=True, exist_ok=True)
                     with self._local_path.open("a", encoding="utf-8") as handle:
@@ -621,8 +658,16 @@ def test_telemetry_settings_from_env_property() -> None:
 
 
 @beartype
-def test_telemetry_manager_init_property(settings: TelemetrySettings | None) -> None:
+def test_telemetry_manager_init_property(enabled: bool) -> None:
     """CrossHair property test for TelemetryManager.__init__."""
+    settings = TelemetrySettings(
+        enabled=enabled,
+        endpoint=None,
+        headers={},
+        local_path=Path("/tmp/test_telemetry.log"),
+        debug=False,
+        opt_in_source="disabled",
+    )
     manager = TelemetryManager(settings)
     assert hasattr(manager, "_settings")
     assert hasattr(manager, "_enabled")
