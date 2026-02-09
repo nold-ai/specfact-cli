@@ -168,6 +168,11 @@ def main(
         "--fix",
         help="Apply auto-fixes where available (Semgrep auto-fixes)",
     ),
+    crosshair_required: bool = typer.Option(
+        False,
+        "--crosshair-required",
+        help="Fail if CrossHair analysis is skipped/failed (strict contract exploration mode)",
+    ),
     # Advanced/Configuration
     budget: int = typer.Option(
         120,
@@ -242,6 +247,8 @@ def main(
         console.print("[dim]Fail-fast: enabled[/dim]")
     if fix:
         console.print("[dim]Auto-fix: enabled[/dim]")
+    if crosshair_required:
+        console.print("[dim]CrossHair required: enabled[/dim]")
     console.print()
 
     # Ensure structure exists
@@ -256,7 +263,13 @@ def main(
 
     with telemetry.track_command("repro.run", telemetry_metadata) as record_event:
         # Run all checks
-        checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast, fix=fix)
+        checker = ReproChecker(
+            repo_path=repo,
+            budget=budget,
+            fail_fast=fail_fast,
+            fix=fix,
+            crosshair_required=crosshair_required,
+        )
 
         # Detect and display environment manager before starting progress spinner
         from specfact_cli.utils.env_manager import detect_env_manager

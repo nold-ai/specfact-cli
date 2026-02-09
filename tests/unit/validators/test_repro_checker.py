@@ -119,6 +119,29 @@ class TestReproChecker:
         assert result.timeout is True
         assert checker.report.budget_exceeded is True
 
+    def test_run_check_crosshair_side_effect_includes_target_command(self, tmp_path: Path):
+        """CrossHair side-effect errors should include executed target command for debugging."""
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 2
+            mock_proc.stdout = ""
+            mock_proc.stderr = "SideEffectDetected: import side effect"
+            mock_run.return_value = mock_proc
+
+            result = checker.run_check(
+                name="Contract exploration (CrossHair)",
+                tool="crosshair",
+                command=["python", "-m", "crosshair", "check", "specfact_cli.modules.repro.src.commands"],
+                timeout=10,
+                skip_if_missing=False,
+            )
+
+            assert result.status == CheckStatus.SKIPPED
+            assert "Target command:" in result.error
+            assert "specfact_cli.modules.repro.src.commands" in result.error
+
     def test_run_all_checks_with_ruff(self, tmp_path: Path):
         """Test run_all_checks executes ruff check."""
         # Create src directory for source detection
@@ -193,6 +216,44 @@ class TestReproChecker:
             assert report.failed_checks > 0
             # Should have fewer checks than normal (fail_fast stopped early)
             # Note: This is a weak assertion, but fail_fast logic is in run_all_checks
+
+    def test_run_all_checks_crosshair_required_converts_skipped_to_failed(self, tmp_path: Path):
+        """Strict CrossHair mode should fail when CrossHair is skipped."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30, crosshair_required=True)
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        def _fake_run_check(*args, **kwargs):  # type: ignore[no-untyped-def]
+            tool = args[1] if len(args) > 1 else kwargs.get("tool")
+            if tool == "crosshair":
+                return CheckResult(
+                    name="Contract exploration (CrossHair)",
+                    tool="crosshair",
+                    status=CheckStatus.SKIPPED,
+                    error="CrossHair side-effect detected",
+                )
+            return CheckResult(name=args[0], tool=tool, status=CheckStatus.PASSED, duration=0.1)
+
+        with (
+            patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+            patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+            patch("shutil.which", return_value="/usr/bin/tool"),
+            patch.object(checker, "run_check", side_effect=_fake_run_check),
+        ):
+            report = checker.run_all_checks()
+
+        crosshair_check = next(check for check in report.checks if check.tool == "crosshair")
+        assert crosshair_check.status == CheckStatus.FAILED
+        assert report.crosshair_requirement_violated is True
+        assert report.get_exit_code() == 1
 
     def test_repro_checker_fix_flag(self, tmp_path: Path):
         """Test ReproChecker with fix=True includes --fix in Semgrep command."""

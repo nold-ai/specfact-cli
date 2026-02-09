@@ -577,6 +577,8 @@ class ReproReport:
     enforcement_preset: str | None = None
     fix_enabled: bool = False
     fail_fast: bool = False
+    crosshair_required: bool = False
+    crosshair_requirement_violated: bool = False
 
     @beartype
     @require(lambda result: isinstance(result, CheckResult), "Must be CheckResult instance")
@@ -608,6 +610,8 @@ class ReproReport:
         """
         if self.budget_exceeded or self.timeout_checks > 0:
             return 2
+        if self.crosshair_requirement_violated:
+            return 1
         # CrossHair failures are non-blocking (advisory only) - don't count them
         failed_checks_blocking = [
             check for check in self.checks if check.status == CheckStatus.FAILED and check.tool != "crosshair"
@@ -663,6 +667,10 @@ class ReproReport:
             metadata["fix_enabled"] = self.fix_enabled
         if self.fail_fast:
             metadata["fail_fast"] = self.fail_fast
+        if self.crosshair_required:
+            metadata["crosshair_required"] = self.crosshair_required
+        if self.crosshair_requirement_violated:
+            metadata["crosshair_requirement_violated"] = self.crosshair_requirement_violated
 
         if metadata:
             result["metadata"] = metadata
@@ -682,7 +690,12 @@ class ReproChecker:
     @require(lambda budget: budget > 0, "Budget must be positive")
     @ensure(lambda self: self.budget > 0, "Budget must be positive after init")
     def __init__(
-        self, repo_path: Path | None = None, budget: int = 120, fail_fast: bool = False, fix: bool = False
+        self,
+        repo_path: Path | None = None,
+        budget: int = 120,
+        fail_fast: bool = False,
+        fix: bool = False,
+        crosshair_required: bool = False,
     ) -> None:
         """
         Initialize reproducibility checker.
@@ -697,6 +710,7 @@ class ReproChecker:
         self.budget = budget
         self.fail_fast = fail_fast
         self.fix = fix
+        self.crosshair_required = crosshair_required
         self.report = ReproReport()
         self.start_time = time.time()
 
@@ -705,6 +719,7 @@ class ReproChecker:
         self.report.budget = budget
         self.report.fix_enabled = fix
         self.report.fail_fast = fail_fast
+        self.report.crosshair_required = crosshair_required
 
     @beartype
     @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
@@ -798,11 +813,21 @@ class ReproChecker:
             elif is_signature_issue:
                 # CrossHair signature analysis limitation - treat as skipped, not failed
                 result.status = CheckStatus.SKIPPED
-                result.error = f"CrossHair signature analysis limitation (non-blocking, runtime contracts valid): {proc.stderr[:200] if proc.stderr else 'signature analysis limitation'}"
+                command_preview = " ".join(command[:24])
+                stderr_preview = proc.stderr[:300] if proc.stderr else "signature analysis limitation"
+                result.error = (
+                    "CrossHair signature analysis limitation (non-blocking, runtime contracts valid).\n"
+                    f"Target command: {command_preview}\n\n{stderr_preview}"
+                )
             elif is_side_effect_issue:
                 # CrossHair side-effect detection - treat as skipped, not failed
                 result.status = CheckStatus.SKIPPED
-                result.error = f"CrossHair side-effect detected (non-blocking): {proc.stderr[:200] if proc.stderr else 'side effect detected'}"
+                command_preview = " ".join(command[:24])
+                stderr_preview = proc.stderr[:300] if proc.stderr else "side effect detected"
+                result.error = (
+                    "CrossHair side-effect detected (non-blocking).\n"
+                    f"Target command: {command_preview}\n\n{stderr_preview}"
+                )
             else:
                 result.status = CheckStatus.FAILED
 
@@ -991,11 +1016,25 @@ class ReproChecker:
                     status=CheckStatus.SKIPPED,
                     error=tool_message or f"Tool '{tool}' not available",
                 )
+                if tool == "crosshair" and self.crosshair_required:
+                    result.status = CheckStatus.FAILED
+                    result.error = f"CrossHair is required but unavailable: {result.error}"
+                    self.report.crosshair_requirement_violated = True
                 self.report.add_check(result)
                 continue
 
             # Run check
             result = self.run_check(*check_args)
+            if (
+                result.tool == "crosshair"
+                and self.crosshair_required
+                and result.status in {CheckStatus.SKIPPED, CheckStatus.FAILED, CheckStatus.TIMEOUT}
+            ):
+                self.report.crosshair_requirement_violated = True
+                if result.status == CheckStatus.SKIPPED:
+                    result.status = CheckStatus.FAILED
+                    detail = result.error or "CrossHair check was skipped"
+                    result.error = f"CrossHair is required but did not complete.\n{detail}"
             self.report.add_check(result)
 
             # Fail fast if requested
