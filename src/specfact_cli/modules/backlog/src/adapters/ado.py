@@ -18,5 +18,5 @@ class AdoConverter(MappingBackedConverter):
             service_name="ado",
             default_to_bundle={"id": "System.Id", "title": "System.Title"},
             default_from_bundle={"System.Id": "id", "System.Title": "title"},
-            mapping_file=mapping_file,
+            mapping_file=str(mapping_file) if mapping_file is not None else None,
         )

@@ -18,5 +18,5 @@ class JiraConverter(MappingBackedConverter):
             service_name="jira",
             default_to_bundle={"id": "id", "title": "fields.summary"},
             default_from_bundle={"id": "id", "fields.summary": "title"},
-            mapping_file=mapping_file,
+            mapping_file=str(mapping_file) if mapping_file is not None else None,
         )

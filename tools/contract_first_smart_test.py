@@ -143,6 +143,21 @@ class ContractFirstTestManager(SmartCoverageManager):
             return False
         return bool(self.CROSSHAIR_SKIP_RE.search(content))
 
+    def _is_typer_command_module(self, file_path: Path) -> bool:
+        """Detect Typer command modules that commonly trigger CrossHair signature limitations."""
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError:
+            return False
+        return (
+            file_path.name == "commands.py"
+            and "typer.Typer(" in content
+            and (
+                re.search(r"@\w+\.command\s*\(", content) is not None
+                or re.search(r"@\w+\.callback\s*\(", content) is not None
+            )
+        )
+
     def _check_contract_tools(self) -> dict[str, bool]:
         """Check if contract tools are available."""
         tool_status = {}
@@ -301,6 +316,7 @@ class ContractFirstTestManager(SmartCoverageManager):
         success = True
 
         exploration_cache: dict[str, Any] = self.contract_cache.setdefault("exploration_cache", {})
+        signature_skips: list[str] = []
 
         unique_files: list[Path] = []
         seen_paths: set[str] = set()
@@ -376,6 +392,34 @@ class ContractFirstTestManager(SmartCoverageManager):
                     }
                     continue
 
+                if self._is_typer_command_module(file_path):
+                    print(
+                        f"      ⏭️  CrossHair skipped for {display_path} "
+                        "(Typer command module; signature analysis unsupported)"
+                    )
+                    exploration_results[file_key] = {
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "timestamp": datetime.now().isoformat(),
+                        "cached": False,
+                        "fast_mode": False,
+                        "skipped": True,
+                        "reason": "Typer command module",
+                    }
+                    exploration_cache[file_key] = {
+                        "hash": file_hash,
+                        "status": "skipped",
+                        "fast_mode": False,
+                        "prefer_fast": False,
+                        "timestamp": datetime.now().isoformat(),
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "reason": "Typer command module",
+                    }
+                    continue
+
                 timed_out = False
                 cmd = self._build_crosshair_command(file_path, fast=use_fast)
                 try:
@@ -419,10 +463,8 @@ class ContractFirstTestManager(SmartCoverageManager):
 
                 if is_signature_issue:
                     status = "skipped"
-                    print(
-                        f"   ⚠️  CrossHair signature analysis limitation in {display_path} (non-blocking, runtime contracts valid)"
-                    )
-                    print(f"      ↳ {signature_detail}")
+                    signature_skips.append(display_path)
+                    print(f"      ⏭️  CrossHair skipped for {display_path} (signature analysis limitation)")
                     # Don't set success = False for signature issues
                 else:
                     status = "success" if result.returncode == 0 else "failure"
@@ -458,11 +500,10 @@ class ContractFirstTestManager(SmartCoverageManager):
 
                     success = False
                 else:
-                    if is_signature_issue:
-                        mode_label = "fast" if use_fast else "standard"
-                        print(f"   ↷ CrossHair exploration skipped for {display_path} ({mode_label})")
-                    elif timed_out:
+                    if timed_out:
                         print(f"   ✅ CrossHair exploration passed for {display_path} (fast retry)")
+                    elif is_signature_issue:
+                        pass
                     else:
                         mode_label = "fast" if use_fast else "standard"
                         print(f"   ✅ CrossHair exploration passed for {display_path} ({mode_label})")
@@ -511,6 +552,12 @@ class ContractFirstTestManager(SmartCoverageManager):
             }
         )
         self._save_contract_cache()
+
+        if signature_skips:
+            print(
+                f"   ℹ️  CrossHair signature-limited files skipped: {len(signature_skips)} "
+                "(non-blocking; grouped summary)"
+            )
 
         return success, exploration_results
 

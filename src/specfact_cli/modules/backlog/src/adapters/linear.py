@@ -18,5 +18,5 @@ class LinearConverter(MappingBackedConverter):
             service_name="linear",
             default_to_bundle={"id": "id", "title": "title"},
             default_from_bundle={"id": "id", "title": "title"},
-            mapping_file=mapping_file,
+            mapping_file=str(mapping_file) if mapping_file is not None else None,
         )

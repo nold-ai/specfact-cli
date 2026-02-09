@@ -22,7 +22,7 @@ class MappingBackedConverter:
         service_name: str,
         default_to_bundle: dict[str, str],
         default_from_bundle: dict[str, str],
-        mapping_file: Path | None = None,
+        mapping_file: str | None = None,
     ) -> None:
         self._logger = get_bridge_logger(__name__)
         self._service_name = service_name
@@ -31,11 +31,12 @@ class MappingBackedConverter:
         self._apply_mapping_override(mapping_file)
 
     @beartype
-    def _apply_mapping_override(self, mapping_file: Path | None) -> None:
+    def _apply_mapping_override(self, mapping_file: str | None) -> None:
         if mapping_file is None:
             return
         try:
-            raw = yaml.safe_load(mapping_file.read_text(encoding="utf-8"))
+            mapping_path = Path(mapping_file)
+            raw = yaml.safe_load(mapping_path.read_text(encoding="utf-8"))
             if not isinstance(raw, dict):
                 raise ValueError("mapping file root must be a dictionary")
             to_bundle = raw.get("to_bundle")
@@ -48,7 +49,7 @@ class MappingBackedConverter:
             self._logger.warning(
                 "Backlog bridge '%s': invalid custom mapping '%s'; using defaults (%s)",
                 self._service_name,
-                mapping_file,
+                mapping_path if "mapping_path" in locals() else mapping_file,
                 exc,
             )
 
