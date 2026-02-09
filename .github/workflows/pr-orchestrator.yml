@@ -141,6 +141,7 @@ jobs:
         env:
           CONTRACT_FIRST_TESTING: "true"
           TEST_MODE: "true"
+          HATCH_TEST_ENV: "py3.12"
         run: |
           echo "🧪 Running contract-first test suite (3.12)..."
           echo "Contract validation..." && hatch run contract-test-contracts || echo "⚠️ Contract validation incomplete"
