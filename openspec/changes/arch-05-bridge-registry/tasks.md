@@ -123,6 +123,6 @@ Do not implement production code for new behavior until corresponding tests exis
 
 ## 16. Create pull request to dev (LAST)
 
-- [ ] 16.1 Commit all completed work with conventional commit message
-- [ ] 16.2 Push branch `feature/arch-05-bridge-registry`
+- [x] 16.1 Commit all completed work with conventional commit message
+- [x] 16.2 Push branch `feature/arch-05-bridge-registry`
 - [ ] 16.3 Create PR to `dev` with OpenSpec change reference and quality gate evidence
