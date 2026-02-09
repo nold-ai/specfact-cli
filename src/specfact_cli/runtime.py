@@ -258,6 +258,12 @@ def init_debug_log_file() -> None:
         _ensure_debug_log_file()
 
 
+@beartype
+def get_debug_log_path() -> str | None:
+    """Return active debug log file path if initialized, else None."""
+    return _debug_log_path
+
+
 def _append_debug_log(*args: Any, **kwargs: Any) -> None:
     """Write print-style message to the debug log file. No-op if debug off or file unavailable."""
     if not _debug_mode:
