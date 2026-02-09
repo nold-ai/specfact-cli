@@ -34,6 +34,7 @@ class MappingBackedConverter:
     def _apply_mapping_override(self, mapping_file: str | None) -> None:
         if mapping_file is None:
             return
+        mapping_path: Path | None = None
         try:
             mapping_path = Path(mapping_file)
             raw = yaml.safe_load(mapping_path.read_text(encoding="utf-8"))
@@ -49,7 +50,7 @@ class MappingBackedConverter:
             self._logger.warning(
                 "Backlog bridge '%s': invalid custom mapping '%s'; using defaults (%s)",
                 self._service_name,
-                mapping_path if "mapping_path" in locals() else mapping_file,
+                mapping_path if mapping_path is not None else mapping_file,
                 exc,
             )
 

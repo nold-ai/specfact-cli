@@ -431,7 +431,9 @@ class TestReproChecker:
                 patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
                 patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
                 patch("shutil.which", return_value="/usr/bin/ruff"),
-                patch("specfact_cli.utils.structure.SpecFactStructure.get_default_plan_path", return_value=outside_plan),
+                patch(
+                    "specfact_cli.utils.structure.SpecFactStructure.get_default_plan_path", return_value=outside_plan
+                ),
                 patch(
                     "specfact_cli.utils.structure.SpecFactStructure.get_enforcement_config_path",
                     return_value=outside_enforce,

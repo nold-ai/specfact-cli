@@ -36,7 +36,7 @@ def test_custom_mapping_override_loading(tmp_path: Path) -> None:
     mapping_file = tmp_path / "github-bridge-mapping.yaml"
     mapping_file.write_text("to_bundle:\n  id: issue_number\n  title: subject\n", encoding="utf-8")
 
-    converter = GitHubConverter(mapping_file=mapping_file)
+    converter = GitHubConverter(mapping_file=str(mapping_file))
     bundle = converter.to_bundle({"issue_number": 901, "subject": "Custom title"})
 
     assert bundle["id"] == 901
