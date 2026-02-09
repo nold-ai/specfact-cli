@@ -202,6 +202,7 @@ jobs:
           echo "🔍 Validating runtime contracts..."
           echo "Running contract-test-contracts..." && hatch run contract-test-contracts || echo "Contracts failed"
           echo "Running contract-test-exploration..." && hatch run contract-test-exploration || echo "Exploration found issues"
+          echo "Running specfact repro with required CrossHair..." && hatch run specfact repro --verbose --crosshair-required --budget 120 || echo "SpecFact repro found issues"
 
   cli-validation:
     name: CLI Command Validation
