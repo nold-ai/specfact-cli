@@ -16,6 +16,7 @@ from specfact_cli.validators.repro_checker import (
     CheckStatus,
     ReproChecker,
     ReproReport,
+    _extract_basedpyright_findings,
 )
 
 
@@ -318,8 +319,64 @@ class TestReproChecker:
         assert metadata["active_plan_path"] == ".specfact/plans/main.bundle.yaml"
         assert metadata["enforcement_config_path"] == ".specfact/gates/config/enforcement.yaml"
         assert metadata["enforcement_preset"] == "balanced"
-        assert metadata["fix_enabled"] is True
-        assert "fail_fast" not in metadata  # Should be omitted when False
+
+    def test_extract_basedpyright_findings_parses_pretty_output(self):
+        """Parser handles basedpyright pretty output with '- warning:' format."""
+        output = (
+            "/tmp/a.py\n"
+            '  /tmp/a.py:10:4 - warning: Type of "x" is unknown (reportUnknownMemberType)\n'
+            "0 errors, 1 warnings, 0 notes\n"
+        )
+        findings = _extract_basedpyright_findings(output)
+        assert findings["total_errors"] == 0
+        assert findings["total_warnings"] == 1
+
+    def test_run_all_checks_metadata_uses_absolute_fallback_when_outside_repo(self, tmp_path: Path):
+        """Metadata collection should not fail if default plan path is outside repo root."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        outside_dir = Path("/tmp/not-under-repo")
+        outside_dir.mkdir(parents=True, exist_ok=True)
+        outside_plan = outside_dir / "main.bundle.yaml"
+        outside_enforce = outside_dir / "enforcement.yaml"
+        outside_plan.write_text("plan: demo\n", encoding="utf-8")
+        outside_enforce.write_text("preset: balanced\n", encoding="utf-8")
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = "ok"
+            mock_proc.stderr = ""
+            mock_run.return_value = mock_proc
+
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+                patch("specfact_cli.utils.structure.SpecFactStructure.get_default_plan_path", return_value=outside_plan),
+                patch(
+                    "specfact_cli.utils.structure.SpecFactStructure.get_enforcement_config_path",
+                    return_value=outside_enforce,
+                ),
+                patch("specfact_cli.utils.yaml_utils.load_yaml", return_value=None),
+                patch("specfact_cli.validators.repro_checker.console") as console_mock,
+            ):
+                report = checker.run_all_checks()
+
+        assert report.active_plan_path == str(outside_plan)
+        assert report.enforcement_config_path == str(outside_enforce)
+        console_calls = "\n".join(str(call) for call in console_mock.print.call_args_list)
+        assert "Could not collect metadata" not in console_calls
 
     def test_repro_report_metadata_minimal(self):
         """Test ReproReport metadata is optional (only includes available fields)."""

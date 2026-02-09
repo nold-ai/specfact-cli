@@ -339,8 +339,10 @@ def main(
         # Show errors if verbose
         if verbose:
             for check in report.checks:
-                if check.error:
-                    console.print(f"\n[bold red]{check.name} Error:[/bold red]")
+                if check.error and check.status.value in {"failed", "timeout", "skipped"}:
+                    label = "Error" if check.status.value in {"failed", "timeout"} else "Details"
+                    style = "red" if check.status.value in {"failed", "timeout"} else "yellow"
+                    console.print(f"\n[bold {style}]{check.name} {label}:[/bold {style}]")
                     console.print(f"[dim]{check.error}[/dim]")
                 if check.output and check.status.value == "failed":
                     console.print(f"\n[bold red]{check.name} Output:[/bold red]")

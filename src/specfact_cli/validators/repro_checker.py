@@ -338,13 +338,22 @@ def _extract_basedpyright_findings(output: str) -> dict[str, Any]:
     # Strip ANSI codes
     clean_output = _strip_ansi_codes(output)
 
-    # Parse basedpyright output: "path:line:col: error|warning: message"
-    pattern = r"^([^:]+):(\d+):(\d+):\s+(error|warning):\s+(.+)$"
+    # Parse basedpyright output in common formats:
+    # 1) path:line:col: error|warning: message
+    # 2) "  path:line:col - error|warning: message" (pretty output)
+    patterns = [
+        r"^([^:]+):(\d+):(\d+):\s+(error|warning):\s+(.+)$",
+        r"^\s*([^:]+):(\d+):(\d+)\s+-\s+(error|warning):\s+(.+)$",
+    ]
     for line in clean_output.split("\n"):
         line_stripped = line.strip()
         if not line_stripped:
             continue
-        match = re.match(pattern, line_stripped)
+        match = None
+        for pattern in patterns:
+            match = re.match(pattern, line_stripped)
+            if match:
+                break
         if match:
             file_path, line_num, col_num, level, message = match.groups()
             finding = {
@@ -359,6 +368,13 @@ def _extract_basedpyright_findings(output: str) -> dict[str, Any]:
             else:
                 findings["warnings"].append(finding)
                 findings["total_warnings"] += 1
+
+    # Fallback to summary line counts if detailed lines were not parseable.
+    if findings["total_errors"] == 0 and findings["total_warnings"] == 0:
+        summary_match = re.search(r"(\d+)\s+errors?,\s+(\d+)\s+warnings?", clean_output, re.IGNORECASE)
+        if summary_match:
+            findings["total_errors"] = int(summary_match.group(1))
+            findings["total_warnings"] = int(summary_match.group(2))
 
     return findings
 
@@ -874,11 +890,19 @@ class ReproChecker:
         if semgrep_enabled:
             semgrep_available, _ = check_tool_in_env(self.repo_path, "semgrep", env_info)
             if semgrep_available:
+                semgrep_log_path = self.repo_path / ".specfact" / "logs" / "semgrep.log"
+                semgrep_cache_path = self.repo_path / ".specfact" / "cache" / "semgrep_version"
+                semgrep_log_path.parent.mkdir(parents=True, exist_ok=True)
+                semgrep_cache_path.parent.mkdir(parents=True, exist_ok=True)
+                semgrep_env = os.environ.copy()
+                semgrep_env["SEMGREP_LOG_FILE"] = str(semgrep_log_path)
+                semgrep_env["SEMGREP_VERSION_CACHE_PATH"] = str(semgrep_cache_path)
+                semgrep_env["XDG_CACHE_HOME"] = str((self.repo_path / ".specfact" / "cache").resolve())
                 semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(self.repo_path)), "."]
                 if self.fix:
                     semgrep_command.append("--autofix")
                 semgrep_command = build_tool_command(env_info, semgrep_command)
-                checks.append(("Async patterns (semgrep)", "semgrep", semgrep_command, 30, True, None))
+                checks.append(("Async patterns (semgrep)", "semgrep", semgrep_command, 30, True, semgrep_env))
             else:
                 checks.append(("Async patterns (semgrep)", "semgrep", [], 30, True, None))
 
@@ -989,15 +1013,24 @@ class ReproChecker:
         try:
             from specfact_cli.utils.structure import SpecFactStructure
 
+            repo_root = self.repo_path.resolve()
             # Get active plan path
             active_plan_path = SpecFactStructure.get_default_plan_path(self.repo_path)
             if active_plan_path.exists():
-                self.report.active_plan_path = str(active_plan_path.relative_to(self.repo_path))
+                active_plan_abs = active_plan_path.resolve()
+                if active_plan_abs.is_relative_to(repo_root):
+                    self.report.active_plan_path = str(active_plan_abs.relative_to(repo_root))
+                else:
+                    self.report.active_plan_path = str(active_plan_abs)
 
             # Get enforcement config path and preset
             enforcement_config_path = SpecFactStructure.get_enforcement_config_path(self.repo_path)
             if enforcement_config_path.exists():
-                self.report.enforcement_config_path = str(enforcement_config_path.relative_to(self.repo_path))
+                enforce_abs = enforcement_config_path.resolve()
+                if enforce_abs.is_relative_to(repo_root):
+                    self.report.enforcement_config_path = str(enforce_abs.relative_to(repo_root))
+                else:
+                    self.report.enforcement_config_path = str(enforce_abs)
                 try:
                     from specfact_cli.models.enforcement import EnforcementConfig
                     from specfact_cli.utils.yaml_utils import load_yaml

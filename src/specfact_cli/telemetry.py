@@ -26,6 +26,7 @@ from beartype.typing import Callable, Iterator, Mapping
 from icontract import ensure, require
 
 from specfact_cli import __version__
+from specfact_cli.common.logger_setup import get_runtime_logs_dir
 
 
 try:
@@ -254,6 +255,7 @@ class TelemetryManager:
     """Privacy-first telemetry helper."""
 
     TELEMETRY_VERSION = "1.0"
+    FALLBACK_LOCAL_LOG = Path(get_runtime_logs_dir()) / "telemetry.log"
 
     @beartype
     @require(
@@ -270,6 +272,7 @@ class TelemetryManager:
     )
     def __init__(self, settings: TelemetrySettings | None = None) -> None:
         self._settings = settings or TelemetrySettings.from_env()
+        self._local_path = self._settings.local_path
         self._enabled = self._settings.enabled
         self._session_id = uuid4().hex
         self._tracer = None
@@ -304,9 +307,14 @@ class TelemetryManager:
     def _prepare_storage(self) -> None:
         """Ensure local telemetry directory exists."""
         try:
-            self._settings.local_path.parent.mkdir(parents=True, exist_ok=True)
+            self._local_path.parent.mkdir(parents=True, exist_ok=True)
         except OSError as exc:  # pragma: no cover - catastrophic filesystem issue
-            LOGGER.warning("Failed to prepare telemetry directory: %s", exc)
+            # Fallback to repository runtime logs if home/user path is not writable.
+            self._local_path = self.FALLBACK_LOCAL_LOG
+            try:
+                self._local_path.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as fallback_exc:
+                LOGGER.warning("Failed to prepare telemetry directory: %s (fallback: %s)", exc, fallback_exc)
 
     @beartype
     @require(
@@ -384,6 +392,10 @@ class TelemetryManager:
 
         if self._settings.debug and ConsoleSpanExporter and SimpleSpanProcessor:
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+        elif not self._settings.debug:
+            # Suppress noisy exporter traceback logs in normal CLI output when endpoint is unreachable.
+            logging.getLogger("opentelemetry.sdk._shared_internal").setLevel(logging.CRITICAL)
+            logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter").setLevel(logging.CRITICAL)
 
         trace.set_tracer_provider(provider)
         self._tracer = trace.get_tracer("specfact_cli.telemetry")
@@ -441,10 +453,21 @@ class TelemetryManager:
     def _write_local_event(self, event: Mapping[str, Any]) -> None:
         """Persist event to local JSONL file."""
         try:
-            with self._settings.local_path.open("a", encoding="utf-8") as handle:
+            with self._local_path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(event, separators=(",", ":")))
                 handle.write("\n")
         except OSError as exc:  # pragma: no cover - filesystem failures
+            if self._local_path != self.FALLBACK_LOCAL_LOG:
+                self._local_path = self.FALLBACK_LOCAL_LOG
+                try:
+                    self._local_path.parent.mkdir(parents=True, exist_ok=True)
+                    with self._local_path.open("a", encoding="utf-8") as handle:
+                        handle.write(json.dumps(event, separators=(",", ":")))
+                        handle.write("\n")
+                    return
+                except OSError as fallback_exc:
+                    LOGGER.warning("Failed to write telemetry event locally: %s (fallback: %s)", exc, fallback_exc)
+                    return
             LOGGER.warning("Failed to write telemetry event locally: %s", exc)
 
     @beartype
