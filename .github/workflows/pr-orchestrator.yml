@@ -142,6 +142,7 @@ jobs:
           CONTRACT_FIRST_TESTING: "true"
           TEST_MODE: "true"
           HATCH_TEST_ENV: "py3.12"
+          SMART_TEST_TIMEOUT_SECONDS: "1800"
         run: |
           echo "🧪 Running contract-first test suite (3.12)..."
           echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"

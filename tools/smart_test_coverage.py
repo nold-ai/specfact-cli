@@ -179,6 +179,19 @@ class SmartCoverageManager:
             base_cmd += extra_args
         return base_cmd
 
+    def _get_test_timeout_seconds(self, test_level: str) -> int:
+        """Resolve subprocess timeout for test execution."""
+        default_timeout = 600
+        slow_levels = {"integration", "scenarios", "e2e", "full"}
+        if test_level in slow_levels:
+            default_timeout = 1800
+        timeout_raw = os.environ.get("SMART_TEST_TIMEOUT_SECONDS", str(default_timeout))
+        try:
+            timeout_seconds = int(timeout_raw)
+        except ValueError:
+            timeout_seconds = default_timeout
+        return max(timeout_seconds, 60)
+
     def _get_coverage_threshold(self) -> float:
         """Get coverage threshold from pyproject.toml or environment variable."""
         # First check environment variable
@@ -868,6 +881,8 @@ class SmartCoverageManager:
             return True, 0, 100.0
 
         print(f"🔄 Running {test_level} tests for {len(test_files)} files...")
+        timeout_seconds = self._get_test_timeout_seconds(test_level)
+        print(f"⏱️  Test subprocess timeout: {timeout_seconds}s")
 
         # Create logs directory if it doesn't exist
         logs_dir = self.project_root / "logs" / "tests"
@@ -918,7 +933,7 @@ class SmartCoverageManager:
                             log_file.flush()
                             output_local.append(line)
                     try:
-                        rc = proc.wait(timeout=600)  # 10 minute timeout
+                        rc = proc.wait(timeout=timeout_seconds)
                     except subprocess.TimeoutExpired:
                         with contextlib.suppress(Exception):
                             proc.kill()
