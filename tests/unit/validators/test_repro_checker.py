@@ -231,8 +231,15 @@ class TestReproChecker:
             message="Test",
         )
 
-        def _fake_run_check(*args, **kwargs):  # type: ignore[no-untyped-def]
-            tool = args[1] if len(args) > 1 else kwargs.get("tool")
+        def _fake_run_check(
+            name: str,
+            tool: str,
+            command: list[str],
+            timeout: int | None,
+            skip_if_missing: bool,
+            env: dict[str, str] | None,
+        ) -> CheckResult:
+            _ = (command, timeout, skip_if_missing, env)
             if tool == "crosshair":
                 return CheckResult(
                     name="Contract exploration (CrossHair)",
@@ -240,7 +247,7 @@ class TestReproChecker:
                     status=CheckStatus.SKIPPED,
                     error="CrossHair side-effect detected",
                 )
-            return CheckResult(name=args[0], tool=tool, status=CheckStatus.PASSED, duration=0.1)
+            return CheckResult(name=name, tool=tool, status=CheckStatus.PASSED, duration=0.1)
 
         with (
             patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
