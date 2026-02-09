@@ -16,7 +16,9 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.quality import CodeQuality, QualityTracking
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils import print_error, print_success
@@ -26,6 +28,11 @@ from specfact_cli.utils.structure import SpecFactStructure
 
 app = typer.Typer(help="Analyze codebase for contract coverage and quality")
 console = Console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 @app.command("contracts")

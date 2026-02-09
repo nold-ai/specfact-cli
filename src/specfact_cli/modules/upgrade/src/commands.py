@@ -21,6 +21,8 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 
 from specfact_cli import __version__
+from specfact_cli.contracts.module_interface import ModuleIOContract
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils.metadata import update_metadata
 from specfact_cli.utils.startup_checks import check_pypi_version
@@ -31,6 +33,11 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 console = Console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 class InstallationMethod(NamedTuple):

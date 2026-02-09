@@ -226,3 +226,22 @@ def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, ca
     module_packages_impl.register_module_package_commands()
 
     assert "Module backlog: ModuleIOContract partial (import)" in caplog.text
+
+
+def test_all_builtin_modules_expose_module_io_contract_operations() -> None:
+    """Built-in modules should not remain legacy in protocol compliance classification."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    legacy_modules: list[str] = []
+    for package_dir, meta in module_packages_impl.discover_package_metadata(module_packages_impl.get_modules_root()):
+        try:
+            module_obj = module_packages_impl._load_package_module(package_dir, meta.name)
+            protocol_target = module_packages_impl._resolve_protocol_target(module_obj, meta.name)
+            operations = module_packages_impl._check_protocol_compliance(protocol_target)
+        except Exception as exc:  # pragma: no cover - diagnostic path for unexpected import/runtime errors
+            legacy_modules.append(f"{meta.name} ({exc})")
+            continue
+        if not operations:
+            legacy_modules.append(meta.name)
+
+    assert not legacy_modules, f"Modules still legacy: {', '.join(sorted(legacy_modules))}"

@@ -12,6 +12,8 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console
 from specfact_cli.utils.auth_tokens import (
     clear_all_tokens,
@@ -24,6 +26,11 @@ from specfact_cli.utils.auth_tokens import (
 
 app = typer.Typer(help="Authenticate with DevOps providers using device code flows")
 console = get_configured_console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798/.default"

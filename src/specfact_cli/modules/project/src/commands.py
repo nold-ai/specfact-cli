@@ -19,6 +19,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.project import (
     BundleManifest,
     PersonaMapping,
@@ -26,6 +27,7 @@ from specfact_cli.models.project import (
     ProjectMetadata,
     SectionLock,
 )
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_section, print_success, print_warning
 from specfact_cli.utils.persona_ownership import (
@@ -41,6 +43,11 @@ app = typer.Typer(help="Manage project bundles with persona workflows")
 version_app = typer.Typer(help="Manage project bundle versions")
 app.add_typer(version_app, name="version")
 console = Console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 # Use shared progress utilities for consistency (aliased to maintain existing function names)
