@@ -50,6 +50,16 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
+      - name: Cache hatch environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/hatch
+            ~/.cache/uv
+          key: ${{ runner.os }}-hatch-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hatch-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -58,8 +68,7 @@ jobs:
       - name: Install SpecFact CLI
         run: |
           echo "📦 Installing SpecFact CLI..."
-          hatch env create || true
-          pip install -e .
+          HATCH_VERBOSE=1 hatch env create
 
       - name: Enforce Core-Module Isolation
         run: |
