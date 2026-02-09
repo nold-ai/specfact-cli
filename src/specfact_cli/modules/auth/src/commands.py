@@ -1,4 +1,7 @@
-"""Authentication commands for DevOps providers."""
+"""Authentication commands for DevOps providers.
+
+CrossHair: skip (OAuth device flow performs network I/O and time-based polling)
+"""
 
 from __future__ import annotations
 
@@ -99,6 +102,10 @@ def _normalize_scopes(scopes: str) -> str:
 @beartype
 @require(lambda client_id: isinstance(client_id, str) and len(client_id) > 0, "Client ID required")
 @require(lambda base_url: isinstance(base_url, str) and len(base_url) > 0, "Base URL required")
+@require(
+    lambda base_url: base_url.startswith(("https://", "http://")),
+    "Base URL must include http(s) scheme",
+)
 @require(lambda scopes: isinstance(scopes, str), "Scopes must be string")
 @ensure(lambda result: isinstance(result, dict), "Must return device code response")
 def _request_github_device_code(client_id: str, base_url: str, scopes: str) -> dict[str, Any]:
@@ -114,6 +121,10 @@ def _request_github_device_code(client_id: str, base_url: str, scopes: str) -> d
 @beartype
 @require(lambda client_id: isinstance(client_id, str) and len(client_id) > 0, "Client ID required")
 @require(lambda base_url: isinstance(base_url, str) and len(base_url) > 0, "Base URL required")
+@require(
+    lambda base_url: base_url.startswith(("https://", "http://")),
+    "Base URL must include http(s) scheme",
+)
 @require(lambda device_code: isinstance(device_code, str) and len(device_code) > 0, "Device code required")
 @require(lambda interval: isinstance(interval, int) and interval > 0, "Interval must be positive int")
 @require(lambda expires_in: isinstance(expires_in, int) and expires_in > 0, "Expires_in must be positive int")

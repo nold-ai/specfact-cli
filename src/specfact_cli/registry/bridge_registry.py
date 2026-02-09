@@ -1,4 +1,7 @@
-"""Bridge registry for service schema converters."""
+"""Bridge registry for service schema converters.
+
+CrossHair: skip (missing-lookup behavior intentionally raises LookupError by design)
+"""
 
 from __future__ import annotations
 

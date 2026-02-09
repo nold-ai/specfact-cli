@@ -3,6 +3,8 @@ Module packages: discover packages under modules root and register with CommandR
 
 Each package has module-package.yaml (name, version, commands), src/, optional resources/ and tests/.
 Only enabled modules (from modules.json) are registered.
+
+CrossHair: skip (dynamic imports and module loading are intentionally side-effectful)
 """
 
 from __future__ import annotations

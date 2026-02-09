@@ -3,6 +3,8 @@ Upgrade command for SpecFact CLI.
 
 This module provides the `specfact upgrade` command for checking and installing
 CLI updates from PyPI.
+
+CrossHair: skip (subprocess-based installation checks are intentionally side-effectful)
 """
 
 from __future__ import annotations

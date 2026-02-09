@@ -1,5 +1,7 @@
 """
 Logging utility for standardized log setup across all modules
+
+CrossHair: skip (logging internals and logger object realization are not symbolic-safe)
 """
 
 import atexit
