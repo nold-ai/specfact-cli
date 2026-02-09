@@ -198,3 +198,30 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
 
     lines = [line for line in caplog.text.splitlines() if "Module legacy: No ModuleIOContract (legacy mode)" in line]
     assert len(lines) == 1
+
+
+def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, caplog, tmp_path: Path) -> None:
+    """When app module has no runtime interface, commands module import should be used."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    class _CommandsModule:
+        def import_to_bundle(self, source, config):  # type: ignore[no-untyped-def]
+            return None
+
+    caplog.set_level(logging.INFO)
+    test_logger = logging.getLogger("test.protocol.commands-fallback")
+    test_logger.handlers = []
+    test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
+    monkeypatch.setattr(
+        module_packages_impl,
+        "discover_package_metadata",
+        lambda _root: [(tmp_path / "backlog", ModulePackageMetadata(name="backlog", commands=[]))],
+    )
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", lambda: {})
+    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: object())
+    monkeypatch.setattr(module_packages_impl.importlib, "import_module", lambda _path: _CommandsModule())
+
+    module_packages_impl.register_module_package_commands()
+
+    assert "Module backlog: ModuleIOContract partial (import)" in caplog.text

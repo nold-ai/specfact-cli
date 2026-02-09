@@ -355,8 +355,9 @@ def _check_protocol_compliance(module_class: Any) -> list[str]:
 
 
 @beartype
+@require(lambda package_name: package_name.strip() != "", "Package name must not be empty")
 @ensure(lambda result: result is not None, "Protocol inspection target must be resolved")
-def _resolve_protocol_target(module_obj: Any) -> Any:
+def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
     """Resolve runtime interface used for protocol inspection."""
     runtime_interface = getattr(module_obj, "runtime_interface", None)
     if runtime_interface is not None:
@@ -364,6 +365,12 @@ def _resolve_protocol_target(module_obj: Any) -> Any:
     commands_interface = getattr(module_obj, "commands", None)
     if commands_interface is not None:
         return commands_interface
+    # Module app entrypoints often only expose `app`; load module-local commands for protocol detection.
+    try:
+        commands_module = importlib.import_module(f"specfact_cli.modules.{package_name}.src.commands")
+        return commands_module
+    except Exception:
+        pass
     return module_obj
 
 
@@ -482,7 +489,7 @@ def register_module_package_commands(
 
         try:
             module_obj = _load_package_module(package_dir, meta.name)
-            protocol_target = _resolve_protocol_target(module_obj)
+            protocol_target = _resolve_protocol_target(module_obj, meta.name)
             operations = _check_protocol_compliance(protocol_target)  # type: ignore[arg-type]
             meta.protocol_operations = operations
             if len(operations) == 4:
