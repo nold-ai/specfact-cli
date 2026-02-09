@@ -144,10 +144,29 @@ jobs:
           HATCH_TEST_ENV: "py3.12"
         run: |
           echo "🧪 Running contract-first test suite (3.12)..."
-          echo "Contract validation..." && hatch run contract-test-contracts || echo "⚠️ Contract validation incomplete"
-          echo "Contract exploration..." && hatch run contract-test-exploration || echo "⚠️ Contract exploration incomplete"
-          echo "Scenario tests..." && hatch run contract-test-scenarios || echo "⚠️ Scenario tests incomplete"
-          echo "E2E tests..." && hatch run contract-test-e2e || echo "⚠️ E2E tests incomplete"
+          echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
+          run_layer() {
+            local label="$1"
+            shift
+            local start_ts
+            start_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            echo "▶️ [${start_ts}] Starting ${label}"
+            echo "   Command: $*"
+            if "$@"; then
+              local end_ts
+              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              echo "✅ [${end_ts}] ${label} completed"
+            else
+              local end_ts
+              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              echo "⚠️ [${end_ts}] ${label} incomplete"
+            fi
+          }
+
+          run_layer "Contract validation" hatch run contract-test-contracts
+          run_layer "Contract exploration" hatch run contract-test-exploration
+          run_layer "Scenario tests" hatch run contract-test-scenarios
+          run_layer "E2E tests" hatch run contract-test-e2e
 
       - name: Run unit tests with coverage (3.12)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'

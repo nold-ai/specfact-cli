@@ -28,6 +28,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -931,6 +932,9 @@ class SmartCoverageManager:
                 want_coverage = test_level in ["unit", "folder"]
                 if self.use_hatch:
                     hatch_cmd = self._build_hatch_test_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                    selected_env = self.hatch_test_env if self.hatch_test_env else "default hatch-test matrix/env"
+                    print(f"ℹ️  Using hatch for {test_level} tests (env selector: {selected_env})")
+                    print(f"ℹ️  Executing: {shlex.join(hatch_cmd)}")
                     rc, out, err = run_and_stream(hatch_cmd)
                     output_lines.extend(out)
                     # Only fall back to pytest if hatch failed to start or had a critical error
@@ -939,6 +943,7 @@ class SmartCoverageManager:
                         print("⚠️  Hatch test failed to start; falling back to pytest.")
                         log_file.write("Hatch test failed to start; falling back to pytest.\n")
                         pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                        print(f"ℹ️  Executing fallback: {shlex.join(pytest_cmd)}")
                         rc2, out2, _ = run_and_stream(pytest_cmd)
                         output_lines.extend(out2)
                         return_code = rc2 if rc2 is not None else 1
@@ -946,6 +951,7 @@ class SmartCoverageManager:
                         return_code = rc
                 else:
                     pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                    print(f"ℹ️  Hatch disabled; executing pytest directly: {shlex.join(pytest_cmd)}")
                     rc, out, _ = run_and_stream(pytest_cmd)
                     output_lines.extend(out)
                     return_code = rc if rc is not None else 1
