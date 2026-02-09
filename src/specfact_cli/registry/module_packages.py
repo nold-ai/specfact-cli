@@ -24,6 +24,8 @@ from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverte
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
+from specfact_cli.runtime import is_debug_mode
+from specfact_cli.utils.prompts import print_warning
 
 
 # Display order for core modules (formerly built-in); others follow alphabetically.
@@ -434,6 +436,8 @@ def register_module_package_commands(
     protocol_full = 0
     protocol_partial = 0
     protocol_legacy = 0
+    partial_modules: list[tuple[str, list[str]]] = []
+    legacy_modules: list[str] = []
     bridge_owner_map: dict[str, str] = {
         bridge_id: BRIDGE_REGISTRY.get_owner(bridge_id) or "unknown" for bridge_id in BRIDGE_REGISTRY.list_bridge_ids()
     }
@@ -497,16 +501,21 @@ def register_module_package_commands(
             operations = _check_protocol_compliance(protocol_target)  # type: ignore[arg-type]
             meta.protocol_operations = operations
             if len(operations) == 4:
-                logger.info("Module %s: ModuleIOContract fully implemented", meta.name)
                 protocol_full += 1
             elif operations:
-                logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+                partial_modules.append((meta.name, operations))
+                if is_debug_mode():
+                    logger.warning("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
                 protocol_partial += 1
             else:
-                logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
+                legacy_modules.append(meta.name)
+                if is_debug_mode():
+                    logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
                 protocol_legacy += 1
         except Exception as exc:
-            logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
+            legacy_modules.append(meta.name)
+            if is_debug_mode():
+                logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
             meta.protocol_operations = []
             protocol_legacy += 1
 
@@ -516,15 +525,26 @@ def register_module_package_commands(
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
     discovered_count = protocol_full + protocol_partial + protocol_legacy
-    if discovered_count:
-        logger.info(
-            "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
-            protocol_full + protocol_partial,
-            discovered_count,
-            protocol_full,
-            protocol_partial,
-            protocol_legacy,
+    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
+        print_warning(
+            "Module compatibility check: "
+            f"{protocol_full + protocol_partial}/{discovered_count} compliant "
+            f"(full={protocol_full}, partial={protocol_partial}, legacy={protocol_legacy})."
         )
+        if partial_modules:
+            partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
+            print_warning(f"Partially compliant modules: {partial_desc}")
+        if legacy_modules:
+            print_warning(f"Legacy modules: {', '.join(sorted(set(legacy_modules)))}")
+        if is_debug_mode():
+            logger.info(
+                "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
+                protocol_full + protocol_partial,
+                discovered_count,
+                protocol_full,
+                protocol_partial,
+                protocol_legacy,
+            )
     for module_id, reason in skipped:
         logger.debug("Skipped module '%s': %s", module_id, reason)
 

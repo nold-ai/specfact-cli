@@ -154,6 +154,7 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_runtime_interfac
     test_logger = logging.getLogger("test.protocol.reporting")
     test_logger.handlers = []
     test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
 
     metadata = [
@@ -186,6 +187,7 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
     test_logger = logging.getLogger("test.protocol.warning")
     test_logger.handlers = []
     test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
     monkeypatch.setattr(
         module_packages_impl,
@@ -213,6 +215,7 @@ def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, ca
     test_logger = logging.getLogger("test.protocol.commands-fallback")
     test_logger.handlers = []
     test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
     monkeypatch.setattr(
         module_packages_impl,
@@ -245,3 +248,71 @@ def test_all_builtin_modules_expose_module_io_contract_operations() -> None:
             legacy_modules.append(meta.name)
 
     assert not legacy_modules, f"Modules still legacy: {', '.join(sorted(legacy_modules))}"
+
+
+def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkeypatch, caplog, tmp_path: Path) -> None:
+    """No protocol warnings/summary should be emitted when all modules are fully compliant."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    class _RuntimeFull:
+        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
+            return None
+
+        def export_from_bundle(self, bundle: Any, target: Any, config: dict[str, Any]) -> None:
+            return None
+
+        def sync_with_bundle(self, source: Any, target: Any, config: dict[str, Any]) -> None:
+            return None
+
+        def validate_bundle(self, bundle: Any) -> list[str]:
+            return []
+
+    caplog.set_level(logging.INFO)
+    test_logger = logging.getLogger("test.protocol.quiet-full")
+    test_logger.handlers = []
+    test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: False)
+    monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
+    monkeypatch.setattr(
+        module_packages_impl,
+        "discover_package_metadata",
+        lambda _root: [
+            (tmp_path / "full-a", ModulePackageMetadata(name="full-a", commands=[])),
+            (tmp_path / "full-b", ModulePackageMetadata(name="full-b", commands=[])),
+        ],
+    )
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: SimpleNamespace())
+    monkeypatch.setattr(module_packages_impl, "_resolve_protocol_target", lambda *_args: _RuntimeFull())
+
+    module_packages_impl.register_module_package_commands()
+
+    assert "ModuleIOContract fully implemented" not in caplog.text
+    assert "Protocol-compliant:" not in caplog.text
+
+
+def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_modules(monkeypatch, tmp_path: Path) -> None:
+    """Non-compliant modules should emit concise user-facing warnings."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    class _RuntimePartial:
+        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
+            return None
+
+    shown_messages: list[str] = []
+
+    monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: False)
+    monkeypatch.setattr(module_packages_impl, "print_warning", shown_messages.append)
+    monkeypatch.setattr(
+        module_packages_impl,
+        "discover_package_metadata",
+        lambda _root: [(tmp_path / "partial-a", ModulePackageMetadata(name="partial-a", commands=[]))],
+    )
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: SimpleNamespace())
+    monkeypatch.setattr(module_packages_impl, "_resolve_protocol_target", lambda *_args: _RuntimePartial())
+
+    module_packages_impl.register_module_package_commands()
+
+    assert any("Module compatibility check:" in msg for msg in shown_messages)
+    assert any("Partially compliant modules:" in msg for msg in shown_messages)
