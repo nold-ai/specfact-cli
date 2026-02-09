@@ -18,12 +18,18 @@ All notable changes to this project will be documented in this file.
 - ProjectBundle schema versioning (`schema_version` field).
 - ValidationReport model for structured validation results.
 - Protocol compliance tracking in module metadata.
+- Bridge registry architecture (`arch-05-bridge-registry`) for module-declared service converters.
+- Backlog bridge converter modules for ADO, Jira, Linear, and GitHub with manifest-based registration.
+- Reference and guide docs for bridge registry and custom bridge creation.
 
 ### Changed (0.30.0)
 
 - Updated modules `backlog`, `sync`, `plan`, `generate`, and `enforce` to expose ModuleIOContract operations.
 - Added module contracts documentation and ProjectBundle schema reference docs.
+- Module lifecycle now parses and validates `service_bridges`, registers valid converters, and skips invalid declarations non-fatally.
+- Protocol compliance reporting now uses effective runtime interfaces and emits a single aggregate summary line for full/partial/legacy status.
 - Reference: `(fixes #206)`.
+- Reference: `(fixes #207)`.
 
 ---
 

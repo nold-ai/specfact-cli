@@ -6,13 +6,16 @@ Discovery finds packages with metadata.yaml; package loader loads only that pack
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.module_packages import (
+    ModulePackageMetadata,
     discover_package_metadata,
     get_modules_root,
     merge_module_state,
@@ -121,3 +124,77 @@ def test_registry_receives_example_command_when_registered():
         typer_app = CommandRegistry.get_typer("example")
         assert typer_app is not None
         assert typer_app.info.name == "example"
+
+
+def test_protocol_reporting_classifies_full_partial_legacy_from_runtime_interface(
+    monkeypatch, caplog, tmp_path: Path
+) -> None:
+    """Protocol summary should classify full/partial/legacy modules accurately."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    class _RuntimeFull:
+        def import_to_bundle(self, source, config):  # type: ignore[no-untyped-def]
+            return None
+
+        def export_from_bundle(self, bundle, target, config):  # type: ignore[no-untyped-def]
+            return None
+
+        def sync_with_bundle(self, source, target, config):  # type: ignore[no-untyped-def]
+            return None
+
+        def validate_bundle(self, bundle):  # type: ignore[no-untyped-def]
+            return []
+
+    class _RuntimePartial:
+        def import_to_bundle(self, source, config):  # type: ignore[no-untyped-def]
+            return None
+
+    caplog.set_level(logging.INFO)
+    test_logger = logging.getLogger("test.protocol.reporting")
+    test_logger.handlers = []
+    test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
+
+    metadata = [
+        (tmp_path / "full", ModulePackageMetadata(name="full", commands=[])),
+        (tmp_path / "partial", ModulePackageMetadata(name="partial", commands=[])),
+        (tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[])),
+    ]
+    monkeypatch.setattr(module_packages_impl, "discover_package_metadata", lambda _root: metadata)
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+
+    def _fake_loader(package_dir: Path, _package_name: str):
+        if package_dir.name == "full":
+            return SimpleNamespace(runtime_interface=_RuntimeFull())
+        if package_dir.name == "partial":
+            return SimpleNamespace(runtime_interface=_RuntimePartial())
+        return SimpleNamespace()
+
+    monkeypatch.setattr(module_packages_impl, "_load_package_module", _fake_loader)
+
+    module_packages_impl.register_module_package_commands()
+
+    assert "Full=1, Partial=1, Legacy=1" in caplog.text
+
+
+def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tmp_path: Path) -> None:
+    """Legacy warning should not be emitted more than once for a module condition."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    caplog.set_level(logging.WARNING)
+    test_logger = logging.getLogger("test.protocol.warning")
+    test_logger.handlers = []
+    test_logger.propagate = True
+    monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
+    monkeypatch.setattr(
+        module_packages_impl,
+        "discover_package_metadata",
+        lambda _root: [(tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[]))],
+    )
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: SimpleNamespace())
+
+    module_packages_impl.register_module_package_commands()
+
+    lines = [line for line in caplog.text.splitlines() if "Module legacy: No ModuleIOContract (legacy mode)" in line]
+    assert len(lines) == 1

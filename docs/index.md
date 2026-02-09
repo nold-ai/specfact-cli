@@ -125,8 +125,14 @@ specfact sync bridge --adapter ado --mode export-only \
 - **[Command Reference](reference/commands.md)** - Complete command documentation
 - **[Authentication](reference/authentication.md)** - Device code auth flows and token storage
 - **[Architecture](reference/architecture.md)** - Technical design and principles
+- **[Bridge Registry](reference/bridge-registry.md)** 🆕 - Module-declared bridge converters and lifecycle registration
 - **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
 - **[Directory Structure](reference/directory-structure.md)** - Project structure
+
+### Module Protocol Reporting
+
+- Lifecycle protocol compliance reporting now classifies modules using the effective runtime interface and
+  emits a single aggregate summary line for full/partial/legacy status.
 
 ### Examples
 

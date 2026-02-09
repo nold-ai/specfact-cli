@@ -57,5 +57,5 @@
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #207
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/207>
-- **Last Synced Status**: proposed
+- **Last Synced Status**: in-progress
 - **Sanitized**: false

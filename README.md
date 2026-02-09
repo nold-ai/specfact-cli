@@ -158,6 +158,8 @@ Contract-first module architecture highlights:
 - `ModuleIOContract` formalizes module IO operations (`import`, `export`, `sync`, `validate`) on `ProjectBundle`.
 - Core-module isolation is enforced by static analysis (`core` never imports `specfact_cli.modules.*` directly).
 - Registration tracks protocol operation coverage and schema compatibility metadata.
+- Bridge registry support allows module manifests to declare `service_bridges` converters (for example ADO/Jira/Linear/GitHub) loaded at lifecycle startup without direct core-to-module imports.
+- Protocol reporting classifies modules from effective runtime interfaces with a single aggregate summary (`Full/Partial/Legacy`).
 
 ---
 

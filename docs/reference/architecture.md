@@ -30,6 +30,17 @@ SpecFact CLI implements a **contract-driven development** framework through thre
 - [Use Cases](../guides/use-cases.md) - Real-world scenarios
 - [Workflows](../guides/workflows.md) - Common daily workflows
 - [Commands](commands.md) - Complete command reference
+- [Bridge Registry](bridge-registry.md) - Module-declared converter registration
+- [Creating Custom Bridges](../guides/creating-custom-bridges.md) - Custom converter patterns
+
+## Bridge Registry Integration
+
+`arch-05-bridge-registry` introduces module-declared service converters into lifecycle registration.
+
+- Modules declare `service_bridges` in `module-package.yaml`.
+- Lifecycle loads converter classes by dotted path and registers them in `BridgeRegistry`.
+- Invalid bridge declarations are non-fatal and skipped with warnings.
+- Protocol compliance reporting uses effective runtime interface detection and logs one aggregate summary line.
 
 ## Operational Modes
 
