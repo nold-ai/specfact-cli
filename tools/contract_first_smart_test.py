@@ -18,6 +18,7 @@ Usage:
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -107,6 +108,31 @@ class ContractFirstTestManager(SmartCoverageManager):
             cmd += ["--max_uninteresting_iterations", "1"]
         cmd.append(str(file_path))
         return cmd
+
+    def _format_display_path(self, file_path: Path) -> str:
+        """Format file path for user-facing output."""
+        try:
+            return str(file_path.relative_to(self.project_root))
+        except ValueError:
+            return str(file_path)
+
+    def _extract_signature_limitation_detail(self, stderr: str, stdout: str) -> str | None:
+        """Extract a concise signature-limitation detail from CrossHair output."""
+        combined_output = f"{stderr}\n{stdout}"
+        if not combined_output.strip():
+            return None
+
+        patterns = [
+            r"wrong parameter order[^\n]*",
+            r"keyword-only parameter[^\n]*",
+            r"valueerror:\s*wrong parameter[^\n]*",
+            r"signature[^\n]*(?:error|failure)[^\n]*",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, combined_output, re.IGNORECASE)
+            if match:
+                return match.group(0).strip()
+        return None
 
     def _check_contract_tools(self) -> dict[str, bool]:
         """Check if contract tools are available."""
@@ -267,8 +293,20 @@ class ContractFirstTestManager(SmartCoverageManager):
 
         exploration_cache: dict[str, Any] = self.contract_cache.setdefault("exploration_cache", {})
 
+        unique_files: list[Path] = []
+        seen_paths: set[str] = set()
         for file_path in modified_files:
-            print(f"   Exploring contracts in: {file_path.name}")
+            key = str(file_path.resolve())
+            if key in seen_paths:
+                continue
+            seen_paths.add(key)
+            unique_files.append(file_path)
+        if len(unique_files) < len(modified_files):
+            print(f"   ℹ️  De-duplicated {len(modified_files) - len(unique_files)} repeated file entries")
+
+        for file_path in unique_files:
+            display_path = self._format_display_path(file_path)
+            print(f"   Exploring contracts in: {display_path}")
 
             file_key = str(file_path)
             file_hash: str | None = None
@@ -293,7 +331,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                     and cache_entry.get("hash") == file_hash
                     and cache_entry.get("status") == "success"
                 ):
-                    print("      ⏭️  Cached result found, skipping CrossHair run")
+                    print(f"      ⏭️  Cached result found, skipping CrossHair run for {display_path}")
                     exploration_results[file_key] = {
                         "return_code": cache_entry.get("return_code", 0),
                         "stdout": cache_entry.get("stdout", ""),
@@ -331,15 +369,8 @@ class ContractFirstTestManager(SmartCoverageManager):
                 # - Typer decorators: signature transformation issues
                 # - Complex Path parameter handling: keyword-only parameter ordering
                 # - Function signatures with variadic arguments: wrong parameter order
-                stderr_lower = result.stderr.lower() if result.stderr else ""
-                stdout_lower = result.stdout.lower() if result.stdout else ""
-                combined_output = f"{stderr_lower} {stdout_lower}"
-                is_signature_issue = (
-                    "wrong parameter order" in combined_output
-                    or "keyword-only parameter" in combined_output
-                    or "valueerror: wrong parameter" in combined_output
-                    or ("signature" in combined_output and ("error" in combined_output or "failure" in combined_output))
-                )
+                signature_detail = self._extract_signature_limitation_detail(result.stderr, result.stdout)
+                is_signature_issue = signature_detail is not None
 
                 exploration_results[file_key] = {
                     "return_code": result.returncode,
@@ -355,8 +386,9 @@ class ContractFirstTestManager(SmartCoverageManager):
                 if is_signature_issue:
                     status = "skipped"
                     print(
-                        f"   ⚠️  CrossHair signature analysis limitation in {file_path.name} (non-blocking, runtime contracts valid)"
+                        f"   ⚠️  CrossHair signature analysis limitation in {display_path} (non-blocking, runtime contracts valid)"
                     )
+                    print(f"      ↳ {signature_detail}")
                     # Don't set success = False for signature issues
                 else:
                     status = "success" if result.returncode == 0 else "failure"
@@ -374,7 +406,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                 }
 
                 if result.returncode != 0 and not is_signature_issue:
-                    print(f"   ⚠️  CrossHair found issues in {file_path.name}")
+                    print(f"   ⚠️  CrossHair found issues in {display_path}")
                     if result.stdout.strip():
                         print("      ├─ stdout:")
                         for line in result.stdout.strip().splitlines():
@@ -392,11 +424,14 @@ class ContractFirstTestManager(SmartCoverageManager):
 
                     success = False
                 else:
-                    if timed_out:
-                        print(f"   ✅ CrossHair exploration passed for {file_path.name} (fast retry)")
+                    if is_signature_issue:
+                        mode_label = "fast" if use_fast else "standard"
+                        print(f"   ↷ CrossHair exploration skipped for {display_path} ({mode_label})")
+                    elif timed_out:
+                        print(f"   ✅ CrossHair exploration passed for {display_path} (fast retry)")
                     else:
                         mode_label = "fast" if use_fast else "standard"
-                        print(f"   ✅ CrossHair exploration passed for {file_path.name} ({mode_label})")
+                        print(f"   ✅ CrossHair exploration passed for {display_path} ({mode_label})")
 
             except subprocess.TimeoutExpired:
                 exploration_results[file_key] = {
