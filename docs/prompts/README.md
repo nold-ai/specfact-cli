@@ -13,7 +13,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 1. **Initialize IDE integration**:
 
    ```bash
-   specfact init --ide cursor
+   specfact init ide --ide cursor
    ```
 
 2. **Use slash commands in your IDE**:

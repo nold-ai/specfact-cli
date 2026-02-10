@@ -42,15 +42,15 @@ The CLI reorganization includes:
 **Before**:
 
 ```bash
-specfact import from-code --bundle legacy-api --repo .
-specfact plan compare --bundle legacy-api --output-format json --out report.json
-specfact enforce sdd legacy-api --no-interactive
+specfact generate contracts --base-path .
+specfact plan compare --bundle legacy-api --format json --out report.json
+specfact enforce sdd legacy-api --non-interactive
 ```
 
 **After**:
 
 ```bash
-specfact import from-code --bundle legacy-api --repo .
+specfact generate contracts --repo .
 specfact plan compare --bundle legacy-api --output-format json --out report.json
 specfact enforce sdd legacy-api --no-interactive
 ```
@@ -122,17 +122,15 @@ The new numbered commands follow natural workflow progression:
 **Before** (positional argument):
 
 ```bash
-specfact import from-code --bundle legacy-api --repo .
-specfact plan init --bundle legacy-api
-specfact plan review --bundle legacy-api
+specfact plan init legacy-api
+specfact plan review legacy-api
 ```
 
 **After** (named parameter):
 
 ```bash
-specfact import from-code --bundle legacy-api --repo .
-specfact plan init --bundle legacy-api
-specfact plan review --bundle legacy-api
+specfact plan init legacy-api
+specfact plan review legacy-api
 ```
 
 ### Path Resolution Changes
@@ -199,7 +197,7 @@ Example: 'specfact constitution bootstrap' → 'specfact sdd constitution bootst
 ### Brownfield Import Workflow
 
 ```bash
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 specfact sdd constitution bootstrap --repo .
 specfact sync bridge --adapter speckit
 ```
@@ -257,7 +255,7 @@ specfact sdd constitution bootstrap --repo .
 # subprocess.run(["specfact", "constitution", "bootstrap", "--repo", "."])
 
 # New
-subprocess.run(["specfact", "bridge", "constitution", "bootstrap", "--repo", "."])
+subprocess.run(["specfact", "sdd", "constitution", "bootstrap", "--repo", "."])
 ```
 
 ---
@@ -269,14 +267,26 @@ If you're using IDE slash commands, update your prompts:
 **Old**:
 
 ```bash
-/specfact-constitution-bootstrap --repo .
+/specfact-plan-init legacy-api
 ```
 
 **New**:
 
 ```bash
-/specfact.bridge.constitution.bootstrap --repo .
+/specfact.02-plan init legacy-api
 ```
+
+---
+
+## Module System Migration Note
+
+This CLI reorganization aligns with the module-first architecture:
+
+- Core runtime remains responsible for lifecycle, registry, and orchestration.
+- Feature command implementations belong in `src/specfact_cli/modules/<module>/src/commands.py`.
+- Legacy `src/specfact_cli/commands/*.py` files are compatibility shims only.
+
+When updating internal tooling or extensions, prefer module-local imports over shim imports.
 
 ---
 

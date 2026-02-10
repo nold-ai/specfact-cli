@@ -37,6 +37,17 @@ Core code must not import module code directly.
 
 Module discovery and loading are done through registry-driven lazy loading.
 
+## Migration and Compatibility
+
+During the migration from hard-wired command paths:
+
+- New feature logic belongs in `src/specfact_cli/modules/<module>/src/commands.py`.
+- Legacy files under `src/specfact_cli/commands/*.py` are shims for backward compatibility.
+- Only `app` re-export behavior is guaranteed from shim modules.
+- New code should import from module-local command paths, not shim paths.
+
+This enables module-level evolution while keeping core interfaces stable.
+
 ## Example Implementation
 
 ```python

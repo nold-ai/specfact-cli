@@ -28,8 +28,17 @@ All notable changes to this project will be documented in this file.
 - Added module contracts documentation and ProjectBundle schema reference docs.
 - Module lifecycle now parses and validates `service_bridges`, registers valid converters, and skips invalid declarations non-fatally.
 - Protocol compliance reporting now uses effective runtime interfaces and emits a single aggregate summary line for full/partial/legacy status.
+- Modernized module-system docs across README and docs hub pages to reflect module-first architecture, clear module boundaries, and migration guidance from legacy command coupling.
+- Standardized command examples for current CLI syntax (notably `specfact init ide` and positional bundle arguments for `plan init`, `import from-code`, and `plan review`).
+- Added `docs/reference/command-syntax-policy.md` and linked it from docs reference navigation for consistent command documentation going forward.
 - Reference: `(fixes #206)`.
 - Reference: `(fixes #207)`.
+
+### Fixed (0.30.0)
+
+- Fixed pytest reporting integration for smart-test and contract-test wrappers to emit concise failure/error/warning summaries via `-r fEw` without breaking Hatch argument parsing.
+- Updated CI (`.github/workflows/pr-orchestrator.yml`) to pass pytest report flags correctly through Hatch test invocations, improving copy-paste failure summaries in pipeline logs.
+- Fixed suite-mode model identity mismatches causing `beartype` return violations and nested Pydantic validation errors by normalizing model-like inputs and relaxing brittle class-identity checks in targeted loaders/constructors.
 
 ---
 

@@ -209,13 +209,13 @@ specfact repro --fix --budget 120
 
 ```bash
 # Initialize Cursor integration
-specfact init --ide cursor
+specfact init ide --ide cursor
 
 # Initialize VS Code integration
-specfact init --ide vscode
+specfact init ide --ide vscode
 
 # Force reinitialize
-specfact init --ide cursor --force
+specfact init ide --ide cursor --force
 
 ```
 

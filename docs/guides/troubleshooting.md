@@ -115,13 +115,13 @@ specfact plan select --last 5
 1. **Check repository path**:
 
    ```bash
-   specfact import from-code --bundle legacy-api --repo . --verbose
+   specfact import from-code legacy-api --repo . --verbose
    ```
 
 2. **Lower confidence threshold** (for legacy code with less structure):
 
    ```bash
-   specfact import from-code --bundle legacy-api --repo . --confidence 0.3
+   specfact import from-code legacy-api --repo . --confidence 0.3
    ```
 
 3. **Check file structure**:
@@ -133,13 +133,13 @@ specfact plan select --last 5
 4. **Use CoPilot mode** (recommended for brownfield - better semantic understanding):
 
    ```bash
-   specfact --mode copilot import from-code --bundle legacy-api --repo . --confidence 0.7
+   specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
    ```
 
 5. **For legacy codebases**, start with minimal confidence and review extracted features:
 
    ```bash
-   specfact import from-code --bundle legacy-api --repo . --confidence 0.2
+   specfact import from-code legacy-api --repo . --confidence 0.2
    ```
 
 ---
@@ -254,7 +254,7 @@ specfact plan select --last 5
 2. **Adjust confidence threshold**:
 
    ```bash
-   specfact import from-code --bundle legacy-api --repo . --confidence 0.7
+   specfact import from-code legacy-api --repo . --confidence 0.7
    ```
 
 3. **Check enforcement rules** (use CLI commands):
@@ -374,7 +374,7 @@ specfact plan select --last 5
 3. **Generate auto-derived plan first**:
 
    ```bash
-   specfact import from-code --bundle legacy-api --repo .
+   specfact import from-code legacy-api --repo .
    ```
 
 ### No Deviations Found (Expected Some)
@@ -412,9 +412,9 @@ specfact plan select --last 5
 
 1. **Reinitialize IDE integration**:
 
-   ```bash
-   specfact init --ide cursor --force
-   ```
+```bash
+   specfact init ide --ide cursor --force
+```
 
 2. **Check command files**:
 
@@ -443,16 +443,16 @@ specfact plan select --last 5
 
 2. **Use force flag**:
 
-   ```bash
-   specfact init --ide cursor --force
-   ```
+```bash
+   specfact init ide --ide cursor --force
+```
 
 3. **Check IDE type**:
 
-   ```bash
-   specfact init --ide cursor  # For Cursor
-   specfact init --ide vscode  # For VS Code
-   ```
+```bash
+   specfact init ide --ide cursor  # For Cursor
+   specfact init ide --ide vscode  # For VS Code
+```
 
 ---
 
@@ -481,7 +481,7 @@ specfact plan select --last 5
 
    ```bash
    export SPECFACT_MODE=copilot
-   specfact import from-code --bundle legacy-api --repo .
+   specfact import from-code legacy-api --repo .
    ```
 
 4. **See [Operational Modes](../reference/modes.md)** for details
@@ -505,14 +505,14 @@ specfact plan select --last 5
 2. **Increase confidence threshold** (fewer features):
 
    ```bash
-   specfact import from-code --bundle legacy-api --repo . --confidence 0.8
+   specfact import from-code legacy-api --repo . --confidence 0.8
    ```
 
 3. **Exclude directories**:
 
    ```bash
    # Use .gitignore or exclude patterns
-   specfact import from-code --bundle legacy-api --repo . --exclude "tests/"
+   specfact import from-code legacy-api --repo . --exclude "tests/"
    ```
 
 ### Watch Mode High CPU

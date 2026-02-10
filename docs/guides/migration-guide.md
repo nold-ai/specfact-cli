@@ -122,7 +122,7 @@ Start: What do you need to migrate?
 specfact project export --bundle old-bundle --persona <persona>
 
 # Create new bundle
-specfact plan init --bundle new-bundle
+specfact plan init new-bundle
 
 # Import to new bundle (manual editing may be required)
 specfact project import --bundle new-bundle --persona <persona> --source exported.md
@@ -188,7 +188,7 @@ specfact plan select --last 5
 specfact import from-bridge --repo . --adapter speckit --write
 
 # 2. Review imported plan
-specfact plan review --bundle <bundle-name>
+specfact plan review <bundle-name>
 
 # 3. Set up bidirectional sync (optional)
 specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch

@@ -11,6 +11,14 @@ Choose your preferred installation method:
 
 ## Quick Start
 
+### Module System Note
+
+SpecFact runs on a lifecycle-managed module system.
+
+- Core runtime manages lifecycle, registry, contracts, and orchestration.
+- Feature behavior is implemented in module-local command implementations.
+- This allows feature modules to evolve independently without repeatedly rewiring CLI core logic.
+
 ### Your First Command
 
 **For Legacy Code Modernization** (Recommended):

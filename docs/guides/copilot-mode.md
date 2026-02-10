@@ -28,10 +28,10 @@ Mode is auto-detected based on environment, or you can explicitly set it with `-
 
 ```bash
 # Explicitly enable CoPilot mode
-specfact --mode copilot import from-code --bundle legacy-api --repo . --confidence 0.7
+specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
 
 # Mode is auto-detected based on environment (IDE integration, CoPilot API availability)
-specfact import from-code --bundle legacy-api --repo . --confidence 0.7  # Auto-detects CoPilot if available
+specfact import from-code legacy-api --repo . --confidence 0.7  # Auto-detects CoPilot if available
 ```
 
 ### What You Get with CoPilot Mode

@@ -53,14 +53,14 @@ cd /path/to/your/project
 specfact init
 
 # Or specify IDE explicitly
-specfact init --ide cursor
-specfact init --ide vscode
+specfact init ide --ide cursor
+specfact init ide --ide vscode
 
 # Install required packages for contract enhancement
 specfact init --install-deps
 
 # Initialize for specific IDE and install dependencies
-specfact init --ide cursor --install-deps
+specfact init ide --ide cursor --install-deps
 ```
 
 **Note**: Interactive mode requires Python 3.11+ and automatically uses your IDE workspace (no `--repo .` needed in slash commands).
@@ -196,7 +196,7 @@ cd /path/to/your/project
 
 # Step 3: Initialize IDE integration (one-time per project)
 specfact init
-# Or specify IDE: specfact init --ide cursor
+# Or specify IDE: specfact init ide --ide cursor
 
 # Step 4: Use slash command in IDE chat
 /specfact.02-plan init legacy-api
@@ -260,7 +260,7 @@ cd /path/to/your/project
 
 # Step 3: Initialize IDE integration (one-time per project)
 specfact init
-# Or specify IDE: specfact init --ide cursor
+# Or specify IDE: specfact init ide --ide cursor
 
 # Step 4: Use slash command in IDE chat
 /specfact.01-import legacy-api

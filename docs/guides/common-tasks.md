@@ -29,7 +29,7 @@ This guide maps common user goals to recommended SpecFact CLI commands or comman
 **Quick Example**:
 
 ```bash
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md)
@@ -45,7 +45,7 @@ specfact import from-code --bundle legacy-api --repo .
 **Quick Example**:
 
 ```bash
-specfact plan init --bundle new-feature --interactive
+specfact plan init new-feature --interactive
 specfact plan add-feature --bundle new-feature --name "User Authentication"
 specfact plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
 ```
@@ -80,7 +80,7 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --
 **Quick Example**:
 
 ```bash
-specfact import from-code --bundle legacy-api --repo ./legacy-app
+specfact import from-code legacy-api --repo ./legacy-app
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md#step-1-understand-what-you-have)
@@ -94,7 +94,7 @@ specfact import from-code --bundle legacy-api --repo ./legacy-app
 **Quick Example**:
 
 ```bash
-specfact plan review --bundle legacy-api
+specfact plan review legacy-api
 specfact plan update-feature --bundle legacy-api --feature <feature-id>
 ```
 
@@ -111,7 +111,7 @@ specfact plan update-feature --bundle legacy-api --feature <feature-id>
 **Quick Example**:
 
 ```bash
-specfact import from-code --bundle current-state --repo .
+specfact import from-code current-state --repo .
 specfact plan compare --bundle <plan-bundle> --code-vs-plan
 specfact drift detect --bundle <bundle-name>
 ```
@@ -278,7 +278,7 @@ specfact project version bump --bundle <bundle-name> --type minor
 **Quick Example**:
 
 ```bash
-specfact plan review --bundle <bundle-name>
+specfact plan review <bundle-name>
 specfact enforce sdd --bundle <bundle-name>
 specfact plan promote --bundle <bundle-name> --stage approved
 ```
@@ -358,7 +358,7 @@ specfact generate fix-prompt --bundle <bundle-name> --gap <gap-id>
 **Quick Example**:
 
 ```bash
-specfact init --ide cursor
+specfact init ide --ide cursor
 ```
 
 **Detailed Guide**: [AI IDE Workflow](ai-ide-workflow.md) | [IDE Integration](ide-integration.md)
@@ -613,7 +613,7 @@ specfact --version
 specfact repro --verbose
 
 # Check plan for issues
-specfact plan review --bundle <bundle-name>
+specfact plan review <bundle-name>
 ```
 
 **Detailed Guide**: [Troubleshooting](troubleshooting.md)
