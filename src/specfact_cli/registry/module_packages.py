@@ -59,6 +59,7 @@ PROTOCOL_METHODS: dict[str, str] = {
     "sync": "sync_with_bundle",
     "validate": "validate_bundle",
 }
+PROTOCOL_INTERFACE_BINDINGS: tuple[str, ...] = ("runtime_interface", "commands_interface", "commands")
 BRIDGE_REGISTRY = BridgeRegistry()
 
 
@@ -403,18 +404,46 @@ def _check_protocol_compliance_from_source(package_dir: Path, package_name: str)
     tree = ast.parse(source, filename=str(source_path))
 
     exported_function_names: set[str] = set()
+    class_method_names: dict[str, set[str]] = {}
+    assigned_names: dict[str, ast.expr] = {}
+
     for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            methods: set[str] = set()
+            for class_node in node.body:
+                if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    methods.add(class_node.name)
+            class_method_names[node.name] = methods
+            continue
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             exported_function_names.add(node.name)
             continue
-        if not isinstance(node, ast.Assign):
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+            value = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            targets = [node.target]
+            value = node.value
+        else:
             continue
-        for target in node.targets:
+        for target in targets:
             if not isinstance(target, ast.Name):
                 continue
-            value = node.value
+            assigned_names[target.id] = value
             if isinstance(value, (ast.Attribute, ast.Name)):
                 exported_function_names.add(target.id)
+
+    for binding_name in PROTOCOL_INTERFACE_BINDINGS:
+        binding_value = assigned_names.get(binding_name)
+        if binding_value is None:
+            continue
+        if isinstance(binding_value, ast.Name):
+            exported_function_names.update(class_method_names.get(binding_value.id, set()))
+            referenced_value = assigned_names.get(binding_value.id)
+            if isinstance(referenced_value, ast.Call) and isinstance(referenced_value.func, ast.Name):
+                exported_function_names.update(class_method_names.get(referenced_value.func.id, set()))
+        elif isinstance(binding_value, ast.Call) and isinstance(binding_value.func, ast.Name):
+            exported_function_names.update(class_method_names.get(binding_value.func.id, set()))
 
     operations: list[str] = []
     for operation, method_name in PROTOCOL_METHODS.items():

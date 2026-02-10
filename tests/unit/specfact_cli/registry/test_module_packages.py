@@ -275,3 +275,56 @@ def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_module
 
     assert any("Module compatibility check:" in msg for msg in shown_messages)
     assert any("Partially compliant modules:" in msg for msg in shown_messages)
+
+
+def test_protocol_source_scan_detects_runtime_interface_class_instance(tmp_path: Path) -> None:
+    """Static scan should detect protocol operations exposed via runtime_interface object."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "sample"
+    src_dir = package_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "sample.py").write_text(
+        """
+class RuntimeInterface:
+    def import_to_bundle(self, source, config):
+        return source
+
+    def export_from_bundle(self, bundle, target, config):
+        return target
+
+runtime_interface = RuntimeInterface()
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
+    assert sorted(operations) == ["export", "import"]
+
+
+def test_protocol_source_scan_detects_runtime_interface_assigned_via_name(tmp_path: Path) -> None:
+    """Static scan should detect protocol operations when runtime_interface references a named instance."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "sample"
+    src_dir = package_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "sample.py").write_text(
+        """
+class RuntimeImpl:
+    def import_to_bundle(self, source, config):
+        return source
+
+    def sync_with_bundle(self, bundle, external_source, config):
+        return bundle
+
+interface_impl = RuntimeImpl()
+runtime_interface = interface_impl
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
+    assert sorted(operations) == ["import", "sync"]
