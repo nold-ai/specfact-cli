@@ -57,6 +57,18 @@ def _refresh_console() -> Console:
     return console
 
 
+@app.callback()
+def _project_callback() -> None:
+    """Ensure project command group always uses a fresh console for current process streams."""
+    _refresh_console()
+
+
+@version_app.callback()
+def _project_version_callback() -> None:
+    """Ensure project version subcommands also refresh console when invoked directly."""
+    _refresh_console()
+
+
 # Use shared progress utilities for consistency (aliased to maintain existing function names)
 def _load_bundle_with_progress(bundle_dir: Path, validate_hashes: bool = False) -> ProjectBundle:
     """Load project bundle with unified progress display."""

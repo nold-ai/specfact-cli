@@ -384,54 +384,62 @@ def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
     return module_obj
 
 
-def _resolve_protocol_source_path(package_dir: Path, package_name: str) -> Path:
-    """Resolve a source file path for protocol compliance inspection without importing module code."""
+def _resolve_protocol_source_paths(package_dir: Path, package_name: str) -> list[Path]:
+    """Resolve source file paths for protocol compliance inspection without importing module code."""
     candidates = [
         package_dir / "src" / "commands.py",
         package_dir / "src" / package_name / "commands.py",
+        _resolve_package_load_path(package_dir, package_name),
     ]
+    unique_paths: list[Path] = []
+    seen: set[Path] = set()
     for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return _resolve_package_load_path(package_dir, package_name)
+        if not candidate.exists():
+            continue
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique_paths.append(candidate)
+    return unique_paths
 
 
 @beartype
 def _check_protocol_compliance_from_source(package_dir: Path, package_name: str) -> list[str]:
     """Inspect protocol operations from source text to keep module registration lazy."""
-    source_path = _resolve_protocol_source_path(package_dir, package_name)
-    source = source_path.read_text(encoding="utf-8")
-    tree = ast.parse(source, filename=str(source_path))
-
     exported_function_names: set[str] = set()
     class_method_names: dict[str, set[str]] = {}
     assigned_names: dict[str, ast.expr] = {}
 
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef):
-            methods: set[str] = set()
-            for class_node in node.body:
-                if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    methods.add(class_node.name)
-            class_method_names[node.name] = methods
-            continue
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            exported_function_names.add(node.name)
-            continue
-        if isinstance(node, ast.Assign):
-            targets = node.targets
-            value = node.value
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            targets = [node.target]
-            value = node.value
-        else:
-            continue
-        for target in targets:
-            if not isinstance(target, ast.Name):
+    for source_path in _resolve_protocol_source_paths(package_dir, package_name):
+        source = source_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(source_path))
+
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                methods: set[str] = set()
+                for class_node in node.body:
+                    if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        methods.add(class_node.name)
+                class_method_names[node.name] = methods
                 continue
-            assigned_names[target.id] = value
-            if isinstance(value, (ast.Attribute, ast.Name)):
-                exported_function_names.add(target.id)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                exported_function_names.add(node.name)
+                continue
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+                value = node.value
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                targets = [node.target]
+                value = node.value
+            else:
+                continue
+            for target in targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                assigned_names[target.id] = value
+                if isinstance(value, (ast.Attribute, ast.Name)):
+                    exported_function_names.add(target.id)
 
     for binding_name in PROTOCOL_INTERFACE_BINDINGS:
         binding_value = assigned_names.get(binding_name)

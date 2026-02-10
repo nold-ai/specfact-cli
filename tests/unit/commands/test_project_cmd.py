@@ -1,10 +1,12 @@
 """Unit tests for project commands."""
 
+import io
 import os
 from pathlib import Path
 
 import pytest
 import yaml
+from rich.console import Console
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -407,6 +409,32 @@ class TestProjectLocks:
         assert result.exit_code == 0
         # Check if locks were listed (either shows locks or "No locks found")
         assert "Section" in result.stdout or "No locks found" in result.stdout or "idea" in result.stdout
+
+    def test_list_locks_refreshes_console_when_module_console_is_closed(self, sample_bundle: tuple[Path, str]) -> None:
+        """Project command callback should refresh stale/closed module console streams."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        closed_stream = io.StringIO()
+        closed_stream.close()
+        project_commands.console = Console(file=closed_stream)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "locks",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0
 
 
 class TestProjectInitPersonas:

@@ -328,3 +328,37 @@ runtime_interface = interface_impl
 
     operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
     assert sorted(operations) == ["import", "sync"]
+
+
+def test_protocol_source_scan_detects_runtime_interface_from_app_py_when_commands_exists(tmp_path: Path) -> None:
+    """Static scan should also inspect app entrypoint when commands.py exists."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "sample"
+    src_dir = package_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "commands.py").write_text(
+        """
+def unrelated():
+    return None
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (src_dir / "app.py").write_text(
+        """
+class RuntimeInterface:
+    def import_to_bundle(self, source, config):
+        return source
+
+    def validate_bundle(self, bundle, rules):
+        return []
+
+runtime_interface = RuntimeInterface()
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
+    assert sorted(operations) == ["import", "validate"]
