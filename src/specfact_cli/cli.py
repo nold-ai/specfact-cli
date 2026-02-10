@@ -535,6 +535,23 @@ def cli_main() -> None:
     # Normalize shell names in argv for Typer's built-in completion commands
     normalize_shell_in_argv()
 
+    # Initialize debug mode early so --debug works even for eager flags like --help/--version.
+    debug_requested = "--debug" in sys.argv[1:]
+    if debug_requested:
+        set_debug_mode(True)
+        init_debug_log_file()
+        debug_log_path = runtime.get_debug_log_path()
+        if debug_log_path:
+            sys.stderr.write(f"[debug] log file: {debug_log_path}\n")
+        else:
+            sys.stderr.write("[debug] log file unavailable (no writable debug log path)\n")
+        runtime.debug_log_operation(
+            "cli_start",
+            "specfact",
+            "started",
+            extra={"argv": sys.argv[1:], "pid": os.getpid()},
+        )
+
     # Check if --banner flag is present (before Typer processes it)
     banner_requested = "--banner" in sys.argv
 

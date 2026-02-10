@@ -40,7 +40,7 @@ specfact import from-code \
   --repo . \
   --entry-point src/core \
   --confidence 0.7 \
-  --name core-module \
+  --bundle core-module \
   --report analysis-core.md
 
 # CoPilot mode (enhanced prompts, interactive)
@@ -54,7 +54,7 @@ specfact --mode copilot import from-code \
 
 ```bash
 # First, initialize IDE integration
-specfact init --ide cursor
+specfact init ide --ide cursor
 
 # Then use slash command in IDE chat
 /specfact.01-import legacy-api --repo . --confidence 0.7

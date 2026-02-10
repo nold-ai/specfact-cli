@@ -22,6 +22,7 @@ from rich.console import Console
 from specfact_cli.common.logger_setup import (
     LoggerSetup,
     format_debug_log_message,
+    get_runtime_logs_dir,
     get_specfact_home_logs_dir,
 )
 from specfact_cli.modes import OperationalMode
@@ -48,6 +49,7 @@ _non_interactive_override: bool | None = None
 _debug_mode: bool = False
 _console_cache: dict[TerminalMode, Console] = {}
 _debug_logger: logging.Logger | None = None
+_debug_log_path: str | None = None
 
 
 @beartype
@@ -211,27 +213,37 @@ def _get_debug_caller() -> str:
 def _ensure_debug_log_file() -> None:
     """Initialize debug log file under ~/.specfact/logs when debug is on (lazy, once per run)."""
     global _debug_logger
+    global _debug_log_path
     if _debug_logger is not None:
         return
-    try:
-        logs_dir = get_specfact_home_logs_dir()
-        log_path = os.path.join(logs_dir, "specfact-debug.log")
-        handler = RotatingFileHandler(
-            log_path,
-            maxBytes=5 * 1024 * 1024,
-            backupCount=5,
-            mode="a",
-            encoding="utf-8",
-        )
-        handler.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter(DEBUG_LOG_FORMAT, datefmt=DEBUG_LOG_DATEFMT))
-        _debug_logger = logging.getLogger("specfact.debug")
-        _debug_logger.setLevel(logging.DEBUG)
-        _debug_logger.propagate = False
-        _debug_logger.handlers.clear()
-        _debug_logger.addHandler(handler)
-    except (OSError, PermissionError):
-        _debug_logger = None
+    candidate_paths: list[str] = []
+    candidate_paths.append(os.path.join(get_specfact_home_logs_dir(), "specfact-debug.log"))
+    candidate_paths.append(os.path.join(get_runtime_logs_dir(), "specfact-debug.log"))
+
+    for log_path in candidate_paths:
+        try:
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            handler = RotatingFileHandler(
+                log_path,
+                maxBytes=5 * 1024 * 1024,
+                backupCount=5,
+                mode="a",
+                encoding="utf-8",
+            )
+            handler.setLevel(logging.DEBUG)
+            handler.setFormatter(logging.Formatter(DEBUG_LOG_FORMAT, datefmt=DEBUG_LOG_DATEFMT))
+            _debug_logger = logging.getLogger("specfact.debug")
+            _debug_logger.setLevel(logging.DEBUG)
+            _debug_logger.propagate = False
+            _debug_logger.handlers.clear()
+            _debug_logger.addHandler(handler)
+            _debug_log_path = os.path.abspath(log_path)
+            return
+        except (OSError, PermissionError):
+            continue
+
+    _debug_logger = None
+    _debug_log_path = None
 
 
 @beartype
@@ -244,6 +256,12 @@ def init_debug_log_file() -> None:
     """
     if _debug_mode:
         _ensure_debug_log_file()
+
+
+@beartype
+def get_debug_log_path() -> str | None:
+    """Return active debug log file path if initialized, else None."""
+    return _debug_log_path
 
 
 def _append_debug_log(*args: Any, **kwargs: Any) -> None:

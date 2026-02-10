@@ -9,6 +9,39 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.30.0] - 2026-02-08
+
+### Added (0.30.0)
+
+- ModuleIOContract protocol for formal module interfaces.
+- Static analysis enforcement of core-module isolation.
+- ProjectBundle schema versioning (`schema_version` field).
+- ValidationReport model for structured validation results.
+- Protocol compliance tracking in module metadata.
+- Bridge registry architecture (`arch-05-bridge-registry`) for module-declared service converters.
+- Backlog bridge converter modules for ADO, Jira, Linear, and GitHub with manifest-based registration.
+- Reference and guide docs for bridge registry and custom bridge creation.
+
+### Changed (0.30.0)
+
+- Updated modules `backlog`, `sync`, `plan`, `generate`, and `enforce` to expose ModuleIOContract operations.
+- Added module contracts documentation and ProjectBundle schema reference docs.
+- Module lifecycle now parses and validates `service_bridges`, registers valid converters, and skips invalid declarations non-fatally.
+- Protocol compliance reporting now uses effective runtime interfaces and emits a single aggregate summary line for full/partial/legacy status.
+- Modernized module-system docs across README and docs hub pages to reflect module-first architecture, clear module boundaries, and migration guidance from legacy command coupling.
+- Standardized command examples for current CLI syntax (notably `specfact init ide` and positional bundle arguments for `plan init`, `import from-code`, and `plan review`).
+- Added `docs/reference/command-syntax-policy.md` and linked it from docs reference navigation for consistent command documentation going forward.
+- Reference: `(fixes #206)`.
+- Reference: `(fixes #207)`.
+
+### Fixed (0.30.0)
+
+- Fixed pytest reporting integration for smart-test and contract-test wrappers to emit concise failure/error/warning summaries via `-r fEw` without breaking Hatch argument parsing.
+- Updated CI (`.github/workflows/pr-orchestrator.yml`) to pass pytest report flags correctly through Hatch test invocations, improving copy-paste failure summaries in pipeline logs.
+- Fixed suite-mode model identity mismatches causing `beartype` return violations and nested Pydantic validation errors by normalizing model-like inputs and relaxing brittle class-identity checks in targeted loaders/constructors.
+
+---
+
 ## [0.29.0] - 2026-02-06
 
 ### Added (0.29.0)
@@ -28,6 +61,7 @@ All notable changes to this project will be documented in this file.
 - **Version**: Bumped to 0.29.0 (minor: new lifecycle features and UX improvements, backward compatible).
 
 ---
+
 ## [0.28.0] - 2026-02-06
 
 ### Added (0.28.0)
@@ -90,6 +124,7 @@ All notable changes to this project will be documented in this file.
 - **Version**: Bumped to 0.26.17 for issue [#179](https://github.com/nold-ai/specfact-cli/issues/179)
 
 ---
+
 ## [0.26.16] - 2026-02-02
 
 ### Added (0.26.16)

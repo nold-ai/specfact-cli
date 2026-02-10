@@ -27,19 +27,19 @@ SpecFact CLI integrates with AI-assisted IDEs through slash commands that enable
 
 ### Step 1: Initialize IDE Integration
 
-Run the `init --ide` command in your repository:
+Run the `init ide` command in your repository:
 
 ```bash
 # Auto-detect IDE
 specfact init
 
 # Or specify IDE explicitly
-specfact init --ide cursor
-specfact init --ide vscode
-specfact init --ide copilot
+specfact init ide --ide cursor
+specfact init ide --ide vscode
+specfact init ide --ide copilot
 
 # Install required packages for contract enhancement
-specfact init --ide cursor --install-deps
+specfact init ide --ide cursor --install-deps
 ```
 
 **What it does**:
@@ -104,7 +104,7 @@ graph TD
 
 ```bash
 # Import from codebase
-specfact import from-code --bundle my-project --repo .
+specfact import from-code my-project --repo .
 
 # Run validation to find gaps
 specfact repro --verbose
@@ -193,7 +193,7 @@ The AI IDE workflow integrates with several command chains:
 
 ```bash
 # 1. Analyze codebase
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 
 # 2. Find gaps
 specfact repro --verbose
@@ -246,7 +246,7 @@ SpecFact CLI supports the following AI IDEs:
 
 ```bash
 # Re-initialize with force
-specfact init --ide cursor --force
+specfact init ide --ide cursor --force
 ```
 
 **Related**: [IDE Integration - Troubleshooting](ide-integration.md#troubleshooting)

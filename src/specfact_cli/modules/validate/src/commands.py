@@ -13,6 +13,8 @@ import typer
 from beartype import beartype
 from icontract import require
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.validators.sidecar.crosshair_summary import format_summary_line
 from specfact_cli.validators.sidecar.models import SidecarConfig
@@ -21,6 +23,11 @@ from specfact_cli.validators.sidecar.orchestrator import initialize_sidecar_work
 
 app = typer.Typer(name="validate", help="Validation commands", suggest_commands=False)
 console = get_configured_console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 @beartype

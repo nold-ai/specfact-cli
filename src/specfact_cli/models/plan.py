@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from specfact_cli.models.source_tracking import SourceTracking
 
@@ -223,6 +223,27 @@ class PlanBundle(BaseModel):
     features: list[Feature] = Field(default_factory=list, description="Product features")
     metadata: Metadata | None = Field(None, description="Plan bundle metadata")
     clarifications: Clarifications | None = Field(None, description="Plan clarifications (Q&A sessions)")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_nested_models(cls, data: Any) -> Any:
+        """Normalize nested model instances from alternate module identities."""
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        for key in ("idea", "business", "product", "metadata", "clarifications"):
+            value = normalized.get(key)
+            if isinstance(value, BaseModel):
+                normalized[key] = value.model_dump(mode="python")
+
+        features = normalized.get("features")
+        if isinstance(features, list):
+            normalized["features"] = [
+                item.model_dump(mode="python") if isinstance(item, BaseModel) else item for item in features
+            ]
+
+        return normalized
 
     def compute_summary(self, include_hash: bool = False) -> PlanSummary:
         """

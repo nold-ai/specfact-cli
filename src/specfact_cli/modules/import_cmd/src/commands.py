@@ -21,8 +21,10 @@ from rich.progress import Progress
 
 from specfact_cli import runtime
 from specfact_cli.adapters.registry import AdapterRegistry
+from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.plan import Feature, PlanBundle
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.performance import track_performance
@@ -35,6 +37,11 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},
 )
 console = get_configured_console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 if TYPE_CHECKING:
     from specfact_cli.generators.openapi_extractor import OpenAPIExtractor

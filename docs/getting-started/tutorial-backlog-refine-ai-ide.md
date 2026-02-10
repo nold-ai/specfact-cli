@@ -30,7 +30,7 @@ This tutorial walks agile DevOps teams through integrating SpecFact CLI backlog 
 - SpecFact CLI installed (`uvx specfact-cli@latest` or `pip install specfact-cli`)
 - Access to a backlog (GitHub repo or Azure DevOps project)
 - AI IDE with slash commands (Cursor, VS Code + Copilot, etc.)
-- Optional: `specfact init --ide cursor` (or your IDE) so the backlog-refine slash command is available
+- Optional: `specfact init ide --ide cursor` (or your IDE) so the backlog-refine slash command is available
 
 ---
 

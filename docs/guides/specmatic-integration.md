@@ -248,7 +248,7 @@ Here's a full workflow from contract to tested implementation:
 
 ```bash
 # 1. Import existing code and extract contracts
-specfact import from-code --bundle user-api --repo .
+specfact import from-code user-api --repo .
 
 # 2. Validate contracts are correct
 specfact spec validate --bundle user-api
@@ -422,7 +422,7 @@ When importing code, SpecFact auto-detects and validates OpenAPI/AsyncAPI specs:
 
 ```bash
 # Import with bundle (uses active plan if --bundle not specified)
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 
 # Automatically validates:
 # - Repo-level OpenAPI/AsyncAPI specs (openapi.yaml, asyncapi.yaml)
@@ -500,7 +500,7 @@ SpecFact calls Specmatic via subprocess:
 
 ```bash
 # Project has openapi.yaml
-specfact import from-code --bundle api-service --repo .
+specfact import from-code api-service --repo .
 
 # Output:
 # ✓ Import complete!

@@ -9,3 +9,16 @@ pip_dependencies: []
 module_dependencies: []
 tier: community
 core_compatibility: ">=0.28.0,<1.0.0"
+service_bridges:
+  - id: ado
+    converter_class: specfact_cli.modules.backlog.src.adapters.ado.AdoConverter
+    description: Azure DevOps backlog payload converter
+  - id: jira
+    converter_class: specfact_cli.modules.backlog.src.adapters.jira.JiraConverter
+    description: Jira issue payload converter
+  - id: linear
+    converter_class: specfact_cli.modules.backlog.src.adapters.linear.LinearConverter
+    description: Linear issue payload converter
+  - id: github
+    converter_class: specfact_cli.modules.backlog.src.adapters.github.GitHubConverter
+    description: GitHub issue payload converter

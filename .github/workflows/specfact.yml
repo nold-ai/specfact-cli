@@ -32,6 +32,9 @@ on:
           - warn
           - log
 
+env:
+  PIP_PREFER_BINARY: "1"
+
 jobs:
   specfact-validation:
     name: Contract Validation
@@ -49,17 +52,22 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install hatch
+          pip install pytest
 
       - name: Install SpecFact CLI
         run: |
           echo "📦 Installing SpecFact CLI..."
-          hatch env create || true
           pip install -e .
+
+      - name: Enforce Core-Module Isolation
+        run: |
+          pytest tests/unit/test_core_module_isolation.py -v
 
       - name: Set validation parameters
         id: validation
@@ -75,7 +83,7 @@ jobs:
         id: repro
         continue-on-error: true
         run: |
-          hatch run specfact repro --verbose --budget ${{ steps.validation.outputs.budget }} || true
+          specfact repro --verbose --crosshair-required --budget ${{ steps.validation.outputs.budget }} || true
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Find latest repro report

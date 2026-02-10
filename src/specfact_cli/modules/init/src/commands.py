@@ -22,6 +22,8 @@ from rich.rule import Rule
 from rich.table import Table
 
 from specfact_cli import __version__
+from specfact_cli.contracts.module_interface import ModuleIOContract
+from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.module_packages import (
     discover_package_metadata,
@@ -127,6 +129,11 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
 
 app = typer.Typer(help="Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)")
 console = Console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 MODULE_SELECT_SENTINEL = "__interactive_select__"
 
 

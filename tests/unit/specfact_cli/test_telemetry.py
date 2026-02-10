@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -99,6 +100,19 @@ def test_test_environment_detection(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
     settings = TelemetrySettings.from_env()
     assert not settings.enabled
+    assert settings.opt_in_source == "disabled"
+
+
+def test_crosshair_runtime_detection_disables_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Telemetry should be disabled when running under CrossHair runtime."""
+    monkeypatch.delenv("TEST_MODE", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("SPECFACT_TELEMETRY_OPT_IN", raising=False)
+    monkeypatch.setitem(sys.modules, "crosshair", object())
+
+    settings = TelemetrySettings.from_env()
+
+    assert settings.enabled is False
     assert settings.opt_in_source == "disabled"
 
     # Set PYTEST_CURRENT_TEST

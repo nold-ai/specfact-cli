@@ -3,43 +3,31 @@ Module packages: discover packages under modules root and register with CommandR
 
 Each package has module-package.yaml (name, version, commands), src/, optional resources/ and tests/.
 Only enabled modules (from modules.json) are registered.
+
+CrossHair: skip (dynamic imports and module loading are intentionally side-effectful)
 """
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from pathlib import Path
 from typing import Any
 
 from beartype import beartype
+from icontract import ensure, require
 from packaging.specifiers import SpecifierSet
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, Field
 
 from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
+from specfact_cli.models.module_package import ModulePackageMetadata, ServiceBridgeMetadata
+from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverter
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
-
-
-class ModulePackageMetadata(BaseModel):
-    """Schema for a module package's module-package.yaml."""
-
-    name: str = Field(..., description="Package identifier (e.g. backlog_refine)")
-    version: str = Field(default="0.1.0", description="Package version")
-    commands: list[str] = Field(default_factory=list, description="Command names this package provides")
-    command_help: dict[str, str] | None = Field(
-        default=None, description="Optional command name -> help text for root help"
-    )
-    pip_dependencies: list[str] = Field(default_factory=list, description="Optional pip dependencies")
-    module_dependencies: list[str] = Field(default_factory=list, description="Optional other package ids")
-    core_compatibility: str | None = Field(
-        default=None,
-        description="CLI core version compatibility (PEP 440 specifier, e.g. '>=0.28.0,<1.0.0')",
-    )
-    tier: str = Field(default="community", description="Tier: community or enterprise")
-    addon_id: str | None = Field(default=None, description="Optional addon identifier")
+from specfact_cli.runtime import is_debug_mode
+from specfact_cli.utils.prompts import print_warning
 
 
 # Display order for core modules (formerly built-in); others follow alphabetically.
@@ -63,6 +51,14 @@ CORE_MODULE_ORDER: tuple[str, ...] = (
     "validate",
     "upgrade",
 )
+CURRENT_PROJECT_SCHEMA_VERSION = "1"
+PROTOCOL_METHODS: dict[str, str] = {
+    "import": "import_to_bundle",
+    "export": "export_from_bundle",
+    "sync": "sync_with_bundle",
+    "validate": "validate_bundle",
+}
+BRIDGE_REGISTRY = BridgeRegistry()
 
 
 def get_modules_root() -> Path:
@@ -114,6 +110,13 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
             command_help = None
             if isinstance(raw_help, dict):
                 command_help = {str(k): str(v) for k, v in raw_help.items()}
+            validated_service_bridges: list[ServiceBridgeMetadata] = []
+            for bridge_entry in raw.get("service_bridges", []) or []:
+                try:
+                    validated_service_bridges.append(ServiceBridgeMetadata.model_validate(bridge_entry))
+                except Exception:
+                    # Keep startup resilient: malformed bridge declarations are skipped later.
+                    continue
             meta = ModulePackageMetadata(
                 name=str(raw["name"]),
                 version=str(raw.get("version", "0.1.0")),
@@ -124,11 +127,31 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 core_compatibility=str(raw["core_compatibility"]) if raw.get("core_compatibility") else None,
                 tier=str(raw.get("tier", "community")),
                 addon_id=str(raw["addon_id"]) if raw.get("addon_id") else None,
+                schema_version=str(raw["schema_version"]) if raw.get("schema_version") is not None else None,
+                service_bridges=validated_service_bridges,
             )
             result.append((child, meta))
         except Exception:
             continue
     return result
+
+
+@beartype
+@require(lambda class_path: class_path.strip() != "", "Converter class path must not be empty")
+@require(lambda class_path: "." in class_path, "Converter class path must include module and class name")
+@ensure(lambda result: isinstance(result, type), "Resolved converter must be a class")
+def _resolve_converter_class(class_path: str) -> type[SchemaConverter]:
+    """Resolve a converter class from dotted path.
+
+    Raises:
+        ImportError/AttributeError/TypeError: when path cannot be resolved to a class.
+    """
+    module_path, class_name = class_path.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    converter_class = getattr(module, class_name)
+    if not isinstance(converter_class, type):
+        raise TypeError(f"Converter path '{class_path}' did not resolve to a class.")
+    return converter_class
 
 
 @beartype
@@ -298,6 +321,76 @@ def _make_package_loader(package_dir: Path, package_name: str, _command_name: st
     return loader
 
 
+def _resolve_package_load_path(package_dir: Path, package_name: str) -> Path:
+    """Resolve a package entrypoint module path."""
+    src_dir = package_dir / "src"
+    if not src_dir.exists():
+        raise ValueError(f"Package {package_dir.name} has no src/")
+    if (src_dir / "app.py").exists():
+        return src_dir / "app.py"
+    if (src_dir / f"{package_name}.py").exists():
+        return src_dir / f"{package_name}.py"
+    if (src_dir / package_name / "__init__.py").exists():
+        return src_dir / package_name / "__init__.py"
+    raise ValueError(f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/")
+
+
+def _load_package_module(package_dir: Path, package_name: str) -> Any:
+    """Load and return a module package entrypoint module."""
+    load_path = _resolve_package_load_path(package_dir, package_name)
+    submodule_locations = [str(load_path.parent)] if load_path.name == "__init__.py" else None
+    spec = importlib.util.spec_from_file_location(
+        f"specfact_cli.modules.{package_dir.name}.app",
+        load_path,
+        submodule_search_locations=submodule_locations,
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Cannot load from {package_dir.name}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@beartype
+@require(lambda module_class: module_class is not None, "Module class must be provided")
+@ensure(lambda result: isinstance(result, list), "Protocol operation list must be returned")
+def _check_protocol_compliance(module_class: Any) -> list[str]:
+    """Return supported protocol operations based on available attributes."""
+    operations: list[str] = []
+    for operation, method_name in PROTOCOL_METHODS.items():
+        if hasattr(module_class, method_name):
+            operations.append(operation)
+    return operations
+
+
+@beartype
+@require(lambda package_name: package_name.strip() != "", "Package name must not be empty")
+@ensure(lambda result: result is not None, "Protocol inspection target must be resolved")
+def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
+    """Resolve runtime interface used for protocol inspection."""
+    runtime_interface = getattr(module_obj, "runtime_interface", None)
+    if runtime_interface is not None:
+        return runtime_interface
+    commands_interface = getattr(module_obj, "commands", None)
+    if commands_interface is not None:
+        return commands_interface
+    # Module app entrypoints often only expose `app`; load module-local commands for protocol detection.
+    try:
+        return importlib.import_module(f"specfact_cli.modules.{package_name}.src.commands")
+    except Exception:
+        pass
+    return module_obj
+
+
+@beartype
+@ensure(lambda result: isinstance(result, bool), "Schema compatibility check must return bool")
+def _check_schema_compatibility(module_schema: str | None, current: str) -> bool:
+    """Return True when module schema is compatible with current ProjectBundle schema."""
+    if module_schema is None:
+        return True
+    return module_schema.strip() == current.strip()
+
+
 def merge_module_state(
     discovered: list[tuple[str, str]],
     state: dict[str, dict[str, Any]],
@@ -342,6 +435,14 @@ def register_module_package_commands(
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
     logger = get_bridge_logger(__name__)
     skipped: list[tuple[str, str]] = []
+    protocol_full = 0
+    protocol_partial = 0
+    protocol_legacy = 0
+    partial_modules: list[tuple[str, list[str]]] = []
+    legacy_modules: list[str] = []
+    bridge_owner_map: dict[str, str] = {
+        bridge_id: BRIDGE_REGISTRY.get_owner(bridge_id) or "unknown" for bridge_id in BRIDGE_REGISTRY.list_bridge_ids()
+    }
     for package_dir, meta in packages:
         if not enabled_map.get(meta.name, True):
             continue
@@ -353,11 +454,99 @@ def register_module_package_commands(
         if not deps_ok:
             skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
             continue
+        if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
+            skipped.append(
+                (
+                    meta.name,
+                    f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}",
+                )
+            )
+            logger.warning(
+                "Module %s: Schema version %s required, but current is %s (skipped)",
+                meta.name,
+                meta.schema_version,
+                CURRENT_PROJECT_SCHEMA_VERSION,
+            )
+            continue
+        if meta.schema_version is None:
+            logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
+        else:
+            logger.info("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
+
+        for bridge in meta.validate_service_bridges():
+            existing_owner = bridge_owner_map.get(bridge.id)
+            if existing_owner:
+                logger.warning(
+                    "Duplicate bridge ID '%s' declared by module '%s'; already declared by '%s' (skipped).",
+                    bridge.id,
+                    meta.name,
+                    existing_owner,
+                )
+                continue
+            try:
+                converter_class = _resolve_converter_class(bridge.converter_class)
+                converter: SchemaConverter = converter_class()
+                BRIDGE_REGISTRY.register_converter(bridge.id, converter, meta.name)
+                bridge_owner_map[bridge.id] = meta.name
+            except Exception as exc:
+                logger.warning(
+                    "Module %s: Skipping bridge '%s' (converter: %s): %s",
+                    meta.name,
+                    bridge.id,
+                    bridge.converter_class,
+                    exc,
+                )
+
+        try:
+            module_obj = _load_package_module(package_dir, meta.name)
+            protocol_target = _resolve_protocol_target(module_obj, meta.name)
+            operations = _check_protocol_compliance(protocol_target)  # type: ignore[arg-type]
+            meta.protocol_operations = operations
+            if len(operations) == 4:
+                protocol_full += 1
+            elif operations:
+                partial_modules.append((meta.name, operations))
+                if is_debug_mode():
+                    logger.warning("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+                protocol_partial += 1
+            else:
+                legacy_modules.append(meta.name)
+                if is_debug_mode():
+                    logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
+                protocol_legacy += 1
+        except Exception as exc:
+            legacy_modules.append(meta.name)
+            if is_debug_mode():
+                logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
+            meta.protocol_operations = []
+            protocol_legacy += 1
+
         for cmd_name in meta.commands:
             help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
             loader = _make_package_loader(package_dir, meta.name, cmd_name)
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
+    discovered_count = protocol_full + protocol_partial + protocol_legacy
+    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
+        print_warning(
+            "Module compatibility check: "
+            f"{protocol_full + protocol_partial}/{discovered_count} compliant "
+            f"(full={protocol_full}, partial={protocol_partial}, legacy={protocol_legacy})."
+        )
+        if partial_modules:
+            partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
+            print_warning(f"Partially compliant modules: {partial_desc}")
+        if legacy_modules:
+            print_warning(f"Legacy modules: {', '.join(sorted(set(legacy_modules)))}")
+        if is_debug_mode():
+            logger.info(
+                "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
+                protocol_full + protocol_partial,
+                discovered_count,
+                protocol_full,
+                protocol_partial,
+                protocol_legacy,
+            )
     for module_id, reason in skipped:
         logger.debug("Skipped module '%s': %s", module_id, reason)
 

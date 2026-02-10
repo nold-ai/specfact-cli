@@ -61,8 +61,8 @@ Before starting, ensure you have:
    specfact init
    
    # Or specify IDE explicitly:
-   # specfact init --ide cursor
-   # specfact init --ide vscode
+   # specfact init ide --ide cursor
+   # specfact init ide --ide vscode
    ```
 
    **⚠️ Important**: `specfact init` copies templates to the directory where you run the command (e.g., `/tmp/specfact-integration-tests/example1_vscode/.cursor/commands/`). However, for slash commands to work correctly with `--repo .`, you must:

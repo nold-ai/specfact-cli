@@ -30,6 +30,42 @@ SpecFact CLI implements a **contract-driven development** framework through thre
 - [Use Cases](../guides/use-cases.md) - Real-world scenarios
 - [Workflows](../guides/workflows.md) - Common daily workflows
 - [Commands](commands.md) - Complete command reference
+- [Bridge Registry](bridge-registry.md) - Module-declared converter registration
+- [Creating Custom Bridges](../guides/creating-custom-bridges.md) - Custom converter patterns
+
+## Bridge Registry Integration
+
+`arch-05-bridge-registry` introduces module-declared service converters into lifecycle registration.
+
+- Modules declare `service_bridges` in `module-package.yaml`.
+- Lifecycle loads converter classes by dotted path and registers them in `BridgeRegistry`.
+- Invalid bridge declarations are non-fatal and skipped with warnings.
+- Protocol compliance reporting uses effective runtime interface detection and logs one aggregate summary line.
+
+## Module System Foundation
+
+SpecFact is transitioning from hard-wired command wiring to a module-first architecture.
+
+### Design Intent
+
+- Core runtime should stay stable and minimal: lifecycle, registry, contracts, validation orchestration.
+- Feature behavior should live in modules with explicit interfaces.
+- Legacy command paths remain as compatibility shims during migration.
+
+### Command Implementation Layout
+
+- Primary command implementations: `src/specfact_cli/modules/<module>/src/commands.py`
+- Legacy compatibility shims: `src/specfact_cli/commands/*.py` (only `app` re-export is guaranteed)
+- Preferred imports:
+  - `from specfact_cli.modules.<module>.src.commands import app`
+  - `from specfact_cli.modules.<module>.src.commands import <symbol>`
+
+### Engineering Benefits
+
+- Independent module delivery cadence without repeated core rewiring.
+- Lower coupling between features and CLI runtime.
+- Easier interface-based testing and safer incremental migrations.
+- Better path for pending OpenSpec-driven module evolution.
 
 ## Operational Modes
 
@@ -258,6 +294,28 @@ transitions:
 ```
 
 ### 2. Contract Layer
+
+## Contract-First Module Development
+
+SpecFact module development follows a contract-first pattern:
+
+- `ModuleIOContract` formalizes module IO on top of `ProjectBundle`.
+- `ValidationReport` standardizes module validation output.
+- Registration validates supported protocol operations and declared schema compatibility.
+
+### Core-Module Isolation Principle
+
+Core runtime paths (`cli.py`, `registry/`, `models/`, `utils/`, `contracts/`) must not import from
+`specfact_cli.modules.*` directly.
+
+- Core invokes module capabilities through `CommandRegistry`.
+- Modules are discovered and loaded lazily.
+- Static isolation tests enforce this boundary in CI.
+
+See also:
+
+- [Module Contracts](module-contracts.md)
+- [ProjectBundle Schema](projectbundle-schema.md)
 
 #### Runtime Contracts (icontract)
 

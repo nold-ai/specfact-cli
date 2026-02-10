@@ -126,7 +126,7 @@ You can also explicitly check your project context:
 
 ```bash
 # Context detection is automatic, but you can verify
-specfact import from-code --bundle my-bundle --repo .
+specfact import from-code my-bundle --repo .
 # CLI automatically detects Python, FastAPI, existing specs, etc.
 ```
 
@@ -139,7 +139,7 @@ SpecFact provides context-aware suggestions to guide your workflow.
 After running commands, SpecFact suggests logical next steps:
 
 ```bash
-$ specfact import from-code --bundle legacy-api
+$ specfact import from-code legacy-api
 ✓ Import complete
 
 💡 Suggested next steps:
@@ -158,7 +158,7 @@ $ specfact analyze --bundle missing-bundle
 
 💡 Suggested fixes:
   • specfact plan select  # Select an active plan bundle
-  • specfact import from-code --bundle missing-bundle  # Create a new bundle
+  • specfact import from-code missing-bundle  # Create a new bundle
 ```
 
 ### Improvements
@@ -171,7 +171,7 @@ $ specfact analyze --bundle legacy-api
 
 💡 Suggested improvements:
   • specfact analyze --bundle legacy-api  # Identify missing contracts
-  • specfact import from-code --bundle legacy-api  # Extract contracts from code
+  • specfact import from-code legacy-api  # Extract contracts from code
 ```
 
 ## Template-Driven Quality
