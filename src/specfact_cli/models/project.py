@@ -206,7 +206,7 @@ class ProjectBundle(BaseModel):
         normalized = dict(data)
         for key in ("manifest", "idea", "business", "product", "clarifications", "change_tracking"):
             value = normalized.get(key)
-            if isinstance(value, BaseModel):
+            if value is not None and isinstance(value, BaseModel):
                 normalized[key] = value.model_dump(mode="python")
 
         features = normalized.get("features")

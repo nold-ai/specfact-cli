@@ -434,6 +434,8 @@ def _check_protocol_compliance_from_source(package_dir: Path, package_name: str)
                 value = node.value
             else:
                 continue
+            if value is None:
+                continue
             for target in targets:
                 if not isinstance(target, ast.Name):
                     continue

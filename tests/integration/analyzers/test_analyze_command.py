@@ -67,11 +67,11 @@ class TestAnalyzeCommand:
     def test_code2spec_basic_repository_with_closed_import_console(self):
         """Import command should refresh stale module console before handling invocation."""
         code = dedent(
-            '''
+            """
             class UserService:
                 def create_user(self, name):
                     pass
-        '''
+        """
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
