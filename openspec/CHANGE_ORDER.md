@@ -1,66 +1,157 @@
-# OpenSpec change order by command and implementation dependency
+# OpenSpec change order by module and implementation dependency
 
-Changes are grouped by **main CLI command** and prefixed with **command-NN-** (double-digit order) so implementation order is explicit. Implement **01** before **02** within each command; cross-command dependencies are listed under "Blocked by" below.
+Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implementation order is explicit. Implement **01** before **02** within a module; cross-module dependencies are listed under "Blocked by" below.
 
 ## Naming convention
 
-- **Folder**: `<command>-<NN>-<suffix>` (e.g. `backlog-01-add-backlog-dependency-analysis-and-commands`).
-- **Order**: 01, 02, … within the command group; lower numbers are implemented first where dependencies require it.
+- **Folder**: `<module>-<NN>-<suffix>` (e.g. `backlog-core-01-dependency-analysis-commands`).
+- **Module** may be compound: `backlog-core`, `backlog-scrum`, `backlog-kanban`, `backlog-safe`, `policy-engine`, `patch-mode`, `bundle-mapper`, `ceremony-cockpit`.
+- **Order**: 01, 02, … within a module group; lower numbers are implemented first where dependencies require it.
 
-## Command groups and change folders
+---
 
-| Command   | Order | Change folder (new name) | GitHub # | Blocked by |
-|----------|-------|---------------------------|----------|------------|
-| policy   | 01    | policy-01-unify-policies-engine | 176 | — |
-| patch    | 01    | patch-01-patch-mode-preview-apply | 177 | #176 |
-| backlog  | 01    | backlog-01-add-backlog-dependency-analysis-and-commands | 116 | — |
-| backlog  | 02    | backlog-02-add-backlog-add-interactive-issue-creation | 173 | #116 |
-| backlog  | 03    | backlog-03-daily-standup-exceptions-first | 175 | #176, #177 |
-| backlog  | 04    | backlog-04-sprint-planning-capacity-commitment-support | 170 | — |
-| backlog  | 05    | backlog-05-story-complexity-splitting-hints-support | 171 | — |
-| backlog  | 06    | backlog-06-kanban-flow-metrics | 183 | #116, #176 |
-| backlog  | 07    | backlog-07-safe-pi-planning | 184 | #116, #176 |
-| backlog  | 08    | backlog-08-risk-rollups | 182 | #116, #176, #170, #171 |
-| backlog  | 09    | backlog-09-definition-of-done-support | 169 | — (optional: #176) |
-| ceremony | 01    | ceremony-01-ceremony-cockpit | 185 | #175, #170, #176 (optional: #183, #184) |
-| validation | 01  | validation-01-add-thorough-codebase-validation | 163 | — |
-| sidecar  | 01    | sidecar-01-add-sidecar-flask-support | 102 | — |
-| bundle   | 01    | bundle-01-add-bundle-mapping-strategy | 121 | — |
+## Implementation status
+
+### Implemented (archived)
+
+| Change | Archived |
+|--------|----------|
+| arch-01-cli-modular-command-registry | 2026-02-04 |
+| arch-02-module-package-separation | 2026-02-06 |
+| arch-03-module-lifecycle-management | 2026-02-06 |
+| arch-04-core-contracts-interfaces | 2026-02-08 |
+| arch-05-bridge-registry | 2026-02-10 |
+
+### Pending
+
+All entries in the table below are pending implementation.
+
+---
+
+## Module groups and change folders
+
+### Architecture (platform foundation)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| arch | 06 | arch-06-enhanced-manifest-security | [#208](https://github.com/nold-ai/specfact-cli/issues/208) | arch-05 ✅ |
+| arch | 07 | arch-07-schema-extension-system | [#213](https://github.com/nold-ai/specfact-cli/issues/213) | arch-04 ✅ |
+
+### Marketplace (module distribution)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| marketplace | 01 | marketplace-01-central-module-registry | [#214](https://github.com/nold-ai/specfact-cli/issues/214) | #208 |
+| marketplace | 02 | marketplace-02-advanced-marketplace-features | [#215](https://github.com/nold-ai/specfact-cli/issues/215) | #214 |
+
+### Cross-cutting foundations (no hard dependencies — implement early)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| policy-engine | 01 | policy-engine-01-unified-framework | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
+| patch-mode | 01 | patch-mode-01-preview-apply | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
+| validation | 01 | validation-01-deep-validation | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
+| sidecar | 01 | sidecar-01-flask-support | [#102](https://github.com/nold-ai/specfact-cli/issues/102) | — |
+| bundle-mapper | 01 | bundle-mapper-01-mapping-strategy | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
+
+### backlog-core (required by all backlog-* modules)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| backlog-core | 01 | backlog-core-01-dependency-analysis-commands | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
+| backlog-core | 02 | backlog-core-02-interactive-issue-creation | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
+
+### backlog-scrum
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| backlog-scrum | 01 | backlog-scrum-01-standup-exceptions-first | [#220](https://github.com/nold-ai/specfact-cli/issues/220) | #116 (optional: #176, #177) |
+| backlog-scrum | 02 | backlog-scrum-02-sprint-planning | [#170](https://github.com/nold-ai/specfact-cli/issues/170) | #116 (optional: #176, #182) |
+| backlog-scrum | 03 | backlog-scrum-03-story-complexity | [#171](https://github.com/nold-ai/specfact-cli/issues/171) | #116 (optional: #177) |
+| backlog-scrum | 04 | backlog-scrum-04-definition-of-done | [#169](https://github.com/nold-ai/specfact-cli/issues/169) | — (optional: #176) |
+
+### backlog-kanban
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| backlog-kanban | 01 | backlog-kanban-01-flow-metrics | [#183](https://github.com/nold-ai/specfact-cli/issues/183) | #116 (optional: #176) |
+
+### backlog-safe
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| backlog-safe | 01 | backlog-safe-01-pi-planning | [#184](https://github.com/nold-ai/specfact-cli/issues/184) | #116 (optional: #176) |
+| backlog-safe | 02 | backlog-safe-02-risk-rollups | [#182](https://github.com/nold-ai/specfact-cli/issues/182) | #184 (optional: #116, #176, #170, #171, #183) |
+
+### ceremony-cockpit
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| ceremony-cockpit | 01 | ceremony-cockpit-01-ceremony-aliases | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional: #220, #170, #171, #169, #183, #184) |
+
+---
 
 ## GitHub "Blocked by" relationships
 
-Set these in GitHub so issue dependencies are explicit:
+Set these in GitHub so issue dependencies are explicit. Optional dependencies are graceful no-ops (modules degrade when not installed) and do **not** need to be set as hard blockers.
 
-1. **Issue #177** (patch-mode): **Blocked by** #176  
-2. **Issue #173** (backlog add): **Blocked by** #116  
-3. **Issue #175** (daily standup E1): **Blocked by** #176, #177  
-4. **Issue #183** (kanban flow): **Blocked by** #116, #176  
-5. **Issue #184** (safe PI): **Blocked by** #116, #176  
-6. **Issue #182** (risk rollups): **Blocked by** #116, #176, #170, #171  
-7. **Issue #185** (ceremony cockpit): **Blocked by** #175, #170, #176  
+| Issue | Change | Hard blocked by |
+|-------|--------|-----------------|
+| [#208](https://github.com/nold-ai/specfact-cli/issues/208) | arch-06 manifest security | arch-05 ✅ (already implemented) |
+| [#213](https://github.com/nold-ai/specfact-cli/issues/213) | arch-07 schema extensions | arch-04 ✅ (already implemented) |
+| [#214](https://github.com/nold-ai/specfact-cli/issues/214) | marketplace-01 registry | #208 |
+| [#215](https://github.com/nold-ai/specfact-cli/issues/215) | marketplace-02 advanced features | #214 |
+| [#173](https://github.com/nold-ai/specfact-cli/issues/173) | backlog-core-02 interactive create | #116 |
+| [#220](https://github.com/nold-ai/specfact-cli/issues/220) | backlog-scrum-01 standup | #116 |
+| [#170](https://github.com/nold-ai/specfact-cli/issues/170) | backlog-scrum-02 sprint planning | #116 |
+| [#171](https://github.com/nold-ai/specfact-cli/issues/171) | backlog-scrum-03 story complexity | #116 |
+| [#183](https://github.com/nold-ai/specfact-cli/issues/183) | backlog-kanban-01 flow metrics | #116 |
+| [#184](https://github.com/nold-ai/specfact-cli/issues/184) | backlog-safe-01 PI planning | #116 |
+| [#182](https://github.com/nold-ai/specfact-cli/issues/182) | backlog-safe-02 risk rollups | #184 |
 
-**How to set in GitHub**: Open the issue (e.g. <https://github.com/nold-ai/specfact-cli/issues/177>) → right sidebar **Relationships** → **Mark as blocked by** → search and select the blocking issue(s). Repeat for each issue in the table above that has blockers.
+**How to set in GitHub**: Open the issue → right sidebar **Relationships** → **Mark as blocked by** → search and select the blocking issue(s).
 
-## Parent issues (Epics) per command
+---
 
-One parent issue per main command for grouping. **Do not add an Epic label** — the project **Type** property already defines Epic (and other issue types). Set Type to Epic for these parent issues in the project board. Link child/change issues via **Relationships** (e.g. sub-issues or "tracks") or by setting the project **Parent** field to the epic.
+## Parent issues (Epics) per module group
 
-| Command / area | Parent issue | GitHub # |
-|----------------|-------------|----------|
-| `specfact backlog` | [Epic] specfact backlog | [#186](https://github.com/nold-ai/specfact-cli/issues/186) |
+One parent issue per module group for grouping. Set **Type** to Epic on the project board. Link child/change issues via **Relationships** (sub-issues or "tracks") or by setting the project **Parent** field to the epic.
+
+| Module group | Parent issue | GitHub # |
+|---|---|---|
+| `specfact backlog` (all backlog-* modules) | [Epic] specfact backlog | [#186](https://github.com/nold-ai/specfact-cli/issues/186) |
 | `specfact policy` | [Epic] specfact policy | [#187](https://github.com/nold-ai/specfact-cli/issues/187) |
 | Patch mode | [Epic] Patch mode (preview/apply) | [#188](https://github.com/nold-ai/specfact-cli/issues/188) |
 | `specfact ceremony` | [Epic] specfact ceremony | [#189](https://github.com/nold-ai/specfact-cli/issues/189) |
 | Thorough validation | [Epic] Thorough codebase validation | [#190](https://github.com/nold-ai/specfact-cli/issues/190) |
 | Sidecar validation | [Epic] Sidecar validation | [#191](https://github.com/nold-ai/specfact-cli/issues/191) |
 | Bundle mapping | [Epic] Bundle/spec mapping | [#192](https://github.com/nold-ai/specfact-cli/issues/192) |
-| **Architecture** | [Epic] Architecture (CLI structure, modularity, performance) | [#194](https://github.com/nold-ai/specfact-cli/issues/194) |
+| Architecture + Marketplace | [Epic] Architecture (CLI structure, modularity, performance) | [#194](https://github.com/nold-ai/specfact-cli/issues/194) |
 
-**Linking child issues**: On each change issue (e.g. #116, #173, #175, …), use the project **Type** and **Parent** (or GitHub Relationships) to associate it with the epic above. Type (Epic, Feature, Story, etc.) is set via the project **Type** property only; do not use an Epic or other type label.
+---
 
-## Suggested implementation waves
+## Implementation waves
 
-- **Wave 1 (foundation)**: policy-01, backlog-01  
-- **Wave 2**: patch-01, backlog-02, backlog-04, backlog-05, backlog-09, validation-01, sidecar-01, bundle-01  
-- **Wave 3**: backlog-03 (needs policy-01 + patch-01), backlog-06, backlog-07, backlog-08  
-- **Wave 4**: ceremony-01 (after backlog-03, backlog-04, policy-01)
+Dependencies flow left-to-right; a wave may start once all its hard blockers are resolved.
+
+- **Wave 0** ✅ **Complete** — arch-01 through arch-05 (modular CLI foundation, bridge registry)
+
+- **Wave 1 — Platform extensions + cross-cutting foundations** (all unblocked now):
+  - arch-06, arch-07
+  - policy-engine-01, patch-mode-01
+  - backlog-core-01
+  - validation-01, sidecar-01, bundle-mapper-01
+
+- **Wave 2 — Marketplace + backlog module layer** (needs Wave 1):
+  - marketplace-01 (needs arch-06)
+  - backlog-core-02 (needs backlog-core-01)
+  - backlog-scrum-02, backlog-scrum-03, backlog-scrum-04 (need backlog-core-01)
+  - backlog-kanban-01, backlog-safe-01 (need backlog-core-01)
+
+- **Wave 3 — Higher-order backlog + marketplace** (needs Wave 2):
+  - marketplace-02 (needs marketplace-01)
+  - backlog-scrum-01 (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
+  - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
+
+- **Wave 4 — Ceremony layer** (needs Wave 3):
+  - ceremony-cockpit-01 (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
