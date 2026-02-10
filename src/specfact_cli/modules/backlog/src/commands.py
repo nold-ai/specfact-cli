@@ -39,7 +39,6 @@ from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.ai_refiner import BacklogAIRefiner
 from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.backlog.template_detector import TemplateDetector
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.dor_config import DefinitionOfReady
 from specfact_cli.models.plan import Product
@@ -55,7 +54,6 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 console = Console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 
 
 @beartype

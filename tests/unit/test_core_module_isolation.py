@@ -60,7 +60,6 @@ def _is_in_type_checking_block(node: ast.AST, parent_map: dict[ast.AST, ast.AST]
             return True
         current = parent
     return False
-    return False
 
 
 def _format_violation(path: str, line_no: int, module: str) -> str:

@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.30.1] - 2026-02-10
+
+### Fixed (0.30.1)
+
+- Resolved CodeQL findings from PR 217:
+  - Removed unreachable `return False` in `tests/unit/test_core_module_isolation.py`.
+  - Simplified unnecessary lambda wrappers in `tests/unit/registry/test_module_bridge_registration.py`.
+  - Removed unused `_MODULE_IO_CONTRACT` aliases in module command files (`backlog`, `enforce`, `generate`, `migrate`, `plan`, `spec`, `sync`).
+- Restored lazy module registration behavior in `register_module_package_commands()` by switching protocol compliance detection to static source inspection instead of importing module packages at CLI startup.
+
+---
+
 ## [0.30.0] - 2026-02-08
 
 ### Added (0.30.0)

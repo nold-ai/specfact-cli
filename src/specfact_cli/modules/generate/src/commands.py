@@ -13,7 +13,6 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.generators.contract_generator import ContractGenerator
 from specfact_cli.migrations.plan_migrator import load_plan_bundle
 from specfact_cli.models.plan import Product
@@ -35,7 +34,6 @@ from specfact_cli.utils.structured_io import load_structured_file
 
 app = typer.Typer(help="Generate artifacts from SDD and plans")
 console = get_configured_console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 
 
 @beartype

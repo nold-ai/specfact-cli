@@ -9,8 +9,6 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
 
 import pytest
 
@@ -127,28 +125,11 @@ def test_registry_receives_example_command_when_registered():
         assert typer_app.info.name == "example"
 
 
-def test_protocol_reporting_classifies_full_partial_legacy_from_runtime_interface(
+def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
     monkeypatch, caplog, tmp_path: Path
 ) -> None:
     """Protocol summary should classify full/partial/legacy modules accurately."""
     from specfact_cli.registry import module_packages as module_packages_impl
-
-    class _RuntimeFull:
-        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
-            return None
-
-        def export_from_bundle(self, bundle: Any, target: Any, config: dict[str, Any]) -> None:
-            return None
-
-        def sync_with_bundle(self, source: Any, target: Any, config: dict[str, Any]) -> None:
-            return None
-
-        def validate_bundle(self, bundle: Any) -> list[str]:
-            return []
-
-    class _RuntimePartial:
-        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
-            return None
 
     caplog.set_level(logging.INFO)
     test_logger = logging.getLogger("test.protocol.reporting")
@@ -164,15 +145,15 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_runtime_interfac
     ]
     monkeypatch.setattr(module_packages_impl, "discover_package_metadata", lambda _root: metadata)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-
-    def _fake_loader(package_dir: Path, _package_name: str):
-        if package_dir.name == "full":
-            return SimpleNamespace(runtime_interface=_RuntimeFull())
-        if package_dir.name == "partial":
-            return SimpleNamespace(runtime_interface=_RuntimePartial())
-        return SimpleNamespace()
-
-    monkeypatch.setattr(module_packages_impl, "_load_package_module", _fake_loader)
+    monkeypatch.setattr(
+        module_packages_impl,
+        "_check_protocol_compliance_from_source",
+        lambda package_dir, _package_name: (
+            ["import", "export", "sync", "validate"]
+            if package_dir.name == "full"
+            else (["import"] if package_dir.name == "partial" else [])
+        ),
+    )
 
     module_packages_impl.register_module_package_commands()
 
@@ -195,7 +176,7 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
         lambda _root: [(tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[]))],
     )
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: SimpleNamespace())
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: [])
 
     module_packages_impl.register_module_package_commands()
 
@@ -203,16 +184,12 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
     assert len(lines) == 1
 
 
-def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, caplog, tmp_path: Path) -> None:
-    """When app module has no runtime interface, commands module import should be used."""
+def test_protocol_reporting_uses_static_source_operations(monkeypatch, caplog, tmp_path: Path) -> None:
+    """Protocol reporting should use static source inspection operations."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
-    class _CommandsModule:
-        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
-            return None
-
     caplog.set_level(logging.INFO)
-    test_logger = logging.getLogger("test.protocol.commands-fallback")
+    test_logger = logging.getLogger("test.protocol.static-source")
     test_logger.handlers = []
     test_logger.propagate = True
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
@@ -223,8 +200,7 @@ def test_protocol_reporting_falls_back_to_module_commands_import(monkeypatch, ca
         lambda _root: [(tmp_path / "backlog", ModulePackageMetadata(name="backlog", commands=[]))],
     )
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: object())
-    monkeypatch.setattr(module_packages_impl.importlib, "import_module", lambda _path: _CommandsModule())
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: ["import"])
 
     module_packages_impl.register_module_package_commands()
 
@@ -238,9 +214,7 @@ def test_all_builtin_modules_expose_module_io_contract_operations() -> None:
     legacy_modules: list[str] = []
     for package_dir, meta in module_packages_impl.discover_package_metadata(module_packages_impl.get_modules_root()):
         try:
-            module_obj = module_packages_impl._load_package_module(package_dir, meta.name)
-            protocol_target = module_packages_impl._resolve_protocol_target(module_obj, meta.name)
-            operations = module_packages_impl._check_protocol_compliance(protocol_target)
+            operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, meta.name)
         except Exception as exc:  # pragma: no cover - diagnostic path for unexpected import/runtime errors
             legacy_modules.append(f"{meta.name} ({exc})")
             continue
@@ -253,19 +227,6 @@ def test_all_builtin_modules_expose_module_io_contract_operations() -> None:
 def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkeypatch, caplog, tmp_path: Path) -> None:
     """No protocol warnings/summary should be emitted when all modules are fully compliant."""
     from specfact_cli.registry import module_packages as module_packages_impl
-
-    class _RuntimeFull:
-        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
-            return None
-
-        def export_from_bundle(self, bundle: Any, target: Any, config: dict[str, Any]) -> None:
-            return None
-
-        def sync_with_bundle(self, source: Any, target: Any, config: dict[str, Any]) -> None:
-            return None
-
-        def validate_bundle(self, bundle: Any) -> list[str]:
-            return []
 
     caplog.set_level(logging.INFO)
     test_logger = logging.getLogger("test.protocol.quiet-full")
@@ -282,8 +243,11 @@ def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkey
         ],
     )
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: SimpleNamespace())
-    monkeypatch.setattr(module_packages_impl, "_resolve_protocol_target", lambda *_args: _RuntimeFull())
+    monkeypatch.setattr(
+        module_packages_impl,
+        "_check_protocol_compliance_from_source",
+        lambda *_args: ["import", "export", "sync", "validate"],
+    )
 
     module_packages_impl.register_module_package_commands()
 
@@ -295,10 +259,6 @@ def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_module
     """Non-compliant modules should emit concise user-facing warnings."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
-    class _RuntimePartial:
-        def import_to_bundle(self, source: Any, config: dict[str, Any]) -> None:
-            return None
-
     shown_messages: list[str] = []
 
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: False)
@@ -309,8 +269,7 @@ def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_module
         lambda _root: [(tmp_path / "partial-a", ModulePackageMetadata(name="partial-a", commands=[]))],
     )
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_load_package_module", lambda *_args: SimpleNamespace())
-    monkeypatch.setattr(module_packages_impl, "_resolve_protocol_target", lambda *_args: _RuntimePartial())
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: ["import"])
 
     module_packages_impl.register_module_package_commands()
 

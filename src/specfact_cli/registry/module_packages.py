@@ -9,6 +9,7 @@ CrossHair: skip (dynamic imports and module loading are intentionally side-effec
 
 from __future__ import annotations
 
+import ast
 import importlib
 import importlib.util
 from pathlib import Path
@@ -382,6 +383,46 @@ def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
     return module_obj
 
 
+def _resolve_protocol_source_path(package_dir: Path, package_name: str) -> Path:
+    """Resolve a source file path for protocol compliance inspection without importing module code."""
+    candidates = [
+        package_dir / "src" / "commands.py",
+        package_dir / "src" / package_name / "commands.py",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return _resolve_package_load_path(package_dir, package_name)
+
+
+@beartype
+def _check_protocol_compliance_from_source(package_dir: Path, package_name: str) -> list[str]:
+    """Inspect protocol operations from source text to keep module registration lazy."""
+    source_path = _resolve_protocol_source_path(package_dir, package_name)
+    source = source_path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(source_path))
+
+    exported_function_names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            exported_function_names.add(node.name)
+            continue
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                continue
+            value = node.value
+            if isinstance(value, (ast.Attribute, ast.Name)):
+                exported_function_names.add(target.id)
+
+    operations: list[str] = []
+    for operation, method_name in PROTOCOL_METHODS.items():
+        if method_name in exported_function_names:
+            operations.append(operation)
+    return operations
+
+
 @beartype
 @ensure(lambda result: isinstance(result, bool), "Schema compatibility check must return bool")
 def _check_schema_compatibility(module_schema: str | None, current: str) -> bool:
@@ -498,9 +539,7 @@ def register_module_package_commands(
                 )
 
         try:
-            module_obj = _load_package_module(package_dir, meta.name)
-            protocol_target = _resolve_protocol_target(module_obj, meta.name)
-            operations = _check_protocol_compliance(protocol_target)  # type: ignore[arg-type]
+            operations = _check_protocol_compliance_from_source(package_dir, meta.name)
             meta.protocol_operations = operations
             if len(operations) == 4:
                 protocol_full += 1

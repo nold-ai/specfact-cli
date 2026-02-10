@@ -22,7 +22,6 @@ from rich.table import Table
 from specfact_cli import runtime
 from specfact_cli.analyzers.ambiguity_scanner import AmbiguityFinding
 from specfact_cli.comparators.plan_comparator import PlanComparator
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.generators.report_generator import ReportFormat, ReportGenerator
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig
@@ -52,7 +51,6 @@ from specfact_cli.validators.schema import validate_plan_bundle
 
 app = typer.Typer(help="Manage development plans, features, and stories")
 console = Console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 
 
 @beartype

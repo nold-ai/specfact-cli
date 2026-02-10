@@ -21,7 +21,6 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.integrations.specmatic import (
     check_backward_compatibility,
     check_specmatic_available,
@@ -40,7 +39,6 @@ app = typer.Typer(
     help="Specmatic integration for API contract testing (OpenAPI/AsyncAPI validation, backward compatibility, mock servers)"
 )
 console = Console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 import_to_bundle = module_io_shim.import_to_bundle
 export_from_bundle = module_io_shim.export_from_bundle
 sync_with_bundle = module_io_shim.sync_with_bundle

@@ -17,7 +17,6 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.deviation import Deviation, DeviationSeverity, DeviationType, ValidationReport
 from specfact_cli.models.enforcement import EnforcementConfig, EnforcementPreset
 from specfact_cli.models.plan import Product
@@ -32,7 +31,6 @@ from specfact_cli.utils.yaml_utils import dump_yaml
 
 app = typer.Typer(help="Configure quality gates and enforcement modes")
 console = Console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 
 
 @beartype

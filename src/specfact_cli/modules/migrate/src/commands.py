@@ -16,7 +16,6 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.plan import Feature
 from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
@@ -28,7 +27,6 @@ from specfact_cli.utils.structured_io import StructuredFormat
 
 app = typer.Typer(help="Migrate project bundles between formats")
 console = Console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 import_to_bundle = module_io_shim.import_to_bundle
 export_from_bundle = module_io_shim.export_from_bundle
 sync_with_bundle = module_io_shim.sync_with_bundle

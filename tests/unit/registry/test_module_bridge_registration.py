@@ -40,7 +40,7 @@ def test_register_module_package_commands_registers_declared_bridges(monkeypatch
         lambda _root: [(tmp_path, _metadata_with_bridges(converter_class=converter_path))],
     )
     monkeypatch.setattr(module_packages, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages, "_make_package_loader", lambda *_args: (lambda: object()))
+    monkeypatch.setattr(module_packages, "_make_package_loader", lambda *_args: object)
     monkeypatch.setattr(module_packages, "_load_package_module", lambda *_args: object())
     monkeypatch.setattr(module_packages, "BRIDGE_REGISTRY", registry, raising=False)
 
@@ -59,7 +59,7 @@ def test_invalid_bridge_declaration_is_non_fatal(monkeypatch, tmp_path: Path) ->
         lambda _root: [(tmp_path, _metadata_with_bridges(converter_class="invalid.path.MissingConverter"))],
     )
     monkeypatch.setattr(module_packages, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages, "_make_package_loader", lambda *_args: (lambda: object()))
+    monkeypatch.setattr(module_packages, "_make_package_loader", lambda *_args: object)
     monkeypatch.setattr(module_packages, "_load_package_module", lambda *_args: object())
     monkeypatch.setattr(module_packages, "BRIDGE_REGISTRY", registry, raising=False)
 
