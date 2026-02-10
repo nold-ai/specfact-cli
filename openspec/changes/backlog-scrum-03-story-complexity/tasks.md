@@ -4,7 +4,7 @@
 
 Per `openspec/config.yaml`, **tests before code** apply to any task that adds or changes behavior.
 
-1. **Spec deltas** define behavior (Given/When/Then) in `openspec/changes/story-complexity-splitting-hints-support/specs/story-complexity/spec.md`.
+1. **Spec deltas** define behavior (Given/When/Then) in `openspec/changes/backlog-scrum-03-story-complexity/specs/story-complexity/spec.md`.
 2. **Tests second**: Write unit/integration tests from those scenarios; run tests and **expect failure** (no implementation yet).
 3. **Code last**: Implement until tests pass and behavior satisfies the spec.
 
