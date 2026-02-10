@@ -1,12 +1,15 @@
 """Integration tests for analyze command."""
 
+import io
 import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+from rich.console import Console
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
+from specfact_cli.modules.import_cmd.src import commands as import_commands
 from specfact_cli.utils.bundle_loader import load_project_bundle
 
 
@@ -60,6 +63,38 @@ class TestAnalyzeCommand:
             assert bundle_dir.exists()
             bundle = load_project_bundle(bundle_dir)
             assert bundle is not None
+
+    def test_code2spec_basic_repository_with_closed_import_console(self):
+        """Import command should refresh stale module console before handling invocation."""
+        code = dedent(
+            """
+            class UserService:
+                def create_user(self, name):
+                    pass
+        """
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir) / "src"
+            repo_path.mkdir()
+            (repo_path / "service.py").write_text(code)
+
+            closed_stream = io.StringIO()
+            closed_stream.close()
+            import_commands.console = Console(file=closed_stream)
+
+            result = runner.invoke(
+                app,
+                [
+                    "import",
+                    "from-code",
+                    "test-bundle",
+                    "--repo",
+                    tmpdir,
+                ],
+            )
+
+            assert result.exit_code == 0
 
     def test_code2spec_with_report(self):
         """Test generating analysis report."""

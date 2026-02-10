@@ -97,7 +97,7 @@ class ChangeProposal(BaseModel):
 
         normalized = dict(data)
         source_tracking = normalized.get("source_tracking")
-        if isinstance(source_tracking, BaseModel):
+        if source_tracking is not None and isinstance(source_tracking, BaseModel):
             normalized["source_tracking"] = source_tracking.model_dump(mode="python")
         return normalized
 

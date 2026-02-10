@@ -9,6 +9,7 @@ CrossHair: skip (dynamic imports and module loading are intentionally side-effec
 
 from __future__ import annotations
 
+import ast
 import importlib
 import importlib.util
 from pathlib import Path
@@ -58,6 +59,7 @@ PROTOCOL_METHODS: dict[str, str] = {
     "sync": "sync_with_bundle",
     "validate": "validate_bundle",
 }
+PROTOCOL_INTERFACE_BINDINGS: tuple[str, ...] = ("runtime_interface", "commands_interface", "commands")
 BRIDGE_REGISTRY = BridgeRegistry()
 
 
@@ -382,6 +384,130 @@ def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
     return module_obj
 
 
+def _resolve_protocol_source_paths(package_dir: Path, package_name: str) -> list[Path]:
+    """Resolve source file paths for protocol compliance inspection without importing module code."""
+    candidates = [
+        package_dir / "src" / "commands.py",
+        package_dir / "src" / package_name / "commands.py",
+        _resolve_package_load_path(package_dir, package_name),
+    ]
+    unique_paths: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique_paths.append(candidate)
+    return unique_paths
+
+
+def _resolve_import_from_source_path(
+    package_dir: Path, package_name: str, source_path: Path, node: ast.ImportFrom
+) -> Path | None:
+    """Resolve local file path for `from ... import ...` nodes used by protocol interface bindings."""
+    module_name = node.module or ""
+
+    if node.level > 0:
+        base_dir = source_path.parent
+        for _ in range(node.level - 1):
+            base_dir = base_dir.parent
+        module_parts = module_name.split(".") if module_name else []
+    else:
+        src_dir = package_dir / "src"
+        base_dir = src_dir
+        if module_name.startswith(f"specfact_cli.modules.{package_name}.src."):
+            module_name = module_name.removeprefix(f"specfact_cli.modules.{package_name}.src.")
+        elif module_name.startswith(f"{package_name}."):
+            module_name = module_name.removeprefix(f"{package_name}.")
+        module_parts = module_name.split(".") if module_name else []
+
+    candidate_base = base_dir.joinpath(*module_parts) if module_parts else base_dir
+    module_file = candidate_base.with_suffix(".py")
+    if module_file.exists():
+        return module_file
+    init_file = candidate_base / "__init__.py"
+    if init_file.exists():
+        return init_file
+    return None
+
+
+@beartype
+def _check_protocol_compliance_from_source(package_dir: Path, package_name: str) -> list[str]:
+    """Inspect protocol operations from source text to keep module registration lazy."""
+    exported_function_names: set[str] = set()
+    class_method_names: dict[str, set[str]] = {}
+    assigned_names: dict[str, ast.expr] = {}
+    pending_paths = _resolve_protocol_source_paths(package_dir, package_name)
+    scanned_paths = {path.resolve() for path in pending_paths}
+
+    while pending_paths:
+        source_path = pending_paths.pop(0)
+        source = source_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(source_path))
+
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                methods: set[str] = set()
+                for class_node in node.body:
+                    if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        methods.add(class_node.name)
+                class_method_names[node.name] = methods
+                continue
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                exported_function_names.add(node.name)
+                continue
+            if isinstance(node, ast.ImportFrom):
+                imported_names = {alias.name for alias in node.names}
+                if set(PROTOCOL_INTERFACE_BINDINGS).isdisjoint(imported_names):
+                    continue
+                imported_source = _resolve_import_from_source_path(package_dir, package_name, source_path, node)
+                if imported_source is None:
+                    continue
+                resolved = imported_source.resolve()
+                if resolved in scanned_paths:
+                    continue
+                scanned_paths.add(resolved)
+                pending_paths.append(imported_source)
+                continue
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+                value = node.value
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                targets = [node.target]
+                value = node.value
+            else:
+                continue
+            if value is None:
+                continue
+            for target in targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                assigned_names[target.id] = value
+                if isinstance(value, (ast.Attribute, ast.Name)):
+                    exported_function_names.add(target.id)
+
+    for binding_name in PROTOCOL_INTERFACE_BINDINGS:
+        binding_value = assigned_names.get(binding_name)
+        if binding_value is None:
+            continue
+        if isinstance(binding_value, ast.Name):
+            exported_function_names.update(class_method_names.get(binding_value.id, set()))
+            referenced_value = assigned_names.get(binding_value.id)
+            if isinstance(referenced_value, ast.Call) and isinstance(referenced_value.func, ast.Name):
+                exported_function_names.update(class_method_names.get(referenced_value.func.id, set()))
+        elif isinstance(binding_value, ast.Call) and isinstance(binding_value.func, ast.Name):
+            exported_function_names.update(class_method_names.get(binding_value.func.id, set()))
+
+    operations: list[str] = []
+    for operation, method_name in PROTOCOL_METHODS.items():
+        if method_name in exported_function_names:
+            operations.append(operation)
+    return operations
+
+
 @beartype
 @ensure(lambda result: isinstance(result, bool), "Schema compatibility check must return bool")
 def _check_schema_compatibility(module_schema: str | None, current: str) -> bool:
@@ -498,9 +624,7 @@ def register_module_package_commands(
                 )
 
         try:
-            module_obj = _load_package_module(package_dir, meta.name)
-            protocol_target = _resolve_protocol_target(module_obj, meta.name)
-            operations = _check_protocol_compliance(protocol_target)  # type: ignore[arg-type]
+            operations = _check_protocol_compliance_from_source(package_dir, meta.name)
             meta.protocol_operations = operations
             if len(operations) == 4:
                 protocol_full += 1

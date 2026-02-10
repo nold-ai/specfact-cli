@@ -21,7 +21,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from specfact_cli import runtime
 from specfact_cli.adapters.registry import AdapterRegistry
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.models.bridge import AdapterType
 from specfact_cli.models.plan import Feature, PlanBundle, Product
 from specfact_cli.models.project import BundleManifest, ProjectBundle
@@ -35,7 +34,6 @@ app = typer.Typer(
     help="Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, Linear, Jira, etc.). See 'specfact backlog refine' for template-driven backlog refinement."
 )
 console = get_configured_console()
-_MODULE_IO_CONTRACT = ModuleIOContract
 
 
 @beartype

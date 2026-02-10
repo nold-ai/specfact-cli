@@ -234,7 +234,7 @@ class PlanBundle(BaseModel):
         normalized = dict(data)
         for key in ("idea", "business", "product", "metadata", "clarifications"):
             value = normalized.get(key)
-            if isinstance(value, BaseModel):
+            if value is not None and isinstance(value, BaseModel):
                 normalized[key] = value.model_dump(mode="python")
 
         features = normalized.get("features")

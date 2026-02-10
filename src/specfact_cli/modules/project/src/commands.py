@@ -28,7 +28,7 @@ from specfact_cli.models.project import (
     SectionLock,
 )
 from specfact_cli.modules import module_io_shim
-from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_section, print_success, print_warning
 from specfact_cli.utils.persona_ownership import (
     check_persona_ownership as shared_check_persona_ownership,
@@ -50,15 +50,34 @@ sync_with_bundle = module_io_shim.sync_with_bundle
 validate_bundle = module_io_shim.validate_bundle
 
 
+def _refresh_console() -> Console:
+    """Refresh module console so lazy-loaded command modules don't retain closed test streams."""
+    global console
+    console = get_configured_console()
+    return console
+
+
+@app.callback()
+def _project_callback() -> None:
+    """Ensure project command group always uses a fresh console for current process streams."""
+    _refresh_console()
+
+
+@version_app.callback()
+def _project_version_callback() -> None:
+    """Ensure project version subcommands also refresh console when invoked directly."""
+    _refresh_console()
+
+
 # Use shared progress utilities for consistency (aliased to maintain existing function names)
 def _load_bundle_with_progress(bundle_dir: Path, validate_hashes: bool = False) -> ProjectBundle:
     """Load project bundle with unified progress display."""
-    return load_bundle_with_progress(bundle_dir, validate_hashes=validate_hashes, console_instance=console)
+    return load_bundle_with_progress(bundle_dir, validate_hashes=validate_hashes, console_instance=_refresh_console())
 
 
 def _save_bundle_with_progress(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = True) -> None:
     """Save project bundle with unified progress display."""
-    save_bundle_with_progress(bundle, bundle_dir, atomic=atomic, console_instance=console)
+    save_bundle_with_progress(bundle, bundle_dir, atomic=atomic, console_instance=_refresh_console())
 
 
 # Default persona mappings
@@ -206,6 +225,7 @@ def _list_available_personas(bundle: ProjectBundle, bundle_name: str) -> None:
         bundle: Project bundle to check
         bundle_name: Name of the bundle (for display)
     """
+    _refresh_console()
     console.print(f"\n[bold cyan]Available Personas for bundle '{bundle_name}'[/bold cyan]")
     console.print("=" * 60)
 
@@ -412,6 +432,7 @@ def export_persona(
         specfact project export --bundle legacy-api --persona architect --output-dir docs/plans
         specfact project export --bundle legacy-api --persona developer --stdout
     """
+    _refresh_console()
     if is_debug_mode():
         debug_log_operation(
             "command",
@@ -642,6 +663,7 @@ def import_persona(
         specfact project import --bundle legacy-api --persona product-owner --input product-owner.md
         specfact project import --bundle legacy-api --persona architect --input architect.md --dry-run
     """
+    _refresh_console()
     if is_debug_mode():
         debug_log_operation(
             "command",
@@ -897,6 +919,8 @@ def _export_bundle_to_stdout(bundle_data: dict[str, Any], format: str) -> None:
 
     import yaml
 
+    _refresh_console()
+
     if format.lower() == "json":
         console.print(json.dumps(bundle_data, indent=2, default=str))
     else:
@@ -944,6 +968,7 @@ def lock_section(
         specfact project lock --bundle legacy-api --section idea --persona product-owner
         specfact project lock --bundle legacy-api --section "features.*.stories" --persona product-owner
     """
+    _refresh_console()
     if is_debug_mode():
         debug_log_operation(
             "command",
@@ -1101,7 +1126,7 @@ def unlock_section(
         specfact project unlock --bundle legacy-api --section idea
         specfact project unlock --bundle legacy-api --section "features.*.stories"
     """
-
+    _refresh_console()
     # Get bundle name
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
@@ -1190,7 +1215,7 @@ def list_locks(
     **Examples:**
         specfact project locks --bundle legacy-api
     """
-
+    _refresh_console()
     # Get bundle name
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
@@ -1287,7 +1312,7 @@ def init_personas(
         specfact project init-personas --bundle legacy-api --persona product-owner --persona architect
         specfact project init-personas --bundle legacy-api --no-interactive
     """
-
+    _refresh_console()
     # Get bundle name
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
@@ -1432,6 +1457,7 @@ def merge_bundles(
         specfact project merge --base main --ours po-branch --theirs arch-branch --persona-ours product-owner --persona-theirs architect
         specfact project merge --bundle legacy-api --base main --ours feature-1 --theirs feature-2 --persona-ours developer --persona-theirs developer
     """
+    _refresh_console()
     from specfact_cli.merge.resolver import MergeStrategy, PersonaMergeResolver
     from specfact_cli.utils.git import GitOperations
 
@@ -1629,6 +1655,7 @@ def resolve_conflict(
         specfact project resolve-conflict --path features.FEATURE-001.title --resolution ours
         specfact project resolve-conflict --bundle legacy-api --path idea.intent --resolution theirs --persona product-owner
     """
+    _refresh_console()
     # Get bundle name
     if bundle is None:
         bundle = SpecFactStructure.get_active_bundle_name(repo)
@@ -1709,6 +1736,7 @@ def version_check(
     """
     Analyze bundle changes and recommend version bump (major/minor/patch/none).
     """
+    _refresh_console()
     bundle_name, bundle_dir = _resolve_bundle(repo, bundle)
     bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
 
@@ -1767,6 +1795,7 @@ def version_bump(
     """
     Bump project version in bundle manifest (SemVer).
     """
+    _refresh_console()
     bump_type = bump_type.lower()
     bundle_name, bundle_dir = _resolve_bundle(repo, bundle)
 
@@ -1823,6 +1852,7 @@ def version_set(
     """
     Set explicit project version in bundle manifest.
     """
+    _refresh_console()
     bundle_name, bundle_dir = _resolve_bundle(repo, bundle)
     bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
     current_version = bundle_obj.manifest.versions.project
