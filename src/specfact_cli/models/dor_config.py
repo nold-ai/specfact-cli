@@ -135,9 +135,7 @@ class DefinitionOfReady(BaseModel):
 
     @classmethod
     @require(lambda cls, repo_path: isinstance(repo_path, Path), "Repo path must be Path")
-    @ensure(
-        lambda result: result is None or isinstance(result, BaseModel), "Must return DoR model or None"
-    )
+    @ensure(lambda result: result is None or isinstance(result, BaseModel), "Must return DoR model or None")
     def load_from_repo(cls, repo_path: Path) -> DefinitionOfReady | None:
         """
         Load DoR configuration from repository (checks `.specfact/dor.yaml`).

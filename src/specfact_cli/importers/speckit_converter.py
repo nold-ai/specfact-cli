@@ -408,7 +408,9 @@ class SpecKitConverter:
     @ensure(lambda result: isinstance(result, int), "Must return int (number of features converted)")
     @ensure(lambda result: result >= 0, "Result must be non-negative")
     def convert_to_speckit(
-        self, plan_bundle: PlanBundle | BaseModel | dict[str, Any], progress_callback: Callable[[int, int], None] | None = None
+        self,
+        plan_bundle: PlanBundle | BaseModel | dict[str, Any],
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> int:
         """
         Convert SpecFact plan bundle to Spec-Kit markdown artifacts.
