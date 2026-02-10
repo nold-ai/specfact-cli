@@ -28,7 +28,7 @@ from specfact_cli.models.project import (
     SectionLock,
 )
 from specfact_cli.modules import module_io_shim
-from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
+from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_section, print_success, print_warning
 from specfact_cli.utils.persona_ownership import (
     check_persona_ownership as shared_check_persona_ownership,
@@ -50,15 +50,22 @@ sync_with_bundle = module_io_shim.sync_with_bundle
 validate_bundle = module_io_shim.validate_bundle
 
 
+def _refresh_console() -> Console:
+    """Refresh module console so lazy-loaded command modules don't retain closed test streams."""
+    global console
+    console = get_configured_console()
+    return console
+
+
 # Use shared progress utilities for consistency (aliased to maintain existing function names)
 def _load_bundle_with_progress(bundle_dir: Path, validate_hashes: bool = False) -> ProjectBundle:
     """Load project bundle with unified progress display."""
-    return load_bundle_with_progress(bundle_dir, validate_hashes=validate_hashes, console_instance=console)
+    return load_bundle_with_progress(bundle_dir, validate_hashes=validate_hashes, console_instance=_refresh_console())
 
 
 def _save_bundle_with_progress(bundle: ProjectBundle, bundle_dir: Path, atomic: bool = True) -> None:
     """Save project bundle with unified progress display."""
-    save_bundle_with_progress(bundle, bundle_dir, atomic=atomic, console_instance=console)
+    save_bundle_with_progress(bundle, bundle_dir, atomic=atomic, console_instance=_refresh_console())
 
 
 # Default persona mappings
@@ -412,6 +419,7 @@ def export_persona(
         specfact project export --bundle legacy-api --persona architect --output-dir docs/plans
         specfact project export --bundle legacy-api --persona developer --stdout
     """
+    _refresh_console()
     if is_debug_mode():
         debug_log_operation(
             "command",
@@ -642,6 +650,7 @@ def import_persona(
         specfact project import --bundle legacy-api --persona product-owner --input product-owner.md
         specfact project import --bundle legacy-api --persona architect --input architect.md --dry-run
     """
+    _refresh_console()
     if is_debug_mode():
         debug_log_operation(
             "command",
