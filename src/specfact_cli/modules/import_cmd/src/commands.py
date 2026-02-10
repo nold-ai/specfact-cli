@@ -54,6 +54,18 @@ _CONTRACT_WORKER_REPO: Path | None = None
 _CONTRACT_WORKER_CONTRACTS_DIR: Path | None = None
 
 
+def _refresh_console() -> None:
+    """Refresh module console to avoid retaining closed test capture streams."""
+    global console
+    console = get_configured_console()
+
+
+@app.callback()
+def _import_callback() -> None:
+    """Ensure import command group always uses a fresh console per invocation."""
+    _refresh_console()
+
+
 def _init_contract_worker(repo_path: str, contracts_dir: str) -> None:
     """Initialize per-process contract extraction state."""
     from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
