@@ -154,9 +154,10 @@ class SmartCoverageManager:
             )
             base_cmd += ["-e", env_name]
         if with_coverage:
-            base_cmd += ["--cover", "-v"]
-        else:
-            base_cmd += ["-v"]
+            base_cmd += ["--cover"]
+        # Pass pytest args explicitly after `--` to avoid collisions with hatch-test flags
+        # (e.g., hatch's `-r/--randomize` conflicts with pytest `-r` report option).
+        base_cmd += ["--", "-v", "-r", "fEw"]
         # Parallel execution is handled by hatch configuration (parallel = true)
         # No need to add -n parameter manually
         if extra_args:
@@ -173,6 +174,8 @@ class SmartCoverageManager:
             base_cmd += ["--cov=src", "--cov=tools", "--cov-report=term-missing", "-v"]
         else:
             base_cmd += ["-v"]
+        # Pytest short summary report: failures/errors/warnings only (no passed tests).
+        base_cmd += ["-r", "fEw"]
         # Parallel execution is handled by hatch configuration (parallel = true)
         # No need to add -n parameter manually
         if extra_args:

@@ -88,6 +88,19 @@ class ChangeProposal(BaseModel):
         description="Tool-specific metadata (e.g., OpenSpec change directory path, Linear issue ID)",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_nested_models(cls, data: Any) -> Any:
+        """Normalize nested model instances from alternate module identities."""
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        source_tracking = normalized.get("source_tracking")
+        if isinstance(source_tracking, BaseModel):
+            normalized["source_tracking"] = source_tracking.model_dump(mode="python")
+        return normalized
+
 
 class ChangeTracking(BaseModel):
     """Change tracking for a bundle (tool-agnostic capability)."""

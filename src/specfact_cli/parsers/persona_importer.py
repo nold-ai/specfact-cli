@@ -13,6 +13,7 @@ from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
+from pydantic import BaseModel
 
 from specfact_cli.models.persona_template import PersonaTemplate
 from specfact_cli.models.project import PersonaMapping, ProjectBundle
@@ -151,11 +152,10 @@ class PersonaImporter:
 
     @beartype
     @require(lambda sections: isinstance(sections, dict), "Sections must be dict")
-    @require(
-        lambda persona_mapping: isinstance(persona_mapping, PersonaMapping), "Persona mapping must be PersonaMapping"
-    )
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
-    def extract_owned_sections(self, sections: dict[str, Any], persona_mapping: PersonaMapping) -> dict[str, Any]:
+    def extract_owned_sections(
+        self, sections: dict[str, Any], persona_mapping: PersonaMapping | BaseModel | dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Extract persona-owned sections from parsed Markdown.
 
@@ -168,16 +168,23 @@ class PersonaImporter:
         """
         from specfact_cli.utils.persona_ownership import match_section_pattern
 
+        if isinstance(persona_mapping, PersonaMapping):
+            normalized_mapping = persona_mapping
+        elif isinstance(persona_mapping, BaseModel):
+            normalized_mapping = PersonaMapping.model_validate(persona_mapping.model_dump(mode="python"))
+        else:
+            normalized_mapping = PersonaMapping.model_validate(persona_mapping)
+
         extracted: dict[str, Any] = {}
 
         # Extract idea if persona owns it
-        if any(match_section_pattern(p, "idea") for p in persona_mapping.owns):
+        if any(match_section_pattern(p, "idea") for p in normalized_mapping.owns):
             idea_section = sections.get("idea_business_context") or sections.get("idea")
             if idea_section:
                 extracted["idea"] = self._parse_idea_section(idea_section)
 
         # Extract business if persona owns it
-        if any(match_section_pattern(p, "business") for p in persona_mapping.owns):
+        if any(match_section_pattern(p, "business") for p in normalized_mapping.owns):
             business_section = sections.get("idea_business_context") or sections.get("business")
             if business_section:
                 extracted["business"] = self._parse_business_section(business_section)
@@ -185,7 +192,7 @@ class PersonaImporter:
         # Extract features if persona owns any feature sections
         features_section = sections.get("features") or sections.get("features_user_stories")
         if features_section:
-            extracted["features"] = self._parse_features_section(features_section, persona_mapping)
+            extracted["features"] = self._parse_features_section(features_section, normalized_mapping)
 
         return extracted
 
@@ -220,13 +227,19 @@ class PersonaImporter:
 
     @beartype
     @require(lambda content: isinstance(content, str), "Content must be str")
-    @require(
-        lambda persona_mapping: isinstance(persona_mapping, PersonaMapping), "Persona mapping must be PersonaMapping"
-    )
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
-    def _parse_features_section(self, content: str, persona_mapping: PersonaMapping) -> dict[str, Any]:
+    def _parse_features_section(
+        self, content: str, persona_mapping: PersonaMapping | BaseModel | dict[str, Any]
+    ) -> dict[str, Any]:
         """Parse features section content."""
         from specfact_cli.utils.persona_ownership import match_section_pattern
+
+        if isinstance(persona_mapping, PersonaMapping):
+            normalized_mapping = persona_mapping
+        elif isinstance(persona_mapping, BaseModel):
+            normalized_mapping = PersonaMapping.model_validate(persona_mapping.model_dump(mode="python"))
+        else:
+            normalized_mapping = PersonaMapping.model_validate(persona_mapping)
 
         features: dict[str, Any] = {}
         # Basic parsing - extract feature keys and titles
@@ -237,13 +250,13 @@ class PersonaImporter:
             feature: dict[str, Any] = {"key": feature_key, "title": feature_title}
 
             # Extract stories if persona owns stories
-            if any(match_section_pattern(p, "features.*.stories") for p in persona_mapping.owns):
+            if any(match_section_pattern(p, "features.*.stories") for p in normalized_mapping.owns):
                 stories = self._parse_stories(content, feature_key)
                 if stories:
                     feature["stories"] = stories
 
             # Extract acceptance criteria if persona owns acceptance
-            if any(match_section_pattern(p, "features.*.acceptance") for p in persona_mapping.owns):
+            if any(match_section_pattern(p, "features.*.acceptance") for p in normalized_mapping.owns):
                 acceptance = self._parse_acceptance_criteria(content, feature_key)
                 if acceptance:
                     feature["acceptance"] = acceptance

@@ -14,6 +14,7 @@ from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
+from pydantic import BaseModel
 
 from specfact_cli import runtime
 from specfact_cli.analyzers.constitution_evidence_extractor import ConstitutionEvidenceExtractor
@@ -404,11 +405,10 @@ class SpecKitConverter:
         return output_path
 
     @beartype
-    @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @ensure(lambda result: isinstance(result, int), "Must return int (number of features converted)")
     @ensure(lambda result: result >= 0, "Result must be non-negative")
     def convert_to_speckit(
-        self, plan_bundle: PlanBundle, progress_callback: Callable[[int, int], None] | None = None
+        self, plan_bundle: PlanBundle | BaseModel | dict[str, Any], progress_callback: Callable[[int, int], None] | None = None
     ) -> int:
         """
         Convert SpecFact plan bundle to Spec-Kit markdown artifacts.
@@ -422,12 +422,19 @@ class SpecKitConverter:
         Returns:
             Number of features converted
         """
+        if isinstance(plan_bundle, PlanBundle):
+            normalized_bundle = plan_bundle
+        elif isinstance(plan_bundle, BaseModel):
+            normalized_bundle = PlanBundle.model_validate(plan_bundle.model_dump(mode="python"))
+        else:
+            normalized_bundle = PlanBundle.model_validate(plan_bundle)
+
         features_converted = 0
-        total_features = len(plan_bundle.features)
+        total_features = len(normalized_bundle.features)
         # Track used feature numbers to avoid duplicates
         used_feature_nums: set[int] = set()
 
-        for idx, feature in enumerate(plan_bundle.features, start=1):
+        for idx, feature in enumerate(normalized_bundle.features, start=1):
             # Report progress if callback provided
             if progress_callback:
                 progress_callback(idx, total_features)
@@ -454,7 +461,7 @@ class SpecKitConverter:
             (feature_dir / "spec.md").write_text(spec_content, encoding="utf-8")
 
             # Generate plan.md
-            plan_content = self._generate_plan_markdown(feature, plan_bundle)
+            plan_content = self._generate_plan_markdown(feature, normalized_bundle)
             (feature_dir / "plan.md").write_text(plan_content, encoding="utf-8")
 
             # Generate tasks.md

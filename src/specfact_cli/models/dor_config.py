@@ -93,10 +93,9 @@ class DefinitionOfReady(BaseModel):
 
         return errors
 
-    @beartype
     @classmethod
     @require(lambda cls, config_path: isinstance(config_path, Path), "Config path must be Path")
-    @ensure(lambda result: isinstance(result, DefinitionOfReady), "Must return DefinitionOfReady")
+    @ensure(lambda result: isinstance(result, BaseModel), "Must return DoR model")
     def load_from_file(cls, config_path: Path) -> DefinitionOfReady:
         """
         Load DoR configuration from YAML file.
@@ -134,11 +133,10 @@ class DefinitionOfReady(BaseModel):
             msg = f"Failed to parse DoR config YAML: {config_path}: {e}"
             raise ValueError(msg) from e
 
-    @beartype
     @classmethod
     @require(lambda cls, repo_path: isinstance(repo_path, Path), "Repo path must be Path")
     @ensure(
-        lambda result: result is None or isinstance(result, DefinitionOfReady), "Must return DefinitionOfReady or None"
+        lambda result: result is None or isinstance(result, BaseModel), "Must return DoR model or None"
     )
     def load_from_repo(cls, repo_path: Path) -> DefinitionOfReady | None:
         """

@@ -143,6 +143,7 @@ jobs:
           TEST_MODE: "true"
           HATCH_TEST_ENV: "py3.12"
           SMART_TEST_TIMEOUT_SECONDS: "1800"
+          PYTEST_ADDOPTS: "-r fEw"
         run: |
           echo "🧪 Running contract-first test suite (3.12)..."
           echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
@@ -171,6 +172,8 @@ jobs:
 
       - name: Run unit tests with coverage (3.12)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
+        env:
+          PYTEST_ADDOPTS: "-r fEw"
         run: |
           echo "🧪 Running unit tests with coverage (3.12)..."
           hatch -e hatch-test.py3.12 run run-cov
@@ -219,7 +222,7 @@ jobs:
           echo "🔁 Python 3.11 compatibility checks"
           # Run a subset of tests to verify Python 3.11 compatibility
           # Focus on unit tests and integration tests (skip slow E2E tests)
-          hatch -e hatch-test.py3.11 test tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
+          hatch -e hatch-test.py3.11 test -- -r fEw tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
           hatch -e hatch-test.py3.11 run xml || true
 
   contract-first-ci:
