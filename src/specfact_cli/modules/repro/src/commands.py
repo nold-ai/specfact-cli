@@ -17,6 +17,8 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.env_manager import check_tool_in_env, detect_env_manager, detect_source_directories
@@ -26,6 +28,11 @@ from specfact_cli.validators.repro_checker import ReproChecker
 
 app = typer.Typer(help="Run validation suite for reproducibility")
 console = Console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 def _update_pyproject_crosshair_config(pyproject_path: Path, config: dict[str, int | float]) -> bool:
@@ -161,6 +168,11 @@ def main(
         "--fix",
         help="Apply auto-fixes where available (Semgrep auto-fixes)",
     ),
+    crosshair_required: bool = typer.Option(
+        False,
+        "--crosshair-required",
+        help="Fail if CrossHair analysis is skipped/failed (strict contract exploration mode)",
+    ),
     # Advanced/Configuration
     budget: int = typer.Option(
         120,
@@ -235,6 +247,8 @@ def main(
         console.print("[dim]Fail-fast: enabled[/dim]")
     if fix:
         console.print("[dim]Auto-fix: enabled[/dim]")
+    if crosshair_required:
+        console.print("[dim]CrossHair required: enabled[/dim]")
     console.print()
 
     # Ensure structure exists
@@ -249,7 +263,13 @@ def main(
 
     with telemetry.track_command("repro.run", telemetry_metadata) as record_event:
         # Run all checks
-        checker = ReproChecker(repo_path=repo, budget=budget, fail_fast=fail_fast, fix=fix)
+        checker = ReproChecker(
+            repo_path=repo,
+            budget=budget,
+            fail_fast=fail_fast,
+            fix=fix,
+            crosshair_required=crosshair_required,
+        )
 
         # Detect and display environment manager before starting progress spinner
         from specfact_cli.utils.env_manager import detect_env_manager
@@ -332,8 +352,10 @@ def main(
         # Show errors if verbose
         if verbose:
             for check in report.checks:
-                if check.error:
-                    console.print(f"\n[bold red]{check.name} Error:[/bold red]")
+                if check.error and check.status.value in {"failed", "timeout", "skipped"}:
+                    label = "Error" if check.status.value in {"failed", "timeout"} else "Details"
+                    style = "red" if check.status.value in {"failed", "timeout"} else "yellow"
+                    console.print(f"\n[bold {style}]{check.name} {label}:[/bold {style}]")
                     console.print(f"[dim]{check.error}[/dim]")
                 if check.output and check.status.value == "failed":
                     console.print(f"\n[bold red]{check.name} Output:[/bold red]")

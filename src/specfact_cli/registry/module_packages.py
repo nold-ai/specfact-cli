@@ -3,10 +3,13 @@ Module packages: discover packages under modules root and register with CommandR
 
 Each package has module-package.yaml (name, version, commands), src/, optional resources/ and tests/.
 Only enabled modules (from modules.json) are registered.
+
+CrossHair: skip (dynamic imports and module loading are intentionally side-effectful)
 """
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from pathlib import Path
 from typing import Any
@@ -18,10 +21,13 @@ from packaging.version import InvalidVersion, Version
 
 from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
-from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.models.module_package import ModulePackageMetadata, ServiceBridgeMetadata
+from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverter
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
+from specfact_cli.runtime import is_debug_mode
+from specfact_cli.utils.prompts import print_warning
 
 
 # Display order for core modules (formerly built-in); others follow alphabetically.
@@ -52,6 +58,7 @@ PROTOCOL_METHODS: dict[str, str] = {
     "sync": "sync_with_bundle",
     "validate": "validate_bundle",
 }
+BRIDGE_REGISTRY = BridgeRegistry()
 
 
 def get_modules_root() -> Path:
@@ -103,6 +110,13 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
             command_help = None
             if isinstance(raw_help, dict):
                 command_help = {str(k): str(v) for k, v in raw_help.items()}
+            validated_service_bridges: list[ServiceBridgeMetadata] = []
+            for bridge_entry in raw.get("service_bridges", []) or []:
+                try:
+                    validated_service_bridges.append(ServiceBridgeMetadata.model_validate(bridge_entry))
+                except Exception:
+                    # Keep startup resilient: malformed bridge declarations are skipped later.
+                    continue
             meta = ModulePackageMetadata(
                 name=str(raw["name"]),
                 version=str(raw.get("version", "0.1.0")),
@@ -114,11 +128,30 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 tier=str(raw.get("tier", "community")),
                 addon_id=str(raw["addon_id"]) if raw.get("addon_id") else None,
                 schema_version=str(raw["schema_version"]) if raw.get("schema_version") is not None else None,
+                service_bridges=validated_service_bridges,
             )
             result.append((child, meta))
         except Exception:
             continue
     return result
+
+
+@beartype
+@require(lambda class_path: class_path.strip() != "", "Converter class path must not be empty")
+@require(lambda class_path: "." in class_path, "Converter class path must include module and class name")
+@ensure(lambda result: isinstance(result, type), "Resolved converter must be a class")
+def _resolve_converter_class(class_path: str) -> type[SchemaConverter]:
+    """Resolve a converter class from dotted path.
+
+    Raises:
+        ImportError/AttributeError/TypeError: when path cannot be resolved to a class.
+    """
+    module_path, class_name = class_path.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    converter_class = getattr(module, class_name)
+    if not isinstance(converter_class, type):
+        raise TypeError(f"Converter path '{class_path}' did not resolve to a class.")
+    return converter_class
 
 
 @beartype
@@ -331,6 +364,25 @@ def _check_protocol_compliance(module_class: Any) -> list[str]:
 
 
 @beartype
+@require(lambda package_name: package_name.strip() != "", "Package name must not be empty")
+@ensure(lambda result: result is not None, "Protocol inspection target must be resolved")
+def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
+    """Resolve runtime interface used for protocol inspection."""
+    runtime_interface = getattr(module_obj, "runtime_interface", None)
+    if runtime_interface is not None:
+        return runtime_interface
+    commands_interface = getattr(module_obj, "commands", None)
+    if commands_interface is not None:
+        return commands_interface
+    # Module app entrypoints often only expose `app`; load module-local commands for protocol detection.
+    try:
+        return importlib.import_module(f"specfact_cli.modules.{package_name}.src.commands")
+    except Exception:
+        pass
+    return module_obj
+
+
+@beartype
 @ensure(lambda result: isinstance(result, bool), "Schema compatibility check must return bool")
 def _check_schema_compatibility(module_schema: str | None, current: str) -> bool:
     """Return True when module schema is compatible with current ProjectBundle schema."""
@@ -386,6 +438,11 @@ def register_module_package_commands(
     protocol_full = 0
     protocol_partial = 0
     protocol_legacy = 0
+    partial_modules: list[tuple[str, list[str]]] = []
+    legacy_modules: list[str] = []
+    bridge_owner_map: dict[str, str] = {
+        bridge_id: BRIDGE_REGISTRY.get_owner(bridge_id) or "unknown" for bridge_id in BRIDGE_REGISTRY.list_bridge_ids()
+    }
     for package_dir, meta in packages:
         if not enabled_map.get(meta.name, True):
             continue
@@ -416,21 +473,51 @@ def register_module_package_commands(
         else:
             logger.info("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
 
+        for bridge in meta.validate_service_bridges():
+            existing_owner = bridge_owner_map.get(bridge.id)
+            if existing_owner:
+                logger.warning(
+                    "Duplicate bridge ID '%s' declared by module '%s'; already declared by '%s' (skipped).",
+                    bridge.id,
+                    meta.name,
+                    existing_owner,
+                )
+                continue
+            try:
+                converter_class = _resolve_converter_class(bridge.converter_class)
+                converter: SchemaConverter = converter_class()
+                BRIDGE_REGISTRY.register_converter(bridge.id, converter, meta.name)
+                bridge_owner_map[bridge.id] = meta.name
+            except Exception as exc:
+                logger.warning(
+                    "Module %s: Skipping bridge '%s' (converter: %s): %s",
+                    meta.name,
+                    bridge.id,
+                    bridge.converter_class,
+                    exc,
+                )
+
         try:
             module_obj = _load_package_module(package_dir, meta.name)
-            operations = _check_protocol_compliance(module_obj)  # type: ignore[arg-type]
+            protocol_target = _resolve_protocol_target(module_obj, meta.name)
+            operations = _check_protocol_compliance(protocol_target)  # type: ignore[arg-type]
             meta.protocol_operations = operations
             if len(operations) == 4:
-                logger.info("Module %s: ModuleIOContract fully implemented", meta.name)
                 protocol_full += 1
             elif operations:
-                logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+                partial_modules.append((meta.name, operations))
+                if is_debug_mode():
+                    logger.warning("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
                 protocol_partial += 1
             else:
-                logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
+                legacy_modules.append(meta.name)
+                if is_debug_mode():
+                    logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
                 protocol_legacy += 1
         except Exception as exc:
-            logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
+            legacy_modules.append(meta.name)
+            if is_debug_mode():
+                logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
             meta.protocol_operations = []
             protocol_legacy += 1
 
@@ -440,17 +527,26 @@ def register_module_package_commands(
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
     discovered_count = protocol_full + protocol_partial + protocol_legacy
-    if discovered_count:
-        logger.info(
-            "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
-            protocol_full + protocol_partial,
-            discovered_count,
-            protocol_full,
-            protocol_partial,
-            protocol_legacy,
+    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
+        print_warning(
+            "Module compatibility check: "
+            f"{protocol_full + protocol_partial}/{discovered_count} compliant "
+            f"(full={protocol_full}, partial={protocol_partial}, legacy={protocol_legacy})."
         )
-        if protocol_legacy:
-            logger.warning("%s module(s) in legacy mode (no ModuleIOContract)", protocol_legacy)
+        if partial_modules:
+            partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
+            print_warning(f"Partially compliant modules: {partial_desc}")
+        if legacy_modules:
+            print_warning(f"Legacy modules: {', '.join(sorted(set(legacy_modules)))}")
+        if is_debug_mode():
+            logger.info(
+                "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
+                protocol_full + protocol_partial,
+                discovered_count,
+                protocol_full,
+                protocol_partial,
+                protocol_legacy,
+            )
     for module_id, reason in skipped:
         logger.debug("Skipped module '%s': %s", module_id, reason)
 

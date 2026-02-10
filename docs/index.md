@@ -55,6 +55,25 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 - **[Spec-Kit Comparison](guides/speckit-comparison.md)** - Understand when to use each tool
 - **[From OpenSpec to SpecFact](guides/openspec-journey.md)** - Add enforcement to OpenSpec projects
 
+## Module System Foundation
+
+SpecFact now uses a module-first architecture to reduce hard-wired command coupling.
+
+- Core runtime handles lifecycle, registry, contracts, and orchestration.
+- Feature behavior lives in module-local command implementations.
+- Legacy command-path shims remain for compatibility during migration windows.
+
+Implementation layout:
+
+- Primary module commands: `src/specfact_cli/modules/<module>/src/commands.py`
+- Legacy compatibility shims: `src/specfact_cli/commands/*.py` (only `app` re-export is guaranteed)
+
+Why this matters:
+
+- Modules can evolve at different speeds without repeatedly changing CLI core wiring.
+- Interfaces and contracts keep feature development isolated and safer to iterate.
+- Pending OpenSpec-driven module changes can land incrementally with lower migration risk.
+
 ## 📚 Documentation
 
 ### Guides
@@ -125,8 +144,14 @@ specfact sync bridge --adapter ado --mode export-only \
 - **[Command Reference](reference/commands.md)** - Complete command documentation
 - **[Authentication](reference/authentication.md)** - Device code auth flows and token storage
 - **[Architecture](reference/architecture.md)** - Technical design and principles
+- **[Bridge Registry](reference/bridge-registry.md)** 🆕 - Module-declared bridge converters and lifecycle registration
 - **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
 - **[Directory Structure](reference/directory-structure.md)** - Project structure
+
+### Module Protocol Reporting
+
+- Lifecycle protocol compliance reporting now classifies modules using the effective runtime interface and
+  emits a single aggregate summary line for full/partial/legacy status.
 
 ### Examples
 

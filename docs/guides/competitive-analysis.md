@@ -165,7 +165,7 @@ When using Cursor, Copilot, or other AI assistants, SpecFact CLI integrates seam
 
 ```bash
 # Slash commands in IDE (after specfact init)
-specfact init --ide cursor
+specfact init ide --ide cursor
 /specfact.01-import legacy-api --repo . --confidence 0.7
 /specfact.02-plan init legacy-api
 /specfact.06-sync --repo . --bidirectional
@@ -222,7 +222,7 @@ specfact repro --budget 120 --report evidence.md
 
 ```bash
 # Primary use case: Analyze legacy code
-specfact import from-code --bundle legacy-api --repo ./legacy-app
+specfact import from-code legacy-api --repo ./legacy-app
 
 # Extract specs from existing code in < 10 seconds
 # Then enforce contracts to prevent regressions
@@ -307,7 +307,7 @@ uvx specfact-cli@latest plan init --interactive
 
 ```bash
 # Primary use case: Analyze legacy codebase
-specfact import from-code --bundle legacy-api --repo ./legacy-app
+specfact import from-code legacy-api --repo ./legacy-app
 ```
 
 See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-code-modernization-primary) ⭐
@@ -337,7 +337,7 @@ Use slash commands directly in your IDE:
 
 ```bash
 # First, initialize IDE integration
-specfact init --ide cursor
+specfact init ide --ide cursor
 
 # Then use slash commands in IDE chat
 /specfact.01-import legacy-api --repo . --confidence 0.7
@@ -351,7 +351,7 @@ SpecFact CLI automatically detects CoPilot and switches to enhanced mode.
 
 **Greenfield approach**:
 
-1. `specfact plan init --bundle legacy-api --interactive`
+1. `specfact plan init legacy-api --interactive`
 2. Add features and stories
 3. Enable strict enforcement
 4. Let SpecFact guide development

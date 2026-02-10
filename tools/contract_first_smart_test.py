@@ -18,6 +18,7 @@ Usage:
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -31,6 +32,7 @@ class ContractFirstTestManager(SmartCoverageManager):
     """Contract-first test manager extending the smart coverage system."""
 
     STANDARD_CROSSHAIR_TIMEOUT = 60
+    CROSSHAIR_SKIP_RE = re.compile(r"(?mi)^\s*(?:#\s*)?CrossHair:\s*(?:skip|ignore)\b")
 
     def __init__(
         self,
@@ -107,6 +109,54 @@ class ContractFirstTestManager(SmartCoverageManager):
             cmd += ["--max_uninteresting_iterations", "1"]
         cmd.append(str(file_path))
         return cmd
+
+    def _format_display_path(self, file_path: Path) -> str:
+        """Format file path for user-facing output."""
+        try:
+            return str(file_path.relative_to(self.project_root))
+        except ValueError:
+            return str(file_path)
+
+    def _extract_signature_limitation_detail(self, stderr: str, stdout: str) -> str | None:
+        """Extract a concise signature-limitation detail from CrossHair output."""
+        combined_output = f"{stderr}\n{stdout}"
+        if not combined_output.strip():
+            return None
+
+        patterns = [
+            r"wrong parameter order[^\n]*",
+            r"keyword-only parameter[^\n]*",
+            r"valueerror:\s*wrong parameter[^\n]*",
+            r"signature[^\n]*(?:error|failure)[^\n]*",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, combined_output, re.IGNORECASE)
+            if match:
+                return match.group(0).strip()
+        return None
+
+    def _is_crosshair_skipped(self, file_path: Path) -> bool:
+        """Check if file opts out from CrossHair exploration."""
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError:
+            return False
+        return bool(self.CROSSHAIR_SKIP_RE.search(content))
+
+    def _is_typer_command_module(self, file_path: Path) -> bool:
+        """Detect Typer command modules that commonly trigger CrossHair signature limitations."""
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError:
+            return False
+        return (
+            file_path.name == "commands.py"
+            and "typer.Typer(" in content
+            and (
+                re.search(r"@\w+\.command\s*\(", content) is not None
+                or re.search(r"@\w+\.callback\s*\(", content) is not None
+            )
+        )
 
     def _check_contract_tools(self) -> dict[str, bool]:
         """Check if contract tools are available."""
@@ -266,9 +316,22 @@ class ContractFirstTestManager(SmartCoverageManager):
         success = True
 
         exploration_cache: dict[str, Any] = self.contract_cache.setdefault("exploration_cache", {})
+        signature_skips: list[str] = []
 
+        unique_files: list[Path] = []
+        seen_paths: set[str] = set()
         for file_path in modified_files:
-            print(f"   Exploring contracts in: {file_path.name}")
+            key = str(file_path.resolve())
+            if key in seen_paths:
+                continue
+            seen_paths.add(key)
+            unique_files.append(file_path)
+        if len(unique_files) < len(modified_files):
+            print(f"   ℹ️  De-duplicated {len(modified_files) - len(unique_files)} repeated file entries")
+
+        for file_path in unique_files:
+            display_path = self._format_display_path(file_path)
+            print(f"   Exploring contracts in: {display_path}")
 
             file_key = str(file_path)
             file_hash: str | None = None
@@ -293,7 +356,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                     and cache_entry.get("hash") == file_hash
                     and cache_entry.get("status") == "success"
                 ):
-                    print("      ⏭️  Cached result found, skipping CrossHair run")
+                    print(f"      ⏭️  Cached result found, skipping CrossHair run for {display_path}")
                     exploration_results[file_key] = {
                         "return_code": cache_entry.get("return_code", 0),
                         "stdout": cache_entry.get("stdout", ""),
@@ -301,6 +364,59 @@ class ContractFirstTestManager(SmartCoverageManager):
                         "timestamp": datetime.now().isoformat(),
                         "cached": True,
                         "fast_mode": cache_entry.get("fast_mode", False),
+                    }
+                    continue
+
+                if self._is_crosshair_skipped(file_path):
+                    print(f"      ⏭️  CrossHair skipped for {display_path} (file marked 'CrossHair: skip')")
+                    exploration_results[file_key] = {
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "timestamp": datetime.now().isoformat(),
+                        "cached": False,
+                        "fast_mode": False,
+                        "skipped": True,
+                        "reason": "CrossHair skip marker",
+                    }
+                    exploration_cache[file_key] = {
+                        "hash": file_hash,
+                        "status": "skipped",
+                        "fast_mode": False,
+                        "prefer_fast": False,
+                        "timestamp": datetime.now().isoformat(),
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "reason": "CrossHair skip marker",
+                    }
+                    continue
+
+                if self._is_typer_command_module(file_path):
+                    print(
+                        f"      ⏭️  CrossHair skipped for {display_path} "
+                        "(Typer command module; signature analysis unsupported)"
+                    )
+                    exploration_results[file_key] = {
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "timestamp": datetime.now().isoformat(),
+                        "cached": False,
+                        "fast_mode": False,
+                        "skipped": True,
+                        "reason": "Typer command module",
+                    }
+                    exploration_cache[file_key] = {
+                        "hash": file_hash,
+                        "status": "skipped",
+                        "fast_mode": False,
+                        "prefer_fast": False,
+                        "timestamp": datetime.now().isoformat(),
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "reason": "Typer command module",
                     }
                     continue
 
@@ -331,15 +447,8 @@ class ContractFirstTestManager(SmartCoverageManager):
                 # - Typer decorators: signature transformation issues
                 # - Complex Path parameter handling: keyword-only parameter ordering
                 # - Function signatures with variadic arguments: wrong parameter order
-                stderr_lower = result.stderr.lower() if result.stderr else ""
-                stdout_lower = result.stdout.lower() if result.stdout else ""
-                combined_output = f"{stderr_lower} {stdout_lower}"
-                is_signature_issue = (
-                    "wrong parameter order" in combined_output
-                    or "keyword-only parameter" in combined_output
-                    or "valueerror: wrong parameter" in combined_output
-                    or ("signature" in combined_output and ("error" in combined_output or "failure" in combined_output))
-                )
+                signature_detail = self._extract_signature_limitation_detail(result.stderr, result.stdout)
+                is_signature_issue = signature_detail is not None
 
                 exploration_results[file_key] = {
                     "return_code": result.returncode,
@@ -354,9 +463,8 @@ class ContractFirstTestManager(SmartCoverageManager):
 
                 if is_signature_issue:
                     status = "skipped"
-                    print(
-                        f"   ⚠️  CrossHair signature analysis limitation in {file_path.name} (non-blocking, runtime contracts valid)"
-                    )
+                    signature_skips.append(display_path)
+                    print(f"      ⏭️  CrossHair skipped for {display_path} (signature analysis limitation)")
                     # Don't set success = False for signature issues
                 else:
                     status = "success" if result.returncode == 0 else "failure"
@@ -374,7 +482,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                 }
 
                 if result.returncode != 0 and not is_signature_issue:
-                    print(f"   ⚠️  CrossHair found issues in {file_path.name}")
+                    print(f"   ⚠️  CrossHair found issues in {display_path}")
                     if result.stdout.strip():
                         print("      ├─ stdout:")
                         for line in result.stdout.strip().splitlines():
@@ -393,10 +501,12 @@ class ContractFirstTestManager(SmartCoverageManager):
                     success = False
                 else:
                     if timed_out:
-                        print(f"   ✅ CrossHair exploration passed for {file_path.name} (fast retry)")
+                        print(f"   ✅ CrossHair exploration passed for {display_path} (fast retry)")
+                    elif is_signature_issue:
+                        pass
                     else:
                         mode_label = "fast" if use_fast else "standard"
-                        print(f"   ✅ CrossHair exploration passed for {file_path.name} ({mode_label})")
+                        print(f"   ✅ CrossHair exploration passed for {display_path} ({mode_label})")
 
             except subprocess.TimeoutExpired:
                 exploration_results[file_key] = {
@@ -442,6 +552,12 @@ class ContractFirstTestManager(SmartCoverageManager):
             }
         )
         self._save_contract_cache()
+
+        if signature_skips:
+            print(
+                f"   ℹ️  CrossHair signature-limited files skipped: {len(signature_skips)} "
+                "(non-blocking; grouped summary)"
+            )
 
         return success, exploration_results
 

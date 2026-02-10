@@ -70,6 +70,25 @@ SpecFact CLI uses a lifecycle-managed module system:
 
 This is the baseline for future granular module updates and enhancements. Third-party/community module installation is planned, but not available yet.
 
+### Why the Module System Is the Foundation
+
+This architecture intentionally separates the CLI core from feature modules:
+
+- Core provides lifecycle, registry, contracts, and orchestration.
+- Modules provide feature-specific command logic and integrations.
+- Compatibility shims preserve legacy import paths during migration windows.
+
+Practical outcomes:
+
+- Feature modules can be developed and released at different speeds.
+- Module teams can iterate without repeatedly rebuilding core command wiring.
+- Stable contracts/interfaces keep migrations predictable and reduce regressions.
+
+For implementation details, see:
+
+- [Architecture](reference/architecture.md)
+- [Module Contracts](reference/module-contracts.md)
+
 ---
 
 ## Documentation Sections

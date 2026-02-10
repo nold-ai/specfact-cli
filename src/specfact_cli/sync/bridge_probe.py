@@ -11,6 +11,7 @@ from pathlib import Path
 
 from beartype import beartype
 from icontract import ensure, require
+from pydantic import BaseModel
 
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.models.bridge import BridgeConfig
@@ -134,9 +135,8 @@ class BridgeProbe:
         return adapter.generate_bridge_config(self.repo_path)
 
     @beartype
-    @require(lambda bridge_config: isinstance(bridge_config, BridgeConfig), "Bridge config must be BridgeConfig")
     @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
-    def validate_bridge(self, bridge_config: BridgeConfig) -> dict[str, list[str]]:
+    def validate_bridge(self, bridge_config: BridgeConfig | BaseModel | dict[str, object]) -> dict[str, list[str]]:
         """
         Validate bridge configuration and check if paths exist.
 
@@ -149,20 +149,27 @@ class BridgeProbe:
             - "warnings": List of warning messages
             - "suggestions": List of suggestions
         """
+        if isinstance(bridge_config, BridgeConfig):
+            normalized_config = bridge_config
+        elif isinstance(bridge_config, BaseModel):
+            normalized_config = BridgeConfig.model_validate(bridge_config.model_dump(mode="python"))
+        else:
+            normalized_config = BridgeConfig.model_validate(bridge_config)
+
         errors: list[str] = []
         warnings: list[str] = []
         suggestions: list[str] = []
 
         # Check if artifact paths exist (sample check with common feature IDs)
         sample_feature_ids = ["001-auth", "002-payment", "test-feature"]
-        for artifact_key, artifact in bridge_config.artifacts.items():
+        for artifact_key, artifact in normalized_config.artifacts.items():
             found_paths = 0
             for feature_id in sample_feature_ids:
                 try:
                     context = {"feature_id": feature_id}
                     if "contract_name" in artifact.path_pattern:
                         context["contract_name"] = "api"
-                    resolved_path = bridge_config.resolve_path(artifact_key, context, base_path=self.repo_path)
+                    resolved_path = normalized_config.resolve_path(artifact_key, context, base_path=self.repo_path)
                     if resolved_path.exists():
                         found_paths += 1
                 except (ValueError, KeyError):
@@ -177,10 +184,10 @@ class BridgeProbe:
                 )
 
         # Check template paths if configured
-        if bridge_config.templates:
-            for schema_key in bridge_config.templates.mapping:
+        if normalized_config.templates:
+            for schema_key in normalized_config.templates.mapping:
                 try:
-                    template_path = bridge_config.resolve_template_path(schema_key, base_path=self.repo_path)
+                    template_path = normalized_config.resolve_template_path(schema_key, base_path=self.repo_path)
                     if not template_path.exists():
                         warnings.append(
                             f"Template for '{schema_key}' not found at {template_path}. "
@@ -191,14 +198,14 @@ class BridgeProbe:
 
         # Suggest corrections based on common issues (adapter-agnostic)
         # Get adapter to check capabilities and provide adapter-specific suggestions
-        adapter = AdapterRegistry.get_adapter(bridge_config.adapter.value)
+        adapter = AdapterRegistry.get_adapter(normalized_config.adapter.value)
         if adapter:
-            adapter_capabilities = adapter.get_capabilities(self.repo_path, bridge_config)
+            adapter_capabilities = adapter.get_capabilities(self.repo_path, normalized_config)
             specs_dir = self.repo_path / adapter_capabilities.specs_dir
 
             # Check if specs directory exists but bridge points to different location
             if specs_dir.exists():
-                for artifact in bridge_config.artifacts.values():
+                for artifact in normalized_config.artifacts.values():
                     # Check if artifact pattern doesn't match detected specs_dir
                     if adapter_capabilities.specs_dir not in artifact.path_pattern:
                         suggestions.append(
@@ -214,9 +221,10 @@ class BridgeProbe:
         }
 
     @beartype
-    @require(lambda bridge_config: isinstance(bridge_config, BridgeConfig), "Bridge config must be BridgeConfig")
     @ensure(lambda result: result is None, "Must return None")
-    def save_bridge_config(self, bridge_config: BridgeConfig, overwrite: bool = False) -> None:
+    def save_bridge_config(
+        self, bridge_config: BridgeConfig | BaseModel | dict[str, object], overwrite: bool = False
+    ) -> None:
         """
         Save bridge configuration to `.specfact/config/bridge.yaml`.
 
@@ -224,6 +232,13 @@ class BridgeProbe:
             bridge_config: Bridge configuration to save
             overwrite: If True, overwrite existing config; if False, raise error if exists
         """
+        if isinstance(bridge_config, BridgeConfig):
+            normalized_config = bridge_config
+        elif isinstance(bridge_config, BaseModel):
+            normalized_config = BridgeConfig.model_validate(bridge_config.model_dump(mode="python"))
+        else:
+            normalized_config = BridgeConfig.model_validate(bridge_config)
+
         config_dir = self.repo_path / SpecFactStructure.CONFIG
         config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -232,4 +247,4 @@ class BridgeProbe:
             msg = f"Bridge config already exists at {bridge_path}. Use overwrite=True to replace."
             raise FileExistsError(msg)
 
-        bridge_config.save_to_file(bridge_path)
+        normalized_config.save_to_file(bridge_path)

@@ -1,4 +1,7 @@
-"""Authentication commands for DevOps providers."""
+"""Authentication commands for DevOps providers.
+
+CrossHair: skip (OAuth device flow performs network I/O and time-based polling)
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,8 @@ import typer
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.contracts.module_interface import ModuleIOContract
+from specfact_cli.modules import module_io_shim
 from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console
 from specfact_cli.utils.auth_tokens import (
     clear_all_tokens,
@@ -24,6 +29,11 @@ from specfact_cli.utils.auth_tokens import (
 
 app = typer.Typer(help="Authenticate with DevOps providers using device code flows")
 console = get_configured_console()
+_MODULE_IO_CONTRACT = ModuleIOContract
+import_to_bundle = module_io_shim.import_to_bundle
+export_from_bundle = module_io_shim.export_from_bundle
+sync_with_bundle = module_io_shim.sync_with_bundle
+validate_bundle = module_io_shim.validate_bundle
 
 
 AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798/.default"
@@ -92,6 +102,10 @@ def _normalize_scopes(scopes: str) -> str:
 @beartype
 @require(lambda client_id: isinstance(client_id, str) and len(client_id) > 0, "Client ID required")
 @require(lambda base_url: isinstance(base_url, str) and len(base_url) > 0, "Base URL required")
+@require(
+    lambda base_url: base_url.startswith(("https://", "http://")),
+    "Base URL must include http(s) scheme",
+)
 @require(lambda scopes: isinstance(scopes, str), "Scopes must be string")
 @ensure(lambda result: isinstance(result, dict), "Must return device code response")
 def _request_github_device_code(client_id: str, base_url: str, scopes: str) -> dict[str, Any]:
@@ -107,6 +121,10 @@ def _request_github_device_code(client_id: str, base_url: str, scopes: str) -> d
 @beartype
 @require(lambda client_id: isinstance(client_id, str) and len(client_id) > 0, "Client ID required")
 @require(lambda base_url: isinstance(base_url, str) and len(base_url) > 0, "Base URL required")
+@require(
+    lambda base_url: base_url.startswith(("https://", "http://")),
+    "Base URL must include http(s) scheme",
+)
 @require(lambda device_code: isinstance(device_code, str) and len(device_code) > 0, "Device code required")
 @require(lambda interval: isinstance(interval, int) and interval > 0, "Interval must be positive int")
 @require(lambda expires_in: isinstance(expires_in, int) and expires_in > 0, "Expires_in must be positive int")

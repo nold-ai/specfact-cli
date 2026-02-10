@@ -11,6 +11,7 @@ Complete technical reference for SpecFact CLI.
 ## Available References
 
 - **[Commands](commands.md)** - Complete command reference with all options
+- **[Command Syntax Policy](command-syntax-policy.md)** - Source-of-truth argument syntax conventions for docs
 - **[Authentication](authentication.md)** - Device code auth flows and token storage
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
 - **[Debug Logging](debug-logging.md)** - Where and what is logged when using `--debug`
@@ -35,7 +36,7 @@ Complete technical reference for SpecFact CLI.
 - `specfact spec validate [--bundle <name>]` - Validate OpenAPI/AsyncAPI specifications
 - `specfact spec generate-tests [--bundle <name>]` - Generate contract tests from specifications
 - `specfact spec mock [--bundle <name>]` - Launch mock server for development
-- `specfact init` - Initialize IDE integration
+- `specfact init ide --ide <cursor|vscode|copilot|...>` - Initialize IDE integration explicitly
 
 ### Modes
 
@@ -44,7 +45,7 @@ Complete technical reference for SpecFact CLI.
 
 ### IDE Integration
 
-- `specfact init` - Set up slash commands in IDE
+- `specfact init ide --ide <cursor|vscode|copilot|...>` - Set up slash commands in IDE
 - See [IDE Integration Guide](../guides/ide-integration.md) for details
 
 ## Technical Details

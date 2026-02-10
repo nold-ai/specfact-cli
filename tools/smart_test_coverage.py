@@ -28,6 +28,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -153,9 +154,10 @@ class SmartCoverageManager:
             )
             base_cmd += ["-e", env_name]
         if with_coverage:
-            base_cmd += ["--cover", "-v"]
-        else:
-            base_cmd += ["-v"]
+            base_cmd += ["--cover"]
+        # Pass pytest args explicitly after `--` to avoid collisions with hatch-test flags
+        # (e.g., hatch's `-r/--randomize` conflicts with pytest `-r` report option).
+        base_cmd += ["--", "-v", "-r", "fEw"]
         # Parallel execution is handled by hatch configuration (parallel = true)
         # No need to add -n parameter manually
         if extra_args:
@@ -172,11 +174,26 @@ class SmartCoverageManager:
             base_cmd += ["--cov=src", "--cov=tools", "--cov-report=term-missing", "-v"]
         else:
             base_cmd += ["-v"]
+        # Pytest short summary report: failures/errors/warnings only (no passed tests).
+        base_cmd += ["-r", "fEw"]
         # Parallel execution is handled by hatch configuration (parallel = true)
         # No need to add -n parameter manually
         if extra_args:
             base_cmd += extra_args
         return base_cmd
+
+    def _get_test_timeout_seconds(self, test_level: str) -> int:
+        """Resolve subprocess timeout for test execution."""
+        default_timeout = 600
+        slow_levels = {"integration", "scenarios", "e2e", "full"}
+        if test_level in slow_levels:
+            default_timeout = 1800
+        timeout_raw = os.environ.get("SMART_TEST_TIMEOUT_SECONDS", str(default_timeout))
+        try:
+            timeout_seconds = int(timeout_raw)
+        except ValueError:
+            timeout_seconds = default_timeout
+        return max(timeout_seconds, 60)
 
     def _get_coverage_threshold(self) -> float:
         """Get coverage threshold from pyproject.toml or environment variable."""
@@ -867,6 +884,8 @@ class SmartCoverageManager:
             return True, 0, 100.0
 
         print(f"🔄 Running {test_level} tests for {len(test_files)} files...")
+        timeout_seconds = self._get_test_timeout_seconds(test_level)
+        print(f"⏱️  Test subprocess timeout: {timeout_seconds}s")
 
         # Create logs directory if it doesn't exist
         logs_dir = self.project_root / "logs" / "tests"
@@ -917,7 +936,7 @@ class SmartCoverageManager:
                             log_file.flush()
                             output_local.append(line)
                     try:
-                        rc = proc.wait(timeout=600)  # 10 minute timeout
+                        rc = proc.wait(timeout=timeout_seconds)
                     except subprocess.TimeoutExpired:
                         with contextlib.suppress(Exception):
                             proc.kill()
@@ -931,6 +950,9 @@ class SmartCoverageManager:
                 want_coverage = test_level in ["unit", "folder"]
                 if self.use_hatch:
                     hatch_cmd = self._build_hatch_test_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                    selected_env = self.hatch_test_env if self.hatch_test_env else "default hatch-test matrix/env"
+                    print(f"ℹ️  Using hatch for {test_level} tests (env selector: {selected_env})")
+                    print(f"ℹ️  Executing: {shlex.join(hatch_cmd)}")
                     rc, out, err = run_and_stream(hatch_cmd)
                     output_lines.extend(out)
                     # Only fall back to pytest if hatch failed to start or had a critical error
@@ -939,6 +961,7 @@ class SmartCoverageManager:
                         print("⚠️  Hatch test failed to start; falling back to pytest.")
                         log_file.write("Hatch test failed to start; falling back to pytest.\n")
                         pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                        print(f"ℹ️  Executing fallback: {shlex.join(pytest_cmd)}")
                         rc2, out2, _ = run_and_stream(pytest_cmd)
                         output_lines.extend(out2)
                         return_code = rc2 if rc2 is not None else 1
@@ -946,6 +969,7 @@ class SmartCoverageManager:
                         return_code = rc
                 else:
                     pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                    print(f"ℹ️  Hatch disabled; executing pytest directly: {shlex.join(pytest_cmd)}")
                     rc, out, _ = run_and_stream(pytest_cmd)
                     output_lines.extend(out)
                     return_code = rc if rc is not None else 1

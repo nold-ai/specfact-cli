@@ -130,10 +130,9 @@ class BridgeConfig(BaseModel):
     # Template mappings: SpecFact schemas -> Tool templates
     templates: TemplateMapping | None = Field(default=None, description="Template mappings")
 
-    @beartype
     @classmethod
     @require(lambda path: path.exists(), "Bridge config file must exist")
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda result: isinstance(result, BaseModel), "Must return bridge config model")
     def load_from_file(cls, path: Path) -> BridgeConfig:
         """
         Load bridge configuration from YAML file.

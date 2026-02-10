@@ -16,6 +16,16 @@ Command chains are sequences of SpecFact CLI commands that work together to achi
 
 **Why use command chains?** Instead of learning individual commands in isolation, command chains show you how to combine commands to solve real-world problems. They provide context, decision points, and links to detailed guides.
 
+## Module System Context
+
+These chains run on SpecFact's module-first architecture:
+
+- Core runtime handles lifecycle, registry, contracts, and orchestration.
+- Feature command logic is implemented in module-local command groups.
+- Legacy command paths are compatibility shims during migration windows.
+
+This keeps chains stable while modules evolve independently.
+
 This document covers all 10 identified command chains:
 
 - **7 Mature Chains**: Well-established workflows with comprehensive documentation
@@ -73,10 +83,10 @@ Start: What do you want to accomplish?
 
 ```bash
 # Step 1: Extract specifications from legacy code
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 
 # Step 2: Review the extracted plan
-specfact plan review --bundle legacy-api
+specfact plan review legacy-api
 
 # Step 3: Update features based on review findings
 specfact plan update-feature --bundle legacy-api --feature <feature-id>
@@ -134,7 +144,7 @@ graph TD
 
 ```bash
 # Step 1: Initialize a new plan bundle
-specfact plan init --bundle new-feature --interactive
+specfact plan init new-feature --interactive
 
 # Step 2: Add features to the plan
 specfact plan add-feature --bundle new-feature --name "User Authentication"
@@ -143,7 +153,7 @@ specfact plan add-feature --bundle new-feature --name "User Authentication"
 specfact plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
 
 # Step 4: Review the plan for completeness
-specfact plan review --bundle new-feature
+specfact plan review new-feature
 
 # Step 5: Harden the plan (finalize before implementation)
 specfact plan harden --bundle new-feature
@@ -203,7 +213,7 @@ graph TD
 specfact import from-bridge --repo . --adapter speckit --write
 
 # Step 2: Review the imported plan
-specfact plan review --bundle <bundle-name>
+specfact plan review <bundle-name>
 
 # Step 3: Set up bidirectional sync (optional)
 specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
@@ -383,7 +393,7 @@ graph TD
 
 ```bash
 # Step 1: Review the plan before promotion
-specfact plan review --bundle <bundle-name>
+specfact plan review <bundle-name>
 
 # Step 2: Enforce SDD compliance
 specfact enforce sdd --bundle <bundle-name>
@@ -434,7 +444,7 @@ graph LR
 
 ```bash
 # Step 1: Import current code state
-specfact import from-code --bundle current-state --repo .
+specfact import from-code current-state --repo .
 
 # Step 2: Compare code against plan
 specfact plan compare --bundle <plan-bundle> --code-vs-plan

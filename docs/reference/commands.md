@@ -8,6 +8,22 @@ permalink: /reference/commands/
 
 Complete reference for all SpecFact CLI commands.
 
+## Module-Aware Command Architecture
+
+SpecFact command groups are implemented by lifecycle-managed modules.
+
+- Core runtime owns lifecycle, registry, contracts, and orchestration.
+- Feature command logic lives in module-local implementations.
+- Legacy command imports are compatibility shims during migration.
+
+Developer import/layout guidance:
+
+- Primary implementations: `src/specfact_cli/modules/<module>/src/commands.py`
+- Compatibility shims: `src/specfact_cli/commands/*.py` (only `app` re-export guaranteed)
+- Preferred imports:
+  - `from specfact_cli.modules.<module>.src.commands import app`
+  - `from specfact_cli.modules.<module>.src.commands import <symbol>`
+
 ## Commands by Workflow
 
 **Quick Navigation**: Find commands organized by workflow and command chain.
@@ -39,13 +55,13 @@ Complete reference for all SpecFact CLI commands.
 
 ```bash
 # PRIMARY: Import from existing code (brownfield modernization)
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 
 # SECONDARY: Import from external tools (Spec-Kit, Linear, Jira, etc.)
 specfact import from-bridge --repo . --adapter speckit --write
 
 # Initialize plan (alternative: greenfield workflow)
-specfact plan init --bundle legacy-api --interactive
+specfact plan init legacy-api --interactive
 
 # Compare plans
 specfact plan compare --bundle legacy-api
@@ -80,11 +96,11 @@ specfact auth status
 
 **Plan Management:**
 
-- `plan init --bundle <bundle-name>` - Initialize new project bundle
+- `plan init <bundle-name>` - Initialize new project bundle
 - `plan add-feature --bundle <bundle-name>` - Add feature to bundle
 - `plan add-story --bundle <bundle-name>` - Add story to feature
 - `plan update-feature --bundle <bundle-name>` - Update existing feature metadata
-- `plan review --bundle <bundle-name>` - Review plan bundle to resolve ambiguities
+- `plan review <bundle-name>` - Review plan bundle to resolve ambiguities
 - `plan select` - Select active plan from available bundles
 - `plan upgrade` - Upgrade plan bundles to latest schema version
 - `plan compare` - Compare plans (detect drift)
@@ -251,13 +267,13 @@ This ensures fast startup times (< 2 seconds) while still providing important no
 
 ```bash
 # Auto-detect mode (default)
-specfact import from-code --bundle legacy-api --repo .
+specfact import from-code legacy-api --repo .
 
 # Force CI/CD mode
-specfact --mode cicd import from-code --bundle legacy-api --repo .
+specfact --mode cicd import from-code legacy-api --repo .
 
 # Force CoPilot mode
-specfact --mode copilot import from-code --bundle legacy-api --repo .
+specfact --mode copilot import from-code legacy-api --repo .
 ```
 
 ## Commands
@@ -450,31 +466,31 @@ specfact import from-code [OPTIONS]
 
 ```bash
 # Full repository analysis
-specfact import from-code --bundle legacy-api \
+specfact import from-code legacy-api \
   --repo ./my-project \
   --confidence 0.7 \
   --shadow-only \
   --report reports/analysis.md
 
 # Partial analysis (analyze only specific subdirectory)
-specfact import from-code --bundle core-module \
+specfact import from-code core-module \
   --repo ./my-project \
   --entry-point src/core \
   --confidence 0.7
 
 # Multi-project codebase (analyze one project at a time)
-specfact import from-code --bundle api-service \
+specfact import from-code api-service \
   --repo ./monorepo \
   --entry-point projects/api-service
 
 # Re-validate existing features (force re-analysis even if files unchanged)
-specfact import from-code --bundle legacy-api \
+specfact import from-code legacy-api \
   --repo ./my-project \
   --revalidate-features
 
 # Resume interrupted import (features are saved early as checkpoint)
 # If import is cancelled, restart with same command - it will resume from checkpoint
-specfact import from-code --bundle legacy-api --repo ./my-project
+specfact import from-code legacy-api --repo ./my-project
 ```
 
 **What it does:**
@@ -571,13 +587,13 @@ specfact plan init [OPTIONS]
 
 ```bash
 # Interactive mode (recommended for manual plan creation)
-specfact plan init --bundle legacy-api --interactive
+specfact plan init legacy-api --interactive
 
 # Non-interactive mode (CI/CD automation)
-specfact plan init --bundle legacy-api --no-interactive
+specfact plan init legacy-api --no-interactive
 
 # Interactive mode with different bundle
-specfact plan init --bundle feature-auth --interactive
+specfact plan init feature-auth --interactive
 ```
 
 #### `plan add-feature`
@@ -905,28 +921,28 @@ specfact plan review [OPTIONS]
 
 ```bash
 # Interactive review
-specfact plan review --bundle legacy-api
+specfact plan review legacy-api
 
 # Get all findings for bulk updates (preferred for Copilot mode)
-specfact plan review --bundle legacy-api --list-findings --findings-format json
+specfact plan review legacy-api --list-findings --findings-format json
 
 # Save findings directly to file (clean JSON, no CLI banner)
-specfact plan review --bundle legacy-api --list-findings --output-findings /tmp/findings.json
+specfact plan review legacy-api --list-findings --output-findings /tmp/findings.json
 
 # Get findings as table (interactive mode)
-specfact plan review --bundle legacy-api --list-findings --findings-format table
+specfact plan review legacy-api --list-findings --findings-format table
 
 # Get questions for question-based workflow
-specfact plan review --bundle legacy-api --list-questions --max-questions 5
+specfact plan review legacy-api --list-questions --max-questions 5
 
 # Save questions directly to file (clean JSON, no CLI banner)
-specfact plan review --bundle legacy-api --list-questions --output-questions /tmp/questions.json
+specfact plan review legacy-api --list-questions --output-questions /tmp/questions.json
 
 # Feed answers back (question-based workflow)
-specfact plan review --bundle legacy-api --answers answers.json
+specfact plan review legacy-api --answers answers.json
 
 # CI/CD automation
-specfact plan review --bundle legacy-api --no-interactive --answers answers.json
+specfact plan review legacy-api --no-interactive --answers answers.json
 ```
 
 **Findings Output Format:**

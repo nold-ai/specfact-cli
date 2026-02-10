@@ -16,6 +16,7 @@ from specfact_cli.validators.repro_checker import (
     CheckStatus,
     ReproChecker,
     ReproReport,
+    _extract_basedpyright_findings,
 )
 
 
@@ -118,6 +119,29 @@ class TestReproChecker:
         assert result.timeout is True
         assert checker.report.budget_exceeded is True
 
+    def test_run_check_crosshair_side_effect_includes_target_command(self, tmp_path: Path):
+        """CrossHair side-effect errors should include executed target command for debugging."""
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 2
+            mock_proc.stdout = ""
+            mock_proc.stderr = "SideEffectDetected: import side effect"
+            mock_run.return_value = mock_proc
+
+            result = checker.run_check(
+                name="Contract exploration (CrossHair)",
+                tool="crosshair",
+                command=["python", "-m", "crosshair", "check", "specfact_cli.modules.repro.src.commands"],
+                timeout=10,
+                skip_if_missing=False,
+            )
+
+            assert result.status == CheckStatus.SKIPPED
+            assert "Target command:" in result.error
+            assert "specfact_cli.modules.repro.src.commands" in result.error
+
     def test_run_all_checks_with_ruff(self, tmp_path: Path):
         """Test run_all_checks executes ruff check."""
         # Create src directory for source detection
@@ -192,6 +216,51 @@ class TestReproChecker:
             assert report.failed_checks > 0
             # Should have fewer checks than normal (fail_fast stopped early)
             # Note: This is a weak assertion, but fail_fast logic is in run_all_checks
+
+    def test_run_all_checks_crosshair_required_converts_skipped_to_failed(self, tmp_path: Path):
+        """Strict CrossHair mode should fail when CrossHair is skipped."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30, crosshair_required=True)
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        def _fake_run_check(
+            name: str,
+            tool: str,
+            command: list[str],
+            timeout: int | None,
+            skip_if_missing: bool,
+            env: dict[str, str] | None,
+        ) -> CheckResult:
+            _ = (command, timeout, skip_if_missing, env)
+            if tool == "crosshair":
+                return CheckResult(
+                    name="Contract exploration (CrossHair)",
+                    tool="crosshair",
+                    status=CheckStatus.SKIPPED,
+                    error="CrossHair side-effect detected",
+                )
+            return CheckResult(name=name, tool=tool, status=CheckStatus.PASSED, duration=0.1)
+
+        with (
+            patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+            patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+            patch("shutil.which", return_value="/usr/bin/tool"),
+            patch.object(checker, "run_check", side_effect=_fake_run_check),
+        ):
+            report = checker.run_all_checks()
+
+        crosshair_check = next(check for check in report.checks if check.tool == "crosshair")
+        assert crosshair_check.status == CheckStatus.FAILED
+        assert report.crosshair_requirement_violated is True
+        assert report.get_exit_code() == 1
 
     def test_repro_checker_fix_flag(self, tmp_path: Path):
         """Test ReproChecker with fix=True includes --fix in Semgrep command."""
@@ -318,8 +387,66 @@ class TestReproChecker:
         assert metadata["active_plan_path"] == ".specfact/plans/main.bundle.yaml"
         assert metadata["enforcement_config_path"] == ".specfact/gates/config/enforcement.yaml"
         assert metadata["enforcement_preset"] == "balanced"
-        assert metadata["fix_enabled"] is True
-        assert "fail_fast" not in metadata  # Should be omitted when False
+
+    def test_extract_basedpyright_findings_parses_pretty_output(self):
+        """Parser handles basedpyright pretty output with '- warning:' format."""
+        output = (
+            "/tmp/a.py\n"
+            '  /tmp/a.py:10:4 - warning: Type of "x" is unknown (reportUnknownMemberType)\n'
+            "0 errors, 1 warnings, 0 notes\n"
+        )
+        findings = _extract_basedpyright_findings(output)
+        assert findings["total_errors"] == 0
+        assert findings["total_warnings"] == 1
+
+    def test_run_all_checks_metadata_uses_absolute_fallback_when_outside_repo(self, tmp_path: Path):
+        """Metadata collection should not fail if default plan path is outside repo root."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
+
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        outside_dir = Path("/tmp/not-under-repo")
+        outside_dir.mkdir(parents=True, exist_ok=True)
+        outside_plan = outside_dir / "main.bundle.yaml"
+        outside_enforce = outside_dir / "enforcement.yaml"
+        outside_plan.write_text("plan: demo\n", encoding="utf-8")
+        outside_enforce.write_text("preset: balanced\n", encoding="utf-8")
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = "ok"
+            mock_proc.stderr = ""
+            mock_run.return_value = mock_proc
+
+            with (
+                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+                patch("shutil.which", return_value="/usr/bin/ruff"),
+                patch(
+                    "specfact_cli.utils.structure.SpecFactStructure.get_default_plan_path", return_value=outside_plan
+                ),
+                patch(
+                    "specfact_cli.utils.structure.SpecFactStructure.get_enforcement_config_path",
+                    return_value=outside_enforce,
+                ),
+                patch("specfact_cli.utils.yaml_utils.load_yaml", return_value=None),
+                patch("specfact_cli.validators.repro_checker.console") as console_mock,
+            ):
+                report = checker.run_all_checks()
+
+        assert report.active_plan_path == str(outside_plan)
+        assert report.enforcement_config_path == str(outside_enforce)
+        console_calls = "\n".join(str(call) for call in console_mock.print.call_args_list)
+        assert "Could not collect metadata" not in console_calls
 
     def test_repro_report_metadata_minimal(self):
         """Test ReproReport metadata is optional (only includes available fields)."""

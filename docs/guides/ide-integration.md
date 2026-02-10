@@ -50,15 +50,15 @@ Run the `specfact init` command in your repository:
 specfact init
 
 # Or specify IDE explicitly
-specfact init --ide cursor
-specfact init --ide vscode
-specfact init --ide copilot
+specfact init ide --ide cursor
+specfact init ide --ide vscode
+specfact init ide --ide copilot
 
 # Install required packages for contract enhancement
 specfact init --install-deps
 
 # Initialize for specific IDE and install dependencies
-specfact init --ide cursor --install-deps
+specfact init ide --ide cursor --install-deps
 ```
 
 **What it does:**
@@ -186,7 +186,7 @@ Detailed instructions for the AI assistant...
 ```bash
 # Run init in your repository
 cd /path/to/my-project
-specfact init --ide cursor
+specfact init ide --ide cursor
 
 # Output:
 # ✓ Initialization Complete
@@ -206,7 +206,7 @@ specfact init --ide cursor
 
 ```bash
 # Run init in your repository
-specfact init --ide vscode
+specfact init ide --ide vscode
 
 # Output:
 # ✓ Initialization Complete
@@ -241,7 +241,7 @@ If you update SpecFact CLI, run `init` again to update templates:
 
 ```bash
 # Re-run init to update templates (use --force to overwrite)
-specfact init --ide cursor --force
+specfact init ide --ide cursor --force
 ```
 
 ---
@@ -286,7 +286,7 @@ The `specfact init` command handles all conversions automatically.
 2. **Re-run init:**
 
    ```bash
-   specfact init --ide cursor --force
+   specfact init ide --ide cursor --force
    ```
 
 3. **Restart IDE**: Some IDEs require restart to discover new commands
@@ -318,7 +318,7 @@ The `specfact init` command handles all conversions automatically.
 3. **Re-run init:**
 
    ```bash
-   specfact init --ide vscode --force
+   specfact init ide --ide vscode --force
    ```
 
 ---

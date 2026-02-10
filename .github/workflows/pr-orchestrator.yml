@@ -24,6 +24,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PIP_PREFER_BINARY: "1"
+
 jobs:
   changes:
     name: Detect code changes
@@ -95,6 +98,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install hatch coverage
 
+      - name: Cache hatch environments
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/hatch
+            ~/.cache/uv
+          key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hatch-tests-py312-
+            ${{ runner.os }}-hatch-
+
       - name: Create test output directories
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
@@ -126,15 +141,39 @@ jobs:
         env:
           CONTRACT_FIRST_TESTING: "true"
           TEST_MODE: "true"
+          HATCH_TEST_ENV: "py3.12"
+          SMART_TEST_TIMEOUT_SECONDS: "1800"
+          PYTEST_ADDOPTS: "-r fEw"
         run: |
           echo "🧪 Running contract-first test suite (3.12)..."
-          echo "Contract validation..." && hatch run contract-test-contracts || echo "⚠️ Contract validation incomplete"
-          echo "Contract exploration..." && hatch run contract-test-exploration || echo "⚠️ Contract exploration incomplete"
-          echo "Scenario tests..." && hatch run contract-test-scenarios || echo "⚠️ Scenario tests incomplete"
-          echo "E2E tests..." && hatch run contract-test-e2e || echo "⚠️ E2E tests incomplete"
+          echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
+          run_layer() {
+            local label="$1"
+            shift
+            local start_ts
+            start_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            echo "▶️ [${start_ts}] Starting ${label}"
+            echo "   Command: $*"
+            if "$@"; then
+              local end_ts
+              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              echo "✅ [${end_ts}] ${label} completed"
+            else
+              local end_ts
+              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              echo "⚠️ [${end_ts}] ${label} incomplete"
+            fi
+          }
+
+          run_layer "Contract validation" hatch run contract-test-contracts
+          run_layer "Contract exploration" hatch run contract-test-exploration
+          run_layer "Scenario tests" hatch run contract-test-scenarios
+          run_layer "E2E tests" hatch run contract-test-e2e
 
       - name: Run unit tests with coverage (3.12)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
+        env:
+          PYTEST_ADDOPTS: "-r fEw"
         run: |
           echo "🧪 Running unit tests with coverage (3.12)..."
           hatch -e hatch-test.py3.12 run run-cov
@@ -168,12 +207,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install hatch
+      - name: Cache hatch environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/hatch
+            ~/.cache/uv
+          key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hatch-compat-py311-
+            ${{ runner.os }}-hatch-
       - name: Run Python 3.11 compatibility tests (hatch-test matrix env)
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           # Run a subset of tests to verify Python 3.11 compatibility
           # Focus on unit tests and integration tests (skip slow E2E tests)
-          hatch -e hatch-test.py3.11 test tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
+          hatch -e hatch-test.py3.11 test -- -r fEw tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
           hatch -e hatch-test.py3.11 run xml || true
 
   contract-first-ci:
@@ -195,13 +244,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install hatch coverage icontract beartype crosshair hypothesis icontract-hypothesis
-          hatch env create
+          pip install hatch
+      - name: Cache hatch environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/hatch
+            ~/.cache/uv
+          key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hatch-contract-first-py312-
+            ${{ runner.os }}-hatch-
       - name: Run contract validation and exploration
         run: |
           echo "🔍 Validating runtime contracts..."
-          echo "Running contract-test-contracts..." && hatch run contract-test-contracts || echo "Contracts failed"
-          echo "Running contract-test-exploration..." && hatch run contract-test-exploration || echo "Exploration found issues"
+          echo "Running specfact repro with required CrossHair..." && hatch run specfact repro --verbose --crosshair-required --budget 120 || echo "SpecFact repro found issues"
 
   cli-validation:
     name: CLI Command Validation
@@ -216,11 +273,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install hatch
-          hatch env create
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
       - name: Install CLI
         run: |
           echo "Installing SpecFact CLI..."
@@ -244,6 +299,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
       - name: Download coverage artifacts from Tests
         uses: actions/download-artifact@v4
         with:
@@ -289,6 +347,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install hatch
+      - name: Cache hatch environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/hatch
+            ~/.cache/uv
+          key: ${{ runner.os }}-hatch-typecheck-py312-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hatch-typecheck-py312-
+            ${{ runner.os }}-hatch-
       - name: Run type checking
         run: |
           echo "🔍 Running basedpyright type checking..."
@@ -310,11 +378,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install hatch
+
+      - name: Cache hatch environments
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/hatch
+            ~/.cache/uv
+          key: ${{ runner.os }}-hatch-lint-py312-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hatch-lint-py312-
+            ${{ runner.os }}-hatch-
 
       - name: Run linting
         run: |
@@ -336,6 +418,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
 
       - name: Install build tools
         run: |

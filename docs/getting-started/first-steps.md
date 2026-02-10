@@ -45,12 +45,12 @@ pip install specfact-cli
 cd /path/to/your/project
 
 # Step 3: Initialize IDE integration (one-time)
-specfact init
+specfact init ide --ide cursor
 
 # This creates:
 # - .specfact/ directory structure
 # - .specfact/templates/backlog/field_mappings/ with default ADO field mapping templates
-# - IDE-specific command files for your AI assistant
+# - IDE-specific command files for your AI assistant (Cursor in this example)
 
 # Step 4: Use slash command in IDE chat
 /specfact.01-import legacy-api --repo .

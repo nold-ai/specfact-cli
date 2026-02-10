@@ -1,5 +1,7 @@
 """
 Logging utility for standardized log setup across all modules
+
+CrossHair: skip (logging internals and logger object realization are not symbolic-safe)
 """
 
 import atexit
@@ -526,8 +528,13 @@ class LoggerSetup:
             queue_handler = QueueHandler(log_queue)
             logger.addHandler(queue_handler)
 
-        # Add a console handler for non-test environments or when no file is specified
-        if "pytest" not in sys.modules and not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        # Add a direct console handler only when no queue listener is active for this logger.
+        # Otherwise logs are already streamed by the QueueListener handler and would be duplicated.
+        if (
+            "pytest" not in sys.modules
+            and logger_name not in cls._log_listeners
+            and not any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
+        ):
             console_handler = logging.StreamHandler(_safe_console_stream())
             console_handler.setFormatter(log_format)
             console_handler.setLevel(level)
