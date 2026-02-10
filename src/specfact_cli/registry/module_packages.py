@@ -404,14 +404,47 @@ def _resolve_protocol_source_paths(package_dir: Path, package_name: str) -> list
     return unique_paths
 
 
+def _resolve_import_from_source_path(
+    package_dir: Path, package_name: str, source_path: Path, node: ast.ImportFrom
+) -> Path | None:
+    """Resolve local file path for `from ... import ...` nodes used by protocol interface bindings."""
+    module_name = node.module or ""
+
+    if node.level > 0:
+        base_dir = source_path.parent
+        for _ in range(node.level - 1):
+            base_dir = base_dir.parent
+        module_parts = module_name.split(".") if module_name else []
+    else:
+        src_dir = package_dir / "src"
+        base_dir = src_dir
+        if module_name.startswith(f"specfact_cli.modules.{package_name}.src."):
+            module_name = module_name.removeprefix(f"specfact_cli.modules.{package_name}.src.")
+        elif module_name.startswith(f"{package_name}."):
+            module_name = module_name.removeprefix(f"{package_name}.")
+        module_parts = module_name.split(".") if module_name else []
+
+    candidate_base = base_dir.joinpath(*module_parts) if module_parts else base_dir
+    module_file = candidate_base.with_suffix(".py")
+    if module_file.exists():
+        return module_file
+    init_file = candidate_base / "__init__.py"
+    if init_file.exists():
+        return init_file
+    return None
+
+
 @beartype
 def _check_protocol_compliance_from_source(package_dir: Path, package_name: str) -> list[str]:
     """Inspect protocol operations from source text to keep module registration lazy."""
     exported_function_names: set[str] = set()
     class_method_names: dict[str, set[str]] = {}
     assigned_names: dict[str, ast.expr] = {}
+    pending_paths = _resolve_protocol_source_paths(package_dir, package_name)
+    scanned_paths = {path.resolve() for path in pending_paths}
 
-    for source_path in _resolve_protocol_source_paths(package_dir, package_name):
+    while pending_paths:
+        source_path = pending_paths.pop(0)
         source = source_path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(source_path))
 
@@ -425,6 +458,19 @@ def _check_protocol_compliance_from_source(package_dir: Path, package_name: str)
                 continue
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 exported_function_names.add(node.name)
+                continue
+            if isinstance(node, ast.ImportFrom):
+                imported_names = {alias.name for alias in node.names}
+                if set(PROTOCOL_INTERFACE_BINDINGS).isdisjoint(imported_names):
+                    continue
+                imported_source = _resolve_import_from_source_path(package_dir, package_name, source_path, node)
+                if imported_source is None:
+                    continue
+                resolved = imported_source.resolve()
+                if resolved in scanned_paths:
+                    continue
+                scanned_paths.add(resolved)
+                pending_paths.append(imported_source)
                 continue
             if isinstance(node, ast.Assign):
                 targets = node.targets

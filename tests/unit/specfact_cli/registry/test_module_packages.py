@@ -362,3 +362,37 @@ runtime_interface = RuntimeInterface()
 
     operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
     assert sorted(operations) == ["import", "validate"]
+
+
+def test_protocol_source_scan_follows_runtime_interface_import_from_local_module(tmp_path: Path) -> None:
+    """Static scan should detect protocol methods when app.py imports runtime_interface from sibling file."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "sample"
+    src_dir = package_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "commands.py").write_text("def unrelated():\n    return None\n", encoding="utf-8")
+    (src_dir / "runtime_bindings.py").write_text(
+        """
+class RuntimeInterface:
+    def export_from_bundle(self, bundle, target, config):
+        return target
+
+    def sync_with_bundle(self, bundle, external_source, config):
+        return bundle
+
+runtime_interface = RuntimeInterface()
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (src_dir / "app.py").write_text(
+        """
+from .runtime_bindings import runtime_interface
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
+    assert sorted(operations) == ["export", "sync"]

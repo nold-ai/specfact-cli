@@ -219,10 +219,9 @@ class ProjectBundle(BaseModel):
         return normalized
 
     @classmethod
-    @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
     @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
-    @ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return ProjectBundle instance")
     def load_from_directory(
         cls, bundle_dir: Path, progress_callback: Callable[[int, int, str], None] | None = None
     ) -> ProjectBundle:

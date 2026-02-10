@@ -213,9 +213,8 @@ class BridgeConfig(BaseModel):
 
         return self.templates.resolve_template_path(schema_key, base_path)
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_speckit_classic(cls) -> BridgeConfig:
         """
         Create Spec-Kit classic layout bridge preset.
@@ -275,9 +274,8 @@ class BridgeConfig(BaseModel):
             templates=templates,
         )
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_speckit_specify(cls) -> BridgeConfig:
         """
         Create Spec-Kit specify layout bridge preset (canonical format).
@@ -340,9 +338,8 @@ class BridgeConfig(BaseModel):
             templates=templates,
         )
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_speckit_modern(cls) -> BridgeConfig:
         """
         Create Spec-Kit modern layout bridge preset.
@@ -402,9 +399,8 @@ class BridgeConfig(BaseModel):
             templates=templates,
         )
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_generic_markdown(cls) -> BridgeConfig:
         """
         Create generic markdown bridge preset.
@@ -424,9 +420,8 @@ class BridgeConfig(BaseModel):
             artifacts=artifacts,
         )
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_github(cls) -> BridgeConfig:
         """
         Create GitHub bridge preset for DevOps backlog tracking.
@@ -456,9 +451,8 @@ class BridgeConfig(BaseModel):
             artifacts=artifacts,
         )
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_ado(cls) -> BridgeConfig:
         """
         Create Azure DevOps bridge preset for DevOps backlog tracking.
@@ -488,9 +482,8 @@ class BridgeConfig(BaseModel):
             artifacts=artifacts,
         )
 
-    @beartype
     @classmethod
-    @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
+    @ensure(lambda cls, result: isinstance(result, cls), "Must return BridgeConfig instance")
     def preset_openspec(cls) -> BridgeConfig:
         """
         Create OpenSpec bridge preset.
