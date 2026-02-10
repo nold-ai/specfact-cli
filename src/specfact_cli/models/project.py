@@ -19,7 +19,7 @@ from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, Field, StrictStr, model_validator
 
 from specfact_cli.models.change import ChangeArchive, ChangeProposal, ChangeTracking, FeatureDelta
 from specfact_cli.models.contract import ContractIndex
@@ -195,6 +195,28 @@ class ProjectBundle(BaseModel):
         default=None,
         description="Change tracking (tool-agnostic capability, used by OpenSpec and potentially others) (v1.1+)",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_nested_models(cls, data: Any) -> Any:
+        """Normalize nested model instances from alternate module identities."""
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        for key in ("manifest", "idea", "business", "product", "clarifications", "change_tracking"):
+            value = normalized.get(key)
+            if isinstance(value, BaseModel):
+                normalized[key] = value.model_dump(mode="python")
+
+        features = normalized.get("features")
+        if isinstance(features, dict):
+            normalized["features"] = {
+                feature_key: feature.model_dump(mode="python") if isinstance(feature, BaseModel) else feature
+                for feature_key, feature in features.items()
+            }
+
+        return normalized
 
     @classmethod
     @beartype
