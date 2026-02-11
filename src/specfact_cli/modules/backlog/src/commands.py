@@ -3236,6 +3236,7 @@ def map_fields(
     """
     import base64
     import re
+
     import requests
 
     from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
