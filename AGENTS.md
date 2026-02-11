@@ -174,6 +174,15 @@ Keep `CHANGELOG.md` updated with every meaningful change. Update it in the same 
 
 Follow Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`.
 
+#### Commit Signing (GPG)
+
+- This repository may enforce signed commits (`commit.gpgsign=true`).
+- If an agent-run commit fails with `gpg failed to sign the data` in a non-interactive shell, the agent MUST:
+  1. Stage all intended files.
+  2. Provide the exact `git commit -S -m "<message>"` command for the user to run locally.
+  3. Continue with push/PR steps after the user confirms the signed commit exists.
+- Agents MUST NOT bypass signing with `--no-gpg-sign` unless the user explicitly requests that override.
+
 ### Documentation
 
 Keep docs current with every code change that affects user-facing behaviour.
