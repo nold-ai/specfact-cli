@@ -12,7 +12,7 @@ Per `openspec/config.yaml`, **tests before code** apply to any task that adds or
 
 ## 1. Create git branch from dev (linked to issue #175)
 
-- [ ] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
+- [x] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
 - [x] 1.2 Create branch linked to #175: `gh issue develop 175 --repo nold-ai/specfact-cli --name feature/backlog-scrum-01-standup-exceptions-first --checkout` (or `git checkout -b feature/backlog-scrum-01-standup-exceptions-first` if no gh)
 - [x] 1.3 Verify branch: `git branch --show-current`
 
