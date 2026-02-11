@@ -26,12 +26,17 @@ SpecFact CLI supports real-world agile/scrum practices through:
   (yesterday/today/blockers) from item body; optionally post standup comment to linked issue via `--post`
   when the adapter supports comments (e.g. GitHub).
   **Interactive step-by-step review**: Use `--interactive` to select stories with arrow keys (questionary)
-  and view full detail (refine-like: description, acceptance criteria, standup fields, comments when adapter
-  supports); navigate with Next/Previous/Back to list/Exit. Use `--suggest-next` to show suggested next
-  item by value score (business_value / (story_points × priority)).
+  and view full detail (refine-like: description, acceptance criteria, standup fields). Interactive detail
+  shows the **latest comment only** plus a hint when older comments exist; use export options for full
+  comment history. Navigate with Next/Previous/**Post standup update**/Back to list/Exit. `Post standup update`
+  posts yesterday/today/blockers to the currently selected story (adapter support required). Use `--suggest-next`
+  to show suggested next item by value score (business_value / (story_points × priority)).
   **Copilot export**: Use `--copilot-export <path>` to write a summarized Markdown file of each story for
   Copilot. Add `--comments` (alias `--annotations`) to include descriptions and comment annotations in
-  `--copilot-export` and `--summarize` outputs when the adapter supports `get_comments` (GitHub).
+  `--copilot-export` and `--summarize` outputs when the adapter supports `get_comments` (GitHub, ADO). Use
+  `--first-comments N` or `--last-comments N` to scope comment volume when needed (default: include all).
+  Use `--first-issues N` or `--last-issues N` (mutually exclusive) to scope daily output to oldest/newest
+  items by numeric issue/work-item ID.
   **Kanban**: omit iteration/sprint and use state + limit; unassigned = pullable work. **Scrum/SAFe**: use
   `--sprint current` and optional priority/value. **Out of scope**: Sprint goal is in your board/sprint
   settings (not displayed by CLI). Stale/at-risk flags (e.g. "no update in N days") are not in scope—use
@@ -76,9 +81,9 @@ specfact backlog daily github \
   --post
 
 # 4. Optional: interactive step-through, Copilot export, or standup summary prompt
-specfact backlog daily github --interactive   # step-through; detail view shows existing comments on each issue
+specfact backlog daily github --interactive   # step-through; detail view shows latest comment + hidden-count hint
 # or
-specfact backlog daily github --copilot-export ./standup.md --comments
+specfact backlog daily github --copilot-export ./standup.md --comments --last-comments 5
 # or
 specfact backlog daily github --summarize --comments     # prompt to stdout for AI to generate standup summary
 specfact backlog daily github --summarize-to ./standup-prompt.md
@@ -88,7 +93,9 @@ Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for inte
 DevOps team story-by-story (current focus, issues/open questions, discussion notes as comments). Default
 scope: **state=open**, **limit=20**; configure via `SPECFACT_STANDUP_*` or `.specfact/standup.yaml`. Use
 `--assignee me`, `--sprint current`, `--blockers-first`, `--interactive`, `--suggest-next`,
-`--copilot-export <path>`, `--summarize`, `--summarize-to <path>`, and `--comments`/`--annotations` as
+`--copilot-export <path>`, `--summarize`, `--summarize-to <path>`, `--comments`/`--annotations`, and optional
+`--first-comments`/`--last-comments` plus `--first-issues`/`--last-issues` as well as global filters
+`--search`, `--release`, and `--id` to narrow scope consistently with backlog refine
 needed. See [Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)
 for the full walkthrough.
 

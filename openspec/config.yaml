@@ -56,6 +56,8 @@ context: |
     run tests and expect failure.
   - (3) Code last—implement until tests pass and behavior satisfies the spec. Code must batch (satisfy)
     both (a) spec scenarios and (b) tests.
+  - (4) Evidence required—record failing-before and passing-after test runs in
+    `openspec/changes/<change-id>/TDD_EVIDENCE.md` for every behavior change.
   - If the pattern does not work in practice, adjust the process until it does.
 
 # Per-artifact rules (only injected into matching artifacts)
@@ -103,8 +105,10 @@ rules:
         - (2) Write/add spec deltas if not already done.
         - (3) Write tests from spec scenarios—translate each Given/When/Then scenario into test cases;
           run tests and expect failure (no implementation yet).
+        - (3a) Capture failing-test evidence in `openspec/changes/<change-id>/TDD_EVIDENCE.md`.
         - (4) Implement code until tests pass and behavior satisfies the spec; code must batch (satisfy)
           both (a) spec scenarios and (b) tests.
+        - (4a) Capture passing-test evidence in `openspec/changes/<change-id>/TDD_EVIDENCE.md`.
         - (5) Quality gates (format, lint, type-check).
         - (6) Documentation research and review (see below).
         - (7) PR creation (last).
@@ -123,6 +127,10 @@ rules:
     - >-
       Test tasks MUST come before implementation tasks: write tests derived from specs first, then
       implement. Do not implement before tests exist for the changed behavior.
+    - >-
+      TDD evidence is mandatory: each behavior change must include
+      openspec/changes/<change-id>/TDD_EVIDENCE.md with failing-before and passing-after test commands,
+      timestamps, and short result summaries.
     - Include quality gate tasks: format, lint, type-check, test coverage
     - Reference existing test patterns in tests/unit/, tests/integration/, tests/e2e/
     - |-

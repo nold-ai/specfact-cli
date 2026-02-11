@@ -9,6 +9,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.30.2] - 2026-02-11
+
+### Fixed (0.30.2)
+
+- **Backlog daily/refine filter parity and selection semantics**
+  - Added missing global filter flags to `specfact backlog daily`: `--search`, `--release`, `--id` (parity with refine).
+  - Fixed daily issue-window semantics so `--first-issues`/`--last-issues` are applied over the full filtered candidate set (not pre-truncated by default limit).
+  - Added assignee column in daily standup tables and fixed GitHub `--assignee me`/`@me` handling to use provider semantics without incorrect literal local post-filtering.
+- **Interactive comment UX**
+  - `specfact backlog daily --interactive` now renders comments in scoped panel blocks (refine-like) for clearer context.
+  - Interactive default remains latest-comment-first; explicit `--first-comments`/`--last-comments` now controls the displayed comment window and shows omitted-count hints.
+  - Interactive navigation now supports **Post standup update** on the currently selected story; successful post feedback includes explicit story ID and URL.
+- **GitHub adapter contract binding bug**
+  - Fixed icontract decorator placement in `GitHubAdapter` so interactive standup comment posting no longer fails with contract-argument binding errors (`item`/`update_fields`) when checking comment capability.
+- **Docs and prompt updates**
+  - Updated daily/refine docs and prompt templates with standardized filter parity guidance (`--search`, `--release`, `--id`, `--first-issues`, `--last-issues`) and clarified comment behavior (interactive latest-only vs export/summarize full context by default).
+
+### Changed (0.30.2)
+
+- **Version**: Bumped to `0.30.2` (patch).
+
+---
+
 ## [0.30.1] - 2026-02-10
 
 ### Fixed (0.30.1)

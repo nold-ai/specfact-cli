@@ -84,24 +84,83 @@ Use `from specfact_cli.common import get_bridge_logger` — never `print()`. Deb
 - `bugfix/your-bugfix-name`
 - `hotfix/your-hotfix-name`
 
-### Post-Change Checklist
+### Pre-Commit Checklist
 
-1. `hatch run format`
-2. `hatch run type-check`
-3. `hatch run contract-test`
-4. `hatch test --cover -v`
+Run all steps in order before committing. Every step must pass with no errors.
+
+1. `hatch run format`                # ruff format + autofix
+2. `hatch run type-check`            # basedpyright strict
+3. `hatch run lint`                  # full lint suite
+4. `hatch run yaml-lint`             # YAML + markdown validation
+5. `hatch run contract-test`         # contract-first validation
+6. `hatch run smart-test`            # targeted test run (use `smart-test-full` for larger modifications)
 
 ### OpenSpec Workflow
 
-Before modifying application code, check if an OpenSpec change exists in `openspec/`. This is the spec-driven workflow defined in `openspec/config.yaml`. Skip only when explicitly told ("skip openspec", "direct implementation", "simple fix").
+Before modifying application code, **always** verify that an active OpenSpec change in `openspec/changes/` **explicitly covers the requested modification**. This is the spec-driven workflow defined in `openspec/config.yaml`. Skip only when the user explicitly says `"skip openspec"` or `"implement without openspec change"`.
+
+**Claude MUST NOT apply any code edits** when a fix, change, modification, or edit to any codebase file is requested unless an active OpenSpec change exists that explicitly covers the requested scope. If no such change exists, ask for clarification:
+
+- **a) New change** — create a new OpenSpec change proposal (`/opsx:new`)
+- **b) Modify existing** — select and continue an existing change in `openspec/changes/`
+- **c) Delta** — add a targeted delta to an existing change's specs
+
+The existence of *any* open change is not sufficient — the change must specifically address the requested modification. Do not proceed until one of the above is resolved.
+
+#### Change Order (`openspec/CHANGE_ORDER.md`)
+
+`openspec/CHANGE_ORDER.md` is the **single source of truth** for change sequencing, module grouping, and inter-change dependencies. Always use it to avoid redundant analysis of `openspec/changes/` folders.
+
+**Read it first** — before creating, implementing, or archiving any change, consult `CHANGE_ORDER.md` to:
+- Check which changes are already archived (implemented) and their dates
+- Verify hard blockers are resolved before starting implementation
+- Understand where a new change fits in module order and wave sequencing
+
+**Keep it updated** — whenever a change lifecycle event occurs, update `CHANGE_ORDER.md` in the same commit:
+- **New change created**: add a row to the correct module group table with folder name, GitHub issue link, and blocked-by dependencies
+- **Change archived**: move the entry from "Pending" to "Implemented (archived)" with the archive date; update wave status if a wave is now complete
+- **Change modified/renamed**: update the folder name and any affected dependency references
+- **Blocker resolved**: update the "Blocked by" column (append ✅ to resolved blockers)
 
 ### Version Updates
 
 When bumping version, sync across: `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`. CI/CD auto-publishes to PyPI on merge to `main` only if version exceeds the published one.
 
+**Version semantics (SemVer):**
+- `feature/*` branches → **minor** increment (e.g. `0.5.0 → 0.6.0`)
+- `bugfix/*` / `hotfix/*` branches → **patch** increment (e.g. `0.5.0 → 0.5.1`)
+- Breaking changes or major milestones → **major** increment (requires explicit confirmation)
+
+Always propose the increment type based on the branch name and ask for confirmation before applying the bump.
+
+### Changelog
+
+Keep `CHANGELOG.md` updated with every meaningful change. Update it in the same commit that bumps the version — never let them diverge.
+
+- Follow [Keep a Changelog](https://keepachangelog.com/) format: `Added`, `Changed`, `Fixed`, `Removed`, `Security`
+- Each version entry must match the version in `pyproject.toml`
+- Unreleased changes accumulate under `## [Unreleased]` until a version bump
+
 ### Commits
 
 Follow Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`.
+
+### Documentation
+
+Keep docs current with every code change that affects user-facing behaviour.
+
+- Docs source lives in `docs/` and is published to [docs.specfact.io](https://docs.specfact.io) via GitHub Pages (Jekyll)
+- **Preserve all front-matter** on every edit (`title`, `layout`, `nav_order`, `permalink`, etc.) — check `docs/_layouts/default.html` and `docs/index.md` before adding or removing front-matter keys
+- When a command, option, or behaviour changes, update the corresponding doc page in the same PR
+- Broken or outdated docs for users are P0 — prefer a small doc fix over shipping undocumented changes
+
+### README Maintenance
+
+`README.md` (repo root) and the docs landing page (`docs/index.md` or `docs/README.md`) must stay in sync with what SpecFact actually does.
+
+- On larger refactorings or feature additions, reconsider the README from an **external / new-user perspective**: lead with value and USP, not internal architecture
+- A first-time reader should understand what SpecFact does, why they'd use it, and how to get started within the first screen
+- Do not let the README drift from the actual CLI interface or command list
 
 ## Code Conventions
 

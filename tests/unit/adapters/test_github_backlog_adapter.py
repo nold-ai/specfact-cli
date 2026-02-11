@@ -95,6 +95,35 @@ class TestGitHubBacklogAdapter:
         assert "assignee:alice" in call_args[1]["params"]["q"]
 
     @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_items_with_me_assignee_uses_at_me_query(self, mock_get: MagicMock) -> None:
+        """`me` assignee maps to GitHub provider-relative `@me` search qualifier."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "items": [
+                {
+                    "number": 1,
+                    "html_url": "https://github.com/test/repo/issues/1",
+                    "title": "Issue assigned to current user",
+                    "body": "Issue body",
+                    "state": "open",
+                    "assignees": [{"login": "actual-login"}],
+                    "labels": [],
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        filters = BacklogFilters(assignee="me")
+        items = adapter.fetch_backlog_items(filters)
+
+        call_args = mock_get.call_args
+        assert "assignee:@me" in call_args[1]["params"]["q"]
+        assert len(items) == 1
+
+    @beartype
     @patch("specfact_cli.adapters.github.requests.patch")
     def test_update_backlog_item(self, mock_patch: MagicMock) -> None:
         """Test updating a backlog item."""

@@ -27,10 +27,14 @@ SpecFact CLI supports **bidirectional synchronization** between OpenSpec change 
   end date support depend on the adapter (ADO supports current iteration and iteration path; see adapter
   docs). Use `--blockers-first` and config `show_priority`/`show_value` for time-critical and value-driven
   standups. **Interactive review** (`--interactive`): step-through stories with arrow-key selection; detail
-  view shows **existing comments annotated to each issue** when the adapter implements `get_comments(item)`
-  (GitHub adapter supports it). **Comment annotations in exports**: add `--comments` (alias
-  `--annotations`) to include descriptions and comment annotations in `--copilot-export` and
-  `--summarize`/`--summarize-to` outputs when the adapter supports fetching comments. **Value score /
+  view shows the **latest comment** and hints when older comments exist; interactive navigation includes
+  **Post standup update** to post yesterday/today/blockers directly on the currently selected story.
+  **Comment annotations in exports**:
+  add `--comments` (alias `--annotations`) to include descriptions and comment annotations in
+  `--copilot-export` and `--summarize`/`--summarize-to` outputs when the adapter supports fetching comments
+  (GitHub and ADO). Use optional `--first-comments N` or `--last-comments N` to scope comment volume;
+  default is full comment context. Use `--first-issues N` / `--last-issues N` and global filters
+  `--search`, `--release`, `--id` for consistent backlog scope across daily/refine commands. **Value score /
   suggested next**: when BacklogItem has `story_points`, `business_value`, and `priority`, use
   `--suggest-next` or config `suggest_next` to show suggested next item (business_value / (story_points ×
   priority)). **Standup summary prompt** (`--summarize` or `--summarize-to PATH`): output a prompt
