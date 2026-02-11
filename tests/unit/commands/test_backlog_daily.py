@@ -48,6 +48,7 @@ from specfact_cli.modules.backlog.src.commands import (
     _format_daily_item_detail,
     _format_standup_comment,
     _post_standup_comment_supported,
+    _resolve_daily_display_limit,
     _resolve_daily_fetch_limit,
     _resolve_daily_issue_window,
     _resolve_daily_mode_state,
@@ -677,6 +678,19 @@ class TestDailyFetchLimitResolution:
         """With issue-window flags, fetch full set first."""
         assert _resolve_daily_fetch_limit(20, first_issues=3, last_issues=None) is None
         assert _resolve_daily_fetch_limit(20, first_issues=None, last_issues=3) is None
+
+
+class TestDailyDisplayLimitResolution:
+    """Daily display limit should not truncate issue-window results."""
+
+    def test_display_limit_kept_without_issue_window(self) -> None:
+        """Without issue-window flags, keep effective limit for display."""
+        assert _resolve_daily_display_limit(20, first_issues=None, last_issues=None) == 20
+
+    def test_display_limit_removed_with_first_or_last_issue_window(self) -> None:
+        """With issue-window flags, avoid default display truncation."""
+        assert _resolve_daily_display_limit(20, first_issues=25, last_issues=None) is None
+        assert _resolve_daily_display_limit(20, first_issues=None, last_issues=25) is None
 
 
 class TestCommentWindow:

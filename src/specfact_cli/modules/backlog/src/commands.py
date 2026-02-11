@@ -578,6 +578,19 @@ def _resolve_daily_fetch_limit(
 
 
 @beartype
+def _resolve_daily_display_limit(
+    effective_limit: int,
+    *,
+    first_issues: int | None,
+    last_issues: int | None,
+) -> int | None:
+    """Resolve post-window display limit for daily command."""
+    if first_issues is not None or last_issues is not None:
+        return None
+    return effective_limit
+
+
+@beartype
 def _resolve_daily_mode_state(
     *,
     mode: str,
@@ -1787,6 +1800,11 @@ def daily(
         first_issues=first_issues,
         last_issues=last_issues,
     )
+    display_limit = _resolve_daily_display_limit(
+        effective_limit,
+        first_issues=first_issues,
+        last_issues=last_issues,
+    )
     items = _fetch_backlog_items(
         adapter,
         search_query=search,
@@ -1826,8 +1844,8 @@ def daily(
     except ValueError as exc:
         console.print(f"[red]{exc}.[/red]")
         raise typer.Exit(1) from exc
-    if len(filtered) > effective_limit:
-        filtered = filtered[:effective_limit]
+    if display_limit is not None and len(filtered) > display_limit:
+        filtered = filtered[:display_limit]
 
     if not filtered:
         console.print("[yellow]No backlog items found.[/yellow]")
