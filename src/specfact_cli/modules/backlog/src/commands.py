@@ -3550,7 +3550,7 @@ def map_fields(
             ).ask()
             if selected_display is None:
                 selected_display = "<no mapping>"
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]Selection cancelled.[/yellow]")
             raise typer.Exit(0) from None
 

@@ -102,10 +102,15 @@ class TestInteractiveMappingCommand:
     """Tests for interactive template mapping command."""
 
     @patch("requests.get")
+    @patch("questionary.select")
     @patch("rich.prompt.Prompt.ask")
     @patch("rich.prompt.Confirm.ask")
     def test_map_fields_fetches_ado_fields(
-        self, mock_confirm: MagicMock, mock_prompt: MagicMock, mock_get: MagicMock
+        self,
+        mock_confirm: MagicMock,
+        mock_prompt: MagicMock,
+        mock_select: MagicMock,
+        mock_get: MagicMock,
     ) -> None:
         """Test that map-fields command fetches fields from ADO API."""
         # Mock ADO API response
@@ -130,6 +135,7 @@ class TestInteractiveMappingCommand:
         # Mock rich.prompt.Prompt to avoid interactive input
         mock_prompt.return_value = ""
         mock_confirm.return_value = False
+        mock_select.return_value.ask.return_value = None
 
         runner.invoke(
             app,
@@ -153,10 +159,15 @@ class TestInteractiveMappingCommand:
         assert "_apis/wit/fields" in call_args[0][0]
 
     @patch("requests.get")
+    @patch("questionary.select")
     @patch("rich.prompt.Prompt.ask")
     @patch("rich.prompt.Confirm.ask")
     def test_map_fields_filters_system_fields(
-        self, mock_confirm: MagicMock, mock_prompt: MagicMock, mock_get: MagicMock
+        self,
+        mock_confirm: MagicMock,
+        mock_prompt: MagicMock,
+        mock_select: MagicMock,
+        mock_get: MagicMock,
     ) -> None:
         """Test that map-fields command filters out system-only fields."""
         # Mock ADO API response with system and user fields
@@ -187,6 +198,7 @@ class TestInteractiveMappingCommand:
         # Mock rich.prompt.Prompt to avoid interactive input
         mock_prompt.return_value = ""
         mock_confirm.return_value = False
+        mock_select.return_value.ask.return_value = None
 
         runner.invoke(
             app,
