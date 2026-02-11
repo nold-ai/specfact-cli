@@ -3236,9 +3236,6 @@ def map_fields(
     """
     import base64
     import re
-    import sys
-
-    import questionary  # type: ignore[reportMissingImports]
     import requests
 
     from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
@@ -3487,6 +3484,14 @@ def map_fields(
     combined_mapping.update(existing_mapping)
 
     # Interactive mapping
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError:
+        console.print(
+            "[red]Interactive field mapping requires the 'questionary' package. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from None
+
     console.print()
     console.print(Panel("[bold cyan]Interactive Field Mapping[/bold cyan]", border_style="cyan"))
     console.print("[dim]Use ↑↓ to navigate, ⏎ to select. Map ADO fields to canonical field names.[/dim]")
@@ -3546,7 +3551,7 @@ def map_fields(
                 selected_display = "<no mapping>"
         except KeyboardInterrupt:
             console.print("\n[yellow]Selection cancelled.[/yellow]")
-            sys.exit(0)
+            raise typer.Exit(0) from None
 
         # Convert display name back to reference name
         if selected_display and selected_display != "<no mapping>" and selected_display in field_choices_display:
