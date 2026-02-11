@@ -75,9 +75,9 @@ Per `openspec/config.yaml`, **tests before code** apply to any task that adds or
 - [x] 4.2 Run contract test: `hatch run contract-test`.
 - [x] 4.3 Update docs: agile-scrum-workflows.md, backlog-refinement.md, devops-adapter-integration.md (comment context behavior, first/last comment controls, export guidance).
 - [x] 4.4 Update slash prompt templates: `resources/prompts/specfact.backlog-daily.md` and `resources/prompts/specfact.backlog-refine.md` for comment-context guidance.
-- [ ] 4.5 Add CHANGELOG entry; sync version.
+- [x] 4.5 Add CHANGELOG entry; sync version.
 
 ## 5. Create Pull Request to dev
 
-- [ ] 5.1 Commit and push: `git add .` then `git commit -m "feat(backlog): daily standup exceptions-first and --mode scrum|kanban|safe (fixes #175)"` and `git push origin feature/backlog-scrum-01-standup-exceptions-first`
-- [ ] 5.2 Create PR to dev using repo PR template; PR body MUST include `Fixes nold-ai/specfact-cli#175` and this change ID for Development linking.
+- [x] 5.1 Commit and push: `git add .` then `git commit -m "feat(backlog): daily standup exceptions-first and --mode scrum|kanban|safe (fixes #175)"` and `git push origin feature/backlog-scrum-01-standup-exceptions-first`
+- [x] 5.2 Create PR to dev using repo PR template; PR body MUST include `Fixes nold-ai/specfact-cli#175` and this change ID for Development linking.
