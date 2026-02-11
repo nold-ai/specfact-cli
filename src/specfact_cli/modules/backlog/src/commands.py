@@ -1194,7 +1194,9 @@ def _run_interactive_daily(
                             f"[dim]Suggested next (value score {best_score:.2f}): {best.id} - {best.title}[/dim]"
                         )
 
-            can_post_comment = _post_standup_comment_supported(adapter_instance, item)
+            can_post_comment = isinstance(adapter_instance, BacklogAdapter) and _post_standup_comment_supported(
+                adapter_instance, item
+            )
             nav_choices = _build_daily_navigation_choices(can_post_comment=can_post_comment)
             nav = questionary.select("Navigation", choices=nav_choices).ask()
             if nav is None or nav == "Exit":
@@ -1207,7 +1209,7 @@ def _run_interactive_daily(
                 if body is None:
                     console.print("[yellow]No standup text provided; nothing posted.[/yellow]")
                     continue
-                if _post_standup_to_item(adapter_instance, item, body):
+                if isinstance(adapter_instance, BacklogAdapter) and _post_standup_to_item(adapter_instance, item, body):
                     console.print(f"[green]✓ Standup comment posted to story {item.id}: {item.url}[/green]")
                 else:
                     console.print("[red]Failed to post standup comment for selected story.[/red]")
