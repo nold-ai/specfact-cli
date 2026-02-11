@@ -19,6 +19,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -45,7 +46,7 @@ from specfact_cli.models.plan import Product
 from specfact_cli.models.project import BundleManifest, ProjectBundle
 from specfact_cli.models.validation import ValidationReport
 from specfact_cli.runtime import debug_log_operation, is_debug_mode
-from specfact_cli.templates.registry import TemplateRegistry
+from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
 app = typer.Typer(
@@ -300,6 +301,23 @@ def _resolve_standup_options(
 
 
 @beartype
+def _resolve_post_fetch_assignee_filter(adapter: str, assignee: str | None) -> str | None:
+    """
+    Resolve assignee value for local post-fetch filtering.
+
+    For GitHub, `me`/`@me` should be handled by adapter-side query semantics and
+    not re-filtered locally as a literal username.
+    """
+    if not assignee:
+        return assignee
+    if adapter.lower() == "github":
+        normalized = BacklogFilters.normalize_filter_value(assignee.lstrip("@"))
+        if normalized == "me":
+            return None
+    return assignee
+
+
+@beartype
 def _split_assigned_unassigned(items: list[BacklogItem]) -> tuple[list[BacklogItem], list[BacklogItem]]:
     """Split items into assigned and unassigned (assignees empty or None)."""
     assigned: list[BacklogItem] = []
@@ -343,6 +361,7 @@ def _build_standup_rows(
             "id": item.id,
             "title": item.title,
             "status": item.state,
+            "assignees": ", ".join(item.assignees) if item.assignees else "—",
             "last_updated": item.updated_at,
             "yesterday": yesterday or "",
             "today": today or "",
@@ -400,7 +419,13 @@ def _compute_value_score(item: BacklogItem) -> float | None:
 
 
 @beartype
-def _format_daily_item_detail(item: BacklogItem, comments: list[str]) -> str:
+def _format_daily_item_detail(
+    item: BacklogItem,
+    comments: list[str],
+    *,
+    show_all_provided_comments: bool = False,
+    total_comments: int | None = None,
+) -> str:
     """
     Format a single backlog item for interactive detail view (refine-like).
 
@@ -437,11 +462,316 @@ def _format_daily_item_detail(item: BacklogItem, comments: list[str]) -> str:
         parts.append(f"- **Business value:** {item.business_value}")
     if item.priority is not None:
         parts.append(f"- **Priority:** {item.priority}")
-    if comments:
-        parts.append("\n**Comments:**")
-        for c in comments:
-            parts.append(f"- {c}")
+    _ = (comments, show_all_provided_comments, total_comments)
     return "\n".join(parts)
+
+
+@beartype
+def _apply_comment_window(
+    comments: list[str],
+    *,
+    first_comments: int | None = None,
+    last_comments: int | None = None,
+) -> list[str]:
+    """Apply optional first/last comment window; default returns all comments."""
+    if first_comments is not None and last_comments is not None:
+        msg = "Use only one of --first-comments or --last-comments."
+        raise ValueError(msg)
+    if first_comments is not None:
+        return comments[: max(first_comments, 0)]
+    if last_comments is not None:
+        return comments[-last_comments:] if last_comments > 0 else []
+    return comments
+
+
+@beartype
+def _apply_issue_window(
+    items: list[BacklogItem],
+    *,
+    first_issues: int | None = None,
+    last_issues: int | None = None,
+) -> list[BacklogItem]:
+    """Apply optional first/last issue window to already-filtered items."""
+    if first_issues is not None and last_issues is not None:
+        msg = "Use only one of --first-issues or --last-issues."
+        raise ValueError(msg)
+    if first_issues is not None or last_issues is not None:
+
+        def _issue_number(item: BacklogItem) -> int:
+            if item.id.isdigit():
+                return int(item.id)
+            issue_match = re.search(r"/issues/(\d+)", item.url or "")
+            if issue_match:
+                return int(issue_match.group(1))
+            ado_match = re.search(r"/(?:_workitems/edit|workitems)/(\d+)", item.url or "", re.IGNORECASE)
+            if ado_match:
+                return int(ado_match.group(1))
+            return sys.maxsize
+
+        sorted_items = sorted(items, key=_issue_number)
+        if first_issues is not None:
+            return sorted_items[: max(first_issues, 0)]
+        if last_issues is not None:
+            return sorted_items[-last_issues:] if last_issues > 0 else []
+    return items
+
+
+@beartype
+def _apply_issue_id_filter(items: list[BacklogItem], issue_id: str | None) -> list[BacklogItem]:
+    """Apply optional exact issue/work-item ID filter."""
+    if issue_id is None:
+        return items
+    return [i for i in items if str(i.id) == str(issue_id)]
+
+
+@beartype
+def _resolve_refine_preview_comment_window(
+    *,
+    first_comments: int | None,
+    last_comments: int | None,
+) -> tuple[int | None, int | None]:
+    """Resolve comment window for refine preview output."""
+    if first_comments is not None:
+        return first_comments, None
+    if last_comments is not None:
+        return None, last_comments
+    # Keep preview concise by default while still showing current discussion.
+    return None, 2
+
+
+@beartype
+def _resolve_refine_export_comment_window(
+    *,
+    first_comments: int | None,
+    last_comments: int | None,
+) -> tuple[int | None, int | None]:
+    """Resolve comment window for refine export output (always full history)."""
+    _ = (first_comments, last_comments)
+    return None, None
+
+
+@beartype
+def _resolve_daily_issue_window(
+    items: list[BacklogItem],
+    *,
+    first_issues: int | None,
+    last_issues: int | None,
+) -> list[BacklogItem]:
+    """Resolve and apply daily issue-window options with refine-aligned semantics."""
+    if first_issues is not None and last_issues is not None:
+        msg = "Use only one of --first-issues or --last-issues"
+        raise ValueError(msg)
+    return _apply_issue_window(items, first_issues=first_issues, last_issues=last_issues)
+
+
+@beartype
+def _resolve_daily_fetch_limit(
+    effective_limit: int,
+    *,
+    first_issues: int | None,
+    last_issues: int | None,
+) -> int | None:
+    """Resolve pre-fetch limit for daily command."""
+    if first_issues is not None or last_issues is not None:
+        return None
+    return effective_limit
+
+
+@beartype
+def _resolve_daily_display_limit(
+    effective_limit: int,
+    *,
+    first_issues: int | None,
+    last_issues: int | None,
+) -> int | None:
+    """Resolve post-window display limit for daily command."""
+    if first_issues is not None or last_issues is not None:
+        return None
+    return effective_limit
+
+
+@beartype
+def _resolve_daily_mode_state(
+    *,
+    mode: str,
+    cli_state: str | None,
+    effective_state: str | None,
+) -> str | None:
+    """Resolve daily state behavior per mode while preserving explicit CLI state."""
+    if cli_state is not None:
+        return effective_state
+    if mode == "kanban":
+        return None
+    return effective_state
+
+
+@beartype
+def _has_policy_failure(row: dict[str, Any]) -> bool:
+    """Return True when row indicates a policy failure signal."""
+    policy_status = str(row.get("policy_status", "")).strip().lower()
+    if policy_status in {"failed", "fail", "violation", "violated"}:
+        return True
+    failures = row.get("policy_failures")
+    if isinstance(failures, list):
+        return len(failures) > 0
+    return bool(failures)
+
+
+@beartype
+def _has_aging_or_stalled_signal(row: dict[str, Any]) -> bool:
+    """Return True when row indicates aging/stalled work."""
+    stalled = row.get("stalled")
+    if isinstance(stalled, bool):
+        if stalled:
+            return True
+    elif str(stalled).strip().lower() in {"true", "yes", "1"}:
+        return True
+    days_stalled = row.get("days_stalled")
+    if isinstance(days_stalled, (int, float)):
+        return days_stalled > 0
+    aging_days = row.get("aging_days")
+    if isinstance(aging_days, (int, float)):
+        return aging_days > 0
+    return False
+
+
+@beartype
+def _exception_priority(row: dict[str, Any]) -> int:
+    """Return exception priority rank: blockers, policy, aging, normal."""
+    if str(row.get("blockers", "")).strip():
+        return 0
+    if _has_policy_failure(row):
+        return 1
+    if _has_aging_or_stalled_signal(row):
+        return 2
+    return 3
+
+
+@beartype
+def _split_exception_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split standup rows into exceptions-first and normal rows with stable ordering."""
+    exceptions = sorted((row for row in rows if _exception_priority(row) < 3), key=_exception_priority)
+    normal = [row for row in rows if _exception_priority(row) == 3]
+    return exceptions, normal
+
+
+@beartype
+def _build_daily_patch_proposal(items: list[BacklogItem], *, mode: str) -> str:
+    """Build a non-destructive patch proposal preview for standup notes."""
+    lines: list[str] = []
+    lines.append("# Patch Proposal")
+    lines.append("")
+    lines.append(f"- Mode: {mode}")
+    lines.append(f"- Items in scope: {len(items)}")
+    lines.append("- Action: Propose standup note/field updates only (no silent writes).")
+    lines.append("")
+    lines.append("## Candidate Items")
+    for item in items[:10]:
+        lines.append(f"- {item.id}: {item.title}")
+    if len(items) > 10:
+        lines.append(f"- ... and {len(items) - 10} more")
+    return "\n".join(lines)
+
+
+@beartype
+def _is_patch_mode_available() -> bool:
+    """Detect whether patch command group is available in current installation."""
+    try:
+        result = subprocess.run(
+            ["specfact", "patch", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+@beartype
+def _build_comment_fetch_progress_description(index: int, total: int, item_id: str) -> str:
+    """Build progress text while fetching per-item comments."""
+    return f"[cyan]Fetching issue {index}/{total} comments (ID: {item_id})...[/cyan]"
+
+
+@beartype
+def _build_refine_preview_comment_panels(comments: list[str]) -> list[Panel]:
+    """Render refine preview comments as scoped panel blocks."""
+    total = len(comments)
+    panels: list[Panel] = []
+    for index, comment in enumerate(comments, 1):
+        body = comment.strip() if comment.strip() else "[dim](empty comment)[/dim]"
+        panels.append(Panel(body, title=f"Comment {index}/{total}", border_style="cyan"))
+    return panels
+
+
+@beartype
+def _build_refine_preview_comment_empty_panel() -> Panel:
+    """Render explicit empty-state panel when no comments are found."""
+    return Panel("[dim](no comments found)[/dim]", title="Comments", border_style="dim")
+
+
+@beartype
+def _build_daily_interactive_comment_panels(
+    comments: list[str],
+    *,
+    show_all_provided_comments: bool,
+    total_comments: int,
+) -> list[Panel]:
+    """Render daily interactive comments with refine-like scoped panels."""
+    if not comments:
+        return [_build_refine_preview_comment_empty_panel()]
+
+    if show_all_provided_comments:
+        panels = _build_refine_preview_comment_panels(comments)
+        omitted_count = max(total_comments - len(comments), 0)
+        if omitted_count > 0:
+            panels.append(
+                Panel(
+                    f"[dim]{omitted_count} additional comment(s) omitted by comment window.[/dim]\n"
+                    "[dim]Hint: increase --first-comments/--last-comments or use export options for full history.[/dim]",
+                    title="Comment Window",
+                    border_style="dim",
+                )
+            )
+        return panels
+
+    latest = comments[-1].strip() if comments[-1].strip() else "[dim](empty comment)[/dim]"
+    panels: list[Panel] = [Panel(latest, title="Latest Comment", border_style="cyan")]
+    hidden_count = max(total_comments - 1, 0)
+    if hidden_count > 0:
+        panels.append(
+            Panel(
+                f"[dim]{hidden_count} older comment(s) hidden in interactive view.[/dim]\n"
+                "[dim]Hint: use `specfact backlog refine --export-to-tmp` or "
+                "`specfact backlog daily --copilot-export <path> --comments` for full history.[/dim]",
+                title="Comments Hint",
+                border_style="dim",
+            )
+        )
+    return panels
+
+
+@beartype
+def _build_daily_navigation_choices(*, can_post_comment: bool) -> list[str]:
+    """Build interactive daily navigation choices."""
+    choices = ["Next story", "Previous story"]
+    if can_post_comment:
+        choices.append("Post standup update")
+    choices.extend(["Back to list", "Exit"])
+    return choices
+
+
+@beartype
+def _build_interactive_post_body(yesterday: str | None, today: str | None, blockers: str | None) -> str | None:
+    """Build standup comment body from interactive inputs."""
+    y = (yesterday or "").strip()
+    t = (today or "").strip()
+    b = (blockers or "").strip()
+    if not y and not t and not b:
+        return None
+    return _format_standup_comment(y, t, b)
 
 
 def _collect_comment_annotations(
@@ -454,6 +784,9 @@ def _collect_comment_annotations(
     ado_org: str | None,
     ado_project: str | None,
     ado_token: str | None,
+    first_comments: int | None = None,
+    last_comments: int | None = None,
+    progress_callback: Callable[[int, int, BacklogItem], None] | None = None,
 ) -> dict[str, list[str]]:
     """
     Collect comment annotations for backlog items when the adapter supports get_comments().
@@ -478,10 +811,18 @@ def _collect_comment_annotations(
         get_comments_fn = getattr(adapter_instance, "get_comments", None)
         if not callable(get_comments_fn):
             return comments_by_item_id
-        for item in items:
+        total_items = len(items)
+        for index, item in enumerate(items, 1):
+            if progress_callback is not None:
+                progress_callback(index, total_items, item)
             with contextlib.suppress(Exception):
                 raw = get_comments_fn(item)
-                comments_by_item_id[item.id] = list(raw) if isinstance(raw, list) else []
+                comments = list(raw) if isinstance(raw, list) else []
+                comments_by_item_id[item.id] = _apply_comment_window(
+                    comments,
+                    first_comments=first_comments,
+                    last_comments=last_comments,
+                )
     except Exception:
         return comments_by_item_id
     return comments_by_item_id
@@ -628,6 +969,142 @@ def _build_summarize_prompt_content(
     return "\n".join(lines).strip()
 
 
+@beartype
+def _build_refine_export_content(
+    adapter: str,
+    items: list[BacklogItem],
+    comments_by_item_id: dict[str, list[str]] | None = None,
+    template_guidance_by_item_id: dict[str, dict[str, Any]] | None = None,
+) -> str:
+    """Build markdown export content for `backlog refine --export-to-tmp`."""
+    export_content = "# SpecFact Backlog Refinement Export\n\n"
+    export_content += f"**Export Date**: {datetime.now().isoformat()}\n"
+    export_content += f"**Adapter**: {adapter}\n"
+    export_content += f"**Items**: {len(items)}\n\n"
+    export_content += "## Copilot Instructions\n\n"
+    export_content += (
+        "Use each `## Item N:` section below as refinement input. Preserve scope/intent and return improved markdown "
+        "per item.\n\n"
+    )
+    export_content += (
+        "For import readiness: the refined artifact (`--import-from-tmp`) must not include this instruction block; "
+        "it should contain only the `## Item N:` sections and refined fields.\n\n"
+    )
+    export_content += "**Refinement Rules (same as interactive mode):**\n"
+    export_content += "1. Preserve all original requirements, scope, and technical details\n"
+    export_content += "2. Do NOT add new features or change the scope\n"
+    export_content += "3. Transform content to match the target template structure\n"
+    export_content += "4. If required information is missing, use a Markdown checkbox: `- [ ] describe what's needed`\n"
+    export_content += (
+        "5. If information is conflicting or ambiguous, add a `[NOTES]` section at the end explaining ambiguity\n"
+    )
+    export_content += "6. Use markdown headings for sections (`## Section Name`)\n"
+    export_content += "7. Include story points, business value, priority, and work item type when available\n"
+    export_content += "8. For high-complexity stories, suggest splitting when appropriate\n"
+    export_content += "9. Follow provider-aware formatting guidance listed per item\n\n"
+    export_content += "---\n\n"
+    comments_map = comments_by_item_id or {}
+    template_map = template_guidance_by_item_id or {}
+
+    for idx, item in enumerate(items, 1):
+        export_content += f"## Item {idx}: {item.title}\n\n"
+        export_content += f"**ID**: {item.id}\n"
+        export_content += f"**URL**: {item.url}\n"
+        if item.canonical_url:
+            export_content += f"**Canonical URL**: {item.canonical_url}\n"
+        export_content += f"**State**: {item.state}\n"
+        export_content += f"**Provider**: {item.provider}\n"
+        item_template = template_map.get(item.id, {})
+        if item_template:
+            export_content += f"\n**Target Template**: {item_template.get('name', 'N/A')}\n"
+            export_content += f"**Template ID**: {item_template.get('template_id', 'N/A')}\n"
+            template_desc = str(item_template.get("description", "")).strip()
+            if template_desc:
+                export_content += f"**Template Description**: {template_desc}\n"
+            required_sections = item_template.get("required_sections", [])
+            export_content += "\n**Required Sections**:\n"
+            if isinstance(required_sections, list) and required_sections:
+                for section in required_sections:
+                    export_content += f"- {section}\n"
+            else:
+                export_content += "- None\n"
+            optional_sections = item_template.get("optional_sections", [])
+            export_content += "\n**Optional Sections**:\n"
+            if isinstance(optional_sections, list) and optional_sections:
+                for section in optional_sections:
+                    export_content += f"- {section}\n"
+            else:
+                export_content += "- None\n"
+            export_content += "\n**Provider-aware formatting**:\n"
+            export_content += "- GitHub: Use markdown headings in body (`## Section Name`).\n"
+            export_content += (
+                "- ADO: Use markdown headings in body; adapter maps to provider fields during writeback.\n"
+            )
+
+        if item.story_points is not None or item.business_value is not None or item.priority is not None:
+            export_content += "\n**Metrics**:\n"
+            if item.story_points is not None:
+                export_content += f"- Story Points: {item.story_points}\n"
+            if item.business_value is not None:
+                export_content += f"- Business Value: {item.business_value}\n"
+            if item.priority is not None:
+                export_content += f"- Priority: {item.priority} (1=highest)\n"
+            if item.value_points is not None:
+                export_content += f"- Value Points (SAFe): {item.value_points}\n"
+            if item.work_item_type:
+                export_content += f"- Work Item Type: {item.work_item_type}\n"
+
+        if item.acceptance_criteria:
+            export_content += f"\n**Acceptance Criteria**:\n{item.acceptance_criteria}\n"
+
+        item_comments = comments_map.get(item.id, [])
+        if item_comments:
+            export_content += "\n**Comments (annotations):**\n"
+            for comment in item_comments:
+                export_content += f"- {comment}\n"
+
+        export_content += f"\n**Body**:\n```markdown\n{item.body_markdown}\n```\n"
+        export_content += "\n---\n\n"
+    return export_content
+
+
+@beartype
+def _resolve_target_template_for_refine_item(
+    item: BacklogItem,
+    *,
+    detector: TemplateDetector,
+    registry: TemplateRegistry,
+    template_id: str | None,
+    normalized_adapter: str | None,
+    normalized_framework: str | None,
+    normalized_persona: str | None,
+) -> BacklogTemplate | None:
+    """Resolve target template for an item using the same precedence as refine flows."""
+    if template_id:
+        direct = registry.get_template(template_id)
+        if direct is not None:
+            return direct
+    detection_result = detector.detect_template(
+        item,
+        provider=normalized_adapter,
+        framework=normalized_framework,
+        persona=normalized_persona,
+    )
+    if detection_result.template_id:
+        detected = registry.get_template(detection_result.template_id)
+        if detected is not None:
+            return detected
+    resolved = registry.resolve_template(
+        provider=normalized_adapter,
+        framework=normalized_framework,
+        persona=normalized_persona,
+    )
+    if resolved is not None:
+        return resolved
+    templates = registry.list_templates(scope="corporate")
+    return templates[0] if templates else None
+
+
 def _run_interactive_daily(
     items: list[BacklogItem],
     standup_config: dict[str, Any],
@@ -639,6 +1116,8 @@ def _run_interactive_daily(
     ado_org: str | None,
     ado_project: str | None,
     ado_token: str | None,
+    first_comments: int | None = None,
+    last_comments: int | None = None,
 ) -> None:
     """
     Run interactive step-by-step review: questionary selection, detail view, next/previous/back/exit.
@@ -686,12 +1165,32 @@ def _run_interactive_daily(
         while True:
             item = items[current_idx]
             comments: list[str] = []
+            total_comments = 0
             if callable(get_comments_fn):
                 with contextlib.suppress(Exception):
                     raw = get_comments_fn(item)
-                    comments = list(raw) if isinstance(raw, list) else []
-            detail = _format_daily_item_detail(item, comments)
+                    raw_comments = list(raw) if isinstance(raw, list) else []
+                    total_comments = len(raw_comments)
+                    comments = _apply_comment_window(
+                        raw_comments,
+                        first_comments=first_comments,
+                        last_comments=last_comments,
+                    )
+            explicit_comment_window = first_comments is not None or last_comments is not None
+            detail = _format_daily_item_detail(
+                item,
+                comments,
+                show_all_provided_comments=explicit_comment_window,
+                total_comments=total_comments,
+            )
             console.print(Panel(detail, title=f"Story: {item.id}", border_style="cyan"))
+            console.print("\n[bold]Comments:[/bold]")
+            for panel in _build_daily_interactive_comment_panels(
+                comments,
+                show_all_provided_comments=explicit_comment_window,
+                total_comments=total_comments,
+            ):
+                console.print(panel)
 
             if suggest_next and n > 1:
                 pending = [i for i in items if not i.assignees or i.story_points is not None]
@@ -708,10 +1207,26 @@ def _run_interactive_daily(
                             f"[dim]Suggested next (value score {best_score:.2f}): {best.id} - {best.title}[/dim]"
                         )
 
-            nav_choices = ["Next story", "Previous story", "Back to list", "Exit"]
+            can_post_comment = isinstance(adapter_instance, BacklogAdapter) and _post_standup_comment_supported(
+                adapter_instance, item
+            )
+            nav_choices = _build_daily_navigation_choices(can_post_comment=can_post_comment)
             nav = questionary.select("Navigation", choices=nav_choices).ask()
             if nav is None or nav == "Exit":
                 return
+            if nav == "Post standup update":
+                y = questionary.text("Yesterday (optional):").ask()
+                t = questionary.text("Today (optional):").ask()
+                b = questionary.text("Blockers (optional):").ask()
+                body = _build_interactive_post_body(y, t, b)
+                if body is None:
+                    console.print("[yellow]No standup text provided; nothing posted.[/yellow]")
+                    continue
+                if isinstance(adapter_instance, BacklogAdapter) and _post_standup_to_item(adapter_instance, item, body):
+                    console.print(f"[green]✓ Standup comment posted to story {item.id}: {item.url}[/green]")
+                else:
+                    console.print("[red]Failed to post standup comment for selected story.[/red]")
+                continue
             if nav == "Back to list":
                 break
             if nav == "Next story":
@@ -1127,9 +1642,30 @@ def daily(
         "--assignee",
         help="Filter by assignee (e.g. 'me' or username). Only matching items are listed.",
     ),
+    search: str | None = typer.Option(
+        None, "--search", "-s", help="Search query to filter backlog items (provider-specific syntax)"
+    ),
     state: str | None = typer.Option(None, "--state", help="Filter by state (e.g. open, closed, Active)"),
     labels: list[str] | None = typer.Option(None, "--labels", "--tags", help="Filter by labels/tags"),
+    release: str | None = typer.Option(None, "--release", help="Filter by release identifier"),
+    issue_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Show only this backlog item (issue or work item ID). Other items are ignored.",
+    ),
     limit: int | None = typer.Option(None, "--limit", help="Maximum number of items to show"),
+    first_issues: int | None = typer.Option(
+        None,
+        "--first-issues",
+        min=1,
+        help="Show only the first N backlog items after filters (lowest numeric issue/work-item IDs).",
+    ),
+    last_issues: int | None = typer.Option(
+        None,
+        "--last-issues",
+        min=1,
+        help="Show only the last N backlog items after filters (highest numeric issue/work-item IDs).",
+    ),
     iteration: str | None = typer.Option(
         None,
         "--iteration",
@@ -1155,6 +1691,11 @@ def daily(
         "--blockers-first",
         help="Sort so items with non-empty blockers appear first.",
     ),
+    mode: str = typer.Option(
+        "scrum",
+        "--mode",
+        help="Standup mode defaults: scrum|kanban|safe.",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -1171,6 +1712,18 @@ def daily(
         "--annotations",
         help="Include item comments/annotations in summarize/copilot export (adapter must support get_comments).",
     ),
+    first_comments: int | None = typer.Option(
+        None,
+        "--first-comments",
+        min=1,
+        help="Include only the first N comments per item (optional; default includes all comments).",
+    ),
+    last_comments: int | None = typer.Option(
+        None,
+        "--last-comments",
+        min=1,
+        help="Include only the last N comments per item (optional; default includes all comments).",
+    ),
     summarize: bool = typer.Option(
         False,
         "--summarize",
@@ -1185,6 +1738,11 @@ def daily(
         False,
         "--suggest-next",
         help="In interactive mode, show suggested next item by value score (business value / (story points * priority)).",
+    ),
+    patch: bool = typer.Option(
+        False,
+        "--patch",
+        help="Emit a patch proposal preview for standup notes/missing fields when patch-mode is available (no silent writes).",
     ),
     post: bool = typer.Option(
         False,
@@ -1225,15 +1783,36 @@ def daily(
     Default scope: state=open, limit=20 (overridable via SPECFACT_STANDUP_* env or .specfact/standup.yaml).
     """
     standup_config = _load_standup_config()
+    normalized_mode = mode.lower().strip()
+    if normalized_mode not in {"scrum", "kanban", "safe"}:
+        console.print("[red]Invalid --mode. Use one of: scrum, kanban, safe.[/red]")
+        raise typer.Exit(1)
     effective_state, effective_limit, effective_assignee = _resolve_standup_options(
         state, limit, assignee, standup_config
     )
+    effective_state = _resolve_daily_mode_state(
+        mode=normalized_mode,
+        cli_state=state,
+        effective_state=effective_state,
+    )
+    fetch_limit = _resolve_daily_fetch_limit(
+        effective_limit,
+        first_issues=first_issues,
+        last_issues=last_issues,
+    )
+    display_limit = _resolve_daily_display_limit(
+        effective_limit,
+        first_issues=first_issues,
+        last_issues=last_issues,
+    )
     items = _fetch_backlog_items(
         adapter,
+        search_query=search,
         state=effective_state,
         assignee=effective_assignee,
         labels=labels,
-        limit=effective_limit,
+        release=release,
+        limit=fetch_limit,
         iteration=iteration,
         sprint=sprint,
         repo_owner=repo_owner,
@@ -1248,16 +1827,33 @@ def daily(
         items,
         labels=labels,
         state=effective_state,
-        assignee=effective_assignee,
+        assignee=_resolve_post_fetch_assignee_filter(adapter, effective_assignee),
         iteration=iteration,
         sprint=sprint,
+        release=release,
     )
-    if len(filtered) > effective_limit:
-        filtered = filtered[:effective_limit]
+    filtered = _apply_issue_id_filter(filtered, issue_id)
+    if issue_id is not None and not filtered:
+        console.print(
+            f"[bold red]✗[/bold red] No backlog item with id {issue_id!r} found. "
+            "Check filters and adapter configuration."
+        )
+        raise typer.Exit(1)
+    try:
+        filtered = _resolve_daily_issue_window(filtered, first_issues=first_issues, last_issues=last_issues)
+    except ValueError as exc:
+        console.print(f"[red]{exc}.[/red]")
+        raise typer.Exit(1) from exc
+    if display_limit is not None and len(filtered) > display_limit:
+        filtered = filtered[:display_limit]
 
     if not filtered:
         console.print("[yellow]No backlog items found.[/yellow]")
         return
+
+    if first_comments is not None and last_comments is not None:
+        console.print("[red]Use only one of --first-comments or --last-comments.[/red]")
+        raise typer.Exit(1)
 
     comments_by_item_id: dict[str, list[str]] = {}
     if include_comments and (copilot_export is not None or summarize or summarize_to is not None):
@@ -1270,6 +1866,8 @@ def daily(
             ado_org=ado_org,
             ado_project=ado_project,
             ado_token=ado_token,
+            first_comments=first_comments,
+            last_comments=last_comments,
         )
 
     if copilot_export is not None:
@@ -1319,6 +1917,8 @@ def daily(
             ado_org=ado_org,
             ado_project=ado_project,
             ado_token=ado_token,
+            first_comments=first_comments,
+            last_comments=last_comments,
         )
         return
 
@@ -1392,6 +1992,7 @@ def daily(
                 str(r["id"]),
                 str(r["title"])[:50],
                 str(r["status"]),
+                str(r.get("assignees", "—"))[:30],
                 r["last_updated"].strftime("%Y-%m-%d %H:%M")
                 if hasattr(r["last_updated"], "strftime")
                 else str(r["last_updated"]),
@@ -1403,18 +2004,32 @@ def daily(
                 cells.append(str(r["priority"]))
             tbl.add_row(*cells)
 
-    table = Table(title="Daily standup", show_header=True, header_style="bold cyan")
-    table.add_column("ID", style="dim")
-    table.add_column("Title")
-    table.add_column("Status")
-    table.add_column("Last updated")
-    table.add_column("Yesterday", style="dim", max_width=30)
-    table.add_column("Today", style="dim", max_width=30)
-    table.add_column("Blockers", style="dim", max_width=20)
-    if include_priority:
-        table.add_column("Priority", style="dim")
-    _add_standup_rows_to_table(table, rows, include_priority)
-    console.print(table)
+    def _make_standup_table(title: str) -> Table:
+        table_obj = Table(title=title, show_header=True, header_style="bold cyan")
+        table_obj.add_column("ID", style="dim")
+        table_obj.add_column("Title")
+        table_obj.add_column("Status")
+        table_obj.add_column("Assignee", style="dim", max_width=30)
+        table_obj.add_column("Last updated")
+        table_obj.add_column("Yesterday", style="dim", max_width=30)
+        table_obj.add_column("Today", style="dim", max_width=30)
+        table_obj.add_column("Blockers", style="dim", max_width=20)
+        if include_priority:
+            table_obj.add_column("Priority", style="dim")
+        return table_obj
+
+    exceptions_rows, normal_rows = _split_exception_rows(rows)
+    if exceptions_rows:
+        exceptions_table = _make_standup_table("Exceptions")
+        _add_standup_rows_to_table(exceptions_table, exceptions_rows, include_priority)
+        console.print(exceptions_table)
+    if normal_rows:
+        normal_table = _make_standup_table("Daily standup")
+        _add_standup_rows_to_table(normal_table, normal_rows, include_priority)
+        console.print(normal_table)
+    if not exceptions_rows and not normal_rows:
+        empty_table = _make_standup_table("Daily standup")
+        console.print(empty_table)
     if not unassigned_only and show_unassigned and rows_unassigned:
         table_pending = Table(
             title="Pending / open for commitment",
@@ -1424,6 +2039,7 @@ def daily(
         table_pending.add_column("ID", style="dim")
         table_pending.add_column("Title")
         table_pending.add_column("Status")
+        table_pending.add_column("Assignee", style="dim", max_width=30)
         table_pending.add_column("Last updated")
         table_pending.add_column("Yesterday", style="dim", max_width=30)
         table_pending.add_column("Today", style="dim", max_width=30)
@@ -1432,6 +2048,18 @@ def daily(
             table_pending.add_column("Priority", style="dim")
         _add_standup_rows_to_table(table_pending, rows_unassigned, include_priority)
         console.print(table_pending)
+
+    if patch:
+        if _is_patch_mode_available():
+            proposal = _build_daily_patch_proposal(filtered, mode=normalized_mode)
+            console.print("\n[bold]Patch proposal preview:[/bold]")
+            console.print(Panel(proposal, border_style="yellow"))
+            console.print("[dim]No changes applied. Review/apply explicitly via patch workflow.[/dim]")
+        else:
+            console.print(
+                "[dim]Patch proposal requested, but patch-mode is not available yet. "
+                "Continuing without patch output.[/dim]"
+            )
 
 
 @beartype
@@ -1482,6 +2110,18 @@ def refine(
         "--limit",
         help="Maximum number of items to process in this refinement session. Use to cap batch size and avoid processing too many items at once.",
     ),
+    first_issues: int | None = typer.Option(
+        None,
+        "--first-issues",
+        min=1,
+        help="Process only the first N backlog items after filters/refinement checks.",
+    ),
+    last_issues: int | None = typer.Option(
+        None,
+        "--last-issues",
+        min=1,
+        help="Process only the last N backlog items after filters/refinement checks.",
+    ),
     ignore_refined: bool = typer.Option(
         True,
         "--ignore-refined/--no-ignore-refined",
@@ -1525,6 +2165,18 @@ def refine(
         None,
         "--tmp-file",
         help="Custom temporary file path (overrides default)",
+    ),
+    first_comments: int | None = typer.Option(
+        None,
+        "--first-comments",
+        min=1,
+        help="For refine preview/write prompt context, include only the first N comments per item.",
+    ),
+    last_comments: int | None = typer.Option(
+        None,
+        "--last-comments",
+        min=1,
+        help="For refine preview/write prompt context, include only the last N comments per item (default preview shows last 2; write prompts default to full comments).",
     ),
     # DoR validation
     check_dor: bool = typer.Option(
@@ -1801,7 +2453,7 @@ def refine(
                 )
                 raise typer.Exit(1)
 
-        # When ignore_refined (default), keep only items that need refinement; then apply limit
+        # When ignore_refined (default), keep only items that need refinement; then apply windowing/limit
         if ignore_refined:
             items = [
                 i
@@ -1810,9 +2462,9 @@ def refine(
                     i, detector, registry, template_id, normalized_adapter, normalized_framework, normalized_persona
                 )
             ]
-            if limit is not None and len(items) > limit:
-                items = items[:limit]
-            if ignore_refined and (limit is not None or issue_id is not None):
+            if ignore_refined and (
+                limit is not None or issue_id is not None or first_issues is not None or last_issues is not None
+            ):
                 console.print(
                     f"[dim]Filtered to {len(items)} item(s) needing refinement"
                     + (f" (limit {limit})" if limit is not None else "")
@@ -1823,6 +2475,14 @@ def refine(
         if export_to_tmp and import_from_tmp:
             console.print("[bold red]✗[/bold red] --export-to-tmp and --import-from-tmp are mutually exclusive")
             raise typer.Exit(1)
+        if first_comments is not None and last_comments is not None:
+            console.print("[bold red]✗[/bold red] Use only one of --first-comments or --last-comments")
+            raise typer.Exit(1)
+        if first_issues is not None and last_issues is not None:
+            console.print("[bold red]✗[/bold red] Use only one of --first-issues or --last-issues")
+            raise typer.Exit(1)
+
+        items = _apply_issue_window(items, first_issues=first_issues, last_issues=last_issues)
 
         # Handle export mode
         if export_to_tmp:
@@ -1830,45 +2490,51 @@ def refine(
             export_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-backlog-refine-{timestamp}.md")
 
             console.print(f"[bold cyan]Exporting {len(items)} backlog item(s) to: {export_file}[/bold cyan]")
-
-            # Export items to markdown file
-            export_content = "# SpecFact Backlog Refinement Export\n\n"
-            export_content += f"**Export Date**: {datetime.now().isoformat()}\n"
-            export_content += f"**Adapter**: {adapter}\n"
-            export_content += f"**Items**: {len(items)}\n\n"
-            export_content += "---\n\n"
-
-            for idx, item in enumerate(items, 1):
-                export_content += f"## Item {idx}: {item.title}\n\n"
-                export_content += f"**ID**: {item.id}\n"
-                export_content += f"**URL**: {item.url}\n"
-                if item.canonical_url:
-                    export_content += f"**Canonical URL**: {item.canonical_url}\n"
-                export_content += f"**State**: {item.state}\n"
-                export_content += f"**Provider**: {item.provider}\n"
-
-                # Include metrics
-                if item.story_points is not None or item.business_value is not None or item.priority is not None:
-                    export_content += "\n**Metrics**:\n"
-                    if item.story_points is not None:
-                        export_content += f"- Story Points: {item.story_points}\n"
-                    if item.business_value is not None:
-                        export_content += f"- Business Value: {item.business_value}\n"
-                    if item.priority is not None:
-                        export_content += f"- Priority: {item.priority} (1=highest)\n"
-                    if item.value_points is not None:
-                        export_content += f"- Value Points (SAFe): {item.value_points}\n"
-                    if item.work_item_type:
-                        export_content += f"- Work Item Type: {item.work_item_type}\n"
-
-                # Include acceptance criteria
-                if item.acceptance_criteria:
-                    export_content += f"\n**Acceptance Criteria**:\n{item.acceptance_criteria}\n"
-
-                # Include body
-                export_content += f"\n**Body**:\n```markdown\n{item.body_markdown}\n```\n"
-
-                export_content += "\n---\n\n"
+            if first_comments is not None or last_comments is not None:
+                console.print(
+                    "[dim]Note: --first-comments/--last-comments apply to preview and write prompt context; export always includes full comments.[/dim]"
+                )
+            export_first_comments, export_last_comments = _resolve_refine_export_comment_window(
+                first_comments=first_comments,
+                last_comments=last_comments,
+            )
+            comments_by_item_id = _collect_comment_annotations(
+                adapter,
+                items,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                github_token=github_token,
+                ado_org=ado_org,
+                ado_project=ado_project,
+                ado_token=ado_token,
+                first_comments=export_first_comments,
+                last_comments=export_last_comments,
+            )
+            template_guidance_by_item_id: dict[str, dict[str, Any]] = {}
+            for export_item in items:
+                target_template = _resolve_target_template_for_refine_item(
+                    export_item,
+                    detector=detector,
+                    registry=registry,
+                    template_id=template_id,
+                    normalized_adapter=normalized_adapter,
+                    normalized_framework=normalized_framework,
+                    normalized_persona=normalized_persona,
+                )
+                if target_template is not None:
+                    template_guidance_by_item_id[export_item.id] = {
+                        "template_id": target_template.template_id,
+                        "name": target_template.name,
+                        "description": target_template.description,
+                        "required_sections": list(target_template.required_sections or []),
+                        "optional_sections": list(target_template.optional_sections or []),
+                    }
+            export_content = _build_refine_export_content(
+                adapter,
+                items,
+                comments_by_item_id=comments_by_item_id or None,
+                template_guidance_by_item_id=template_guidance_by_item_id or None,
+            )
 
             export_file.write_text(export_content, encoding="utf-8")
             console.print(f"[green]✓ Exported to: {export_file}[/green]")
@@ -1956,8 +2622,8 @@ def refine(
             console.print(f"[green]✓ Updated {len(updated_items)} backlog item(s)[/green]")
             return
 
-        # Apply limit if specified (when not ignore_refined; when ignore_refined we already filtered and sliced)
-        if not ignore_refined and limit is not None and len(items) > limit:
+        # Apply limit if specified
+        if limit is not None and len(items) > limit:
             items = items[:limit]
             console.print(f"[yellow]Limited to {limit} items (found {len(items)} total)[/yellow]")
         else:
@@ -1967,6 +2633,83 @@ def refine(
         refined_count = 0
         skipped_count = 0
         cancelled = False
+        comments_by_item_id: dict[str, list[str]] = {}
+        if preview and not write:
+            preview_first_comments, preview_last_comments = _resolve_refine_preview_comment_window(
+                first_comments=first_comments,
+                last_comments=last_comments,
+            )
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as preview_comment_progress:
+                preview_comment_task = preview_comment_progress.add_task(
+                    _build_comment_fetch_progress_description(0, len(items), "-"),
+                    total=None,
+                )
+
+                def _on_preview_comment_progress(index: int, total: int, item: BacklogItem) -> None:
+                    preview_comment_progress.update(
+                        preview_comment_task,
+                        description=_build_comment_fetch_progress_description(index, total, item.id),
+                    )
+
+                comments_by_item_id = _collect_comment_annotations(
+                    adapter,
+                    items,
+                    repo_owner=repo_owner,
+                    repo_name=repo_name,
+                    github_token=github_token,
+                    ado_org=ado_org,
+                    ado_project=ado_project,
+                    ado_token=ado_token,
+                    first_comments=preview_first_comments,
+                    last_comments=preview_last_comments,
+                    progress_callback=_on_preview_comment_progress,
+                )
+                preview_comment_progress.update(
+                    preview_comment_task,
+                    description=f"[green]✓[/green] Fetched comments for {len(items)} issue(s)",
+                )
+        elif write:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as write_comment_progress:
+                write_comment_task = write_comment_progress.add_task(
+                    _build_comment_fetch_progress_description(0, len(items), "-"),
+                    total=None,
+                )
+
+                def _on_write_comment_progress(index: int, total: int, item: BacklogItem) -> None:
+                    write_comment_progress.update(
+                        write_comment_task,
+                        description=_build_comment_fetch_progress_description(index, total, item.id),
+                    )
+
+                comments_by_item_id = _collect_comment_annotations(
+                    adapter,
+                    items,
+                    repo_owner=repo_owner,
+                    repo_name=repo_name,
+                    github_token=github_token,
+                    ado_org=ado_org,
+                    ado_project=ado_project,
+                    ado_token=ado_token,
+                    first_comments=first_comments,
+                    last_comments=last_comments,
+                    progress_callback=_on_write_comment_progress,
+                )
+                write_comment_progress.update(
+                    write_comment_task,
+                    description=f"[green]✓[/green] Fetched comments for {len(items)} issue(s)",
+                )
 
         # Process items without progress bar during refinement to avoid conflicts with interactive prompts
         for idx, item in enumerate(items, 1):
@@ -2123,6 +2866,14 @@ def refine(
                 else:
                     console.print(Panel(body_content))
 
+                preview_comments = comments_by_item_id.get(item.id, [])
+                console.print("\n[bold]Comments:[/bold]")
+                if preview_comments:
+                    for panel in _build_refine_preview_comment_panels(preview_comments):
+                        console.print(panel)
+                else:
+                    console.print(_build_refine_preview_comment_empty_panel())
+
                 # Show template info
                 console.print(
                     f"\n[bold]Target Template:[/bold] {target_template.name} (ID: {target_template.template_id})"
@@ -2144,7 +2895,8 @@ def refine(
 
             # Generate prompt for IDE AI copilot
             console.print(f"[bold]Generating refinement prompt for template: {target_template.name}...[/bold]")
-            prompt = refiner.generate_refinement_prompt(item, target_template)
+            prompt_comments = comments_by_item_id.get(item.id, [])
+            prompt = refiner.generate_refinement_prompt(item, target_template, comments=prompt_comments)
 
             # Display prompt for IDE AI copilot
             console.print("\n[bold]Refinement Prompt for IDE AI Copilot:[/bold]")
@@ -2454,6 +3206,10 @@ def refine(
             console.print("[yellow]Session cancelled by user[/yellow]")
         if limit:
             console.print(f"[dim]Limit applied: {limit} items[/dim]")
+        if first_issues is not None:
+            console.print(f"[dim]Issue window applied: first {first_issues} items[/dim]")
+        if last_issues is not None:
+            console.print(f"[dim]Issue window applied: last {last_issues} items[/dim]")
         console.print(f"[green]Refined: {refined_count}[/green]")
         console.print(f"[yellow]Skipped: {skipped_count}[/yellow]")
 
@@ -2500,9 +3256,7 @@ def map_fields(
     """
     import base64
     import re
-    import sys
 
-    import questionary  # type: ignore[reportMissingImports]
     import requests
 
     from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
@@ -2751,6 +3505,14 @@ def map_fields(
     combined_mapping.update(existing_mapping)
 
     # Interactive mapping
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError:
+        console.print(
+            "[red]Interactive field mapping requires the 'questionary' package. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from None
+
     console.print()
     console.print(Panel("[bold cyan]Interactive Field Mapping[/bold cyan]", border_style="cyan"))
     console.print("[dim]Use ↑↓ to navigate, ⏎ to select. Map ADO fields to canonical field names.[/dim]")
@@ -2808,9 +3570,9 @@ def map_fields(
             ).ask()
             if selected_display is None:
                 selected_display = "<no mapping>"
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]Selection cancelled.[/yellow]")
-            sys.exit(0)
+            raise typer.Exit(0) from None
 
         # Convert display name back to reference name
         if selected_display and selected_display != "<no mapping>" and selected_display in field_choices_display:

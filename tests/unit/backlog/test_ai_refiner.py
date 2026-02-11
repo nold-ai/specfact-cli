@@ -69,6 +69,28 @@ class TestBacklogAIRefiner:
         assert "I want" in prompt
 
     @beartype
+    def test_generate_refinement_prompt_includes_comments_when_provided(
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
+    ) -> None:
+        """Prompt includes comment context so refinement sees evolving discussion."""
+        prompt = refiner.generate_refinement_prompt(
+            arbitrary_backlog_item,
+            user_story_template,
+            comments=["First update from team", "Final clarification from PO"],
+        )
+        assert "Comments" in prompt
+        assert "First update from team" in prompt
+        assert "Final clarification from PO" in prompt
+
+    @beartype
+    def test_generate_refinement_prompt_mentions_no_comments_when_empty(
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
+    ) -> None:
+        """Prompt explicitly states that comments were checked but none exist."""
+        prompt = refiner.generate_refinement_prompt(arbitrary_backlog_item, user_story_template, comments=[])
+        assert "No comments found" in prompt
+
+    @beartype
     def test_validate_and_score_complete_refinement(
         self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:

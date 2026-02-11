@@ -37,8 +37,12 @@ When run from a **clone**, org/repo or org/project are inferred from `git remote
 
 - `--state STATE` - Filter by state (e.g. open, Active)
 - `--assignee USERNAME` or `--assignee me` - Filter by assignee
+- `--search QUERY` - Provider-specific search query
+- `--release RELEASE` - Filter by release identifier
+- `--id ISSUE_ID` - Filter to one exact backlog item ID
 - `--sprint SPRINT` / `--iteration PATH` - Filter by sprint/iteration (e.g. `current`)
 - `--limit N` - Max items (default 20)
+- `--first-issues N` / `--last-issues N` - Optional issue window (oldest/newest by numeric ID, mutually exclusive)
 - `--blockers-first` - Sort items with blockers first
 - `--show-unassigned` / `--unassigned-only` - Include or show only unassigned items
 
@@ -48,8 +52,11 @@ When run from a **clone**, org/repo or org/project are inferred from `git remote
 - `--copilot-export PATH` - Write summarized progress per story to a file for Copilot slash-command use
 - `--summarize` - Output a prompt (instruction + filter context + standup data) to **stdout** for Copilot or slash command to generate a standup summary
 - `--summarize-to PATH` - Write the same summarize prompt to a **file**
+- `--comments` / `--annotations` - Include descriptions and comments in `--copilot-export` and summarize output
+- `--first-comments N` / `--last-comments N` - Optional comment window for export/summarize outputs (`--comments`); default includes all comments
 - `--suggest-next` - In interactive mode, show suggested next item by value score
 - `--post` with `--yesterday`, `--today`, `--blockers` - Post a standup comment to the first item's issue (when adapter supports comments)
+- Interactive navigation action `Post standup update` - Post yesterday/today/blockers to the currently selected story during `--interactive` walkthrough
 
 ## Workflow
 
@@ -70,10 +77,12 @@ Or use the slash command with arguments: `/specfact.backlog-daily --adapter ado 
 When the user runs **`--interactive`** (or the slash command drives an interactive flow):
 
 1. **For each story** (one at a time):
-   - **Present** the item: ID, title, status, assignees, last updated, description, acceptance criteria, standup fields (yesterday/today/blockers), and **existing comments** annotated to that issue (when the adapter supports fetching comments).
+   - **Present** the item: ID, title, status, assignees, last updated, description, acceptance criteria, standup fields (yesterday/today/blockers), and the **latest existing comment** (when the adapter supports fetching comments).
+   - **Interactive comment scope**: If older comments exist, explicitly mention the count of hidden comments and guide users to export options for full context.
    - **Highlight current focus**: What is the team member working on? What is the next intended step?
    - **Surface issues or open questions**: Blockers, ambiguities, dependencies, or decisions needed.
    - **Allow discussion notes**: If the team agrees, suggest or add a **comment** on the issue (e.g. "Standup YYYY-MM-DD: …" or "Discussion: …") so the discussion is captured as an annotation. Only add comments when the user explicitly approves (e.g. "add that as a comment").
+   - If in CLI interactive navigation, use **Post standup update** to write the note to the selected story directly.
    - **Move to next** only when the team is done with this story (e.g. "next", "done").
 
 2. **Rules**:
@@ -95,8 +104,9 @@ When the user has run `specfact backlog daily ... --summarize` or `--summarize-t
 
 ## Comments on Issues
 
-- **Interactive detail view** shows **existing comments** on each issue (GitHub issue comments, ADO work item discussion) when the adapter supports it. Use them to understand prior discussion and avoid repeating questions.
-- **Adding comments**: When the team agrees to record a discussion note or standup update, add it as a comment on the issue (via `--post` for standup lines, or by guiding the user to run the CLI/post manually). Do not invent comments; only suggest or add when the user approves.
+- **Interactive detail view** shows only the **latest comment** plus a hint when additional comments exist, to keep standup readable.
+- **Full comment context**: use `--copilot-export <path> --comments` or `--summarize --comments` (optional `--first-comments N` / `--last-comments N`) to include full or scoped comment history.
+- **Adding comments**: When the team agrees to record a discussion note or standup update, add it as a comment on the issue (via `--post` for first-item standup lines or interactive **Post standup update** for selected stories). Do not invent comments; only suggest or add when the user approves.
 
 ## CLI Enforcement
 

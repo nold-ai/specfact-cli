@@ -481,6 +481,59 @@ specfact backlog refine ado \
 specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
 ```
 
+### 4. Export Full Comment Context for Copilot
+
+`specfact backlog refine --export-to-tmp` now includes issue/work item comments (when adapter supports comments, including ADO) so refinement context is complete by default.
+
+```bash
+# Export with full comment history (default, no truncation)
+specfact backlog refine ado \
+  --ado-org my-org \
+  --ado-project my-project \
+  --state Active \
+  --export-to-tmp
+
+# Optional: preview only first N comments in terminal output
+specfact backlog refine ado \
+  --ado-org my-org \
+  --ado-project my-project \
+  --state Active \
+  --preview \
+  --first-comments 3
+
+# Optional: preview only last N comments in terminal output
+specfact backlog refine ado \
+  --ado-org my-org \
+  --ado-project my-project \
+  --state Active \
+  --preview \
+  --last-comments 4
+```
+
+Preview defaults to the last 2 comments per item to keep CLI output readable.  
+`--first-comments N` and `--last-comments N` are mutually exclusive and affect preview density and write-mode prompt comment context.  
+In `--write` workflows, prompts include full comment history by default unless a first/last comment window is provided.  
+`--export-to-tmp` always writes full comment history.
+The export file now includes a `## Copilot Instructions` block and per-item template guidance, and Copilot should follow those embedded instructions when refining.  
+For export-driven refinement, treat the embedded file instructions as the canonical format contract.  
+For `--import-from-tmp`, ensure the refined artifact excludes the instruction header and retains only `## Item N:` sections with refined fields.
+
+Use `--first-issues N` or `--last-issues N` to process only a first/last slice of filtered issues in a refine run (mutually exclusive).  
+Issue windowing is based on numeric issue/work-item IDs: lower IDs are treated as older (`--first-issues`), higher IDs as newer (`--last-issues`).
+
+### 5. Shared Backlog Filter Parity (Refine + Daily)
+
+`specfact backlog refine` and `specfact backlog daily` now share the same global backlog scoping semantics for common workflows:
+
+- `--search`, `--release`, `--id` for consistent item selection
+- `--first-issues N` / `--last-issues N` for deterministic oldest/newest issue windows (numeric ID ordering)
+- comment-window options where applicable:
+  - **Refine**: `--first-comments N` / `--last-comments N` affect preview and write-prompt context
+  - **Daily export/summarize**: `--first-comments N` / `--last-comments N` scope `--comments` output
+  - **Daily interactive**: latest comment by default; explicit comment-window flags override that default
+
+For day-to-day team flow, this means you can switch between `backlog daily` and `backlog refine` without changing filter mental models.
+
 ---
 
 ## Workflow Integration

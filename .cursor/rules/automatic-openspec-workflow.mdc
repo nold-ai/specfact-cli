@@ -186,7 +186,7 @@ When user requests a change, **do not write or modify any application code yet**
    - Confirm with user: "OpenSpec change ready. Proceed with implementation?"
 
 2. **If user confirms or if workflow requires immediate application:**
-   - Execute: `/opsx:apply <change-id>` (or `/specfact-cli/wf-apply-change <change-id>`)
+   - Execute: `/opsx:apply <change-id>`
    - Follow workflow steps:
      - Change selection
      - Read change artifacts
@@ -235,7 +235,7 @@ AI (automatically):
    - Creates change proposal, spec deltas, tasks
    - Validates: openspec validate <id> --strict
 5. Verifies: Shows change summary; "Proceed with implementation?"
-6. Applies: /opsx:apply <change-id> (or /wf-apply-change <change-id>)
+6. Applies: /opsx:apply <change-id>
    - Implements the change (TDD: tests first, then code)
    - Updates tasks
 7. After implementation: Verify (quality gates), validate (openspec validate), sync backlog

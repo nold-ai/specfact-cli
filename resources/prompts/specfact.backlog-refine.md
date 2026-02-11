@@ -69,6 +69,7 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
   - Ambiguous name-only matches will prompt for explicit iteration path
 - `--release RELEASE` - Filter by release identifier (case-insensitive)
 - `--limit N` - Maximum number of items to process in this refinement session (caps batch size)
+- `--first-issues N` / `--last-issues N` - Process only the first or last N items after filters/refinement checks (mutually exclusive; sorted by numeric issue/work-item ID, lower=older, higher=newer)
 - `--ignore-refined` / `--no-ignore-refined` - When set (default), exclude already-refined items so `--limit` applies to items that need refinement. Use `--no-ignore-refined` to process the first N items in order.
 - `--id ISSUE_ID` - Refine only this backlog item (issue or work item ID). Other items are ignored.
 - `--persona PERSONA` - Filter templates by persona (product-owner, architect, developer)
@@ -91,12 +92,22 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 - `--export-to-tmp` - Export backlog items to temporary file for copilot processing (default: `/tmp/specfact-backlog-refine-<timestamp>.md`)
 - `--import-from-tmp` - Import refined content from temporary file after copilot processing (default: `/tmp/specfact-backlog-refine-<timestamp>-refined.md`)
 - `--tmp-file PATH` - Custom temporary file path (overrides default)
+- `--first-comments N` / `--last-comments N` - Optional comment window for preview and write-mode prompt context (default preview shows last 2; write prompts include full comments by default)
 
 **Export/Import Workflow**:
 
 1. Export items: `specfact backlog refine --adapter github --export-to-tmp --repo-owner OWNER --repo-name NAME`
-2. Process with copilot: Open exported file, use copilot to refine items, save as `-refined.md`
+2. Process with copilot: Open exported file and follow the embedded `## Copilot Instructions` and per-item template guidance (`Target Template`, `Required Sections`, `Optional Sections`). Save as `-refined.md`
 3. Import refined: `specfact backlog refine --adapter github --import-from-tmp --repo-owner OWNER --repo-name NAME --write`
+
+When refining from an exported file, treat the embedded instructions in that file as the source of truth for required structure and formatting.
+
+**Comment context in export**:
+
+- Export includes item comments when adapter supports comment retrieval (GitHub + ADO).
+- Export always includes full comment history (no truncation).
+- Use `--first-comments N` or `--last-comments N` only to adjust preview output density.
+- For refined import readiness, the `-refined.md` artifact should omit the instruction header and keep only item sections.
 
 ### Definition of Ready (DoR)
 

@@ -73,8 +73,14 @@ class BacklogAIRefiner:
     @beartype
     @require(lambda self, item: isinstance(item, BacklogItem), "Item must be BacklogItem")
     @require(lambda self, template: isinstance(template, BacklogTemplate), "Template must be BacklogTemplate")
+    @require(
+        lambda self, comments=None: comments is None or isinstance(comments, list),
+        "Comments must be a list of strings or None",
+    )
     @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty prompt string")
-    def generate_refinement_prompt(self, item: BacklogItem, template: BacklogTemplate) -> str:
+    def generate_refinement_prompt(
+        self, item: BacklogItem, template: BacklogTemplate, comments: list[str] | None = None
+    ) -> str:
         """
         Generate prompt for IDE AI copilot to refine backlog item.
 
@@ -122,6 +128,16 @@ The adapter will map these back to separate ADO fields during writeback."""
         if item.work_item_type:
             metrics_info += f"\nWork Item Type: {item.work_item_type}"
 
+        comment_lines: list[str] = []
+        if comments:
+            comment_lines.append("Comments (latest discussion context):")
+            for index, comment in enumerate(comments, 1):
+                comment_lines.append(f"{index}. {comment}")
+        else:
+            comment_lines.append("Comments (latest discussion context):")
+            comment_lines.append("- No comments found")
+        comments_info = "\n".join(comment_lines)
+
         prompt = f"""Transform the following backlog item into the {template.name} template format.
 
 Original Backlog Item:
@@ -131,6 +147,8 @@ Provider: {item.provider}
 
 Body:
 {item.body_markdown}
+
+{comments_info}
 
 Target Template: {template.name}
 Description: {template.description}
