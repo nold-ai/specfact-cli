@@ -350,6 +350,57 @@ class TestAdoBacklogAdapter:
         assert headers == {}
 
     @beartype
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_get_work_item_comments_follows_continuation_token(self, mock_get: MagicMock) -> None:
+        """Fetch all comment pages using ADO comments continuation token."""
+        page1 = MagicMock()
+        page1.json.return_value = {"comments": [{"text": "c1"}, {"text": "c2"}]}
+        page1.raise_for_status = MagicMock()
+        page1.headers = {"x-ms-continuationtoken": "token-1"}
+
+        page2 = MagicMock()
+        page2.json.return_value = {"comments": [{"text": "c3"}]}
+        page2.raise_for_status = MagicMock()
+        page2.headers = {}
+
+        mock_get.side_effect = [page1, page2]
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        comments = adapter._get_work_item_comments("test", "project", 123)
+
+        assert comments == [{"text": "c1"}, {"text": "c2"}, {"text": "c3"}]
+        assert mock_get.call_count == 2
+        first_call = mock_get.call_args_list[0]
+        second_call = mock_get.call_args_list[1]
+        first_url = first_call.kwargs.get("url", first_call.args[0] if first_call.args else "")
+        assert "workItems/123/comments" in first_url
+        assert first_call.kwargs["params"]["api-version"] == "7.1-preview.4"
+        assert "continuationToken" not in first_call.kwargs["params"]
+        assert second_call.kwargs["params"]["continuationToken"] == "token-1"
+
+    @beartype
+    @patch.object(AdoAdapter, "_get_work_item_comments")
+    def test_get_comments_returns_text_only(self, mock_get_work_item_comments: MagicMock) -> None:
+        """Convert ADO comment objects to normalized text lines."""
+        mock_get_work_item_comments.return_value = [
+            {"text": "First"},
+            {"body": "Second"},
+            {"text": "   "},
+            {},
+        ]
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        item = BacklogItem(
+            id="123",
+            provider="ado",
+            url="https://dev.azure.com/test/project/_workitems/edit/123",
+            title="Item",
+            body_markdown="",
+            state="Active",
+        )
+        comments = adapter.get_comments(item)
+        assert comments == ["First", "Second"]
+
+    @beartype
     @patch("azure.identity.DeviceCodeCredential")
     @patch("azure.identity.TokenCachePersistenceOptions")
     def test_try_refresh_oauth_token_success(

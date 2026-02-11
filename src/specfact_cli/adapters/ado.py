@@ -2356,18 +2356,39 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not self.api_token:
             return []
 
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1"
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workItems/{work_item_id}/comments"
         headers = {
             "Accept": "application/json",
             **self._auth_headers(),
         }
 
         try:
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
-            # ADO API returns comments in a 'comments' array within the response
-            response_data = response.json()
-            return response_data.get("comments", [])
+            comments: list[dict[str, Any]] = []
+            continuation_token: str | None = None
+            seen_tokens: set[str] = set()
+
+            while True:
+                params: dict[str, Any] = {"api-version": "7.1-preview.4", "$top": 200, "order": "asc"}
+                if continuation_token:
+                    params["continuationToken"] = continuation_token
+
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
+                response_data = response.json()
+
+                raw_comments = response_data.get("comments", [])
+                if isinstance(raw_comments, list):
+                    comments.extend([c for c in raw_comments if isinstance(c, dict)])
+
+                next_token = response.headers.get("x-ms-continuationtoken") or response_data.get("continuationToken")
+                if not next_token or not isinstance(next_token, str):
+                    break
+                if next_token in seen_tokens:
+                    break
+                seen_tokens.add(next_token)
+                continuation_token = next_token
+
+            return comments
         except requests.RequestException:
             # Return empty list on error - comments are optional
             return []
@@ -3144,6 +3165,35 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return True
         except Exception:
             return False
+
+    @beartype
+    def get_comments(self, item: BacklogItem) -> list[str]:
+        """
+        Fetch comments for an Azure DevOps work item.
+
+        Args:
+            item: BacklogItem to fetch comments for
+
+        Returns:
+            List of comment body strings, or empty list on error
+        """
+        if not self.org or not self.project:
+            return []
+
+        if not item.id.isdigit():
+            return []
+
+        raw = self._get_work_item_comments(self.org, self.project, int(item.id))
+        comment_texts: list[str] = []
+        for comment in raw:
+            if not isinstance(comment, dict):
+                continue
+            text = comment.get("text") or comment.get("body")
+            if isinstance(text, str):
+                stripped = text.strip()
+                if stripped:
+                    comment_texts.append(stripped)
+        return comment_texts
 
     @beartype
     @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")

@@ -8,14 +8,22 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from rich.panel import Panel
 from typer.testing import CliRunner
 
 from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.cli import app
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.modules.backlog.src.commands import (
+    _apply_issue_window,
+    _build_comment_fetch_progress_description,
+    _build_refine_export_content,
+    _build_refine_preview_comment_empty_panel,
+    _build_refine_preview_comment_panels,
     _item_needs_refinement,
     _parse_refined_export_markdown,
+    _resolve_refine_export_comment_window,
+    _resolve_refine_preview_comment_window,
 )
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
@@ -334,6 +342,179 @@ Then we see the error.
         assert "return 42" in body
         assert "```" in body
         assert "Then we see the error." in body
+
+
+class TestBuildRefineExportContent:
+    """Tests for refine export content rendering."""
+
+    def test_refine_export_includes_comments_when_available(self) -> None:
+        """Refine export includes comment annotations by default when available."""
+        item = BacklogItem(
+            id="42",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/42",
+            title="Story",
+            body_markdown="Body text",
+            state="Active",
+            assignees=[],
+        )
+        content = _build_refine_export_content(
+            adapter="ado",
+            items=[item],
+            comments_by_item_id={"42": ["Comment A", "Comment B"]},
+        )
+        assert "Comments (annotations)" in content
+        assert "Comment A" in content
+        assert "Comment B" in content
+        assert "## Copilot Instructions" in content
+        assert "must not include this instruction block" in content
+        assert "Preserve all original requirements, scope, and technical details" in content
+
+    def test_refine_export_omits_comments_section_when_none(self) -> None:
+        """Refine export omits comments section when no comments exist for item."""
+        item = BacklogItem(
+            id="42",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/42",
+            title="Story",
+            body_markdown="Body text",
+            state="Active",
+            assignees=[],
+        )
+        content = _build_refine_export_content(adapter="ado", items=[item], comments_by_item_id={})
+        assert "Comments (annotations)" not in content
+
+    def test_refine_export_places_instructions_before_first_item(self) -> None:
+        """Instruction block appears before exported item sections."""
+        item = BacklogItem(
+            id="42",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/42",
+            title="Story",
+            body_markdown="Body text",
+            state="Active",
+            assignees=[],
+        )
+        content = _build_refine_export_content(adapter="ado", items=[item], comments_by_item_id={})
+        assert content.index("## Copilot Instructions") < content.index("## Item 1:")
+
+    def test_refine_export_includes_template_guidance_for_items(self) -> None:
+        """Export includes template guidance similar to interactive prompts."""
+        item = BacklogItem(
+            id="42",
+            provider="github",
+            url="https://github.com/org/repo/issues/42",
+            title="Story",
+            body_markdown="Body text",
+            state="open",
+            assignees=[],
+        )
+        content = _build_refine_export_content(
+            adapter="github",
+            items=[item],
+            comments_by_item_id={},
+            template_guidance_by_item_id={
+                "42": {
+                    "template_id": "enabler_v1",
+                    "name": "Enabler",
+                    "description": "Enabler work template",
+                    "required_sections": ["Objective", "Technical Approach", "Success Criteria"],
+                    "optional_sections": ["Dependencies", "Risks", "Timeline"],
+                }
+            },
+        )
+        assert "**Target Template**:" in content
+        assert "**Required Sections**:" in content
+        assert "**Optional Sections**:" in content
+
+
+class TestRefineCommentWindowResolution:
+    """Tests for refine preview/export comment-window semantics."""
+
+    def test_refine_preview_defaults_to_last_two_comments(self) -> None:
+        """Preview uses last two comments when no explicit window flags are provided."""
+        first, last = _resolve_refine_preview_comment_window(first_comments=None, last_comments=None)
+        assert first is None
+        assert last == 2
+
+    def test_refine_preview_respects_first_comments_override(self) -> None:
+        """Preview honors --first-comments when provided."""
+        first, last = _resolve_refine_preview_comment_window(first_comments=5, last_comments=None)
+        assert first == 5
+        assert last is None
+
+    def test_refine_preview_respects_last_comments_override(self) -> None:
+        """Preview honors --last-comments when provided."""
+        first, last = _resolve_refine_preview_comment_window(first_comments=None, last_comments=4)
+        assert first is None
+        assert last == 4
+
+    def test_refine_export_always_uses_full_comment_history(self) -> None:
+        """Export ignores preview comment-window flags and always requests full comments."""
+        first, last = _resolve_refine_export_comment_window(first_comments=5, last_comments=None)
+        assert first is None
+        assert last is None
+
+        first_2, last_2 = _resolve_refine_export_comment_window(first_comments=None, last_comments=3)
+        assert first_2 is None
+        assert last_2 is None
+
+
+class TestRefinePreviewCommentUx:
+    """Tests for refine preview comment progress and block rendering."""
+
+    def test_build_comment_fetch_progress_description_includes_position(self) -> None:
+        """Progress message uses n/m indicator while fetching comments."""
+        message = _build_comment_fetch_progress_description(3, 66, "123")
+        assert "3/66" in message
+        assert "123" in message
+        assert "Fetching issue" in message
+
+    def test_build_refine_preview_comment_panels_returns_panels(self) -> None:
+        """Preview comments are rendered as panel blocks for clear scoping."""
+        panels = _build_refine_preview_comment_panels(["first comment", "second comment"])
+        assert len(panels) == 2
+        assert all(isinstance(panel, Panel) for panel in panels)
+
+    def test_build_refine_preview_comment_empty_panel_returns_panel(self) -> None:
+        """Preview shows explicit hint when no comments are found."""
+        panel = _build_refine_preview_comment_empty_panel()
+        assert isinstance(panel, Panel)
+
+
+class TestRefineIssueWindow:
+    """Tests for refine first/last issue window controls."""
+
+    @staticmethod
+    def _item(id_: str) -> BacklogItem:
+        return BacklogItem(
+            id=id_,
+            provider="github",
+            url=f"https://github.com/org/repo/issues/{id_}",
+            title=f"Item {id_}",
+            body_markdown="Body",
+            state="open",
+            assignees=[],
+        )
+
+    def test_apply_issue_window_first_issues(self) -> None:
+        items = [self._item("3"), self._item("1"), self._item("2")]
+        result = _apply_issue_window(items, first_issues=2, last_issues=None)
+        assert [i.id for i in result] == ["1", "2"]
+
+    def test_apply_issue_window_last_issues(self) -> None:
+        items = [self._item("3"), self._item("1"), self._item("2")]
+        result = _apply_issue_window(items, first_issues=None, last_issues=2)
+        assert [i.id for i in result] == ["2", "3"]
+
+    def test_apply_issue_window_rejects_both_first_and_last(self) -> None:
+        items = [self._item("1")]
+        try:
+            _apply_issue_window(items, first_issues=1, last_issues=1)
+        except ValueError as exc:
+            assert "--first-issues" in str(exc)
+            return
+        raise AssertionError("Expected ValueError when both first_issues and last_issues are set")
 
 
 class TestItemNeedsRefinement:

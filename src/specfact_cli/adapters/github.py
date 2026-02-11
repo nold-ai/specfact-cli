@@ -2526,7 +2526,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if filters.assignee:
             # Strip leading @ if present for GitHub search
             assignee_value = filters.assignee.lstrip("@")
-            query_parts.append(f"assignee:{assignee_value}")
+            normalized_assignee_value = BacklogFilters.normalize_filter_value(assignee_value)
+            if normalized_assignee_value == "me":
+                query_parts.append("assignee:@me")
+            else:
+                query_parts.append(f"assignee:{assignee_value}")
 
         if filters.labels:
             for label in filters.labels:
@@ -2585,24 +2589,25 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Normalize assignee filter (strip @, lowercase)
             assignee_filter = filters.assignee.lstrip("@")
             normalized_assignee = BacklogFilters.normalize_filter_value(assignee_filter)
-
-            filtered_items = [
-                item
-                for item in filtered_items
-                if any(
-                    # Match against login (case-insensitive)
-                    BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
-                    # Or match against display name if available (case-insensitive)
-                    or (
-                        hasattr(item, "provider_fields")
-                        and isinstance(item.provider_fields, dict)
-                        and item.provider_fields.get("assignee_login")
-                        and BacklogFilters.normalize_filter_value(item.provider_fields["assignee_login"])
-                        == normalized_assignee
+            # `me` is provider-relative identity and should rely on GitHub query semantics.
+            if normalized_assignee != "me":
+                filtered_items = [
+                    item
+                    for item in filtered_items
+                    if any(
+                        # Match against login (case-insensitive)
+                        BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
+                        # Or match against display name if available (case-insensitive)
+                        or (
+                            hasattr(item, "provider_fields")
+                            and isinstance(item.provider_fields, dict)
+                            and item.provider_fields.get("assignee_login")
+                            and BacklogFilters.normalize_filter_value(item.provider_fields["assignee_login"])
+                            == normalized_assignee
+                        )
+                        for assignee in item.assignees
                     )
-                    for assignee in item.assignees
-                )
-            ]
+                ]
 
         if filters.iteration:
             filtered_items = [item for item in filtered_items if item.iteration and item.iteration == filters.iteration]
@@ -2633,17 +2638,6 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         return filtered_items
 
-    @beartype
-    @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
-    @require(
-        lambda item, update_fields: update_fields is None or isinstance(update_fields, list),
-        "Update fields must be None or list",
-    )
-    @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
-    @ensure(
-        lambda result, item: result.id == item.id and result.provider == item.provider,
-        "Updated item must preserve id and provider",
-    )
     @beartype
     def supports_add_comment(self) -> bool:
         """Whether this adapter can add comments (requires token and repo)."""
@@ -2711,6 +2705,17 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         raw = self._get_issue_comments(self.repo_owner, self.repo_name, issue_number)
         return [str(c.get("body", "")).strip() for c in raw if isinstance(c, dict)]
 
+    @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
+    @require(
+        lambda item, update_fields: update_fields is None or isinstance(update_fields, list),
+        "Update fields must be None or list",
+    )
+    @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
+    @ensure(
+        lambda result, item: result.id == item.id and result.provider == item.provider,
+        "Updated item must preserve id and provider",
+    )
     def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
         """
         Update a GitHub issue.

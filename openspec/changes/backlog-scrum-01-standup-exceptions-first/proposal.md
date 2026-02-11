@@ -70,9 +70,18 @@ modules/backlog-scrum/
 - **NEW**: Add `--mode scrum|kanban|safe` flag to `specfact backlog daily`; `scrum` is the default when this module is loaded.
 - **EXTEND** (policy-engine-01): When policy-engine-01 is present, query policy results for each item and surface failures in section (2); graceful no-op if not installed.
 - **EXTEND** (patch-mode-01): Integrate `--patch` flag to propose standup notes or missing fields as a patch file; graceful no-op if patch-mode-01 not installed.
+- **EXTEND** (ADO comment context): Fetch ADO work item comments using the dedicated comments API resource (`workItems/{id}/comments`, API `7.1-preview.4`) with pagination so `backlog daily` and `backlog refine` can use complete comment history.
+- **NEW**: Add optional comment windowing controls `--first-comments N` and `--last-comments N` for daily exports/summaries and refine preview output; refine export always keeps full comments (no truncation).
+- **EXTEND**: Include comment context in refine write-mode prompts (full by default; first/last windowing optional for noise control).
+- **EXTEND**: Add a Copilot instruction header to refine export files; refined import artifacts must omit the header and keep only item blocks.
+- **EXTEND**: Make refine export guidance parity with interactive prompts by embedding equivalent refinement rules and per-item template guidance.
+- **NEW**: Add optional issue windowing controls `--first-issues N` and `--last-issues N` for refine runs to process deterministic first/last item slices.
+- **EXTEND** (interactive output UX): In `specfact backlog daily --interactive`, show only the latest comment plus a count hint for remaining comments and guidance to use export-to-file options for full comment context.
+- **EXTEND** (prompt/docs): Update slash prompt templates and user docs so comment context behavior and comment-windowing options are explicit for everyday team workflows.
 
 ## Capabilities
 - **backlog-scrum** (standup): Exceptions-first section order (blockers, policy failures, aging, normal); `--mode scrum|kanban|safe`; optional patch integration for standup notes; Policy Engine integration for policy failure surfacing.
+- **backlog-scrum** (comment context): Full ADO comment retrieval for daily/refine, optional first/last comment limits, interactive last-comment-only rendering with export guidance, and aligned slash prompts/docs.
 
 ---
 

@@ -19,7 +19,7 @@ This tutorial walks you through a complete **daily standup and sprint review** w
 - Run **`specfact backlog daily`** and see your standup table (assigned + unassigned items) with **auto-detected** GitHub org/repo or Azure DevOps org/project from the git remote
 - Use **`.specfact/backlog.yaml`** or environment variables when you're not in the repo (e.g. CI) or to override
 - **Post a standup comment** to the first (or selected) item with `--yesterday`, `--today`, `--blockers` and `--post`
-- Use **`--interactive`** for step-by-step story review (arrow-key selection, full detail, **existing comments on each issue** when the adapter supports them)
+- Use **`--interactive`** for step-by-step story review (arrow-key selection, full detail, latest comment + hidden-count hint, and optional in-flow posting on the selected story)
 - Use **`--copilot-export <path>`** to write a Markdown summary for Copilot slash-command during standup;
   add **`--comments`** (alias **`--annotations`**) to include descriptions and comment annotations when
   the adapter supports fetching comments
@@ -27,7 +27,7 @@ This tutorial walks you through a complete **daily standup and sprint review** w
   + standup data) for a slash command (e.g. `specfact.daily`) or copy-paste to Copilot to **generate a
   standup summary**; add **`--comments`**/**`--annotations`** to include comment annotations in the prompt
 - Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the DevOps team story-by-story (focus, issues, open questions, discussion notes as comments)
-- Filter by **`--assignee`**, **`--sprint`** / **`--iteration`**, **`--blockers-first`**, and optional **`--suggest-next`**
+- Filter by **`--assignee`**, **`--sprint`** / **`--iteration`**, **`--search`**, **`--release`**, **`--id`**, **`--first-issues`** / **`--last-issues`**, **`--blockers-first`**, and optional **`--suggest-next`**
 
 ---
 
@@ -88,7 +88,7 @@ Default scope is **state=open**, **limit=20**; overridable via `SPECFACT_STANDUP
 
 ## Step 3: Post a Standup Comment (Optional)
 
-To add a **standup comment** to the **first** item in the list (e.g. the one you're working on), pass **values** for yesterday/today/blockers and `--post`:
+To add a **standup comment** to the **first** item in the list, pass **values** for yesterday/today/blockers and `--post`:
 
 ```bash
 specfact backlog daily github \
@@ -98,7 +98,7 @@ specfact backlog daily github \
   --post
 ```
 
-**Expected**: The CLI posts a comment on that item's issue (GitHub issue or ADO work item) with a standup block (Yesterday / Today / Blockers). You'll see: `✓ Standup comment posted to <issue URL>`.
+**Expected**: The CLI posts a comment on that item's issue (GitHub issue or ADO work item) with a standup block (Yesterday / Today / Blockers). You'll see: `✓ Standup comment posted to story <id>: <issue URL>`.
 
 **Important**: You must pass **values** for at least one of `--yesterday`, `--today`, or `--blockers`. Using `--post` alone (or with flags but no text) will prompt you to add values; see the in-command message and help.
 
@@ -113,8 +113,8 @@ specfact backlog daily github --interactive
 ```
 
 - Use the menu to **select** an item (arrow keys).
-- View **full detail** (description, acceptance criteria, standup fields, and **existing comments annotated to that issue** when the adapter supports fetching comments—e.g. GitHub issue comments, ADO work item discussion).
-- Choose **Next story**, **Previous story**, **Back to list**, or **Exit**.
+- View **full detail** (description, acceptance criteria, standup fields, and comment context). Interactive detail shows the **latest comment only** plus a hint when older comments exist.
+- Choose **Next story**, **Previous story**, **Post standup update** (posts to the currently selected story), **Back to list**, or **Exit**.
 
 Use **`--suggest-next`** to show a suggested next item by value score (business value / (story points × priority)) when the data is available.
 
@@ -183,7 +183,7 @@ issues/open questions, discussion notes as comments).
 4. **Optional: interactive review** or **Copilot export**:
 
    ```bash
-   specfact backlog daily github --interactive
+   specfact backlog daily github --interactive --last-comments 3
    # or
    specfact backlog daily github --copilot-export ./standup.md
    ```
@@ -197,7 +197,8 @@ issues/open questions, discussion notes as comments).
 | View standup without typing org/repo | Run `specfact backlog daily github` or `ado` from **repo root**; org/repo or org/project are **auto-detected** from git remote. |
 | Override or use outside repo | Use `.specfact/backlog.yaml`, env vars (`SPECFACT_GITHUB_REPO_OWNER`, etc.), or CLI `--repo-owner`/`--repo-name` or `--ado-org`/`--ado-project`. |
 | Post standup to first item | Use `--yesterday "..."` `--today "..."` `--blockers "..."` and `--post` (values required). |
-| Step through stories with full detail (including issue comments) | Use `--interactive`; optionally `--suggest-next`. |
+| Post standup while reviewing selected story | Use `--interactive` and choose **Post standup update** from navigation. |
+| Step through stories with readable comment context | Use `--interactive`; it shows latest comment + hidden-count hint. Use `--first-comments`/`--last-comments` to tune comment density. |
 | Feed standup into Copilot | Use `--copilot-export <path>`; add `--comments`/`--annotations` for comment annotations. |
 | Generate standup summary via AI (slash command or Copilot) | Use `--summarize` (stdout) or `--summarize-to <path>`; add `--comments`/`--annotations` for comment annotations; use with `specfact.backlog-daily` slash prompt. |
 

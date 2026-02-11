@@ -26,6 +26,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import click
+import pytest
 import typer.main
 from typer.testing import CliRunner
 
@@ -33,14 +34,25 @@ from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.cli import app
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.modules.backlog.src.commands import (
+    _apply_comment_window,
     _apply_filters,
+    _apply_issue_id_filter,
     _build_copilot_export_content,
+    _build_daily_interactive_comment_panels,
+    _build_daily_navigation_choices,
+    _build_daily_patch_proposal,
+    _build_interactive_post_body,
     _build_standup_rows,
     _build_summarize_prompt_content,
     _compute_value_score,
     _format_daily_item_detail,
     _format_standup_comment,
     _post_standup_comment_supported,
+    _resolve_daily_fetch_limit,
+    _resolve_daily_issue_window,
+    _resolve_daily_mode_state,
+    _resolve_post_fetch_assignee_filter,
+    _split_exception_rows,
 )
 
 
@@ -139,6 +151,25 @@ class TestBuildStandupRows:
         rows_me = _build_standup_rows([items[0]])
         assert len(rows_me) == 1 and rows_me[0]["title"] == "Mine"
 
+    def test_row_includes_assignees_for_table_rendering(self) -> None:
+        """Standup row carries assignees so table can show assignment context."""
+        rows = _build_standup_rows([_item("1", "Mine", assignees=["alice", "bob"])])
+        assert rows[0]["assignees"] == "alice, bob"
+
+
+class TestAssigneeFilterResolution:
+    """Normalize assignee behavior between adapter-side and post-fetch filtering."""
+
+    def test_github_me_alias_skips_post_fetch_assignee_filter(self) -> None:
+        """GitHub `me`/`@me` should rely on adapter-side filtering, not literal local matching."""
+        assert _resolve_post_fetch_assignee_filter("github", "me") is None
+        assert _resolve_post_fetch_assignee_filter("github", "@me") is None
+
+    def test_non_me_assignee_is_kept_for_post_fetch_filter(self) -> None:
+        """Explicit usernames still apply in local post-fetch filtering."""
+        assert _resolve_post_fetch_assignee_filter("github", "djm81") == "djm81"
+        assert _resolve_post_fetch_assignee_filter("ado", "me") == "me"
+
 
 class TestFormatStandupComment:
     """Format standup comment for posting (Yesterday / Today / Blockers)."""
@@ -226,6 +257,35 @@ class TestBacklogDailyCli:
         """Backlog daily has --blockers-first option."""
         option_names = _get_daily_command_option_names()
         assert "--blockers-first" in option_names
+
+    def test_daily_accepts_mode_and_patch_options(self) -> None:
+        """Backlog daily supports mode and patch proposal options."""
+        option_names = _get_daily_command_option_names()
+        assert "--mode" in option_names
+        assert "--patch" in option_names
+
+    def test_daily_accepts_search_release_and_id_options(self) -> None:
+        """Backlog daily supports global filter parity options."""
+        option_names = _get_daily_command_option_names()
+        assert "--search" in option_names
+        assert "--release" in option_names
+        assert "--id" in option_names
+
+
+class TestIssueIdFilter:
+    """Shared issue-id filtering behavior."""
+
+    def test_apply_issue_id_filter_returns_matching_item(self) -> None:
+        """When item exists, only matching ID remains."""
+        items = [_item("54", "A"), _item("55", "B")]
+        filtered = _apply_issue_id_filter(items, "55")
+        assert [i.id for i in filtered] == ["55"]
+
+    def test_apply_issue_id_filter_returns_empty_when_not_found(self) -> None:
+        """When item ID doesn't exist, result is empty list."""
+        items = [_item("54", "A"), _item("55", "B")]
+        filtered = _apply_issue_id_filter(items, "999")
+        assert filtered == []
 
 
 class TestDefaultStandupScope:
@@ -444,12 +504,63 @@ class TestFormatDailyItemDetail:
         assert "Description" in detail or "here" in detail
         assert "open" in detail.lower() or "status" in detail.lower()
 
-    def test_format_daily_item_detail_includes_comments_when_provided(self) -> None:
-        """When comments are provided, they appear in the detail string."""
+    def test_format_daily_item_detail_omits_comment_block(self) -> None:
+        """Interactive detail panel should keep comments out; comments render in dedicated panels."""
         item = _item("1", "Story")
         detail = _format_daily_item_detail(item, comments=["Comment one", "Comment two"])
-        assert "Comment one" in detail or "Comment" in detail
-        assert "Comment two" in detail or "two" in detail
+        assert "Comment one" not in detail
+        assert "Comment two" not in detail
+        assert "Latest comment" not in detail
+        assert "Comments:" not in detail
+
+
+class TestDailyInteractiveCommentPanels:
+    """Daily interactive comment panels should mirror refine-style scoping."""
+
+    def test_default_mode_shows_latest_panel_plus_hint(self) -> None:
+        """Without comment-window overrides, show latest comment and hidden-count hint panel."""
+        panels = _build_daily_interactive_comment_panels(
+            ["Comment one", "Comment two"],
+            show_all_provided_comments=False,
+            total_comments=2,
+        )
+        assert len(panels) == 2
+
+    def test_window_mode_shows_all_windowed_panels_plus_omitted_hint(self) -> None:
+        """With explicit comment window, render each windowed comment panel and omitted-count hint panel."""
+        panels = _build_daily_interactive_comment_panels(
+            ["Comment one", "Comment two", "Comment three"],
+            show_all_provided_comments=True,
+            total_comments=5,
+        )
+        assert len(panels) == 4
+
+
+class TestDailyInteractivePostAction:
+    """Interactive daily post helpers."""
+
+    def test_navigation_choices_include_post_when_supported(self) -> None:
+        """Post action is available when adapter supports comments."""
+        choices = _build_daily_navigation_choices(can_post_comment=True)
+        assert "Post standup update" in choices
+
+    def test_navigation_choices_omit_post_when_not_supported(self) -> None:
+        """Post action is hidden when adapter cannot post comments."""
+        choices = _build_daily_navigation_choices(can_post_comment=False)
+        assert "Post standup update" not in choices
+
+    def test_build_interactive_post_body_rejects_empty(self) -> None:
+        """No text means no post body should be created."""
+        assert _build_interactive_post_body(None, "", "   ") is None
+
+    def test_build_interactive_post_body_formats_standup(self) -> None:
+        """Any provided standup text creates a valid standup comment body."""
+        body = _build_interactive_post_body("Did X", "Do Y", "None")
+        assert body is not None
+        assert "Standup " in body
+        assert "**Yesterday:** Did X" in body
+        assert "**Today:** Do Y" in body
+        assert "**Blockers:** None" in body
 
 
 class TestBacklogDailyInteractiveAndExportOptions:
@@ -476,6 +587,121 @@ class TestBacklogDailyInteractiveAndExportOptions:
         option_names = _get_daily_command_option_names()
         assert "--comments" in option_names
         assert "--annotations" in option_names
+
+    def test_daily_help_shows_comment_window_options(self) -> None:
+        """Backlog daily has --first-comments and --last-comments options."""
+        option_names = _get_daily_command_option_names()
+        assert "--first-comments" in option_names
+        assert "--last-comments" in option_names
+
+    def test_daily_help_shows_issue_window_options(self) -> None:
+        """Backlog daily has --first-issues and --last-issues options."""
+        option_names = _get_daily_command_option_names()
+        assert "--first-issues" in option_names
+        assert "--last-issues" in option_names
+
+
+class TestDailyIssueWindowResolution:
+    """Daily issue-window behavior should mirror refine semantics."""
+
+    def test_daily_issue_window_applies_first(self) -> None:
+        """`--first-issues` keeps the lowest numeric IDs."""
+        items = [_item("10", "ten"), _item("2", "two"), _item("7", "seven")]
+        windowed = _resolve_daily_issue_window(items, first_issues=2, last_issues=None)
+        assert [i.id for i in windowed] == ["2", "7"]
+
+    def test_daily_issue_window_applies_last(self) -> None:
+        """`--last-issues` keeps the highest numeric IDs."""
+        items = [_item("10", "ten"), _item("2", "two"), _item("7", "seven")]
+        windowed = _resolve_daily_issue_window(items, first_issues=None, last_issues=2)
+        assert [i.id for i in windowed] == ["7", "10"]
+
+    def test_daily_issue_window_rejects_both(self) -> None:
+        """Using both windows should raise a clear validation error."""
+        with pytest.raises(ValueError, match="first-issues or --last-issues"):
+            _resolve_daily_issue_window([_item("1", "one")], first_issues=1, last_issues=1)
+
+
+class TestExceptionsFirstAndMode:
+    """Exceptions-first and mode defaults for daily standup."""
+
+    def test_split_exception_rows_prioritizes_blockers(self) -> None:
+        """Rows with blockers go to exceptions section."""
+        rows = [
+            {"id": "1", "blockers": ""},
+            {"id": "2", "blockers": "Waiting on API"},
+            {"id": "3", "blockers": "Needs decision"},
+        ]
+        exceptions, normal = _split_exception_rows(rows)
+        assert [r["id"] for r in exceptions] == ["2", "3"]
+        assert [r["id"] for r in normal] == ["1"]
+
+    def test_split_exception_rows_orders_blockers_then_policy_then_aging(self) -> None:
+        """Exceptions include blockers, policy failures, and aging/stalled rows in required order."""
+        rows = [
+            {"id": "1", "blockers": "", "policy_status": "failed"},
+            {"id": "2", "blockers": "", "days_stalled": 5},
+            {"id": "3", "blockers": "Waiting on dependency"},
+            {"id": "4", "blockers": "", "policy_failures": ["dor"]},
+            {"id": "5", "blockers": ""},
+        ]
+        exceptions, normal = _split_exception_rows(rows)
+        assert [r["id"] for r in exceptions] == ["3", "1", "4", "2"]
+        assert [r["id"] for r in normal] == ["5"]
+
+    def test_mode_kanban_relaxes_default_open_state(self) -> None:
+        """Kanban mode removes default open-only filter when state not explicitly provided."""
+        effective = _resolve_daily_mode_state(mode="kanban", cli_state=None, effective_state="open")
+        assert effective is None
+
+    def test_mode_keeps_explicit_state(self) -> None:
+        """Explicit CLI state takes precedence regardless of mode."""
+        effective = _resolve_daily_mode_state(mode="kanban", cli_state="closed", effective_state="closed")
+        assert effective == "closed"
+
+    def test_patch_proposal_contains_item_ids(self) -> None:
+        """Patch proposal includes selected item IDs for review."""
+        proposal = _build_daily_patch_proposal([_item("54", "A"), _item("55", "B")], mode="scrum")
+        assert "54" in proposal and "55" in proposal
+        assert "Patch Proposal" in proposal
+
+
+class TestDailyFetchLimitResolution:
+    """Daily issue-window should evaluate over full candidate set before limit truncation."""
+
+    def test_fetch_limit_kept_without_issue_window(self) -> None:
+        """Without issue-window flags, keep effective limit for fetch."""
+        assert _resolve_daily_fetch_limit(20, first_issues=None, last_issues=None) == 20
+
+    def test_fetch_limit_removed_with_first_or_last_issue_window(self) -> None:
+        """With issue-window flags, fetch full set first."""
+        assert _resolve_daily_fetch_limit(20, first_issues=3, last_issues=None) is None
+        assert _resolve_daily_fetch_limit(20, first_issues=None, last_issues=3) is None
+
+
+class TestCommentWindow:
+    """Comment window helpers."""
+
+    def test_apply_comment_window_default_full(self) -> None:
+        """Default includes all comments."""
+        comments = ["c1", "c2", "c3"]
+        assert _apply_comment_window(comments) == comments
+
+    def test_apply_comment_window_first(self) -> None:
+        """First-comments returns first N comments."""
+        comments = ["c1", "c2", "c3"]
+        assert _apply_comment_window(comments, first_comments=2) == ["c1", "c2"]
+
+    def test_apply_comment_window_last(self) -> None:
+        """Last-comments returns last N comments."""
+        comments = ["c1", "c2", "c3"]
+        assert _apply_comment_window(comments, last_comments=2) == ["c2", "c3"]
+
+    def test_apply_comment_window_rejects_both_first_and_last(self) -> None:
+        """Using both first and last comment windows at once raises ValueError."""
+        comments = ["c1", "c2", "c3"]
+        with pytest.raises(ValueError):
+            _apply_comment_window(comments, first_comments=1, last_comments=1)
 
 
 class TestBuildSummarizePromptContent:

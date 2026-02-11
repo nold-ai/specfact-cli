@@ -1,243 +1,236 @@
-# SpecFact CLI - Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
+This file provides guidance to coding agents when working with code in this repository.
 
-- `src/specfact_cli/` contains the CLI command implementation
-  - `cli.py` - Main Typer application entry point
-  - `modules/<module>/src/commands.py` - Primary command implementations (module-local)
-  - `commands/` - Legacy compatibility shims (app-only re-exports from module-local commands)
-  - `models/` - Pydantic data models (plan, protocol, deviation)
-  - `generators/` - Code generators (protocol, plan, report)
-  - `validators/` - Validation logic (schema, contract, FSM)
-  - `utils/` - Shared utilities (git, YAML, console)
-- `src/common/` contains shared utilities (logger_setup, platform_base)
-- `tests/` mirrors CLI modules via `unit/`, `integration/`, and `e2e/`
-- `tools/` hosts contract automation and semgrep rules
-- `resources/` contains templates, schemas, and mapping files
+## Project Overview
 
-## Build, Test, and Development Commands
+SpecFact CLI is a Python CLI tool for agile DevOps teams. It keeps backlogs, specs, tests, and code in sync with contract-driven development, validation, and enforcement. Built with Typer + Rich, using Hatch as the build system. Python 3.11+.
 
-### YAML and Workflows: Formatting and Linting
+## Essential Commands
 
-- Format everything: `hatch run yaml-fix-all`
-- Check everything: `hatch run yaml-check-all`
-- Format workflows only: `hatch run workflows-fmt`
-- Lint workflows (actionlint): `hatch run workflows-lint`
+```bash
+# Development environment
+pip install -e ".[dev]"
+hatch shell
 
-### Contract-First Testing (Recommended)
+# Format & lint (run after every code change, in this order)
+hatch run format                    # ruff format + fix
+hatch run type-check                # basedpyright strict mode
+hatch run contract-test             # contract-first validation (primary)
+hatch test --cover -v               # full pytest suite
 
-- `hatch run contract-test` runs the contract-first test workflow (auto-detect best level)
-- Contract validation: `hatch run contract-test-contracts` (runtime contract validation)
-- Contract exploration: `hatch run contract-test-exploration` (CrossHair exploration)
-- Scenario tests: `hatch run contract-test-scenarios` (integration/E2E with contract references)
-- Full contract suite: `hatch run contract-test-full` (all contract-first layers)
-- Status check: `hatch run contract-test-status`
+# Contract-first testing layers
+hatch run contract-test-contracts   # runtime contract validation only
+hatch run contract-test-exploration # CrossHair symbolic execution
+hatch run contract-test-scenarios   # integration/E2E with contract refs
+hatch run contract-test-full        # all layers
+hatch run contract-test-status      # coverage status report
 
-### Legacy Smart Testing (Backward Compatibility)
+# Run a single test file
+hatch test -- tests/unit/specfact_cli/test_example.py -v
 
-- `hatch test --cover -v` runs tests with coverage
-- Incremental levels: `hatch run smart-test-unit`, `hatch run smart-test-folder`, `hatch run smart-test-integration`
+# Lint subsystems
+hatch run lint                      # full lint suite
+hatch run governance                # pylint detailed analysis
+hatch run yaml-lint                 # YAML validation
+hatch run lint-workflows            # GitHub Actions actionlint
 
-### Development Tools
+# Code scanning
+hatch run scan-all                  # semgrep analysis
+```
 
-- Lint/format: `hatch run lint` (black, isort, basedpyright, ruff, pylint)
-- Format only: `hatch run format`
-- Type check: `hatch run type-check` (basedpyright)
-- Dev shell: `hatch shell`
-- **Faster startup**: Use `specfact --skip-checks <command>` to skip template and version checks (useful in CI or when security scanning causes delay).
+## Architecture
 
-## Coding Style & Naming Conventions
+### Modular Command Registry with Lazy Loading
 
-- Python 3.11+ with 4-space indentation and Black line length 120
-- Apply Google-style docstrings and full type hints
-- Use `common.logger_setup.get_logger()` for logging, avoid `print()`
-- Name files and modules in `snake_case`; classes stay `PascalCase`, constants `UPPER_SNAKE_CASE`
+The CLI uses a module package system in `src/specfact_cli/modules/`. Each module is a self-contained package:
 
-## Testing Guidelines
+```
+modules/{name}/
+  module-package.yaml    # metadata: name, version, commands, dependencies
+  src/{name}/
+    __init__.py
+    main.py              # typer.Typer app with command definitions
+```
 
-### Contract-First Approach (Recommended)
+The registry (`src/specfact_cli/registry/`) discovers modules at startup but defers imports until a command is actually invoked. `bootstrap.py` registers all modules; `registry.py` manages lazy loading; `module_packages.py` handles discovery from `module-package.yaml` files.
 
-- **Runtime contracts**: Use `@icontract` decorators on all public APIs
-- **Type validation**: Use `@beartype` for runtime type checking
-- **Contract exploration**: Use CrossHair to discover counterexamples
-- **Scenario tests**: Focus on CLI command workflows with contract references
-- **Test diet**: Remove redundant unit tests as contracts provide the same coverage
+**Entry flow**: `cli.py:cli_main()` → Typer app with global options → `ProgressiveDisclosureGroup` for help → lazy-loaded command groups from registry.
 
-### Unit Testing (Backward Compatibility)
+### Contract-First Development
 
-- Place tests alongside modules (`tests/unit/specfact_cli/test_<component>.py`)
-- Use pytest with `@pytest.mark.asyncio` for async tests
-- Ensure environment-sensitive logic guards `os.environ.get("TEST_MODE") == "true"`
+All public APIs must use `@icontract` decorators (`@require`, `@ensure`, `@invariant`) and `@beartype` for runtime type checking. CrossHair discovers counterexamples via symbolic execution. Contracts are the primary validation mechanism; traditional unit tests are secondary.
 
-## Commit & Pull Request Guidelines
+### Key Subsystems
 
-- **Branch Protection**: This repository has branch protection enabled for `dev` and `main` branches. All changes must be made via Pull Requests:
-  - **Never commit directly to `dev` or `main`** - create a feature/bugfix/hotfix branch instead
-  - Create a feature branch: `git checkout -b feature/your-feature-name`
-  - Create a bugfix branch: `git checkout -b bugfix/your-bugfix-name`
-  - Create a hotfix branch: `git checkout -b hotfix/your-hotfix-name`
-  - Push your branch and create a PR to `dev` or `main`
-  - All PRs must pass CI/CD checks before merging
-- Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`)
-- **Contract-first workflow**: Before pushing, run `hatch run format`, `hatch run lint`, and `hatch run contract-test`
-- PRs should link to CLI-First Strategy docs, describe contract impacts, and include tests
-- Attach contract validation notes and screenshots/logs when behavior changes
-- **Version Updates**: When updating the version in `pyproject.toml`, ensure it's newer than the latest PyPI version. The CI/CD pipeline will automatically publish to PyPI after successful merge to `main` only if the version is newer. Sync versions across `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__py`
+- **`models/`** - Pydantic BaseModel classes for all data structures
+- **`parsers/`**, **`analyzers/`** - Code analysis
+- **`generators/`** - Code/spec generation using Jinja2 templates from `resources/templates/`
+- **`validators/`** - Schema, contract, FSM validation
+- **`adapters/`** - Bridge pattern for tool integrations (GitHub, Azure DevOps, Jira, Linear)
+- **`modes/`** - Operational modes: CICD (fast, deterministic, non-interactive) vs Copilot (interactive, IDE-aware). Auto-detected from environment.
+- **`resources/`** - Bundled prompts, templates, schemas, mappings (force-included in wheel)
 
-## CLI Command Development Notes
+### Logging
 
-- All commands extend `typer.Typer()` for consistent CLI interface
-- New command logic belongs in `src/specfact_cli/modules/<module>/src/commands.py`
-- Legacy import path compatibility is limited to `from specfact_cli.commands.<name> import app`
-- Replacement path for module code is `from specfact_cli.modules.<module>.src.commands import ...`
-- Compatibility shims are planned for removal no earlier than `v0.30` (or next major migration window)
-- Use `rich.console.Console()` for beautiful terminal output
-- Validate inputs with Pydantic models at command boundaries
-- Apply `@icontract` decorators to enforce contracts at runtime
-- Use `@beartype` for automatic type checking
-- Handle errors gracefully with try/except and user-friendly error messages
+Use `from specfact_cli.common import get_bridge_logger` and avoid `print()` in production command paths. Debug logs go to `~/.specfact/logs/specfact-debug.log` when `--debug` is passed.
 
-## Data Model Conventions
+## Development Workflow
 
-- Use Pydantic `BaseModel` for all data structures
-- Add contracts with `@require` and `@ensure` decorators
-- Include `Field` validators for complex validation logic
-- Document all models with docstrings and field descriptions
+### Branch Protection
 
-## CLI Command Pattern Example
+`dev` and `main` are protected. Always work on feature/bugfix/hotfix branches and submit PRs:
+- `feature/your-feature-name`
+- `bugfix/your-bugfix-name`
+- `hotfix/your-hotfix-name`
+
+### Pre-Commit Checklist
+
+Run all steps in order before committing. Every step must pass with no errors.
+
+1. `hatch run format`                # ruff format + autofix
+2. `hatch run type-check`            # basedpyright strict
+3. `hatch run lint`                  # full lint suite
+4. `hatch run yaml-lint`             # YAML + markdown validation
+5. `hatch run contract-test`         # contract-first validation
+6. `hatch run smart-test`            # targeted test run (use `smart-test-full` for larger modifications)
+
+### OpenSpec Workflow
+
+Before modifying application code, **always** verify that an active OpenSpec change in `openspec/changes/` **explicitly covers the requested modification**. This is the spec-driven workflow defined in `openspec/config.yaml`. Skip only when the user explicitly says `"skip openspec"` or `"implement without openspec change"`.
+
+**Agent MUST NOT apply any code edits** when a fix, change, modification, or edit to any codebase file is requested unless an active OpenSpec change exists that explicitly covers the requested scope. If no such change exists, ask for clarification:
+
+- **a) New change** — create a new OpenSpec change proposal (`/opsx:new`)
+- **b) Modify existing** — select and continue an existing change in `openspec/changes/`
+- **c) Delta** — add a targeted delta to an existing change's specs
+
+The existence of *any* open change is not sufficient — the change must specifically address the requested modification. Do not proceed until one of the above is resolved.
+
+### Hard Gate: Strict TDD Order (Non-Negotiable)
+
+For any behavior change, the implementation order is mandatory and must be auditable:
+
+1. Update or add spec deltas first.
+2. Add/modify tests next, mapped to spec scenarios.
+3. Run tests and capture a **failing** result before implementation.
+4. Only then modify production code.
+5. Re-run tests and quality gates until passing.
+
+Required evidence:
+
+- Create/update `openspec/changes/<change-id>/TDD_EVIDENCE.md` with:
+  - test command(s) and timestamp for the pre-implementation failing run
+  - short failure summary
+  - test command(s) and timestamp for the post-implementation passing run
+
+Agent enforcement:
+
+- Agents MUST NOT edit production code for new/changed behavior until failing-test evidence is recorded.
+- If this order cannot be followed, stop and ask the user for explicit override before proceeding.
+
+#### Change Order (`openspec/CHANGE_ORDER.md`)
+
+`openspec/CHANGE_ORDER.md` is the **single source of truth** for change sequencing, module grouping, and inter-change dependencies. Always use it to avoid redundant analysis of `openspec/changes/` folders.
+
+**Read it first** — before creating, implementing, or archiving any change, consult `CHANGE_ORDER.md` to:
+- Check which changes are already archived (implemented) and their dates
+- Verify hard blockers are resolved before starting implementation
+- Understand where a new change fits in module order and wave sequencing
+
+**Keep it updated** — whenever a change lifecycle event occurs, update `CHANGE_ORDER.md` in the same commit:
+- **New change created**: add a row to the correct module group table with folder name, GitHub issue link, and blocked-by dependencies
+- **Change archived**: move the entry from "Pending" to "Implemented (archived)" with the archive date; update wave status if a wave is now complete
+- **Change modified/renamed**: update the folder name and any affected dependency references
+- **Blocker resolved**: update the "Blocked by" column (append ✅ to resolved blockers)
+
+Use the `specfact-openspec-workflows` skill as the default execution path for OpenSpec lifecycle work.
+
+- When a Markdown plan exists and the intent is to create a change from that plan, use `.cursor/commands/wf-create-change-from-plan.md` (`/wf-change-from-plan`) to generate the proposal/tasks/spec deltas.
+- For plans targeting an internal repository, still run the same workflow but follow its repo rules (for example, skip public GitHub issue creation where required).
+- After any change is created or modified, run `.cursor/commands/wf-validate-change.md` (`/wf-validate-change`) and capture its output in `openspec/changes/<change-id>/CHANGE_VALIDATION.md`.
+- Treat validation output as required context for dependency and interface impact, including any workflow-provided GitHub issue sync context.
+
+### Version Updates
+
+When bumping version, sync across: `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`. CI/CD auto-publishes to PyPI on merge to `main` only if version exceeds the published one.
+
+**Version semantics (SemVer):**
+- `feature/*` branches → **minor** increment (e.g. `0.5.0 → 0.6.0`)
+- `bugfix/*` / `hotfix/*` branches → **patch** increment (e.g. `0.5.0 → 0.5.1`)
+- Breaking changes or major milestones → **major** increment (requires explicit confirmation)
+
+Always propose the increment type based on the branch name and ask for confirmation before applying the bump.
+
+### Changelog
+
+Keep `CHANGELOG.md` updated with every meaningful change. Update it in the same commit that bumps the version and do not let them diverge.
+
+- Follow [Keep a Changelog](https://keepachangelog.com/) format: `Added`, `Changed`, `Fixed`, `Removed`, `Security`
+- Each version entry must match the version in `pyproject.toml`
+- Unreleased changes accumulate under `## [Unreleased]` until a version bump
+
+### Commits
+
+Follow Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`.
+
+### Documentation
+
+Keep docs current with every code change that affects user-facing behaviour.
+
+- Docs source lives in `docs/` and is published to [docs.specfact.io](https://docs.specfact.io) via GitHub Pages (Jekyll)
+- **Preserve all front-matter** on every edit (`title`, `layout`, `nav_order`, `permalink`, etc.) and check `docs/_layouts/default.html` and `docs/index.md` before adding or removing front-matter keys
+- When a command, option, or behaviour changes, update the corresponding doc page in the same PR
+- Broken or outdated docs for users are P0; prefer a small doc fix over shipping undocumented changes
+
+### README Maintenance
+
+`README.md` (repo root) and the docs landing page (`docs/index.md` or `docs/README.md`) must stay in sync with what SpecFact actually does.
+
+- On larger refactorings or feature additions, reconsider the README from an **external/new-user perspective** and lead with value and USP, not internal architecture
+- A first-time reader should understand what SpecFact does, why they'd use it, and how to get started within the first screen
+- Do not let the README drift from the actual CLI interface or command list
+
+## Code Conventions
+
+- Python 3.11+, line length 120, Google-style docstrings
+- `snake_case` for files/modules, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants
+- All data structures use Pydantic `BaseModel` with `Field(...)` and descriptions
+- CLI commands use `typer.Typer()` + `rich.console.Console()`
+- Only write high-value comments and avoid verbose or redundant commentary
+- `rich~=13.5.2` is pinned for semgrep compatibility and should not be upgraded without validation
+
+## CLI Command Pattern
 
 ```python
 import typer
-from pathlib import Path
-from icontract import require, ensure
 from beartype import beartype
+from icontract import require, ensure
 from rich.console import Console
-from pydantic import BaseModel
 
 app = typer.Typer()
 console = Console()
 
-class AnalysisConfig(BaseModel):
-    """Configuration for code analysis."""
-    repo_path: Path
-    confidence: float = 0.5
-    shadow_only: bool = False
-
 @app.command()
 @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@ensure(lambda result: result.success, "Analysis must succeed")
 @beartype
-def analyze(
+def my_command(
     repo_path: Path = typer.Argument(..., help="Path to repository"),
-    confidence: float = typer.Option(0.5, help="Minimum confidence score"),
-    shadow_only: bool = typer.Option(False, help="Shadow mode only"),
-) -> AnalysisResult:
-    """
-    Analyze repository and generate plan bundle.
-    
-    Args:
-        repo_path: Path to the repository to analyze
-        confidence: Minimum confidence score (0.0-1.0)
-        shadow_only: If True, don't enforce, just observe
-        
-    Returns:
-        Analysis result with generated plan bundle
-    """
-    config = AnalysisConfig(
-        repo_path=repo_path,
-        confidence=confidence,
-        shadow_only=shadow_only
-    )
-    
-    console.print(f"[bold]Analyzing {repo_path}...[/bold]")
-    
-    # Implementation here
-    return AnalysisResult(success=True)
+) -> None:
+    """Command docstring."""
+    console.print("[bold]Processing...[/bold]")
 ```
 
-## Project-Specific Patterns
+## Testing
 
-### Contract Decorators
+**Contract-first approach**: `@icontract` contracts on public APIs are the primary coverage mechanism (target 80%+ API coverage). Redundant unit tests that only assert input validation or type checks should be removed because contracts and beartype already cover them.
 
-```python
-from icontract import require, ensure, invariant
-from beartype import beartype
+Test structure mirrors source: `tests/unit/`, `tests/integration/`, `tests/e2e/`. Use `@pytest.mark.asyncio` for async tests. Guard environment-sensitive logic with `os.environ.get("TEST_MODE") == "true"`.
 
-@invariant(lambda self: self.version == "1.0")
-class PlanBundle:
-    """Plan bundle with contract enforcement."""
-    version: str
-    features: list[Feature]
-    
-    @require(lambda feature: feature.key.startswith("FEATURE-"))
-    @ensure(lambda result: result is not None)
-    @beartype
-    def add_feature(self, feature: Feature) -> bool:
-        """Add feature with contract validation."""
-        self.features.append(feature)
-        return True
-```
+## CI/CD
 
-### Rich Console Output
-
-```python
-from rich.console import Console
-from rich.table import Table
-from rich.progress import track
-
-console = Console()
-
-# Progress bars
-for item in track(items, description="Processing..."):
-    process(item)
-
-# Tables
-table = Table(title="Deviations")
-table.add_column("Type", style="cyan")
-table.add_column("Severity", style="magenta")
-table.add_column("Description", style="green")
-
-for deviation in deviations:
-    table.add_row(deviation.type, deviation.severity, deviation.description)
-
-console.print(table)
-
-# Status messages
-console.print("[bold green]✓[/bold green] Analysis complete")
-console.print("[bold red]✗[/bold red] Validation failed")
-```
-
-## Distribution & Packaging
-
-- Package name: `specfact-cli`
-- CLI command: `specfact`
-- PyPI distribution: `pip install specfact-cli`
-- uvx usage: `uvx specfact-cli@latest <command>` (recommended) or `uvx --from specfact-cli specfact <command>`
-- Container: `docker run ghcr.io/nold-ai/specfact-cli:latest`
-
-## Success Criteria
-
-### Code Quality
-
-- **Type coverage**: 100% with basedpyright strict mode
-- **Contract coverage**: All public APIs have `@icontract` decorators
-- **Test coverage**: Scenario tests cover all CLI commands
-- **Zero warnings**: Clean basedpyright, ruff, and pylint output
-
-### CLI User Experience
-
-- **Fast**: Commands complete in < 5 seconds for typical repos
-- **Clear**: Rich console output with progress bars and tables
-- **Helpful**: Comprehensive help text and error messages
-- **Reliable**: Contract validation prevents invalid inputs
-
-## Related Documentation
-
-- **[README.md](./README.md)** - Project overview and quick start
-- **[Contributing Guide](./CONTRIBUTING.md)** - Contribution guidelines and workflow
-- **[Testing Guide](./.cursor/rules/testing-and-build-guide.mdc)** - Testing procedures
-- **[Python Rules](./.cursor/rules/python-github-rules.mdc)** - Development standards
-
----
-
-**Trademarks**: All product names, logos, and brands mentioned in this document are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](./TRADEMARKS.md) for more information.
+Key workflows in `.github/workflows/`:
+- `tests.yml` — contract-first test execution
+- `specfact.yml` — contract validation on PR/push (`hatch run specfact repro --verbose`)
+- `pr-orchestrator.yml` — coordinates PR workflows
+- `build-and-push.yml` — Docker image building (depends on all above passing)
