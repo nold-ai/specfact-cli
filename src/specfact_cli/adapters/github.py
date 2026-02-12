@@ -2763,20 +2763,23 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Build canonical fields from parsed refined body (use refined values)
             canonical_fields = {
                 "description": description,
-                # Use extracted sections from refined body (these are the refined values)
-                "acceptance_criteria": existing_acceptance_criteria,
+                # Prefer extracted section values, but fall back to canonical item fields
+                # so label-style refinement parsing still writes dedicated fields.
+                "acceptance_criteria": existing_acceptance_criteria or item.acceptance_criteria,
                 "story_points": (
                     int(existing_story_points)
                     if existing_story_points and existing_story_points.strip().isdigit()
-                    else None
+                    else item.story_points
                 ),
                 "business_value": (
                     int(existing_business_value)
                     if existing_business_value and existing_business_value.strip().isdigit()
-                    else None
+                    else item.business_value
                 ),
                 "priority": (
-                    int(existing_priority) if existing_priority and existing_priority.strip().isdigit() else None
+                    int(existing_priority)
+                    if existing_priority and existing_priority.strip().isdigit()
+                    else item.priority
                 ),
                 "value_points": item.value_points,
                 "work_item_type": item.work_item_type,

@@ -260,6 +260,10 @@ This helps copilot identify missing elements that need to be added during refine
 - Records `refinement_timestamp`
 - Updates template detection metadata
 - **Preserves all other fields** (assignees, tags, state, priority, due_date, story_points, etc.)
+- Parses structured refinement output into canonical fields before writeback:
+  - accepts markdown-heading sections and label-style sections (for example `Description:`, `Acceptance Criteria:`, `Story Points:`)
+  - maps ADO description/acceptance criteria/metrics to separate provider fields
+  - avoids writing prompt label blocks verbatim into ADO description
 
 **Field Preservation Policy**:
 

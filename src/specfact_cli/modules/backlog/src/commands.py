@@ -1491,6 +1491,148 @@ def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
 
 
 @beartype
+@require(lambda content: isinstance(content, str), "Refinement output must be a string")
+@ensure(lambda result: isinstance(result, dict), "Must return a dict")
+def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
+    """
+    Parse refinement output into canonical fields for provider-safe writeback.
+
+    Supports both:
+    - Markdown heading style (`## Acceptance Criteria`, `## Story Points`, ...)
+    - Label style (`Acceptance Criteria:`, `Story Points:`, ...)
+    """
+    normalized = content.replace("\r\n", "\n").strip()
+    if not normalized:
+        return {}
+
+    parsed: dict[str, Any] = {}
+
+    # First parse markdown-heading style using existing GitHub field semantics.
+    from specfact_cli.backlog.mappers.github_mapper import GitHubFieldMapper
+
+    heading_mapper = GitHubFieldMapper()
+    heading_fields = heading_mapper.extract_fields({"body": normalized, "labels": []})
+
+    description = (heading_fields.get("description") or "").strip()
+    if description:
+        parsed["description"] = description
+
+    acceptance = heading_fields.get("acceptance_criteria")
+    if isinstance(acceptance, str) and acceptance.strip():
+        parsed["acceptance_criteria"] = acceptance.strip()
+
+    for key in ("story_points", "business_value", "priority"):
+        value = heading_fields.get(key)
+        if isinstance(value, int):
+            parsed[key] = value
+
+    def _extract_heading_section(section_name: str) -> str:
+        pattern = rf"^##+\s+{re.escape(section_name)}\s*$\n(.*?)(?=^##|\Z)"
+        match = re.search(pattern, normalized, re.MULTILINE | re.DOTALL | re.IGNORECASE)
+        if not match:
+            return ""
+        return match.group(1).strip()
+
+    # Then parse label-style blocks; explicit labels override heading heuristics.
+    label_aliases = {
+        "description": "description",
+        "acceptance criteria": "acceptance_criteria",
+        "story points": "story_points",
+        "business value": "business_value",
+        "priority": "priority",
+        "work item type": "work_item_type",
+        "notes": "notes",
+        "dependencies": "dependencies",
+        "area path": "area_path",
+        "iteration path": "iteration_path",
+        "provider": "provider",
+    }
+    label_pattern = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?([A-Za-z][A-Za-z0-9 ()/_-]*?)(?:\*\*)?\s*:\s*(.*)\s*$")
+    blocks: dict[str, str] = {}
+    current_key: str | None = None
+    current_lines: list[str] = []
+
+    def _flush_current() -> None:
+        nonlocal current_key, current_lines
+        if current_key is None:
+            return
+        value = "\n".join(current_lines).strip()
+        blocks[current_key] = value
+        current_key = None
+        current_lines = []
+
+    for line in normalized.splitlines():
+        match = label_pattern.match(line)
+        if match:
+            candidate = re.sub(r"\s+", " ", match.group(1).strip().lower())
+            canonical = label_aliases.get(candidate)
+            if canonical:
+                _flush_current()
+                current_key = canonical
+                first_value = (match.group(2) or "").strip()
+                current_lines = [first_value] if first_value else []
+                continue
+        if current_key is not None:
+            current_lines.append(line.rstrip())
+    _flush_current()
+
+    if blocks and not blocks.get("description"):
+        # If label-style blocks are present but no explicit Description block exists,
+        # do not keep the heading parser fallback description (it may contain raw labels).
+        parsed.pop("description", None)
+
+    if blocks.get("description"):
+        parsed["description"] = blocks["description"]
+    if blocks.get("acceptance_criteria"):
+        parsed["acceptance_criteria"] = blocks["acceptance_criteria"]
+    if blocks.get("work_item_type"):
+        parsed["work_item_type"] = blocks["work_item_type"]
+
+    def _parse_int(key: str) -> int | None:
+        raw = blocks.get(key)
+        if not raw:
+            return None
+        match = re.search(r"\d+", raw)
+        if not match:
+            return None
+        return int(match.group(0))
+
+    story_points = _parse_int("story_points")
+    if story_points is not None:
+        parsed["story_points"] = story_points
+    business_value = _parse_int("business_value")
+    if business_value is not None:
+        parsed["business_value"] = business_value
+    priority = _parse_int("priority")
+    if priority is not None:
+        parsed["priority"] = priority
+
+    # Build a clean writeback body (description + narrative sections only).
+    body_parts: list[str] = []
+    cleaned_description = (parsed.get("description") or "").strip()
+    if cleaned_description:
+        body_parts.append(cleaned_description)
+    for section_key, title in (("notes", "Notes"), ("dependencies", "Dependencies")):
+        section_value = (blocks.get(section_key) or "").strip()
+        if not section_value:
+            section_value = _extract_heading_section(title)
+        if section_value:
+            body_parts.append(f"## {title}\n\n{section_value}")
+
+    cleaned_body = "\n\n".join(part for part in body_parts if part.strip()).strip()
+    if cleaned_body:
+        parsed["body_markdown"] = cleaned_body
+    elif cleaned_description:
+        parsed["body_markdown"] = cleaned_description
+    elif blocks:
+        parsed["body_markdown"] = ""
+    else:
+        parsed["body_markdown"] = normalized
+
+    return parsed
+
+
+@beartype
 def _item_needs_refinement(
     item: BacklogItem,
     detector: TemplateDetector,
@@ -1627,6 +1769,111 @@ def _fetch_backlog_items(
         items = items[:limit]
 
     return items
+
+
+@beartype
+@require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
+@ensure(lambda result: isinstance(result, list), "Must return list")
+def _build_refine_update_fields(item: BacklogItem) -> list[str]:
+    """Build update field list for refine writeback based on populated canonical fields."""
+    update_fields_list = ["title", "body_markdown"]
+    if item.acceptance_criteria:
+        update_fields_list.append("acceptance_criteria")
+    if item.story_points is not None:
+        update_fields_list.append("story_points")
+    if item.business_value is not None:
+        update_fields_list.append("business_value")
+    if item.priority is not None:
+        update_fields_list.append("priority")
+    return update_fields_list
+
+
+@beartype
+def _maybe_add_refine_openspec_comment(
+    adapter_instance: BacklogAdapter,
+    updated_item: BacklogItem,
+    item: BacklogItem,
+    openspec_comment: bool,
+) -> None:
+    """Optionally add OpenSpec reference comment after successful writeback."""
+    if not openspec_comment:
+        return
+
+    original_body = item.body_markdown or ""
+    openspec_change_id = _extract_openspec_change_id(original_body)
+    change_id = openspec_change_id or f"backlog-refine-{item.id}"
+    comment_text = (
+        f"## OpenSpec Change Proposal Reference\n\n"
+        f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
+        f"- **Change ID**: `{change_id}`\n"
+        f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
+        f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
+        f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
+        f"*Note: Original body preserved. "
+        f"This comment provides OpenSpec reference for cross-sync.*"
+    )
+    if adapter_instance.add_comment(updated_item, comment_text):
+        console.print("[green]✓ Added OpenSpec reference comment[/green]")
+    else:
+        console.print("[yellow]⚠ Failed to add comment (adapter may not support comments)[/yellow]")
+
+
+@beartype
+def _write_refined_backlog_item(
+    adapter_registry: AdapterRegistry,
+    adapter: str,
+    item: BacklogItem,
+    repo_owner: str | None,
+    repo_name: str | None,
+    github_token: str | None,
+    ado_org: str | None,
+    ado_project: str | None,
+    ado_token: str | None,
+    openspec_comment: bool,
+) -> bool:
+    """Write a refined item back to adapter and optionally add OpenSpec comment."""
+    writeback_kwargs = _build_adapter_kwargs(
+        adapter,
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        github_token=github_token,
+        ado_org=ado_org,
+        ado_project=ado_project,
+        ado_token=ado_token,
+    )
+
+    adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
+    if not isinstance(adapter_instance, BacklogAdapter):
+        console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
+        return False
+
+    update_fields_list = _build_refine_update_fields(item)
+    updated_item = adapter_instance.update_backlog_item(item, update_fields=update_fields_list)
+    console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
+    _maybe_add_refine_openspec_comment(adapter_instance, updated_item, item, openspec_comment)
+    return True
+
+
+@beartype
+@ensure(lambda result: isinstance(result, str), "Must return string")
+def _read_refined_content_from_stdin() -> str:
+    """Read multiline refined content with sentinel commands from stdin."""
+    refined_content_lines: list[str] = []
+    console.print("[bold]Paste refined content below (type 'END' on a new line when done):[/bold]")
+    console.print("[dim]Commands: :skip (skip this item), :quit or :abort (cancel session)[/dim]")
+
+    while True:
+        try:
+            line = input()
+            line_upper = line.strip().upper()
+            if line_upper == "END":
+                break
+            if line_upper in (":SKIP", ":QUIT", ":ABORT"):
+                return line_upper
+            refined_content_lines.append(line)
+        except EOFError:
+            break
+    return "\n".join(refined_content_lines).strip()
 
 
 @beartype
@@ -2909,50 +3156,22 @@ def refine(
             console.print("3. Copy the refined content from the AI copilot response")
             console.print("4. Paste the refined content below, then type 'END' on a new line when done\n")
 
-            # Read multiline input from stdin
-            # Support both interactive (paste + Ctrl+D) and non-interactive (EOF) modes
-            # Note: When pasting multiline content, each line is read sequentially
-            refined_content_lines: list[str] = []
-            console.print("[bold]Paste refined content below (type 'END' on a new line when done):[/bold]")
-            console.print("[dim]Commands: :skip (skip this item), :quit or :abort (cancel session)[/dim]")
-
             try:
-                while True:
-                    try:
-                        line = input()
-                        line_stripped = line.strip()
-                        line_upper = line_stripped.upper()
-
-                        # Check for sentinel values (case-insensitive)
-                        if line_upper == "END":
-                            break
-                        if line_upper == ":SKIP":
-                            console.print("[yellow]Skipping current item[/yellow]")
-                            skipped_count += 1
-                            refined_content_lines = []  # Clear content
-                            break
-                        if line_upper in (":QUIT", ":ABORT"):
-                            console.print("[yellow]Cancelling refinement session[/yellow]")
-                            cancelled = True
-                            refined_content_lines = []  # Clear content
-                            break
-
-                        refined_content_lines.append(line)
-                    except EOFError:
-                        # Ctrl+D pressed or EOF reached (common when pasting multiline content)
-                        break
+                refined_content = _read_refined_content_from_stdin()
             except KeyboardInterrupt:
                 console.print("\n[yellow]Input cancelled - skipping[/yellow]")
                 skipped_count += 1
                 continue
 
-            # Check if session was cancelled
-            if cancelled:
+            if refined_content == ":SKIP":
+                console.print("[yellow]Skipping current item[/yellow]")
+                skipped_count += 1
+                continue
+            if refined_content in (":QUIT", ":ABORT"):
+                console.print("[yellow]Cancelling refinement session[/yellow]")
+                cancelled = True
                 break
-
-            refined_content = "\n".join(refined_content_lines).strip()
-
-            if not refined_content:
+            if not refined_content.strip():
                 console.print("[yellow]No refined content provided - skipping[/yellow]")
                 skipped_count += 1
                 continue
@@ -3023,8 +3242,21 @@ def refine(
                     )
                 )
 
-                # Store refined body for preview/write
-                item.refined_body = refinement_result.refined_body
+                # Parse structured refinement output before writeback so provider fields
+                # are updated from canonical values instead of writing prompt labels verbatim.
+                parsed_refined_fields = _parse_refinement_output_fields(refinement_result.refined_body)
+                item.refined_body = parsed_refined_fields.get("body_markdown", refinement_result.refined_body)
+
+                if parsed_refined_fields.get("acceptance_criteria"):
+                    item.acceptance_criteria = parsed_refined_fields["acceptance_criteria"]
+                if parsed_refined_fields.get("story_points") is not None:
+                    item.story_points = parsed_refined_fields["story_points"]
+                if parsed_refined_fields.get("business_value") is not None:
+                    item.business_value = parsed_refined_fields["business_value"]
+                if parsed_refined_fields.get("priority") is not None:
+                    item.priority = parsed_refined_fields["priority"]
+                if parsed_refined_fields.get("work_item_type"):
+                    item.work_item_type = parsed_refined_fields["work_item_type"]
 
                 # Preview mode (default) - don't write, just show preview
                 if preview and not write:
@@ -3033,134 +3265,33 @@ def refine(
                     refined_count += 1  # Count as refined for preview purposes
                     continue
 
-                # Write mode - requires explicit --write flag
                 if write:
-                    # Auto-accept high confidence
+                    should_write = False
                     if auto_accept_high_confidence and refinement_result.confidence >= 0.85:
                         console.print("[green]Auto-accepting high-confidence refinement and writing to backlog[/green]")
-                        item.apply_refinement()
+                        should_write = True
+                    else:
+                        console.print()
+                        should_write = Confirm.ask("Accept refinement and write to backlog?", default=False)
 
-                        # Writeback to remote backlog using adapter
-                        # Build adapter kwargs for writeback
-                        writeback_kwargs = _build_adapter_kwargs(
-                            adapter,
+                    if should_write:
+                        item.apply_refinement()
+                        _write_refined_backlog_item(
+                            adapter_registry=adapter_registry,
+                            adapter=adapter,
+                            item=item,
                             repo_owner=repo_owner,
                             repo_name=repo_name,
                             github_token=github_token,
                             ado_org=ado_org,
                             ado_project=ado_project,
                             ado_token=ado_token,
+                            openspec_comment=openspec_comment,
                         )
-
-                        adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
-                        if isinstance(adapter_instance, BacklogAdapter):
-                            # Update all fields including new agile framework fields
-                            update_fields_list = ["title", "body_markdown"]
-                            if item.acceptance_criteria:
-                                update_fields_list.append("acceptance_criteria")
-                            if item.story_points is not None:
-                                update_fields_list.append("story_points")
-                            if item.business_value is not None:
-                                update_fields_list.append("business_value")
-                            if item.priority is not None:
-                                update_fields_list.append("priority")
-                            updated_item = adapter_instance.update_backlog_item(item, update_fields=update_fields_list)
-                            console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
-
-                            # Add OpenSpec comment if requested
-                            if openspec_comment:
-                                # Extract OpenSpec change proposal ID from original body if present
-                                original_body = item.body_markdown or ""
-                                openspec_change_id = _extract_openspec_change_id(original_body)
-
-                                # Generate OpenSpec change proposal reference
-                                change_id = openspec_change_id or f"backlog-refine-{item.id}"
-                                comment_text = (
-                                    f"## OpenSpec Change Proposal Reference\n\n"
-                                    f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
-                                    f"- **Change ID**: `{change_id}`\n"
-                                    f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
-                                    f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
-                                    f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
-                                    f"*Note: Original body preserved. "
-                                    f"This comment provides OpenSpec reference for cross-sync.*"
-                                )
-                                if adapter_instance.add_comment(updated_item, comment_text):
-                                    console.print("[green]✓ Added OpenSpec reference comment[/green]")
-                                else:
-                                    console.print(
-                                        "[yellow]⚠ Failed to add comment (adapter may not support comments)[/yellow]"
-                                    )
-                        else:
-                            console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
                         refined_count += 1
                     else:
-                        # Interactive prompt with clear separation
-                        console.print()
-                        accept = Confirm.ask("Accept refinement and write to backlog?", default=False)
-                        if accept:
-                            item.apply_refinement()
-
-                            # Writeback to remote backlog using adapter
-                            # Build adapter kwargs for writeback
-                            writeback_kwargs = _build_adapter_kwargs(
-                                adapter,
-                                repo_owner=repo_owner,
-                                repo_name=repo_name,
-                                github_token=github_token,
-                                ado_org=ado_org,
-                                ado_project=ado_project,
-                                ado_token=ado_token,
-                            )
-
-                            adapter_instance = adapter_registry.get_adapter(adapter, **writeback_kwargs)
-                            if isinstance(adapter_instance, BacklogAdapter):
-                                # Update all fields including new agile framework fields
-                                update_fields_list = ["title", "body_markdown"]
-                                if item.acceptance_criteria:
-                                    update_fields_list.append("acceptance_criteria")
-                                if item.story_points is not None:
-                                    update_fields_list.append("story_points")
-                                if item.business_value is not None:
-                                    update_fields_list.append("business_value")
-                                if item.priority is not None:
-                                    update_fields_list.append("priority")
-                                updated_item = adapter_instance.update_backlog_item(
-                                    item, update_fields=update_fields_list
-                                )
-                                console.print(f"[green]✓ Updated backlog item: {updated_item.url}[/green]")
-
-                                # Add OpenSpec comment if requested
-                                if openspec_comment:
-                                    # Extract OpenSpec change proposal ID from original body if present
-                                    original_body = item.body_markdown or ""
-                                    openspec_change_id = _extract_openspec_change_id(original_body)
-
-                                    # Generate OpenSpec change proposal reference
-                                    change_id = openspec_change_id or f"backlog-refine-{item.id}"
-                                    comment_text = (
-                                        f"## OpenSpec Change Proposal Reference\n\n"
-                                        f"This backlog item was refined using SpecFact CLI template-driven refinement.\n\n"
-                                        f"- **Change ID**: `{change_id}`\n"
-                                        f"- **Template**: `{item.detected_template or 'auto-detected'}`\n"
-                                        f"- **Confidence**: `{item.template_confidence or 0.0:.2f}`\n"
-                                        f"- **Refined**: {item.refinement_timestamp or 'N/A'}\n\n"
-                                        f"*Note: Original body preserved. "
-                                        f"This comment provides OpenSpec reference for cross-sync.*"
-                                    )
-                                    if adapter_instance.add_comment(updated_item, comment_text):
-                                        console.print("[green]✓ Added OpenSpec reference comment[/green]")
-                                    else:
-                                        console.print(
-                                            "[yellow]⚠ Failed to add comment "
-                                            "(adapter may not support comments)[/yellow]"
-                                        )
-                            else:
-                                console.print("[yellow]⚠ Adapter does not support backlog updates[/yellow]")
-                            refined_count += 1
-                        else:
-                            console.print("[yellow]Refinement rejected - not writing to backlog[/yellow]")
-                            skipped_count += 1
+                        console.print("[yellow]Refinement rejected - not writing to backlog[/yellow]")
+                        skipped_count += 1
                 else:
                     # Preview mode but user didn't explicitly set --write
                     console.print("[yellow]Preview mode: Use --write to update backlog[/yellow]")
