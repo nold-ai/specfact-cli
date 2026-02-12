@@ -48,6 +48,36 @@ The system SHALL parse structured refinement output into canonical fields before
 - **AND** parser fallback does not keep the entire raw labeled payload as `description`
 - **AND** `body_markdown` does not contain prompt labels verbatim.
 
+#### Scenario: Mixed heading and inline label formatting preserves description narrative
+
+- **GIVEN** a refined output that uses heading-style sections such as `## Description` and `## Acceptance Criteria`
+- **AND** the `## Description` section contains an inline label like `**Notes**:`
+- **WHEN** SpecFact parses the refinement output for writeback
+- **THEN** text before the inline label in `## Description` is preserved in `body_markdown`
+- **AND** label-capture does not swallow subsequent heading sections.
+
+#### Scenario: Prompt format contract includes canonical scaffold and metadata omission rule
+
+- **GIVEN** SpecFact generates a refinement prompt for IDE Copilot
+- **WHEN** prompt text is rendered for backlog refine
+- **THEN** it includes an explicit expected output scaffold (ordered canonical sections)
+- **AND** it instructs Copilot to omit unknown metadata fields (for example area/iteration path) instead of placeholders like "unspecified" or "provide ...".
+
+#### Scenario: Mixed heading description does not duplicate inline notes block
+
+- **GIVEN** a refined output with `## Description` narrative
+- **AND** an inline label block like `**Notes**:` appears inside that description section
+- **WHEN** SpecFact parses the refinement output for writeback
+- **THEN** description narrative is preserved without raw inline label markup
+- **AND** notes content appears only once in normalized `## Notes` output.
+
+#### Scenario: Label-style notes preserves internal non-boundary headings
+
+- **GIVEN** a label-style `Notes:` section includes internal headings such as `## Risks`
+- **WHEN** SpecFact parses notes/dependencies label blocks
+- **THEN** internal headings that are not canonical section boundaries are preserved as notes content
+- **AND** parser does not truncate notes at the internal heading line.
+
 #### Scenario: Refine command orchestration remains behaviorally consistent after decomposition
 
 - **GIVEN** `specfact backlog refine` supports initialization, filtering, export/import, interactive refinement, writeback, and summary flows
