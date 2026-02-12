@@ -584,8 +584,35 @@ Investigate token refresh path.
         assert "This context must stay in description." in body_markdown
         assert "## Notes" in body_markdown
         assert "Investigate token refresh path." in body_markdown
+        assert "**Notes**:" not in body_markdown
+        assert body_markdown.count("Investigate token refresh path.") == 1
         assert "## Acceptance Criteria" not in body_markdown
         assert parsed["acceptance_criteria"] == "- [ ] Successful login for valid users"
+
+    def test_label_notes_with_internal_heading_keeps_heading_content(self) -> None:
+        """Notes label payload may contain internal headings that must be preserved."""
+        refined = """
+Description:
+Short summary.
+
+Notes:
+Context details before heading.
+## Risks
+- API rate-limit
+Follow-up mitigation note.
+
+Dependencies:
+- Team Platform
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        body_markdown = parsed.get("body_markdown") or ""
+
+        assert "## Notes" in body_markdown
+        assert "Context details before heading." in body_markdown
+        assert "## Risks" in body_markdown
+        assert "- API rate-limit" in body_markdown
+        assert "Follow-up mitigation note." in body_markdown
+        assert "## Dependencies" in body_markdown
 
 
 class TestBuildRefineExportContent:

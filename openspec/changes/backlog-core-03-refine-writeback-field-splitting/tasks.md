@@ -29,6 +29,8 @@
 - [x] 4.9 Prevent label-only refinement output (without `Description:`) from leaking raw prompt labels into fallback description/body fields
 - [x] 4.10 Preserve mixed-format `## Description` narrative content when inline label-style markers (for example `**Notes**:`) appear before later heading sections
 - [x] 4.11 Strengthen Copilot prompt with explicit output scaffold and "omit unknown metadata fields" rule (no placeholder values)
+- [x] 4.12 Strip inline label markers from retained heading-style description content to avoid duplicated `Notes` blocks in normalized body output
+- [x] 4.13 Restrict label-block heading flush to canonical section boundaries so internal headings (for example `## Risks`) remain inside notes/dependencies content
 
 ## 5. Quality Gates
 

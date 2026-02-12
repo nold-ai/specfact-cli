@@ -114,3 +114,30 @@
 - **Summary**:
   - `5 passed`
   - Includes prompt scaffold and metadata omission instruction coverage.
+
+## Review Follow-up: Notes Duplication + Internal Heading Truncation
+
+### Pre-Implementation Failing Run
+
+- **Timestamp**: 2026-02-12T17:47:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k "mixed_heading_and_inline_notes_preserves_description_before_notes or label_notes_with_internal_heading_keeps_heading_content" -v`
+- **Result**: Failed
+- **Failure Summary**:
+  - `test_mixed_heading_and_inline_notes_preserves_description_before_notes` failed because raw `**Notes**:` markup and notes text were duplicated in `body_markdown`.
+  - `test_label_notes_with_internal_heading_keeps_heading_content` failed because notes content was truncated at internal `## Risks` heading.
+
+### Post-Implementation Passing Run
+
+- **Timestamp**: 2026-02-12T17:53:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k "mixed_heading_and_inline_notes_preserves_description_before_notes or label_notes_with_internal_heading_keeps_heading_content" -v`
+- **Result**: Passed
+- **Summary**:
+  - `2 passed`
+  - Duplicate inline-notes markup removed from description output; internal notes headings preserved.
+
+- **Timestamp**: 2026-02-12T17:54:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`
+- **Result**: Passed
+- **Summary**:
+  - `7 passed`
+  - Full parser regression suite passes including mixed-format and internal-heading cases.

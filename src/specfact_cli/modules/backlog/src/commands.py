@@ -1578,11 +1578,23 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         "iteration path": "iteration_path",
         "provider": "provider",
     }
+    canonical_heading_boundaries = {
+        *label_aliases.keys(),
+        "work item properties / metadata",
+        "work item properties",
+        "metadata",
+    }
     label_pattern = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?([A-Za-z][A-Za-z0-9 ()/_-]*?)(?:\*\*)?\s*:\s*(.*)\s*$")
     blocks: dict[str, str] = {}
     current_key: str | None = None
     current_lines: list[str] = []
-    heading_pattern = re.compile(r"^\s*##+\s+\S")
+
+    def _is_canonical_heading_boundary(line: str) -> bool:
+        heading_match = re.match(r"^\s*##+\s+(.+?)\s*$", line)
+        if not heading_match:
+            return False
+        heading_name = re.sub(r"\s+", " ", heading_match.group(1).strip().strip("#")).lower()
+        return heading_name in canonical_heading_boundaries
 
     def _flush_current() -> None:
         nonlocal current_key, current_lines
@@ -1594,8 +1606,8 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         current_lines = []
 
     for line in normalized.splitlines():
-        # Stop label-style block capture when a markdown heading starts.
-        if current_key is not None and heading_pattern.match(line):
+        # Stop label-style block capture only at canonical section-heading boundaries.
+        if current_key is not None and _is_canonical_heading_boundary(line):
             _flush_current()
             continue
         match = label_pattern.match(line)
@@ -1616,6 +1628,24 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         # If label-style blocks are present but no explicit Description block exists,
         # do not keep the heading parser fallback description (it may contain raw labels).
         parsed.pop("description", None)
+
+    if _has_heading_section("Description") and not blocks.get("description") and parsed.get("description"):
+        # In mixed heading output, trim inline label-style suffix blocks from description
+        # to avoid duplicating notes/dependencies in normalized body output.
+        description_lines: list[str] = []
+        for line in str(parsed["description"]).splitlines():
+            inline_match = label_pattern.match(line)
+            if inline_match:
+                candidate = re.sub(r"\s+", " ", inline_match.group(1).strip().lower())
+                canonical = label_aliases.get(candidate)
+                if canonical and canonical != "description":
+                    break
+            description_lines.append(line.rstrip())
+        cleaned_heading_description = "\n".join(description_lines).strip()
+        if cleaned_heading_description:
+            parsed["description"] = cleaned_heading_description
+        else:
+            parsed.pop("description", None)
 
     if blocks.get("description"):
         parsed["description"] = blocks["description"]
