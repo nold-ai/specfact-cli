@@ -27,6 +27,10 @@
 - [x] 4.7 Preserve heading-style `## Notes` / `## Dependencies` sections in parsed `body_markdown` for writeback
 - [x] 4.8 Match heading-style `## Notes` / `## Dependencies` sections case-insensitively during parser writeback normalization
 - [x] 4.9 Prevent label-only refinement output (without `Description:`) from leaking raw prompt labels into fallback description/body fields
+- [x] 4.10 Preserve mixed-format `## Description` narrative content when inline label-style markers (for example `**Notes**:`) appear before later heading sections
+- [x] 4.11 Strengthen Copilot prompt with explicit output scaffold and "omit unknown metadata fields" rule (no placeholder values)
+- [x] 4.12 Strip inline label markers from retained heading-style description content to avoid duplicated `Notes` blocks in normalized body output
+- [x] 4.13 Restrict label-block heading flush to canonical section boundaries so internal headings (for example `## Risks`) remain inside notes/dependencies content
 
 ## 5. Quality Gates
 
@@ -43,4 +47,4 @@
 
 ## 7. Pull Request
 
-- [ ] 7.1 Push branch and open PR to `dev`
+- [x] 7.1 Push branch and open PR to `dev`

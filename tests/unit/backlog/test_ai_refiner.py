@@ -91,6 +91,26 @@ class TestBacklogAIRefiner:
         assert "No comments found" in prompt
 
     @beartype
+    def test_generate_refinement_prompt_includes_expected_output_scaffold(
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
+    ) -> None:
+        """Prompt includes canonical output scaffold for Copilot consistency."""
+        prompt = refiner.generate_refinement_prompt(arbitrary_backlog_item, user_story_template)
+        assert "Expected Output Scaffold" in prompt
+        assert "## Work Item Properties / Metadata" in prompt
+        assert "## Description" in prompt
+        assert "## Acceptance Criteria" in prompt
+
+    @beartype
+    def test_generate_refinement_prompt_instructs_to_omit_unknown_metadata_fields(
+        self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
+    ) -> None:
+        """Prompt instructs omitting unknown metadata fields instead of placeholders."""
+        prompt = refiner.generate_refinement_prompt(arbitrary_backlog_item, user_story_template)
+        assert "omit unknown metadata fields" in prompt.lower()
+        assert "do not emit placeholders" in prompt.lower()
+
+    @beartype
     def test_validate_and_score_complete_refinement(
         self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:
