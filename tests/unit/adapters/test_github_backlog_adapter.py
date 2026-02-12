@@ -154,6 +154,49 @@ class TestGitHubBacklogAdapter:
         assert result.state == "closed"
 
     @beartype
+    @patch("specfact_cli.adapters.github.requests.patch")
+    def test_update_backlog_item_uses_item_fields_when_structured_body_lacks_core_sections(
+        self, mock_patch: MagicMock
+    ) -> None:
+        """Structured body with non-core headings still writes canonical fields."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "number": 1,
+            "html_url": "https://github.com/test/repo/issues/1",
+            "title": "Updated Title",
+            "body": "Updated body",
+            "state": "open",
+            "assignees": [],
+            "labels": [],
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        item = BacklogItem(
+            id="1",
+            provider="github",
+            url="",
+            title="Updated Title",
+            body_markdown="Refined description\n\n## Notes\n\nextra context",
+            state="open",
+            acceptance_criteria="- must split fields",
+            story_points=5,
+            business_value=8,
+            priority=2,
+        )
+
+        adapter.update_backlog_item(item, update_fields=["body_markdown"])
+
+        payload = mock_patch.call_args[1]["json"]
+        body = payload["body"]
+        assert "## Acceptance Criteria" in body
+        assert "- must split fields" in body
+        assert "## Story Points" in body
+        assert "## Business Value" in body
+        assert "## Priority" in body
+
+    @beartype
     def test_validate_round_trip(self) -> None:
         """Test validate_round_trip method."""
         adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")

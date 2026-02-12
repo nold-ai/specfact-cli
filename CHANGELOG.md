@@ -9,6 +9,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.30.3] - 2026-02-12
+
+### Fixed (0.30.3)
+
+- **Backlog refine writeback parsing for ADO/GitHub**
+  - `specfact backlog refine --write` now parses structured refinement output (markdown headings and label-style fields like `Description:`, `Acceptance Criteria:`, `Story Points:`, `Business Value:`, `Priority:`) into canonical fields before adapter writeback.
+  - ADO writeback now avoids writing labeled refinement blocks verbatim into description and instead updates mapped fields with split canonical values.
+  - GitHub writeback now preserves canonical field updates even when refined bodies include structured headings that do not explicitly include all core field sections.
+- **Refine command maintainability**
+  - Decomposed `backlog refine` orchestration into focused helper methods (stdin refinement capture, update-field construction, writeback, optional OpenSpec comment) to reduce top-level command complexity while keeping behavior parity.
+
+### Changed (0.30.3)
+
+- **Version**: Bumped to `0.30.3` (patch).
+
+---
+
 ## [0.30.2] - 2026-02-11
 
 ### Fixed (0.30.2)

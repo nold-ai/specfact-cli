@@ -179,6 +179,48 @@ class TestAdoBacklogAdapter:
             assert len(story_points_ops) > 0
 
     @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_update_backlog_item_writes_description_and_acceptance_to_separate_fields(
+        self, mock_patch: MagicMock
+    ) -> None:
+        """ADO writeback keeps description clean and writes AC to dedicated field."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 1,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/1",
+            "fields": {
+                "System.Title": "Story",
+                "System.Description": "Clean description",
+                "System.AcceptanceCriteria": "- criterion",
+                "System.State": "Active",
+            },
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        item = BacklogItem(
+            id="1",
+            provider="ado",
+            url="",
+            title="Story",
+            body_markdown="Clean description",
+            state="Active",
+            acceptance_criteria="- criterion",
+        )
+
+        adapter.update_backlog_item(item, update_fields=["body_markdown", "acceptance_criteria"])
+
+        operations = mock_patch.call_args[1]["json"]
+        description_op = next((op for op in operations if op.get("path") == "/fields/System.Description"), None)
+        acceptance_op = next((op for op in operations if "AcceptanceCriteria" in op.get("path", "")), None)
+
+        assert description_op is not None
+        assert description_op["value"] == "Clean description"
+        assert acceptance_op is not None
+        assert acceptance_op["value"] == "- criterion"
+
+    @beartype
     def test_validate_round_trip(self) -> None:
         """Test validate_round_trip method."""
         adapter = AdoAdapter(org="test", project="project", api_token="token")

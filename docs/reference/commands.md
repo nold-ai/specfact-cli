@@ -3697,6 +3697,10 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 - `--preview` / `--no-preview` - Preview mode: show what will be written without updating backlog (default: `--preview`)
 - `--write` - Write mode: explicitly opt-in to update remote backlog (requires `--write` flag)
+- During `--write`, structured refinement output is parsed into canonical fields before adapter updates.
+  - Supports markdown headings and label-style sections (for example `Description:`, `Acceptance Criteria:`, `Story Points:`).
+  - ADO updates mapped fields separately (description, acceptance criteria, metrics) instead of writing label blocks verbatim to description.
+  - GitHub keeps field updates consistent even when refined body contains headings that omit some core field sections.
 
 **Definition of Ready (DoR):**
 
