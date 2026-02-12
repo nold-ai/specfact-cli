@@ -23,6 +23,14 @@ The system SHALL parse structured refinement output into canonical fields before
 - **AND** updates issue body and related canonical fields consistently
 - **AND** avoids duplicating or flattening structured fields into a single unparsed description block.
 
+#### Scenario: Heading-style narrative sections are preserved during writeback parsing
+
+- **GIVEN** a user runs `specfact backlog refine <provider> --write`
+- **AND** the refined output uses markdown headings like `## Notes` and `## Dependencies`
+- **WHEN** the refinement output is parsed into canonical fields for writeback
+- **THEN** `body_markdown` keeps those narrative sections
+- **AND** canonical numeric/provider metadata sections (for example `## Story Points`, `## Business Value`, `## Priority`, `## Provider`) are not duplicated into narrative body text.
+
 #### Scenario: Refine command orchestration remains behaviorally consistent after decomposition
 
 - **GIVEN** `specfact backlog refine` supports initialization, filtering, export/import, interactive refinement, writeback, and summary flows

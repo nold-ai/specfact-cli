@@ -24,6 +24,7 @@
 - [x] 4.4 Run targeted tests and capture passing evidence in `openspec/changes/backlog-core-03-refine-writeback-field-splitting/TDD_EVIDENCE.md`
 - [x] 4.5 Refactor `refine` command into smaller helper methods with clear responsibilities
 - [x] 4.6 Keep behavior parity for export/import/write/preview flows after refactor
+- [x] 4.7 Preserve heading-style `## Notes` / `## Dependencies` sections in parsed `body_markdown` for writeback
 
 ## 5. Quality Gates
 

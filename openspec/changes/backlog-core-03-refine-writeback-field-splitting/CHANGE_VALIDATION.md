@@ -51,6 +51,14 @@ No public CLI signature changes or adapter method signature changes were introdu
 - `hatch test -- tests/unit/commands/test_backlog_commands.py tests/unit/adapters/test_github_backlog_adapter.py tests/unit/adapters/test_ado_backlog_adapter.py -v`: Pass (`64 passed`).
 - `hatch run format`: Pass.
 
+## Review Follow-up Validation (2026-02-12)
+
+- `openspec validate backlog-core-03-refine-writeback-field-splitting --strict`: Pass.
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`: Pass (`3 passed`).
+- `hatch test -- tests/unit/adapters/test_ado_backlog_adapter.py tests/unit/adapters/test_github_backlog_adapter.py -v`: Pass (`35 passed`).
+- `hatch run type-check`: Pass (`0 errors`, warnings unchanged).
+- `hatch run format`: Pass.
+
 ## Next Steps
 
 1. Complete implementation and tests per `tasks.md`.

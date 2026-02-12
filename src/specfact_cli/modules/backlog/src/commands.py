@@ -1526,6 +1526,13 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         if isinstance(value, int):
             parsed[key] = value
 
+    def _extract_heading_section(section_name: str) -> str:
+        pattern = rf"^##+\s+{re.escape(section_name)}\s*$\n(.*?)(?=^##|\Z)"
+        match = re.search(pattern, normalized, re.MULTILINE | re.DOTALL)
+        if not match:
+            return ""
+        return match.group(1).strip()
+
     # Then parse label-style blocks; explicit labels override heading heuristics.
     label_aliases = {
         "description": "description",
@@ -1602,6 +1609,8 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         body_parts.append(cleaned_description)
     for section_key, title in (("notes", "Notes"), ("dependencies", "Dependencies")):
         section_value = (blocks.get(section_key) or "").strip()
+        if not section_value:
+            section_value = _extract_heading_section(title)
         if section_value:
             body_parts.append(f"## {title}\n\n{section_value}")
 

@@ -442,6 +442,47 @@ User-facing summary.
         assert parsed["business_value"] == 13
         assert parsed["priority"] == 1
 
+    def test_preserves_heading_style_notes_and_dependencies_in_body_markdown(self) -> None:
+        """Heading-style narrative sections should be preserved in writeback body."""
+        refined = """
+User-facing summary.
+
+## Acceptance Criteria
+
+- first
+
+## Notes
+
+Keep this narrative note.
+
+## Dependencies
+
+- Team A
+
+## Story Points
+
+5
+
+## Business Value
+
+8
+
+## Priority
+
+2
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        body_markdown = parsed.get("body_markdown") or ""
+
+        assert "User-facing summary." in body_markdown
+        assert "## Notes" in body_markdown
+        assert "Keep this narrative note." in body_markdown
+        assert "## Dependencies" in body_markdown
+        assert "- Team A" in body_markdown
+        assert "## Story Points" not in body_markdown
+        assert "## Business Value" not in body_markdown
+        assert "## Priority" not in body_markdown
+
 
 class TestBuildRefineExportContent:
     """Tests for refine export content rendering."""
