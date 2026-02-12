@@ -101,6 +101,7 @@ def extract_operations(contract_data: dict[str, Any]) -> list[dict[str, Any]]:
             responses = operation.get("responses", {})
             response_schema = _extract_response_schema(responses)
             expected_status_codes = _extract_expected_status_codes(responses)
+            response_examples = _extract_examples_from_responses(responses)
 
             operations.append(
                 {
@@ -111,6 +112,7 @@ def extract_operations(contract_data: dict[str, Any]) -> list[dict[str, Any]]:
                     "request_schema": request_schema,
                     "response_schema": response_schema,
                     "expected_status_codes": expected_status_codes,
+                    "response_examples": response_examples,
                 }
             )
 
@@ -167,6 +169,29 @@ def _extract_expected_status_codes(responses: dict[str, Any]) -> list[int]:
         status_codes = [200]
 
     return sorted(status_codes)
+
+
+@beartype
+def _extract_examples_from_responses(responses: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract example values from OpenAPI responses for constraint inference."""
+    examples: list[dict[str, Any]] = []
+    for _status_str, response_def in responses.items():
+        if not isinstance(response_def, dict):
+            continue
+        content = response_def.get("content", {})
+        json_content = content.get("application/json", {})
+        if not isinstance(json_content, dict):
+            continue
+        schema = json_content.get("schema", {})
+        example = schema.get("example") if isinstance(schema, dict) else None
+        if example is not None and isinstance(example, dict):
+            examples.append(example)
+        schema_examples = schema.get("examples", {}) if isinstance(schema, dict) else {}
+        if isinstance(schema_examples, dict):
+            for ex_val in schema_examples.values():
+                if isinstance(ex_val, dict) and "value" in ex_val:
+                    examples.append(ex_val["value"])
+    return examples
 
 
 @beartype
@@ -279,6 +304,7 @@ def _render_operation(op: dict[str, Any], use_flask_app: bool = False) -> str:
     # Extract path parameters for function signature
     path_params = [p for p in parameters if p.get("in") == "path"]
     query_params = [p for p in parameters if p.get("in") == "query"]
+    response_examples = op.get("response_examples", [])
 
     # Generate function signature with typed parameters
     sig_parts = []
@@ -315,8 +341,8 @@ def _render_operation(op: dict[str, Any], use_flask_app: bool = False) -> str:
     # Generate preconditions from parameters and request schema
     preconditions = _generate_preconditions(path_params, query_params, request_schema, param_types)
 
-    # Generate postconditions from response schema and status codes
-    postconditions = _generate_postconditions(response_schema, expected_status_codes)
+    # Generate postconditions from response schema, status codes, and business rules
+    postconditions = _generate_postconditions(response_schema, expected_status_codes, method, response_examples)
 
     # Build function code
     lines = []
@@ -530,6 +556,9 @@ def _generate_preconditions(
         if param_schema.get("type") == "integer":
             minimum = param_schema.get("minimum")
             maximum = param_schema.get("maximum")
+            # Business rule: path params named 'id' default to minimum 1 (valid resource ID)
+            if minimum is None and param_name == "id":
+                minimum = 1
             if minimum is not None:
                 preconditions.append(
                     f"@require(lambda {param_name}: {param_name} >= {minimum}, '{param_name} must be >= {minimum}')"
@@ -538,6 +567,24 @@ def _generate_preconditions(
                 preconditions.append(
                     f"@require(lambda {param_name}: {param_name} <= {maximum}, '{param_name} must be <= {maximum}')"
                 )
+
+        # Enum constraints (business logic from OpenAPI)
+        enum_vals = param_schema.get("enum")
+        if enum_vals and isinstance(enum_vals, (list, tuple)):
+            enum_str = ", ".join(repr(v) for v in enum_vals)
+            preconditions.append(
+                f"@require(lambda {param_name}: {param_name} in ({enum_str}), '{param_name} must be one of {enum_vals}')"
+            )
+
+        # Business rule: non-empty string for path params like username, slug
+        if (
+            param_schema.get("type") == "string"
+            and param_schema.get("minLength") is None
+            and param_name in ("username", "slug", "token", "name")
+        ):
+            preconditions.append(
+                f"@require(lambda {param_name}: len({param_name}) >= 1, '{param_name} must be non-empty')"
+            )
 
     # Preconditions for required query parameters
     for param in query_params:
@@ -567,9 +614,12 @@ def _generate_preconditions(
 
 @beartype
 def _generate_postconditions(
-    response_schema: dict[str, Any] | None, expected_status_codes: list[int] | None = None
+    response_schema: dict[str, Any] | None,
+    expected_status_codes: list[int] | None = None,
+    method: str = "GET",
+    response_examples: list[dict[str, Any]] | None = None,
 ) -> list[str]:
-    """Generate @ensure postconditions from response schema and expected status codes."""
+    """Generate @ensure postconditions from response schema, status codes, and business rules."""
     postconditions = []
 
     # Always check that result is a dict with status_code and data
@@ -673,6 +723,31 @@ def _generate_postconditions(
                             postconditions.append(
                                 f"@ensure(lambda result: isinstance(result.get('data', {{}}).get('{prop_name}'), list) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be an array')"
                             )
+
+                    # Business rule: created resource has valid ID (id >= 1 for success)
+                    if prop_name == "id" and prop_type == "integer":
+                        min_val = prop_schema.get("minimum", 1)
+                        postconditions.append(
+                            f"@ensure(lambda result: result.get('data', {{}}).get('{prop_name}', 0) >= {min_val} if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) and result.get('status_code') in [200, 201, 204] else True, 'Response data.{prop_name} must be valid ID (>= {min_val})')"
+                        )
+
+                    # Enum validation for response properties
+                    enum_vals = prop_schema.get("enum")
+                    if enum_vals and isinstance(enum_vals, (list, tuple)):
+                        enum_str = ", ".join(repr(v) for v in enum_vals)
+                        postconditions.append(
+                            f"@ensure(lambda result: result.get('data', {{}}).get('{prop_name}') in ({enum_str}) if isinstance(result.get('data'), dict) and '{prop_name}' in result.get('data', {{}}) else True, 'Response data.{prop_name} must be one of {list(enum_vals)}')"
+                        )
+
+        # Business rules from OpenAPI examples (when schema lacks explicit constraints)
+        if response_examples and not (response_schema.get("properties") or {}).get("id"):
+            for ex in response_examples:
+                if isinstance(ex, dict) and "id" in ex and isinstance(ex["id"], (int, float)):
+                    if ex["id"] >= 1:
+                        postconditions.append(
+                            "@ensure(lambda result: (not isinstance(result.get('data'), dict)) or ('id' not in result.get('data', {})) or result.get('data', {}).get('id', 0) >= 1, 'Response id must be valid (>= 1) when present')"
+                        )
+                    break
 
         # Check array item types
         elif schema_type == "array":
