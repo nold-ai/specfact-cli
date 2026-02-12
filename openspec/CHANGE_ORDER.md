@@ -60,7 +60,7 @@ All entries in the table below are pending implementation.
 |--------|-------|---------------|----------|------------|
 | backlog-core | 01 | backlog-core-01-dependency-analysis-commands | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
-| backlog-core | 03 | backlog-core-03-refine-writeback-field-splitting | TBD | — |
+| backlog-core | 03 | backlog-core-03-refine-writeback-field-splitting | #225 | — |
 
 ### backlog-scrum
 
