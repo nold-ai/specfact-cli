@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: AI Refinement Writeback Preserves Provider Field Semantics
 
