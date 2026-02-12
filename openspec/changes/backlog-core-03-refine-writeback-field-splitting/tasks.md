@@ -47,4 +47,4 @@
 
 ## 7. Pull Request
 
-- [ ] 7.1 Push branch and open PR to `dev`
+- [x] 7.1 Push branch and open PR to `dev`
