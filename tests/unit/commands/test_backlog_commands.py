@@ -22,6 +22,7 @@ from specfact_cli.modules.backlog.src.commands import (
     _build_refine_preview_comment_panels,
     _item_needs_refinement,
     _parse_refined_export_markdown,
+    _parse_refinement_output_fields,
     _resolve_refine_export_comment_window,
     _resolve_refine_preview_comment_window,
 )
@@ -354,6 +355,92 @@ Then we see the error.
         assert "return 42" in body
         assert "```" in body
         assert "Then we see the error." in body
+
+
+class TestParseRefinementOutputFields:
+    """Tests for parser that normalizes refinement output for writeback."""
+
+    def test_parses_label_style_refinement_output(self) -> None:
+        """Parser splits label-style sections into canonical fields."""
+        refined = """
+Description:
+The sync between ADO and OpenSpec should preserve markdown.
+
+Acceptance Criteria:
+- [ ] Description is not overwritten with prompt labels
+- [ ] Acceptance criteria maps to dedicated ADO field
+
+Notes:
+Keep backward compatibility.
+
+Dependencies:
+- backlog adapter
+
+Area Path:
+(unspecified)
+
+Iteration Path:
+(unspecified)
+
+Story Points:
+5
+
+Business Value:
+8
+
+Priority:
+2
+
+Work Item Type:
+User Story
+
+Provider:
+ado
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        assert parsed["description"] == "The sync between ADO and OpenSpec should preserve markdown."
+        assert parsed["acceptance_criteria"] == (
+            "- [ ] Description is not overwritten with prompt labels\n"
+            "- [ ] Acceptance criteria maps to dedicated ADO field"
+        )
+        assert parsed["story_points"] == 5
+        assert parsed["business_value"] == 8
+        assert parsed["priority"] == 2
+        assert parsed["work_item_type"] == "User Story"
+        assert "Area Path" not in (parsed.get("body_markdown") or "")
+        assert "Iteration Path" not in (parsed.get("body_markdown") or "")
+        assert "Provider:" not in (parsed.get("body_markdown") or "")
+        assert "## Notes" in (parsed.get("body_markdown") or "")
+        assert "## Dependencies" in (parsed.get("body_markdown") or "")
+
+    def test_parses_markdown_heading_refinement_output(self) -> None:
+        """Parser extracts canonical fields from markdown-heading format."""
+        refined = """
+User-facing summary.
+
+## Acceptance Criteria
+
+- first
+- second
+
+## Story Points
+
+3
+
+## Business Value
+
+13
+
+## Priority
+
+1
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        assert parsed["description"] == "User-facing summary."
+        assert parsed["acceptance_criteria"] == "- first\n- second"
+        assert parsed["story_points"] == 3
+        assert parsed["business_value"] == 13
+        assert parsed["priority"] == 1
 
 
 class TestBuildRefineExportContent:
