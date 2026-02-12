@@ -556,6 +556,37 @@ ado
         assert "Priority:" not in body_markdown
         assert "Provider:" not in body_markdown
 
+    def test_mixed_heading_and_inline_notes_preserves_description_before_notes(self) -> None:
+        """Mixed heading + inline label format should keep narrative before inline notes."""
+        refined = """
+## Work Item Properties / Metadata
+
+- Story Points: 5
+- Business Value: 8
+- Priority: 2
+- Provider: ado
+
+## Description
+
+The API call currently fails for valid users.
+This context must stay in description.
+
+**Notes**:
+Investigate token refresh path.
+
+## Acceptance Criteria
+
+- [ ] Successful login for valid users
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        body_markdown = parsed.get("body_markdown") or ""
+        assert "The API call currently fails for valid users." in body_markdown
+        assert "This context must stay in description." in body_markdown
+        assert "## Notes" in body_markdown
+        assert "Investigate token refresh path." in body_markdown
+        assert "## Acceptance Criteria" not in body_markdown
+        assert parsed["acceptance_criteria"] == "- [ ] Successful login for valid users"
+
 
 class TestBuildRefineExportContent:
     """Tests for refine export content rendering."""

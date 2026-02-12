@@ -172,6 +172,28 @@ Instructions:
 9. Provider-aware formatting:
    - **GitHub**: Use markdown headings in body (## Section Name)
    - **ADO**: Use markdown headings in body (will be mapped to separate ADO fields during writeback)
+10. Omit unknown metadata fields instead of placeholders (do not emit values like "unspecified", "no info provided", or "provide area path")
+11. Keep `## Description` focused on narrative body content; do not place metadata labels in description text.
+
+Expected Output Scaffold (ordered):
+## Work Item Properties / Metadata
+- Story Points: <number, omit line if unknown>
+- Business Value: <number, omit line if unknown>
+- Priority: <number, omit line if unknown>
+- Work Item Type: <type, omit line if unknown>
+
+## Description
+<main story narrative/body only>
+
+## Acceptance Criteria
+- [ ] <criterion>
+
+## Notes
+<optional; include only for ambiguity/risk/dependency context>
+
+Metadata scaffold rules:
+- The `## Work Item Properties / Metadata` section is optional; include only when at least one metadata value is known.
+- Omit unknown metadata fields and do not emit placeholders.
 
 Return ONLY the refined backlog item body content in markdown format. Do not include any explanations or metadata."""
         return prompt.strip()

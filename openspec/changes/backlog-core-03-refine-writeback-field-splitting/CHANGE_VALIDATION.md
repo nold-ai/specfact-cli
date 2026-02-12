@@ -71,6 +71,14 @@ No public CLI signature changes or adapter method signature changes were introdu
 - `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`: Pass (`5 passed`) after parser fix.
 - `hatch test -- tests/unit/adapters/test_ado_backlog_adapter.py tests/unit/adapters/test_github_backlog_adapter.py -v`: Pass (`35 passed`).
 
+## User Report Follow-up Validation (Prompt + Mixed Format Parsing, 2026-02-12)
+
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k mixed_heading_and_inline_notes -v`: Failing pre-implementation evidence captured.
+- `hatch test -- tests/unit/backlog/test_ai_refiner.py -k "expected_output_scaffold or omit_unknown_metadata_fields" -v`: Failing pre-implementation evidence captured.
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`: Pass (`6 passed`) after parser and prompt fixes.
+- `hatch test -- tests/unit/backlog/test_ai_refiner.py -k generate_refinement_prompt -v`: Pass (`5 passed`).
+- `hatch test -- tests/unit/adapters/test_ado_backlog_adapter.py tests/unit/adapters/test_github_backlog_adapter.py -v`: Pass (`35 passed`).
+
 ## Next Steps
 
 1. Complete implementation and tests per `tasks.md`.

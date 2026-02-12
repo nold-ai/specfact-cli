@@ -1002,6 +1002,24 @@ def _build_refine_export_content(
     export_content += "7. Include story points, business value, priority, and work item type when available\n"
     export_content += "8. For high-complexity stories, suggest splitting when appropriate\n"
     export_content += "9. Follow provider-aware formatting guidance listed per item\n\n"
+    export_content += "**Expected Output Scaffold (ordered):**\n"
+    export_content += "```markdown\n"
+    export_content += "## Work Item Properties / Metadata\n"
+    export_content += "- Story Points: <number, omit line if unknown>\n"
+    export_content += "- Business Value: <number, omit line if unknown>\n"
+    export_content += "- Priority: <number, omit line if unknown>\n"
+    export_content += "- Work Item Type: <type, omit line if unknown>\n\n"
+    export_content += "## Description\n"
+    export_content += "<main story narrative/body only>\n\n"
+    export_content += "## Acceptance Criteria\n"
+    export_content += "- [ ] <criterion>\n\n"
+    export_content += "## Notes\n"
+    export_content += "<optional; include only for ambiguity/risk/dependency context>\n"
+    export_content += "```\n\n"
+    export_content += (
+        "Omit unknown metadata fields and never emit placeholders such as "
+        "`(unspecified)`, `no info provided`, or `provide area path`.\n\n"
+    )
     export_content += "---\n\n"
     comments_map = comments_by_item_id or {}
     template_map = template_guidance_by_item_id or {}
@@ -1526,12 +1544,25 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         if isinstance(value, int):
             parsed[key] = value
 
+    def _has_heading_section(section_name: str) -> bool:
+        return bool(
+            re.search(
+                rf"^##+\s+{re.escape(section_name)}\s*$",
+                normalized,
+                re.MULTILINE | re.IGNORECASE,
+            )
+        )
+
     def _extract_heading_section(section_name: str) -> str:
         pattern = rf"^##+\s+{re.escape(section_name)}\s*$\n(.*?)(?=^##|\Z)"
         match = re.search(pattern, normalized, re.MULTILINE | re.DOTALL | re.IGNORECASE)
         if not match:
             return ""
         return match.group(1).strip()
+
+    heading_description = _extract_heading_section("Description")
+    if heading_description and not (parsed.get("description") or "").strip():
+        parsed["description"] = heading_description
 
     # Then parse label-style blocks; explicit labels override heading heuristics.
     label_aliases = {
@@ -1551,6 +1582,7 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
     blocks: dict[str, str] = {}
     current_key: str | None = None
     current_lines: list[str] = []
+    heading_pattern = re.compile(r"^\s*##+\s+\S")
 
     def _flush_current() -> None:
         nonlocal current_key, current_lines
@@ -1562,6 +1594,10 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         current_lines = []
 
     for line in normalized.splitlines():
+        # Stop label-style block capture when a markdown heading starts.
+        if current_key is not None and heading_pattern.match(line):
+            _flush_current()
+            continue
         match = label_pattern.match(line)
         if match:
             candidate = re.sub(r"\s+", " ", match.group(1).strip().lower())
@@ -1576,7 +1612,7 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
             current_lines.append(line.rstrip())
     _flush_current()
 
-    if blocks and not blocks.get("description"):
+    if blocks and not blocks.get("description") and not _has_heading_section("Description"):
         # If label-style blocks are present but no explicit Description block exists,
         # do not keep the heading parser fallback description (it may contain raw labels).
         parsed.pop("description", None)
