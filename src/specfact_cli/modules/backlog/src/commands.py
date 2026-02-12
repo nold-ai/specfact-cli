@@ -1528,7 +1528,7 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
 
     def _extract_heading_section(section_name: str) -> str:
         pattern = rf"^##+\s+{re.escape(section_name)}\s*$\n(.*?)(?=^##|\Z)"
-        match = re.search(pattern, normalized, re.MULTILINE | re.DOTALL)
+        match = re.search(pattern, normalized, re.MULTILINE | re.DOTALL | re.IGNORECASE)
         if not match:
             return ""
         return match.group(1).strip()
@@ -1576,6 +1576,11 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
             current_lines.append(line.rstrip())
     _flush_current()
 
+    if blocks and not blocks.get("description"):
+        # If label-style blocks are present but no explicit Description block exists,
+        # do not keep the heading parser fallback description (it may contain raw labels).
+        parsed.pop("description", None)
+
     if blocks.get("description"):
         parsed["description"] = blocks["description"]
     if blocks.get("acceptance_criteria"):
@@ -1619,6 +1624,8 @@ def _parse_refinement_output_fields(content: str) -> dict[str, Any]:
         parsed["body_markdown"] = cleaned_body
     elif cleaned_description:
         parsed["body_markdown"] = cleaned_description
+    elif blocks:
+        parsed["body_markdown"] = ""
     else:
         parsed["body_markdown"] = normalized
 

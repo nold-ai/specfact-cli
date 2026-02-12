@@ -59,6 +59,18 @@ No public CLI signature changes or adapter method signature changes were introdu
 - `hatch run type-check`: Pass (`0 errors`, warnings unchanged).
 - `hatch run format`: Pass.
 
+## Review Follow-up Validation (Case-Insensitive Heading Match, 2026-02-12)
+
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k uppercase_heading_style_notes_and_dependencies -v`: Failing pre-implementation evidence captured.
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`: Pass (`4 passed`) after parser fix.
+- `hatch test -- tests/unit/adapters/test_ado_backlog_adapter.py tests/unit/adapters/test_github_backlog_adapter.py -v`: Pass (`35 passed`).
+
+## Review Follow-up Validation (Label-Only Description Fallback, 2026-02-12)
+
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k label_only_output_without_description -v`: Failing pre-implementation evidence captured.
+- `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`: Pass (`5 passed`) after parser fix.
+- `hatch test -- tests/unit/adapters/test_ado_backlog_adapter.py tests/unit/adapters/test_github_backlog_adapter.py -v`: Pass (`35 passed`).
+
 ## Next Steps
 
 1. Complete implementation and tests per `tasks.md`.

@@ -40,3 +40,43 @@
 - **Summary**:
   - `3 passed`
   - Includes heading-style preservation regression test for `## Notes` and `## Dependencies`.
+
+## Review Follow-up: Case-Insensitive Heading Matching
+
+### Pre-Implementation Failing Run
+
+- **Timestamp**: 2026-02-12T10:42:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k uppercase_heading_style_notes_and_dependencies -v`
+- **Result**: Failed
+- **Failure Summary**:
+  - `test_preserves_uppercase_heading_style_notes_and_dependencies_in_body_markdown` failed.
+  - Parsed `body_markdown` contained only description and dropped uppercase `## NOTES` / `## DEPENDENCIES` narrative sections.
+
+### Post-Implementation Passing Run
+
+- **Timestamp**: 2026-02-12T10:43:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`
+- **Result**: Passed
+- **Summary**:
+  - `4 passed`
+  - Includes uppercase heading regression coverage for `## NOTES` and `## DEPENDENCIES`.
+
+## Review Follow-up: Label-Only Output Without Description
+
+### Pre-Implementation Failing Run
+
+- **Timestamp**: 2026-02-12T10:49:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k label_only_output_without_description -v`
+- **Result**: Failed
+- **Failure Summary**:
+  - `test_label_only_output_without_description_does_not_fallback_to_raw_payload` failed.
+  - Parser retained the full raw label payload as fallback `description` and `body_markdown` when no `Description:` block existed.
+
+### Post-Implementation Passing Run
+
+- **Timestamp**: 2026-02-12T10:50:00+01:00
+- **Command**: `hatch test -- tests/unit/commands/test_backlog_commands.py -k TestParseRefinementOutputFields -v`
+- **Result**: Passed
+- **Summary**:
+  - `5 passed`
+  - Includes regression coverage for label-only field blocks without `Description:`.

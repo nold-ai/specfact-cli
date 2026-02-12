@@ -483,6 +483,79 @@ Keep this narrative note.
         assert "## Business Value" not in body_markdown
         assert "## Priority" not in body_markdown
 
+    def test_preserves_uppercase_heading_style_notes_and_dependencies_in_body_markdown(self) -> None:
+        """Uppercase heading variants should still be preserved in writeback body."""
+        refined = """
+User-facing summary.
+
+## ACCEPTANCE CRITERIA
+
+- first
+
+## NOTES
+
+Keep this uppercase narrative note.
+
+## DEPENDENCIES
+
+- Team B
+
+## STORY POINTS
+
+3
+
+## BUSINESS VALUE
+
+5
+
+## PRIORITY
+
+1
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        body_markdown = parsed.get("body_markdown") or ""
+
+        assert "User-facing summary." in body_markdown
+        assert "## Notes" in body_markdown
+        assert "Keep this uppercase narrative note." in body_markdown
+        assert "## Dependencies" in body_markdown
+        assert "- Team B" in body_markdown
+        assert "## STORY POINTS" not in body_markdown
+        assert "## BUSINESS VALUE" not in body_markdown
+        assert "## PRIORITY" not in body_markdown
+
+    def test_label_only_output_without_description_does_not_fallback_to_raw_payload(self) -> None:
+        """Label-only output without Description should not leak raw labels into body/description."""
+        refined = """
+Acceptance Criteria:
+- [ ] Keep canonical writeback fields
+
+Story Points:
+3
+
+Business Value:
+5
+
+Priority:
+2
+
+Provider:
+ado
+"""
+        parsed = _parse_refinement_output_fields(refined)
+        body_markdown = parsed.get("body_markdown") or ""
+
+        assert parsed.get("description") in (None, "")
+        assert parsed["acceptance_criteria"] == "- [ ] Keep canonical writeback fields"
+        assert parsed["story_points"] == 3
+        assert parsed["business_value"] == 5
+        assert parsed["priority"] == 2
+        assert "Acceptance Criteria:" not in body_markdown
+        assert "Story Points:" not in body_markdown
+        assert "Business Value:" not in body_markdown
+        assert "Priority:" not in body_markdown
+        assert "Provider:" not in body_markdown
+
 
 class TestBuildRefineExportContent:
     """Tests for refine export content rendering."""

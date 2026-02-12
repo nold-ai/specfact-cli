@@ -31,6 +31,23 @@ The system SHALL parse structured refinement output into canonical fields before
 - **THEN** `body_markdown` keeps those narrative sections
 - **AND** canonical numeric/provider metadata sections (for example `## Story Points`, `## Business Value`, `## Priority`, `## Provider`) are not duplicated into narrative body text.
 
+#### Scenario: Heading-style narrative sections are matched case-insensitively
+
+- **GIVEN** a user runs `specfact backlog refine <provider> --write`
+- **AND** the refined output uses uppercase narrative headings like `## NOTES` and `## DEPENDENCIES`
+- **WHEN** the refinement output is parsed into canonical fields for writeback
+- **THEN** `body_markdown` preserves those narrative sections as normalized `## Notes` / `## Dependencies` sections
+- **AND** writeback does not silently drop narrative context because of heading case differences.
+
+#### Scenario: Label-only field blocks without Description do not leak raw labels into body/description
+
+- **GIVEN** a user runs `specfact backlog refine <provider> --write`
+- **AND** the refined output contains label-style field blocks (for example `Acceptance Criteria:`, `Story Points:`, `Priority:`) but no `Description:` block
+- **WHEN** the refinement output is parsed into canonical fields for writeback
+- **THEN** canonical fields (for example acceptance criteria and numeric fields) are extracted
+- **AND** parser fallback does not keep the entire raw labeled payload as `description`
+- **AND** `body_markdown` does not contain prompt labels verbatim.
+
 #### Scenario: Refine command orchestration remains behaviorally consistent after decomposition
 
 - **GIVEN** `specfact backlog refine` supports initialization, filtering, export/import, interactive refinement, writeback, and summary flows

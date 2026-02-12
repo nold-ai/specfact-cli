@@ -25,6 +25,8 @@
 - [x] 4.5 Refactor `refine` command into smaller helper methods with clear responsibilities
 - [x] 4.6 Keep behavior parity for export/import/write/preview flows after refactor
 - [x] 4.7 Preserve heading-style `## Notes` / `## Dependencies` sections in parsed `body_markdown` for writeback
+- [x] 4.8 Match heading-style `## Notes` / `## Dependencies` sections case-insensitively during parser writeback normalization
+- [x] 4.9 Prevent label-only refinement output (without `Description:`) from leaking raw prompt labels into fallback description/body fields
 
 ## 5. Quality Gates
 
