@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.30.4] - 2026-02-12
+
+### Fixed (0.30.4)
+
+- **Backlog refine mixed-format parsing hardening**
+  - Prevented duplicate `Notes` content in normalized writeback output when mixed `## Description` + inline `**Notes**:` formatting is returned by Copilot.
+  - Preserved internal headings (for example `## Risks`) inside label-style `Notes:` blocks instead of truncating at the heading line.
+  - Improved parser section-boundary handling so label capture flushes only at canonical section boundaries.
+- **Copilot refinement instruction quality**
+  - Added explicit expected output scaffold for refinement responses.
+  - Added explicit rule to omit unknown metadata fields (no placeholders such as `(unspecified)` or `provide area path`).
+
+### Changed (0.30.4)
+
+- **Version**: Bumped to `0.30.4` (patch).
+
+---
+
 ## [0.30.3] - 2026-02-12
 
 ### Fixed (0.30.3)
