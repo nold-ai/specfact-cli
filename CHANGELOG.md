@@ -9,10 +9,6 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased]
-
----
-
 ## [0.31.0] - 2026-02-13
 
 ### Added
