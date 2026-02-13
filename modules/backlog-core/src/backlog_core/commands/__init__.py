@@ -1,6 +1,5 @@
 """Backlog-core command entrypoints."""
 
-from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.modules import module_io_shim
 
 from .analyze_deps import analyze_deps, trace_impact
@@ -11,7 +10,6 @@ from .sync import BacklogGraphToPlanBundle, compute_delta, sync
 from .verify import verify_readiness
 
 
-_MODULE_IO_CONTRACT = ModuleIOContract
 import_to_bundle = module_io_shim.import_to_bundle
 export_from_bundle = module_io_shim.export_from_bundle
 sync_with_bundle = module_io_shim.sync_with_bundle
