@@ -27,6 +27,10 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 - **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
 - **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade stability.
 
+Recommended command entrypoints:
+- `specfact backlog ceremony standup ...`
+- `specfact backlog ceremony refinement ...`
+
 **Try it now**
 
 - **Coders**: [AI IDE Workflow](guides/ai-ide-workflow.md)
@@ -82,6 +86,9 @@ Why this matters:
 - **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
 - **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
 - **[Backlog Refinement](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven backlog refinement for standardizing work items
+- **[Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)** - Analyze critical path, cycles, orphans, and dependency impact from backlog graph data
+- **[Backlog Delta Commands](guides/backlog-delta-commands.md)** - Track backlog graph changes under `specfact backlog delta`
+- **[Project DevOps Flow](guides/project-devops-flow.md)** - Run plan/develop/review/release/monitor stage actions from one command surface
 - **[Sidecar Validation](guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
 - **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows

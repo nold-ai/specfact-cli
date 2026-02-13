@@ -1,13 +1,15 @@
 ---
 layout: default
 title: Tutorial - Daily Standup and Sprint Review with SpecFact CLI
-description: End-to-end daily standup and sprint review using specfact backlog daily. Auto-detect repo from git (GitHub or Azure DevOps), view standup table, post standup comments, use interactive mode and Copilot export.
+description: End-to-end daily standup and sprint review using specfact backlog ceremony standup. Auto-detect repo from git (GitHub or Azure DevOps), view standup table, post standup comments, use interactive mode and Copilot export.
 permalink: /getting-started/tutorial-daily-standup-sprint-review/
 ---
 
 # Tutorial: Daily Standup and Sprint Review with SpecFact CLI
 
 This tutorial walks you through a complete **daily standup and sprint review** workflow using SpecFact CLI: view your backlog items, optionally post standup comments to issues, use interactive step-through and Copilot export—with **no need to pass org/repo or org/project** when you run from your cloned repo.
+
+Preferred command path is `specfact backlog ceremony standup ...`. The legacy `specfact backlog daily ...` path remains supported for compatibility.
 
 **Time**: ~10–15 minutes  
 **Outcome**: End-to-end flow from "clone + auth" to standup view, optional post, interactive review, and Copilot-ready export.
@@ -16,7 +18,7 @@ This tutorial walks you through a complete **daily standup and sprint review** w
 
 ## What You'll Learn
 
-- Run **`specfact backlog daily`** and see your standup table (assigned + unassigned items) with **auto-detected** GitHub org/repo or Azure DevOps org/project from the git remote
+- Run **`specfact backlog ceremony standup`** and see your standup table (assigned + unassigned items) with **auto-detected** GitHub org/repo or Azure DevOps org/project from the git remote
 - Use **`.specfact/backlog.yaml`** or environment variables when you're not in the repo (e.g. CI) or to override
 - **Post a standup comment** to the first (or selected) item with `--yesterday`, `--today`, `--blockers` and `--post`
 - Use **`--interactive`** for step-by-step story review (arrow-key selection, full detail, latest comment + hidden-count hint, and optional in-flow posting on the selected story)
@@ -45,11 +47,11 @@ From your **repo root** (where `.git` lives):
 
 ```bash
 # GitHub: org/repo are inferred from git remote origin
-specfact backlog daily github
+specfact backlog ceremony standup github
 
 # Azure DevOps: org/project are inferred from git remote origin
 # (e.g. https://dev.azure.com/... or git@ssh.dev.azure.com:v3/... for SSH keys; user@dev.azure.com:v3/... if not using SSH keys)
-specfact backlog daily ado
+specfact backlog ceremony standup ado
 ```
 
 **What you see**:
@@ -73,13 +75,13 @@ Narrow the list to your sprint or assignee:
 
 ```bash
 # My items only (GitHub: login; ADO: current user)
-specfact backlog daily github --assignee me
+specfact backlog ceremony standup github --assignee me
 
 # Current sprint (when adapter supports it, e.g. ADO)
-specfact backlog daily ado --sprint current
+specfact backlog ceremony standup ado --sprint current
 
 # Open items, limit 10, blockers first
-specfact backlog daily github --state open --limit 10 --blockers-first
+specfact backlog ceremony standup github --state open --limit 10 --blockers-first
 ```
 
 Default scope is **state=open**, **limit=20**; overridable via `SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, or `.specfact/standup.yaml`.
@@ -91,7 +93,7 @@ Default scope is **state=open**, **limit=20**; overridable via `SPECFACT_STANDUP
 To add a **standup comment** to the **first** item in the list, pass **values** for yesterday/today/blockers and `--post`:
 
 ```bash
-specfact backlog daily github \
+specfact backlog ceremony standup github \
   --yesterday "Worked on daily standup and progress support" \
   --today "Will add tests and docs" \
   --blockers "None" \
@@ -109,7 +111,7 @@ specfact backlog daily github \
 For a **refine-like** walkthrough (select item → view full detail → next/previous/back/exit):
 
 ```bash
-specfact backlog daily github --interactive
+specfact backlog ceremony standup github --interactive
 ```
 
 - Use the menu to **select** an item (arrow keys).
@@ -125,7 +127,7 @@ Use **`--suggest-next`** to show a suggested next item by value score (business 
 To feed a **summary file** into your AI IDE (e.g. for a Copilot slash-command during standup):
 
 ```bash
-specfact backlog daily github --copilot-export ./standup-summary.md --comments
+specfact backlog ceremony standup github --copilot-export ./standup-summary.md --comments
 ```
 
 The file contains one section per item (ID, title, status, assignees, last updated, progress, blockers).
@@ -141,10 +143,10 @@ To get a **prompt** you can paste into Copilot or feed to a slash command (e.g. 
 
 ```bash
 # Print prompt to stdout (copy-paste to Copilot)
-specfact backlog daily github --summarize --comments
+specfact backlog ceremony standup github --summarize --comments
 
 # Write prompt to a file (e.g. for slash command)
-specfact backlog daily github --summarize-to ./standup-prompt.md --comments
+specfact backlog ceremony standup github --summarize-to ./standup-prompt.md --comments
 ```
 
 The output includes an instruction to generate a standup summary, the applied filter context (adapter,
@@ -167,13 +169,13 @@ issues/open questions, discussion notes as comments).
 
    ```bash
    cd /path/to/your-repo
-   specfact backlog daily github
+   specfact backlog ceremony standup github
    ```
 
 3. **Optional: post today's standup** to the first item:
 
    ```bash
-   specfact backlog daily github \
+   specfact backlog ceremony standup github \
      --yesterday "Implemented backlog context and git inference" \
      --today "Docs and tests for daily standup tutorial" \
      --blockers "None" \
@@ -183,9 +185,9 @@ issues/open questions, discussion notes as comments).
 4. **Optional: interactive review** or **Copilot export**:
 
    ```bash
-   specfact backlog daily github --interactive --last-comments 3
+   specfact backlog ceremony standup github --interactive --last-comments 3
    # or
-   specfact backlog daily github --copilot-export ./standup.md
+   specfact backlog ceremony standup github --copilot-export ./standup.md
    ```
 
 ---
@@ -194,7 +196,7 @@ issues/open questions, discussion notes as comments).
 
 | Goal | How |
 |------|-----|
-| View standup without typing org/repo | Run `specfact backlog daily github` or `ado` from **repo root**; org/repo or org/project are **auto-detected** from git remote. |
+| View standup without typing org/repo | Run `specfact backlog ceremony standup github` or `ado` from **repo root**; org/repo or org/project are **auto-detected** from git remote. |
 | Override or use outside repo | Use `.specfact/backlog.yaml`, env vars (`SPECFACT_GITHUB_REPO_OWNER`, etc.), or CLI `--repo-owner`/`--repo-name` or `--ado-org`/`--ado-project`. |
 | Post standup to first item | Use `--yesterday "..."` `--today "..."` `--blockers "..."` and `--post` (values required). |
 | Post standup while reviewing selected story | Use `--interactive` and choose **Post standup update** from navigation. |

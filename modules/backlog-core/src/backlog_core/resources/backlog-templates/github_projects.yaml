@@ -1,0 +1,16 @@
+type_mapping:
+  epic: epic
+  feature: feature
+  story: story
+  task: task
+  bug: bug
+dependency_rules:
+  blocks: blocks
+  blocked_by: blocks
+  relates: relates_to
+status_mapping:
+  open: todo
+  closed: done
+  todo: todo
+  in progress: in_progress
+  done: done

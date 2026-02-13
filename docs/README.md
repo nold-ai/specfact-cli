@@ -19,6 +19,10 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 - **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
 - **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade safety.
 
+Recommended command entrypoints:
+- `specfact backlog ceremony standup ...`
+- `specfact backlog ceremony refinement ...`
+
 **Try it now**
 
 - **Coders**: [AI IDE Workflow](guides/ai-ide-workflow.md)
@@ -103,6 +107,9 @@ For implementation details, see:
 
 - [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
 - [Backlog Refinement](guides/backlog-refinement.md)
+- [Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)
+- [Backlog Delta Commands](guides/backlog-delta-commands.md)
+- [Project DevOps Flow](guides/project-devops-flow.md)
 - [DevOps Adapter Integration](guides/devops-adapter-integration.md)
 - [AI IDE Workflow](guides/ai-ide-workflow.md)
 - [Sidecar Validation](guides/sidecar-validation.md)

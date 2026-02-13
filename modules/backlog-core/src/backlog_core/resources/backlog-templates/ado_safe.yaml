@@ -1,0 +1,14 @@
+type_mapping:
+  portfolio epic: epic
+  feature: feature
+  story: story
+  task: task
+  bug: bug
+dependency_rules:
+  predecessor: blocks
+  successor: blocks
+  parent: parent_child
+status_mapping:
+  funnel: backlog
+  implementing: in_progress
+  done: done

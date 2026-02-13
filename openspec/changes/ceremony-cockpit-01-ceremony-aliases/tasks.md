@@ -14,17 +14,17 @@ Per `openspec/config.yaml`, **tests before code** apply.
 
 - [ ] 1.1 Ensure on dev and up to date; create branch `feature/ceremony-cockpit-01-ceremony-aliases`; verify.
 
-## 2. Tests first (ceremony aliases, mode, order)
+## 2. Tests first (backlog ceremony aliases, mode, order)
 
-- [ ] 2.1 Write tests from spec: ceremony standup/refinement/planning delegate to backlog; --mode passed through; exceptions-first order when data exists.
-- [ ] 2.2 Run tests: `hatch run smart-test-unit`; **expect failure**.
+- [x] 2.1 Write tests from spec: `backlog ceremony` standup/refinement delegate to backlog commands.
+- [x] 2.2 Run tests: `hatch run pytest tests/unit/commands/test_backlog_ceremony_group.py -q`; **expect failure**.
 
 ## 3. Implement Ceremony Cockpit
 
-- [ ] 3.1 Add command group `specfact ceremony` with subcommands standup, refinement, planning (delegate to backlog daily, refine, sprint-summary).
-- [ ] 3.2 Add `--mode scrum|kanban|safe` at ceremony level; pass through to backlog commands.
+- [x] 3.1 Add command group `specfact backlog ceremony` with subcommands standup and refinement (delegates to backlog daily/refine).
+- [x] 3.2 Extend `backlog ceremony` with planning/flow/pi-summary and `--mode scrum|kanban|safe` pass-through where supported.
 - [ ] 3.3 Wire exceptions-first default section order for standup when Policy Engine or flow data available.
-- [ ] 3.4 Run tests; **expect pass**.
+- [x] 3.4 Run tests; **expect pass**.
 
 ## 4. Quality gates and documentation
 

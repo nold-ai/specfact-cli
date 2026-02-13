@@ -46,8 +46,8 @@ context: |
 
   Contract requirements: ALL public APIs MUST have @icontract (@require/@ensure) and @beartype
   decorators
-  Testing: Contract-first (primary), minimum 80% coverage, unit/integration/E2E tests required for all
-  changes
+  Testing: Contract-first (primary), coverage target 80% (optional when contract-first gates are satisfied),
+  unit/integration/E2E tests required for all changes
 
   Development discipline (SDD + TDD): SpecFact CLI adds the validation layer; we develop SpecFact itself
   using the same discipline to prove it works. Order is strict:

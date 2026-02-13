@@ -32,6 +32,7 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.registry.bridge_registry import BRIDGE_PROTOCOL_REGISTRY
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token, set_token
 
@@ -3137,6 +3138,80 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return filtered_items
 
     @beartype
+    @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """Fetch all ADO work items as provider-agnostic dictionaries for graph building."""
+        _ = project_id
+        backlog_filters = BacklogFilters(**(filters or {}))
+        return [item.model_dump() for item in self.fetch_backlog_items(backlog_filters)]
+
+    @beartype
+    @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def fetch_relationships(self, project_id: str) -> list[dict[str, Any]]:
+        """Fetch ADO relationship edges for graph building."""
+        relationships: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str]] = set()
+
+        def _add_edge(source_id: str, target_id: str, relation_type: str) -> None:
+            source = source_id.strip()
+            target = target_id.strip()
+            rel = relation_type.strip().lower()
+            if not source or not target or source == target:
+                return
+            key = (source, target, rel)
+            if key in seen:
+                return
+            seen.add(key)
+            relationships.append({"source_id": source, "target_id": target, "type": rel})
+
+        for item in self.fetch_all_issues(project_id):
+            item_id = str(item.get("id") or item.get("key") or "").strip()
+            if not item_id:
+                continue
+
+            provider_fields = item.get("provider_fields")
+            relation_entries: list[Any] = []
+            if isinstance(provider_fields, dict):
+                relations = provider_fields.get("relations")
+                if isinstance(relations, list):
+                    relation_entries.extend(relations)
+            if isinstance(item.get("relations"), list):
+                relation_entries.extend(item["relations"])
+
+            for relation in relation_entries:
+                if not isinstance(relation, dict):
+                    continue
+                rel_name = str(relation.get("rel") or relation.get("relation") or relation.get("type") or "").lower()
+                target_ref = str(relation.get("url") or relation.get("target") or "")
+                target_id = self._extract_work_item_id_from_reference(target_ref)
+                if not target_id:
+                    continue
+
+                if "hierarchy-forward" in rel_name:
+                    _add_edge(item_id, target_id, "parent")
+                elif "hierarchy-reverse" in rel_name:
+                    _add_edge(target_id, item_id, "parent")
+                elif "dependency-forward" in rel_name or "predecessor-forward" in rel_name:
+                    _add_edge(item_id, target_id, "blocks")
+                elif "dependency-reverse" in rel_name or "predecessor-reverse" in rel_name:
+                    _add_edge(target_id, item_id, "blocks")
+                elif "related" in rel_name:
+                    _add_edge(item_id, target_id, "relates")
+
+        return relationships
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str), "Work item id extraction must return str")
+    def _extract_work_item_id_from_reference(self, reference: str) -> str:
+        """Extract ADO work item id from relation reference URL/string."""
+        if not reference:
+            return ""
+        match = re.search(r"/workitems/(\d+)", reference, flags=re.IGNORECASE)
+        return match.group(1) if match else ""
+
+    @beartype
     def supports_add_comment(self) -> bool:
         """Whether this adapter can add comments (requires token, org, project)."""
         return bool(self.api_token and self.org and self.project)
@@ -3431,3 +3506,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             org=self.org,
             project_name=self.project,
         )
+
+
+BRIDGE_PROTOCOL_REGISTRY.register_implementation("backlog_graph", "ado", AdoAdapter)

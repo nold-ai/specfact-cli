@@ -21,6 +21,21 @@ The system SHALL support analyzing logical dependencies in backlog items (epic â
 - **AND** a `BacklogGraph` is built with items, dependencies, and analysis metadata
 - **AND** graph includes transitive closure, cycles_detected, and orphans
 
+#### Scenario: GitHub relationship enrichment for dependency graph
+
+- **GIVEN** GitHub issues include link/reference metadata in issue bodies, timeline, or linked issue relations
+- **WHEN** `GitHubAdapter.fetch_relationships(project_id)` is executed for backlog graph building
+- **THEN** dependency edges are emitted for supported relations (`blocks`, `blocked_by`, `parent_child`, `relates_to`)
+- **AND** emitted relation types are normalized to `DependencyType`-compatible values consumed by `BacklogGraphBuilder`
+- **AND** resulting graph metrics (`with_dependencies`, `orphans`) reflect discovered relations instead of all-orphan fallback for linked issues.
+
+#### Scenario: ADO relationship extraction parity
+
+- **GIVEN** ADO work items include relation links (hierarchy, predecessor/successor, related)
+- **WHEN** `AdoAdapter.fetch_relationships(project_id)` is executed
+- **THEN** relations are normalized into the same dependency model used by other providers
+- **AND** parent-child and blocker semantics are preserved for release-readiness and impact analysis.
+
 #### Scenario: Analyze dependencies with custom template
 
 - **GIVEN** a user provides custom YAML config to override template rules
@@ -85,17 +100,17 @@ The system SHALL provide CLI commands for analyzing backlog changes and their im
 #### Scenario: Show backlog delta status
 
 - **GIVEN** a backlog with changes since last sync
-- **WHEN** user runs `specfact delta status --project-id owner/repo --adapter github`
+- **WHEN** user runs `specfact backlog delta status --project-id owner/repo --adapter github`
 - **THEN** shows new items (added)
 - **AND** shows modified items (field changes)
 - **AND** shows deleted items
 - **AND** shows status transitions
 - **AND** shows new dependencies
 
-#### Scenario: Analyze delta impact
+#### Scenario: Analyze backlog delta impact
 
 - **GIVEN** backlog changes have been detected
-- **WHEN** user runs `specfact delta impact --project-id owner/repo --adapter github`
+- **WHEN** user runs `specfact backlog delta impact --project-id owner/repo --adapter github`
 - **THEN** uses dependency graph to trace from changed items
 - **AND** shows directly changed items count
 - **AND** shows downstream affected items count
@@ -104,17 +119,28 @@ The system SHALL provide CLI commands for analyzing backlog changes and their im
 #### Scenario: Estimate delta cost
 
 - **GIVEN** backlog changes have been detected
-- **WHEN** user runs `specfact delta cost-estimate --project-id owner/repo --adapter github`
+- **WHEN** user runs `specfact backlog delta cost-estimate --project-id owner/repo --adapter github`
 - **THEN** estimates effort of delta changes based on item types and dependencies
 - **AND** provides effort breakdown by item type
 
 #### Scenario: Analyze rollback impact
 
 - **GIVEN** backlog changes have been detected
-- **WHEN** user runs `specfact delta rollback-analysis --project-id owner/repo --adapter github`
+- **WHEN** user runs `specfact backlog delta rollback-analysis --project-id owner/repo --adapter github`
 - **THEN** analyzes what breaks if changes are reverted
 - **AND** identifies dependent items that would be affected
 - **AND** shows potential conflicts or blockers
+
+### Requirement: Impact-Oriented Command Discoverability
+
+The system SHALL present backlog command help in an impact-oriented order where command groups are listed before leaf commands and high-frequency flows appear before lower-frequency operations.
+
+#### Scenario: Backlog help lists groups first
+
+- **GIVEN** a user opens backlog help
+- **WHEN** `specfact backlog -h` (or module-local `backlog --help`) is rendered
+- **THEN** command groups (e.g., `ceremony`, `delta`) appear before leaf commands
+- **AND** high-impact workflow commands (`sync`, `verify-readiness`, `analyze-deps`) appear before lower-frequency commands.
 
 ### Requirement: Release Readiness Verification
 
@@ -146,21 +172,21 @@ The system SHALL support linking projects to backlog providers and integrating b
 
 - **GIVEN** a SpecFact project exists with `ProjectBundle`
 - **WHEN** user runs `specfact project link-backlog --project-name my-project --adapter github --project-id owner/repo`
-- **THEN** backlog configuration is stored in `ProjectBundle.metadata.backlog_config` field (not separate config file):
+- **THEN** backlog configuration is stored in `ProjectMetadata` module extension `backlog_core.backlog_config` (not separate config file):
 
   ```python
-  bundle.metadata.backlog_config = {
+  metadata.set_extension("backlog_core", "backlog_config", {
       "adapter": "github",
-      "project_id": "owner/repo"
-  }
+      "project_id": "owner/repo",
+  })
   ```
 
 - **AND** bundle is saved with updated metadata (atomic write)
-- **AND** backlog commands auto-use this project's backlog configuration by reading from `bundle.metadata.backlog_config`
+- **AND** backlog commands auto-use this project's backlog configuration via metadata extension lookup.
 
 #### Scenario: Project health check with backlog metrics
 
-- **GIVEN** a project is linked to a backlog provider (config in `ProjectBundle.metadata.backlog_config`)
+- **GIVEN** a project is linked to a backlog provider (config in `ProjectMetadata` extension `backlog_core.backlog_config`)
 - **WHEN** user runs `specfact project health-check --project-name my-project`
 - **THEN** adapter's `fetch_all_issues()` and `fetch_relationships()` methods are called to build graph
 - **AND** shows spec-code alignment (from existing enforce command)
@@ -170,9 +196,24 @@ The system SHALL support linking projects to backlog providers and integrating b
 - **AND** provides action items for improvement
 - **AND** output uses `rich.table.Table` for metrics and `rich.panel.Panel` for sections (consistent with existing console patterns)
 
+#### Scenario: Regenerate reports concise mismatch summary by default
+
+- **GIVEN** a project is linked to a backlog provider and plan/backlog mismatches exist
+- **WHEN** user runs `specfact project regenerate --project-name my-project`
+- **THEN** the command reports a single mismatch summary count
+- **AND** does not print per-item mismatch lines by default
+- **AND** exits successfully unless strict mode is requested
+
+#### Scenario: Regenerate strict mode fails with detailed mismatch output
+
+- **GIVEN** a project is linked to a backlog provider and plan/backlog mismatches exist
+- **WHEN** user runs `specfact project regenerate --project-name my-project --strict --verbose`
+- **THEN** the command prints per-item mismatch lines
+- **AND** exits with code `1`
+
 #### Scenario: Integrated DevOps workflow
 
-- **GIVEN** a project is linked to a backlog provider (config in `ProjectBundle.metadata.backlog_config`)
+- **GIVEN** a project is linked to a backlog provider (config in `ProjectMetadata` extension `backlog_core.backlog_config`)
 - **WHEN** user runs `specfact project devops-flow --project-name my-project --stage plan --action generate-roadmap`
 - **THEN** adapter's `fetch_all_issues()` and `fetch_relationships()` methods are called to build graph
 - **AND** uses backlog dependency graph to create release timeline
@@ -222,7 +263,7 @@ The system SHALL support backlog configuration in `.specfact/spec.yaml` for prov
 
 #### Scenario: Configure backlog in spec YAML
 
-- **GIVEN** a `.specfact/spec.yaml` file (project-level defaults, separate from bundle-specific `ProjectBundle.metadata.backlog_config`)
+- **GIVEN** a `.specfact/spec.yaml` file (project-level defaults, separate from bundle-specific project metadata extension)
 - **WHEN** backlog_config section is added:
 
   ```yaml

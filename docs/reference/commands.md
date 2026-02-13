@@ -1989,6 +1989,139 @@ specfact project version set --bundle legacy-api --version 1.5.0-beta.1
 
 ---
 
+#### `project link-backlog`
+
+Link a project bundle to a backlog provider so project health/devops commands can resolve adapter and project context automatically.
+
+```bash
+specfact project link-backlog [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (or use active bundle)
+- `--project-name NAME` - Alias for `--bundle`
+- `--adapter ADAPTER` - Backlog adapter id (for example: `github`, `ado`, `jira`) (required)
+- `--project-id PROJECT_ID` - Provider project identifier (required)
+- `--template TEMPLATE` - Optional mapping template override
+- `--repo PATH` - Path to repository (default: `.`)
+- `--no-interactive` - Non-interactive mode
+
+**Example:**
+
+```bash
+specfact project link-backlog --bundle cross-sync-test --adapter github --project-id nold-ai/specfact-cli --template github_projects
+```
+
+---
+
+#### `project health-check`
+
+Run project-level health checks with backlog graph metrics and cross-checks.
+
+```bash
+specfact project health-check [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (or use active bundle)
+- `--project-name NAME` - Alias for `--bundle`
+- `--verbose` - Show linked adapter/project/template diagnostics
+- `--repo PATH` - Path to repository (default: `.`)
+- `--no-interactive` - Non-interactive mode
+
+**What it checks:**
+
+- Backlog graph health (typed items, dependencies, orphans, cycles)
+- Spec-code alignment via `enforce sdd`
+- Release readiness via backlog dependency/readiness verification
+
+---
+
+#### `project devops-flow`
+
+Run a stage/action workflow from one project command surface.
+
+```bash
+specfact project devops-flow --stage <stage> --action <action> [OPTIONS]
+```
+
+**Supported stage/action pairs:**
+
+- `plan/generate-roadmap`
+- `develop/sync`
+- `review/validate-pr`
+- `release/verify`
+- `monitor/health-check`
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (or use active bundle)
+- `--project-name NAME` - Alias for `--bundle`
+- `--stage STAGE` - Stage to execute (required)
+- `--action ACTION` - Stage action (required)
+- `--verbose` - Show additional diagnostics
+- `--repo PATH` - Path to repository (default: `.`)
+- `--no-interactive` - Non-interactive mode
+
+---
+
+#### `project snapshot`
+
+Save the current linked backlog graph as baseline snapshot.
+
+```bash
+specfact project snapshot [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (or use active bundle)
+- `--project-name NAME` - Alias for `--bundle`
+- `--output PATH` - Baseline graph output path (default: `.specfact/backlog-baseline.json`)
+- `--repo PATH` - Path to repository (default: `.`)
+- `--no-interactive` - Non-interactive mode
+
+---
+
+#### `project regenerate`
+
+Re-derive merged plan/backlog view and report mismatches.
+
+```bash
+specfact project regenerate [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (or use active bundle)
+- `--project-name NAME` - Alias for `--bundle`
+- `--strict` - Exit non-zero when mismatches are found
+- `--verbose` - Print detailed mismatch entries (default is summary only)
+- `--repo PATH` - Path to repository (default: `.`)
+- `--no-interactive` - Non-interactive mode
+
+---
+
+#### `project export-roadmap`
+
+Export roadmap milestones from backlog critical path.
+
+```bash
+specfact project export-roadmap [OPTIONS]
+```
+
+**Options:**
+
+- `--bundle BUNDLE_NAME` - Project bundle name (or use active bundle)
+- `--project-name NAME` - Alias for `--bundle`
+- `--output PATH` - Optional roadmap markdown output path
+- `--repo PATH` - Path to repository (default: `.`)
+- `--no-interactive` - Non-interactive mode
+
+---
+
 ### `contract` - OpenAPI Contract Management
 
 Manage OpenAPI contracts for project bundles, including initialization, validation, mock server generation, and test generation.
@@ -3659,9 +3792,143 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 
 Backlog refinement commands for AI-assisted template-driven refinement of DevOps backlog items.
 
+**Command Topology (recommended):**
+
+- `specfact backlog ceremony standup ...`
+- `specfact backlog ceremony refinement ...`
+- `specfact backlog delta status|impact|cost-estimate|rollback-analysis ...`
+- `specfact backlog analyze-deps|trace-impact|sync|verify-readiness|diff|promote|generate-release-notes ...`
+
+Compatibility commands `specfact backlog daily` and `specfact backlog refine` remain available, but ceremony entrypoints are preferred for discoverability.
+
+#### `backlog ceremony`
+
+Ceremony-oriented entrypoint group for event-driven backlog workflows.
+
+```bash
+specfact backlog ceremony [OPTIONS] COMMAND [ARGS]...
+```
+
+**Subcommands:**
+
+- `standup` - Preferred standup command (delegates to daily workflow implementation)
+- `refinement` - Preferred refinement command (delegates to refine workflow implementation)
+- `planning` - Planning alias (when planning module delegate is installed)
+- `flow` - Flow-view alias (when flow delegate is installed)
+- `pi-summary` - PI summary alias (when PI delegate is installed)
+
+**Examples:**
+
+```bash
+specfact backlog ceremony standup github --state open --limit 20
+specfact backlog ceremony refinement github --search "is:open label:feature" --preview
+```
+
+#### `backlog delta`
+
+Delta analysis commands for backlog graph drift and impact tracking.
+
+```bash
+specfact backlog delta [OPTIONS] COMMAND [ARGS]...
+```
+
+**Subcommands:**
+
+- `status` - Compare current graph vs baseline and summarize changes
+- `impact` - Analyze downstream impact from one item
+- `cost-estimate` - Estimate delta effort points from graph changes
+- `rollback-analysis` - Assess rollback risk from removed items/dependencies
+
+**Examples:**
+
+```bash
+specfact backlog delta status --project-id 1 --adapter github
+specfact backlog delta impact 123 --project-id 1 --adapter github
+specfact backlog delta cost-estimate --project-id 1 --adapter github
+specfact backlog delta rollback-analysis --project-id 1 --adapter github
+```
+
+#### `backlog analyze-deps`
+
+Build and analyze backlog dependency graph for a provider project.
+
+```bash
+specfact backlog analyze-deps --project-id <id> [OPTIONS]
+```
+
+**Common options:**
+
+- `--adapter ADAPTER` - Backlog adapter id (default: `github`)
+- `--template TEMPLATE` - Mapping template (default: `github_projects`)
+- `--custom-config PATH` - Optional custom mapping YAML
+- `--output PATH` - Optional markdown summary output
+- `--json-export PATH` - Optional graph JSON export
+
+#### `backlog trace-impact`
+
+Trace direct and transitive dependency impact for a backlog item.
+
+```bash
+specfact backlog trace-impact <item-id> --project-id <id> [OPTIONS]
+```
+
+**Common options:**
+
+- `--adapter ADAPTER` - Backlog adapter id (default: `github`)
+- `--template TEMPLATE` - Mapping template (default: `github_projects`)
+- `--custom-config PATH` - Optional custom mapping YAML
+
+#### `backlog verify-readiness`
+
+Verify release readiness using dependency/cycle/blocker and status checks.
+
+```bash
+specfact backlog verify-readiness --project-id <id> [OPTIONS]
+```
+
+**Common options:**
+
+- `--adapter ADAPTER` - Backlog adapter id (default: `github`)
+- `--template TEMPLATE` - Mapping template (default: `github_projects`)
+- `--target-items CSV` - Optional comma-separated subset of item IDs
+
+#### `backlog diff`
+
+Compare current backlog graph to baseline and print graph delta.
+
+```bash
+specfact backlog diff --project-id <id> [OPTIONS]
+```
+
+#### `backlog sync`
+
+Sync backlog graph projection (for example to plan-oriented output formats).
+
+```bash
+specfact backlog sync --project-id <id> [OPTIONS]
+```
+
+#### `backlog promote`
+
+Promote backlog graph state into structured promotion artifacts.
+
+```bash
+specfact backlog promote --project-id <id> [OPTIONS]
+```
+
+#### `backlog generate-release-notes`
+
+Generate release notes from backlog dependency/graph context.
+
+```bash
+specfact backlog generate-release-notes --project-id <id> [OPTIONS]
+```
+
 #### `backlog refine`
 
 Refine backlog items using AI-assisted template matching. Transforms arbitrary DevOps backlog input (GitHub Issues, ADO work items) into structured, template-compliant format (user stories, defects, spikes, enablers).
+
+Preferred entrypoint for team-facing docs is `specfact backlog ceremony refinement ...`. This section documents the underlying compatibility command surface.
 
 ```bash
 specfact backlog refine <ADAPTER> [OPTIONS]

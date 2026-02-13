@@ -21,6 +21,9 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 | arch-03-module-lifecycle-management | 2026-02-06 |
 | arch-04-core-contracts-interfaces | 2026-02-08 |
 | arch-05-bridge-registry | 2026-02-10 |
+| backlog-scrum-01-standup-exceptions-first | 2026-02-11 |
+| backlog-core-03-refine-writeback-field-splitting | 2026-02-12 |
+| sidecar-01-flask-support | 2026-02-12 |
 
 ### Pending
 
@@ -51,7 +54,6 @@ All entries in the table below are pending implementation.
 | policy-engine | 01 | policy-engine-01-unified-framework | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
 | patch-mode | 01 | patch-mode-01-preview-apply | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
 | validation | 01 | validation-01-deep-validation | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
-| sidecar | 01 | sidecar-01-flask-support | [#102](https://github.com/nold-ai/specfact-cli/issues/102) | — |
 | bundle-mapper | 01 | bundle-mapper-01-mapping-strategy | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
 
 ### backlog-core (required by all backlog-* modules)
@@ -60,13 +62,11 @@ All entries in the table below are pending implementation.
 |--------|-------|---------------|----------|------------|
 | backlog-core | 01 | backlog-core-01-dependency-analysis-commands | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
-| backlog-core | 03 | backlog-core-03-refine-writeback-field-splitting | #225, #227 | — |
 
 ### backlog-scrum
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| backlog-scrum | 01 | backlog-scrum-01-standup-exceptions-first | [#220](https://github.com/nold-ai/specfact-cli/issues/220) | #116 (optional: #176, #177) |
 | backlog-scrum | 02 | backlog-scrum-02-sprint-planning | [#170](https://github.com/nold-ai/specfact-cli/issues/170) | #116 (optional: #176, #182) |
 | backlog-scrum | 03 | backlog-scrum-03-story-complexity | [#171](https://github.com/nold-ai/specfact-cli/issues/171) | #116 (optional: #177) |
 | backlog-scrum | 04 | backlog-scrum-04-definition-of-done | [#169](https://github.com/nold-ai/specfact-cli/issues/169) | — (optional: #176) |
@@ -141,17 +141,18 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - arch-06, arch-07
   - policy-engine-01, patch-mode-01
   - backlog-core-01
-  - validation-01, sidecar-01, bundle-mapper-01
+  - validation-01, sidecar-01 ✅, bundle-mapper-01
 
 - **Wave 2 — Marketplace + backlog module layer** (needs Wave 1):
   - marketplace-01 (needs arch-06)
   - backlog-core-02 (needs backlog-core-01)
+  - backlog-core-03 ✅
   - backlog-scrum-02, backlog-scrum-03, backlog-scrum-04 (need backlog-core-01)
   - backlog-kanban-01, backlog-safe-01 (need backlog-core-01)
 
 - **Wave 3 — Higher-order backlog + marketplace** (needs Wave 2):
   - marketplace-02 (needs marketplace-01)
-  - backlog-scrum-01 (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
+  - backlog-scrum-01 ✅ (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
   - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
 
 - **Wave 4 — Ceremony layer** (needs Wave 3):

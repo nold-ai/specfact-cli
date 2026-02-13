@@ -9,6 +9,57 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+---
+
+## [0.31.0] - 2026-02-13
+
+### Added
+
+- Backlog dependency-analysis module package (`backlog-core`) with provider-agnostic graph models and analyzers.
+- `specfact backlog` command suite for dependency-centric workflows:
+  - `analyze-deps`
+  - `trace-impact`
+  - `sync`
+  - `verify-readiness`
+  - `diff`
+  - `promote`
+  - `generate-release-notes`
+- Nested backlog delta workflow under `specfact backlog delta`:
+  - `status`
+  - `impact`
+  - `cost-estimate`
+  - `rollback-analysis`
+- Project backlog integration commands:
+  - `specfact project link-backlog`
+  - `specfact project health-check`
+  - `specfact project devops-flow`
+  - `specfact project snapshot`
+  - `specfact project regenerate`
+  - `specfact project export-roadmap`
+
+### Changed
+
+- Backlog command discoverability now follows impact-first ordering with command groups shown before leaf commands.
+- Backlog ceremony workflows are grouped under `specfact backlog ceremony` with clearer subcommands:
+  - `standup`
+  - `refinement`
+- `project regenerate` mismatch UX:
+  - default summary-only output for plan/backlog mismatches
+  - optional `--verbose` for detailed mismatch lines
+  - optional `--strict` to fail on mismatches
+
+### Fixed
+
+- Resolved legacy/duplicate command registration behavior for backlog module integration under a shared `backlog` top-level group.
+- Resolved missing backlog-core lazy-load path in project health/dependency flows (`No module named 'backlog_core'`).
+- Enriched provider dependency extraction for graph analysis:
+  - GitHub: normalized relationship extraction (`blocks`, `blocked by`, related, parent/child conventions) and graph type enrichment
+  - ADO: relationship mapping parity for hierarchy/dependency/related links
+
+---
+
 ## [0.30.4] - 2026-02-12
 
 ### Fixed (0.30.4)

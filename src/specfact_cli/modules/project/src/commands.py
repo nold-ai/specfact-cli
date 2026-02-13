@@ -8,6 +8,7 @@ and merge conflict resolution for project bundles.
 from __future__ import annotations
 
 import os
+import sys
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,6 +29,7 @@ from specfact_cli.models.project import (
     SectionLock,
 )
 from specfact_cli.modules import module_io_shim
+from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import debug_log_operation, debug_print, get_configured_console, is_debug_mode
 from specfact_cli.utils import print_error, print_info, print_section, print_success, print_warning
 from specfact_cli.utils.persona_ownership import (
@@ -55,6 +57,29 @@ def _refresh_console() -> Console:
     global console
     console = get_configured_console()
     return console
+
+
+@beartype
+def _ensure_backlog_core_loaded() -> None:
+    """Ensure backlog-core module package is loaded before importing backlog_core symbols."""
+    if "backlog_core" in sys.modules:
+        return
+    try:
+        __import__("backlog_core")
+        return
+    except ModuleNotFoundError:
+        pass
+
+    # Trigger lazy loader for backlog group, which merges backlog-core extension app and activates its src path.
+    with suppress(Exception):
+        CommandRegistry.get_typer("backlog")
+
+    try:
+        __import__("backlog_core")
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "backlog-core module is not available. Ensure module package 'backlog-core' is enabled and installed."
+        ) from exc
 
 
 @app.callback()
@@ -125,6 +150,590 @@ def _resolve_bundle(repo: Path, bundle: str | None) -> tuple[str, Path]:
         raise typer.Exit(1)
 
     return bundle_name, bundle_dir
+
+
+@app.command("link-backlog")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def link_backlog(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name. If omitted, active bundle is used.",
+    ),
+    project_name: str | None = typer.Option(
+        None,
+        "--project-name",
+        help="Alias for --bundle.",
+    ),
+    adapter: str = typer.Option(
+        ...,
+        "--adapter",
+        help="Backlog adapter id (e.g. github, ado, jira).",
+    ),
+    project_id: str = typer.Option(
+        ...,
+        "--project-id",
+        help="Provider project identifier (e.g. owner/repo or org/project).",
+    ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        help="Optional backlog mapping template override (e.g. github_projects, ado_scrum).",
+    ),
+    no_interactive: bool = typer.Option(
+        False,
+        "--no-interactive",
+        help="Non-interactive mode (for CI/CD automation).",
+    ),
+) -> None:
+    """Link a project bundle to a backlog provider configuration."""
+    _refresh_console()
+    _ = no_interactive
+    if bundle and project_name and bundle != project_name:
+        print_error("If both --bundle and --project-name are provided, values must match.")
+        raise typer.Exit(1)
+    resolved_bundle = bundle or project_name
+    bundle_name, bundle_dir = _resolve_bundle(repo, resolved_bundle)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+
+    project_metadata = bundle_obj.manifest.project_metadata or ProjectMetadata(stability="alpha")
+    backlog_config: dict[str, Any] = {
+        "adapter": adapter.strip(),
+        "project_id": project_id.strip(),
+    }
+    if template and template.strip():
+        backlog_config["template"] = template.strip()
+    project_metadata.set_extension("backlog_core", "backlog_config", backlog_config)
+    bundle_obj.manifest.project_metadata = project_metadata
+
+    _save_bundle_with_progress(bundle_obj, bundle_dir, atomic=True)
+    print_success(f"Linked backlog provider for bundle '{bundle_name}'.")
+    print_info(f"Adapter: {backlog_config['adapter']}")
+    print_info(f"Project: {backlog_config['project_id']}")
+    if "template" in backlog_config:
+        print_info(f"Template: {backlog_config['template']}")
+
+
+@beartype
+@require(lambda adapter: adapter.strip() != "", "Adapter must be non-empty")
+@require(lambda project_id: project_id.strip() != "", "Project id must be non-empty")
+@ensure(lambda result: isinstance(result, dict), "Health metrics must be returned as a dict")
+def _collect_backlog_health_metrics(adapter: str, project_id: str, template: str) -> dict[str, Any]:
+    """Collect backlog health metrics via backlog-core graph analysis."""
+    _ensure_backlog_core_loaded()
+    from backlog_core.adapters.backlog_protocol import require_backlog_graph_protocol
+    from backlog_core.analyzers.dependency import DependencyAnalyzer
+    from backlog_core.graph.builder import BacklogGraphBuilder
+
+    from specfact_cli.adapters.registry import AdapterRegistry
+
+    adapter_instance = AdapterRegistry.get_adapter(adapter)
+    graph_adapter = require_backlog_graph_protocol(adapter_instance)
+    items = graph_adapter.fetch_all_issues(project_id)
+    relationships = graph_adapter.fetch_relationships(project_id)
+
+    graph = (
+        BacklogGraphBuilder(provider=adapter, template_name=template, custom_config={"project_key": project_id})
+        .add_items(items)
+        .add_dependencies(relationships)
+        .build()
+    )
+    analyzer = DependencyAnalyzer(graph)
+    return analyzer.coverage_analysis()
+
+
+@beartype
+@ensure(lambda result: isinstance(result, dict), "Spec-code check result must be a dict")
+def _run_spec_code_alignment_check(bundle_name: str, no_interactive: bool = True) -> dict[str, Any]:
+    """Run enforce.sdd as spec-code alignment check and return status summary."""
+    try:
+        import click
+        from typer.main import get_command
+
+        enforce_app = CommandRegistry.get_typer("enforce")
+        click_group = get_command(enforce_app)
+        if not isinstance(click_group, click.Group):
+            return {"ok": False, "summary": "enforce command group unavailable"}
+
+        group_ctx = click.Context(click_group)
+        subcommand = click_group.get_command(group_ctx, "sdd")
+        if subcommand is None:
+            return {"ok": False, "summary": "enforce.sdd command unavailable"}
+
+        args = [bundle_name, "--output-format", "yaml"]
+        if no_interactive:
+            args.append("--no-interactive")
+        exit_code = subcommand.main(
+            args=args,
+            prog_name="specfact enforce sdd",
+            standalone_mode=False,
+        )
+        if exit_code and exit_code != 0:
+            return {"ok": False, "summary": f"enforce.sdd failed (exit {int(exit_code)})"}
+        return {"ok": True, "summary": "enforce.sdd passed"}
+    except typer.Exit as exc:
+        code = int(exc.exit_code) if exc.exit_code is not None else 1
+        if code == 0:
+            return {"ok": True, "summary": "enforce.sdd passed"}
+        return {"ok": False, "summary": f"enforce.sdd failed (exit {code})"}
+    except Exception as exc:
+        return {"ok": False, "summary": f"enforce.sdd error: {exc}"}
+
+
+@beartype
+@ensure(lambda result: isinstance(result, dict), "Release readiness result must be a dict")
+def _run_release_readiness_check(
+    *,
+    adapter: str,
+    project_id: str,
+    template: str,
+) -> dict[str, Any]:
+    """Run backlog-core release readiness check and return status summary."""
+    try:
+        _ensure_backlog_core_loaded()
+        from backlog_core.commands.verify import verify_readiness
+
+        verify_readiness(
+            project_id=project_id,
+            adapter=adapter,
+            target_items="",
+            template=template,
+        )
+        return {"ok": True, "summary": "verify-readiness passed"}
+    except typer.Exit as exc:
+        code = int(exc.exit_code) if exc.exit_code is not None else 1
+        if code == 0:
+            return {"ok": True, "summary": "verify-readiness passed"}
+        return {"ok": False, "summary": f"verify-readiness blocked (exit {code})"}
+    except Exception as exc:
+        return {"ok": False, "summary": f"verify-readiness error: {exc}"}
+
+
+@beartype
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "Must return adapter/project/template tuple")
+def _resolve_linked_backlog_config(bundle_obj: ProjectBundle) -> tuple[str, str, str]:
+    """Resolve linked backlog adapter/project/template from bundle metadata extensions."""
+    project_metadata = bundle_obj.manifest.project_metadata
+    backlog_config = project_metadata.get_extension("backlog_core", "backlog_config") if project_metadata else None
+    if not isinstance(backlog_config, dict):
+        print_error("No backlog provider linked for this bundle.")
+        print_info("Run `specfact project link-backlog --bundle <name> --adapter <id> --project-id <value>` first.")
+        raise typer.Exit(1)
+
+    adapter = str(backlog_config.get("adapter", "")).strip()
+    project_id = str(backlog_config.get("project_id", "")).strip()
+    if not adapter or not project_id:
+        print_error("Backlog link is incomplete. Expected adapter and project_id.")
+        raise typer.Exit(1)
+    template = str(backlog_config.get("template") or ("github_projects" if adapter == "github" else adapter))
+    return adapter, project_id, template
+
+
+@beartype
+def _fetch_backlog_graph(*, adapter: str, project_id: str, template: str) -> Any:
+    """Fetch backlog graph via backlog-core shared helper."""
+    _ensure_backlog_core_loaded()
+    from backlog_core.commands.shared import fetch_current_graph
+
+    return fetch_current_graph(project_id=project_id, adapter=adapter, template=template)
+
+
+@beartype
+@ensure(lambda result: isinstance(result, list), "Roadmap must be list")
+def generate_roadmap(*, adapter: str, project_id: str, template: str) -> list[str]:
+    """Generate roadmap milestones from dependency critical path."""
+    _ensure_backlog_core_loaded()
+    from backlog_core.analyzers.dependency import DependencyAnalyzer
+
+    graph = _fetch_backlog_graph(adapter=adapter, project_id=project_id, template=template)
+    analyzer = DependencyAnalyzer(graph)
+    path = analyzer.critical_path()
+    return [str(item_id) for item_id in path]
+
+
+@beartype
+@ensure(lambda result: isinstance(result, dict), "Merged plan payload must be dict")
+def merge_plans(plan_view: dict[str, Any], backlog_view: dict[str, Any]) -> dict[str, Any]:
+    """Merge project plan and backlog projections into a reconciliation payload."""
+    plan_items = {str(x) for x in plan_view.get("items", [])}
+    backlog_items = {str(x) for x in backlog_view.get("items", [])}
+    return {
+        "plan_only": sorted(plan_items - backlog_items),
+        "backlog_only": sorted(backlog_items - plan_items),
+        "shared": sorted(plan_items & backlog_items),
+    }
+
+
+@beartype
+@ensure(lambda result: isinstance(result, list), "Conflicts must be list")
+def find_conflicts(merged_plan: dict[str, Any]) -> list[str]:
+    """Return sync conflicts from merged plan payload."""
+    conflicts: list[str] = []
+    for item_id in merged_plan.get("plan_only", []):
+        conflicts.append(f"Plan item '{item_id}' missing in backlog")
+    for item_id in merged_plan.get("backlog_only", []):
+        conflicts.append(f"Backlog item '{item_id}' missing in plan")
+    return conflicts
+
+
+@beartype
+@ensure(lambda result: isinstance(result, list), "Backlog references must be list")
+def extract_backlog_references(text: str) -> list[str]:
+    """Extract backlog-style references from free text."""
+    import re
+
+    pattern = re.compile(r"\b(?:[A-Z]+-\d+|#\d+)\b")
+    return sorted(set(pattern.findall(text or "")))
+
+
+@beartype
+@ensure(lambda result: isinstance(result, str), "Release target must be str")
+def extract_release_target(bundle_obj: ProjectBundle) -> str:
+    """Choose a release target label from bundle metadata."""
+    with suppress(Exception):
+        if bundle_obj.manifest.version_info and bundle_obj.manifest.version_info.version:
+            return str(bundle_obj.manifest.version_info.version)
+    return bundle_obj.bundle_name
+
+
+@app.command("health-check")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def health_check(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name. If omitted, active bundle is used.",
+    ),
+    project_name: str | None = typer.Option(
+        None,
+        "--project-name",
+        help="Alias for --bundle.",
+    ),
+    verbose: bool = typer.Option(False, "--verbose", help="Show additional diagnostics."),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Non-interactive mode."),
+) -> None:
+    """Run project-level health checks including backlog graph health."""
+    _refresh_console()
+    _ = no_interactive
+    if bundle and project_name and bundle != project_name:
+        print_error("If both --bundle and --project-name are provided, values must match.")
+        raise typer.Exit(1)
+    resolved_bundle = bundle or project_name
+    bundle_name, bundle_dir = _resolve_bundle(repo, resolved_bundle)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    adapter, project_id, template = _resolve_linked_backlog_config(bundle_obj)
+
+    try:
+        metrics = _collect_backlog_health_metrics(adapter, project_id, template)
+    except Exception as exc:
+        print_error(f"Failed to collect backlog health metrics: {exc}")
+        raise typer.Exit(1) from exc
+
+    console.print("\n[bold cyan]Project Health Check[/bold cyan]")
+    console.print(f"[dim]Bundle: {bundle_name}[/dim]")
+    if verbose:
+        console.print(f"[dim]Adapter: {adapter} | Project: {project_id} | Template: {template}[/dim]")
+
+    table = Table(title="Backlog Graph Health")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    total_items = int(metrics.get("total_items", 0))
+    properly_typed = int(metrics.get("properly_typed", 0))
+    properly_typed_pct = float(metrics.get("properly_typed_pct", 0.0))
+    with_dependencies = int(metrics.get("with_dependencies", 0))
+    orphan_count = int(metrics.get("orphan_count", 0))
+    cycle_count = int(metrics.get("cycle_count", 0))
+    table.add_row("Typed Items", f"{properly_typed}/{total_items} ({properly_typed_pct:.1f}%)")
+    table.add_row("Items with Dependencies", str(with_dependencies))
+    table.add_row("Orphans", str(orphan_count))
+    table.add_row("Cycles", str(cycle_count))
+    console.print(table)
+
+    spec_alignment = _run_spec_code_alignment_check(bundle_name=bundle_name, no_interactive=True)
+    release_readiness = _run_release_readiness_check(adapter=adapter, project_id=project_id, template=template)
+
+    checks_table = Table(title="Cross Checks")
+    checks_table.add_column("Check", style="cyan")
+    checks_table.add_column("Status", style="green")
+    checks_table.add_row(
+        "Spec-Code Alignment",
+        ("PASS" if spec_alignment.get("ok") else "FAIL") + f" - {spec_alignment.get('summary', '')}",
+    )
+    checks_table.add_row(
+        "Release Readiness",
+        ("PASS" if release_readiness.get("ok") else "FAIL") + f" - {release_readiness.get('summary', '')}",
+    )
+    console.print(checks_table)
+
+    if cycle_count > 0 or orphan_count > 0:
+        print_warning("Backlog health issues detected. Review cycles/orphans before release checks.")
+    else:
+        print_success("Backlog graph health checks passed.")
+
+
+@app.command("devops-flow")
+@beartype
+@require(lambda repo: isinstance(repo, Path), "Repository path must be Path")
+@ensure(lambda result: result is None, "Must return None")
+def devops_flow(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(
+        None,
+        "--bundle",
+        help="Project bundle name. If omitted, active bundle is used.",
+    ),
+    project_name: str | None = typer.Option(
+        None,
+        "--project-name",
+        help="Alias for --bundle.",
+    ),
+    stage: str = typer.Option(..., "--stage", help="DevOps stage (plan, develop, review, release, monitor)."),
+    action: str = typer.Option(..., "--action", help="Action within stage."),
+    verbose: bool = typer.Option(False, "--verbose", help="Show additional diagnostics."),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Non-interactive mode."),
+) -> None:
+    """Run integrated DevOps stage actions for a project bundle."""
+    _refresh_console()
+    normalized_stage = stage.strip().lower()
+    normalized_action = action.strip().lower()
+    if bundle and project_name and bundle != project_name:
+        print_error("If both --bundle and --project-name are provided, values must match.")
+        raise typer.Exit(1)
+
+    if normalized_stage == "monitor" and normalized_action == "health-check":
+        health_check(
+            repo=repo,
+            bundle=bundle,
+            project_name=project_name,
+            verbose=verbose,
+            no_interactive=no_interactive,
+        )
+        return
+
+    supported = {
+        ("plan", "generate-roadmap"),
+        ("develop", "sync"),
+        ("review", "validate-pr"),
+        ("release", "verify"),
+    }
+    if (normalized_stage, normalized_action) not in supported:
+        print_error(f"Unsupported stage/action: {stage}/{action}")
+        print_info(
+            "Supported combinations: "
+            "plan/generate-roadmap, develop/sync, review/validate-pr, release/verify, monitor/health-check"
+        )
+        raise typer.Exit(1)
+
+    resolved_bundle = bundle or project_name
+    bundle_name, bundle_dir = _resolve_bundle(repo, resolved_bundle)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    adapter, project_id, template = _resolve_linked_backlog_config(bundle_obj)
+
+    if normalized_stage == "plan" and normalized_action == "generate-roadmap":
+        roadmap = generate_roadmap(adapter=adapter, project_id=project_id, template=template)
+        table = Table(title="Roadmap (Critical Path)")
+        table.add_column("#", style="cyan")
+        table.add_column("Item", style="green")
+        for index, item_id in enumerate(roadmap, start=1):
+            table.add_row(str(index), item_id)
+        console.print(table)
+        if verbose:
+            print_info(f"Bundle: {bundle_name} | Adapter: {adapter} | Project: {project_id}")
+        return
+
+    if normalized_stage == "develop" and normalized_action == "sync":
+        _ensure_backlog_core_loaded()
+        from backlog_core.commands.sync import sync as backlog_sync
+
+        backlog_sync(
+            project_id=project_id,
+            adapter=adapter,
+            output_format="plan",
+            template=template,
+        )
+        print_success("Develop/sync completed.")
+        return
+
+    if normalized_stage == "review" and normalized_action == "validate-pr":
+        alignment = _run_spec_code_alignment_check(bundle_name=bundle_name, no_interactive=True)
+        references = extract_backlog_references(os.environ.get("PR_BODY", ""))
+        if alignment.get("ok"):
+            print_success("PR validation passed.")
+        else:
+            print_warning(str(alignment.get("summary", "PR validation failed.")))
+        if references:
+            print_info(f"Detected backlog refs: {', '.join(references)}")
+        return
+
+    if normalized_stage == "release" and normalized_action == "verify":
+        readiness = _run_release_readiness_check(adapter=adapter, project_id=project_id, template=template)
+        if not readiness.get("ok"):
+            print_warning(str(readiness.get("summary", "Release readiness blocked.")))
+            raise typer.Exit(1)
+        release_target = extract_release_target(bundle_obj)
+        with suppress(ModuleNotFoundError):
+            _ensure_backlog_core_loaded()
+            from backlog_core.commands.release_notes import generate_release_notes
+
+            notes_path = Path(".specfact/release-notes") / f"{release_target}.md"
+            generate_release_notes(project_id=project_id, adapter=adapter, output=notes_path, template=template)
+        print_success(f"Release verification passed for target '{release_target}'.")
+        return
+
+
+@app.command("snapshot")
+@beartype
+def snapshot(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(None, "--bundle", help="Project bundle name. If omitted, active bundle is used."),
+    project_name: str | None = typer.Option(None, "--project-name", help="Alias for --bundle."),
+    output: Path = typer.Option(
+        Path(".specfact/backlog-baseline.json"),
+        "--output",
+        help="Baseline graph output path",
+    ),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Non-interactive mode."),
+) -> None:
+    """Save current linked backlog graph as baseline snapshot."""
+    _ = no_interactive
+    if bundle and project_name and bundle != project_name:
+        print_error("If both --bundle and --project-name are provided, values must match.")
+        raise typer.Exit(1)
+    bundle_name, bundle_dir = _resolve_bundle(repo, bundle or project_name)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    adapter, project_id, template = _resolve_linked_backlog_config(bundle_obj)
+    graph = _fetch_backlog_graph(adapter=adapter, project_id=project_id, template=template)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(graph.to_json(), encoding="utf-8")
+    print_success(f"Snapshot written for bundle '{bundle_name}': {output}")
+
+
+@app.command("regenerate")
+@beartype
+def regenerate(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(None, "--bundle", help="Project bundle name. If omitted, active bundle is used."),
+    project_name: str | None = typer.Option(None, "--project-name", help="Alias for --bundle."),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Fail when plan/backlog mismatches are detected.",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="Show detailed mismatch entries (default shows only summary).",
+    ),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Non-interactive mode."),
+) -> None:
+    """Re-derive plan state from current bundle and linked backlog graph."""
+    _ = no_interactive
+    if bundle and project_name and bundle != project_name:
+        print_error("If both --bundle and --project-name are provided, values must match.")
+        raise typer.Exit(1)
+    bundle_name, bundle_dir = _resolve_bundle(repo, bundle or project_name)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    adapter, project_id, template = _resolve_linked_backlog_config(bundle_obj)
+    graph = _fetch_backlog_graph(adapter=adapter, project_id=project_id, template=template)
+
+    plan_view = {"items": [str(feature_key) for feature_key in bundle_obj.features if str(feature_key)]}
+    backlog_view = {"items": [str(item_id) for item_id in graph.items]}
+    merged = merge_plans(plan_view, backlog_view)
+    conflicts = find_conflicts(merged)
+
+    print_info(f"Regenerated merged view for bundle '{bundle_name}'.")
+    if conflicts:
+        print_warning(f"Detected {len(conflicts)} plan/backlog mismatches.")
+        if verbose:
+            for conflict in conflicts:
+                print_warning(conflict)
+        if strict:
+            raise typer.Exit(1)
+        return
+    print_success("No plan/backlog conflicts detected.")
+
+
+@app.command("export-roadmap")
+@beartype
+def export_roadmap(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        help="Path to repository",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    bundle: str | None = typer.Option(None, "--bundle", help="Project bundle name. If omitted, active bundle is used."),
+    project_name: str | None = typer.Option(None, "--project-name", help="Alias for --bundle."),
+    output: Path | None = typer.Option(None, "--output", help="Optional roadmap markdown output path."),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Non-interactive mode."),
+) -> None:
+    """Export roadmap milestones from backlog dependency critical path."""
+    _ = no_interactive
+    if bundle and project_name and bundle != project_name:
+        print_error("If both --bundle and --project-name are provided, values must match.")
+        raise typer.Exit(1)
+    bundle_name, bundle_dir = _resolve_bundle(repo, bundle or project_name)
+    bundle_obj = _load_bundle_with_progress(bundle_dir, validate_hashes=False)
+    adapter, project_id, template = _resolve_linked_backlog_config(bundle_obj)
+
+    roadmap = generate_roadmap(adapter=adapter, project_id=project_id, template=template)
+    table = Table(title=f"Roadmap Export: {bundle_name}")
+    table.add_column("#", style="cyan")
+    table.add_column("Milestone", style="green")
+    for index, item_id in enumerate(roadmap, start=1):
+        table.add_row(str(index), item_id)
+    console.print(table)
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        lines = ["# Roadmap", "", f"- Bundle: {bundle_name}", ""]
+        lines.extend([f"{idx}. {item}" for idx, item in enumerate(roadmap, start=1)])
+        lines.append("")
+        output.write_text("\n".join(lines), encoding="utf-8")
+        print_success(f"Roadmap written: {output}")
 
 
 @beartype

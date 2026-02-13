@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import click
 import typer
 import yaml
 from beartype import beartype
@@ -34,6 +35,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Confirm
 from rich.table import Table
+from typer.core import TyperGroup
 
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.backlog.adapters.base import BacklogAdapter
@@ -49,10 +51,59 @@ from specfact_cli.runtime import debug_log_operation, is_debug_mode
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
+class _BacklogCommandGroup(TyperGroup):
+    """Stable, impact-oriented ordering for backlog subcommands in help output."""
+
+    _ORDER_PRIORITY: dict[str, int] = {
+        # Ceremony and analytical groups first for discoverability.
+        "ceremony": 10,
+        "delta": 20,
+        # Core high-impact workflow actions.
+        "sync": 30,
+        "verify-readiness": 40,
+        "analyze-deps": 50,
+        "diff": 60,
+        "promote": 70,
+        "generate-release-notes": 80,
+        "trace-impact": 90,
+        # Compatibility / lower-frequency commands later.
+        "refine": 100,
+        "daily": 110,
+        "map-fields": 120,
+    }
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        commands = list(super().list_commands(ctx))
+        return sorted(commands, key=lambda name: (self._ORDER_PRIORITY.get(name, 1000), name))
+
+
+class _CeremonyCommandGroup(TyperGroup):
+    """Stable ordering for backlog ceremony subcommands."""
+
+    _ORDER_PRIORITY: dict[str, int] = {
+        "standup": 10,
+        "refinement": 20,
+        "planning": 30,
+        "flow": 40,
+        "pi-summary": 50,
+    }
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        commands = list(super().list_commands(ctx))
+        return sorted(commands, key=lambda name: (self._ORDER_PRIORITY.get(name, 1000), name))
+
+
 app = typer.Typer(
     name="backlog",
     help="Backlog refinement and template management",
     context_settings={"help_option_names": ["-h", "--help"]},
+    cls=_BacklogCommandGroup,
+)
+ceremony_app = typer.Typer(
+    name="ceremony",
+    help="Ceremony-oriented backlog workflows",
+    context_settings={"help_option_names": ["-h", "--help"]},
+    cls=_CeremonyCommandGroup,
 )
 console = Console()
 
@@ -118,6 +169,155 @@ def validate_bundle(bundle: ProjectBundle, rules: dict[str, Any]) -> ValidationR
         report.summary["failed"] += 1
         report.summary["passed"] = max(report.summary["passed"] - 1, 0)
     return report
+
+
+@beartype
+def _invoke_backlog_subcommand(subcommand_name: str, args: list[str]) -> None:
+    """Invoke an existing backlog subcommand with forwarded args."""
+    from typer.main import get_command
+
+    click_group = get_command(app)
+    if not isinstance(click_group, click.Group):
+        raise typer.Exit(code=1)
+    group_ctx = click.Context(click_group)
+    subcommand = click_group.get_command(group_ctx, subcommand_name)
+    if subcommand is None:
+        raise typer.Exit(code=1)
+    exit_code = subcommand.main(
+        args=args,
+        prog_name=f"specfact backlog {subcommand_name}",
+        standalone_mode=False,
+    )
+    if exit_code and exit_code != 0:
+        raise typer.Exit(code=int(exit_code))
+
+
+@beartype
+def _backlog_subcommand_exists(subcommand_name: str) -> bool:
+    """Return True when a backlog subcommand is currently registered."""
+    from typer.main import get_command
+
+    click_group = get_command(app)
+    if not isinstance(click_group, click.Group):
+        return False
+    group_ctx = click.Context(click_group)
+    return click_group.get_command(group_ctx, subcommand_name) is not None
+
+
+@beartype
+def _forward_mode_if_supported(subcommand_name: str, mode: str, forwarded: list[str]) -> list[str]:
+    """Append `--mode` only when delegated subcommand supports it."""
+    from typer.main import get_command
+
+    click_group = get_command(app)
+    if not isinstance(click_group, click.Group):
+        return forwarded
+    group_ctx = click.Context(click_group)
+    subcommand = click_group.get_command(group_ctx, subcommand_name)
+    if subcommand is None:
+        return forwarded
+    supports_mode = any(
+        isinstance(param, click.Option) and "--mode" in param.opts for param in getattr(subcommand, "params", [])
+    )
+    if supports_mode:
+        return [*forwarded, "--mode", mode]
+    return forwarded
+
+
+@beartype
+def _invoke_optional_ceremony_delegate(
+    candidate_subcommands: list[str],
+    args: list[str],
+    *,
+    ceremony_name: str,
+) -> None:
+    """Invoke first available delegate command, otherwise fail with a clear message."""
+    for subcommand_name in candidate_subcommands:
+        if _backlog_subcommand_exists(subcommand_name):
+            _invoke_backlog_subcommand(subcommand_name, args)
+            return
+    targets = ", ".join(candidate_subcommands)
+    console.print(
+        f"[yellow]`backlog ceremony {ceremony_name}` requires an installed backlog module "
+        f"providing one of: {targets}[/yellow]"
+    )
+    raise typer.Exit(code=2)
+
+
+@beartype
+@ceremony_app.command(
+    "standup",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def ceremony_standup(
+    ctx: typer.Context,
+    adapter: str = typer.Argument(..., help="Backlog adapter name (github, ado, etc.)"),
+    mode: str = typer.Option("scrum", "--mode", help="Ceremony mode (default: scrum)"),
+) -> None:
+    """Ceremony alias for `backlog daily`."""
+    forwarded = _forward_mode_if_supported("daily", mode, [adapter])
+    _invoke_backlog_subcommand("daily", [*forwarded, *ctx.args])
+
+
+@beartype
+@ceremony_app.command(
+    "refinement",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def ceremony_refinement(
+    ctx: typer.Context,
+    adapter: str = typer.Argument(..., help="Backlog adapter name (github, ado, etc.)"),
+) -> None:
+    """Ceremony alias for `backlog refine`."""
+    _invoke_backlog_subcommand("refine", [adapter, *ctx.args])
+
+
+@beartype
+@ceremony_app.command(
+    "planning",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def ceremony_planning(
+    ctx: typer.Context,
+    adapter: str = typer.Argument(..., help="Backlog adapter name (github, ado, etc.)"),
+    mode: str = typer.Option("scrum", "--mode", help="Ceremony mode (default: scrum)"),
+) -> None:
+    """Ceremony alias for backlog planning/sprint summary views."""
+    delegate = "sprint-summary"
+    forwarded = _forward_mode_if_supported(delegate, mode, [adapter])
+    _invoke_optional_ceremony_delegate([delegate], [*forwarded, *ctx.args], ceremony_name="planning")
+
+
+@beartype
+@ceremony_app.command(
+    "flow",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def ceremony_flow(
+    ctx: typer.Context,
+    adapter: str = typer.Argument(..., help="Backlog adapter name (github, ado, etc.)"),
+    mode: str = typer.Option("kanban", "--mode", help="Ceremony mode (default: kanban)"),
+) -> None:
+    """Ceremony alias for backlog flow-oriented views."""
+    delegate = "flow"
+    forwarded = _forward_mode_if_supported(delegate, mode, [adapter])
+    _invoke_optional_ceremony_delegate([delegate], [*forwarded, *ctx.args], ceremony_name="flow")
+
+
+@beartype
+@ceremony_app.command(
+    "pi-summary",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def ceremony_pi_summary(
+    ctx: typer.Context,
+    adapter: str = typer.Argument(..., help="Backlog adapter name (github, ado, etc.)"),
+    mode: str = typer.Option("safe", "--mode", help="Ceremony mode (default: safe)"),
+) -> None:
+    """Ceremony alias for backlog PI summary views."""
+    delegate = "pi-summary"
+    forwarded = _forward_mode_if_supported(delegate, mode, [adapter])
+    _invoke_optional_ceremony_delegate([delegate], [*forwarded, *ctx.args], ceremony_name="pi-summary")
 
 
 def _apply_filters(
@@ -2090,6 +2290,8 @@ def daily(
     """
     Show daily standup view: list my/filtered backlog items with status and last activity.
 
+    Preferred ceremony entrypoint: `specfact backlog ceremony standup`.
+
     Optional standup summary lines (yesterday/today/blockers) are shown when present in item body.
     Use --post with --yesterday, --today, --blockers to post a standup comment to the first item's linked issue
     (only when the adapter supports comments, e.g. GitHub).
@@ -2375,6 +2577,9 @@ def daily(
             )
 
 
+app.add_typer(ceremony_app, name="ceremony", help="Ceremony-oriented backlog workflows")
+
+
 @beartype
 @app.command()
 @require(
@@ -2526,6 +2731,8 @@ def refine(
 ) -> None:
     """
     Refine backlog items using AI-assisted template matching.
+
+    Preferred ceremony entrypoint: `specfact backlog ceremony refinement`.
 
     This command:
     1. Fetches backlog items from the specified adapter

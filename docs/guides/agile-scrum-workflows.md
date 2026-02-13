@@ -8,13 +8,15 @@ permalink: /guides/agile-scrum-workflows/
 
 This guide explains how to use SpecFact CLI for agile/scrum workflows, including backlog management, sprint planning, dependency tracking, and Definition of Ready (DoR) validation.
 
+Preferred command paths are `specfact backlog ceremony standup ...` and `specfact backlog ceremony refinement ...`. Legacy `backlog daily`/`backlog refine` remain available for compatibility.
+
 ## Overview
 
 SpecFact CLI supports real-world agile/scrum practices through:
 
 - **Definition of Ready (DoR)**: Automatic validation of story readiness for sprint planning
 - **Backlog Refinement** 🆕: AI-assisted template-driven refinement for standardizing work items from DevOps backlogs
-- **Daily Standup**: Use `specfact backlog daily <adapter>` to list my/filtered items with status and last activity.
+- **Daily Standup**: Use `specfact backlog ceremony standup <adapter>` to list my/filtered items with status and last activity.
   Default scope (state=open, limit=20, optional assignee=me) is applied when not overridden; configure via
   `SPECFACT_STANDUP_STATE`, `SPECFACT_STANDUP_LIMIT`, `SPECFACT_STANDUP_ASSIGNEE` or
   `.specfact/standup.yaml`. Use `--iteration` / `--sprint` (e.g. `--sprint current`) to focus on current
@@ -48,13 +50,13 @@ SpecFact CLI supports real-world agile/scrum practices through:
 - **Business Value Focus**: User-focused value statements and measurable outcomes
 - **Conflict Resolution**: Persona-aware three-way merge with automatic conflict resolution based on section ownership
 
-**🆕 NEW: Backlog Refinement Integration** - Use `specfact backlog refine` to standardize backlog items from GitHub Issues, Azure DevOps, and other tools into template-compliant format before importing into project bundles. See [Backlog Refinement Guide](backlog-refinement.md) for complete documentation.
+**🆕 NEW: Backlog Refinement Integration** - Use `specfact backlog ceremony refinement` to standardize backlog items from GitHub Issues, Azure DevOps, and other tools into template-compliant format before importing into project bundles. See [Backlog Refinement Guide](backlog-refinement.md) for complete documentation.
 
 **Tutorial**: For an end-to-end daily standup and sprint review walkthrough (auto-detect repo, view standup, post comment, interactive, Copilot export), see **[Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)**.
 
 ## Daily Standup and Sprint Review
 
-Use **`specfact backlog daily <adapter>`** to list your standup items (assigned + unassigned) with status and last activity. **By default, GitHub org/repo or Azure DevOps org/project are auto-detected from the git remote** when you run from your cloned repo—no `--repo-owner`/`--repo-name` or `--ado-org`/`--ado-project` needed after authenticating once.
+Use **`specfact backlog ceremony standup <adapter>`** to list your standup items (assigned + unassigned) with status and last activity. **By default, GitHub org/repo or Azure DevOps org/project are auto-detected from the git remote** when you run from your cloned repo—no `--repo-owner`/`--repo-name` or `--ado-org`/`--ado-project` needed after authenticating once.
 
 ### Auto-Detect from Clone
 
@@ -71,22 +73,22 @@ specfact auth github
 
 # 2. From repo root: view standup (repo auto-detected)
 cd /path/to/your-repo
-specfact backlog daily github
+specfact backlog ceremony standup github
 
 # 3. Optional: post standup comment to first item (pass values for yesterday/today/blockers)
-specfact backlog daily github \
+specfact backlog ceremony standup github \
   --yesterday "Worked on X" \
   --today "Will do Y" \
   --blockers "None" \
   --post
 
 # 4. Optional: interactive step-through, Copilot export, or standup summary prompt
-specfact backlog daily github --interactive   # step-through; detail view shows latest comment + hidden-count hint
+specfact backlog ceremony standup github --interactive   # step-through; detail view shows latest comment + hidden-count hint
 # or
-specfact backlog daily github --copilot-export ./standup.md --comments --last-comments 5
+specfact backlog ceremony standup github --copilot-export ./standup.md --comments --last-comments 5
 # or
-specfact backlog daily github --summarize --comments     # prompt to stdout for AI to generate standup summary
-specfact backlog daily github --summarize-to ./standup-prompt.md
+specfact backlog ceremony standup github --summarize --comments     # prompt to stdout for AI to generate standup summary
+specfact backlog ceremony standup github --summarize-to ./standup-prompt.md
 ```
 
 Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the
@@ -95,8 +97,8 @@ scope: **state=open**, **limit=20**; configure via `SPECFACT_STANDUP_*` or `.spe
 `--assignee me`, `--sprint current`, `--blockers-first`, `--interactive`, `--suggest-next`,
 `--copilot-export <path>`, `--summarize`, `--summarize-to <path>`, `--comments`/`--annotations`, and optional
 `--first-comments`/`--last-comments` plus `--first-issues`/`--last-issues` as well as global filters
-`--search`, `--release`, and `--id` to narrow scope consistently with backlog refine
-needed. See [Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)
+`--search`, `--release`, and `--id` to narrow scope consistently with backlog ceremony refinement.
+See [Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)
 for the full walkthrough.
 
 ## Persona-Based Workflows
@@ -557,7 +559,7 @@ When refining backlog items from DevOps tools, you can validate DoR rules before
 
 ```bash
 # Check DoR before refining backlog items
-specfact backlog refine github --check-dor --labels feature
+specfact backlog ceremony refinement github --check-dor --labels feature
 
 # DoR configuration in .specfact/dor.yaml
 rules:
@@ -738,13 +740,13 @@ Before sprint planning, refine backlog items from DevOps tools (GitHub Issues, A
 
 ```bash
 # Refine GitHub issues in current sprint
-specfact backlog refine github --sprint "Sprint 1" --check-dor --labels feature
+specfact backlog ceremony refinement github --sprint "Sprint 1" --check-dor --labels feature
 
 # Refine ADO work items with DoR validation
-specfact backlog refine ado --iteration "Project\\Sprint 1" --check-dor --state Active
+specfact backlog ceremony refinement ado --iteration "Project\\Sprint 1" --check-dor --state Active
 
 # Use persona/framework filtering for role-specific templates
-specfact backlog refine github --persona product-owner --framework scrum --sprint "Sprint 1"
+specfact backlog ceremony refinement github --persona product-owner --framework scrum --sprint "Sprint 1"
 ```
 
 **Benefits**:

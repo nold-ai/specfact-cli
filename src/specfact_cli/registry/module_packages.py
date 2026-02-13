@@ -12,6 +12,8 @@ from __future__ import annotations
 import ast
 import importlib
 import importlib.util
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -63,12 +65,72 @@ PROTOCOL_INTERFACE_BINDINGS: tuple[str, ...] = ("runtime_interface", "commands_i
 BRIDGE_REGISTRY = BridgeRegistry()
 
 
+def _normalized_module_name(package_name: str) -> str:
+    """Normalize package ids to Python import-friendly module names."""
+    return package_name.replace("-", "_")
+
+
 def get_modules_root() -> Path:
     """Return the modules root path (specfact_cli package dir / modules)."""
     import specfact_cli
 
     pkg_dir = Path(specfact_cli.__path__[0]).resolve()
     return pkg_dir / "modules"
+
+
+def get_modules_roots() -> list[Path]:
+    """Return all module discovery roots in priority order."""
+    roots: list[Path] = []
+    seen: set[Path] = set()
+
+    def _add_root(path: Path) -> None:
+        resolved = path.resolve()
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        roots.append(path)
+
+    # Core packaged modules.
+    _add_root(get_modules_root())
+
+    # Workspace-level modules to support externalized module development.
+    repo_modules_root = Path(__file__).resolve().parents[3] / "modules"
+    if repo_modules_root.exists():
+        _add_root(repo_modules_root)
+
+    # Optional extra roots for custom module locations.
+    extra_roots = os.environ.get("SPECFACT_MODULES_ROOTS", "")
+    for raw_root in extra_roots.split(os.pathsep):
+        candidate = raw_root.strip()
+        if not candidate:
+            continue
+        candidate_path = Path(candidate).expanduser()
+        if candidate_path.exists():
+            _add_root(candidate_path)
+
+    return roots
+
+
+@beartype
+def discover_all_package_metadata() -> list[tuple[Path, ModulePackageMetadata]]:
+    """Discover module package metadata across all configured roots."""
+    discovered: list[tuple[Path, ModulePackageMetadata]] = []
+    seen_names: set[str] = set()
+    logger = get_bridge_logger(__name__)
+
+    for modules_root in get_modules_roots():
+        for package_dir, meta in discover_package_metadata(modules_root):
+            if meta.name in seen_names:
+                logger.warning(
+                    "Duplicate module package name '%s' found at '%s'; keeping first occurrence.",
+                    meta.name,
+                    package_dir,
+                )
+                continue
+            seen_names.add(meta.name)
+            discovered.append((package_dir, meta))
+
+    return discovered
 
 
 def _package_sort_key(item: tuple[Path, ModulePackageMetadata]) -> tuple[int, str]:
@@ -287,38 +349,134 @@ def expand_enable_with_dependencies(
     return list(expanded)
 
 
-def _make_package_loader(package_dir: Path, package_name: str, _command_name: str) -> Any:
+def _make_package_loader(package_dir: Path, package_name: str, command_name: str) -> Any:
     """Return a callable that loads the package's app (from src/app.py or src/<name>/__init__.py)."""
 
     def loader() -> Any:
         src_dir = package_dir / "src"
         if not src_dir.exists():
             raise ValueError(f"Package {package_dir.name} has no src/")
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+        normalized_name = _normalized_module_name(package_name)
         load_path: Path | None = None
         if (src_dir / "app.py").exists():
             load_path = src_dir / "app.py"
-        elif (src_dir / f"{package_name}.py").exists():
-            load_path = src_dir / f"{package_name}.py"
-        elif (src_dir / package_name / "__init__.py").exists():
-            load_path = src_dir / package_name / "__init__.py"
+        elif (src_dir / f"{normalized_name}.py").exists():
+            load_path = src_dir / f"{normalized_name}.py"
+        elif (src_dir / normalized_name / "__init__.py").exists():
+            load_path = src_dir / normalized_name / "__init__.py"
         if load_path is None:
             raise ValueError(
                 f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/"
             )
         submodule_locations = [str(load_path.parent)] if load_path.name == "__init__.py" else None
+        module_token = _normalized_module_name(package_dir.name)
         spec = importlib.util.spec_from_file_location(
-            f"specfact_cli.modules.{package_dir.name}.app",
+            f"_specfact_module_{module_token}",
             load_path,
             submodule_search_locations=submodule_locations,
         )
         if spec is None or spec.loader is None:
             raise ValueError(f"Cannot load from {package_dir.name}")
         mod = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = mod
         spec.loader.exec_module(mod)
-        app = getattr(mod, "app", None)
+        command_attr = f"{_normalized_module_name(command_name)}_app"
+        app = getattr(mod, command_attr, None)
         if app is None:
-            raise ValueError(f"Package {package_dir.name} has no 'app' attribute")
+            app = getattr(mod, "app", None)
+        if app is None:
+            raise ValueError(f"Package {package_dir.name} has no '{command_attr}' or 'app' attribute")
         return app
+
+    return loader
+
+
+def _command_info_name(command_info: Any) -> str:
+    """Return a stable command name from Typer command info."""
+    explicit_name = getattr(command_info, "name", None)
+    if isinstance(explicit_name, str) and explicit_name:
+        return explicit_name
+    callback = getattr(command_info, "callback", None)
+    callback_name = getattr(callback, "__name__", "")
+    return callback_name.replace("_", "-") if callback_name else ""
+
+
+@beartype
+def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
+    """Merge extension Typer commands/groups into an existing root Typer app."""
+    logger = get_bridge_logger(__name__)
+    if not hasattr(base_app, "registered_commands") or not hasattr(extension_app, "registered_commands"):
+        logger.warning(
+            "Module %s attempted to extend command '%s' with a non-Typer app; skipping extension.",
+            owner_module,
+            command_name,
+        )
+        return
+
+    existing_command_names = {
+        _command_info_name(command_info) for command_info in getattr(base_app, "registered_commands", [])
+    }
+    for command_info in getattr(extension_app, "registered_commands", []):
+        subcommand_name = _command_info_name(command_info)
+        if not subcommand_name:
+            continue
+        if subcommand_name in existing_command_names:
+            logger.warning(
+                "Module %s attempted to extend command '%s' with duplicate subcommand '%s'; skipping duplicate.",
+                owner_module,
+                command_name,
+                subcommand_name,
+            )
+            continue
+        base_app.registered_commands.append(command_info)
+        existing_command_names.add(subcommand_name)
+
+    if not hasattr(base_app, "registered_groups") or not hasattr(extension_app, "registered_groups"):
+        return
+
+    existing_groups = {getattr(group_info, "name", ""): group_info for group_info in base_app.registered_groups}
+    for group_info in extension_app.registered_groups:
+        group_name = getattr(group_info, "name", "") or ""
+        if not group_name:
+            continue
+        if group_name in existing_groups:
+            existing_group = existing_groups[group_name]
+            existing_subapp = getattr(existing_group, "typer_instance", None)
+            extension_subapp = getattr(group_info, "typer_instance", None)
+            if existing_subapp is not None and extension_subapp is not None:
+                _merge_typer_apps(
+                    existing_subapp,
+                    extension_subapp,
+                    owner_module,
+                    f"{command_name} {group_name}",
+                )
+                continue
+            logger.warning(
+                "Module %s attempted to extend subgroup '%s %s' but merger target was invalid; skipping duplicate.",
+                owner_module,
+                command_name,
+                group_name,
+            )
+            continue
+        base_app.registered_groups.append(group_info)
+        existing_groups[group_name] = group_info
+
+
+def _make_extending_loader(
+    base_loader: Any,
+    extension_loader: Any,
+    owner_module: str,
+    command_name: str,
+) -> Any:
+    """Create a loader that merges an extension Typer app into an existing command app."""
+
+    def loader() -> Any:
+        base_app = base_loader()
+        extension_app = extension_loader()
+        _merge_typer_apps(base_app, extension_app, owner_module, command_name)
+        return base_app
 
     return loader
 
@@ -328,27 +486,33 @@ def _resolve_package_load_path(package_dir: Path, package_name: str) -> Path:
     src_dir = package_dir / "src"
     if not src_dir.exists():
         raise ValueError(f"Package {package_dir.name} has no src/")
+    normalized_name = _normalized_module_name(package_name)
     if (src_dir / "app.py").exists():
         return src_dir / "app.py"
-    if (src_dir / f"{package_name}.py").exists():
-        return src_dir / f"{package_name}.py"
-    if (src_dir / package_name / "__init__.py").exists():
-        return src_dir / package_name / "__init__.py"
+    if (src_dir / f"{normalized_name}.py").exists():
+        return src_dir / f"{normalized_name}.py"
+    if (src_dir / normalized_name / "__init__.py").exists():
+        return src_dir / normalized_name / "__init__.py"
     raise ValueError(f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/")
 
 
 def _load_package_module(package_dir: Path, package_name: str) -> Any:
     """Load and return a module package entrypoint module."""
+    src_dir = package_dir / "src"
+    if str(src_dir) not in sys.path:
+        sys.path.insert(0, str(src_dir))
     load_path = _resolve_package_load_path(package_dir, package_name)
     submodule_locations = [str(load_path.parent)] if load_path.name == "__init__.py" else None
+    module_token = _normalized_module_name(package_dir.name)
     spec = importlib.util.spec_from_file_location(
-        f"specfact_cli.modules.{package_dir.name}.app",
+        f"_specfact_module_{module_token}",
         load_path,
         submodule_search_locations=submodule_locations,
     )
     if spec is None or spec.loader is None:
         raise ValueError(f"Cannot load from {package_dir.name}")
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 
@@ -386,9 +550,10 @@ def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
 
 def _resolve_protocol_source_paths(package_dir: Path, package_name: str) -> list[Path]:
     """Resolve source file paths for protocol compliance inspection without importing module code."""
+    normalized_name = _normalized_module_name(package_name)
     candidates = [
         package_dir / "src" / "commands.py",
-        package_dir / "src" / package_name / "commands.py",
+        package_dir / "src" / normalized_name / "commands.py",
         _resolve_package_load_path(package_dir, package_name),
     ]
     unique_paths: list[Path] = []
@@ -410,6 +575,7 @@ def _resolve_import_from_source_path(
     """Resolve local file path for `from ... import ...` nodes used by protocol interface bindings."""
     module_name = node.module or ""
 
+    normalized_name = _normalized_module_name(package_name)
     if node.level > 0:
         base_dir = source_path.parent
         for _ in range(node.level - 1):
@@ -418,10 +584,10 @@ def _resolve_import_from_source_path(
     else:
         src_dir = package_dir / "src"
         base_dir = src_dir
-        if module_name.startswith(f"specfact_cli.modules.{package_name}.src."):
-            module_name = module_name.removeprefix(f"specfact_cli.modules.{package_name}.src.")
-        elif module_name.startswith(f"{package_name}."):
-            module_name = module_name.removeprefix(f"{package_name}.")
+        if module_name.startswith(f"specfact_cli.modules.{normalized_name}.src."):
+            module_name = module_name.removeprefix(f"specfact_cli.modules.{normalized_name}.src.")
+        elif module_name.startswith(f"{normalized_name}."):
+            module_name = module_name.removeprefix(f"{normalized_name}.")
         module_parts = module_name.split(".") if module_name else []
 
     candidate_base = base_dir.joinpath(*module_parts) if module_parts else base_dir
@@ -551,8 +717,7 @@ def register_module_package_commands(
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
-    modules_root = get_modules_root()
-    packages = discover_package_metadata(modules_root)
+    packages = discover_all_package_metadata()
     packages = sorted(packages, key=_package_sort_key)
     if not packages:
         return
@@ -646,6 +811,26 @@ def register_module_package_commands(
             protocol_legacy += 1
 
         for cmd_name in meta.commands:
+            existing_entry = next((entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name), None)
+            if existing_entry is not None:
+                extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
+                base_loader = existing_entry.get("loader")
+                if base_loader is None:
+                    logger.warning(
+                        "Module %s attempted to extend command '%s' but base loader was missing; skipping.",
+                        meta.name,
+                        cmd_name,
+                    )
+                    continue
+                existing_entry["loader"] = _make_extending_loader(
+                    base_loader,
+                    extension_loader,
+                    meta.name,
+                    cmd_name,
+                )
+                CommandRegistry._typer_cache.pop(cmd_name, None)
+                logger.info("Module %s extended command group '%s'.", meta.name, cmd_name)
+                continue
             help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
             loader = _make_package_loader(package_dir, meta.name, cmd_name)
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
@@ -685,8 +870,7 @@ def get_discovered_modules_for_state(
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
-    modules_root = get_modules_root()
-    packages = discover_package_metadata(modules_root)
+    packages = discover_all_package_metadata()
     packages = sorted(packages, key=_package_sort_key)
     discovered_list = [(meta.name, meta.version) for _dir, meta in packages]
     state = read_modules_state()
