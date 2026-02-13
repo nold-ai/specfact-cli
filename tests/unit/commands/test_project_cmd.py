@@ -1024,6 +1024,70 @@ class TestProjectHealthCheck:
         assert "Spec-Code Alignment" in result.stdout
         assert "Release Readiness" in result.stdout
 
+    def test_health_check_passes_repo_to_spec_alignment(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """health-check forwards --repo path to spec-code alignment helper."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        observed_repo: list[Path] = []
+
+        def _fake_alignment(*_args, **kwargs) -> dict[str, object]:
+            observed_repo.append(kwargs["repo"])
+            return {"ok": True, "summary": "alignment-ok"}
+
+        monkeypatch.setattr(
+            project_commands,
+            "_collect_backlog_health_metrics",
+            lambda *_args, **_kwargs: {
+                "total_items": 1,
+                "properly_typed": 1,
+                "properly_typed_pct": 100.0,
+                "with_dependencies": 0,
+                "orphan_count": 0,
+                "cycle_count": 0,
+            },
+        )
+        monkeypatch.setattr(project_commands, "_run_spec_code_alignment_check", _fake_alignment)
+        monkeypatch.setattr(
+            project_commands,
+            "_run_release_readiness_check",
+            lambda *_args, **_kwargs: {"ok": True, "summary": "release-ready"},
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "health-check",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert observed_repo == [repo_path]
+
 
 class TestProjectDevOpsFlow:
     """Tests for project devops-flow command."""
@@ -1189,6 +1253,60 @@ class TestProjectDevOpsFlow:
         )
         assert result.exit_code == 0
         assert calls
+
+    def test_devops_flow_validate_pr_fails_when_alignment_fails(
+        self, sample_bundle: tuple[Path, str], monkeypatch
+    ) -> None:
+        """devops-flow review/validate-pr exits non-zero on alignment failure."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        observed_repo: list[Path] = []
+
+        def _fake_alignment(*_args, **kwargs) -> dict[str, object]:
+            observed_repo.append(kwargs["repo"])
+            return {"ok": False, "summary": "alignment-failed"}
+
+        monkeypatch.setattr(project_commands, "_run_spec_code_alignment_check", _fake_alignment)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "devops-flow",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--stage",
+                "review",
+                "--action",
+                "validate-pr",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "alignment-failed" in result.stdout
+        assert observed_repo == [repo_path]
 
 
 class TestProjectBacklogDerivedCommands:

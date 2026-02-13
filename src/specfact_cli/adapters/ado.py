@@ -3142,9 +3142,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Fetch all ADO work items as provider-agnostic dictionaries for graph building."""
-        _ = project_id
-        backlog_filters = BacklogFilters(**(filters or {}))
-        return [item.model_dump() for item in self.fetch_backlog_items(backlog_filters)]
+        original_org = self.org
+        original_project = self.project
+        self.org, self.project = self._resolve_graph_project_context(project_id)
+        try:
+            backlog_filters = BacklogFilters(**(filters or {}))
+            return [item.model_dump() for item in self.fetch_backlog_items(backlog_filters)]
+        finally:
+            self.org = original_org
+            self.project = original_project
 
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
@@ -3201,6 +3207,29 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     _add_edge(item_id, target_id, "relates")
 
         return relationships
+
+    @beartype
+    @require(
+        lambda project_id: isinstance(project_id, str) and len(project_id.strip()) > 0, "project_id must be non-empty"
+    )
+    @ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (org, project) tuple")
+    def _resolve_graph_project_context(self, project_id: str) -> tuple[str, str]:
+        """Resolve org/project context for graph APIs from linked project_id and adapter defaults."""
+        normalized = project_id.strip()
+        if "/" in normalized:
+            org, project = normalized.split("/", 1)
+            resolved_org = org.strip()
+            resolved_project = project.strip()
+            if resolved_org and resolved_project:
+                return resolved_org, resolved_project
+            raise ValueError(f"Invalid ADO project_id format: {project_id!r}. Expected '<org>/<project>'.")
+
+        # Backward compatibility: allow project-only identifiers when adapter org already exists.
+        if self.org:
+            return self.org, normalized
+        raise ValueError(
+            f"ADO project_id '{project_id}' missing organization. Use '<org>/<project>' or configure adapter org."
+        )
 
     @beartype
     @ensure(lambda result: isinstance(result, str), "Work item id extraction must return str")

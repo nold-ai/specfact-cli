@@ -366,6 +366,31 @@ class TestAdoBacklogAdapter:
         assert filtered[0].id == "1"
 
     @beartype
+    def test_fetch_all_issues_uses_project_id_context_and_restores_adapter_state(self, monkeypatch) -> None:
+        """fetch_all_issues should scope graph reads to project_id without mutating adapter defaults."""
+        adapter = AdoAdapter(org="default-org", project="default-project", api_token="token")
+        observed_context: list[tuple[str | None, str | None]] = []
+
+        def _fake_fetch(_filters: BacklogFilters) -> list[BacklogItem]:
+            observed_context.append((adapter.org, adapter.project))
+            return []
+
+        monkeypatch.setattr(adapter, "fetch_backlog_items", _fake_fetch)
+
+        result = adapter.fetch_all_issues("linked-org/linked-project")
+        assert result == []
+        assert observed_context == [("linked-org", "linked-project")]
+        assert adapter.org == "default-org"
+        assert adapter.project == "default-project"
+
+    @beartype
+    def test_fetch_all_issues_rejects_project_only_id_when_org_missing(self) -> None:
+        """fetch_all_issues should reject project-only ids when adapter org is unset."""
+        adapter = AdoAdapter(org=None, project="default-project", api_token="token")
+        with pytest.raises(ValueError, match="missing organization"):
+            adapter.fetch_all_issues("project-only")
+
+    @beartype
     def test_auth_headers_basic_pat(self) -> None:
         """Test _auth_headers with PAT token (basic auth)."""
         adapter = AdoAdapter(org="test", project="project", api_token="pat-token")

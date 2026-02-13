@@ -254,11 +254,19 @@ def _collect_backlog_health_metrics(adapter: str, project_id: str, template: str
 
 @beartype
 @ensure(lambda result: isinstance(result, dict), "Spec-code check result must be a dict")
-def _run_spec_code_alignment_check(bundle_name: str, no_interactive: bool = True) -> dict[str, Any]:
+def _run_spec_code_alignment_check(
+    bundle_name: str,
+    no_interactive: bool = True,
+    repo: Path | None = None,
+) -> dict[str, Any]:
     """Run enforce.sdd as spec-code alignment check and return status summary."""
+    previous_cwd = Path.cwd()
     try:
         import click
         from typer.main import get_command
+
+        if repo is not None:
+            os.chdir(repo)
 
         enforce_app = CommandRegistry.get_typer("enforce")
         click_group = get_command(enforce_app)
@@ -288,6 +296,9 @@ def _run_spec_code_alignment_check(bundle_name: str, no_interactive: bool = True
         return {"ok": False, "summary": f"enforce.sdd failed (exit {code})"}
     except Exception as exc:
         return {"ok": False, "summary": f"enforce.sdd error: {exc}"}
+    finally:
+        if repo is not None:
+            os.chdir(previous_cwd)
 
 
 @beartype
@@ -469,7 +480,7 @@ def health_check(
     table.add_row("Cycles", str(cycle_count))
     console.print(table)
 
-    spec_alignment = _run_spec_code_alignment_check(bundle_name=bundle_name, no_interactive=True)
+    spec_alignment = _run_spec_code_alignment_check(bundle_name=bundle_name, no_interactive=True, repo=repo)
     release_readiness = _run_release_readiness_check(adapter=adapter, project_id=project_id, template=template)
 
     checks_table = Table(title="Cross Checks")
@@ -582,12 +593,13 @@ def devops_flow(
         return
 
     if normalized_stage == "review" and normalized_action == "validate-pr":
-        alignment = _run_spec_code_alignment_check(bundle_name=bundle_name, no_interactive=True)
+        alignment = _run_spec_code_alignment_check(bundle_name=bundle_name, no_interactive=True, repo=repo)
         references = extract_backlog_references(os.environ.get("PR_BODY", ""))
         if alignment.get("ok"):
             print_success("PR validation passed.")
         else:
             print_warning(str(alignment.get("summary", "PR validation failed.")))
+            raise typer.Exit(1)
         if references:
             print_info(f"Detected backlog refs: {', '.join(references)}")
         return
@@ -603,7 +615,11 @@ def devops_flow(
             from backlog_core.commands.release_notes import generate_release_notes
 
             notes_path = Path(".specfact/release-notes") / f"{release_target}.md"
-            generate_release_notes(project_id=project_id, adapter=adapter, output=notes_path, template=template)
+            try:
+                generate_release_notes(project_id=project_id, adapter=adapter, output=notes_path, template=template)
+            except Exception as exc:
+                # Release verification must not fail due to optional release-notes generation.
+                print_warning(f"Release notes generation skipped: {exc}")
         print_success(f"Release verification passed for target '{release_target}'.")
         return
 
