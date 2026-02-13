@@ -59,6 +59,7 @@ from specfact_cli.modes import OperationalMode, detect_mode
 # Command groups are registered via CommandRegistry (bootstrap); no top-level command imports.
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
+from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.runtime import get_configured_console, init_debug_log_file, set_debug_mode
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
@@ -521,7 +522,36 @@ def _patch_typer_build() -> None:
 
 register_builtin_commands()
 _patch_typer_build()
-for _name, _meta in CommandRegistry.list_commands_for_help():
+
+
+def _grouped_command_order(
+    commands: list[tuple[str, CommandMetadata]],
+) -> list[tuple[str, CommandMetadata]]:
+    """Keep registration order while grouping extension commands after their base group."""
+    names = {name for name, _meta in commands}
+    base_commands: list[tuple[str, CommandMetadata]] = []
+    extension_by_base: dict[str, list[tuple[str, CommandMetadata]]] = {}
+    orphan_extensions: list[tuple[str, CommandMetadata]] = []
+
+    for name, meta in commands:
+        if "-" not in name:
+            base_commands.append((name, meta))
+            continue
+        base_name = name.split("-", 1)[0]
+        if base_name in names:
+            extension_by_base.setdefault(base_name, []).append((name, meta))
+        else:
+            orphan_extensions.append((name, meta))
+
+    ordered: list[tuple[str, CommandMetadata]] = []
+    for name, meta in base_commands:
+        ordered.append((name, meta))
+        ordered.extend(extension_by_base.get(name, []))
+    ordered.extend(orphan_extensions)
+    return ordered
+
+
+for _name, _meta in _grouped_command_order(CommandRegistry.list_commands_for_help()):
     app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
 
 

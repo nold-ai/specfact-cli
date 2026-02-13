@@ -1,8 +1,8 @@
 """
 Bootstrap: register all CLI commands from module packages with CommandRegistry.
 
-All commands are discovered from src/specfact_cli/modules/ (module-package.yaml).
-Loaders import the package's src on first use and return its .app (Typer).
+Commands are discovered from configured module-package roots.
+Loaders import each package's src on first use and return its .app (Typer).
 cli.py must not import command modules at top level; it uses the registry.
 """
 

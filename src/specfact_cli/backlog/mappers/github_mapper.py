@@ -246,11 +246,25 @@ class GitHubFieldMapper(FieldMapper):
         Returns:
             Work item type or None if not found
         """
-        # Common work item type labels
-        work_item_types = ["Epic", "Feature", "User Story", "Story", "Task", "Bug", "Bugfix"]
+        # Common work item type labels (case-insensitive + prefixed forms)
+        normalized_to_canonical = {
+            "epic": "Epic",
+            "feature": "Feature",
+            "user story": "User Story",
+            "story": "Story",
+            "task": "Task",
+            "bug": "Bug",
+            "bugfix": "Bugfix",
+        }
         for label in label_names:
-            if label in work_item_types:
-                return label
+            normalized = str(label).strip().lower()
+            if normalized in normalized_to_canonical:
+                return normalized_to_canonical[normalized]
+            if normalized.startswith(("type:", "kind:", "work-item:")):
+                _, _, suffix = normalized.partition(":")
+                canonical = normalized_to_canonical.get(suffix.strip())
+                if canonical:
+                    return canonical
 
         # Check issue type metadata if available
         issue_type = item_data.get("issue_type") or item_data.get("type")

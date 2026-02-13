@@ -85,6 +85,28 @@ class ProjectMetadata(BaseModel):
     stability: str = Field("alpha", description="Stability level: alpha | beta | stable")
     breaking_changes: list[dict[str, str]] = Field(default_factory=list, description="Breaking change history")
     version_history: list[dict[str, str]] = Field(default_factory=list, description="Version change log")
+    extensions: dict[str, Any] = Field(default_factory=dict, description="Module-scoped metadata extensions")
+
+    @beartype
+    @require(lambda namespace: namespace.strip() != "", "Extension namespace must be non-empty")
+    @require(lambda key: key.strip() != "", "Extension key must be non-empty")
+    def set_extension(self, namespace: str, key: str, value: Any) -> None:
+        """Set a module-scoped extension value."""
+        namespace_data = self.extensions.get(namespace)
+        if not isinstance(namespace_data, dict):
+            namespace_data = {}
+            self.extensions[namespace] = namespace_data
+        namespace_data[key] = value
+
+    @beartype
+    @require(lambda namespace: namespace.strip() != "", "Extension namespace must be non-empty")
+    @require(lambda key: key.strip() != "", "Extension key must be non-empty")
+    def get_extension(self, namespace: str, key: str, default: Any = None) -> Any:
+        """Get a module-scoped extension value."""
+        namespace_data = self.extensions.get(namespace)
+        if not isinstance(namespace_data, dict):
+            return default
+        return namespace_data.get(key, default)
 
 
 class BundleChecksums(BaseModel):

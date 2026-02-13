@@ -230,6 +230,23 @@ def my_command(
     console.print("[bold]Processing...[/bold]")
 ```
 
+## Backlog Command Topology
+
+Keep backlog functionality grouped under the common top-level `backlog` command:
+
+- `specfact backlog ceremony standup`
+- `specfact backlog ceremony refinement`
+- `specfact backlog analyze-deps`
+- `specfact backlog delta status|impact|cost-estimate|rollback-analysis`
+- `specfact backlog verify-readiness`
+
+Project-scoped orchestration belongs under `project`:
+
+- `specfact project link-backlog`
+- `specfact project health-check`
+- `specfact project devops-flow --stage <plan|develop|review|release|monitor> --action <...>`
+- `specfact project snapshot|regenerate|export-roadmap`
+
 ## Testing
 
 **Contract-first approach**: `@icontract` contracts on public APIs are the primary coverage mechanism (target 80%+ API coverage). Redundant unit tests that only assert input validation or type checks should be removed because contracts and beartype already cover them.

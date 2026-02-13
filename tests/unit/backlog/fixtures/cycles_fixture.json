@@ -1,0 +1,12 @@
+{
+  "items": [
+    {"id": "a", "key": "A", "title": "A", "type": "task", "status": "todo"},
+    {"id": "b", "key": "B", "title": "B", "type": "task", "status": "todo"},
+    {"id": "c", "key": "C", "title": "C", "type": "task", "status": "todo"}
+  ],
+  "relationships": [
+    {"source_id": "a", "target_id": "b", "type": "blocks"},
+    {"source_id": "b", "target_id": "c", "type": "blocks"},
+    {"source_id": "c", "target_id": "a", "type": "blocks"}
+  ]
+}

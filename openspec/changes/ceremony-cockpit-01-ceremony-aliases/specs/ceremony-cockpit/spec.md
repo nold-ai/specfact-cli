@@ -4,7 +4,7 @@
 
 ### Requirement: Ceremony aliases
 
-The system SHALL provide ceremony-oriented entry points: `specfact ceremony standup` (delegates to `backlog daily`), `specfact ceremony refinement` (delegates to `backlog refine`), `specfact ceremony planning` (delegates to `backlog sprint-summary`). Optional: `ceremony flow` → `backlog flow`, `ceremony pi-summary` → `backlog pi-summary` when those commands exist.
+The system SHALL provide ceremony-oriented entry points under backlog: `specfact backlog ceremony standup` (delegates to `backlog daily`), `specfact backlog ceremony refinement` (delegates to `backlog refine`), `specfact backlog ceremony planning` (delegates to `backlog sprint-summary` when installed). Optional: `backlog ceremony flow` → `backlog flow`, `backlog ceremony pi-summary` → `backlog pi-summary` when those commands exist.
 
 **Rationale**: Δ3—findability by ceremony.
 
@@ -12,14 +12,27 @@ The system SHALL provide ceremony-oriented entry points: `specfact ceremony stan
 
 **Given**: SpecFact CLI is installed
 
-**When**: The user runs `specfact ceremony standup`
+**When**: The user runs `specfact backlog ceremony standup`
 
 **Then**: The system executes the same behavior as `specfact backlog daily` (with same options and defaults)
 
 **Acceptance Criteria**:
 
-- `ceremony standup` and `backlog daily` produce equivalent output for same inputs; same for refinement and planning.
+- `backlog ceremony standup` and `backlog daily` produce equivalent output for same inputs; same for refinement and planning.
 - Ceremony commands inherit output formats from underlying backlog commands: human view (Markdown/table), machine view (JSON when backlog command supports `--output json`), optional copilot prompt export when supported.
+
+#### Scenario: Missing delegated ceremony command
+
+**Given**: A ceremony alias target command is not installed (for example `backlog sprint-summary`)
+
+**When**: The user runs `specfact backlog ceremony planning`
+
+**Then**: The CLI fails with a clear message describing which module command is required
+
+**Acceptance Criteria**:
+
+- Error message is actionable and names the missing delegate command(s).
+- Failure code is non-zero.
 
 ### Requirement: Mode switch at ceremony level
 
@@ -29,7 +42,7 @@ The system SHALL support `--mode scrum|kanban|safe` at ceremony level so default
 
 #### Scenario: Ceremony with mode
 
-**Given**: User runs `specfact ceremony standup --mode kanban`
+**Given**: User runs `specfact backlog ceremony standup --mode kanban`
 
 **When**: The command executes
 
@@ -47,7 +60,7 @@ The system SHALL apply exceptions-first default section order (blockers, policy 
 
 #### Scenario: Standup with exceptions-first
 
-**Given**: User runs `specfact ceremony standup` (or `backlog daily`) and policy/flow data exists
+**Given**: User runs `specfact backlog ceremony standup` (or `backlog daily`) and policy/flow data exists
 
 **When**: No override disables exceptions-first
 
