@@ -284,10 +284,10 @@
 
 ## 4. Git Workflow
 
-- [ ] 4.1 Create git branch `feature/backlog-core-01-dependency-analysis-commands` from `dev` branch
-  - [ ] 4.1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-  - [ ] 4.1.2 Create branch: `git checkout -b feature/backlog-core-01-dependency-analysis-commands`
-  - [ ] 4.1.3 Verify branch was created: `git branch --show-current`
+- [x] 4.1 Create git branch `feature/backlog-core-01-dependency-analysis-commands` from `dev` branch
+  - [x] 4.1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
+  - [x] 4.1.2 Create branch: `git checkout -b feature/backlog-core-01-dependency-analysis-commands`
+  - [x] 4.1.3 Verify branch was created: `git branch --show-current`
 
 ## 5. Documentation
 
@@ -301,10 +301,10 @@
 
 ## 6. Pull Request
 
-- [ ] 6.1 Prepare changes for commit
-  - [ ] 6.1.1 Ensure all changes are committed: `git add .`
-  - [ ] 6.1.2 Commit with conventional message: `git commit -m "feat: add backlog-core module — dependency analysis and command suites"`
-  - [ ] 6.1.3 Push to remote: `git push origin feature/backlog-core-01-dependency-analysis-commands`
-- [ ] 6.2 Create Pull Request from `feature/backlog-core-01-dependency-analysis-commands` to `dev` branch
-  - [ ] 6.2.1 Create PR using GitHub CLI: `gh pr create --base dev --head feature/backlog-core-01-dependency-analysis-commands --title "feat: add backlog-core module — dependency analysis and command suites" --body "Implements OpenSpec change proposal: backlog-core-01-dependency-analysis-commands. Closes #116"`
-  - [ ] 6.2.2 Verify PR was created and is visible on GitHub
+- [x] 6.1 Prepare changes for commit
+  - [x] 6.1.1 Ensure all changes are committed: `git add .`
+  - [x] 6.1.2 Commit with conventional message: `git commit -m "feat: add backlog-core module — dependency analysis and command suites"`
+  - [x] 6.1.3 Push to remote: `git push origin feature/backlog-core-01-dependency-analysis-commands`
+- [x] 6.2 Create Pull Request from `feature/backlog-core-01-dependency-analysis-commands` to `dev` branch
+  - [x] 6.2.1 Create PR using GitHub CLI: `gh pr create --base dev --head feature/backlog-core-01-dependency-analysis-commands --title "feat: add backlog-core module — dependency analysis and command suites" --body "Implements OpenSpec change proposal: backlog-core-01-dependency-analysis-commands. Closes #116"`
+  - [x] 6.2.2 Verify PR was created and is visible on GitHub
