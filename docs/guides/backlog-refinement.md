@@ -11,6 +11,8 @@ permalink: /guides/backlog-refinement/
 
 This guide explains how to use SpecFact CLI's backlog refinement feature to standardize work items from GitHub Issues, Azure DevOps, and other backlog tools into corporate templates (user stories, defects, spikes, enablers).
 
+Preferred command path is `specfact backlog ceremony refinement ...`. The legacy `specfact backlog refine ...` path remains supported for compatibility.
+
 **Tutorial**: For an end-to-end walkthrough with your AI IDE (Cursor, VS Code, etc.)—including interactive slash prompt, story quality, underspecification, splitting, and DoR—see **[Tutorial: Backlog Refine with AI IDE](../getting-started/tutorial-backlog-refine-ai-ide.md)**.
 
 ## Overview
@@ -41,38 +43,38 @@ SpecFact CLI's backlog refinement feature:
 
 ```bash
 # Refine GitHub issues (auto-detect template)
-specfact backlog refine github --search "is:open label:feature"
+specfact backlog ceremony refinement github --search "is:open label:feature"
 
 # Filter by labels and state
-specfact backlog refine github --labels feature,enhancement --state open
+specfact backlog ceremony refinement github --labels feature,enhancement --state open
 
 # Filter by sprint and assignee
-specfact backlog refine github --sprint "Sprint 1" --assignee dev1
+specfact backlog ceremony refinement github --sprint "Sprint 1" --assignee dev1
 
 # Filter by framework and persona (Scrum + Product Owner)
-specfact backlog refine github --framework scrum --persona product-owner --labels feature
+specfact backlog ceremony refinement github --framework scrum --persona product-owner --labels feature
 
 # Refine with specific template
-specfact backlog refine github --template user_story_v1 --search "is:open"
+specfact backlog ceremony refinement github --template user_story_v1 --search "is:open"
 
 # Check Definition of Ready before refinement
-specfact backlog refine github --check-dor --labels feature
+specfact backlog ceremony refinement github --check-dor --labels feature
 
 # Preview refinement without writing (default - safe mode)
-specfact backlog refine github --preview --labels feature
+specfact backlog ceremony refinement github --preview --labels feature
 
 # Write refinement to backlog (explicit opt-in required)
-specfact backlog refine github --write --labels feature
+specfact backlog ceremony refinement github --write --labels feature
 
 # Auto-accept high-confidence refinements
-specfact backlog refine github --auto-accept-high-confidence --search "is:open"
+specfact backlog ceremony refinement github --auto-accept-high-confidence --search "is:open"
 ```
 
 ### 2. Refine and Import to OpenSpec Bundle
 
 ```bash
 # Refine and automatically import to OpenSpec bundle
-specfact backlog refine github \
+specfact backlog ceremony refinement github \
   --bundle my-project \
   --auto-bundle \
   --search "is:open label:enhancement"
@@ -82,19 +84,19 @@ specfact backlog refine github \
 
 ```bash
 # Refine ADO work items
-specfact backlog refine ado --search "State = 'New'"
+specfact backlog ceremony refinement ado --search "State = 'New'"
 
 # Filter by sprint and state
-specfact backlog refine ado --sprint "Sprint 1" --state Active
+specfact backlog ceremony refinement ado --sprint "Sprint 1" --state Active
 
 # Filter by iteration path (ADO format)
-specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
+specfact backlog ceremony refinement ado --iteration "Project\\Release 1\\Sprint 1"
 
 # Refine with defect template
-specfact backlog refine ado --template defect_v1 --search "WorkItemType = 'Bug'"
+specfact backlog ceremony refinement ado --template defect_v1 --search "WorkItemType = 'Bug'"
 
 # Use custom field mapping for custom ADO process templates
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org my-org \
   --ado-project my-project \
   --custom-field-mapping /path/to/ado_custom.yaml \
@@ -110,7 +112,7 @@ specfact backlog refine ado \
 The command fetches backlog items from the specified adapter (GitHub, ADO, etc.) and converts them to the unified `BacklogItem` domain model.
 
 ```bash
-specfact backlog refine github --search "is:open"
+specfact backlog ceremony refinement github --search "is:open"
 ```
 
 **Note**: Adapter search methods (`adapter.search_issues()`, `adapter.list_work_items()`) are required for fetching. These will be implemented when adapters support them.
@@ -137,10 +139,10 @@ For each backlog item, SpecFact CLI detects which template best matches using **
 
 ```bash
 # Auto-detect template with persona/framework filtering (default)
-specfact backlog refine github --framework scrum --persona product-owner --search "is:open"
+specfact backlog ceremony refinement github --framework scrum --persona product-owner --search "is:open"
 
 # Force specific template (overrides priority-based resolution)
-specfact backlog refine github --template user_story_v1 --search "is:open"
+specfact backlog ceremony refinement github --template user_story_v1 --search "is:open"
 ```
 
 ### Step 3: AI-Assisted Refinement
@@ -165,7 +167,7 @@ SpecFact CLI generates a refinement prompt for your IDE AI copilot:
 
 ```bash
 # Interactive refinement (default)
-specfact backlog refine github --search "is:open"
+specfact backlog ceremony refinement github --search "is:open"
 
 # The CLI will:
 # 1. Display the refinement prompt
@@ -272,13 +274,13 @@ This helps copilot identify missing elements that need to be added during refine
 
 ```bash
 # Preview mode (default - safe, no writeback)
-specfact backlog refine github --preview --search "is:open"
+specfact backlog ceremony refinement github --preview --search "is:open"
 
 # Write mode (explicit opt-in required)
-specfact backlog refine github --write --search "is:open"
+specfact backlog ceremony refinement github --write --search "is:open"
 
 # Auto-accept high-confidence refinements (>= 0.85) and write
-specfact backlog refine github --auto-accept-high-confidence --write --search "is:open"
+specfact backlog ceremony refinement github --auto-accept-high-confidence --write --search "is:open"
 ```
 
 ### Step 4.5: Definition of Ready (DoR) Validation (Optional)
@@ -292,7 +294,7 @@ If `--check-dor` flag is set, SpecFact CLI validates backlog items against Defin
 
 ```bash
 # Check DoR before refinement
-specfact backlog refine github --check-dor --labels feature
+specfact backlog ceremony refinement github --check-dor --labels feature
 ```
 
 **DoR Configuration** (`.specfact/dor.yaml`):
@@ -312,7 +314,7 @@ Refined items can be imported into OpenSpec bundles:
 
 ```bash
 # Import to OpenSpec bundle
-specfact backlog refine github \
+specfact backlog ceremony refinement github \
   --bundle my-project \
   --auto-bundle \
   --search "is:open"
@@ -413,12 +415,12 @@ Enabler work format with:
 
 ## Command Reference
 
-### `specfact backlog refine`
+### `specfact backlog ceremony refinement`
 
 Refine backlog items using AI-assisted template matching.
 
 ```bash
-specfact backlog refine <ADAPTER> [OPTIONS]
+specfact backlog ceremony refinement <ADAPTER> [OPTIONS]
 ```
 
 **Arguments**:
@@ -439,66 +441,66 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 
 ```bash
 # Refine GitHub issues (auto-detect template)
-specfact backlog refine github --search "is:open label:feature"
+specfact backlog ceremony refinement github --search "is:open label:feature"
 
 # Filter by labels and state
-specfact backlog refine github --labels feature,enhancement --state open
+specfact backlog ceremony refinement github --labels feature,enhancement --state open
 
 # Filter by sprint and assignee
-specfact backlog refine github --sprint "Sprint 1" --assignee dev1
+specfact backlog ceremony refinement github --sprint "Sprint 1" --assignee dev1
 
 # Filter by framework and persona (Scrum + Product Owner)
-specfact backlog refine github --framework scrum --persona product-owner --labels feature
+specfact backlog ceremony refinement github --framework scrum --persona product-owner --labels feature
 
 # Refine with specific template
-specfact backlog refine github --template user_story_v1 --search "is:open"
+specfact backlog ceremony refinement github --template user_story_v1 --search "is:open"
 
 # Check Definition of Ready before refinement
-specfact backlog refine github --check-dor --labels feature
+specfact backlog ceremony refinement github --check-dor --labels feature
 
 # Preview refinement without writing (default - safe mode)
-specfact backlog refine github --preview --labels feature
+specfact backlog ceremony refinement github --preview --labels feature
 
 # Write refinement to backlog (explicit opt-in required)
-specfact backlog refine github --write --labels feature
+specfact backlog ceremony refinement github --write --labels feature
 
 # Auto-accept high-confidence refinements
-specfact backlog refine github --auto-accept-high-confidence --search "is:open"
+specfact backlog ceremony refinement github --auto-accept-high-confidence --search "is:open"
 
 # Refine and import to OpenSpec bundle
-specfact backlog refine github \
+specfact backlog ceremony refinement github \
   --bundle my-project \
   --auto-bundle \
   --search "is:open label:enhancement"
 
 # Refine ADO work items with sprint filter
-specfact backlog refine ado --sprint "Sprint 1" --state Active
+specfact backlog ceremony refinement ado --sprint "Sprint 1" --state Active
 
 # Refine ADO work items with custom field mapping
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org my-org \
   --ado-project my-project \
   --custom-field-mapping .specfact/templates/backlog/field_mappings/ado_custom.yaml \
   --state Active
 
 # Refine ADO work items with iteration path
-specfact backlog refine ado --iteration "Project\\Release 1\\Sprint 1"
+specfact backlog ceremony refinement ado --iteration "Project\\Release 1\\Sprint 1"
 ```
 
 ### 4. Export Full Comment Context for Copilot
 
-`specfact backlog refine --export-to-tmp` now includes issue/work item comments (when adapter supports comments, including ADO) so refinement context is complete by default.
+`specfact backlog ceremony refinement --export-to-tmp` now includes issue/work item comments (when adapter supports comments, including ADO) so refinement context is complete by default.
 
 ```bash
 # Export with full comment history (default, no truncation)
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org my-org \
   --ado-project my-project \
   --state Active \
   --export-to-tmp
 
 # Optional: preview only first N comments in terminal output
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org my-org \
   --ado-project my-project \
   --state Active \
@@ -506,7 +508,7 @@ specfact backlog refine ado \
   --first-comments 3
 
 # Optional: preview only last N comments in terminal output
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org my-org \
   --ado-project my-project \
   --state Active \
@@ -527,7 +529,7 @@ Issue windowing is based on numeric issue/work-item IDs: lower IDs are treated a
 
 ### 5. Shared Backlog Filter Parity (Refine + Daily)
 
-`specfact backlog refine` and `specfact backlog daily` now share the same global backlog scoping semantics for common workflows:
+`specfact backlog ceremony refinement` and `specfact backlog ceremony standup` now share the same global backlog scoping semantics for common workflows:
 
 - `--search`, `--release`, `--id` for consistent item selection
 - `--first-issues N` / `--last-issues N` for deterministic oldest/newest issue windows (numeric ID ordering)
@@ -536,7 +538,8 @@ Issue windowing is based on numeric issue/work-item IDs: lower IDs are treated a
   - **Daily export/summarize**: `--first-comments N` / `--last-comments N` scope `--comments` output
   - **Daily interactive**: latest comment by default; explicit comment-window flags override that default
 
-For day-to-day team flow, this means you can switch between `backlog daily` and `backlog refine` without changing filter mental models.
+For day-to-day team flow, this means you can switch between `backlog ceremony standup` and
+`backlog ceremony refinement` without changing filter mental models.
 
 ---
 
@@ -546,15 +549,15 @@ For day-to-day team flow, this means you can switch between `backlog daily` and 
 
 The most common workflow is to refine backlog items and then sync them to external tools. This command chaining workflow is fully supported and tested:
 
-**Workflow**: `backlog refine` → `sync bridge`
+**Workflow**: `backlog ceremony refinement` → `sync bridge`
 
-1. **Refine Backlog Items**: Use `specfact backlog refine` to standardize backlog items with templates
+1. **Refine Backlog Items**: Use `specfact backlog ceremony refinement` to standardize backlog items with templates
 2. **Sync to External Tools**: Use `specfact sync bridge` to sync refined items back to backlog tools (GitHub, ADO, etc.)
 
 ```bash
 # Complete command chaining workflow
 # 1. Refine GitHub issues (with writeback)
-specfact backlog refine github \
+specfact backlog ceremony refinement github \
   --repo-owner my-org --repo-name my-repo \
   --write \
   --labels feature \
@@ -567,7 +570,7 @@ specfact sync bridge --adapter github \
   --mode export-only
 
 # Cross-adapter sync: Refine from GitHub → Sync to ADO
-specfact backlog refine github \
+specfact backlog ceremony refinement github \
   --repo-owner my-org --repo-name my-repo \
   --write \
   --labels feature
@@ -641,7 +644,7 @@ specfact sync bridge --adapter ado --mode export-only \
 Backlog refinement works seamlessly with the [DevOps Adapter Integration](../guides/devops-adapter-integration.md):
 
 1. **Import Backlog Items**: Use `specfact sync bridge` to import backlog items as OpenSpec proposals
-2. **Refine Items**: Use `specfact backlog refine` to standardize imported items
+2. **Refine Items**: Use `specfact backlog ceremony refinement` to standardize imported items
 3. **Export Refined Items**: Use `specfact sync bridge` to export refined proposals back to backlog tools
 
 ```bash
@@ -652,7 +655,7 @@ specfact sync bridge --adapter github --mode bidirectional \
   --backlog-ids 123,456
 
 # 2. Refine imported items
-specfact backlog refine github --bundle my-project --auto-bundle \
+specfact backlog ceremony refinement github --bundle my-project --auto-bundle \
   --search "is:open"
 
 # 3. Export refined proposals back to GitHub
@@ -674,7 +677,7 @@ The refinement workflow is designed for IDE AI copilots:
 
 ```bash
 # 1. Run refinement command
-specfact backlog refine github --search "is:open label:feature"
+specfact backlog ceremony refinement github --search "is:open label:feature"
 
 # 2. CLI displays prompt:
 # "Refine the following backlog item into a user story template..."
@@ -702,7 +705,7 @@ If your Azure DevOps organization uses custom process templates with non-standar
 
 ```bash
 # Use custom field mapping file
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org my-org \
   --ado-project my-project \
   --custom-field-mapping .specfact/templates/backlog/field_mappings/ado_custom.yaml \
@@ -794,10 +797,10 @@ When using `--persona`, `--framework`, or provider-specific filtering, SpecFact 
 
 ```bash
 # Automatically resolves to most specific template match
-specfact backlog refine github --framework scrum --persona product-owner --labels feature
+specfact backlog ceremony refinement github --framework scrum --persona product-owner --labels feature
 
 # Force specific template (overrides priority-based resolution)
-specfact backlog refine github --template custom_template_v1
+specfact backlog ceremony refinement github --template custom_template_v1
 ```
 
 ---
@@ -810,10 +813,10 @@ Let SpecFact CLI detect templates automatically before forcing specific template
 
 ```bash
 # Good: Auto-detect first
-specfact backlog refine github --search "is:open"
+specfact backlog ceremony refinement github --search "is:open"
 
 # Then use specific template if needed
-specfact backlog refine github --template user_story_v1 --search "is:open"
+specfact backlog ceremony refinement github --template user_story_v1 --search "is:open"
 ```
 
 ### 2. Review Low-Confidence Refinements
@@ -822,7 +825,7 @@ Refinements with confidence < 0.85 may need manual review:
 
 ```bash
 # Review low-confidence refinements manually
-specfact backlog refine github --search "is:open"
+specfact backlog ceremony refinement github --search "is:open"
 # CLI will prompt for confirmation on low-confidence refinements
 ```
 
@@ -832,7 +835,7 @@ For high-confidence refinements (>= 0.85), use auto-accept:
 
 ```bash
 # Auto-accept high-confidence refinements
-specfact backlog refine github --auto-accept-high-confidence --search "is:open"
+specfact backlog ceremony refinement github --auto-accept-high-confidence --search "is:open"
 ```
 
 ### 4. Integrate with OpenSpec Bundles
@@ -841,7 +844,7 @@ Import refined items to OpenSpec bundles for full workflow integration:
 
 ```bash
 # Refine and import to bundle
-specfact backlog refine github \
+specfact backlog ceremony refinement github \
   --bundle my-project \
   --auto-bundle \
   --search "is:open"
@@ -863,16 +866,16 @@ Leverage filtering options for common agile/scrum workflows:
 
 ```bash
 # Refine items in current sprint
-specfact backlog refine github --sprint "Sprint 1" --state open
+specfact backlog ceremony refinement github --sprint "Sprint 1" --state open
 
 # Refine items assigned to specific developer
-specfact backlog refine github --assignee dev1 --labels bug
+specfact backlog ceremony refinement github --assignee dev1 --labels bug
 
 # Refine items for specific release
-specfact backlog refine ado --release "Release 1.0" --state Active
+specfact backlog ceremony refinement ado --release "Release 1.0" --state Active
 
 # Use persona/framework filtering for role-specific templates
-specfact backlog refine github --persona product-owner --framework scrum --labels feature
+specfact backlog ceremony refinement github --persona product-owner --framework scrum --labels feature
 ```
 
 ### 7. Check Definition of Ready (DoR)
@@ -881,7 +884,7 @@ Use DoR validation to ensure items are ready for sprint planning:
 
 ```bash
 # Check DoR before refinement
-specfact backlog refine github --check-dor --labels feature
+specfact backlog ceremony refinement github --check-dor --labels feature
 
 # DoR configuration in .specfact/dor.yaml
 rules:
@@ -905,7 +908,7 @@ If template detection fails:
 
 ```bash
 # Force template if auto-detection fails
-specfact backlog refine github --template user_story_v1 --search "is:open"
+specfact backlog ceremony refinement github --template user_story_v1 --search "is:open"
 ```
 
 ### Low Confidence Scores
@@ -940,7 +943,7 @@ specfact sync bridge --adapter github --mode bidirectional \
   --backlog-ids 123,456
 
 # 2. Refine imported items from bundle
-specfact backlog refine github --bundle my-project --auto-bundle
+specfact backlog ceremony refinement github --bundle my-project --auto-bundle
 ```
 
 ### Azure DevOps Adapter Configuration
@@ -953,13 +956,13 @@ For cloud-based Azure DevOps, use the standard format:
 
 ```bash
 # Basic configuration
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org "my-org" \
   --ado-project "my-project" \
   --state Active
 
 # With custom base URL (defaults to https://dev.azure.com)
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org "my-org" \
   --ado-project "my-project" \
   --ado-base-url "https://dev.azure.com" \
@@ -978,7 +981,7 @@ If your base URL already includes the collection:
 
 ```bash
 # Collection already in base_url
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-base-url "https://devops.company.com/tfs/DefaultCollection" \
   --ado-project "my-project" \
   --state Active
@@ -992,7 +995,7 @@ If your base URL doesn't include the collection:
 
 ```bash
 # Collection provided as org parameter
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-base-url "https://devops.company.com" \
   --ado-org "DefaultCollection" \
   --ado-project "my-project" \
@@ -1041,17 +1044,17 @@ ADO adapter supports multiple authentication methods:
 ```bash
 # Method 1: Environment variable
 export AZURE_DEVOPS_TOKEN="your-pat-token"
-specfact backlog refine ado --ado-org "my-org" --ado-project "my-project"
+specfact backlog ceremony refinement ado --ado-org "my-org" --ado-project "my-project"
 
 # Method 2: CLI parameter
-specfact backlog refine ado \
+specfact backlog ceremony refinement ado \
   --ado-org "my-org" \
   --ado-project "my-project" \
   --ado-token "your-pat-token"
 
 # Method 3: Stored token (via device code flow)
 specfact auth azure-devops  # Interactive device code flow
-specfact backlog refine ado --ado-org "my-org" --ado-project "my-project"
+specfact backlog ceremony refinement ado --ado-org "my-org" --ado-project "my-project"
 ```
 
 ---

@@ -6,7 +6,7 @@ CrossHair: skip (missing-lookup behavior intentionally raises LookupError by des
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from beartype import beartype
 from icontract import ensure, require
@@ -73,3 +73,54 @@ class BridgeRegistry:
     def as_mapping(self) -> Mapping[str, SchemaConverter]:
         """Expose read-only mapping for introspection/tests."""
         return dict(self._converters)
+
+
+@beartype
+class BridgeProtocolRegistry:
+    """In-memory registry for optional adapter protocol bindings."""
+
+    def __init__(self) -> None:
+        self._protocols: dict[str, type[Any]] = {}
+        self._implementations: dict[str, dict[str, type[Any]]] = {}
+
+    @beartype
+    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    @require(lambda protocol_type: isinstance(protocol_type, type), "Protocol type must be a class")
+    def register_protocol(self, protocol_id: str, protocol_type: type[Any]) -> None:
+        """Register a protocol type under a protocol ID."""
+        self._protocols[protocol_id] = protocol_type
+
+    @beartype
+    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    @require(lambda adapter_id: adapter_id.strip() != "", "Adapter ID must not be empty")
+    @require(lambda implementation_type: isinstance(implementation_type, type), "Implementation must be a class")
+    def register_implementation(self, protocol_id: str, adapter_id: str, implementation_type: type[Any]) -> None:
+        """Register adapter implementation type for a protocol."""
+        self._implementations.setdefault(protocol_id, {})[adapter_id] = implementation_type
+
+    @beartype
+    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    def get_protocol(self, protocol_id: str) -> type[Any]:
+        """Resolve protocol class for a protocol ID."""
+        if protocol_id not in self._protocols:
+            raise LookupError(f"No protocol registered for protocol ID '{protocol_id}'.")
+        return self._protocols[protocol_id]
+
+    @beartype
+    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    @require(lambda adapter_id: adapter_id.strip() != "", "Adapter ID must not be empty")
+    def get_implementation(self, protocol_id: str, adapter_id: str) -> type[Any]:
+        """Resolve registered adapter implementation type for a protocol."""
+        adapter_map = self._implementations.get(protocol_id, {})
+        if adapter_id not in adapter_map:
+            raise LookupError(f"No implementation registered for protocol '{protocol_id}' and adapter '{adapter_id}'.")
+        return adapter_map[adapter_id]
+
+    @beartype
+    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    def list_implementations(self, protocol_id: str) -> list[str]:
+        """List adapter IDs that implement a registered protocol."""
+        return sorted(self._implementations.get(protocol_id, {}).keys())
+
+
+BRIDGE_PROTOCOL_REGISTRY = BridgeProtocolRegistry()

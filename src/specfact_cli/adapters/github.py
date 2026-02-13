@@ -35,6 +35,7 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.registry.bridge_registry import BRIDGE_PROTOCOL_REGISTRY
 from specfact_cli.runtime import debug_log_operation, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token
 
@@ -2639,6 +2640,157 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return filtered_items
 
     @beartype
+    @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """Fetch all backlog items as provider-agnostic dictionaries for graph building."""
+        owner, repo = project_id.split("/", 1) if "/" in project_id else (self.repo_owner, self.repo_name)
+        previous_owner = self.repo_owner
+        previous_repo = self.repo_name
+        try:
+            if owner and repo:
+                self.repo_owner = owner
+                self.repo_name = repo
+            backlog_filters = BacklogFilters(**(filters or {}))
+            enriched_items: list[dict[str, Any]] = []
+            for item in self.fetch_backlog_items(backlog_filters):
+                issue_dict = item.model_dump()
+                inferred_type = self._infer_graph_item_type(issue_dict)
+                if inferred_type:
+                    issue_dict["type"] = inferred_type
+                enriched_items.append(issue_dict)
+            return enriched_items
+        finally:
+            self.repo_owner = previous_owner
+            self.repo_name = previous_repo
+
+    @beartype
+    @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def fetch_relationships(self, project_id: str) -> list[dict[str, Any]]:
+        """Fetch relationships for a GitHub backlog project."""
+        relationships: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str]] = set()
+
+        def _add_edge(source_id: str, target_id: str, relation_type: str) -> None:
+            source = source_id.strip()
+            target = target_id.strip()
+            rel = relation_type.strip().lower()
+            if not source or not target or source == target:
+                return
+            key = (source, target, rel)
+            if key in seen:
+                return
+            seen.add(key)
+            relationships.append({"source_id": source, "target_id": target, "type": rel})
+
+        issues = self.fetch_all_issues(project_id)
+        for issue in issues:
+            issue_id = str(issue.get("id") or issue.get("key") or "").strip()
+            if not issue_id:
+                continue
+
+            provider_fields = issue.get("provider_fields")
+            if isinstance(provider_fields, dict):
+                linked_issues = provider_fields.get("linked_issues", [])
+                if isinstance(linked_issues, list):
+                    for linked in linked_issues:
+                        if not isinstance(linked, dict):
+                            continue
+                        relation = str(linked.get("relation") or linked.get("type") or "").strip().lower()
+                        linked_id = str(linked.get("id") or linked.get("number") or "").strip()
+                        if not linked_id:
+                            linked_url = str(linked.get("url") or "")
+                            linked_match = re.search(r"/issues/(\d+)", linked_url, flags=re.IGNORECASE)
+                            linked_id = linked_match.group(1) if linked_match else ""
+                        if not linked_id:
+                            continue
+                        if relation in {"blocks", "block"}:
+                            _add_edge(issue_id, linked_id, "blocks")
+                        elif relation in {"blocked_by", "blocked by"}:
+                            _add_edge(linked_id, issue_id, "blocks")
+                        elif relation in {"parent", "parent_of"}:
+                            _add_edge(linked_id, issue_id, "parent")
+                        elif relation in {"child", "child_of"}:
+                            _add_edge(issue_id, linked_id, "parent")
+                        else:
+                            _add_edge(issue_id, linked_id, "relates")
+
+            body = str(issue.get("body_markdown") or issue.get("description") or "")
+            for match in re.finditer(r"(?im)\bblocks?\s+#(\d+)\b", body):
+                _add_edge(issue_id, match.group(1), "blocks")
+            for match in re.finditer(r"(?im)\bblocked\s+by\s+#(\d+)\b", body):
+                _add_edge(match.group(1), issue_id, "blocks")
+            for match in re.finditer(r"(?im)\bdepends\s+on\s+#(\d+)\b", body):
+                _add_edge(match.group(1), issue_id, "blocks")
+            for match in re.finditer(r"(?im)\bparent\s*[:#]?\s*#(\d+)\b", body):
+                _add_edge(match.group(1), issue_id, "parent")
+            for match in re.finditer(r"(?im)\bchild(?:ren)?\s*[:#]?\s*#(\d+)\b", body):
+                _add_edge(issue_id, match.group(1), "parent")
+            for match in re.finditer(r"(?im)\b(?:related\s+to|relates?\s+to|refs?|references?)\s+#(\d+)\b", body):
+                _add_edge(issue_id, match.group(1), "relates")
+
+        return relationships
+
+    @beartype
+    @ensure(lambda result: result is None or isinstance(result, str), "Type inference must return str or None")
+    def _infer_graph_item_type(self, issue_payload: dict[str, Any]) -> str | None:
+        """Infer normalized graph item type from GitHub issue payload."""
+        alias_map = {
+            "epic": "epic",
+            "feature": "feature",
+            "story": "story",
+            "user story": "story",
+            "task": "task",
+            "bug": "bug",
+            "sub-task": "sub_task",
+            "sub task": "sub_task",
+            "subtask": "sub_task",
+        }
+
+        def _normalize(raw_value: str) -> str | None:
+            normalized = raw_value.strip().lower().replace("_", " ").replace("-", " ")
+            if not normalized:
+                return None
+            if normalized in alias_map:
+                return alias_map[normalized]
+            for separator in (":", "/"):
+                if separator in normalized:
+                    suffix = normalized.split(separator)[-1].strip()
+                    if suffix in alias_map:
+                        return alias_map[suffix]
+            for token, mapped in alias_map.items():
+                if normalized.startswith(f"{token} ") or normalized.endswith(f" {token}"):
+                    return mapped
+            return None
+
+        for key in ("type", "work_item_type"):
+            value = issue_payload.get(key)
+            if isinstance(value, str):
+                mapped = _normalize(value)
+                if mapped:
+                    return mapped
+
+        tags = issue_payload.get("tags")
+        if isinstance(tags, list):
+            for tag in tags:
+                if isinstance(tag, str):
+                    mapped = _normalize(tag)
+                    if mapped:
+                        return mapped
+
+        title = issue_payload.get("title")
+        if isinstance(title, str):
+            mapped = _normalize(title)
+            if mapped:
+                return mapped
+            for token, mapped_value in alias_map.items():
+                if title.lower().startswith(f"[{token}]"):
+                    return mapped_value
+
+        return None
+
+    @beartype
     def supports_add_comment(self) -> bool:
         """Whether this adapter can add comments (requires token and repo)."""
         return bool(self.api_token and self.repo_owner and self.repo_name)
@@ -2818,3 +2970,6 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
 
         return convert_github_issue_to_backlog_item(updated_issue, provider="github")
+
+
+BRIDGE_PROTOCOL_REGISTRY.register_implementation("backlog_graph", "github", GitHubAdapter)

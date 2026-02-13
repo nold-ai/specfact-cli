@@ -9,6 +9,8 @@ permalink: /getting-started/tutorial-backlog-refine-ai-ide/
 
 This tutorial walks agile DevOps teams through integrating SpecFact CLI backlog refinement with their AI IDE (Cursor, VS Code + Copilot, Claude Code, etc.) using the interactive slash prompt. You will improve backlog story quality, make informed decisions about underspecification, split stories when too big, fix ambiguities, respect Definition of Ready (DoR), and optionally use custom template mapping for advanced teams.
 
+Preferred command path is `specfact backlog ceremony refinement ...`. The legacy `specfact backlog refine ...` path remains supported for compatibility.
+
 **Time**: ~20–30 minutes  
 **Outcome**: End-to-end flow from raw backlog items to template-compliant, DoR-ready stories via your AI IDE.
 
@@ -16,7 +18,7 @@ This tutorial walks agile DevOps teams through integrating SpecFact CLI backlog 
 
 ## What You'll Learn
 
-- Run `specfact backlog refine` and use the **slash prompt** in your AI IDE for interactive refinement
+- Run `specfact backlog ceremony refinement` and use the **slash prompt** in your AI IDE for interactive refinement
 - Use the **interactive feedback loop**: present story → assess specification level (under-/over-/fit) → list ambiguities → ask clarification → re-refine until approved
 - Improve story quality: identify **underspecified** (missing AC, vague scope), **overspecified** (too many sub-steps, implementation detail), or **fit-for-scope** stories
 - Decide when to **split** stories that are too big
@@ -40,10 +42,10 @@ From your **repo root** (or where your backlog lives):
 
 ```bash
 # GitHub: org/repo are auto-detected from git remote when run from a GitHub clone
-specfact backlog refine github --search "is:open label:feature" --limit 5 --preview
+specfact backlog ceremony refinement github --search "is:open label:feature" --limit 5 --preview
 
 # Or export to a temp file for your AI IDE to process (recommended for interactive loop)
-specfact backlog refine github --export-to-tmp --search "is:open label:feature" --limit 5
+specfact backlog ceremony refinement github --export-to-tmp --search "is:open label:feature" --limit 5
 ```
 
 **Auto-detect from clone**: When you run from a **GitHub** clone (e.g. `https://github.com/owner/repo` or `git@github.com:owner/repo.git`), SpecFact infers `repo_owner` and `repo_name` from `git remote get-url origin`—no `--repo-owner`/`--repo-name` needed. When you run from an **Azure DevOps** clone (e.g. `https://dev.azure.com/org/project/_git/repo`; SSH keys: `git@ssh.dev.azure.com:v3/org/project/repo`; other SSH: `user@dev.azure.com:v3/org/project/repo`), org and project are inferred. Override with `.specfact/backlog.yaml`, env vars (`SPECFACT_GITHUB_REPO_OWNER`, `SPECFACT_ADO_ORG`, etc.), or CLI options when not in the repo or to override.
@@ -51,9 +53,9 @@ specfact backlog refine github --export-to-tmp --search "is:open label:feature" 
 If you're **not** in a clone, pass adapter context explicitly:
 
 ```bash
-specfact backlog refine github --repo-owner OWNER --repo-name REPO --search "is:open label:feature" --limit 5 --preview
+specfact backlog ceremony refinement github --repo-owner OWNER --repo-name REPO --search "is:open label:feature" --limit 5 --preview
 # or ADO:
-specfact backlog refine ado --ado-org ORG --ado-project PROJECT --state Active --limit 5 --preview
+specfact backlog ceremony refinement ado --ado-org ORG --ado-project PROJECT --state Active --limit 5 --preview
 ```
 
 - Use `--ignore-refined` (default) so `--limit` applies to items that **need** refinement
@@ -104,7 +106,7 @@ If your team uses DoR:
 2. Run refine with `--check-dor`:
 
    ```bash
-   specfact backlog refine github --repo-owner OWNER --repo-name REPO --check-dor --labels feature
+   specfact backlog ceremony refinement github --repo-owner OWNER --repo-name REPO --check-dor --labels feature
    ```
 
 3. In the interactive loop, treat DoR as part of “fit for scope”: if the refined story doesn’t meet DoR (e.g. missing AC or story points), the AI should flag it as under-specified or not ready and suggest what to add.
@@ -127,10 +129,10 @@ When you’re satisfied with the refined content:
 ```bash
 # If you used --export-to-tmp, save the refined file as ...-refined.md, then:
 # (From repo root, org/repo or org/project are auto-detected from git remote)
-specfact backlog refine github --import-from-tmp --write
+specfact backlog ceremony refinement github --import-from-tmp --write
 
 # Or run refine interactively with --write (use with care; confirm each item)
-specfact backlog refine github --write --labels feature --limit 3
+specfact backlog ceremony refinement github --write --labels feature --limit 3
 ```
 
 Use `--preview` (default) until you’re confident; use `--write` only when you want to update the remote backlog.
@@ -144,7 +146,7 @@ If your team uses **custom fields** (e.g. Azure DevOps custom process templates)
 1. **ADO**: Add a custom field mapping file and point the CLI to it:
 
    ```bash
-   specfact backlog refine ado --ado-org ORG --ado-project PROJECT \
+   specfact backlog ceremony refinement ado --ado-org ORG --ado-project PROJECT \
      --custom-field-mapping .specfact/templates/backlog/field_mappings/ado_custom.yaml \
      --state Active
    ```

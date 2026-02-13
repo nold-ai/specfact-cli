@@ -1,0 +1,9 @@
+{
+  "items": [
+    {"id": "100", "key": "ADO-100", "title": "Epic", "type": "Epic", "status": "New"},
+    {"id": "101", "key": "ADO-101", "title": "Story", "type": "User Story", "status": "Active", "parent_id": "100"}
+  ],
+  "relationships": [
+    {"source_id": "100", "target_id": "101", "type": "parent"}
+  ]
+}

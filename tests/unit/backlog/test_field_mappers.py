@@ -172,6 +172,26 @@ class TestGitHubFieldMapper:
         assert "## Priority" in body
         assert "2" in body
 
+    def test_extract_work_item_type_from_case_insensitive_label(self) -> None:
+        """GitHub mapper resolves work item type from lowercase labels."""
+        mapper = GitHubFieldMapper()
+        item_data = {
+            "body": "test",
+            "labels": [{"name": "feature"}],
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["work_item_type"] == "Feature"
+
+    def test_extract_work_item_type_from_prefixed_label(self) -> None:
+        """GitHub mapper resolves work item type from type:* labels."""
+        mapper = GitHubFieldMapper()
+        item_data = {
+            "body": "test",
+            "labels": [{"name": "type:story"}],
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["work_item_type"] == "Story"
+
 
 class TestAdoFieldMapper:
     """Tests for AdoFieldMapper with default mappings."""

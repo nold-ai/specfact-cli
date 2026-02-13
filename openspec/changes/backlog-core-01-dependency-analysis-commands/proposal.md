@@ -16,7 +16,7 @@ modules/backlog-core/
   module-package.yaml          # module metadata, commands, schema_extensions, publisher
   src/backlog_core/
     __init__.py
-    main.py                    # typer.Typer app — backlog + delta command groups
+    main.py                    # typer.Typer app — backlog command group with delta subcommands
     graph/
       models.py                # BacklogGraph, GraphBacklogItem, Dependency (Pydantic)
       builder.py               # BacklogGraphBuilder (template-driven mapping)
@@ -29,7 +29,7 @@ modules/backlog-core/
       promote.py               # specfact backlog promote
       verify.py                # specfact backlog verify-readiness
       release_notes.py         # specfact backlog generate-release-notes
-      delta.py                 # specfact delta status/impact/cost-estimate/rollback-analysis
+      delta.py                 # specfact backlog delta status/impact/cost-estimate/rollback-analysis
     adapters/
       backlog_protocol.py      # BacklogGraphProtocol (arch-05 bridge registry)
     resources/
@@ -43,7 +43,7 @@ modules/backlog-core/
 **`module-package.yaml` declares:**
 - `name: backlog-core`
 - `version: 0.1.0`
-- `commands: [backlog analyze-deps, backlog sync, backlog diff, backlog promote, backlog verify-readiness, backlog generate-release-notes, delta status, delta impact, delta cost-estimate, delta rollback-analysis]`
+- `commands: [backlog]` (module extends the shared backlog command group with additional commands and `delta` subgroup)
 - `dependencies: []` (no module deps; uses bridge registry for adapters)
 - `schema_extensions:` — see arch-07 section below
 - `publisher:` — see arch-06 section below
@@ -59,7 +59,7 @@ modules/backlog-core/
   module-package.yaml          # module metadata, commands, schema_extensions, publisher
   src/backlog_core/
     __init__.py
-    main.py                    # typer.Typer app — backlog + delta command groups
+    main.py                    # typer.Typer app — backlog command group with delta subcommands
     graph/
       models.py                # BacklogGraph, GraphBacklogItem, Dependency (Pydantic)
       builder.py               # BacklogGraphBuilder (template-driven mapping)
@@ -72,7 +72,7 @@ modules/backlog-core/
       promote.py               # specfact backlog promote
       verify.py                # specfact backlog verify-readiness
       release_notes.py         # specfact backlog generate-release-notes
-      delta.py                 # specfact delta status/impact/cost-estimate/rollback-analysis
+      delta.py                 # specfact backlog delta status/impact/cost-estimate/rollback-analysis
     adapters/
       backlog_protocol.py      # BacklogGraphProtocol (arch-05 bridge registry)
     resources/
@@ -86,7 +86,7 @@ modules/backlog-core/
 **`module-package.yaml` declares:**
 - `name: backlog-core`
 - `version: 0.1.0`
-- `commands: [backlog analyze-deps, backlog sync, backlog diff, backlog promote, backlog verify-readiness, backlog generate-release-notes, delta status, delta impact, delta cost-estimate, delta rollback-analysis]`
+- `commands: [backlog]` (module extends the shared backlog command group with additional commands and `delta` subgroup)
 - `dependencies: []` (no module deps; uses bridge registry for adapters)
 - `schema_extensions:` — see arch-07 section below
 - `publisher:` — see arch-06 section below
@@ -100,8 +100,9 @@ Commands are auto-discovered by the registry and lazy-loaded; no registration in
 - **NEW**: Add template-driven mapping system (`BacklogGraphBuilder`) in `modules/backlog-core/src/backlog_core/graph/builder.py` that converts provider items (ADO/GitHub) into unified graph using pre-built templates (`ado_scrum`, `ado_safe`, `github_projects`, `jira_kanban`) stored in `modules/backlog-core/src/backlog_core/resources/backlog-templates/`.
 - **NEW**: Implement graph analyzers (`DependencyAnalyzer`) in `modules/backlog-core/src/backlog_core/analyzers/dependency.py` for transitive closure, cycle detection, critical path analysis, and impact analysis.
 - **NEW**: Add CLI commands under `specfact backlog`: `analyze-deps`, `sync`, `diff`, `promote`, `verify-readiness`, `generate-release-notes` — all declared in `module-package.yaml`, lazy-loaded by registry.
-- **NEW**: Add CLI commands under `specfact delta`: `status`, `impact`, `cost-estimate`, `rollback-analysis` — declared as a separate command group in `module-package.yaml`.
+- **NEW**: Add CLI commands under `specfact backlog delta`: `status`, `impact`, `cost-estimate`, `rollback-analysis` — mounted as a backlog subgroup by the module extension mechanism.
 - **EXTEND** (arch-05 bridge registry): Define `BacklogGraphProtocol` in `modules/backlog-core/src/backlog_core/adapters/backlog_protocol.py` — a protocol class that adapter implementations (GitHubAdapter, AdoAdapter) satisfy via the bridge registry. The protocol declares: `fetch_all_issues(project_id, filters)`, `fetch_relationships(project_id)`. Adapters register protocol implementations via the bridge registry; no modification to `BacklogAdapterMixin` base class required.
+- **EXTEND**: Add provider dependency enrichment path in this change: improve GitHub relationship extraction (`fetch_relationships`) and typing signals (`fetch_all_issues` payload normalization), and validate ADO relationship parity, so health metrics and release-readiness use meaningful dependency edges on real backlogs.
 - **EXTEND** (arch-07 schema extensions): The `module-package.yaml` `schema_extensions` section declares:
   - `backlog_core.backlog_graph` on `ProjectBundle` (type: `BacklogGraph | None`) — stores dependency graph data in plan bundles
   - `backlog_core.backlog_config` on `ProjectMetadata` (type: `dict[str, Any] | None`) — stores provider/template config per project
@@ -124,7 +125,7 @@ integrity:
 This enables integrity verification when installed via `specfact module install backlog-core`.
 
 ## Capabilities
-- **backlog-core**: Provider-agnostic `BacklogGraph` model; `DependencyAnalyzer` (transitive closure, cycle detection, critical path, impact); `BacklogGraphBuilder` with template-driven mapping; `BacklogGraphProtocol` for bridge adapter extensions; CLI: `backlog analyze-deps`, `backlog sync`, `backlog diff`, `backlog promote`, `backlog verify-readiness`, `backlog generate-release-notes`; `delta status`, `delta impact`, `delta cost-estimate`, `delta rollback-analysis`.
+- **backlog-core**: Provider-agnostic `BacklogGraph` model; `DependencyAnalyzer` (transitive closure, cycle detection, critical path, impact); `BacklogGraphBuilder` with template-driven mapping; `BacklogGraphProtocol` for bridge adapter extensions; CLI: `backlog analyze-deps`, `backlog sync`, `backlog diff`, `backlog promote`, `backlog verify-readiness`, `backlog generate-release-notes`; `backlog delta status`, `backlog delta impact`, `backlog delta cost-estimate`, `backlog delta rollback-analysis`.
 
 ---
 
@@ -133,5 +134,6 @@ This enables integrity verification when installed via `specfact module install 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #116
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/116>
-- **Last Synced Status**: proposed
+- **Working Branch**: `feature/backlog-core-01-dependency-analysis-commands`
+- **Last Synced Status**: in-progress
 - **Sanitized**: false

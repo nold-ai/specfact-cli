@@ -808,3 +808,742 @@ class TestProjectVersionCommands:
         history = manifest_data.get("project_metadata", {}).get("version_history", [])
         assert history
         assert history[-1]["to"] == "1.2.3"
+
+
+class TestProjectLinkBacklog:
+    """Tests for backlog linking under project commands."""
+
+    def test_link_backlog_persists_backlog_core_extension(self, sample_bundle: tuple[Path, str]) -> None:
+        """`project link-backlog` stores adapter/project id in project metadata extensions."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Linked backlog provider" in result.stdout
+
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
+        bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
+        bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        project_metadata = bundle.manifest.project_metadata
+        assert project_metadata is not None
+        cfg = project_metadata.get_extension("backlog_core", "backlog_config")
+        assert isinstance(cfg, dict)
+        assert cfg["adapter"] == "github"
+        assert cfg["project_id"] == "nold-ai/specfact-cli"
+
+    def test_link_backlog_can_include_template(self, sample_bundle: tuple[Path, str]) -> None:
+        """`project link-backlog` optionally stores template override."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "ado",
+                "--project-id",
+                "org/project",
+                "--template",
+                "ado_scrum",
+                "--no-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        from specfact_cli.utils.bundle_loader import load_project_bundle
+
+        bundle_dir = repo_path / ".specfact" / "projects" / bundle_name
+        bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        project_metadata = bundle.manifest.project_metadata
+        assert project_metadata is not None
+        cfg = project_metadata.get_extension("backlog_core", "backlog_config")
+        assert isinstance(cfg, dict)
+        assert cfg["template"] == "ado_scrum"
+
+    def test_link_backlog_accepts_project_name_alias(self, sample_bundle: tuple[Path, str]) -> None:
+        """`--project-name` works as an alias to select bundle."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--project-name",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_link_backlog_rejects_mismatched_bundle_and_project_name(self, sample_bundle: tuple[Path, str]) -> None:
+        """`--bundle` and `--project-name` must match when both provided."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--project-name",
+                "different-bundle",
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "--bundle and --project-name" in result.stdout
+
+
+class TestProjectHealthCheck:
+    """Tests for project health-check command."""
+
+    def test_health_check_requires_backlog_link(self, sample_bundle: tuple[Path, str]) -> None:
+        """health-check fails when backlog link is missing."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "health-check",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "link-backlog" in result.stdout
+
+    def test_health_check_uses_linked_backlog_config(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """health-check uses linked backlog config and prints summary."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        monkeypatch.setattr(
+            project_commands,
+            "_collect_backlog_health_metrics",
+            lambda *_args, **_kwargs: {
+                "total_items": 12,
+                "properly_typed": 11,
+                "properly_typed_pct": 91.6,
+                "with_dependencies": 8,
+                "orphan_count": 1,
+                "cycle_count": 0,
+            },
+        )
+        monkeypatch.setattr(
+            project_commands,
+            "_run_spec_code_alignment_check",
+            lambda *_args, **_kwargs: {"ok": True, "summary": "alignment-ok"},
+        )
+        monkeypatch.setattr(
+            project_commands,
+            "_run_release_readiness_check",
+            lambda *_args, **_kwargs: {"ok": True, "summary": "release-ready"},
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "health-check",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Project Health Check" in result.stdout
+        assert "11/12" in result.stdout
+        assert "Spec-Code Alignment" in result.stdout
+        assert "Release Readiness" in result.stdout
+
+    def test_health_check_passes_repo_to_spec_alignment(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """health-check forwards --repo path to spec-code alignment helper."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        observed_repo: list[Path] = []
+
+        def _fake_alignment(*_args, **kwargs) -> dict[str, object]:
+            observed_repo.append(kwargs["repo"])
+            return {"ok": True, "summary": "alignment-ok"}
+
+        monkeypatch.setattr(
+            project_commands,
+            "_collect_backlog_health_metrics",
+            lambda *_args, **_kwargs: {
+                "total_items": 1,
+                "properly_typed": 1,
+                "properly_typed_pct": 100.0,
+                "with_dependencies": 0,
+                "orphan_count": 0,
+                "cycle_count": 0,
+            },
+        )
+        monkeypatch.setattr(project_commands, "_run_spec_code_alignment_check", _fake_alignment)
+        monkeypatch.setattr(
+            project_commands,
+            "_run_release_readiness_check",
+            lambda *_args, **_kwargs: {"ok": True, "summary": "release-ready"},
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "health-check",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert observed_repo == [repo_path]
+
+
+class TestProjectDevOpsFlow:
+    """Tests for project devops-flow command."""
+
+    def test_devops_flow_requires_supported_stage_action(self, sample_bundle: tuple[Path, str]) -> None:
+        """devops-flow rejects unsupported stage/action combinations."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "devops-flow",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--stage",
+                "plan",
+                "--action",
+                "unknown-action",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "Unsupported stage/action" in result.stdout
+
+    def test_devops_flow_monitor_health_check_delegates(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """devops-flow monitor/health-check delegates to project health-check."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        calls: list[tuple[str, str]] = []
+
+        def _fake_health_check(
+            *, repo: Path, bundle: str | None, project_name: str | None, verbose: bool, no_interactive: bool
+        ) -> None:
+            _ = project_name, verbose, no_interactive
+            calls.append((str(repo), bundle or ""))
+
+        monkeypatch.setattr(project_commands, "health_check", _fake_health_check)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "devops-flow",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--stage",
+                "monitor",
+                "--action",
+                "health-check",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert calls == [(str(repo_path), bundle_name)]
+
+    def test_devops_flow_plan_generate_roadmap(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """devops-flow plan/generate-roadmap calls roadmap helper."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        calls: list[tuple[str, str]] = []
+
+        def _fake_generate_roadmap(*, adapter: str, project_id: str, template: str) -> list[str]:
+            calls.append((adapter, project_id))
+            _ = template
+            return ["M1", "M2"]
+
+        monkeypatch.setattr(project_commands, "generate_roadmap", _fake_generate_roadmap)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "devops-flow",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--stage",
+                "plan",
+                "--action",
+                "generate-roadmap",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert calls == [("github", "nold-ai/specfact-cli")]
+
+    def test_devops_flow_release_verify_calls_readiness(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """devops-flow release/verify delegates release checks."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        calls: list[tuple[str, str, str]] = []
+
+        def _fake_release_check(*, adapter: str, project_id: str, template: str) -> dict[str, object]:
+            calls.append((adapter, project_id, template))
+            return {"ok": True, "summary": "ready"}
+
+        monkeypatch.setattr(project_commands, "_run_release_readiness_check", _fake_release_check)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "devops-flow",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--stage",
+                "release",
+                "--action",
+                "verify",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert calls
+
+    def test_devops_flow_validate_pr_fails_when_alignment_fails(
+        self, sample_bundle: tuple[Path, str], monkeypatch
+    ) -> None:
+        """devops-flow review/validate-pr exits non-zero on alignment failure."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        observed_repo: list[Path] = []
+
+        def _fake_alignment(*_args, **kwargs) -> dict[str, object]:
+            observed_repo.append(kwargs["repo"])
+            return {"ok": False, "summary": "alignment-failed"}
+
+        monkeypatch.setattr(project_commands, "_run_spec_code_alignment_check", _fake_alignment)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "devops-flow",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--stage",
+                "review",
+                "--action",
+                "validate-pr",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "alignment-failed" in result.stdout
+        assert observed_repo == [repo_path]
+
+
+class TestProjectBacklogDerivedCommands:
+    """Tests for snapshot/regenerate/export-roadmap project commands."""
+
+    def test_snapshot_writes_baseline(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """snapshot stores backlog graph baseline JSON."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        class _FakeGraph:
+            def to_json(self) -> str:
+                return '{"provider":"github","project_key":"nold-ai/specfact-cli","items":{},"dependencies":[]}'
+
+        monkeypatch.setattr(project_commands, "_fetch_backlog_graph", lambda **_kwargs: _FakeGraph())
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "snapshot",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert (repo_path / ".specfact" / "backlog-baseline.json").exists()
+
+    def test_export_roadmap_runs_critical_path(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """export-roadmap renders analyzer critical path output."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        monkeypatch.setattr(project_commands, "generate_roadmap", lambda **_kwargs: ["FEATURE-1", "STORY-2"])
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "export-roadmap",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "FEATURE-1" in result.stdout
+
+    def test_regenerate_runs_sync_and_conflict_scan(self, sample_bundle: tuple[Path, str], monkeypatch) -> None:
+        """regenerate calls merge/conflict helpers over plan and backlog views."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        calls: list[str] = []
+        monkeypatch.setattr(project_commands, "merge_plans", lambda *_args, **_kwargs: {"merged": True})
+        monkeypatch.setattr(project_commands, "_fetch_backlog_graph", lambda **_kwargs: type("G", (), {"items": {}})())
+
+        def _fake_find_conflicts(*_args, **_kwargs) -> list[str]:
+            calls.append("conflicts")
+            return []
+
+        monkeypatch.setattr(project_commands, "find_conflicts", _fake_find_conflicts)
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "regenerate",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert calls == ["conflicts"]
+
+    def test_regenerate_conflicts_are_summary_only_by_default(
+        self, sample_bundle: tuple[Path, str], monkeypatch
+    ) -> None:
+        """regenerate reports mismatch summary without failing when --strict is not set."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        monkeypatch.setattr(project_commands, "_fetch_backlog_graph", lambda **_kwargs: type("G", (), {"items": {}})())
+        monkeypatch.setattr(project_commands, "merge_plans", lambda *_args, **_kwargs: {"merged": True})
+        monkeypatch.setattr(
+            project_commands,
+            "find_conflicts",
+            lambda *_args, **_kwargs: ["Backlog item '123' missing in plan", "Backlog item '124' missing in plan"],
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "regenerate",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Detected 2 plan/backlog mismatches" in result.stdout
+        assert "Backlog item '123' missing in plan" not in result.stdout
+
+    def test_regenerate_strict_fails_and_verbose_lists_conflicts(
+        self, sample_bundle: tuple[Path, str], monkeypatch
+    ) -> None:
+        """regenerate --strict returns non-zero and --verbose prints conflict details."""
+        repo_path, bundle_name = sample_bundle
+        os.environ["TEST_MODE"] = "true"
+        from specfact_cli.modules.project.src import commands as project_commands
+
+        link_result = runner.invoke(
+            app,
+            [
+                "project",
+                "link-backlog",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--adapter",
+                "github",
+                "--project-id",
+                "nold-ai/specfact-cli",
+                "--no-interactive",
+            ],
+        )
+        assert link_result.exit_code == 0
+
+        monkeypatch.setattr(project_commands, "_fetch_backlog_graph", lambda **_kwargs: type("G", (), {"items": {}})())
+        monkeypatch.setattr(project_commands, "merge_plans", lambda *_args, **_kwargs: {"merged": True})
+        monkeypatch.setattr(
+            project_commands,
+            "find_conflicts",
+            lambda *_args, **_kwargs: ["Backlog item '123' missing in plan"],
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "project",
+                "regenerate",
+                "--repo",
+                str(repo_path),
+                "--bundle",
+                bundle_name,
+                "--strict",
+                "--verbose",
+                "--no-interactive",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "Backlog item '123' missing in plan" in result.stdout

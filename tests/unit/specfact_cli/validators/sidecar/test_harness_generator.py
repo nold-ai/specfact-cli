@@ -92,3 +92,120 @@ def test_generate_harness_no_contracts(tmp_path: Path) -> None:
 
     result = generate_harness(contracts_dir, harness_path)
     assert result is False
+
+
+def test_extract_operations_includes_response_examples() -> None:
+    """Test that extract_operations extracts response examples for constraint inference."""
+    contract_data = {
+        "openapi": "3.0.3",
+        "paths": {
+            "/api/users/{id}": {
+                "get": {
+                    "operationId": "get_user",
+                    "parameters": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "integer"},
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Success",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {"id": {"type": "integer"}},
+                                        "example": {"id": 1, "name": "Alice"},
+                                    }
+                                }
+                            },
+                        }
+                    },
+                }
+            }
+        },
+    }
+
+    operations = extract_operations(contract_data)
+    assert len(operations) == 1
+    assert "response_examples" in operations[0]
+    assert len(operations[0]["response_examples"]) >= 1
+    assert operations[0]["response_examples"][0]["id"] == 1
+
+
+def test_render_harness_business_logic_preconditions() -> None:
+    """Test that harness includes business logic preconditions for path params."""
+    operations = [
+        {
+            "operation_id": "get_user",
+            "path": "/api/users/{id}",
+            "method": "GET",
+            "parameters": [
+                {
+                    "name": "id",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "integer"},
+                }
+            ],
+            "request_schema": None,
+            "response_schema": {},
+            "expected_status_codes": [200],
+            "response_examples": [],
+        }
+    ]
+
+    harness_code = render_harness(operations)
+    assert "id >= 1" in harness_code or "id must be >= 1" in harness_code
+
+
+def test_render_harness_enum_preconditions() -> None:
+    """Test that harness includes enum preconditions from schema."""
+    operations = [
+        {
+            "operation_id": "get_status",
+            "path": "/api/status/{status}",
+            "method": "GET",
+            "parameters": [
+                {
+                    "name": "status",
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "string", "enum": ["active", "inactive"]},
+                }
+            ],
+            "request_schema": None,
+            "response_schema": {},
+            "expected_status_codes": [200],
+            "response_examples": [],
+        }
+    ]
+
+    harness_code = render_harness(operations)
+    assert "active" in harness_code and "inactive" in harness_code
+
+
+def test_render_harness_id_postcondition() -> None:
+    """Test that harness includes business rule postcondition for id >= 1."""
+    operations = [
+        {
+            "operation_id": "create_user",
+            "path": "/api/users",
+            "method": "POST",
+            "parameters": [],
+            "request_schema": None,
+            "response_schema": {
+                "type": "object",
+                "properties": {"id": {"type": "integer"}, "name": {"type": "string"}},
+                "required": ["id", "name"],
+            },
+            "expected_status_codes": [200, 201],
+            "response_examples": [],
+        }
+    ]
+
+    harness_code = render_harness(operations)
+    assert "id" in harness_code and ">= 1" in harness_code

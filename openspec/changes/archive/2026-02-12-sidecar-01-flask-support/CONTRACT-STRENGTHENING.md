@@ -324,6 +324,29 @@ properties:
     description: User account status
 ```
 
+## Business Logic Constraints
+
+### Path Parameter Preconditions
+
+Preconditions are generated from schema and naming conventions:
+
+- **`id` path parameters (integer)**: Default `minimum: 1` (valid resource ID)
+- **`username`, `slug`, `token`, `name` (string)**: `minLength: 1` (non-empty)
+- **`enum` in schema**: Value must be one of allowed values
+
+### Response Postconditions
+
+Business rules are enforced for success responses:
+
+- **`id` property (integer)**: Must be `>= 1` when present (valid resource ID)
+- **`enum` in response schema**: Value must match allowed values
+
+### OpenAPI Examples
+
+Constraints are inferred from `schema.example` and `schema.examples` when the schema lacks explicit constraints. Example values inform valid ranges (e.g., `id: 1` implies `id >= 1`).
+
+---
+
 ## Contract Generation from Code
 
 ### Automatic Extraction
