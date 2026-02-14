@@ -8,7 +8,7 @@ version = "0.31.0"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE.md" }  # Apache License 2.0
+license = { file = "LICENSE" }  # Apache License 2.0
 authors = [
     {name = "NOLD AI (Owner: Dominikus Nold)", email = "hello@noldai.com"}
 ]
@@ -385,7 +385,7 @@ include = [
     "/src",
     "/resources",
     "/README.md",
-    "/LICENSE.md",
+    "/LICENSE",
     "/pyproject.toml",
 ]
 # Exclude development files, tests, docs, tools, etc.
