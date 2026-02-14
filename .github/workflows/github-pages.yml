@@ -11,7 +11,7 @@ on:
       - "docs/Gemfile"
       - "docs/index.md"
       - "docs/assets/**"
-      - "LICENSE.md"
+      - "LICENSE"
       - "TRADEMARKS.md"
   workflow_dispatch:
     inputs:
@@ -56,7 +56,7 @@ jobs:
       - name: Copy root files to docs
         run: |
           # Copy important root files to docs directory for inclusion in GitHub Pages
-          cp LICENSE.md docs/LICENSE.md
+          cp LICENSE docs/LICENSE
           cp TRADEMARKS.md docs/TRADEMARKS.md
           cp _config.yml docs/_config.yml
 
