@@ -8,7 +8,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/specfact-cli.svg?color=22c55e)](https://pypi.org/project/specfact-cli/)
 [![Python versions](https://img.shields.io/pypi/pyversions/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE.md)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-beta-F59E0B.svg)](https://github.com/nold-ai/specfact-cli)
 
 <div align="center">
@@ -243,7 +243,7 @@ hatch run contract-test-full
 
 **Apache License 2.0** - Open source and enterprise-friendly.
 
-[Full license](LICENSE.md)
+[Full license](LICENSE)
 
 ---
 

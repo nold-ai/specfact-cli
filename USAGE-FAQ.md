@@ -100,7 +100,7 @@ See our [Contributing Guide](./CONTRIBUTING.md) for details.
 
 The Apache License 2.0 is very permissive. If you're uncertain:
 
-1. **Review the license text** in [LICENSE.md](LICENSE.md)
+1. **Review the license text** in [LICENSE](LICENSE)
 2. **Check if you're preserving attribution** (usually the only requirement)
 3. **Contact us** at [hello@noldai.com](mailto:hello@noldai.com) for clarification
 
