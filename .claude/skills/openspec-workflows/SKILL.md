@@ -2,7 +2,6 @@
 name: openspec-workflows
 description: Create OpenSpec changes from implementation plans, and validate existing changes before implementation. Use when the user wants to turn a plan document into an OpenSpec change proposal, or validate that a change is safe to implement (breaking changes, dependency analysis).
 license: MIT
-compatibility: Requires openspec CLI and gh CLI.
 metadata:
   author: openspec
   version: "1.0"
