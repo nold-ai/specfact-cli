@@ -22,7 +22,6 @@ from specfact_cli.models.module_package import (
 )
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.module_packages import (
-    ModulePackageMetadata,
     discover_package_metadata,
     get_modules_root,
     merge_module_state,
