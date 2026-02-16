@@ -48,13 +48,17 @@ class FeatureDelta(BaseModel):
 
     @model_validator(mode="after")
     @require(
-        lambda self: self.change_type == ChangeType.ADDED
-        or (self.change_type in (ChangeType.MODIFIED, ChangeType.REMOVED) and self.original_feature is not None),
+        lambda self: (
+            self.change_type == ChangeType.ADDED
+            or (self.change_type in (ChangeType.MODIFIED, ChangeType.REMOVED) and self.original_feature is not None)
+        ),
         "MODIFIED/REMOVED changes must have original_feature",
     )
     @require(
-        lambda self: self.change_type == ChangeType.REMOVED
-        or (self.change_type in (ChangeType.ADDED, ChangeType.MODIFIED) and self.proposed_feature is not None),
+        lambda self: (
+            self.change_type == ChangeType.REMOVED
+            or (self.change_type in (ChangeType.ADDED, ChangeType.MODIFIED) and self.proposed_feature is not None)
+        ),
         "ADDED/MODIFIED changes must have proposed_feature",
     )
     @ensure(lambda result: isinstance(result, FeatureDelta), "Must return FeatureDelta")

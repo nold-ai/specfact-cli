@@ -67,7 +67,7 @@ class TestExtensionRegistry:
             "module_a",
             [SchemaExtension(target="Feature", field="ado_work_item_id", type_hint="str", description="")],
         )
-        with pytest.raises(ValueError, match="collision|already declared"):
+        with pytest.raises(ValueError, match=r"collision|already declared"):
             registry.register(
                 "module_b",
                 [SchemaExtension(target="Feature", field="ado_work_item_id", type_hint="str", description="")],

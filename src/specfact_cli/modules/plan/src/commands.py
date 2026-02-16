@@ -3025,9 +3025,9 @@ def _load_and_validate_plan(plan: Path) -> tuple[bool, PlanBundle | None]:
 
 @beartype
 @require(
-    lambda bundle, bundle_dir, auto_enrich: isinstance(bundle, PlanBundle)
-    and bundle_dir is not None
-    and isinstance(bundle_dir, Path),
+    lambda bundle, bundle_dir, auto_enrich: (
+        isinstance(bundle, PlanBundle) and bundle_dir is not None and isinstance(bundle_dir, Path)
+    ),
     "Bundle must be PlanBundle and bundle_dir must be non-None Path",
 )
 @ensure(lambda result: result is None, "Must return None")

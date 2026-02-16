@@ -24,9 +24,7 @@ def _check_collision(
                 continue
             for e in existing_exts:
                 if (e.target, e.field) == (ext.target, ext.field):
-                    raise ValueError(
-                        f"Extension field collision: {key} already declared by module {existing_module}"
-                    )
+                    raise ValueError(f"Extension field collision: {key} already declared by module {existing_module}")
 
 
 class ExtensionRegistry:

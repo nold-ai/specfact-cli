@@ -133,10 +133,9 @@ def get_console_config() -> dict[str, Any]:
 
 @beartype
 @ensure(
-    lambda result: isinstance(result, tuple)
-    and len(result) == 2
-    and isinstance(result[0], tuple)
-    and isinstance(result[1], dict),
+    lambda result: (
+        isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], tuple) and isinstance(result[1], dict)
+    ),
     "Must return tuple of (columns tuple, kwargs dict)",
 )
 def get_progress_config() -> tuple[tuple[Any, ...], dict[str, Any]]:

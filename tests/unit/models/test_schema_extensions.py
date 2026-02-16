@@ -62,13 +62,13 @@ class TestFeatureExtensions:
     def test_feature_invalid_module_name_raises(self) -> None:
         """Invalid module_name (e.g. contains dots) SHALL raise ValueError or contract violation."""
         f = Feature(key="F-1", title="Test")
-        with pytest.raises((ValueError, Exception), match="Invalid module name format|module name"):
+        with pytest.raises((ValueError, AssertionError), match=r"Invalid module name format|module name"):
             f.set_extension("backlog.submodule", "field", "value")
 
     def test_feature_invalid_field_name_raises(self) -> None:
         """Invalid field name format SHALL raise (contract or ValueError)."""
         f = Feature(key="F-1", title="Test")
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, AssertionError)):
             f.set_extension("backlog", "invalid-field", "value")
 
 
@@ -78,7 +78,11 @@ class TestProjectBundleExtensions:
     def _minimal_bundle(self) -> ProjectBundle:
         from specfact_cli.models.project import BundleManifest, BundleVersions
 
-        manifest = BundleManifest(versions=BundleVersions(schema="1.0", project="0.1.0"))
+        manifest = BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
         return ProjectBundle(
             manifest=manifest,
             bundle_name="test",
@@ -122,7 +126,11 @@ class TestBackwardCompatibility:
         """Core operations SHALL work when extensions is empty dict."""
         from specfact_cli.models.project import BundleManifest, BundleVersions
 
-        manifest = BundleManifest(versions=BundleVersions(schema="1.0", project="0.1.0"))
+        manifest = BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
         bundle = ProjectBundle(
             manifest=manifest,
             bundle_name="test",

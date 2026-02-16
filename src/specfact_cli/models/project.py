@@ -18,10 +18,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-
-_EXT_MODULE_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
-_EXT_FIELD_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field, StrictStr, model_validator
@@ -36,6 +32,10 @@ from specfact_cli.models.plan import (
     PlanSummary,
     Product,
 )
+
+
+_EXT_MODULE_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+_EXT_FIELD_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class BundleFormat(StrEnum):

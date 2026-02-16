@@ -253,9 +253,11 @@ def process_template(content: str, description: str, format_type: Literal["md", 
 @require(lambda repo_path: repo_path.is_dir(), "Repo path must be a directory")
 @require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
 @ensure(
-    lambda result: isinstance(result, tuple)
-    and len(result) == 2
-    and (result[1] is None or (isinstance(result[1], Path) and result[1].exists())),
+    lambda result: (
+        isinstance(result, tuple)
+        and len(result) == 2
+        and (result[1] is None or (isinstance(result[1], Path) and result[1].exists()))
+    ),
     "Settings file path must exist if returned",
 )
 def copy_templates_to_ide(
