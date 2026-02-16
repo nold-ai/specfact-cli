@@ -144,22 +144,23 @@ class SmartCoverageManager:
     def _build_hatch_test_cmd(
         self, with_coverage: bool, extra_args: list[str] | None = None, parallel: bool = False
     ) -> list[str]:
-        """Construct the hatch test command, honoring optional env selection."""
-        base_cmd: list[str] = [self.hatch_bin, "test"]
-        if self.hatch_test_env:
-            env_name = (
-                self.hatch_test_env
-                if self.hatch_test_env.startswith("hatch-test.")
-                else f"hatch-test.{self.hatch_test_env}"
-            )
-            base_cmd += ["-e", env_name]
-        if with_coverage:
-            base_cmd += ["--cover"]
-        # Pass pytest args explicitly after `--` to avoid collisions with hatch-test flags
-        # (e.g., hatch's `-r/--randomize` conflicts with pytest `-r` report option).
+        """Construct the hatch run command for the test script, honoring optional env selection.
+
+        Uses `hatch run -e ENV run-cov` (or `run`) so that pytest receives only script
+        args after `--`. Using `hatch test -e ENV --cover` can forward `-e` to pytest in
+        some environments and cause "unrecognized arguments: -e".
+        """
+        if self.hatch_test_env and self.hatch_test_env.startswith("hatch-test."):
+            env_name = self.hatch_test_env
+        elif self.hatch_test_env:
+            env_name = f"hatch-test.{self.hatch_test_env}"
+        else:
+            env_name = "hatch-test.py3.12"
+        script = "run-cov" if with_coverage else "run"
+        # -e/--env must be the first option before the run command
+        base_cmd: list[str] = [self.hatch_bin, "-e", env_name, "run", script]
+        # Pass pytest args explicitly after `--` to avoid collisions with hatch flags.
         base_cmd += ["--", "-v", "-r", "fEw"]
-        # Parallel execution is handled by hatch configuration (parallel = true)
-        # No need to add -n parameter manually
         if extra_args:
             base_cmd += extra_args
         return base_cmd

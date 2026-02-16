@@ -789,6 +789,38 @@ The command automatically uses tokens in this order:
 
 ---
 
+## CI and GitHub Actions
+
+### Downloading test and repro logs from CI
+
+When a PR or push runs the **PR Orchestrator** workflow, test and repro output are uploaded as workflow artifacts so you can debug failures without re-running the full suite locally.
+
+1. **Where to find artifacts**
+
+   - Open the workflow run: **Actions** → select the **PR Orchestrator** run (e.g. from your PR or branch).
+   - Scroll to the **Artifacts** section at the bottom of the run.
+
+2. **Artifact names and contents**
+
+   | Artifact             | Job              | Contents                                                                 |
+   |----------------------|------------------|---------------------------------------------------------------------------|
+   | `test-logs`          | Tests (Python 3.12) | Full test run and coverage logs from `hatch run smart-test-full` (`logs/tests/`). |
+   | `coverage-reports`   | Tests (Python 3.12) | Coverage XML for quality gates (when unit tests ran).                     |
+   | `compat-py311-logs`  | Compatibility (Python 3.11) | Pytest and coverage XML output from the compat job.                  |
+   | `type-check-logs`    | Type Checking (basedpyright) | Full basedpyright type-check output.                              |
+   | `lint-logs`          | Linting (ruff, pylint) | Full lint run output.                                                   |
+   | `quality-gates-logs`| Quality Gates (Advisory) | Coverage percentage and advisory message.                          |
+   | `repro-logs`         | Contract-First CI | Full stdout/stderr of `specfact repro` (`logs/repro/`).                   |
+   | `repro-reports`      | Contract-First CI | Repro report YAMLs from `.specfact/reports/enforcement/`.                |
+
+3. **How to use them**
+
+   - Download the artifact (e.g. `test-logs` or `repro-logs`) from the run page.
+   - Unzip and open the log or report files to see the full output that led to the failure.
+   - Use this instead of copying snippets from the step log, so you get complete error context before fixing and pushing again.
+
+---
+
 ## Getting Help
 
 If you're still experiencing issues:

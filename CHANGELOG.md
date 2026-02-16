@@ -24,6 +24,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.31.1] - 2026-02-16
+
+### Added
+
+- CI log artifacts: PR Orchestrator workflow now uploads test logs (`test-logs`) from `hatch run smart-test-full` and repro logs/reports (`repro-logs`, `repro-reports`) from the contract-first-ci job so failed runs can be debugged by downloading full logs from the Actions Artifacts section without re-running locally.
+- Documentation: "CI and GitHub Actions" section in [Troubleshooting](docs/guides/troubleshooting.md) describing artifact names and how to download and use them.
+
+### Changed
+
+- Tests job in `.github/workflows/pr-orchestrator.yml` now runs `hatch run smart-test-full` (single full-suite step with log output to `logs/tests/`) and uploads `logs/tests/` as the `test-logs` artifact.
+- Contract-first-ci job captures `specfact repro` stdout/stderr to `logs/repro/` and uploads `repro-logs` and `repro-reports` (`.specfact/reports/enforcement/`) as artifacts on every run.
+
+---
+
 ## [0.31.0] - 2026-02-13
 
 ### Added
