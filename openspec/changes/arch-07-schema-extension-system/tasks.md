@@ -21,11 +21,11 @@ Do not implement production code until tests exist and have been run (expecting 
 ## 2. Add extensions field to core models (spec-first)
 
 - [x] 2.1 Write tests for Feature.extensions field (expect failure)
-  - [ ] 2.1.1 Create `tests/unit/test_schema_extensions.py`
-  - [ ] 2.1.2 Test Feature model includes extensions dict field with default empty dict
-  - [ ] 2.1.3 Test extensions field serializes/deserializes with YAML and JSON
-  - [ ] 2.1.4 Test backward compatibility: bundles without extensions load successfully
-  - [x] 2.1.5 Run tests: `hatch test -- tests/unit/test_schema_extensions.py -v` (expect failures)
+  - [x] 2.1.1 Create `tests/unit/models/test_schema_extensions.py`
+  - [x] 2.1.2 Test Feature model includes extensions dict field with default empty dict
+  - [x] 2.1.3 Test extensions field serializes/deserializes with YAML and JSON
+  - [x] 2.1.4 Test backward compatibility: bundles without extensions load successfully
+  - [x] 2.1.5 Run tests: `hatch test -- tests/unit/models/test_schema_extensions.py -v` (expect failures)
 
 - [x] 2.2 Implement extensions field in Feature model (src/specfact_cli/models/plan.py)
   - [x] 2.2.1 Add `extensions: dict[str, Any] = Field(default_factory=dict)` to Feature class
@@ -45,11 +45,11 @@ Do not implement production code until tests exist and have been run (expecting 
 ## 3. Implement type-safe extension accessors (TDD)
 
 - [x] 3.1 Write tests for get_extension() and set_extension() methods (expect failure)
-  - [ ] 3.1.1 Test get_extension() with valid namespace returns value
-  - [ ] 3.1.2 Test get_extension() with missing field returns default
-  - [ ] 3.1.3 Test set_extension() stores value with namespace prefix
-  - [ ] 3.1.4 Test invalid namespace format raises ValueError
-  - [ ] 3.1.5 Test namespace format validation (no dots in module_name)
+  - [x] 3.1.1 Test get_extension() with valid namespace returns value
+  - [x] 3.1.2 Test get_extension() with missing field returns default
+  - [x] 3.1.3 Test set_extension() stores value with namespace prefix
+  - [x] 3.1.4 Test invalid namespace format raises ValueError
+  - [x] 3.1.5 Test namespace format validation (no dots in module_name)
   - [x] 3.1.6 Run tests (expect failures)
 
 - [x] 3.2 Implement get_extension() and set_extension() in Feature (src/specfact_cli/models/plan.py)
@@ -96,51 +96,33 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ## 9. Version and changelog
 
-- [x] 9.1 Bump version to 0.32.0 (pyproject.toml, setup.py, src/__init__.py, src/specfact_cli/__init__.py)
-- [x] 9.2 Update CHANGELOG.md ([0.32.0] - 2026-02-16, Added schema extension system, #213)
+- [x] 9.1 Bump version to 0.33.0 (pyproject.toml, setup.py, src/__init__.py, src/specfact_cli/__init__.py)
+- [x] 9.2 Update CHANGELOG.md ([0.33.0] - 2026-02-16, Added schema extension system, #213)
 
 ## 10. Create PR to dev
 
-- [ ] 10.1 Prepare commit
-  - [ ] 10.1.1 `git add .`
-  - [ ] 10.1.2 `git commit -m "$(cat <<'EOF'`
-    ```
-    feat: add schema extension system for modular ProjectBundle extensions
+- [x] 10.1 Prepare commit
+  - [x] 10.1.1 `git add .`
+  - [x] 10.1.2 `git commit -S -m "feat: ..."` (signed commit; Resolves #213)
+  - [x] 10.1.3 `git push -u origin feature/arch-07-schema-extension-system`
 
-    Enables modules to extend Feature and ProjectBundle with namespaced custom
-    fields without modifying core models, supporting marketplace-ready
-    interoperability.
+- [x] 10.2 Create PR body from template
+  - [x] 10.2.1 Used `.github/pull_request_template.md` for PR body
+  - [x] 10.2.2 Fill in: Resolves #213
+  - [x] 10.2.3 Add OpenSpec change ID: arch-07-schema-extension-system
+  - [x] 10.2.4 Describe changes, testing, and documentation updates
 
-    - Add extensions dict field to Feature and ProjectBundle models
-    - Implement type-safe get/set extension accessors with namespace enforcement
-    - Extend module manifest schema with schema_extensions declaration
-    - Add ExtensionRegistry for collision detection and introspection
-    - Extend module lifecycle registration to load and validate extensions
+- [x] 10.3 Create PR via gh CLI
+  - [x] 10.3.1 `gh pr create --base dev --head feature/arch-07-schema-extension-system --title "feat: Schema Extension System for Modular ProjectBundle Extensions (arch-07)" --body-file tmp-pr-body.md`
+  - [x] 10.3.2 PR URL: https://github.com/nold-ai/specfact-cli/pull/265
 
-    OpenSpec Change: arch-07-schema-extension-system
+- [x] 10.4 Link to project
+  - [x] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>` (optional; run if project board in use)
 
-    Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
-    EOF
-    )"`
-  - [ ] 10.1.3 `git push -u origin feature/arch-07-schema-extension-system`
+- [x] 10.5 Verify PR setup
+  - [x] 10.5.1 PR base: dev, head: feature/arch-07-schema-extension-system
+  - [x] 10.5.2 CI checks run on PR
+  - [x] 10.5.3 Verify project board shows PR (if applicable)
 
-- [ ] 10.2 Create PR body from template
-  - [ ] 10.2.1 Copy `.github/pull_request_template.md` to `/tmp/pr-body-arch-07.md`
-  - [ ] 10.2.2 Fill in: Fixes nold-ai/specfact-cli#<issue-number> (if exists)
-  - [ ] 10.2.3 Add OpenSpec change ID: arch-07-schema-extension-system
-  - [ ] 10.2.4 Describe changes, testing, and documentation updates
-
-- [ ] 10.3 Create PR via gh CLI
-  - [ ] 10.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/arch-07-schema-extension-system --title "feat: Schema Extension System for Modular ProjectBundle Extensions" --body-file /tmp/pr-body-arch-07.md`
-  - [ ] 10.3.2 Capture PR URL from output
-
-- [ ] 10.4 Link to project
-  - [ ] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
-
-- [ ] 10.5 Verify PR setup
-  - [ ] 10.5.1 Check PR shows correct base (dev) and head branch
-  - [ ] 10.5.2 Verify CI checks are running
-  - [ ] 10.5.3 Verify project board shows PR
-
-- [ ] 10.6 Cleanup
-  - [ ] 10.6.1 `rm /tmp/pr-body-arch-07.md`
+- [x] 10.6 Cleanup
+  - [x] 10.6.1 Removed temporary PR body file
