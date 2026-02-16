@@ -2,6 +2,7 @@
 Tests for module packages (spec: module-packages).
 
 Discovery finds packages with metadata.yaml; package loader loads only that package; registry receives commands.
+Arch-06: publisher/integrity metadata and versioned dependency models.
 """
 
 from __future__ import annotations
@@ -12,12 +13,20 @@ from pathlib import Path
 
 import pytest
 
+from specfact_cli.models.module_package import (
+    IntegrityInfo,
+    ModulePackageMetadata,
+    PublisherInfo,
+    VersionedModuleDependency,
+    VersionedPipDependency,
+)
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.module_packages import (
     ModulePackageMetadata,
     discover_package_metadata,
     get_modules_root,
     merge_module_state,
+    register_module_package_commands,
 )
 from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 
@@ -81,6 +90,203 @@ def test_merge_module_state_disable_override():
     discovered = [("m1", "1.0")]
     enabled = merge_module_state(discovered, {}, [], ["m1"])
     assert enabled["m1"] is False
+
+
+# --- Arch-06: manifest security metadata models (TDD) ---
+
+
+def test_publisher_info_model_captures_name_email_and_attributes():
+    """PublisherInfo SHALL capture name, email, and optional publisher attributes."""
+    pub = PublisherInfo(name="Acme", email="publish@acme.example")
+    assert pub.name == "Acme"
+    assert pub.email == "publish@acme.example"
+    assert getattr(pub, "attributes", None) is None or isinstance(pub.attributes, dict)
+    pub_with_attr = PublisherInfo(name="X", email="x@y.z", attributes={"url": "https://acme.example"})
+    assert pub_with_attr.attributes == {"url": "https://acme.example"}
+
+
+def test_integrity_info_model_captures_checksum_and_optional_signature():
+    """IntegrityInfo SHALL capture checksum and optional signature fields."""
+    valid_sha256 = "sha256:" + "a" * 64
+    integrity = IntegrityInfo(checksum=valid_sha256)
+    assert integrity.checksum == valid_sha256
+    assert getattr(integrity, "signature", None) is None or isinstance(integrity.signature, (str, type(None)))
+    integrity_signed = IntegrityInfo(checksum=valid_sha256, signature="base64sig...")
+    assert integrity_signed.signature == "base64sig..."
+
+
+def test_integrity_info_validates_checksum_format():
+    """IntegrityInfo validation SHALL ensure checksum format correctness."""
+    IntegrityInfo(checksum="sha256:" + "a" * 64)
+    with pytest.raises((ValueError, Exception)):
+        IntegrityInfo(checksum="invalid-no-algo")
+
+
+def test_versioned_module_dependency_parsed():
+    """Versioned module dependency SHALL store name and version specifier."""
+    dep = VersionedModuleDependency(name="backlog-core", version_specifier=">=0.1.0,<1.0")
+    assert dep.name == "backlog-core"
+    assert dep.version_specifier == ">=0.1.0,<1.0"
+
+
+def test_versioned_pip_dependency_parsed():
+    """Versioned pip dependency SHALL preserve name and version for installation-time resolution."""
+    dep = VersionedPipDependency(name="requests", version_specifier=">=2.28.0")
+    assert dep.name == "requests"
+    assert dep.version_specifier == ">=2.28.0"
+
+
+def test_manifest_parsing_includes_publisher_and_integrity(tmp_path: Path):
+    """Manifest with publisher and integrity metadata SHALL be parsed and available."""
+    (tmp_path / "secure_pkg").mkdir()
+    (tmp_path / "secure_pkg" / "module-package.yaml").write_text(
+        """
+name: secure_pkg
+version: '0.1.0'
+commands: [cmd]
+publisher:
+  name: Publisher Inc
+  email: dev@pub.example
+integrity:
+  checksum: sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "secure_pkg" / "src").mkdir(parents=True)
+    result = discover_package_metadata(tmp_path)
+    assert len(result) == 1
+    _pkg_dir, meta = result[0]
+    assert meta.publisher is not None
+    assert meta.publisher.name == "Publisher Inc"
+    assert meta.publisher.email == "dev@pub.example"
+    assert meta.integrity is not None
+    assert meta.integrity.checksum.startswith("sha256:")
+
+
+def test_manifest_parsing_versioned_module_dependency(tmp_path: Path):
+    """Manifest declaring module dependency with version specifier SHALL store both values."""
+    (tmp_path / "with_deps").mkdir()
+    (tmp_path / "with_deps" / "module-package.yaml").write_text(
+        """
+name: with_deps
+version: '0.1.0'
+commands: [c]
+module_dependencies_versioned:
+  - name: other-module
+    version_specifier: ">=0.2.0"
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "with_deps" / "src").mkdir(parents=True)
+    result = discover_package_metadata(tmp_path)
+    assert len(result) == 1
+    _pkg_dir, meta = result[0]
+    assert hasattr(meta, "module_dependencies_versioned")
+    assert len(meta.module_dependencies_versioned) == 1
+    assert meta.module_dependencies_versioned[0].name == "other-module"
+    assert meta.module_dependencies_versioned[0].version_specifier == ">=0.2.0"
+
+
+def test_manifest_parsing_versioned_pip_dependency(tmp_path: Path):
+    """Manifest declaring pip dependency with version specifier SHALL preserve for resolution."""
+    (tmp_path / "pip_deps").mkdir()
+    (tmp_path / "pip_deps" / "module-package.yaml").write_text(
+        """
+name: pip_deps
+version: '0.1.0'
+commands: [c]
+pip_dependencies_versioned:
+  - name: pyyaml
+    version_specifier: ">=6.0"
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "pip_deps" / "src").mkdir(parents=True)
+    result = discover_package_metadata(tmp_path)
+    assert len(result) == 1
+    _pkg_dir, meta = result[0]
+    assert hasattr(meta, "pip_dependencies_versioned")
+    assert len(meta.pip_dependencies_versioned) == 1
+    assert meta.pip_dependencies_versioned[0].name == "pyyaml"
+    assert meta.pip_dependencies_versioned[0].version_specifier == ">=6.0"
+
+
+def test_manifest_legacy_without_publisher_integrity_loads_successfully(tmp_path: Path):
+    """Bundles without publisher/integrity (legacy) SHALL load successfully (backward compatibility)."""
+    (tmp_path / "legacy_pkg").mkdir()
+    (tmp_path / "legacy_pkg" / "module-package.yaml").write_text(
+        "name: legacy_pkg\nversion: '0.1.0'\ncommands: [x]\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "legacy_pkg" / "src").mkdir(parents=True)
+    result = discover_package_metadata(tmp_path)
+    assert len(result) == 1
+    _pkg_dir, meta = result[0]
+    assert meta.name == "legacy_pkg"
+    assert meta.publisher is None
+    assert meta.integrity is None
+
+
+# --- Arch-06: installer and lifecycle trust enforcement (TDD) ---
+
+
+def test_trust_check_rejects_on_checksum_mismatch(monkeypatch, tmp_path: Path):
+    """When artifact checksum does not match expected, module SHALL be skipped at registration."""
+    from specfact_cli.registry import module_installer
+
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "module-package.yaml").write_text(
+        "name: pkg\nversion: '0.1.0'\ncommands: [c]\n", encoding="utf-8"
+    )
+
+    def fail_checksum(_data, _expected):
+        raise ValueError("Checksum mismatch")
+
+    monkeypatch.setattr(module_installer, "verify_checksum", fail_checksum)
+    from specfact_cli.models.module_package import IntegrityInfo
+
+    meta = ModulePackageMetadata(
+        name="bad_checksum_mod",
+        version="0.1.0",
+        commands=["c"],
+        integrity=IntegrityInfo(checksum="sha256:" + "a" * 64),
+    )
+    result = module_installer.verify_module_artifact(tmp_path / "pkg", meta, allow_unsigned=False)
+    assert result is False
+
+
+def test_allow_unsigned_allows_module_without_integrity(monkeypatch):
+    """When allow_unsigned is True, module without integrity metadata MAY be allowed."""
+    from specfact_cli.registry import module_installer
+
+    meta = ModulePackageMetadata(name="no_integrity", version="0.1.0", commands=["c"], integrity=None)
+    pkg_dir = Path(__file__).parent
+    result = module_installer.verify_module_artifact(pkg_dir, meta, allow_unsigned=True)
+    assert result is True
+
+
+def test_unaffected_modules_register_when_one_fails_trust(monkeypatch, tmp_path: Path):
+    """When one module fails integrity verification, other valid modules SHALL continue registration."""
+    from specfact_cli.registry import module_packages as mp
+
+    for name, cmd in (("good", "good_cmd"), ("bad_trust", "bad_cmd")):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "module-package.yaml").write_text(
+            f"name: {name}\nversion: '0.1.0'\ncommands: [{cmd}]\n", encoding="utf-8"
+        )
+        (tmp_path / name / "src").mkdir(parents=True)
+        (tmp_path / name / "src" / "app.py").write_text("app = None", encoding="utf-8")
+
+    def verify_may_fail(_package_dir: Path, meta, allow_unsigned: bool = False):
+        return meta.name != "bad_trust"
+
+    monkeypatch.setattr(mp, "verify_module_artifact", verify_may_fail)
+    monkeypatch.setattr(mp, "get_modules_root", lambda: tmp_path)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    register_module_package_commands()
+    names = CommandRegistry.list_commands()
+    assert "good_cmd" in names
+    assert "bad_cmd" not in names
 
 
 def test_module_state_read_write(tmp_path: Path):

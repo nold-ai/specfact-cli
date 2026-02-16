@@ -164,6 +164,7 @@ Contract-first module architecture highlights:
 - Registration tracks protocol operation coverage and schema compatibility metadata.
 - Bridge registry support allows module manifests to declare `service_bridges` converters (for example ADO/Jira/Linear/GitHub) loaded at lifecycle startup without direct core-to-module imports.
 - Protocol reporting classifies modules from effective runtime interfaces with a single aggregate summary (`Full/Partial/Legacy`).
+- Module manifests support publisher and integrity metadata (arch-06) with optional checksum and signature verification at registration time.
 
 Why this matters:
 
