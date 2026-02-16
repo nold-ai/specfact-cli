@@ -276,9 +276,11 @@ class TemplateRegistry:
         priority_checks = [
             # 1. provider+framework+persona (most specific)
             (
-                lambda t: (provider and t.provider == provider)
-                and (framework and t.framework == framework)
-                and (persona and persona in t.personas),
+                lambda t: (
+                    (provider and t.provider == provider)
+                    and (framework and t.framework == framework)
+                    and (persona and persona in t.personas)
+                ),
                 "provider+framework+persona",
             ),
             # 2. provider+framework

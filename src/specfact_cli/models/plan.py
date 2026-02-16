@@ -7,11 +7,18 @@ and stories following the CLI-First specification.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
+from beartype import beartype
+from icontract import ensure, require
 from pydantic import BaseModel, Field, model_validator
 
 from specfact_cli.models.source_tracking import SourceTracking
+
+
+MODULE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+FIELD_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class Story(BaseModel):
@@ -121,6 +128,29 @@ class Feature(BaseModel):
     estimated_story_points: int | None = Field(
         default=None, description="Total estimated story points (sum of all stories, computed automatically)"
     )
+    extensions: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Module-scoped extension data (namespace-prefixed keys, e.g. backlog.ado_work_item_id)",
+    )
+
+    @beartype
+    @require(lambda module_name: bool(MODULE_NAME_RE.match(module_name)), "Invalid module name format")
+    @require(lambda field: bool(FIELD_NAME_RE.match(field)), "Invalid field name format")
+    def get_extension(self, module_name: str, field: str, default: Any = None) -> Any:
+        """Return extension value at module.field or default."""
+        if "." in module_name:
+            raise ValueError("Invalid module name format")
+        return self.extensions.get(f"{module_name}.{field}", default)
+
+    @beartype
+    @require(lambda module_name: bool(MODULE_NAME_RE.match(module_name)), "Invalid module name format")
+    @require(lambda field: bool(FIELD_NAME_RE.match(field)), "Invalid field name format")
+    @ensure(lambda self, module_name, field: f"{module_name}.{field}" in self.extensions)
+    def set_extension(self, module_name: str, field: str, value: Any) -> None:
+        """Store extension value at module.field."""
+        if "." in module_name:
+            raise ValueError("Invalid module name format")
+        self.extensions[f"{module_name}.{field}"] = value
 
 
 class Release(BaseModel):

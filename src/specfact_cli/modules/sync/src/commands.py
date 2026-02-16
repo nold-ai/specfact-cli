@@ -1084,8 +1084,9 @@ def _sync_tool_to_specfact(
 )
 @require(lambda bidirectional: isinstance(bidirectional, bool), "Bidirectional must be bool")
 @require(
-    lambda mode: mode is None
-    or mode in ("read-only", "export-only", "import-annotation", "bidirectional", "unidirectional"),
+    lambda mode: (
+        mode is None or mode in ("read-only", "export-only", "import-annotation", "bidirectional", "unidirectional")
+    ),
     "Mode must be valid sync mode",
 )
 @require(lambda overwrite: isinstance(overwrite, bool), "Overwrite must be bool")

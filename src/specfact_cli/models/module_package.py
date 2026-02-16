@@ -11,6 +11,26 @@ from pydantic import BaseModel, Field, model_validator
 
 CHECKSUM_ALGO_RE = re.compile(r"^sha256:[a-fA-F0-9]{64}$|^sha384:[a-fA-F0-9]{96}$|^sha512:[a-fA-F0-9]{128}$")
 CONVERTER_CLASS_PATH_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
+MODULE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+FIELD_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+@beartype
+class SchemaExtension(BaseModel):
+    """Declarative schema extension for Feature or ProjectBundle (arch-07)."""
+
+    target: str = Field(..., description="Target model: Feature or ProjectBundle")
+    field: str = Field(..., description="Field name (snake_case)")
+    type_hint: str = Field(..., description="Type hint for documentation (e.g. str, int)")
+    description: str = Field(default="", description="Human-readable description")
+
+    @model_validator(mode="after")
+    def _validate_target_and_field(self) -> SchemaExtension:
+        if self.target not in ("Feature", "ProjectBundle"):
+            raise ValueError("target must be Feature or ProjectBundle")
+        if not FIELD_NAME_RE.match(self.field):
+            raise ValueError("field must match [a-z][a-z0-9_]*")
+        return self
 
 
 @beartype
@@ -125,6 +145,10 @@ class ModulePackageMetadata(BaseModel):
     service_bridges: list[ServiceBridgeMetadata] = Field(
         default_factory=list,
         description="Optional bridge declarations for converter registration.",
+    )
+    schema_extensions: list[SchemaExtension] = Field(
+        default_factory=list,
+        description="Declarative schema extensions for Feature/ProjectBundle (arch-07).",
     )
 
     @beartype

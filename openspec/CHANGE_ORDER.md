@@ -24,6 +24,9 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 | backlog-scrum-01-standup-exceptions-first | 2026-02-11 |
 | backlog-core-03-refine-writeback-field-splitting | 2026-02-12 |
 | sidecar-01-flask-support | 2026-02-12 |
+| ci-01-pr-orchestrator-log-artifacts | 2026-02-16 |
+| arch-06-enhanced-manifest-security | 2026-02-16 |
+| arch-07-schema-extension-system | 2026-02-16 |
 
 ### Pending
 
@@ -46,8 +49,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| arch | 06 | arch-06-enhanced-manifest-security | [#208](https://github.com/nold-ai/specfact-cli/issues/208) | arch-05 ✅ |
-| arch | 07 | arch-07-schema-extension-system | [#213](https://github.com/nold-ai/specfact-cli/issues/213) | arch-04 ✅ |
+| — | — | arch-06, arch-07 implemented 2026-02-16 (see Implemented above) | — | — |
 
 ### Marketplace (module distribution)
 
@@ -69,7 +71,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|----------------|----------|------------|
-| ci | 01 | ci-01-pr-orchestrator-log-artifacts | [#260](https://github.com/nold-ai/specfact-cli/issues/260) | — |
+| — | — | ci-01 implemented 2026-02-16 (see Implemented above) | — | — |
 
 ### backlog-core (required by all backlog-* modules)
 
@@ -244,8 +246,8 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 
 - **Wave 0** ✅ **Complete** — arch-01 through arch-05 (modular CLI foundation, bridge registry)
 
-- **Wave 1 — Platform extensions + cross-cutting foundations** (all unblocked now):
-  - arch-06, arch-07
+- **Wave 1 — Platform extensions + cross-cutting foundations** (arch-06 ✅, arch-07 ✅, ci-01 ✅):
+  - arch-06 ✅, arch-07 ✅, ci-01 ✅
   - policy-engine-01, patch-mode-01
   - backlog-core-01
   - validation-01, sidecar-01 ✅, bundle-mapper-01

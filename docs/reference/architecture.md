@@ -42,6 +42,16 @@ SpecFact CLI implements a **contract-driven development** framework through thre
 - Invalid bridge declarations are non-fatal and skipped with warnings.
 - Protocol compliance reporting uses effective runtime interface detection and logs one aggregate summary line.
 
+## Schema Extension System
+
+`arch-07-schema-extension-system` lets modules extend `Feature` and `ProjectBundle` with namespaced custom fields without changing core models.
+
+- **Extensions field**: `Feature` and `ProjectBundle` have an `extensions: dict[str, Any]` field (default empty dict). Keys use the form `module_name.field` (e.g. `backlog.ado_work_item_id`).
+- **Accessors**: `get_extension(module_name, field, default=None)` and `set_extension(module_name, field, value)` enforce namespace format and type safety via contracts.
+- **Manifest**: Optional `schema_extensions` in `module-package.yaml` declare target model, field name, type hint, and description. Lifecycle loads these and registers them in a global extension registry.
+- **Collision detection**: If two modules declare the same (target, field), the second registration is rejected and an error is logged; module command registration continues.
+- See [Extending ProjectBundle](/guides/extending-projectbundle/) for usage and best practices.
+
 ## Module System Foundation
 
 SpecFact is transitioning from hard-wired command wiring to a module-first architecture.

@@ -124,8 +124,10 @@ class SchemaValidator:
 
 @beartype
 @ensure(
-    lambda result: isinstance(result, ValidationReport)
-    or (isinstance(result, tuple) and len(result) == 3 and isinstance(result[0], bool)),
+    lambda result: (
+        isinstance(result, ValidationReport)
+        or (isinstance(result, tuple) and len(result) == 3 and isinstance(result[0], bool))
+    ),
     "Must return ValidationReport or tuple[bool, str | None, PlanBundle | None]",
 )
 def validate_plan_bundle(
@@ -174,8 +176,10 @@ def validate_plan_bundle(
 
 @beartype
 @ensure(
-    lambda result: isinstance(result, ValidationReport)
-    or (isinstance(result, tuple) and len(result) == 3 and isinstance(result[0], bool)),
+    lambda result: (
+        isinstance(result, ValidationReport)
+        or (isinstance(result, tuple) and len(result) == 3 and isinstance(result[0], bool))
+    ),
     "Must return ValidationReport or tuple[bool, str | None, Protocol | None]",
 )
 def validate_protocol(protocol_or_path: Protocol | Path) -> ValidationReport | tuple[bool, str | None, Protocol | None]:

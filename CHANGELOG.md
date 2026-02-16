@@ -11,9 +11,9 @@ All notable changes to this project will be documented in this file.
 
 ## [0.32.0] - 2026-02-16
 
-### Added (0.32.0)
+### Added
 
-- **Enhanced module manifest security and integrity** (OpenSpec change `arch-06-enhanced-manifest-security`, fixes [#208](https://github.com/nold-ai/specfact-cli/issues/208))
+- **Enhanced module manifest security and integrity** (arch-06, fixes [#208](https://github.com/nold-ai/specfact-cli/issues/208))
   - Publisher and integrity metadata in `module-package.yaml` (`publisher`, `integrity.checksum`, optional `integrity.signature`).
   - Versioned dependency entries (`module_dependencies_versioned`, `pip_dependencies_versioned`) with name and version specifier.
   - `crypto_validator`: checksum verification (sha256/sha384/sha512) and optional signature verification.
@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file.
   - `SPECFACT_ALLOW_UNSIGNED` and `allow_unsigned` parameter for explicit opt-in when using unsigned modules.
   - Signing automation: `scripts/sign-module.sh` and `.github/workflows/sign-modules.yml` for checksum generation.
   - Documentation: `docs/reference/module-security.md` and architecture updates for module trust and integrity lifecycle.
+
+- **Schema extension system** (arch-07, Resolves [#213](https://github.com/nold-ai/specfact-cli/issues/213))
+  - `extensions` dict field on `Feature` and `ProjectBundle` with namespace-prefixed keys (e.g. `backlog.ado_work_item_id`).
+  - Type-safe `get_extension(module_name, field, default=None)` and `set_extension(module_name, field, value)` with contract enforcement.
+  - Optional `schema_extensions` in `module-package.yaml` to declare target model, field, type_hint, and description.
+  - `ExtensionRegistry` for collision detection and introspection; module registration loads and validates schema extensions.
+  - Guide: [Extending ProjectBundle](https://docs.specfact.io/guides/extending-projectbundle/).
 
 ---
 

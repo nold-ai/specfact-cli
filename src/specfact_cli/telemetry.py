@@ -131,8 +131,9 @@ def _read_config_file() -> dict[str, Any]:
 @beartype
 @require(lambda raw: raw is None or isinstance(raw, str), "Raw must be None or string")
 @ensure(
-    lambda result: isinstance(result, dict)
-    and all(isinstance(k, str) and isinstance(v, str) for k, v in result.items()),
+    lambda result: (
+        isinstance(result, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in result.items())
+    ),
     "Must return dict[str, str]",
 )
 def _parse_headers(raw: str | None) -> dict[str, str]:
@@ -175,13 +176,15 @@ class TelemetrySettings:
     @beartype
     @require(lambda cls: cls is TelemetrySettings, "Must be called on TelemetrySettings class")
     @ensure(
-        lambda result: isinstance(result, TelemetrySettings)
-        and isinstance(result.enabled, bool)
-        and (result.endpoint is None or isinstance(result.endpoint, str))
-        and isinstance(result.headers, dict)
-        and isinstance(result.local_path, Path)
-        and isinstance(result.debug, bool)
-        and isinstance(result.opt_in_source, str),
+        lambda result: (
+            isinstance(result, TelemetrySettings)
+            and isinstance(result.enabled, bool)
+            and (result.endpoint is None or isinstance(result.endpoint, str))
+            and isinstance(result.headers, dict)
+            and isinstance(result.local_path, Path)
+            and isinstance(result.debug, bool)
+            and isinstance(result.opt_in_source, str)
+        ),
         "Must return valid TelemetrySettings instance",
     )
     def from_env(cls) -> TelemetrySettings:
@@ -291,11 +294,13 @@ class TelemetryManager:
         "Settings must be None or TelemetrySettings",
     )
     @ensure(
-        lambda self, result: hasattr(self, "_settings")
-        and hasattr(self, "_enabled")
-        and hasattr(self, "_session_id")
-        and isinstance(self._session_id, str)
-        and len(self._session_id) > 0,
+        lambda self, result: (
+            hasattr(self, "_settings")
+            and hasattr(self, "_enabled")
+            and hasattr(self, "_session_id")
+            and isinstance(self._session_id, str)
+            and len(self._session_id) > 0
+        ),
         "Must initialize all required instance attributes",
     )
     def __init__(self, settings: object | None = None) -> None:

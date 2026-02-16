@@ -10,6 +10,7 @@ support dual versioning (schema + project).
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
@@ -31,6 +32,10 @@ from specfact_cli.models.plan import (
     PlanSummary,
     Product,
 )
+
+
+_EXT_MODULE_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+_EXT_FIELD_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class BundleFormat(StrEnum):
@@ -217,6 +222,29 @@ class ProjectBundle(BaseModel):
         default=None,
         description="Change tracking (tool-agnostic capability, used by OpenSpec and potentially others) (v1.1+)",
     )
+    extensions: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Module-scoped extension data (namespace-prefixed keys, e.g. sync.last_sync_timestamp)",
+    )
+
+    @beartype
+    @require(lambda self, module_name: bool(_EXT_MODULE_RE.match(module_name)), "Invalid module name format")
+    @require(lambda self, field: bool(_EXT_FIELD_RE.match(field)), "Invalid field name format")
+    def get_extension(self, module_name: str, field: str, default: Any = None) -> Any:
+        """Return extension value at module.field or default."""
+        if "." in module_name:
+            raise ValueError("Invalid module name format")
+        return self.extensions.get(f"{module_name}.{field}", default)
+
+    @beartype
+    @require(lambda self, module_name: bool(_EXT_MODULE_RE.match(module_name)), "Invalid module name format")
+    @require(lambda self, field: bool(_EXT_FIELD_RE.match(field)), "Invalid field name format")
+    @ensure(lambda self, module_name, field: f"{module_name}.{field}" in self.extensions)
+    def set_extension(self, module_name: str, field: str, value: Any) -> None:
+        """Store extension value at module.field."""
+        if "." in module_name:
+            raise ValueError("Invalid module name format")
+        self.extensions[f"{module_name}.{field}"] = value
 
     @model_validator(mode="before")
     @classmethod

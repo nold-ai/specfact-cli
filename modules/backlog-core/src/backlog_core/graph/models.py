@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class ItemType(str, Enum):
+class ItemType(StrEnum):
     """Normalized backlog item types."""
 
     EPIC = "epic"
@@ -21,7 +21,7 @@ class ItemType(str, Enum):
     CUSTOM = "custom"
 
 
-class DependencyType(str, Enum):
+class DependencyType(StrEnum):
     """Normalized dependency relationship types."""
 
     PARENT_CHILD = "parent_child"
