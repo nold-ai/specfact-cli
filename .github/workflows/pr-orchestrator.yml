@@ -204,8 +204,8 @@ jobs:
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           # Run a subset of tests to verify Python 3.11 compatibility
-          # Focus on unit tests and integration tests (skip slow E2E tests)
-          hatch -e hatch-test.py3.11 test -- -r fEw tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
+          # Use hatch -e ENV run run (not hatch test) so pytest does not receive -e
+          hatch -e hatch-test.py3.11 run run -- -r fEw tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
           hatch -e hatch-test.py3.11 run xml || true
 
   contract-first-ci:
