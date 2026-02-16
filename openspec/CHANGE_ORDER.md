@@ -65,6 +65,12 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | validation | 01 | validation-01-deep-validation | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
 | bundle-mapper | 01 | bundle-mapper-01-mapping-strategy | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
 
+### CI/CD (workflow and artifacts)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|----------------|----------|------------|
+| ci | 01 | ci-01-pr-orchestrator-log-artifacts | [#260](https://github.com/nold-ai/specfact-cli/issues/260) | — |
+
 ### backlog-core (required by all backlog-* modules)
 
 | Module | Order | Change folder | GitHub # | Blocked by |

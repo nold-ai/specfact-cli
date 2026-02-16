@@ -135,7 +135,7 @@ jobs:
             fi
           fi
 
-      - name: Run contract-first tests (no coverage)
+      - name: Run full test suite (smart-test-full)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         env:
@@ -145,39 +145,22 @@ jobs:
           SMART_TEST_TIMEOUT_SECONDS: "1800"
           PYTEST_ADDOPTS: "-r fEw"
         run: |
-          echo "🧪 Running contract-first test suite (3.12)..."
+          echo "🧪 Running full test suite (smart-test-full, Python 3.12)..."
           echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
-          run_layer() {
-            local label="$1"
-            shift
-            local start_ts
-            start_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            echo "▶️ [${start_ts}] Starting ${label}"
-            echo "   Command: $*"
-            if "$@"; then
-              local end_ts
-              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              echo "✅ [${end_ts}] ${label} completed"
-            else
-              local end_ts
-              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              echo "⚠️ [${end_ts}] ${label} incomplete"
-            fi
-          }
+          hatch run smart-test-full
 
-          run_layer "Contract validation" hatch run contract-test-contracts
-          run_layer "Contract exploration" hatch run contract-test-exploration
-          run_layer "Scenario tests" hatch run contract-test-scenarios
-          run_layer "E2E tests" hatch run contract-test-e2e
-
-      - name: Run unit tests with coverage (3.12)
+      - name: Generate coverage XML for quality gates
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
-        env:
-          PYTEST_ADDOPTS: "-r fEw"
         run: |
-          echo "🧪 Running unit tests with coverage (3.12)..."
-          hatch -e hatch-test.py3.12 run run-cov
           hatch -e hatch-test.py3.12 run xml
+
+      - name: Upload test logs
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: logs/tests/
+          if-no-files-found: ignore
 
       - name: Upload coverage artifacts
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
@@ -255,10 +238,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-hatch-contract-first-py312-
             ${{ runner.os }}-hatch-
+      - name: Prepare repro log directory
+        run: mkdir -p logs/repro
       - name: Run contract validation and exploration
+        id: repro
         run: |
           echo "🔍 Validating runtime contracts..."
-          echo "Running specfact repro with required CrossHair..." && hatch run specfact repro --verbose --crosshair-required --budget 120 || echo "SpecFact repro found issues"
+          REPRO_LOG="logs/repro/repro_$(date -u +%Y%m%d_%H%M%S).log"
+          echo "Running specfact repro with required CrossHair... (log: $REPRO_LOG)"
+          hatch run specfact repro --verbose --crosshair-required --budget 120 2>&1 | tee "$REPRO_LOG" || echo "SpecFact repro found issues"
+      - name: Upload repro logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-logs
+          path: logs/repro/
+          if-no-files-found: ignore
+      - name: Upload repro reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-reports
+          path: .specfact/reports/enforcement/
+          if-no-files-found: ignore
 
   cli-validation:
     name: CLI Command Validation
