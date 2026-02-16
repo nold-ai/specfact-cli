@@ -65,8 +65,7 @@ def _verify_signature_impl(artifact: bytes, signature_b64: str, public_key_pem: 
     try:
         from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.primitives.asymmetric.types import PublicKeyTypes
+        from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
     except ImportError as e:
         raise ValueError(
             "Signature verification requires the 'cryptography' package. Install with: pip install cryptography"
@@ -81,22 +80,19 @@ def _verify_signature_impl(artifact: bytes, signature_b64: str, public_key_pem: 
         sig_bytes = base64.b64decode(signature_b64, validate=True)
     except Exception as e:
         raise ValueError(f"Invalid base64 signature: {e}") from e
-    if not isinstance(key, PublicKeyTypes):
-        raise ValueError("Key must be a public key type")
-    # RSASSA-PKCS1v1_5 or PSS; Ed25519 uses different API. Try common path.
-    if hasattr(key, "key_size"):  # RSA
+    if isinstance(key, rsa.RSAPublicKey):
         try:
             key.verify(sig_bytes, artifact, padding.PKCS1v15(), hashes.SHA256())
             return True
         except InvalidSignature:
             return False
-    if hasattr(key, "verify"):  # Ed25519 etc
+    if isinstance(key, ed25519.Ed25519PublicKey):
         try:
             key.verify(sig_bytes, artifact)
             return True
         except InvalidSignature:
             return False
-    raise ValueError("Unsupported key type for signature verification")
+    raise ValueError("Unsupported key type for signature verification (RSA or Ed25519 only)")
 
 
 @beartype

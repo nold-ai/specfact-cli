@@ -139,3 +139,5 @@ harness_contracts.py
 lang.json
 Language.ml
 Language.mli
+
+.artifacts

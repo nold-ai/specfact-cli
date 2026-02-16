@@ -247,7 +247,7 @@ def test_trust_check_rejects_on_checksum_mismatch(monkeypatch, tmp_path: Path):
         name="bad_checksum_mod",
         version="0.1.0",
         commands=["c"],
-        integrity={"checksum": "sha256:" + "a" * 64, "signature": None},
+        integrity=IntegrityInfo(checksum="sha256:" + "a" * 64, signature=None),
     )
     result = module_installer.verify_module_artifact(tmp_path / "pkg", meta, allow_unsigned=False)
     assert result is False
