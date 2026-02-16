@@ -96,8 +96,8 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ## 9. Version and changelog
 
-- [x] 9.1 Bump version to 0.33.0 (pyproject.toml, setup.py, src/__init__.py, src/specfact_cli/__init__.py)
-- [x] 9.2 Update CHANGELOG.md ([0.33.0] - 2026-02-16, Added schema extension system, #213)
+- [x] 9.1 Bump version to 0.32.0 (pyproject.toml, setup.py, src/__init__.py, src/specfact_cli/__init__.py) — combined with arch-06 in 0.32.0
+- [x] 9.2 Update CHANGELOG.md ([0.32.0] - 2026-02-16, arch-06 + arch-07 in single release, #208, #213)
 
 ## 10. Create PR to dev
 
