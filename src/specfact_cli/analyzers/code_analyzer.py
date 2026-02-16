@@ -126,11 +126,13 @@ class CodeAnalyzer:
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
     @ensure(
-        lambda result: isinstance(result, PlanBundle)
-        and hasattr(result, "version")
-        and hasattr(result, "features")
-        and result.version == get_current_schema_version()  # type: ignore[reportUnknownMemberType]
-        and len(result.features) >= 0,  # type: ignore[reportUnknownMemberType]
+        lambda result: (
+            isinstance(result, PlanBundle)
+            and hasattr(result, "version")
+            and hasattr(result, "features")
+            and result.version == get_current_schema_version()  # type: ignore[reportUnknownMemberType]
+            and len(result.features) >= 0
+        ),  # type: ignore[reportUnknownMemberType]
         "Plan bundle must be valid",
     )
     def analyze(self) -> PlanBundle:

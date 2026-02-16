@@ -850,8 +850,10 @@ class ReproChecker:
     @ensure(lambda result: isinstance(result, ReproReport), "Must return ReproReport")
     @ensure(lambda result: result.total_checks >= 0, "Total checks must be non-negative")
     @ensure(
-        lambda result: result.total_checks
-        == result.passed_checks + result.failed_checks + result.timeout_checks + result.skipped_checks,
+        lambda result: (
+            result.total_checks
+            == result.passed_checks + result.failed_checks + result.timeout_checks + result.skipped_checks
+        ),
         "Total checks must equal sum of all status types",
     )
     def run_all_checks(self) -> ReproReport:

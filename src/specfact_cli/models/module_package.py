@@ -9,7 +9,62 @@ from icontract import ensure
 from pydantic import BaseModel, Field, model_validator
 
 
+CHECKSUM_ALGO_RE = re.compile(r"^sha256:[a-fA-F0-9]{64}$|^sha384:[a-fA-F0-9]{96}$|^sha512:[a-fA-F0-9]{128}$")
 CONVERTER_CLASS_PATH_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
+MODULE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+FIELD_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+@beartype
+class SchemaExtension(BaseModel):
+    """Declarative schema extension for Feature or ProjectBundle (arch-07)."""
+
+    target: str = Field(..., description="Target model: Feature or ProjectBundle")
+    field: str = Field(..., description="Field name (snake_case)")
+    type_hint: str = Field(..., description="Type hint for documentation (e.g. str, int)")
+    description: str = Field(default="", description="Human-readable description")
+
+    @model_validator(mode="after")
+    def _validate_target_and_field(self) -> SchemaExtension:
+        if self.target not in ("Feature", "ProjectBundle"):
+            raise ValueError("target must be Feature or ProjectBundle")
+        if not FIELD_NAME_RE.match(self.field):
+            raise ValueError("field must match [a-z][a-z0-9_]*")
+        return self
+
+
+@beartype
+class PublisherInfo(BaseModel):
+    """Publisher identity from module manifest (arch-06)."""
+
+    name: str = Field(..., description="Publisher display name")
+    email: str = Field(..., description="Publisher contact email")
+    attributes: dict[str, str] = Field(default_factory=dict, description="Optional publisher attributes")
+
+    @model_validator(mode="after")
+    def _validate_non_empty(self) -> PublisherInfo:
+        if not self.name.strip():
+            raise ValueError("Publisher name must not be empty")
+        if not self.email.strip():
+            raise ValueError("Publisher email must not be empty")
+        return self
+
+
+@beartype
+class IntegrityInfo(BaseModel):
+    """Integrity metadata for module artifact verification (arch-06)."""
+
+    checksum: str = Field(..., description="Checksum in algo:hex format (e.g. sha256:...)")
+    signature: str | None = Field(default=None, description="Optional detached signature (base64)")
+
+    @model_validator(mode="after")
+    def _validate_checksum_format(self) -> IntegrityInfo:
+        """Validation SHALL ensure checksum format correctness."""
+        if not CHECKSUM_ALGO_RE.match(self.checksum):
+            raise ValueError(
+                "integrity.checksum must be algo:hex (e.g. sha256:<64 hex chars>, sha384:<96>, sha512:<128>)"
+            )
+        return self
 
 
 @beartype
@@ -32,6 +87,22 @@ class ServiceBridgeMetadata(BaseModel):
                 "service_bridges.converter_class must be a dotted path (for example: package.module.ClassName)."
             )
         return self
+
+
+@beartype
+class VersionedModuleDependency(BaseModel):
+    """Versioned module dependency entry (arch-06)."""
+
+    name: str = Field(..., description="Module package id")
+    version_specifier: str | None = Field(default=None, description="PEP 440 version specifier")
+
+
+@beartype
+class VersionedPipDependency(BaseModel):
+    """Versioned pip dependency entry (arch-06)."""
+
+    name: str = Field(..., description="PyPI package name")
+    version_specifier: str | None = Field(default=None, description="PEP 440 version specifier")
 
 
 @beartype
@@ -61,9 +132,23 @@ class ModulePackageMetadata(BaseModel):
         default_factory=list,
         description="Detected ModuleIOContract operations: import, export, sync, validate.",
     )
+    publisher: PublisherInfo | None = Field(default=None, description="Publisher identity (arch-06)")
+    integrity: IntegrityInfo | None = Field(default=None, description="Integrity metadata (arch-06)")
+    module_dependencies_versioned: list[VersionedModuleDependency] = Field(
+        default_factory=list,
+        description="Versioned module dependency declarations (arch-06)",
+    )
+    pip_dependencies_versioned: list[VersionedPipDependency] = Field(
+        default_factory=list,
+        description="Versioned pip dependency declarations (arch-06)",
+    )
     service_bridges: list[ServiceBridgeMetadata] = Field(
         default_factory=list,
         description="Optional bridge declarations for converter registration.",
+    )
+    schema_extensions: list[SchemaExtension] = Field(
+        default_factory=list,
+        description="Declarative schema extensions for Feature/ProjectBundle (arch-07).",
     )
 
     @beartype

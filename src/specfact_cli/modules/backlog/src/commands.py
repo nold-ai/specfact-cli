@@ -3626,10 +3626,9 @@ def refine(
 
 @app.command("map-fields")
 @require(
-    lambda ado_org, ado_project: isinstance(ado_org, str)
-    and len(ado_org) > 0
-    and isinstance(ado_project, str)
-    and len(ado_project) > 0,
+    lambda ado_org, ado_project: (
+        isinstance(ado_org, str) and len(ado_org) > 0 and isinstance(ado_project, str) and len(ado_project) > 0
+    ),
     "ADO org and project must be non-empty strings",
 )
 @beartype

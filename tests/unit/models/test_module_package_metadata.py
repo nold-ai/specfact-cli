@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specfact_cli.models.module_package import ModulePackageMetadata, ServiceBridgeMetadata
+from specfact_cli.models.module_package import (
+    ModulePackageMetadata,
+    SchemaExtension,
+    ServiceBridgeMetadata,
+)
 
 
 def test_metadata_includes_schema_version() -> None:
@@ -67,3 +71,42 @@ def test_service_bridge_converter_class_must_be_dotted_path() -> None:
             commands=["backlog"],
             service_bridges=[ServiceBridgeMetadata(id="ado", converter_class="InvalidClassPath")],
         )
+
+
+def test_manifest_parses_schema_extensions() -> None:
+    """Module-package manifest MAY include schema_extensions array (arch-07)."""
+    metadata = ModulePackageMetadata(
+        name="backlog",
+        commands=["backlog"],
+        schema_extensions=[
+            SchemaExtension(
+                target="Feature",
+                field="ado_work_item_id",
+                type_hint="str",
+                description="Azure DevOps work item ID",
+            ),
+        ],
+    )
+    assert len(metadata.schema_extensions) == 1
+    assert metadata.schema_extensions[0].target == "Feature"
+    assert metadata.schema_extensions[0].field == "ado_work_item_id"
+    assert metadata.schema_extensions[0].type_hint == "str"
+    assert "Azure DevOps" in metadata.schema_extensions[0].description
+
+
+def test_schema_extension_target_must_be_feature_or_project_bundle() -> None:
+    """SchemaExtension target SHALL be Feature or ProjectBundle."""
+    with pytest.raises(ValidationError):
+        SchemaExtension(
+            target="Other",
+            field="x",
+            type_hint="str",
+            description="",
+        )
+
+
+def test_module_without_schema_extensions_remains_valid() -> None:
+    """Module without schema_extensions SHALL load successfully."""
+    metadata = ModulePackageMetadata(name="backlog", commands=["backlog"])
+    assert hasattr(metadata, "schema_extensions")
+    assert metadata.schema_extensions == []
