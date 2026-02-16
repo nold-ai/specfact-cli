@@ -24,8 +24,9 @@ from packaging.version import InvalidVersion, Version
 
 from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
-from specfact_cli.models.module_package import ModulePackageMetadata, ServiceBridgeMetadata
+from specfact_cli.models.module_package import ModulePackageMetadata, SchemaExtension, ServiceBridgeMetadata
 from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverter
+from specfact_cli.registry.extension_registry import get_extension_registry
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
@@ -181,6 +182,13 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 except Exception:
                     # Keep startup resilient: malformed bridge declarations are skipped later.
                     continue
+            validated_schema_extensions: list[SchemaExtension] = []
+            for ext_entry in raw.get("schema_extensions", []) or []:
+                try:
+                    if isinstance(ext_entry, dict):
+                        validated_schema_extensions.append(SchemaExtension.model_validate(ext_entry))
+                except Exception:
+                    continue
             meta = ModulePackageMetadata(
                 name=str(raw["name"]),
                 version=str(raw.get("version", "0.1.0")),
@@ -193,6 +201,7 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 addon_id=str(raw["addon_id"]) if raw.get("addon_id") else None,
                 schema_version=str(raw["schema_version"]) if raw.get("schema_version") is not None else None,
                 service_bridges=validated_service_bridges,
+                schema_extensions=validated_schema_extensions,
             )
             result.append((child, meta))
         except Exception:
@@ -763,6 +772,23 @@ def register_module_package_commands(
             logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
         else:
             logger.info("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
+
+        if meta.schema_extensions:
+            try:
+                get_extension_registry().register(meta.name, meta.schema_extensions)
+                targets = sorted({e.target for e in meta.schema_extensions})
+                logger.debug(
+                    "Module %s registered %d schema extensions for %s",
+                    meta.name,
+                    len(meta.schema_extensions),
+                    targets,
+                )
+            except ValueError as exc:
+                logger.error(
+                    "Module %s: Schema extension collision - %s (skipping extensions)",
+                    meta.name,
+                    exc,
+                )
 
         for bridge in meta.validate_service_bridges():
             existing_owner = bridge_owner_map.get(bridge.id)

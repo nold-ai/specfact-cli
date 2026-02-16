@@ -9,6 +9,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.32.0] - 2026-02-16
+
+### Added
+
+- **Schema extension system** (arch-07) for modular ProjectBundle extensions:
+  - `extensions` dict field on `Feature` and `ProjectBundle` with namespace-prefixed keys (e.g. `backlog.ado_work_item_id`).
+  - Type-safe `get_extension(module_name, field, default=None)` and `set_extension(module_name, field, value)` with contract enforcement.
+  - Optional `schema_extensions` in `module-package.yaml` to declare target model, field, type_hint, and description.
+  - `ExtensionRegistry` for collision detection and introspection; module registration loads and validates schema extensions.
+  - Guide: [Extending ProjectBundle](https://docs.specfact.io/guides/extending-projectbundle/). Resolves [#213](https://github.com/nold-ai/specfact-cli/issues/213).
+
+---
+
 ## [0.31.0] - 2026-02-13
 
 ### Added
