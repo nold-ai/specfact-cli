@@ -78,6 +78,12 @@ Why this matters:
 - Interfaces and contracts keep feature development isolated and safer to iterate.
 - Pending OpenSpec-driven module changes can land incrementally with lower migration risk.
 
+**Module security and extensions:**
+
+- **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - How to use verified modules (arch-06) and schema extensions (arch-07) from the CLI and as a module author
+- **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Declare and use namespaced extension fields on Feature/ProjectBundle
+- **[Module Security](reference/module-security.md)** - Publisher, integrity (checksum/signature), and versioned dependencies
+
 ## 📚 Documentation
 
 ### Guides
@@ -89,6 +95,8 @@ Why this matters:
 - **[Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)** - Analyze critical path, cycles, orphans, and dependency impact from backlog graph data
 - **[Backlog Delta Commands](guides/backlog-delta-commands.md)** - Track backlog graph changes under `specfact backlog delta`
 - **[Project DevOps Flow](guides/project-devops-flow.md)** - Run plan/develop/review/release/monitor stage actions from one command surface
+- **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Add namespaced custom fields to Feature/ProjectBundle (arch-07)
+- **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - Use arch-06 (module security) and arch-07 (schema extensions) from CLI and as a module author
 - **[Sidecar Validation](guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
 - **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
