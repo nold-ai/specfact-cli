@@ -802,12 +802,16 @@ When a PR or push runs the **PR Orchestrator** workflow, test and repro output a
 
 2. **Artifact names and contents**
 
-   | Artifact        | Contents                                                                 |
-   |----------------|---------------------------------------------------------------------------|
-   | `test-logs`   | Full test run and coverage logs from `hatch run smart-test-full` (`logs/tests/`). |
-   | `repro-logs`  | Full stdout/stderr of `specfact repro` (`logs/repro/`).                   |
-   | `repro-reports` | Repro report YAMLs from `.specfact/reports/enforcement/`.              |
-   | `coverage-reports` | Coverage XML used by quality gates (when unit tests ran).            |
+   | Artifact             | Job              | Contents                                                                 |
+   |----------------------|------------------|---------------------------------------------------------------------------|
+   | `test-logs`          | Tests (Python 3.12) | Full test run and coverage logs from `hatch run smart-test-full` (`logs/tests/`). |
+   | `coverage-reports`   | Tests (Python 3.12) | Coverage XML for quality gates (when unit tests ran).                     |
+   | `compat-py311-logs`  | Compatibility (Python 3.11) | Pytest and coverage XML output from the compat job.                  |
+   | `type-check-logs`    | Type Checking (basedpyright) | Full basedpyright type-check output.                              |
+   | `lint-logs`          | Linting (ruff, pylint) | Full lint run output.                                                   |
+   | `quality-gates-logs`| Quality Gates (Advisory) | Coverage percentage and advisory message.                          |
+   | `repro-logs`         | Contract-First CI | Full stdout/stderr of `specfact repro` (`logs/repro/`).                   |
+   | `repro-reports`      | Contract-First CI | Repro report YAMLs from `.specfact/reports/enforcement/`.                |
 
 3. **How to use them**
 
