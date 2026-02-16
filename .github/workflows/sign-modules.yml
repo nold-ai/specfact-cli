@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# Sign module manifests for integrity (arch-06). Outputs checksums for manifest integrity fields.
+name: Sign Modules
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "src/specfact_cli/modules/**/module-package.yaml"
+      - "modules/**/module-package.yaml"
+
+jobs:
+  sign:
+    name: Sign module manifests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sign module manifests
+        run: |
+          for f in $(find . -name 'module-package.yaml' -not -path './.git/*' 2>/dev/null | head -20); do
+            if [ -f "scripts/sign-module.sh" ]; then
+              bash scripts/sign-module.sh "$f" || true
+            fi
+          done

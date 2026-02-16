@@ -24,10 +24,19 @@ from packaging.version import InvalidVersion, Version
 
 from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
-from specfact_cli.models.module_package import ModulePackageMetadata, SchemaExtension, ServiceBridgeMetadata
+from specfact_cli.models.module_package import (
+    IntegrityInfo,
+    ModulePackageMetadata,
+    PublisherInfo,
+    SchemaExtension,
+    ServiceBridgeMetadata,
+    VersionedModuleDependency,
+    VersionedPipDependency,
+)
 from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverter
 from specfact_cli.registry.extension_registry import get_extension_registry
 from specfact_cli.registry.metadata import CommandMetadata
+from specfact_cli.registry.module_installer import verify_module_artifact
 from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import is_debug_mode
@@ -175,12 +184,52 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
             command_help = None
             if isinstance(raw_help, dict):
                 command_help = {str(k): str(v) for k, v in raw_help.items()}
+            publisher: PublisherInfo | None = None
+            if isinstance(raw.get("publisher"), dict):
+                pub = raw["publisher"]
+                if pub.get("name") and pub.get("email"):
+                    publisher = PublisherInfo(
+                        name=str(pub["name"]),
+                        email=str(pub["email"]),
+                        attributes={
+                            str(k): str(v) for k, v in pub.items() if k not in ("name", "email") and isinstance(v, str)
+                        },
+                    )
+            integrity: IntegrityInfo | None = None
+            if isinstance(raw.get("integrity"), dict):
+                integ = raw["integrity"]
+                if integ.get("checksum"):
+                    integrity = IntegrityInfo(
+                        checksum=str(integ["checksum"]),
+                        signature=str(integ["signature"]) if integ.get("signature") else None,
+                    )
+            module_deps_versioned: list[VersionedModuleDependency] = []
+            for entry in raw.get("module_dependencies_versioned") or []:
+                if isinstance(entry, dict) and entry.get("name"):
+                    module_deps_versioned.append(
+                        VersionedModuleDependency(
+                            name=str(entry["name"]),
+                            version_specifier=str(entry["version_specifier"])
+                            if entry.get("version_specifier")
+                            else None,
+                        )
+                    )
+            pip_deps_versioned: list[VersionedPipDependency] = []
+            for entry in raw.get("pip_dependencies_versioned") or []:
+                if isinstance(entry, dict) and entry.get("name"):
+                    pip_deps_versioned.append(
+                        VersionedPipDependency(
+                            name=str(entry["name"]),
+                            version_specifier=str(entry["version_specifier"])
+                            if entry.get("version_specifier")
+                            else None,
+                        )
+                    )
             validated_service_bridges: list[ServiceBridgeMetadata] = []
             for bridge_entry in raw.get("service_bridges", []) or []:
                 try:
                     validated_service_bridges.append(ServiceBridgeMetadata.model_validate(bridge_entry))
                 except Exception:
-                    # Keep startup resilient: malformed bridge declarations are skipped later.
                     continue
             validated_schema_extensions: list[SchemaExtension] = []
             for ext_entry in raw.get("schema_extensions", []) or []:
@@ -200,6 +249,10 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 tier=str(raw.get("tier", "community")),
                 addon_id=str(raw["addon_id"]) if raw.get("addon_id") else None,
                 schema_version=str(raw["schema_version"]) if raw.get("schema_version") is not None else None,
+                publisher=publisher,
+                integrity=integrity,
+                module_dependencies_versioned=module_deps_versioned,
+                pip_dependencies_versioned=pip_deps_versioned,
                 service_bridges=validated_service_bridges,
                 schema_extensions=validated_schema_extensions,
             )
@@ -718,14 +771,18 @@ def merge_module_state(
 def register_module_package_commands(
     enable_ids: list[str] | None = None,
     disable_ids: list[str] | None = None,
+    allow_unsigned: bool | None = None,
 ) -> None:
     """
     Discover module packages, merge with modules.json state, register only enabled packages' commands.
 
     Call after register_builtin_commands(). enable_ids/disable_ids from CLI (--enable-module/--disable-module).
+    allow_unsigned: If True, allow modules without integrity metadata. Default from SPECFACT_ALLOW_UNSIGNED env.
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
+    if allow_unsigned is None:
+        allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")
     packages = discover_all_package_metadata()
     packages = sorted(packages, key=_package_sort_key)
     if not packages:
@@ -753,6 +810,9 @@ def register_module_package_commands(
         deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
         if not deps_ok:
             skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
+            continue
+        if not verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
+            skipped.append((meta.name, "integrity/trust check failed"))
             continue
         if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
             skipped.append(
