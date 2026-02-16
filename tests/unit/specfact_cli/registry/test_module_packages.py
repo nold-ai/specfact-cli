@@ -242,13 +242,12 @@ def test_trust_check_rejects_on_checksum_mismatch(monkeypatch, tmp_path: Path):
         raise ValueError("Checksum mismatch")
 
     monkeypatch.setattr(module_installer, "verify_checksum", fail_checksum)
-    from specfact_cli.models.module_package import IntegrityInfo
 
     meta = ModulePackageMetadata(
         name="bad_checksum_mod",
         version="0.1.0",
         commands=["c"],
-        integrity=IntegrityInfo(checksum="sha256:" + "a" * 64),
+        integrity={"checksum": "sha256:" + "a" * 64, "signature": None},
     )
     result = module_installer.verify_module_artifact(tmp_path / "pkg", meta, allow_unsigned=False)
     assert result is False
@@ -348,7 +347,8 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
         (tmp_path / "partial", ModulePackageMetadata(name="partial", commands=[])),
         (tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[])),
     ]
-    monkeypatch.setattr(module_packages_impl, "discover_package_metadata", lambda _root: metadata)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: metadata)
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(
         module_packages_impl,
@@ -375,11 +375,9 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
     test_logger.propagate = True
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
-    monkeypatch.setattr(
-        module_packages_impl,
-        "discover_package_metadata",
-        lambda _root: [(tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[]))],
-    )
+    packages = [(tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[]))]
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: [])
 
@@ -399,11 +397,9 @@ def test_protocol_reporting_uses_static_source_operations(monkeypatch, caplog, t
     test_logger.propagate = True
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
-    monkeypatch.setattr(
-        module_packages_impl,
-        "discover_package_metadata",
-        lambda _root: [(tmp_path / "backlog", ModulePackageMetadata(name="backlog", commands=[]))],
-    )
+    packages = [(tmp_path / "backlog", ModulePackageMetadata(name="backlog", commands=[]))]
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: ["import"])
 
@@ -439,14 +435,12 @@ def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkey
     test_logger.propagate = True
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: False)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
-    monkeypatch.setattr(
-        module_packages_impl,
-        "discover_package_metadata",
-        lambda _root: [
-            (tmp_path / "full-a", ModulePackageMetadata(name="full-a", commands=[])),
-            (tmp_path / "full-b", ModulePackageMetadata(name="full-b", commands=[])),
-        ],
-    )
+    packages = [
+        (tmp_path / "full-a", ModulePackageMetadata(name="full-a", commands=[])),
+        (tmp_path / "full-b", ModulePackageMetadata(name="full-b", commands=[])),
+    ]
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(
         module_packages_impl,
@@ -468,11 +462,9 @@ def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_module
 
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: False)
     monkeypatch.setattr(module_packages_impl, "print_warning", shown_messages.append)
-    monkeypatch.setattr(
-        module_packages_impl,
-        "discover_package_metadata",
-        lambda _root: [(tmp_path / "partial-a", ModulePackageMetadata(name="partial-a", commands=[]))],
-    )
+    packages = [(tmp_path / "partial-a", ModulePackageMetadata(name="partial-a", commands=[]))]
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: ["import"])
 

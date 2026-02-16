@@ -34,11 +34,9 @@ def test_register_module_package_commands_registers_declared_bridges(monkeypatch
     registry = BridgeRegistry()
     converter_path = f"{__name__}._TestConverter"
 
-    monkeypatch.setattr(
-        module_packages,
-        "discover_package_metadata",
-        lambda _root: [(tmp_path, _metadata_with_bridges(converter_class=converter_path))],
-    )
+    packages = [(tmp_path, _metadata_with_bridges(converter_class=converter_path))]
+    monkeypatch.setattr(module_packages, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages, "read_modules_state", dict)
     monkeypatch.setattr(module_packages, "_make_package_loader", lambda *_args: object)
     monkeypatch.setattr(module_packages, "_load_package_module", lambda *_args: object())
@@ -53,11 +51,9 @@ def test_invalid_bridge_declaration_is_non_fatal(monkeypatch, tmp_path: Path) ->
     """Invalid bridge declarations should be skipped with warnings."""
     CommandRegistry._clear_for_testing()
     registry = BridgeRegistry()
-    monkeypatch.setattr(
-        module_packages,
-        "discover_package_metadata",
-        lambda _root: [(tmp_path, _metadata_with_bridges(converter_class="invalid.path.MissingConverter"))],
-    )
+    packages = [(tmp_path, _metadata_with_bridges(converter_class="invalid.path.MissingConverter"))]
+    monkeypatch.setattr(module_packages, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages, "read_modules_state", dict)
     monkeypatch.setattr(module_packages, "_make_package_loader", lambda *_args: object)
     monkeypatch.setattr(module_packages, "_load_package_module", lambda *_args: object())
