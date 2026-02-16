@@ -135,7 +135,7 @@ jobs:
             fi
           fi
 
-      - name: Run contract-first tests (no coverage)
+      - name: Run full test suite (smart-test-full)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         env:
@@ -145,39 +145,22 @@ jobs:
           SMART_TEST_TIMEOUT_SECONDS: "1800"
           PYTEST_ADDOPTS: "-r fEw"
         run: |
-          echo "🧪 Running contract-first test suite (3.12)..."
+          echo "🧪 Running full test suite (smart-test-full, Python 3.12)..."
           echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
-          run_layer() {
-            local label="$1"
-            shift
-            local start_ts
-            start_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            echo "▶️ [${start_ts}] Starting ${label}"
-            echo "   Command: $*"
-            if "$@"; then
-              local end_ts
-              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              echo "✅ [${end_ts}] ${label} completed"
-            else
-              local end_ts
-              end_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              echo "⚠️ [${end_ts}] ${label} incomplete"
-            fi
-          }
+          hatch run smart-test-full
 
-          run_layer "Contract validation" hatch run contract-test-contracts
-          run_layer "Contract exploration" hatch run contract-test-exploration
-          run_layer "Scenario tests" hatch run contract-test-scenarios
-          run_layer "E2E tests" hatch run contract-test-e2e
-
-      - name: Run unit tests with coverage (3.12)
+      - name: Generate coverage XML for quality gates
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
-        env:
-          PYTEST_ADDOPTS: "-r fEw"
         run: |
-          echo "🧪 Running unit tests with coverage (3.12)..."
-          hatch -e hatch-test.py3.12 run run-cov
           hatch -e hatch-test.py3.12 run xml
+
+      - name: Upload test logs
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: logs/tests/
+          if-no-files-found: ignore
 
       - name: Upload coverage artifacts
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
@@ -220,10 +203,19 @@ jobs:
       - name: Run Python 3.11 compatibility tests (hatch-test matrix env)
         run: |
           echo "🔁 Python 3.11 compatibility checks"
-          # Run a subset of tests to verify Python 3.11 compatibility
-          # Focus on unit tests and integration tests (skip slow E2E tests)
-          hatch -e hatch-test.py3.11 test -- -r fEw tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
-          hatch -e hatch-test.py3.11 run xml || true
+          mkdir -p logs/compat-py311
+          COMPAT_LOG="logs/compat-py311/compat_$(date -u +%Y%m%d_%H%M%S).log"
+          {
+            hatch -e hatch-test.py3.11 run run -- -r fEw tests/unit tests/integration || echo "⚠️ Some tests failed (advisory)"
+            hatch -e hatch-test.py3.11 run xml || true
+          } 2>&1 | tee "$COMPAT_LOG"
+      - name: Upload compat-py311 logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compat-py311-logs
+          path: logs/compat-py311/
+          if-no-files-found: ignore
 
   contract-first-ci:
     name: Contract-First CI
@@ -255,10 +247,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-hatch-contract-first-py312-
             ${{ runner.os }}-hatch-
+      - name: Prepare repro log directory
+        run: mkdir -p logs/repro
       - name: Run contract validation and exploration
+        id: repro
         run: |
           echo "🔍 Validating runtime contracts..."
-          echo "Running specfact repro with required CrossHair..." && hatch run specfact repro --verbose --crosshair-required --budget 120 || echo "SpecFact repro found issues"
+          REPRO_LOG="logs/repro/repro_$(date -u +%Y%m%d_%H%M%S).log"
+          echo "Running specfact repro with required CrossHair... (log: $REPRO_LOG)"
+          hatch run specfact repro --verbose --crosshair-required --budget 120 2>&1 | tee "$REPRO_LOG" || echo "SpecFact repro found issues"
+      - name: Upload repro logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-logs
+          path: logs/repro/
+          if-no-files-found: ignore
+      - name: Upload repro reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-reports
+          path: .specfact/reports/enforcement/
+          if-no-files-found: ignore
 
   cli-validation:
     name: CLI Command Validation
@@ -313,19 +324,30 @@ jobs:
           echo "✅ Found coverage.xml"
       - name: Run quality gates (advisory)
         run: |
-          echo "🔍 Checking coverage (advisory only)..."
-          COVERAGE_PERCENT_XML=$(grep -o "line-rate=\"[0-9.]*\"" logs/tests/coverage/coverage.xml | head -1 | sed 's/line-rate=\"//' | sed 's/\"//')
-          if [ -n "$COVERAGE_PERCENT_XML" ] && [ "$COVERAGE_PERCENT_XML" != "0" ]; then
-            COVERAGE_PERCENT_INT=$(echo "$COVERAGE_PERCENT_XML * 100" | bc -l | cut -d. -f1)
-          else
-            COVERAGE_PERCENT_INT=0
-          fi
-          echo "📊 Line coverage (advisory): ${COVERAGE_PERCENT_INT}%"
-          if [ "$COVERAGE_PERCENT_INT" -lt 30 ]; then
-            echo "⚠️  Advisory: coverage below 30% — permitted under contract-first; prioritize contract/scenario gaps."
-          else
-            echo "✅ Advisory: coverage acceptable"
-          fi
+          mkdir -p logs/quality-gates
+          QG_LOG="logs/quality-gates/quality-gates_$(date -u +%Y%m%d_%H%M%S).log"
+          {
+            echo "🔍 Checking coverage (advisory only)..."
+            COVERAGE_PERCENT_XML=$(grep -o "line-rate=\"[0-9.]*\"" logs/tests/coverage/coverage.xml | head -1 | sed 's/line-rate=\"//' | sed 's/\"//')
+            if [ -n "$COVERAGE_PERCENT_XML" ] && [ "$COVERAGE_PERCENT_XML" != "0" ]; then
+              COVERAGE_PERCENT_INT=$(echo "$COVERAGE_PERCENT_XML * 100" | bc -l | cut -d. -f1)
+            else
+              COVERAGE_PERCENT_INT=0
+            fi
+            echo "📊 Line coverage (advisory): ${COVERAGE_PERCENT_INT}%"
+            if [ "$COVERAGE_PERCENT_INT" -lt 30 ]; then
+              echo "⚠️  Advisory: coverage below 30% — permitted under contract-first; prioritize contract/scenario gaps."
+            else
+              echo "✅ Advisory: coverage acceptable"
+            fi
+          } 2>&1 | tee "$QG_LOG"
+      - name: Upload quality-gates logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gates-logs
+          path: logs/quality-gates/
+          if-no-files-found: ignore
 
   type-checking:
     name: Type Checking (basedpyright)
@@ -360,8 +382,17 @@ jobs:
       - name: Run type checking
         run: |
           echo "🔍 Running basedpyright type checking..."
-          # Fail on type errors (severity 8) to enforce type safety in CI/CD
-          hatch run type-check
+          mkdir -p logs/type-check
+          TYPE_CHECK_LOG="logs/type-check/type-check_$(date -u +%Y%m%d_%H%M%S).log"
+          hatch run type-check 2>&1 | tee "$TYPE_CHECK_LOG"
+          exit "${PIPESTATUS[0]:-$?}"
+      - name: Upload type-check logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: type-check-logs
+          path: logs/type-check/
+          if-no-files-found: ignore
 
   linting:
     name: Linting (ruff, pylint)
@@ -401,7 +432,16 @@ jobs:
       - name: Run linting
         run: |
           echo "🔍 Running linting checks..."
-          hatch run lint || echo "⚠️ Linting incomplete"
+          mkdir -p logs/lint
+          LINT_LOG="logs/lint/lint_$(date -u +%Y%m%d_%H%M%S).log"
+          hatch run lint 2>&1 | tee "$LINT_LOG" || echo "⚠️ Linting incomplete"
+      - name: Upload lint logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-logs
+          path: logs/lint/
+          if-no-files-found: ignore
 
   package-validation:
     name: Package Validation (uvx/pip)
