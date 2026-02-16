@@ -18,8 +18,6 @@ from specfact_cli.registry.crypto_validator import (
 def test_checksum_verification_succeeds_when_values_match():
     """When artifact checksum matches expected, verification SHALL pass."""
     data = b"module artifact content"
-    expected = "sha256:" + "a" * 64  # will be replaced by actual hash in impl
-    # Use real hash: hashlib.sha256(data).hexdigest()
     import hashlib
 
     expected = "sha256:" + hashlib.sha256(data).hexdigest()
