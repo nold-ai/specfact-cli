@@ -12,7 +12,7 @@ Do not implement production code for changed behavior until corresponding tests 
 
 ---
 
-## 1. Create git branch from dev
+## 1. Create git worktree branch from dev
 
 - [x] 1.1 Ensure `dev` is current and create `feature/arch-06-enhanced-manifest-security`
 - [x] 1.2 Verify current branch is `feature/arch-06-enhanced-manifest-security`

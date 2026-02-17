@@ -2,7 +2,7 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create branch `feature/policy-02-packs-and-modes` from `dev` before implementation work.
+- [ ] 1.1 Create dedicated worktree branch `feature/policy-02-packs-and-modes` from `dev` before implementation work: `scripts/worktree.sh create feature/policy-02-packs-and-modes`.
 - [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
 - [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
 - [ ] 1.4 Confirm ownership authority for policy mode semantics per `openspec/CHANGE_ORDER.md` before editing shared policy-engine surfaces.

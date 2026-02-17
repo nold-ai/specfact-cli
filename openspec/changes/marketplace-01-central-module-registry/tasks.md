@@ -11,11 +11,11 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ---
 
-## 1. Create git branch from dev
+## 1. Create git worktree branch from dev
 
 - [ ] 1.1 Ensure on dev and up to date; create branch `feature/marketplace-01-central-module-registry`; verify
   - [ ] 1.1.1 `git checkout dev && git pull origin dev`
-  - [ ] 1.1.2 `git checkout -b feature/marketplace-01-central-module-registry`
+  - [ ] 1.1.2 `scripts/worktree.sh create feature/marketplace-01-central-module-registry`
   - [ ] 1.1.3 `git branch --show-current`
 
 ## 2. Create nold-ai/specfact-cli-modules repository

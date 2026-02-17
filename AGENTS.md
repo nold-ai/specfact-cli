@@ -84,6 +84,76 @@ Use `from specfact_cli.common import get_bridge_logger` and avoid `print()` in p
 - `bugfix/your-bugfix-name`
 - `hotfix/your-hotfix-name`
 
+### Git Worktree Policy (Parallel Development)
+
+Use git worktrees for parallel development branches only.
+
+- Allowed branch types in worktrees: `feature/*`, `bugfix/*`, `hotfix/*`, `chore/*`
+- Forbidden in worktrees: `dev`, `main`
+- The primary checkout remains the canonical `dev` workspace
+
+Canonical layout:
+
+- Primary checkout: `.../specfact-cli` (tracks `dev`)
+- Worktrees root: `.../specfact-cli-worktrees/<branch-type>/<branch-slug>`
+- Worktree folder name MUST reflect the branch slug
+
+Preferred helper commands (from repository root):
+
+```bash
+scripts/worktree.sh create feature/<branch-slug>
+scripts/worktree.sh list
+scripts/worktree.sh cleanup feature/<branch-slug>
+```
+
+Create a new worktree from `origin/dev`:
+
+```bash
+git fetch origin
+git worktree add ../specfact-cli-worktrees/feature/<branch-slug> -b feature/<branch-slug> origin/dev
+```
+
+Attach an existing local branch to a worktree:
+
+```bash
+git fetch origin
+git worktree add ../specfact-cli-worktrees/feature/<branch-slug> feature/<branch-slug>
+```
+
+Operational rules:
+
+- Never create a worktree for `dev` or `main`
+- One branch maps to exactly one worktree path at a time
+- Keep branch naming consistent: `<type>/<ticket>-<short-topic>`
+- Keep one active OpenSpec change scope per branch where possible
+- Create a separate virtual environment inside each worktree (for example, `.venv/`)
+- Bootstrap Hatch once per new worktree before running quality gates: `hatch env create`
+- Run quick pre-flight checks from the worktree root: `hatch run smart-test-status` and `hatch run contract-test-status`
+- If Hatch cannot write to default home/cache paths, set writable overrides (for example `HATCH_DATA_DIR=/tmp/hatch-data` and `HATCH_CACHE_DIR=/tmp/hatch-cache`)
+- Run all quality gates from inside the active worktree before commit/PR
+
+Conflict avoidance:
+
+- Check `openspec/CHANGE_ORDER.md` before creating new parallel branches
+- Avoid concurrent branches editing the same `openspec/changes/<change-id>/` directory
+- Rebase frequently on `origin/dev` in each worktree
+- Use `git worktree list` daily to detect stale or incorrect branch/path attachments
+
+Local cleanup after merge to `dev`:
+
+```bash
+git fetch origin
+git worktree remove ../specfact-cli-worktrees/feature/<branch-slug>
+git branch -d feature/<branch-slug>
+git worktree prune
+```
+
+If remote cleanup is needed:
+
+```bash
+git push origin --delete feature/<branch-slug>
+```
+
 ### Pre-Commit Checklist
 
 Run all steps in order before committing. Every step must pass with no errors.

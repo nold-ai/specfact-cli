@@ -1,10 +1,10 @@
 # Tasks: Add thorough in-depth codebase validation (sidecar, contract-decorated, dogfooding)
 
-## 1. Create git branch from dev
+## 1. Create git worktree branch from dev
 
-- [ ] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-- [ ] 1.2 Create branch: `git checkout -b feature/add-thorough-codebase-validation` (or `gh issue develop <issue-number> --repo nold-ai/specfact-cli --name feature/add-thorough-codebase-validation --checkout` if issue exists)
-- [ ] 1.3 Verify branch was created: `git branch --show-current`
+- [ ] 1.1 Ensure primary checkout is on dev and up to date: `git checkout dev && git pull origin dev`
+- [ ] 1.2 Create worktree branch: `scripts/worktree.sh create feature/add-thorough-codebase-validation`; if issue exists, link it with `gh issue develop <issue-number> --repo nold-ai/specfact-cli --name feature/add-thorough-codebase-validation`
+- [ ] 1.3 Verify branch in worktree: `git worktree list` includes the branch path; then run `git branch --show-current` inside that worktree.
 
 ## 2. Verify spec deltas (SDD: specs first)
 

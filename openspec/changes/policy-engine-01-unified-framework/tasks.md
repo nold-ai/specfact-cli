@@ -10,7 +10,7 @@ Per `openspec/config.yaml`, **tests before code** apply.
 
 ---
 
-## 1. Create git branch from dev
+## 1. Create git worktree branch from dev
 
 - [ ] 1.1 Ensure on dev and up to date; create branch `feature/policy-engine-01-unified-framework`; verify.
 

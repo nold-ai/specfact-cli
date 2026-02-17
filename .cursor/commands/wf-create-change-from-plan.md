@@ -24,7 +24,7 @@ Create an OpenSpec change proposal from a plan document (e.g., documentation imp
 - Always validate alignment against existing plans and implementation reality before proceeding.
 - **CRITICAL**: Only create GitHub issues in the target repository specified by the plan. Never create issues in a different repository than the plan's target.
 - For public-facing changes, always sanitize content before creating GitHub issues.
-- **CRITICAL Git Workflow**: Always add tasks to create a git branch (feature/bugfix/hotfix based on change-id) BEFORE any code modifications, and create a Pull Request to `dev` branch AFTER all tasks are complete. Never work directly on protected branches (main/dev). Branch naming: `<branch-type>/<change-id>`.
+- **CRITICAL Git Workflow**: Always add tasks to create a git branch (feature/bugfix/hotfix/chore based on change-id) in a dedicated worktree BEFORE any code modifications, and create a Pull Request to `dev` branch AFTER all tasks are complete. Never work directly on protected branches (main/dev), and avoid implementation work from the primary `specfact-cli` checkout when worktrees are available. Branch naming: `<branch-type>/<change-id>`.
 - **CRITICAL TDD**: Per config.yaml, test tasks MUST come before implementation tasks. Write tests from spec scenarios first; run tests and expect failure; then implement until tests pass.
 
 **Workflow Steps**
@@ -308,6 +308,7 @@ Execute the `/opsx:ff` command to create all artifacts at once:
    - Branch type: `feature`, `bugfix`, `hotfix`, etc.
    - Branch name: `<branch-type>/<change-id>`
    - Target branch: `dev` (default, unless user specifies otherwise)
+   - Worktree path: `../specfact-cli-worktrees/<branch-type>/<change-id>`
 
 **5.2.2: Add Git Branch Creation Task (FIRST TASK)**
 
@@ -317,16 +318,21 @@ Execute the `/opsx:ff` command to create all artifacts at once:
    - Task: "Create git branch `<branch-type>/<change-id>` from `dev` branch"
    - **CRITICAL**: This must be the FIRST task - no code modifications before branch creation
    - **If GitHub issue exists**: Use `gh issue develop` to automatically link branch to issue
-   - **If no GitHub issue**: Use standard `git checkout -b` command
+   - **Use worktree helper**: Prefer `scripts/worktree.sh create <branch-type>/<change-id>`
+   - **If helper is unavailable**: Use `git worktree add` directly (not `git checkout -b` in primary checkout)
    - Steps:
 
-     - [ ] 1.1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-     - [ ] 1.1.2 Create branch with Development link to issue (if exists): `gh issue develop <issue-number> --repo <target-owner>/<target-name> --name <branch-type>/<change-id> --checkout`
-     - [ ] 1.1.3 Or create branch without issue link: `git checkout -b <branch-type>/<change-id>` (if no issue)
-     - [ ] 1.1.4 Verify branch was created: `git branch --show-current`
+     - [ ] 1.1.1 Ensure primary checkout `dev` is up to date: `git checkout dev && git pull origin dev`
+     - [ ] 1.1.2 Create dedicated worktree branch: `scripts/worktree.sh create <branch-type>/<change-id>` (preferred) or `git worktree add ../specfact-cli-worktrees/<branch-type>/<change-id> -b <branch-type>/<change-id> origin/dev`
+     - [ ] 1.1.3 Enter worktree and verify branch: `cd ../specfact-cli-worktrees/<branch-type>/<change-id> && git branch --show-current`
+     - [ ] 1.1.4 Bootstrap worktree environment: `hatch env create`
+     - [ ] 1.1.5 Run pre-flight status checks from worktree root: `hatch run smart-test-status` and `hatch run contract-test-status`
+     - [ ] 1.1.6 If Hatch path permissions fail, set writable overrides (for example `HATCH_DATA_DIR=/tmp/hatch-data`, `HATCH_CACHE_DIR=/tmp/hatch-cache`) and retry pre-flight
+     - [ ] 1.1.7 If issue exists, link branch in GitHub Development section (for example with `gh issue develop` or manual link)
+     - [ ] 1.1.8 Run all implementation commands from the worktree path, not primary `specfact-cli`
 
-   - **Validation**: Verify branch exists and is checked out. If issue exists, verify Development link appears on issue page.
-   - **Rationale**: Prevents accidental commits to protected branches (main/dev) and ensures proper branch isolation. Using `gh issue develop` automatically creates Development link between branch and issue.
+   - **Validation**: Verify branch exists in the worktree path and is checked out there. If issue exists, verify Development link appears on issue page.
+   - **Rationale**: Prevents accidental commits to protected branches (main/dev), ensures branch/path isolation, and avoids mixed changes in the primary checkout.
 
 **5.2.3: Update Existing Tasks with Quality Standards**
 
@@ -536,7 +542,8 @@ Update `proposal.md` to include:
    - Validation requirements
 
 2. **Git workflow requirements:**
-   - Branch creation: Work must be done in feature/bugfix/hotfix branch (not on main/dev)
+   - Branch creation: Work must be done in feature/bugfix/hotfix/chore branch (not on main/dev)
+   - Worktree execution: Run implementation from dedicated worktree path (`../specfact-cli-worktrees/<type>/<change-id>`), not primary checkout
    - Branch protection: `main` and `dev` branches are protected - no direct commits
    - Pull Request: All changes must be merged via PR to `dev` branch
    - Branch naming: `<branch-type>/<change-id>` format
@@ -948,7 +955,7 @@ Validation:
   ✓ Markdown linting passed (auto-fixed where possible)
   ✓ Project rules applied (config.yaml read; TDD-first enforced in tasks.md)
   ✓ Quality standards integrated
-  ✓ Git workflow tasks added (branch creation + PR creation)
+  ✓ Git workflow tasks added (worktree branch creation + PR creation)
   ✓ TDD order section and test-before-code task order applied
 
 GitHub Issue (if target repository supports issues):
@@ -963,7 +970,7 @@ Next Steps:
   3. Verify TDD and git workflow are reflected:
      - tasks.md has "TDD / SDD order (enforced)" section at top
      - For behavior changes: test tasks before implementation tasks
-     - First task: Create branch `<branch-type>/<change-id>`
+     - First task: Create worktree branch `<branch-type>/<change-id>` and switch to worktree path
      - Last task: Create PR to `dev` branch
   4. Apply change when ready: /opsx:apply <change-id> (or /openspec-apply <change-id> for legacy)
 ```

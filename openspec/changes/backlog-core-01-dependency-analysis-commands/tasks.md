@@ -284,10 +284,10 @@
 
 ## 4. Git Workflow
 
-- [x] 4.1 Create git branch `feature/backlog-core-01-dependency-analysis-commands` from `dev` branch
-  - [x] 4.1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-  - [x] 4.1.2 Create branch: `git checkout -b feature/backlog-core-01-dependency-analysis-commands`
-  - [x] 4.1.3 Verify branch was created: `git branch --show-current`
+- [x] 4.1 Create git worktree branch `feature/backlog-core-01-dependency-analysis-commands` from `dev` branch
+  - [x] 4.1.1 Ensure primary checkout is on dev and up to date: `git checkout dev && git pull origin dev`
+  - [x] 4.1.2 Create branch: `scripts/worktree.sh create feature/backlog-core-01-dependency-analysis-commands`
+  - [x] 4.1.3 Verify branch in worktree: `git worktree list` includes the branch path; then run `git branch --show-current` inside that worktree.
 
 ## 5. Documentation
 
