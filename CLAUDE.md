@@ -73,7 +73,7 @@ All public APIs must use `@icontract` decorators (`@require`, `@ensure`, `@invar
 
 ### Logging
 
-Use `from specfact_cli.common import get_bridge_logger` — never `print()`. Debug logs go to `~/.specfact/logs/specfact-debug.log` when `--debug` is passed.
+Use `from specfact_cli.common import get_bridge_logger` and avoid `print()` in production command paths. Debug logs go to `~/.specfact/logs/specfact-debug.log` when `--debug` is passed.
 
 ## Development Workflow
 
@@ -83,6 +83,68 @@ Use `from specfact_cli.common import get_bridge_logger` — never `print()`. Deb
 - `feature/your-feature-name`
 - `bugfix/your-bugfix-name`
 - `hotfix/your-hotfix-name`
+
+### Git Worktree Policy (Parallel Development)
+
+Use git worktrees for parallel development branches only.
+
+- Allowed branch types in worktrees: `feature/*`, `bugfix/*`, `hotfix/*`, `chore/*`
+- Forbidden in worktrees: `dev`, `main`
+- The primary checkout remains the canonical `dev` workspace
+
+Canonical layout:
+
+- Primary checkout: `.../specfact-cli` (tracks `dev`)
+- Worktrees root: `.../specfact-cli-worktrees/<branch-type>/<branch-slug>`
+- Worktree folder name MUST reflect the branch slug
+
+Create a new worktree from `origin/dev`:
+
+```bash
+git fetch origin
+git worktree add ../specfact-cli-worktrees/feature/<branch-slug> -b feature/<branch-slug> origin/dev
+```
+
+Attach an existing local branch to a worktree:
+
+```bash
+git fetch origin
+git worktree add ../specfact-cli-worktrees/feature/<branch-slug> feature/<branch-slug>
+```
+
+Operational rules:
+
+- Never create a worktree for `dev` or `main`
+- One branch maps to exactly one worktree path at a time
+- Keep branch naming consistent: `<type>/<ticket>-<short-topic>`
+- Keep one active OpenSpec change scope per branch where possible
+- Create a separate virtual environment inside each worktree (for example, `.venv/`)
+- Bootstrap Hatch once per new worktree before running quality gates: `hatch env create`
+- Run quick pre-flight checks from the worktree root: `hatch run smart-test-status` and `hatch run contract-test-status`
+- If Hatch cannot write to default home/cache paths, set writable overrides (for example `HATCH_DATA_DIR=/tmp/hatch-data` and `HATCH_CACHE_DIR=/tmp/hatch-cache`)
+- Run all quality gates from inside the active worktree before commit/PR
+
+Conflict avoidance:
+
+- Check `openspec/CHANGE_ORDER.md` before creating new parallel branches
+- Avoid concurrent branches editing the same `openspec/changes/<change-id>/` directory
+- Rebase frequently on `origin/dev` in each worktree
+- Use `git worktree list` daily to detect stale or incorrect branch/path attachments
+
+Local cleanup after merge to `dev`:
+
+```bash
+git fetch origin
+git worktree remove ../specfact-cli-worktrees/feature/<branch-slug>
+git branch -d feature/<branch-slug>
+git worktree prune
+```
+
+If remote cleanup is needed:
+
+```bash
+git push origin --delete feature/<branch-slug>
+```
 
 ### Pre-Commit Checklist
 
@@ -106,6 +168,35 @@ Before modifying application code, **always** verify that an active OpenSpec cha
 - **c) Delta** — add a targeted delta to an existing change's specs
 
 The existence of *any* open change is not sufficient — the change must specifically address the requested modification. Do not proceed until one of the above is resolved.
+
+Use the `specfact-openspec-workflows` skill as the default execution path for OpenSpec lifecycle work.
+
+- When a Markdown plan exists and the intent is to create a change from that plan, use `.cursor/commands/wf-create-change-from-plan.md` (`/wf-change-from-plan`) to generate the proposal/tasks/spec deltas.
+- For plans targeting an internal repository, still run the same workflow but follow its repo rules (for example, skip public GitHub issue creation where required).
+- After any change is created or modified, run `.cursor/commands/wf-validate-change.md` (`/wf-validate-change`) and capture its output in `openspec/changes/<change-id>/CHANGE_VALIDATION.md`.
+- Treat validation output as required context for dependency and interface impact, including any workflow-provided GitHub issue sync context.
+
+### Hard Gate: Strict TDD Order (Non-Negotiable)
+
+For any behavior change, the implementation order is mandatory and must be auditable:
+
+1. Update or add spec deltas first.
+2. Add/modify tests next, mapped to spec scenarios.
+3. Run tests and capture a **failing** result before implementation.
+4. Only then modify production code.
+5. Re-run tests and quality gates until passing.
+
+Required evidence:
+
+- Create/update `openspec/changes/<change-id>/TDD_EVIDENCE.md` with:
+  - test command(s) and timestamp for the pre-implementation failing run
+  - short failure summary
+  - test command(s) and timestamp for the post-implementation passing run
+
+Claude enforcement:
+
+- Claude MUST NOT edit production code for new/changed behavior until failing-test evidence is recorded.
+- If this order cannot be followed, stop and ask the user for explicit override before proceeding.
 
 #### Change Order (`openspec/CHANGE_ORDER.md`)
 
@@ -145,6 +236,15 @@ Keep `CHANGELOG.md` updated with every meaningful change. Update it in the same 
 
 Follow Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`.
 
+#### Commit Signing (GPG)
+
+- This repository may enforce signed commits (`commit.gpgsign=true`).
+- If an agent-run commit fails with `gpg failed to sign the data` in a non-interactive shell, Claude MUST:
+  1. Stage all intended files.
+  2. Provide the exact `git commit -S -m "<message>"` command for the user to run locally.
+  3. Continue with push/PR steps after the user confirms the signed commit exists.
+- Claude MUST NOT bypass signing with `--no-gpg-sign` unless the user explicitly requests that override.
+
 ### Documentation
 
 Keep docs current with every code change that affects user-facing behaviour.
@@ -161,6 +261,23 @@ Keep docs current with every code change that affects user-facing behaviour.
 - On larger refactorings or feature additions, reconsider the README from an **external / new-user perspective**: lead with value and USP, not internal architecture
 - A first-time reader should understand what SpecFact does, why they'd use it, and how to get started within the first screen
 - Do not let the README drift from the actual CLI interface or command list
+
+## Backlog Command Topology
+
+Keep backlog functionality grouped under the common top-level `backlog` command:
+
+- `specfact backlog ceremony standup`
+- `specfact backlog ceremony refinement`
+- `specfact backlog analyze-deps`
+- `specfact backlog delta status|impact|cost-estimate|rollback-analysis`
+- `specfact backlog verify-readiness`
+
+Project-scoped orchestration belongs under `project`:
+
+- `specfact project link-backlog`
+- `specfact project health-check`
+- `specfact project devops-flow --stage <plan|develop|review|release|monitor> --action <...>`
+- `specfact project snapshot|regenerate|export-roadmap`
 
 ## Code Conventions
 

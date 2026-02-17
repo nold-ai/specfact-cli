@@ -8,10 +8,10 @@ For this change, the main deliverable is workflow YAML and docs; "tests" are sat
 
 ---
 
-## 1. Create git branch
+## 1. Create git worktree branch from dev
 
-- [x] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-- [x] 1.2 Create branch: `gh issue develop <issue-number> --repo nold-ai/specfact-cli --name feature/ci-01-pr-orchestrator-log-artifacts --checkout` if issue exists, else `git checkout -b feature/ci-01-pr-orchestrator-log-artifacts`
+- [x] 1.1 Ensure primary checkout is on dev and up to date: `git checkout dev && git pull origin dev`
+- [x] 1.2 Create worktree branch: `scripts/worktree.sh create feature/ci-01-pr-orchestrator-log-artifacts`; if issue exists, link it with `gh issue develop <issue-number> --repo nold-ai/specfact-cli --name feature/ci-01-pr-orchestrator-log-artifacts`
 - [x] 1.3 Verify branch: `git branch --show-current`
 
 ## 2. Verify spec deltas (SDD: specs first)

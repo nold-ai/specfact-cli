@@ -2,7 +2,7 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create branch `feature/requirements-01-data-model` from `dev` before implementation work.
+- [ ] 1.1 Create dedicated worktree branch `feature/requirements-01-data-model` from `dev` before implementation work: `scripts/worktree.sh create feature/requirements-01-data-model`.
 - [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
 - [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
 

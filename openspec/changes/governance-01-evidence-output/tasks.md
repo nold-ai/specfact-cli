@@ -2,7 +2,7 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create branch `feature/governance-01-evidence-output` from `dev` before implementation work.
+- [ ] 1.1 Create dedicated worktree branch `feature/governance-01-evidence-output` from `dev` before implementation work: `scripts/worktree.sh create feature/governance-01-evidence-output`.
 - [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
 - [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
 - [ ] 1.4 Confirm governance-01 ownership of evidence envelope/schema per `openspec/CHANGE_ORDER.md` before modifying shared outputs.

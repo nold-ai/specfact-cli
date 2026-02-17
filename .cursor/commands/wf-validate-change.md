@@ -99,13 +99,15 @@ Perform a dry-run validation of an OpenSpec change proposal to detect breaking c
    - Check task format: Must use `- [ ] 1.1 [Description]` (not `- Task 1:` or `- [ ] Task 1:`)
    - Check sub-task format: Must use `- [ ] 1.1.1 [Description]` (indented, not `- [ ] 1.1.1:` without description)
    - Verify tasks follow config.yaml rules: 2-hour maximum chunks, contract decorator tasks, test tasks, quality gate tasks, git workflow tasks
+   - Verify git workflow tasks are worktree-aware: first task creates `<branch-type>/<change-id>` in dedicated worktree path and subsequent implementation runs from worktree (not primary checkout)
    - If format issues found, note them for reporting
 
 7. **Read `tasks.md`:**
    - Extract: implementation tasks
    - Identify: files to create/modify/delete
    - Note: dependencies between tasks
-   - Verify: Branch creation is first task, PR creation is last task (per config.yaml)
+   - Verify: Worktree branch creation is first task and PR creation is last task (per config.yaml)
+   - Verify: tasks include worktree bootstrap pre-flight before implementation (`hatch env create`, `hatch run smart-test-status`, `hatch run contract-test-status`, with fallback guidance for `HATCH_DATA_DIR` / `HATCH_CACHE_DIR` if needed)
 
 8. **Read `design.md` (if exists):**
    - Extract: architectural decisions, trade-offs
@@ -459,7 +461,7 @@ Impact Assessment: <High/Medium/Low>
        - Contract decorator tasks: <Present/Missing>
        - Test tasks: <Present/Missing>
        - Quality gate tasks: <Present/Missing>
-       - Git workflow tasks: <Present/Missing> (branch creation first, PR creation last)
+       - Git workflow tasks: <Present/Missing> (worktree branch creation first, PR creation last, implementation from worktree path)
        - GitHub issue creation task: <Present/Missing> (if public-facing change per config.yaml)
    - **specs Format**: <Pass/Fail>
      - Given/When/Then format: <Verified/Not verified>

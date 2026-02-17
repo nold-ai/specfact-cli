@@ -12,12 +12,12 @@ Do not implement production code for new behavior until the corresponding tests 
 
 ---
 
-## 1. Create git branch from dev
+## 1. Create git worktree branch from dev
 
-- [ ] 1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-- [ ] 1.2 Create branch with Development link to issue (if exists): `gh issue develop 171 --repo nold-ai/specfact-cli --name feature/backlog-scrum-03-story-complexity --checkout`
-- [ ] 1.3 Or create branch without issue link: `git checkout -b feature/backlog-scrum-03-story-complexity` (if no issue yet)
-- [ ] 1.4 Verify branch was created: `git branch --show-current`
+- [ ] 1.1 Ensure primary checkout is on dev and up to date: `git checkout dev && git pull origin dev`
+- [ ] 1.2 Create dedicated worktree branch (preferred): `scripts/worktree.sh create feature/backlog-scrum-03-story-complexity`; if issue exists, link branch to issue with `gh issue develop 171 --repo nold-ai/specfact-cli --name feature/backlog-scrum-03-story-complexity`
+- [ ] 1.3 Or create worktree branch without issue link: `scripts/worktree.sh create feature/backlog-scrum-03-story-complexity` (if no issue yet)
+- [ ] 1.4 Verify branch in worktree: `git worktree list` includes the branch path; then run `git branch --show-current` inside that worktree.
 
 ## 2. Create GitHub issue in nold-ai/specfact-cli (mandatory)
 

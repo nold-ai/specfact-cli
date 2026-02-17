@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.32.1] - 2026-02-17
+
+### Added
+
+- Git worktree lifecycle helper: `scripts/worktree.sh` with `create`, `list`, `cleanup`, and `help` commands.
+- Worktree helper unit tests: `tests/unit/tools/test_worktree_helper.py` covering protected-branch rejection, branch-type guardrails, deterministic paths, and cleanup behavior.
+- New OpenSpec change package: `workflow-01-git-worktree-management` with proposal, design, spec delta, validation report, and TDD evidence.
+
+### Changed
+
+- Repository instructions now enforce worktree-first development for parallel branches and explicitly block `dev`/`main` worktrees.
+- OpenSpec workflow command docs (`.cursor/commands/wf-create-change-from-plan.md`, `.cursor/commands/wf-validate-change.md`) now require dedicated worktree execution and validate worktree-aware task structure.
+- Active OpenSpec change task files were normalized to worktree-first branch setup commands to reduce direct-work-on-`dev` risk.
+
+---
+
 ## [0.32.0] - 2026-02-16
 
 ### Added
