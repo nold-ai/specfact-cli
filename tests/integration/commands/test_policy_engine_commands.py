@@ -102,6 +102,23 @@ class TestPolicyEngineCommands:
         assert "policy config not found" in result.stdout.lower()
         assert "not found" in result.stdout.lower()
 
+    def test_policy_validate_requires_snapshot_input(self, tmp_path: Path) -> None:
+        """Validate SHALL fail when snapshot input is omitted."""
+        _write_policy_config(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "snapshot path is required" in result.stdout.lower()
+
     def test_policy_suggest_is_confidence_scored_and_does_not_write(self, tmp_path: Path) -> None:
         """Suggest SHALL provide confidence-scored patch-ready suggestions and avoid auto writes."""
         _write_policy_config(tmp_path)

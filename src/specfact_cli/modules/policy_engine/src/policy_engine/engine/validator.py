@@ -20,7 +20,7 @@ from policy_engine.registry.policy_registry import PolicyRegistry
 def load_snapshot_items(snapshot_path: Path | None) -> tuple[list[dict[str, Any]], str | None]:
     """Load snapshot items from JSON file."""
     if snapshot_path is None:
-        return [], None
+        return [], "Snapshot path is required for policy validation."
     if not snapshot_path.exists():
         return [], f"Snapshot file not found: {snapshot_path}"
     try:
@@ -42,6 +42,8 @@ def load_snapshot_items(snapshot_path: Path | None) -> tuple[list[dict[str, Any]
     for item in items:
         if isinstance(item, dict):
             normalized_items.append(item)
+    if not normalized_items:
+        return [], f"Snapshot payload in {snapshot_path} does not contain any policy-evaluable items."
     return normalized_items, None
 
 
