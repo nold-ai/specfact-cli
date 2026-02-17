@@ -4,9 +4,10 @@ set -euo pipefail
 readonly SCRIPT_NAME="worktree.sh"
 readonly ALLOWED_TYPES="feature/*, bugfix/*, hotfix/*, chore/*"
 
-WORKTREE_ROOT="${WORKTREE_ROOT:-../specfact-cli-worktrees}"
+WORKTREE_ROOT_INPUT="${WORKTREE_ROOT:-../specfact-cli-worktrees}"
 BASE_REF="${BASE_REF:-origin/dev}"
 DRY_RUN="${WORKTREE_DRY_RUN:-0}"
+REPO_ROOT=""
 
 print_usage() {
   cat <<USAGE
@@ -44,12 +45,18 @@ run_cmd() {
 
 ensure_repo_if_needed() {
   if [[ "$DRY_RUN" == "1" ]]; then
+    if git_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+      REPO_ROOT="$git_root"
+    else
+      REPO_ROOT="$(pwd)"
+    fi
     return 0
   fi
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     err "must be run from inside a git repository"
     exit 1
   fi
+  REPO_ROOT="$(git rev-parse --show-toplevel)"
 }
 
 validate_branch() {
@@ -81,7 +88,11 @@ worktree_path_for() {
   local type slug
   type="$(branch_type "$branch")"
   slug="$(branch_slug "$branch")"
-  printf '%s/%s/%s\n' "$WORKTREE_ROOT" "$type" "$slug"
+  if [[ "$WORKTREE_ROOT_INPUT" = /* ]]; then
+    printf '%s/%s/%s\n' "$WORKTREE_ROOT_INPUT" "$type" "$slug"
+  else
+    printf '%s/%s/%s/%s\n' "$REPO_ROOT" "$WORKTREE_ROOT_INPUT" "$type" "$slug"
+  fi
 }
 
 resolve_base_ref() {
