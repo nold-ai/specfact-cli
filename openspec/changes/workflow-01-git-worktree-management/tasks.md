@@ -46,5 +46,5 @@ Per `openspec/config.yaml`: specs first, tests second (failing), implementation 
 
 ## 8. Create Pull Request to dev
 
-- [ ] 8.1 Commit with conventional message and push branch.
-- [ ] 8.2 Open PR to `dev` referencing change `workflow-01-git-worktree-management`.
+- [x] 8.1 Commit with conventional message and push branch.
+- [x] 8.2 Open PR to `dev` referencing change `workflow-01-git-worktree-management`.
