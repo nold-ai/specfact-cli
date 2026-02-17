@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.33.0] - 2026-02-17
+
+### Added
+
+- New `policy-engine` module package with lazy-loaded `specfact policy` command group.
+- `specfact policy validate` for deterministic policy evaluation with hard failures and dual output (`json`, `markdown`, or `both`).
+- `specfact policy suggest` for confidence-scored, patch-ready suggestions with explicit no-auto-write behavior.
+- Policy configuration loader for `.specfact/policy.yaml` supporting Scrum DoR/DoD fields, Kanban column entry/exit requirements, and SAFe PI readiness fields.
+- Integration tests for policy commands in `tests/integration/commands/test_policy_engine_commands.py` with recorded TDD evidence.
+
+### Changed
+
+- Updated Agile/Scrum and DevOps adapter integration guides with policy engine command usage and workflow guidance.
+
+---
+
 ## [0.32.1] - 2026-02-17
 
 ### Added
