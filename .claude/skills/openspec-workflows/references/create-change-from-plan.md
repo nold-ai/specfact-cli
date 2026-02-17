@@ -20,7 +20,7 @@
 - Do not write code during the proposal stage. Only create design documents (proposal.md, tasks.md, design.md, spec deltas).
 - Always validate alignment against existing plans and implementation reality before proceeding.
 - **CRITICAL**: Only create GitHub issues in the target repository specified by the plan.
-- **CRITICAL Git Workflow**: Add tasks to create a git branch (feature/bugfix/hotfix based on change-id) BEFORE any code modifications, and create a PR to `dev` AFTER all tasks complete. Never work on protected branches (main/dev). Branch naming: `<branch-type>/<change-id>`.
+- **CRITICAL Git Workflow (Worktree Policy)**: Use git worktrees for parallel development — never switch the primary checkout away from `dev`. Add a worktree creation task as the FIRST task, and PR creation as the LAST task. Never work on protected branches (`main`/`dev`) directly. Branch naming: `<branch-type>/<change-id>`. Worktree path: `../specfact-cli-worktrees/<branch-type>/<change-id>`. All subsequent tasks execute inside the worktree directory.
 - **CRITICAL TDD**: Per config.yaml, test tasks MUST come before implementation tasks.
 
 ## Step 1: Plan Selection
@@ -137,19 +137,29 @@ Invoke the `opsx:ff` skill with the change name:
 
 Branch name: `<branch-type>/<change-id>`. Target: `dev`.
 
-#### 5.2.2: Add Git Branch Creation Task (FIRST TASK)
+#### 5.2.2: Add Git Worktree Creation Task (FIRST TASK)
 
 Add as first task in tasks.md:
 
 ```markdown
-## 1. Create git branch from dev
+## 1. Create git worktree for this change
 
-- [ ] 1.1 Ensure on dev and up to date; create branch `<branch-type>/<change-id>`; verify.
-  - [ ] 1.1.1 `git checkout dev && git pull origin dev`
-  - [ ] 1.1.2 `gh issue develop <issue-number> --repo <target-repo> --name <branch-type>/<change-id> --checkout` (if issue exists)
-  - [ ] 1.1.3 Or: `git checkout -b <branch-type>/<change-id>` (if no issue)
-  - [ ] 1.1.4 `git branch --show-current`
+- [ ] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`.
+  - [ ] 1.1.1 `git fetch origin`
+  - [ ] 1.1.2 `git worktree add ../specfact-cli-worktrees/<branch-type>/<change-id> -b <branch-type>/<change-id> origin/dev`
+  - [ ] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/<branch-type>/<change-id>`
+  - [ ] 1.1.4 Create a virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
+  - [ ] 1.1.5 `git branch --show-current` (verify correct branch)
 ```
+
+**If a GitHub issue exists**, use `gh issue develop` to link the branch before creating the worktree:
+
+```markdown
+  - [ ] 1.1.2a `gh issue develop <issue-number> --repo <target-repo> --name <branch-type>/<change-id>` (creates remote branch linked to issue)
+  - [ ] 1.1.2b `git fetch origin && git worktree add ../specfact-cli-worktrees/<branch-type>/<change-id> <branch-type>/<change-id>`
+```
+
+All remaining tasks in tasks.md MUST run inside the worktree directory, not the primary checkout.
 
 #### 5.2.3: Update Tasks with Quality Standards
 
@@ -174,8 +184,8 @@ For each task, ensure:
 
 Add as last task in tasks.md. Only create PR if target repo is public (specfact-cli, platform-frontend).
 
-Key steps:
-1. Prepare commit: `git add .`, commit with conventional message, push.
+Key steps (run from inside the worktree directory):
+1. Prepare commit: `git add .`, commit with conventional message, push with `-u`: `git push -u origin <branch-type>/<change-id>`.
 2. Create PR body from `.github/pull_request_template.md`:
    - Use full repo path format for issue refs: `Fixes nold-ai/specfact-cli#<number>`
    - Include OpenSpec change ID in description.
@@ -185,6 +195,21 @@ Key steps:
 6. Update project status to "In Progress" (if applicable).
 
 PR title format: `feat:` for feature/, `fix:` for bugfix/, etc.
+
+#### 5.2.6: Add Worktree Cleanup Task (AFTER MERGE)
+
+Add a note after the PR task for post-merge cleanup:
+
+```markdown
+## Post-merge cleanup (after PR is merged)
+
+- [ ] Return to primary checkout: `cd .../specfact-cli`
+- [ ] `git fetch origin`
+- [ ] `git worktree remove ../specfact-cli-worktrees/<branch-type>/<change-id>`
+- [ ] `git branch -d <branch-type>/<change-id>`
+- [ ] `git worktree prune`
+- [ ] (Optional) `git push origin --delete <branch-type>/<change-id>`
+```
 
 ### 5.3: Update Proposal with Quality Gates
 

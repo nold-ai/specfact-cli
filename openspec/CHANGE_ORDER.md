@@ -73,6 +73,12 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|----------------|----------|------------|
 | — | — | ci-01 implemented 2026-02-16 (see Implemented above) | — | — |
 
+### Developer workflow (parallel branch operations)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| workflow | 01 | workflow-01-git-worktree-management | TBD | — |
+
 ### backlog-core (required by all backlog-* modules)
 
 | Module | Order | Change folder | GitHub # | Blocked by |

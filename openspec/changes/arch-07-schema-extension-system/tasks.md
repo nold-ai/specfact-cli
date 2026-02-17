@@ -11,11 +11,11 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ---
 
-## 1. Create git branch from dev
+## 1. Create git worktree branch from dev
 
 - [x] 1.1 Ensure on dev and up to date; create branch `feature/arch-07-schema-extension-system`; verify
   - [x] 1.1.1 `git checkout dev && git pull origin dev`
-  - [x] 1.1.2 `git checkout -b feature/arch-07-schema-extension-system`
+  - [x] 1.1.2 `scripts/worktree.sh create feature/arch-07-schema-extension-system`
   - [x] 1.1.3 `git branch --show-current`
 
 ## 2. Add extensions field to core models (spec-first)

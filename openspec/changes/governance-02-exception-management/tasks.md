@@ -2,7 +2,7 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create branch `feature/governance-02-exception-management` from `dev` before implementation work.
+- [ ] 1.1 Create dedicated worktree branch `feature/governance-02-exception-management` from `dev` before implementation work: `scripts/worktree.sh create feature/governance-02-exception-management`.
 - [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
 - [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
 - [ ] 1.4 Confirm exception-scope ownership boundaries per `openspec/CHANGE_ORDER.md` and avoid schema-envelope changes owned by governance-01.

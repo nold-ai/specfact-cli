@@ -2,7 +2,7 @@
 
 ## 1. Branch and dataset setup
 
-- [ ] 1.1 Create branch `feature/dogfooding-01-full-chain-e2e-proof` from `dev`.
+- [ ] 1.1 Create dedicated worktree branch `feature/dogfooding-01-full-chain-e2e-proof` from `dev`: `scripts/worktree.sh create feature/dogfooding-01-full-chain-e2e-proof`.
 - [ ] 1.2 Select and document the canonical backlog slice for proof.
 - [ ] 1.3 Map slice items to requirements and traceability IDs.
 

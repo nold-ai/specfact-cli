@@ -52,9 +52,9 @@
    - Hierarchical numbered sections: `## 1.`, `## 2.`
    - Tasks: `- [ ] 1.1 [Description]`
    - Sub-tasks: `- [ ] 1.1.1 [Description]`
-   - Rules: 2-hour max chunks, contract tasks, test tasks, quality gates, git workflow (branch first, PR last)
+   - Rules: 2-hour max chunks, contract tasks, test tasks, quality gates, git worktree workflow (worktree creation first, PR last, cleanup after merge)
 
-7. **Read tasks.md**: Extract tasks, files to create/modify/delete, task dependencies. Verify branch creation first, PR creation last.
+7. **Read tasks.md**: Extract tasks, files to create/modify/delete, task dependencies. Verify worktree creation first, PR creation last, worktree cleanup after merge.
 
 8. **Read design.md** (if exists): Architectural decisions, interface changes, contracts, migration plans. Verify bridge adapter docs, sequence diagrams for multi-repo.
 

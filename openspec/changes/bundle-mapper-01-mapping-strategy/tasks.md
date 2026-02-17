@@ -1,9 +1,9 @@
 ## 1. Git Workflow
 
-- [ ] 1.1 Create git branch `feature/add-bundle-mapping-strategy` from `dev` branch
-  - [ ] 1.1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
-  - [ ] 1.1.2 Create branch: `git checkout -b feature/add-bundle-mapping-strategy`
-  - [ ] 1.1.3 Verify branch was created: `git branch --show-current`
+- [ ] 1.1 Create git worktree branch `feature/add-bundle-mapping-strategy` from `dev` branch
+  - [ ] 1.1.1 Ensure primary checkout is on dev and up to date: `git checkout dev && git pull origin dev`
+  - [ ] 1.1.2 Create branch: `scripts/worktree.sh create feature/add-bundle-mapping-strategy`
+  - [ ] 1.1.3 Verify branch in worktree: `git worktree list` includes the branch path; then run `git branch --show-current` inside that worktree.
 
 ## 2. BundleMapping Model
 

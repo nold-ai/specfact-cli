@@ -35,7 +35,7 @@ Turns an implementation plan document into a fully formed OpenSpec change with p
 2. Cross-reference against existing plans and validate targets
 3. Resolve any issues interactively
 4. Create the OpenSpec change via `opsx:ff` skill
-5. Review and improve: enforce TDD-first, add git workflow tasks (branch first, PR last), validate against `openspec/config.yaml`
+5. Review and improve: enforce TDD-first, add git worktree tasks (worktree creation first, PR last, cleanup after merge), validate against `openspec/config.yaml`
 6. Create GitHub issue (public repos only)
 
 ## Validate Change
@@ -62,5 +62,5 @@ Performs dry-run simulation to detect breaking changes, analyze dependencies, an
 - Never modify production code during validation — use temp workspaces
 - Never proceed with ambiguities — ask for clarification
 - Enforce TDD-first ordering in tasks (per config.yaml)
-- Enforce git workflow: branch creation first task, PR creation last task
+- Enforce git worktree workflow: worktree creation first task, PR creation last task, worktree cleanup after merge — never switch the primary checkout away from `dev`
 - Only create GitHub issues in the target repository specified by the plan

@@ -2,7 +2,7 @@
 
 ## 1. Branch and authority setup
 
-- [ ] 1.1 Create branch `feature/integration-01-cross-change-contracts` from `dev`.
+- [ ] 1.1 Create dedicated worktree branch `feature/integration-01-cross-change-contracts` from `dev`: `scripts/worktree.sh create feature/integration-01-cross-change-contracts`.
 - [ ] 1.2 Confirm all architecture-plan changes reference this umbrella contract.
 - [ ] 1.3 Establish owner matrix for shared interfaces/files.
 
