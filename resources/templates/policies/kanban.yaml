@@ -1,0 +1,12 @@
+scrum:
+  dor_required_fields: []
+  dod_required_fields: []
+kanban:
+  columns:
+    In Progress:
+      entry_required_fields:
+        - acceptance_criteria
+      exit_required_fields:
+        - qa_status
+safe:
+  pi_readiness_required_fields: []

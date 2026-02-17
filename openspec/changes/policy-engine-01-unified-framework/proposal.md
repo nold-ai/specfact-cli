@@ -85,7 +85,10 @@ Commands are auto-discovered by the registry and lazy-loaded; no registration in
   - SAFe (PI readiness policy hooks, minimal baseline) — consumed by backlog-safe-01
 - **NEW**: Machine-readable output: JSON for CI gates; Markdown for humans.
 - **NEW**: Config: `.specfact/policy.yaml`; `specfact policy validate` runs without network access (against snapshots when applicable).
-- **NEW**: CLI commands `specfact policy validate` and `specfact policy suggest` declared in `module-package.yaml`.
+- **NEW**: CLI commands `specfact policy init`, `specfact policy validate`, and `specfact policy suggest` declared in `module-package.yaml`.
+- **NEW**: `policy init` scaffolds `.specfact/policy.yaml` from common framework templates (Scrum, Kanban, SAFe, Mixed baseline) with interactive or `--template` selection.
+- **NEW**: Policy template assets are sourced from `resources/templates/policies/` to ensure built-in templates ship with wheel/sdist.
+- **EXTEND**: `policy validate` error output includes a docs hint for policy YAML format when config is missing or invalid.
 - **EXTEND**: Policy results include: rule id, severity, evidence pointer (field/path), and recommended action.
 - **NEW** (policy registry): `PolicyRegistryProtocol` via arch-05 bridge registry — allows other modules (backlog-scrum-04, backlog-kanban-01, backlog-safe-01) to register additional policy rule sets without modifying the policy-engine module.
 - **EXTEND** (arch-07 schema extensions): Register `policy_engine.policy_status` extension on `BacklogItem` via `module-package.yaml` — stores last policy validation result (pass/fail, failed rules) for each item; access via `item.get_extension("policy_engine", "policy_status")`.

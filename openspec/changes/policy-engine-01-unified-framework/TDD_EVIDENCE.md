@@ -28,3 +28,32 @@ hatch run pytest tests/integration/commands/test_policy_engine_commands.py -v
 - Notes:
   - `hatch run format`, `hatch run type-check`, and `hatch run contract-test` were run after implementation.
   - `contract-test` reported cached status with no modified-file contract deltas in this run.
+
+## Scope extension (templates + docs hints) failing run
+
+- Timestamp (UTC): 2026-02-17T23:46:01Z
+- Command:
+
+```bash
+hatch run pytest tests/integration/commands/test_policy_engine_commands.py -v
+```
+
+- Result: **FAILED** (3 failed)
+- Failure summary:
+  - Missing docs hint in `policy validate` missing-config output.
+  - `policy init` command unavailable in non-interactive mode.
+  - `policy init` command unavailable in interactive mode.
+
+## Scope extension (templates + docs hints) passing run
+
+- Timestamp (UTC): 2026-02-17T23:47:19Z
+- Command:
+
+```bash
+hatch run pytest tests/integration/commands/test_policy_engine_commands.py -v
+```
+
+- Result: **PASSED** (6 passed)
+- Notes:
+  - Added built-in template loading from `resources/templates/policies/`.
+  - Added validate output docs hint for missing/invalid `.specfact/policy.yaml`.

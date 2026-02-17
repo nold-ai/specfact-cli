@@ -57,3 +57,61 @@ The system SHALL support policy configuration in `.specfact/policy.yaml` (Scrum:
 **Acceptance Criteria**:
 
 - A project can define policies in `.specfact/policy.yaml`; loader does not crash on missing/invalid config.
+
+### Requirement: Policy config scaffolding templates
+
+The system SHALL provide a policy config scaffolding command that offers common framework templates and writes a starter `.specfact/policy.yaml` for user customization.
+
+**Rationale**: Reduce setup friction and avoid manual YAML authoring errors.
+
+#### Scenario: Interactive template selection
+
+**Given**: A repository without `.specfact/policy.yaml`
+
+**When**: The user runs `specfact policy init`
+
+**Then**: The CLI prompts for a template/framework selection (for example Scrum, Kanban, SAFe, Mixed)
+
+**And**: The selected template is written to `.specfact/policy.yaml`
+
+**And**: The generated file is intended for further user adjustment.
+
+#### Scenario: Non-interactive template selection
+
+**Given**: A repository without `.specfact/policy.yaml`
+
+**When**: The user runs `specfact policy init --template scrum`
+
+**Then**: The Scrum template is written without interactive prompts.
+
+**Acceptance Criteria**:
+
+- Template catalog includes the most common supported frameworks (Scrum, Kanban, SAFe, Mixed baseline).
+- Built-in template sources are loaded from `resources/templates/policies/` so they are packaged with SpecFact distributions.
+- Generated policy file is valid YAML and can be consumed by `specfact policy validate`.
+
+### Requirement: Policy validate docs hints
+
+The system SHALL provide actionable format/documentation hints when `specfact policy validate` detects missing or invalid policy config.
+
+**Rationale**: Improve self-service troubleshooting.
+
+#### Scenario: Missing config points to docs
+
+**Given**: `.specfact/policy.yaml` is missing
+
+**When**: The user runs `specfact policy validate`
+
+**Then**: The error explains the expected config location
+
+**And**: The output includes a hint to the policy config format documentation.
+
+#### Scenario: Invalid config points to docs
+
+**Given**: `.specfact/policy.yaml` exists but is malformed or does not follow expected schema
+
+**When**: The user runs `specfact policy validate`
+
+**Then**: The error includes the parse/validation failure reason
+
+**And**: The output includes a hint to the policy config format documentation.

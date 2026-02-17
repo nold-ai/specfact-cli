@@ -1,0 +1,9 @@
+scrum:
+  dor_required_fields: []
+  dod_required_fields: []
+kanban:
+  columns: {}
+safe:
+  pi_readiness_required_fields:
+    - risk_owner
+    - objective_link

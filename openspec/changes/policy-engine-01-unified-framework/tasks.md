@@ -34,3 +34,12 @@ Per `openspec/config.yaml`, **tests before code** apply.
 ## 5. Create Pull Request to dev
 
 - [x] 5.1 Commit, push, create PR to dev; use repo PR template.
+
+## 6. Scope extension: policy templates and docs hints
+
+- [x] 6.1 Add spec scenarios for `specfact policy init` template scaffolding and validate docs hints.
+- [x] 6.2 Add tests for interactive/non-interactive template generation and validate error hint output.
+- [x] 6.3 Implement `specfact policy init` with template selection (`--template` + interactive prompt) writing `.specfact/policy.yaml`.
+- [x] 6.4 Source built-in policy templates from `resources/templates/policies/` and ensure package inclusion.
+- [x] 6.5 Extend `specfact policy validate` errors to include policy format documentation hint.
+- [x] 6.6 Capture failing-first and passing evidence for new scope in `TDD_EVIDENCE.md`.

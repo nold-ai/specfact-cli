@@ -11,13 +11,55 @@ from beartype import beartype
 from icontract import require
 from rich.console import Console
 
-from policy_engine.config import load_policy_config
+from policy_engine.config import list_policy_templates, load_policy_config, load_policy_template
 from policy_engine.engine.suggester import build_suggestions
 from policy_engine.engine.validator import load_snapshot_items, render_markdown, validate_policies
 
 
 policy_app = typer.Typer(name="policy", help="Policy validation and suggestion workflows.")
 console = Console()
+_TEMPLATE_CHOICES = tuple(list_policy_templates())
+
+
+def _resolve_template_selection(template_name: str | None) -> str:
+    if template_name is not None:
+        return template_name.strip().lower()
+    selected = typer.prompt(
+        "Select policy template (scrum/kanban/safe/mixed)",
+        default="scrum",
+    )
+    return selected.strip().lower()
+
+
+@policy_app.command("init")
+@beartype
+@require(lambda repo: repo.exists(), "Repository path must exist")
+def init_command(
+    repo: Annotated[Path, typer.Option("--repo", help="Repository root path.")] = Path("."),
+    template: Annotated[str | None, typer.Option("--template", help="Template: scrum, kanban, safe, mixed.")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite existing .specfact/policy.yaml.")] = False,
+) -> None:
+    """Scaffold .specfact/policy.yaml from built-in templates."""
+    selected = _resolve_template_selection(template)
+    if selected not in _TEMPLATE_CHOICES:
+        options = ", ".join(_TEMPLATE_CHOICES)
+        console.print(f"[red]Unsupported template '{selected}'. Available: {options}[/red]")
+        raise typer.Exit(2)
+
+    template_content, template_error = load_policy_template(selected)
+    if template_error:
+        console.print(f"[red]{template_error}[/red]")
+        raise typer.Exit(1)
+    assert template_content is not None
+
+    config_path = repo / ".specfact" / "policy.yaml"
+    if config_path.exists() and not force:
+        console.print(f"[red]Policy config already exists: {config_path}. Use --force to overwrite.[/red]")
+        raise typer.Exit(1)
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(template_content, encoding="utf-8")
+    console.print(f"Created policy config from '{selected}' template: {config_path}")
 
 
 @policy_app.command("validate")

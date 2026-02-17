@@ -39,3 +39,21 @@ This change was re-validated after renaming and updating to align with the modul
 - All old change ID references updated to new module-scoped naming
 
 **Result**: Pass — format compliant, module architecture aligned, no breaking changes introduced.
+
+## Scope Extension Re-validation (2026-02-18)
+
+- **Requested extension**: Add policy template scaffolding (`specfact policy init`), include docs hints on `policy validate` config errors, and require built-in templates under `resources/templates/policies/`.
+- **Spec updates**:
+  - Added `Requirement: Policy config scaffolding templates` with interactive and non-interactive scenarios.
+  - Added `Requirement: Policy validate docs hints` for missing/invalid config guidance.
+  - Added acceptance criterion requiring template assets from `resources/templates/policies/`.
+- **Task updates**:
+  - Added Section 6 for extension scope delivery; marked 6.1 complete (spec scenarios added).
+- **Implementation status**:
+  - Added template-backed `policy init` scaffolding behavior in module code.
+  - Added docs-hint output behavior for missing/invalid policy config during `policy validate`.
+  - Added extension tests and TDD evidence updates.
+- **OpenSpec strict validation**:
+  - Command: `openspec validate policy-engine-01-unified-framework --strict`
+  - Result: `Change 'policy-engine-01-unified-framework' is valid`
+  - Note: PostHog telemetry network flush errors were emitted by the CLI environment but did not affect validation result.

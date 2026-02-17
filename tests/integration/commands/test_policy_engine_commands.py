@@ -101,6 +101,44 @@ class TestPolicyEngineCommands:
         assert result.exit_code == 1
         assert "policy config not found" in result.stdout.lower()
         assert "not found" in result.stdout.lower()
+        assert "agile-scrum-workflows.md" in result.stdout
+
+    def test_policy_init_writes_selected_template_non_interactive(self, tmp_path: Path) -> None:
+        """Init SHALL scaffold policy config from selected template in non-interactive mode."""
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "init",
+                "--repo",
+                str(tmp_path),
+                "--template",
+                "scrum",
+            ],
+        )
+        assert result.exit_code == 0
+        config_path = tmp_path / ".specfact" / "policy.yaml"
+        assert config_path.exists()
+        content = config_path.read_text(encoding="utf-8")
+        assert "scrum:" in content
+
+    def test_policy_init_prompts_for_template_interactive(self, tmp_path: Path) -> None:
+        """Init SHALL ask for template selection when template is omitted."""
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "init",
+                "--repo",
+                str(tmp_path),
+            ],
+            input="kanban\n",
+        )
+        assert result.exit_code == 0
+        config_path = tmp_path / ".specfact" / "policy.yaml"
+        assert config_path.exists()
+        content = config_path.read_text(encoding="utf-8")
+        assert "kanban:" in content
 
     def test_policy_validate_requires_snapshot_input(self, tmp_path: Path) -> None:
         """Validate SHALL fail when snapshot input is omitted."""
