@@ -97,12 +97,8 @@ resolve_base_ref() {
     return 0
   fi
 
-  if git rev-parse --verify --quiet "dev^{commit}" >/dev/null; then
-    printf '%s\n' "dev"
-    return 0
-  fi
-
-  printf '%s\n' "HEAD"
+  err "base ref '${resolved}' is not available after fetch; set BASE_REF to a valid ref"
+  exit 1
 }
 
 fetch_origin_if_present() {
@@ -126,13 +122,13 @@ cmd_create() {
   ensure_repo_if_needed
 
   path="$(worktree_path_for "$branch")"
+
+  run_cmd mkdir -p "$(dirname "$path")"
+  fetch_origin_if_present
   base="$(resolve_base_ref)"
 
   info "Target worktree path: ${path}"
   info "Base ref: ${base}"
-
-  run_cmd mkdir -p "$(dirname "$path")"
-  fetch_origin_if_present
   run_cmd git worktree add "$path" -b "$branch" "$base"
 
   info "Worktree ready: ${path}"
