@@ -65,7 +65,7 @@ def item_key(item: _ItemLike) -> str:
 
 
 def item_keys_similar(key_a: str, key_b: str) -> bool:
-    """Return True if keys share at least 2 of 3 components (area, assignee, tags)."""
+    """Return True if keys share at least 2 of 3 non-empty components (area, assignee, tags). Empty fields are ignored to avoid matching unrelated items."""
 
     def parts(k: str) -> tuple[str, str, str]:
         d: dict[str, str] = {}
@@ -77,7 +77,13 @@ def item_keys_similar(key_a: str, key_b: str) -> bool:
 
     a1, a2, a3 = parts(key_a)
     b1, b2, b3 = parts(key_b)
-    matches = sum([a1 == b1, a2 == b2, a3 == b3])
+    matches = 0
+    if a1 and b1 and a1 == b1:
+        matches += 1
+    if a2 and b2 and a2 == b2:
+        matches += 1
+    if a3 and b3 and a3 == b3:
+        matches += 1
     return matches >= 2
 
 

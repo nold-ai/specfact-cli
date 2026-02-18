@@ -176,7 +176,7 @@ class BundleMapper:
                 primary_bundle_id = hist_bundle
                 weighted += contrib
                 reasons.append(self._explain_score(hist_bundle, hist_score, "historical"))
-            else:
+            elif hist_bundle == primary_bundle_id:
                 weighted += contrib
 
         if content_list:

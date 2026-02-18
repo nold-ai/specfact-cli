@@ -46,6 +46,13 @@ def test_item_keys_similar_two_components() -> None:
     assert item_keys_similar(k1, k2) is True
 
 
+def test_item_keys_similar_empty_fields_not_counted() -> None:
+    """Items with only empty area/assignee/tags must not be considered similar."""
+    k1 = "area=|assignee=|tags="
+    k2 = "area=|assignee=|tags="
+    assert item_keys_similar(k1, k2) is False
+
+
 def test_save_user_confirmed_mapping_increments_history() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         config_path = Path(tmp) / "config.yaml"

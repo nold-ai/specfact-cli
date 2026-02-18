@@ -59,10 +59,11 @@ def ask_bundle_mapping(
     if auto_accept_high and conf >= 0.8 and primary:
         return primary
 
+    prompt_default: str | None = "A" if conf >= 0.5 else None
     choice = (
         Prompt.ask(
             "Accept (A), choose number from list (1-N), show all (S), skip (Q)",
-            default="A",
+            default=prompt_default,
         )
         .strip()
         .upper()
