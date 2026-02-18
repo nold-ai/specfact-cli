@@ -138,10 +138,21 @@ class TestApplyPatchWrite:
         assert result.exit_code == 0
         assert "skip" in result.stdout.lower() or "yes" in result.stdout.lower()
 
-    def test_apply_write_with_yes_succeeds(self, tmp_path: Path) -> None:
+    def test_apply_write_with_yes_succeeds(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Given patch file, When patch apply --write --yes, Then updates upstream (idempotent)."""
+        target = tmp_path / "sample.txt"
+        target.write_text("old\n", encoding="utf-8")
         patch_file = tmp_path / "w.diff"
-        patch_file.write_text("+line\n")
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-old
++new
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
         result = runner.invoke(patch_app, [str(patch_file), "--write", "--yes"])
         assert result.exit_code == 0
         assert "Wrote" in result.stdout or "write" in result.stdout.lower() or "Applied" in result.stdout
