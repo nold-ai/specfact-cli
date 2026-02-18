@@ -173,6 +173,11 @@ def main(
         "--crosshair-required",
         help="Fail if CrossHair analysis is skipped/failed (strict contract exploration mode)",
     ),
+    crosshair_per_path_timeout: int | None = typer.Option(
+        None,
+        "--crosshair-per-path-timeout",
+        help="CrossHair per-path timeout in seconds (deep validation; default: use existing budget behavior)",
+    ),
     # Advanced/Configuration
     budget: int = typer.Option(
         120,
@@ -249,6 +254,8 @@ def main(
         console.print("[dim]Auto-fix: enabled[/dim]")
     if crosshair_required:
         console.print("[dim]CrossHair required: enabled[/dim]")
+    if crosshair_per_path_timeout is not None:
+        console.print(f"[dim]CrossHair per-path timeout: {crosshair_per_path_timeout}s[/dim]")
     console.print()
 
     # Ensure structure exists
@@ -269,6 +276,7 @@ def main(
             fail_fast=fail_fast,
             fix=fix,
             crosshair_required=crosshair_required,
+            crosshair_per_path_timeout=crosshair_per_path_timeout,
         )
 
         # Detect and display environment manager before starting progress spinner
