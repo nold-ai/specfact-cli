@@ -6,7 +6,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from specfact_cli.cli import app
+from specfact_cli.modules.patch_mode.src.patch_mode.commands.apply import app as patch_app
 from specfact_cli.modules.patch_mode.src.patch_mode.pipeline.applier import (
     apply_patch_local,
     apply_patch_write,
@@ -41,7 +41,7 @@ class TestApplyPatchLocal:
         """Given a patch file, When patch apply <file>, Then applies locally; no upstream."""
         patch_file = tmp_path / "p.diff"
         patch_file.write_text("--- a\n+++ b\n+line\n")
-        result = runner.invoke(app, ["patch", "apply", str(patch_file)])
+        result = runner.invoke(patch_app, [str(patch_file)])
         assert result.exit_code == 0
         assert "Applied patch locally" in result.stdout or "apply" in result.stdout.lower()
 
@@ -49,7 +49,7 @@ class TestApplyPatchLocal:
         """Given a patch file, When patch apply --dry-run <file>, Then preflight only."""
         patch_file = tmp_path / "p.diff"
         patch_file.write_text("+line\n")
-        result = runner.invoke(app, ["patch", "apply", str(patch_file), "--dry-run"])
+        result = runner.invoke(patch_app, [str(patch_file), "--dry-run"])
         assert result.exit_code == 0
 
     def test_preflight_check_empty_fails(self, tmp_path: Path) -> None:
@@ -72,7 +72,7 @@ class TestApplyPatchWrite:
         """Given patch file, When patch apply --write without --yes, Then no write."""
         patch_file = tmp_path / "w.diff"
         patch_file.write_text("+line\n")
-        result = runner.invoke(app, ["patch", "apply", str(patch_file), "--write"])
+        result = runner.invoke(patch_app, [str(patch_file), "--write"])
         assert result.exit_code == 0
         assert "skip" in result.stdout.lower() or "yes" in result.stdout.lower()
 
@@ -80,7 +80,7 @@ class TestApplyPatchWrite:
         """Given patch file, When patch apply --write --yes, Then updates upstream (idempotent)."""
         patch_file = tmp_path / "w.diff"
         patch_file.write_text("+line\n")
-        result = runner.invoke(app, ["patch", "apply", str(patch_file), "--write", "--yes"])
+        result = runner.invoke(patch_app, [str(patch_file), "--write", "--yes"])
         assert result.exit_code == 0
         assert "Wrote" in result.stdout or "write" in result.stdout.lower() or "Applied" in result.stdout
 
