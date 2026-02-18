@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.modules.backlog.src import commands as backlog_commands
 
@@ -89,3 +91,24 @@ def test_apply_bundle_mapping_runtime_persists_mapping_history(tmp_path: Path, m
 
     assert mapped == {"42": "core-platform"}
     assert saved == [("42", "core-platform", tmp_path / "config.yaml")]
+
+
+def test_derive_available_bundle_ids_does_not_use_bundle_yaml_stem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    specfact_dir = tmp_path / ".specfact"
+    specfact_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    bundle_yaml = specfact_dir / "bundle.yaml"
+    bundle_yaml.write_text("manifest: true\n", encoding="utf-8")
+    ids = backlog_commands._derive_available_bundle_ids(bundle_yaml)
+    assert "bundle" not in ids
+
+
+def test_resolve_bundle_mapping_config_path_uses_project_specfact_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".specfact").mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SPECFACT_CONFIG_DIR", raising=False)
+    assert backlog_commands._resolve_bundle_mapping_config_path() == tmp_path / ".specfact" / "config.yaml"

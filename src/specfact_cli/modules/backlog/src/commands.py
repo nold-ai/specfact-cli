@@ -940,7 +940,12 @@ def _derive_available_bundle_ids(bundle_path: Path | None) -> list[str]:
         if bundle_path.is_dir():
             candidates.append(bundle_path.name)
         else:
-            candidates.append(bundle_path.stem)
+            # Avoid treating common manifest filenames (bundle.yaml) as bundle IDs.
+            stem = bundle_path.stem.strip()
+            if stem and stem.lower() != "bundle":
+                candidates.append(stem)
+            elif bundle_path.parent.name not in {".specfact", "projects", ""}:
+                candidates.append(bundle_path.parent.name)
 
     projects_dir = Path.cwd() / ".specfact" / "projects"
     if projects_dir.exists():
@@ -957,6 +962,17 @@ def _derive_available_bundle_ids(bundle_path: Path | None) -> list[str]:
         seen.add(normalized)
         deduped.append(normalized)
     return deduped
+
+
+@beartype
+def _resolve_bundle_mapping_config_path() -> Path | None:
+    """Resolve mapping history/rules config path, separate from bundle manifest path."""
+    config_dir = os.environ.get("SPECFACT_CONFIG_DIR")
+    if config_dir:
+        return Path(config_dir) / "config.yaml"
+    if (Path.cwd() / ".specfact").exists():
+        return Path.cwd() / ".specfact" / "config.yaml"
+    return None
 
 
 @beartype
@@ -3706,9 +3722,7 @@ def refine(
                     if not bundle_path.exists():
                         bundle_path = current_dir / "bundle.yaml"
 
-                config_path: Path | None = (
-                    bundle_path if bundle_path and bundle_path.suffix in {".yaml", ".yml"} else None
-                )
+                config_path = _resolve_bundle_mapping_config_path()
                 available_bundle_ids = _derive_available_bundle_ids(
                     bundle_path if bundle_path and bundle_path.exists() else None
                 )
