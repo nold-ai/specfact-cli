@@ -238,6 +238,8 @@ def main(
         raise typer.BadParameter("Repo path must exist and be directory")
     if budget <= 0:
         raise typer.BadParameter("Budget must be positive")
+    if crosshair_per_path_timeout is not None and crosshair_per_path_timeout <= 0:
+        raise typer.BadParameter("CrossHair per-path timeout must be positive")
     if not _is_valid_output_path(out):
         raise typer.BadParameter("Output path must exist if provided")
     if sidecar and not sidecar_bundle:
