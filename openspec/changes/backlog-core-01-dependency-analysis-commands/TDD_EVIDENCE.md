@@ -347,3 +347,29 @@ Enrich GitHub/ADO provider outputs so dependency graph analysis gets relationshi
   - Added integration coverage for full stage sequence `plan -> develop -> review -> release -> monitor`.
   - `test_project_devops_flow_complete_stage_sequence` validates all stage/action paths execute end-to-end with deterministic stubs.
   - Integration command file now passes fully (`4 passed`).
+
+## Scope (0.5 Init module discovery alignment)
+
+Align `specfact init` with command registration so workspace-level modules appear in `--list-modules`, `--enable-module`, and `--disable-module`.
+
+### Pre-Implementation Failing Run (0.5)
+
+- Timestamp: 2026-02-18
+- Command:
+  - `hatch run pytest tests/unit/specfact_cli/registry/test_init_module_lifecycle_ux.py::test_init_enable_workspace_level_module_succeeds -v`
+- Result: **FAIL** (before code change)
+- Failure summary: Init used `discover_package_metadata(get_modules_root())` for validation, so enabling a module only present in `SPECFACT_MODULES_ROOTS` was blocked ("module not found"); exit_code == 1.
+
+### Implementation (0.5)
+
+- Tests added: `test_init_list_modules_includes_workspace_level_modules`, `test_init_enable_workspace_level_module_succeeds` in `tests/unit/specfact_cli/registry/test_init_module_lifecycle_ux.py`.
+- Production change: `src/specfact_cli/modules/init/src/commands.py` — replaced `discover_package_metadata(get_modules_root())` with `discover_all_package_metadata()` for building `packages` and `discovered_list`.
+- Updated mocks in existing init tests from `discover_package_metadata` to `discover_all_package_metadata` (no-arg lambda).
+
+### Post-Implementation Passing Run (0.5)
+
+- Timestamp: 2026-02-18
+- Command:
+  - `hatch run pytest tests/unit/specfact_cli/registry/test_init_module_lifecycle_ux.py -v`
+- Result: **PASS** (11 passed)
+- Verification summary: All init lifecycle UX tests pass; workspace-level module list and enable flows succeed.

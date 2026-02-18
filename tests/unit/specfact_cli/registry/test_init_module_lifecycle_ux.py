@@ -96,8 +96,8 @@ def test_init_disable_module_does_not_run_ide_setup(tmp_path: Path, monkeypatch)
         lambda disable_ids, packages, enabled_map: {},
     )
     monkeypatch.setattr(
-        "specfact_cli.modules.init.src.commands.discover_package_metadata",
-        lambda modules_root: [],
+        "specfact_cli.modules.init.src.commands.discover_all_package_metadata",
+        list,
     )
 
     def _fail_copy(*args, **kwargs):
@@ -190,7 +190,7 @@ def test_init_force_disable_cascades_to_dependents(tmp_path: Path, monkeypatch) 
             ModulePackageMetadata(name="sync", version="0.1.0", commands=["sync"], module_dependencies=[]),
         ),
     ]
-    monkeypatch.setattr("specfact_cli.modules.init.src.commands.discover_package_metadata", lambda root: packages)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.read_modules_state", dict)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda version: None)
 
@@ -230,7 +230,7 @@ def test_init_force_enable_cascades_to_dependencies(tmp_path: Path, monkeypatch)
             ModulePackageMetadata(name="sync", version="0.1.0", commands=["sync"], module_dependencies=[]),
         ),
     ]
-    monkeypatch.setattr("specfact_cli.modules.init.src.commands.discover_package_metadata", lambda root: packages)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.read_modules_state", dict)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda version: None)
 
@@ -270,7 +270,7 @@ def test_init_enable_without_force_blocks_when_dependency_disabled(tmp_path: Pat
             ModulePackageMetadata(name="sync", version="0.1.0", commands=["sync"], module_dependencies=[]),
         ),
     ]
-    monkeypatch.setattr("specfact_cli.modules.init.src.commands.discover_package_metadata", lambda root: packages)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.read_modules_state", lambda: {"sync": {"enabled": False}}
     )
@@ -280,3 +280,44 @@ def test_init_enable_without_force_blocks_when_dependency_disabled(tmp_path: Pat
     assert result.exit_code == 1
     assert "Cannot enable 'plan'" in result.stdout
     assert "--force" in result.stdout
+
+
+def test_init_list_modules_includes_workspace_level_modules(tmp_path: Path, monkeypatch) -> None:
+    """specfact init --list-modules includes modules from SPECFACT_MODULES_ROOTS (init-module-discovery-alignment)."""
+    modules_root = tmp_path / "ws_modules"
+    modules_root.mkdir()
+    extra_dir = modules_root / "extra_ws"
+    extra_dir.mkdir()
+    (extra_dir / "module-package.yaml").write_text(
+        "name: extra_ws\nversion: '0.1.0'\ncommands: [dummy]\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("SPECFACT_MODULES_ROOTS", str(modules_root))
+    reg_dir = tmp_path / "registry"
+    reg_dir.mkdir()
+    monkeypatch.setenv("SPECFACT_REGISTRY_DIR", str(reg_dir))
+
+    result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--list-modules"])
+
+    assert result.exit_code == 0
+    assert "extra_ws" in result.stdout
+
+
+def test_init_enable_workspace_level_module_succeeds(tmp_path: Path, monkeypatch) -> None:
+    """init --enable-module for a workspace-level module succeeds when discovery uses all roots."""
+    modules_root = tmp_path / "ws_modules"
+    modules_root.mkdir()
+    extra_dir = modules_root / "extra_ws"
+    extra_dir.mkdir()
+    (extra_dir / "module-package.yaml").write_text(
+        "name: extra_ws\nversion: '0.1.0'\ncommands: [dummy]\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("SPECFACT_MODULES_ROOTS", str(modules_root))
+    reg_dir = tmp_path / "registry"
+    reg_dir.mkdir()
+    monkeypatch.setenv("SPECFACT_REGISTRY_DIR", str(reg_dir))
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_non_interactive", lambda: True)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda version: None)
+
+    result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--enable-module", "extra_ws"])
+
+    assert result.exit_code == 0, result.output

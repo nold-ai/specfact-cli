@@ -26,11 +26,10 @@ from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.module_packages import (
-    discover_package_metadata,
+    discover_all_package_metadata,
     expand_disable_with_dependents,
     expand_enable_with_dependencies,
     get_discovered_modules_for_state,
-    get_modules_root,
     merge_module_state,
     validate_disable_safe,
     validate_enable_safe,
@@ -563,7 +562,7 @@ def init(
             if selected:
                 module_management_requested = True
 
-        packages = discover_package_metadata(get_modules_root())
+        packages = discover_all_package_metadata()
         discovered_list = [(meta.name, meta.version) for _package_dir, meta in packages]
         state = read_modules_state()
 

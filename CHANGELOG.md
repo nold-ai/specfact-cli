@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.34.0] - 2026-02-18
+
+### Added
+
+- **Init module discovery alignment** (backlog-core-01): `specfact init` now uses the same module discovery roots as command registration (`discover_all_package_metadata()`), so `--list-modules`, `--enable-module`, and `--disable-module` operate on all discovered modules including workspace-level ones (e.g. `modules/backlog-core/`). Closes [#116](https://github.com/nold-ai/specfact-cli/issues/116) scope for init-module-discovery-alignment.
+
+### Changed
+
+- `specfact init` module state and validation now build from `discover_all_package_metadata()` instead of `discover_package_metadata(get_modules_root())`, aligning enable/disable and list-modules with runtime command discovery.
+
+---
+
 ## [0.33.0] - 2026-02-17
 
 ### Added
