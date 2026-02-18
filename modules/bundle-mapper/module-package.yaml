@@ -1,0 +1,22 @@
+name: bundle-mapper
+version: "0.1.0"
+commands: []
+pip_dependencies: []
+module_dependencies: []
+core_compatibility: ">=0.28.0,<1.0.0"
+tier: community
+schema_extensions:
+  project_bundle: {}
+  project_metadata:
+    bundle_mapper.mapping_rules:
+      type: "list | None"
+      description: "Persistent mapping rules from user confirmations"
+    bundle_mapper.history:
+      type: "dict | None"
+      description: "Auto-populated historical mappings (item_key -> bundle_id counts)"
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+integrity:
+  checksum_algorithm: sha256
+dependencies: []
