@@ -4098,6 +4098,39 @@ specfact backlog refine ado \
   --iteration "Project\\Release 1\\Sprint 1"
 ```
 
+#### `patch apply`
+
+Apply a unified diff patch locally with preflight validation, or run explicit upstream-write orchestration.
+
+```bash
+specfact patch apply <PATCH_FILE> [OPTIONS]
+```
+
+**Options:**
+
+- `--dry-run` - Validate patch applicability only; do not apply locally
+- `--write` - Run upstream write orchestration path (requires confirmation)
+- `--yes`, `-y` - Confirm `--write` operation explicitly
+
+**Behavior:**
+
+- Local mode (`specfact patch apply <file>`) runs preflight then applies the patch to local files.
+- `--write` never runs unless `--yes` is provided.
+- Repeated `--write --yes` invocations for the same patch are idempotent and skip duplicate writes.
+
+**Examples:**
+
+```bash
+# Apply patch locally after preflight
+specfact patch apply backlog.diff
+
+# Validate patch only
+specfact patch apply backlog.diff --dry-run
+
+# Run explicit upstream write orchestration
+specfact patch apply backlog.diff --write --yes
+```
+
 **Pre-built Templates:**
 
 - `user_story_v1` - User story format (As a / I want / So that / Acceptance Criteria)

@@ -890,6 +890,117 @@ def _is_patch_mode_available() -> bool:
 
 
 @beartype
+def _load_bundle_mapper_runtime_dependencies() -> (
+    tuple[
+        type[Any],
+        Callable[[BacklogItem, str, Path | None], None],
+        Callable[[Path | None], dict[str, Any]],
+        Callable[[Any, list[str]], str | None] | None,
+    ]
+    | None
+):
+    """Load optional bundle-mapper runtime dependencies."""
+    try:
+        from bundle_mapper.mapper.engine import BundleMapper
+        from bundle_mapper.mapper.history import load_bundle_mapping_config, save_user_confirmed_mapping
+        from bundle_mapper.ui.interactive import ask_bundle_mapping
+
+        return (BundleMapper, save_user_confirmed_mapping, load_bundle_mapping_config, ask_bundle_mapping)
+    except ImportError:
+        return None
+
+
+@beartype
+def _route_bundle_mapping_decision(
+    mapping: Any,
+    *,
+    available_bundle_ids: list[str],
+    auto_assign_threshold: float,
+    confirm_threshold: float,
+    prompt_callback: Callable[[Any, list[str]], str | None] | None,
+) -> str | None:
+    """Apply confidence routing rules to one computed mapping."""
+    primary_bundle = getattr(mapping, "primary_bundle_id", None)
+    confidence = float(getattr(mapping, "confidence", 0.0))
+
+    if primary_bundle and confidence >= auto_assign_threshold:
+        return str(primary_bundle)
+    if prompt_callback is None:
+        return str(primary_bundle) if primary_bundle else None
+    if confidence >= confirm_threshold:
+        return prompt_callback(mapping, available_bundle_ids)
+    return prompt_callback(mapping, available_bundle_ids)
+
+
+@beartype
+def _derive_available_bundle_ids(bundle_path: Path | None) -> list[str]:
+    """Derive available bundle IDs from explicit bundle path and local project bundles."""
+    candidates: list[str] = []
+    if bundle_path:
+        if bundle_path.is_dir():
+            candidates.append(bundle_path.name)
+        else:
+            candidates.append(bundle_path.stem)
+
+    projects_dir = Path.cwd() / ".specfact" / "projects"
+    if projects_dir.exists():
+        for child in sorted(projects_dir.iterdir()):
+            if child.is_dir():
+                candidates.append(child.name)
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        normalized = candidate.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+@beartype
+def _apply_bundle_mappings_for_items(
+    *,
+    items: list[BacklogItem],
+    available_bundle_ids: list[str],
+    config_path: Path | None,
+) -> dict[str, str]:
+    """Execute bundle mapping flow for refined items and persist selected mappings."""
+    runtime_deps = _load_bundle_mapper_runtime_dependencies()
+    if runtime_deps is None:
+        return {}
+
+    bundle_mapper_cls, save_user_confirmed_mapping, load_bundle_mapping_config, ask_bundle_mapping = runtime_deps
+    cfg = load_bundle_mapping_config(config_path)
+    auto_assign_threshold = float(cfg.get("auto_assign_threshold", 0.8))
+    confirm_threshold = float(cfg.get("confirm_threshold", 0.5))
+
+    mapper = bundle_mapper_cls(
+        available_bundle_ids=available_bundle_ids,
+        config_path=config_path,
+        bundle_spec_keywords={},
+    )
+
+    selected_by_item_id: dict[str, str] = {}
+    for item in items:
+        mapping = mapper.compute_mapping(item)
+        selected = _route_bundle_mapping_decision(
+            mapping,
+            available_bundle_ids=available_bundle_ids,
+            auto_assign_threshold=auto_assign_threshold,
+            confirm_threshold=confirm_threshold,
+            prompt_callback=ask_bundle_mapping,
+        )
+        if not selected:
+            continue
+        selected_by_item_id[str(item.id)] = selected
+        save_user_confirmed_mapping(item, selected, config_path)
+
+    return selected_by_item_id
+
+
+@beartype
 def _build_comment_fetch_progress_description(index: int, total: int, item_id: str) -> str:
     """Build progress text while fetching per-item comments."""
     return f"[cyan]Fetching issue {index}/{total} comments (ID: {item_id})...[/cyan]"
@@ -3151,6 +3262,7 @@ def refine(
 
         # Process each item
         refined_count = 0
+        refined_items: list[BacklogItem] = []
         skipped_count = 0
         cancelled = False
         comments_by_item_id: dict[str, list[str]] = {}
@@ -3536,6 +3648,7 @@ def refine(
                     console.print("\n[yellow]Preview mode: Refinement will NOT be written to backlog[/yellow]")
                     console.print("[yellow]Use --write flag to explicitly opt-in to writeback[/yellow]")
                     refined_count += 1  # Count as refined for preview purposes
+                    refined_items.append(item)
                     continue
 
                 if write:
@@ -3562,6 +3675,7 @@ def refine(
                             openspec_comment=openspec_comment,
                         )
                         refined_count += 1
+                        refined_items.append(item)
                     else:
                         console.print("[yellow]Refinement rejected - not writing to backlog[/yellow]")
                         skipped_count += 1
@@ -3569,6 +3683,7 @@ def refine(
                     # Preview mode but user didn't explicitly set --write
                     console.print("[yellow]Preview mode: Use --write to update backlog[/yellow]")
                     refined_count += 1
+                    refined_items.append(item)
 
             except ValueError as e:
                 console.print(f"[red]Validation failed: {e}[/red]")
@@ -3577,7 +3692,7 @@ def refine(
                 continue
 
         # OpenSpec bundle import (if requested)
-        if (bundle or auto_bundle) and refined_count > 0:
+        if (bundle or auto_bundle) and refined_items:
             console.print("\n[bold]OpenSpec Bundle Import:[/bold]")
             try:
                 # Determine bundle path
@@ -3591,16 +3706,30 @@ def refine(
                     if not bundle_path.exists():
                         bundle_path = current_dir / "bundle.yaml"
 
-                if bundle_path and bundle_path.exists():
-                    console.print(
-                        f"[green]Importing {refined_count} refined items to OpenSpec bundle: {bundle_path}[/green]"
-                    )
-                    # TODO: Implement actual import logic using import command functionality
-                    console.print(
-                        "[yellow]⚠ OpenSpec bundle import integration pending (use import command separately)[/yellow]"
-                    )
+                config_path: Path | None = (
+                    bundle_path if bundle_path and bundle_path.suffix in {".yaml", ".yml"} else None
+                )
+                available_bundle_ids = _derive_available_bundle_ids(
+                    bundle_path if bundle_path and bundle_path.exists() else None
+                )
+                mapped = _apply_bundle_mappings_for_items(
+                    items=refined_items,
+                    available_bundle_ids=available_bundle_ids,
+                    config_path=config_path,
+                )
+                if not mapped:
+                    if _load_bundle_mapper_runtime_dependencies() is None:
+                        console.print(
+                            "[yellow]⚠ bundle-mapper module not available; skipping runtime mapping flow.[/yellow]"
+                        )
+                    else:
+                        console.print("[yellow]⚠ No bundle assignments were selected.[/yellow]")
                 else:
-                    console.print("[yellow]⚠ Bundle path not found. Skipping import.[/yellow]")
+                    console.print(
+                        f"[green]Mapped {len(mapped)}/{len(refined_items)} refined item(s) using confidence routing.[/green]"
+                    )
+                    for item_id, selected_bundle in mapped.items():
+                        console.print(f"[dim]- {item_id} -> {selected_bundle}[/dim]")
             except Exception as e:
                 console.print(f"[yellow]⚠ Failed to import to OpenSpec bundle: {e}[/yellow]")
 

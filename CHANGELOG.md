@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
   - Reference doc [Thorough Codebase Validation](docs/reference/thorough-codebase-validation.md) covering quick check (`specfact repro`), thorough contract-decorated (`hatch run contract-test-full`), sidecar for unmodified code, and dogfooding (repro + contract-test-full on specfact-cli).
   - Unit test and TDD evidence for CrossHair per-path timeout passthrough.
 - **Init module discovery alignment** (backlog-core-01): `specfact init` now uses the same module discovery roots as command registration (`discover_all_package_metadata()`), so `--list-modules`, `--enable-module`, and `--disable-module` operate on all discovered modules including workspace-level ones (e.g. `modules/backlog-core/`). Closes [#116](https://github.com/nold-ai/specfact-cli/issues/116) scope for init-module-discovery-alignment.
+- **Patch mode module** (patch-mode-01, [#177](https://github.com/nold-ai/specfact-cli/issues/177)): `specfact patch apply <patchfile>` for local apply with preflight; `specfact patch apply --write --yes` for explicit upstream write orchestration and idempotency (`check_idempotent` / `mark_applied`).
 
 ### Changed
 
@@ -27,24 +28,11 @@ All notable changes to this project will be documented in this file.
 - `specfact repro --crosshair-per-path-timeout 0` (or negative) now fails with a clear error instead of being silently ignored; CLI rejects non-positive CrossHair per-path timeout values.
 
 ---
-
 ## [Unreleased]
 
 ### Added
 
-- **Patch mode module** (patch-mode-01, [#177](https://github.com/nold-ai/specfact-cli/issues/177)): `specfact patch apply <patchfile>` for local apply with preflight; `specfact patch apply --write --yes` for upstream write with confirmation and idempotency. Pipeline: `generate_unified_diff`, `apply_patch_local`, `apply_patch_write`, `check_idempotent` / `mark_applied`.
-
----
-
-## [0.34.0] - 2026-02-18
-
-### Added
-
-- **Init module discovery alignment** (backlog-core-01): `specfact init` now uses the same module discovery roots as command registration (`discover_all_package_metadata()`), so `--list-modules`, `--enable-module`, and `--disable-module` operate on all discovered modules including workspace-level ones (e.g. `modules/backlog-core/`). Closes [#116](https://github.com/nold-ai/specfact-cli/issues/116) scope for init-module-discovery-alignment.
-
-### Changed
-
-- `specfact init` module state and validation now build from `discover_all_package_metadata()` instead of `discover_package_metadata(get_modules_root())`, aligning enable/disable and list-modules with runtime command discovery.
+- None yet.
 
 ---
 

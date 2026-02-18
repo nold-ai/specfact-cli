@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from beartype import beartype
@@ -19,9 +20,23 @@ def apply_patch_local(patch_file: Path, dry_run: bool = False) -> bool:
         return False
     if not raw.strip():
         return False
+    check_result = subprocess.run(
+        ["git", "apply", "--check", str(patch_file)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if check_result.returncode != 0:
+        return False
     if dry_run:
         return True
-    return True
+    apply_result = subprocess.run(
+        ["git", "apply", str(patch_file)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return apply_result.returncode == 0
 
 
 @beartype
@@ -32,11 +47,7 @@ def apply_patch_write(patch_file: Path, confirmed: bool) -> bool:
     """Update upstream only with explicit confirmation; idempotent. Returns True on success."""
     if not confirmed:
         return False
-    try:
-        patch_file.read_text(encoding="utf-8")
-    except OSError:
-        return False
-    return True
+    return apply_patch_local(patch_file, dry_run=True)
 
 
 @beartype
