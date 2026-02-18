@@ -90,6 +90,7 @@ Why this matters:
 
 - **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
 - **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
+- **[Policy Engine Commands](guides/policy-engine-commands.md)** - Scaffold policy config templates and run `policy init|validate|suggest`
 - **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
 - **[Backlog Refinement](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven backlog refinement for standardizing work items
 - **[Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)** - Analyze critical path, cycles, orphans, and dependency impact from backlog graph data

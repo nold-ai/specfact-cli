@@ -30,7 +30,7 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 
 ### Pending
 
-All entries in the table below are pending implementation.
+Entries in the tables below are pending unless explicitly marked as implemented (pending archive).
 
 ## Plan-derived addendum (2026-02-15 architecture integration plan)
 
@@ -62,7 +62,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| policy-engine | 01 | policy-engine-01-unified-framework | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
+| policy-engine | 01 | policy-engine-01-unified-framework ✅ (implemented 2026-02-17; pending archive) | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
 | patch-mode | 01 | patch-mode-01-preview-apply | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
 | validation | 01 | validation-01-deep-validation | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
 | bundle-mapper | 01 | bundle-mapper-01-mapping-strategy | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
@@ -254,7 +254,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 
 - **Wave 1 — Platform extensions + cross-cutting foundations** (arch-06 ✅, arch-07 ✅, ci-01 ✅):
   - arch-06 ✅, arch-07 ✅, ci-01 ✅
-  - policy-engine-01, patch-mode-01
+  - policy-engine-01 ✅, patch-mode-01
   - backlog-core-01
   - validation-01, sidecar-01 ✅, bundle-mapper-01
 

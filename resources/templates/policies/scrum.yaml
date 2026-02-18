@@ -1,0 +1,10 @@
+scrum:
+  dor_required_fields:
+    - acceptance_criteria
+    - business_value
+  dod_required_fields:
+    - definition_of_done
+kanban:
+  columns: {}
+safe:
+  pi_readiness_required_fields: []

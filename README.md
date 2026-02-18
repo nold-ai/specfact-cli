@@ -113,6 +113,18 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
+- `specfact policy validate ...`
+- `specfact policy suggest ...`
+
+What the Policy Engine does in practice:
+- Turns team agreements (DoR, DoD, flow checks) into executable checks against your real backlog data.
+- Shows exactly what is missing per item (for example missing acceptance criteria or definition of done).
+- Generates patch-ready suggestions so teams can fix policy gaps quickly without guessing.
+
+Start with:
+- `specfact policy init --template scrum`
+- `specfact policy validate --group-by-item`
+- `specfact policy suggest --group-by-item --limit 5`
 
 **Try it now**
 
@@ -221,6 +233,7 @@ SpecFact complements your stack rather than replacing it.
 - **[Backlog Refinement](docs/guides/backlog-refinement.md)**
 - **[Backlog Dependency Analysis](docs/guides/backlog-dependency-analysis.md)**
 - **[Backlog Delta Commands](docs/guides/backlog-delta-commands.md)**
+- **[Policy Engine Commands](docs/guides/policy-engine-commands.md)**
 - **[Project DevOps Flow](docs/guides/project-devops-flow.md)**
 - **[Sidecar Validation](docs/guides/sidecar-validation.md)**
 - **[OpenSpec Journey](docs/guides/openspec-journey.md)**
