@@ -50,6 +50,21 @@ SpecFact CLI supports real-world agile/scrum practices through:
 - **Business Value Focus**: User-focused value statements and measurable outcomes
 - **Conflict Resolution**: Persona-aware three-way merge with automatic conflict resolution based on section ownership
 
+## Policy Engine Commands (DoR/DoD/Flow/PI)
+
+Use the `policy` command group to run deterministic readiness checks before sprint and refinement ceremonies:
+
+```bash
+# Validate configured policy rules against a snapshot
+specfact policy validate --repo . --format both
+
+# Generate confidence-scored, patch-ready suggestions (no automatic writes)
+specfact policy suggest --repo .
+```
+
+Policy configuration is loaded from `.specfact/policy.yaml` and supports Scrum (`dor_required_fields`,
+`dod_required_fields`), Kanban column entry/exit requirements, and SAFe PI readiness fields.
+
 **🆕 NEW: Backlog Refinement Integration** - Use `specfact backlog ceremony refinement` to standardize backlog items from GitHub Issues, Azure DevOps, and other tools into template-compliant format before importing into project bundles. See [Backlog Refinement Guide](backlog-refinement.md) for complete documentation.
 
 **Tutorial**: For an end-to-end daily standup and sprint review walkthrough (auto-detect repo, view standup, post comment, interactive, Copilot export), see **[Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)**.

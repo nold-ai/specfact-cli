@@ -162,6 +162,13 @@ specfact auth status
 - `validate sidecar run` - Run sidecar validation workflow (CrossHair + Specmatic)
   - **Workflow**: [Sidecar Validation Chain](../guides/command-chains.md#5-sidecar-validation-chain)
 
+**Policy Engine:**
+
+- `policy init` - Scaffold `.specfact/policy.yaml` from built-in templates (`scrum`, `kanban`, `safe`, `mixed`)
+- `policy validate` - Run deterministic policy checks; auto-discovers `.specfact/backlog-baseline.json` then latest `.specfact/plans/backlog-*` when `--snapshot` is omitted; supports `--rule`, `--limit`, `--group-by-item` (`--limit` applies to item groups when grouped)
+- `policy suggest` - Generate confidence-scored, patch-ready policy suggestions (no automatic writes); same artifact auto-discovery behavior as validate; supports `--rule`, `--limit`, `--group-by-item` (`--limit` applies to item groups when grouped)
+- **Guide**: [Policy Engine Commands](../guides/policy-engine-commands.md)
+
 **API Specification Management:**
 
 - `spec validate` - Validate OpenAPI/AsyncAPI specifications with Specmatic

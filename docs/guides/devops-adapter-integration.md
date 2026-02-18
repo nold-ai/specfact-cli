@@ -11,6 +11,22 @@ permalink: /guides/devops-adapter-integration/
 
 This guide explains how to integrate SpecFact CLI with DevOps backlog tools (GitHub Issues, Azure DevOps, Linear, Jira) to sync OpenSpec change proposals and track implementation progress through automated comment annotations.
 
+## Policy Readiness in DevOps Flows
+
+You can validate policy readiness (DoR/DoD, Kanban flow gates, SAFe PI hooks) before posting updates back to
+your backlog system:
+
+```bash
+# Deterministic policy validation with JSON + Markdown output
+specfact policy validate --repo . --format both
+
+# AI-assisted suggestions with confidence scores and patch-ready output
+specfact policy suggest --repo .
+```
+
+Both commands read `.specfact/policy.yaml`. `policy suggest` never writes changes automatically; it emits
+recommendations you can review and apply explicitly in your normal workflow.
+
 ## Overview
 
 **Why This Matters**: This feature bridges the gap between specification management (OpenSpec) and backlog management (GitHub Issues, ADO, Linear, Jira), allowing you to use SpecFact's specification-driven development approach while working within your existing agile DevOps workflows.
