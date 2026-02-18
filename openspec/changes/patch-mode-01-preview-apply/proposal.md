@@ -94,5 +94,6 @@ Graceful no-op when patch-mode module is not installed.
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #177
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/177>
+- **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed
 - **Sanitized**: false

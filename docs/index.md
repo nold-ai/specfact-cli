@@ -99,6 +99,7 @@ Why this matters:
 - **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Add namespaced custom fields to Feature/ProjectBundle (arch-07)
 - **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - Use arch-06 (module security) and arch-07 (schema extensions) from CLI and as a module author
 - **[Sidecar Validation](guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
+- **[Thorough Codebase Validation](reference/thorough-codebase-validation.md)** - Quick check, contract-full, sidecar, dogfooding
 - **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
 - **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
 - **[IDE Integration](guides/ide-integration.md)** - Set up slash commands in your IDE
