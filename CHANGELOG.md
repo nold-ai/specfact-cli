@@ -22,6 +22,13 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Updated Agile/Scrum and DevOps adapter integration guides with policy engine command usage and workflow guidance.
+- `specfact policy validate` and `specfact policy suggest` now apply `--limit` to backlog item group count when `--group-by-item` is enabled (instead of truncating sub-item findings/suggestions).
+- Grouped-mode policy output now avoids duplicate top-level flat arrays and emits grouped payloads with summary metadata for cleaner consumption.
+- Policy command docs and OpenSpec change artifacts were updated to document grouped-limit semantics and grouped output behavior.
+
+### Fixed
+
+- Resolved type-check errors in `policy_engine/main.py` by introducing typed grouped payload structures and explicit payload typing.
 
 ---
 

@@ -89,6 +89,11 @@ Commands are auto-discovered by the registry and lazy-loaded; no registration in
 - **NEW**: `policy init` scaffolds `.specfact/policy.yaml` from common framework templates (Scrum, Kanban, SAFe, Mixed baseline) with interactive or `--template` selection.
 - **NEW**: Policy template assets are sourced from `resources/templates/policies/` to ensure built-in templates ship with wheel/sdist.
 - **EXTEND**: `policy validate` error output includes a docs hint for policy YAML format when config is missing or invalid.
+- **EXTEND**: `policy validate` and `policy suggest` auto-discover policy input from existing `.specfact` artifacts when `--snapshot` is omitted (prefer `.specfact/backlog-baseline.json`, then latest `.specfact/plans/backlog-*`).
+- **EXTEND**: Policy input loader normalizes existing foundation artifact shapes (`items` list/dict and `backlog_graph.items`) into policy-evaluable item arrays.
+- **EXTEND**: Compatibility mapping resolves common provider/raw-data aliases and description sections into canonical policy fields (`acceptance_criteria`, `business_value`, `definition_of_done`) before validation.
+- **EXTEND**: `policy validate` and `policy suggest` support `--rule`, `--limit`, and optional `--group-by-item` output for high-volume snapshots.
+- **EXTEND**: In grouped mode, `--limit` caps the number of backlog item groups (not per-item field findings), and grouped payloads avoid duplicate flat arrays.
 - **EXTEND**: Policy results include: rule id, severity, evidence pointer (field/path), and recommended action.
 - **NEW** (policy registry): `PolicyRegistryProtocol` via arch-05 bridge registry — allows other modules (backlog-scrum-04, backlog-kanban-01, backlog-safe-01) to register additional policy rule sets without modifying the policy-engine module.
 - **EXTEND** (arch-07 schema extensions): Register `policy_engine.policy_status` extension on `BacklogItem` via `module-package.yaml` — stores last policy validation result (pass/fail, failed rules) for each item; access via `item.get_extension("policy_engine", "policy_status")`.

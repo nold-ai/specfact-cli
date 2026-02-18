@@ -18,10 +18,10 @@ your backlog system:
 
 ```bash
 # Deterministic policy validation with JSON + Markdown output
-specfact policy validate --repo . --snapshot ./snapshot.json --format both
+specfact policy validate --repo . --format both
 
 # AI-assisted suggestions with confidence scores and patch-ready output
-specfact policy suggest --repo . --snapshot ./snapshot.json
+specfact policy suggest --repo .
 ```
 
 Both commands read `.specfact/policy.yaml`. `policy suggest` never writes changes automatically; it emits

@@ -56,10 +56,10 @@ Use the `policy` command group to run deterministic readiness checks before spri
 
 ```bash
 # Validate configured policy rules against a snapshot
-specfact policy validate --repo . --snapshot ./snapshot.json --format both
+specfact policy validate --repo . --format both
 
 # Generate confidence-scored, patch-ready suggestions (no automatic writes)
-specfact policy suggest --repo . --snapshot ./snapshot.json
+specfact policy suggest --repo .
 ```
 
 Policy configuration is loaded from `.specfact/policy.yaml` and supports Scrum (`dor_required_fields`,

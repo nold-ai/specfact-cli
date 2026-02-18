@@ -57,3 +57,56 @@ This change was re-validated after renaming and updating to align with the modul
   - Command: `openspec validate policy-engine-01-unified-framework --strict`
   - Result: `Change 'policy-engine-01-unified-framework' is valid`
   - Note: PostHog telemetry network flush errors were emitted by the CLI environment but did not affect validation result.
+
+## Scope Extension Re-validation (2026-02-18, artifact auto-discovery)
+
+- **Requested extension**: Align policy input handling with existing `.specfact` artifact schemas so `policy validate|suggest` can run without explicit `--snapshot` when foundation artifacts already exist.
+- **Spec updates**:
+  - Added `Requirement: Policy input auto-discovery from .specfact artifacts`.
+  - Added `Requirement: Policy input format normalization`.
+- **Task updates**:
+  - Added Section 7 for auto-discovery and payload normalization; implementation/test/doc items marked complete.
+- **Implementation status**:
+  - Added artifact resolution precedence: explicit `--snapshot`, then `.specfact/backlog-baseline.json`, then latest `.specfact/plans/backlog-*`.
+  - Added normalization support for `items` as list/dict and `backlog_graph.items` as list/dict.
+  - Updated command help and docs to describe artifact precedence and accepted payload shapes.
+- **OpenSpec strict validation**:
+  - Command: `openspec validate policy-engine-01-unified-framework --strict`
+  - Result: `Change 'policy-engine-01-unified-framework' is valid`
+  - Note: Telemetry network flush errors in sandbox environment were non-blocking.
+
+## Scope Extension Re-validation (2026-02-18, compatibility mapping)
+
+- **Requested extension**: Reduce false-positive policy failures on imported artifacts by mapping provider/raw aliases to canonical policy fields.
+- **Spec updates**:
+  - Added requirement for compatibility mapping from raw/provider fields and description sections.
+- **Implementation status**:
+  - Added alias mapping for `acceptance_criteria`, `business_value`, and `definition_of_done`.
+  - Added markdown section extraction for `Acceptance Criteria` and `Definition of Done` from item descriptions.
+  - Added integration test proving baseline artifacts can satisfy policy requirements through compatibility mapping.
+
+## Scope Extension Re-validation (2026-02-18, filter/limit/group output)
+
+- **Requested extension**: Make validate/suggest actionable on large snapshots via filtering, limits, and item-grouped output.
+- **Spec updates**:
+  - Added requirements for `--rule`, `--limit`, and `--group-by-item`.
+- **Implementation status**:
+  - Added filter/limit option handling for both `policy validate` and `policy suggest`.
+  - Added grouped JSON/Markdown output structures keyed by `items[N]`.
+  - Added integration tests covering filter/limit/group behavior.
+
+## Scope Extension Re-validation (2026-02-18, grouped-limit semantics)
+
+- **Requested extension**: In grouped mode, `--limit` should cap backlog item groups, not per-field suggestion/finding rows.
+- **Spec updates**:
+  - Added grouped-limit scenario clarifying `--group-by-item --limit N` limits item groups.
+  - Clarified grouped suggest payload behavior to avoid duplicate top-level flat list output.
+- **Implementation status**:
+  - Updated grouped-mode filtering pipeline so `--limit` applies to unique item indexes after rule filtering.
+  - Added integration regressions for both commands:
+    - `test_policy_validate_grouped_limit_applies_to_item_count`
+    - `test_policy_suggest_grouped_limit_applies_to_item_count`
+- **Verification**:
+  - `hatch run pytest tests/integration/commands/test_policy_engine_commands.py -q` → 14 passed.
+  - `openspec validate policy-engine-01-unified-framework --strict` → valid.
+  - Telemetry network flush errors from PostHog remain non-blocking in this environment.

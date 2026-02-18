@@ -43,3 +43,33 @@ Per `openspec/config.yaml`, **tests before code** apply.
 - [x] 6.4 Source built-in policy templates from `resources/templates/policies/` and ensure package inclusion.
 - [x] 6.5 Extend `specfact policy validate` errors to include policy format documentation hint.
 - [x] 6.6 Capture failing-first and passing evidence for new scope in `TDD_EVIDENCE.md`.
+
+## 7. Scope extension: artifact auto-discovery and format normalization
+
+- [x] 7.1 Add spec scenarios for automatic policy input discovery from `.specfact/backlog-baseline.json` and `.specfact/plans/backlog-*`.
+- [x] 7.2 Add tests for validate/suggest without `--snapshot` when standard `.specfact` artifacts exist.
+- [x] 7.3 Add tests for payload normalization across `items` list, `items` dict, and `backlog_graph.items`.
+- [x] 7.4 Implement policy input resolver to auto-discover existing `.specfact` artifacts when `--snapshot` is omitted.
+- [x] 7.5 Implement payload normalization so policy evaluation accepts existing backlog graph and plan shapes.
+- [x] 7.6 Update policy command docs to describe auto-discovery behavior and artifact precedence.
+- [x] 7.7 Capture failing-first and passing evidence for this scope extension in `TDD_EVIDENCE.md`.
+
+## 8. Scope extension: compatibility mapping for imported fields
+
+- [x] 8.1 Add spec scenarios for resolving policy-required fields from `raw_data` aliases and description sections.
+- [x] 8.2 Add tests proving imported baseline artifacts can satisfy policy-required fields without manual reshaping.
+- [x] 8.3 Implement compatibility mapping from common provider/raw aliases to canonical policy fields.
+- [x] 8.4 Implement lightweight description-section extraction for acceptance criteria / definition of done.
+- [x] 8.5 Update docs with compatibility mapping behavior and examples.
+- [x] 8.6 Capture failing-first and passing evidence for this extension in `TDD_EVIDENCE.md`.
+
+## 9. Scope extension: result filtering/limiting and grouped output
+
+- [x] 9.1 Add spec scenarios for `--rule` and `--limit` on validate/suggest.
+- [x] 9.2 Add spec scenarios for optional `--group-by-item` output.
+- [x] 9.3 Add tests covering validate/suggest filtering and limiting behavior.
+- [x] 9.4 Add tests covering grouped output structure for validate/suggest.
+- [x] 9.5 Implement command options (`--rule`, `--limit`, `--group-by-item`) and output shaping.
+- [x] 9.6 Update docs for new options and examples.
+- [x] 9.7 Capture failing-first and passing evidence for this extension in `TDD_EVIDENCE.md`.
+- [x] 9.8 Adjust grouped-mode `--limit` semantics to cap item groups (not sub-item findings) and suppress duplicate flat payload arrays.

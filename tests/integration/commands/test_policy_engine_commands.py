@@ -33,6 +33,20 @@ safe:
     )
 
 
+def _write_scrum_only_policy_config(repo_path: Path) -> None:
+    config_dir = repo_path / ".specfact"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "policy.yaml").write_text(
+        """
+scrum:
+  dor_required_fields: [acceptance_criteria, business_value]
+  dod_required_fields: [definition_of_done]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def _write_snapshot(repo_path: Path) -> Path:
     snapshot_path = repo_path / "snapshot.json"
     snapshot_path.write_text(
@@ -50,6 +64,99 @@ def _write_snapshot(repo_path: Path) -> Path:
         encoding="utf-8",
     )
     return snapshot_path
+
+
+def _write_multi_item_snapshot(repo_path: Path) -> Path:
+    snapshot_path = repo_path / "snapshot.json"
+    snapshot_path.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "id": "ITEM-1",
+                        "title": "Missing all policy fields",
+                        "column": "In Progress",
+                    },
+                    {
+                        "id": "ITEM-2",
+                        "title": "Missing some policy fields",
+                        "column": "In Progress",
+                        "acceptance_criteria": "Present",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    return snapshot_path
+
+
+def _write_baseline_snapshot(repo_path: Path) -> Path:
+    baseline_path = repo_path / ".specfact" / "backlog-baseline.json"
+    baseline_path.parent.mkdir(parents=True, exist_ok=True)
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "items": {
+                    "ITEM-1": {
+                        "id": "ITEM-1",
+                        "title": "Missing policy fields",
+                        "column": "In Progress",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return baseline_path
+
+
+def _write_baseline_snapshot_with_alias_fields(repo_path: Path) -> Path:
+    baseline_path = repo_path / ".specfact" / "backlog-baseline.json"
+    baseline_path.parent.mkdir(parents=True, exist_ok=True)
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "items": {
+                    "ITEM-1": {
+                        "id": "ITEM-1",
+                        "title": "Policy-complete item via alias mapping",
+                        "description": """
+## Acceptance Criteria
+- API supports idempotent retries
+
+## Definition of Done
+- Tests updated
+""".strip(),
+                        "raw_data": {
+                            "Microsoft.VSTS.Common.BusinessValue": 13,
+                        },
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return baseline_path
+
+
+def _write_plan_artifact(repo_path: Path) -> Path:
+    plan_path = repo_path / ".specfact" / "plans" / "backlog-20260218-000000.yaml"
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_path.write_text(
+        """
+bundle_name: backlog-sync-20260218-000000
+backlog_graph:
+  items:
+    ITEM-1:
+      id: ITEM-1
+      title: Missing policy fields
+      column: In Progress
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return plan_path
 
 
 class TestPolicyEngineCommands:
@@ -140,9 +247,10 @@ class TestPolicyEngineCommands:
         content = config_path.read_text(encoding="utf-8")
         assert "kanban:" in content
 
-    def test_policy_validate_requires_snapshot_input(self, tmp_path: Path) -> None:
-        """Validate SHALL fail when snapshot input is omitted."""
+    def test_policy_validate_autodiscovers_baseline_snapshot_when_snapshot_omitted(self, tmp_path: Path) -> None:
+        """Validate SHALL use .specfact/backlog-baseline.json when snapshot arg is omitted."""
         _write_policy_config(tmp_path)
+        _write_baseline_snapshot(tmp_path)
 
         result = runner.invoke(
             app,
@@ -155,7 +263,31 @@ class TestPolicyEngineCommands:
         )
 
         assert result.exit_code == 1
-        assert "snapshot path is required" in result.stdout.lower()
+        stdout = result.stdout
+        assert '"rule_id"' in stdout
+        assert '"evidence_pointer"' in stdout
+
+    def test_policy_validate_autodiscovers_latest_plan_when_baseline_missing(self, tmp_path: Path) -> None:
+        """Validate SHALL fallback to latest .specfact/plans/backlog-* artifact."""
+        _write_policy_config(tmp_path)
+        _write_plan_artifact(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 1
+        stdout = result.stdout
+        assert '"rule_id"' in stdout
+        assert '"recommended_action"' in stdout
 
     def test_policy_suggest_is_confidence_scored_and_does_not_write(self, tmp_path: Path) -> None:
         """Suggest SHALL provide confidence-scored patch-ready suggestions and avoid auto writes."""
@@ -182,3 +314,184 @@ class TestPolicyEngineCommands:
         assert "no changes were written" in stdout
         after = snapshot_path.read_text(encoding="utf-8")
         assert after == before
+
+    def test_policy_suggest_autodiscovers_baseline_snapshot_when_snapshot_omitted(self, tmp_path: Path) -> None:
+        """Suggest SHALL use .specfact artifacts when snapshot arg is omitted."""
+        _write_policy_config(tmp_path)
+        _write_baseline_snapshot(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "suggest",
+                "--repo",
+                str(tmp_path),
+            ],
+        )
+
+        assert result.exit_code == 0
+        stdout = result.stdout.lower()
+        assert "confidence" in stdout
+        assert "patch" in stdout
+
+    def test_policy_validate_maps_alias_and_description_fields_from_baseline(self, tmp_path: Path) -> None:
+        """Validate SHALL map imported alias/description fields into canonical policy fields."""
+        _write_scrum_only_policy_config(tmp_path)
+        _write_baseline_snapshot_with_alias_fields(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        stdout = result.stdout
+        assert '"status": "passed"' in stdout
+        assert '"total_findings": 0' in stdout
+
+    def test_policy_validate_supports_rule_filter_and_limit(self, tmp_path: Path) -> None:
+        """Validate SHALL support --rule filtering and --limit truncation."""
+        _write_policy_config(tmp_path)
+        snapshot_path = _write_snapshot(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+                "--snapshot",
+                str(snapshot_path),
+                "--format",
+                "json",
+                "--rule",
+                "scrum.dor.acceptance_criteria",
+                "--limit",
+                "1",
+            ],
+        )
+
+        assert result.exit_code == 1
+        stdout = result.stdout
+        assert '"total_findings": 1' in stdout
+        assert '"rule_id": "scrum.dor.acceptance_criteria"' in stdout
+        assert '"rule_id": "scrum.dod.definition_of_done"' not in stdout
+
+    def test_policy_validate_supports_group_by_item_output(self, tmp_path: Path) -> None:
+        """Validate SHALL emit grouped payload when --group-by-item is set."""
+        _write_policy_config(tmp_path)
+        snapshot_path = _write_snapshot(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+                "--snapshot",
+                str(snapshot_path),
+                "--format",
+                "json",
+                "--group-by-item",
+            ],
+        )
+
+        assert result.exit_code == 1
+        stdout = result.stdout
+        assert '"groups"' in stdout
+        assert '"item_index": 0' in stdout
+        assert '\n  "failures": [' not in stdout
+
+    def test_policy_suggest_supports_rule_filter_limit_and_grouping(self, tmp_path: Path) -> None:
+        """Suggest SHALL support --rule, --limit, and --group-by-item output."""
+        _write_policy_config(tmp_path)
+        snapshot_path = _write_snapshot(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "suggest",
+                "--repo",
+                str(tmp_path),
+                "--snapshot",
+                str(snapshot_path),
+                "--rule",
+                "scrum.dor.acceptance_criteria",
+                "--limit",
+                "1",
+                "--group-by-item",
+            ],
+        )
+
+        assert result.exit_code == 0
+        stdout = result.stdout
+        assert '"suggestion_count": 1' in stdout
+        assert '"grouped_suggestions"' in stdout
+        assert '"rule_id": "scrum.dor.acceptance_criteria"' in stdout
+        assert '"rule_id": "scrum.dod.definition_of_done"' not in stdout
+        assert '\n  "suggestions": [' not in stdout
+
+    def test_policy_validate_grouped_limit_applies_to_item_count(self, tmp_path: Path) -> None:
+        """Grouped validate SHALL apply --limit to item groups, not individual findings."""
+        _write_scrum_only_policy_config(tmp_path)
+        snapshot_path = _write_multi_item_snapshot(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+                "--snapshot",
+                str(snapshot_path),
+                "--format",
+                "json",
+                "--group-by-item",
+                "--limit",
+                "1",
+            ],
+        )
+
+        assert result.exit_code == 1
+        stdout = result.stdout
+        assert '"item_index": 0' in stdout
+        assert '"item_index": 1' not in stdout
+        assert '"total_findings": 3' in stdout
+
+    def test_policy_suggest_grouped_limit_applies_to_item_count(self, tmp_path: Path) -> None:
+        """Grouped suggest SHALL apply --limit to item groups, not individual suggestions."""
+        _write_scrum_only_policy_config(tmp_path)
+        snapshot_path = _write_multi_item_snapshot(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "suggest",
+                "--repo",
+                str(tmp_path),
+                "--snapshot",
+                str(snapshot_path),
+                "--group-by-item",
+                "--limit",
+                "1",
+            ],
+        )
+
+        assert result.exit_code == 0
+        stdout = result.stdout
+        assert '"item_index": 0' in stdout
+        assert '"item_index": 1' not in stdout
+        assert '"suggestion_count": 3' in stdout
