@@ -102,3 +102,16 @@ class TestIdempotency:
         """Given key marked applied, When check_idempotent, Then True."""
         mark_applied("key-xyz", state_dir=tmp_path)
         assert check_idempotent("key-xyz", state_dir=tmp_path) is True
+
+    def test_idempotency_key_sanitized_under_state_dir(self, tmp_path: Path) -> None:
+        """Absolute path key is hashed so marker lives under state_dir, not key path."""
+        import hashlib
+
+        key = "/tmp/foo.diff"
+        mark_applied(key, state_dir=tmp_path)
+        assert check_idempotent(key, state_dir=tmp_path) is True
+        markers = list(tmp_path.glob("*.applied"))
+        assert len(markers) == 1
+        assert markers[0].parent == tmp_path
+        expected_name = hashlib.sha256(key.encode()).hexdigest() + ".applied"
+        assert markers[0].name == expected_name

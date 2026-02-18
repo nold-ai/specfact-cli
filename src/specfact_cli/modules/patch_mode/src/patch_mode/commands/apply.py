@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Annotated
 
@@ -48,7 +49,7 @@ def _apply_write(patch_file: Path, confirmed: bool) -> None:
     if not confirmed:
         console.print("[yellow]Write skipped: use --yes to confirm upstream write.[/yellow]")
         raise SystemExit(0)
-    key = str(patch_file.resolve())
+    key = hashlib.sha256(patch_file.read_bytes()).hexdigest()
     if check_idempotent(key):
         console.print("[dim]Already applied (idempotent); skipping write.[/dim]")
         return
