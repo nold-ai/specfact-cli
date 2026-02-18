@@ -7,8 +7,8 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure
 
-from policy_engine.config.policy_config import PolicyConfig
-from policy_engine.models.policy_result import PolicyResult, normalize_policy_result
+from ..config.policy_config import PolicyConfig
+from ..models.policy_result import PolicyResult, normalize_policy_result
 
 
 @beartype

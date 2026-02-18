@@ -54,6 +54,18 @@ The system SHALL automatically resolve policy input artifacts from existing `.sp
 
 **And**: Extracts policy-evaluable items from its `backlog_graph` structure.
 
+#### Scenario: Explicit relative snapshot resolves from repo path
+
+**Given**: The command is executed outside the target repository working directory
+
+**And**: The user passes `--repo <target-repo>` and `--snapshot snapshot.json`
+
+**When**: The user runs `specfact policy validate`
+
+**Then**: The system resolves the relative snapshot path against `--repo`
+
+**And**: Loads `<target-repo>/snapshot.json` when it exists.
+
 ### Requirement: Policy input format normalization
 
 The system SHALL normalize known backlog artifact payload formats into policy-evaluable item arrays.
@@ -171,6 +183,22 @@ The system SHALL provide optional grouped output by backlog item for validate/su
 **When**: The user runs `specfact policy suggest --group-by-item`
 
 **Then**: Output includes per-item suggestion groups and summary metadata only (no duplicate top-level flat suggestion list).
+
+### Requirement: Policy module command shim importability
+
+The system SHALL keep policy module command shims importable through fully-qualified package paths without relying on lazy-loader `sys.path` mutation.
+
+**Rationale**: Unit tests and tooling import command shims directly via `specfact_cli.modules.*`.
+
+#### Scenario: Direct import works without lazy-loader path mutation
+
+**Given**: A direct Python import context for `specfact_cli.modules.policy_engine.src.commands`
+
+**When**: The import is executed
+
+**Then**: The module imports successfully
+
+**And**: Exposes the `app` object.
 
 ### Requirement: Policy config
 

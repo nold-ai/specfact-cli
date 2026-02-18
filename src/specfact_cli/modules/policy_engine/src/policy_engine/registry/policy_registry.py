@@ -8,8 +8,8 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 
-from policy_engine.config.policy_config import PolicyConfig
-from policy_engine.models.policy_result import PolicyResult
+from ..config.policy_config import PolicyConfig
+from ..models.policy_result import PolicyResult
 
 
 PolicyEvaluator = Callable[[PolicyConfig, list[dict[str, Any]]], list[PolicyResult]]

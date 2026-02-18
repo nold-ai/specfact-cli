@@ -167,3 +167,33 @@ hatch run pytest tests/integration/commands/test_policy_engine_commands.py -q
 - Notes:
   - Added grouped-limit regression tests for both `policy validate` and `policy suggest`.
   - Updated grouped-mode `--limit` semantics to cap backlog item groups and keep full per-item findings/suggestions.
+
+## Scope extension (review findings: snapshot path + package imports) failing run
+
+- Timestamp (UTC): 2026-02-18T01:13:00Z
+- Commands:
+
+```bash
+hatch run pytest tests/integration/commands/test_policy_engine_commands.py::TestPolicyEngineCommands::test_policy_validate_resolves_relative_snapshot_against_repo -q
+hatch run pytest tests/unit/commands/test_policy_module_import.py -q
+```
+
+- Result: **FAILED** (2 failed)
+- Failure summary:
+  - Relative `--snapshot` was checked against process CWD instead of `--repo`.
+  - Direct import of `specfact_cli.modules.policy_engine.src.commands` failed due non-package-relative imports.
+
+## Scope extension (review findings: snapshot path + package imports) passing run
+
+- Timestamp (UTC): 2026-02-18T01:16:29Z
+- Commands:
+
+```bash
+hatch run pytest tests/integration/commands/test_policy_engine_commands.py -q
+hatch run pytest tests/unit/commands/test_policy_module_import.py -q
+```
+
+- Result: **PASSED** (16 passed total across both suites)
+- Notes:
+  - Explicit relative `--snapshot` now resolves against `--repo`.
+  - Policy module command shim and internal package imports now use package-relative imports for direct import robustness.

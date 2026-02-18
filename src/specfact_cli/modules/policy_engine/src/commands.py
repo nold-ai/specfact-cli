@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from policy_engine.main import app
-
 from specfact_cli.modules import module_io_shim
+
+from .policy_engine.main import app
 
 
 # Expose standard ModuleIOContract operations for protocol compliance discovery.

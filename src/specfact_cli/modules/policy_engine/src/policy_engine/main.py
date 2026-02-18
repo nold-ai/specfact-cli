@@ -12,10 +12,10 @@ from beartype import beartype
 from icontract import require
 from rich.console import Console
 
-from policy_engine.config import list_policy_templates, load_policy_config, load_policy_template
-from policy_engine.engine.suggester import build_suggestions
-from policy_engine.engine.validator import load_snapshot_items, render_markdown, validate_policies
-from policy_engine.models.policy_result import PolicyResult
+from .config import list_policy_templates, load_policy_config, load_policy_template
+from .engine.suggester import build_suggestions
+from .engine.validator import load_snapshot_items, render_markdown, validate_policies
+from .models.policy_result import PolicyResult
 
 
 policy_app = typer.Typer(name="policy", help="Policy validation and suggestion workflows.")

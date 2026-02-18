@@ -73,3 +73,4 @@ Per `openspec/config.yaml`, **tests before code** apply.
 - [x] 9.6 Update docs for new options and examples.
 - [x] 9.7 Capture failing-first and passing evidence for this extension in `TDD_EVIDENCE.md`.
 - [x] 9.8 Adjust grouped-mode `--limit` semantics to cap item groups (not sub-item findings) and suppress duplicate flat payload arrays.
+- [x] 9.9 Resolve review findings: repo-relative explicit `--snapshot` resolution and package-relative policy module imports.

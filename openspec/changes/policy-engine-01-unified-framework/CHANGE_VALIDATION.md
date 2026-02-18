@@ -110,3 +110,14 @@ This change was re-validated after renaming and updating to align with the modul
   - `hatch run pytest tests/integration/commands/test_policy_engine_commands.py -q` → 14 passed.
   - `openspec validate policy-engine-01-unified-framework --strict` → valid.
   - Telemetry network flush errors from PostHog remain non-blocking in this environment.
+
+## Scope Extension Re-validation (2026-02-18, review findings hardening)
+
+- **Requested extension**: Address review findings for explicit snapshot path resolution and package import robustness.
+- **Implementation status**:
+  - Explicit relative `--snapshot` paths are now resolved against `--repo` in policy snapshot loader.
+  - Policy module command shims and internal package imports were converted to package-relative imports.
+- **Verification**:
+  - `hatch run pytest tests/integration/commands/test_policy_engine_commands.py -q` → pass.
+  - `hatch run pytest tests/unit/commands/test_policy_module_import.py -q` → pass.
+  - `hatch run type-check | grep error` → `0 errors` (warnings pre-exist).

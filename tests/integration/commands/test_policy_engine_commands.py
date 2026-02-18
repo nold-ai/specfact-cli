@@ -495,3 +495,30 @@ class TestPolicyEngineCommands:
         assert '"item_index": 0' in stdout
         assert '"item_index": 1' not in stdout
         assert '"suggestion_count": 3' in stdout
+
+    def test_policy_validate_resolves_relative_snapshot_against_repo(self, tmp_path: Path, monkeypatch) -> None:
+        """Explicit relative --snapshot path SHALL resolve relative to --repo."""
+        _write_scrum_only_policy_config(tmp_path)
+        _write_snapshot(tmp_path)
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir(parents=True, exist_ok=True)
+        monkeypatch.chdir(outside_dir)
+
+        result = runner.invoke(
+            app,
+            [
+                "policy",
+                "validate",
+                "--repo",
+                str(tmp_path),
+                "--snapshot",
+                "snapshot.json",
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 1
+        stdout = result.stdout
+        assert "Snapshot file not found" not in stdout
+        assert '"total_findings": 3' in stdout

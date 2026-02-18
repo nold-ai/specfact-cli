@@ -5,7 +5,7 @@ from __future__ import annotations
 from beartype import beartype
 from icontract import ensure
 
-from policy_engine.models.policy_result import PolicyResult
+from ..models.policy_result import PolicyResult
 
 
 @beartype

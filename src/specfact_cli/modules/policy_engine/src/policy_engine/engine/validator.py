@@ -11,10 +11,10 @@ import yaml
 from beartype import beartype
 from icontract import ensure
 
-from policy_engine.config.policy_config import PolicyConfig
-from policy_engine.models.policy_result import PolicyResult
-from policy_engine.policies import build_kanban_failures, build_safe_failures, build_scrum_failures
-from policy_engine.registry.policy_registry import PolicyRegistry
+from ..config.policy_config import PolicyConfig
+from ..models.policy_result import PolicyResult
+from ..policies import build_kanban_failures, build_safe_failures, build_scrum_failures
+from ..registry.policy_registry import PolicyRegistry
 
 
 @beartype
@@ -47,9 +47,10 @@ def load_snapshot_items(repo_path: Path, snapshot_path: Path | None) -> tuple[li
 @beartype
 def _resolve_snapshot_path(repo_path: Path, snapshot_path: Path | None) -> tuple[Path | None, str | None]:
     if snapshot_path is not None:
-        if not snapshot_path.exists():
-            return None, f"Snapshot file not found: {snapshot_path}"
-        return snapshot_path, None
+        resolved_snapshot = snapshot_path if snapshot_path.is_absolute() else repo_path / snapshot_path
+        if not resolved_snapshot.exists():
+            return None, f"Snapshot file not found: {resolved_snapshot}"
+        return resolved_snapshot, None
 
     baseline_path = repo_path / ".specfact" / "backlog-baseline.json"
     if baseline_path.exists():

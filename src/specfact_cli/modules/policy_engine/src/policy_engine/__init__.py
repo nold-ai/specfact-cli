@@ -1,6 +1,6 @@
 """Policy engine module package."""
 
-from policy_engine.main import app
+from .main import app
 
 
 __all__ = ["app"]
