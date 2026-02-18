@@ -28,7 +28,7 @@ specfact repro --repo /path/to/external/repo --verbose
 ```
 
 - **Time budget**: Default 120s; use `--budget N` (advanced) to change.
-- **Deep CrossHair**: To increase per-path timeout for CrossHair (e.g. for critical modules), use `--crosshair-per-path-timeout N` (seconds). Default behavior is unchanged when not set.
+- **Deep CrossHair**: To increase per-path timeout for CrossHair (e.g. for critical modules), use `--crosshair-per-path-timeout N` (seconds; N must be positive). Default behavior is unchanged when not set.
 
 ```bash
 specfact repro --repo . --crosshair-per-path-timeout 60
