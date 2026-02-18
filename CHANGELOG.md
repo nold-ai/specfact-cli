@@ -8,6 +8,15 @@ All notable changes to this project will be documented in this file.
 **Important:** Changes need to be documented below this block as this is the header section. Each section should be separated by a horizontal rule. Newer changelog entries need to be added on top of prior ones to keep the history chronological with most recent changes first.
 
 ---
+## [0.34.1] - 2026-02-18
+
+### Fixed
+
+- `specfact backlog refine --auto-bundle` no longer persists bundle mapping history into bundle manifest files (for example `.specfact/bundle.yaml`); mapping history remains in dedicated mapping config state.
+- Bundle ID candidate derivation no longer falls back to the manifest filename stem (`bundle.yaml` -> `bundle`), preventing false rejection of valid explicit `bundle:<id>` tags.
+- OpenSpec change order/archive tracking was synchronized for Wave 1 closure (`verification-01-wave1-delta-closure`) and related archived status markers.
+
+---
 ## [0.34.0] - 2026-02-18
 
 ### Added
