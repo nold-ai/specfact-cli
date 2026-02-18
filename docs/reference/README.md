@@ -11,6 +11,7 @@ Complete technical reference for SpecFact CLI.
 ## Available References
 
 - **[Commands](commands.md)** - Complete command reference with all options
+- **[Thorough Codebase Validation](thorough-codebase-validation.md)** - Quick check, contract-decorated, sidecar, and dogfooding
 - **[Command Syntax Policy](command-syntax-policy.md)** - Source-of-truth argument syntax conventions for docs
 - **[Authentication](authentication.md)** - Device code auth flows and token storage
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
