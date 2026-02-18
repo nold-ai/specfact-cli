@@ -24,9 +24,17 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 | backlog-scrum-01-standup-exceptions-first | archived 2026-02-11 |
 | backlog-core-03-refine-writeback-field-splitting | archived 2026-02-12 |
 | sidecar-01-flask-support | archived 2026-02-12 |
-| ci-01-pr-orchestrator-log-artifacts | implemented 2026-02-16 (pending archive) |
-| arch-06-enhanced-manifest-security | implemented 2026-02-16 (pending archive) |
-| arch-07-schema-extension-system | implemented 2026-02-16 (pending archive) |
+| ci-01-pr-orchestrator-log-artifacts | implemented 2026-02-16 (archived) |
+| arch-06-enhanced-manifest-security | implemented 2026-02-16 (archived) |
+| arch-07-schema-extension-system | implemented 2026-02-16 (archived) |
+| policy-engine-01-unified-framework | implemented 2026-02-17 (archived) |
+| patch-mode-01-preview-apply | implemented 2026-02-18 (archived) |
+| validation-01-deep-validation | implemented 2026-02-18 (archived) |
+| bundle-mapper-01-mapping-strategy | implemented 2026-02-18 (archived) |
+| backlog-core-01-dependency-analysis-commands | implemented 2026-02-18 (archived) |
+| ceremony-cockpit-01-ceremony-aliases | implemented 2026-02-18 (archived) |
+| workflow-01-git-worktree-management | implemented 2026-02-18 (archived) |
+| verification-01-wave1-delta-closure | implemented 2026-02-18 (archived) |
 
 ### Pending
 
@@ -62,10 +70,11 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| policy-engine | 01 | policy-engine-01-unified-framework ✅ (implemented 2026-02-17; pending archive) | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
-| patch-mode | 01 | patch-mode-01-preview-apply ✅ (implemented 2026-02-18; pending archive) | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
-| validation | 01 | validation-01-deep-validation ✅ (implemented 2026-02-18; pending archive) | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
-| bundle-mapper | 01 | bundle-mapper-01-mapping-strategy | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
+| policy-engine | 01 | policy-engine-01-unified-framework (implemented 2026-02-17; archived) | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
+| patch-mode | 01 | patch-mode-01-preview-apply (implemented 2026-02-18; archived) | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
+| validation | 01 | validation-01-deep-validation (implemented 2026-02-18; archived) | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
+| bundle-mapper | 01 | bundle-mapper-01-mapping-strategy (implemented 2026-02-18; archived) | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
+| verification | 01 | verification-01-wave1-delta-closure (implemented 2026-02-18; archived) | [#276](https://github.com/nold-ai/specfact-cli/issues/276) | #177 ✅, #163 ✅, #116 ✅, #121 ✅ |
 
 ### CI/CD (workflow and artifacts)
 
@@ -77,13 +86,13 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| workflow | 01 | workflow-01-git-worktree-management ✅ (implemented 2026-02-18; pending archive) | [#267](https://github.com/nold-ai/specfact-cli/issues/267) | — |
+| workflow | 01 | workflow-01-git-worktree-management ✅ (implemented 2026-02-18; archived) | [#267](https://github.com/nold-ai/specfact-cli/issues/267) | — |
 
 ### backlog-core (required by all backlog-* modules)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| backlog-core | 01 | backlog-core-01-dependency-analysis-commands ✅ (implemented 2026-02-18; pending archive) | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
+| backlog-core | 01 | backlog-core-01-dependency-analysis-commands ✅ (implemented 2026-02-18; archived) | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
 
 ### backlog-scrum
@@ -111,7 +120,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| ceremony-cockpit | 01 | ceremony-cockpit-01-ceremony-aliases ✅ (implemented 2026-02-18; pending archive) | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional: #220, #170, #171, #169, #183, #184) |
+| ceremony-cockpit | 01 | ceremony-cockpit-01-ceremony-aliases ✅ (implemented 2026-02-18; archived) | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional: #220, #170, #171, #169, #183, #184) |
 
 ### Profile and configuration layering (architecture integration plan, 2026-02-15)
 
@@ -252,11 +261,11 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 
 - **Wave 0** ✅ **Complete** — arch-01 through arch-05 (modular CLI foundation, bridge registry)
 
-- **Wave 1 — Platform extensions + cross-cutting foundations** (arch-06 ✅, arch-07 ✅, ci-01 ✅):
+- **Wave 1** ✅ **Complete** — Platform extensions + cross-cutting foundations (arch-06 ✅, arch-07 ✅, ci-01 ✅):
   - arch-06 ✅, arch-07 ✅, ci-01 ✅
-  - policy-engine-01 ✅, patch-mode-01
-  - backlog-core-01
-  - validation-01, sidecar-01 ✅, bundle-mapper-01
+  - policy-engine-01 ✅, patch-mode-01 ✅
+  - backlog-core-01 ✅
+  - validation-01 ✅, sidecar-01 ✅, bundle-mapper-01 ✅
 
 - **Wave 2 — Marketplace + backlog module layer** (needs Wave 1):
   - marketplace-01 (needs arch-06)
@@ -271,7 +280,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
 
 - **Wave 4 — Ceremony layer** (needs Wave 3):
-  - ceremony-cockpit-01 (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
+  - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):
   - profile-01
@@ -309,7 +318,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 A wave cannot be considered complete until all gate criteria listed for that wave are met and auditable.
 
 - Wave 0 gate: Core modular CLI and bridge registry flows remain stable and archived changes are validated.
-- Wave 1 gate: arch-06/07, policy-engine-01, patch-mode-01, backlog-core-01, validation-01 produce passing contract and strict OpenSpec validation.
+- Wave 1 gate: arch-06/07, policy-engine-01, patch-mode-01, backlog-core-01, validation-01 produce passing contract and strict OpenSpec validation. ✅ Completed 2026-02-18.
 - Wave 2 gate: At least one backlog planning workflow completes with no blocking dependency regressions across backlog-core + marketplace-01.
 - Wave 3 gate: Higher-order backlog workflows and marketplace-02 interoperate without command-group regressions.
 - Wave 4 gate: `ceremony-cockpit-01` aliases resolve and execute against installed modules without fallback failures.
