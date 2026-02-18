@@ -109,6 +109,7 @@ Commands are auto-discovered by the registry and lazy-loaded; no registration in
   - Modules access extensions via `bundle.get_extension("backlog_core", "backlog_graph")` / `bundle.set_extension("backlog_core", "backlog_graph", graph)` — no direct `ProjectBundle` attribute modification.
 - **EXTEND**: Add backlog configuration section to `.specfact/spec.yaml` for provider linking, type mapping, dependency rules, and auto-sync configuration.
 - **EXTEND** (plan E4): Add outputs that teams can use directly: "dependency contract" per edge (what/when/acceptance), ROAM list seed (feeds backlog-safe-01-pi-planning), "critical path narrative" for humans. Add `--export json|md` for analyzers.
+- **EXTEND** (arch-01 init-module-state): Align `specfact init` module discovery with command registration so workspace-level modules are included in central module management. Use the same discovery roots for init as for the registry (`discover_all_package_metadata()` / `get_modules_roots()`), so `specfact init --list-modules`, `--enable-module`, and `--disable-module` see and manage workspace-level modules (e.g. `modules/backlog-core/`) consistently with runtime command discovery.
 
 ## Arch-06 Marketplace Readiness
 The `module-package.yaml` includes publisher and integrity metadata:
@@ -126,6 +127,12 @@ This enables integrity verification when installed via `specfact module install 
 
 ## Capabilities
 - **backlog-core**: Provider-agnostic `BacklogGraph` model; `DependencyAnalyzer` (transitive closure, cycle detection, critical path, impact); `BacklogGraphBuilder` with template-driven mapping; `BacklogGraphProtocol` for bridge adapter extensions; CLI: `backlog analyze-deps`, `backlog sync`, `backlog diff`, `backlog promote`, `backlog verify-readiness`, `backlog generate-release-notes`; `backlog delta status`, `backlog delta impact`, `backlog delta cost-estimate`, `backlog delta rollback-analysis`.
+- **init-module-discovery-alignment**: `specfact init` uses the same module discovery roots as command registration (built-in + workspace-level + `SPECFACT_MODULES_ROOTS`), so `--list-modules`, `--enable-module`, and `--disable-module` operate on all discovered modules including external/workspace-level ones.
+
+## Impact
+- **Affected specs**: backlog-core (existing), init-module-state (extended via init-module-discovery-alignment).
+- **Affected code**: `modules/backlog-core/` (existing), `src/specfact_cli/modules/init/src/commands.py` (discovery alignment), `src/specfact_cli/registry/module_packages.py` (no API change; init will use existing `discover_all_package_metadata()`).
+- **Integration points**: Init command and module state persistence; registry discovery (unchanged).
 
 ---
 
