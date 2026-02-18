@@ -14,10 +14,10 @@
 
 ### 0.5 Init module discovery alignment (workspace-level modules)
 
-- [ ] 0.5.1 In `src/specfact_cli/modules/init/src/commands.py`, replace use of `discover_package_metadata(get_modules_root())` for building `packages` and `discovered_list` with `discover_all_package_metadata()` so init sees all discovery roots (built-in + repo-root `modules/` + `SPECFACT_MODULES_ROOTS`).
-- [ ] 0.5.2 Derive `discovered_list` from the same `packages` result (e.g. `[(meta.name, meta.version) for _dir, meta in packages]`) so enable/disable validation and merge use the full discovered set.
-- [ ] 0.5.3 Add unit test (e.g. in `tests/unit/specfact_cli/registry/test_module_packages.py` or `tests/unit/specfact_cli/modules/init/`) that when repo-root `modules/` contains a module (or when `get_modules_roots()` returns multiple roots and a second root has a package), `specfact init --list-modules` output includes that module.
-- [ ] 0.5.4 Run `hatch run format`, `hatch run type-check`, `hatch run smart-test-unit` and confirm tests pass.
+- [x] 0.5.1 In `src/specfact_cli/modules/init/src/commands.py`, replace use of `discover_package_metadata(get_modules_root())` for building `packages` and `discovered_list` with `discover_all_package_metadata()` so init sees all discovery roots (built-in + repo-root `modules/` + `SPECFACT_MODULES_ROOTS`).
+- [x] 0.5.2 Derive `discovered_list` from the same `packages` result (e.g. `[(meta.name, meta.version) for _dir, meta in packages]`) so enable/disable validation and merge use the full discovered set.
+- [x] 0.5.3 Add unit test (e.g. in `tests/unit/specfact_cli/registry/test_module_packages.py` or `tests/unit/specfact_cli/modules/init/`) that when repo-root `modules/` contains a module (or when `get_modules_roots()` returns multiple roots and a second root has a package), `specfact init --list-modules` output includes that module.
+- [x] 0.5.4 Run `hatch run format`, `hatch run type-check`, `hatch run smart-test-unit` and confirm tests pass.
 
 ## 1. Phase 1: Backlog Dependency Analysis (v0.26.0)
 

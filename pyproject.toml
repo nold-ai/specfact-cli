@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.33.0"
+version = "0.34.0"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -582,8 +582,8 @@ disable = [
     "C0115",  # missing-class-docstring
     "C0116",  # missing-function-docstring
     "C0103",  # invalid-name (too restrictive for some cases)
-    "C0330",  # bad-continuation (handled by ruff format)
-    "C0326",  # bad-whitespace (handled by ruff format)
+    # C0330, C0326 removed in pylint 3.x (handled by ruff format)
+    
     "R0903",  # too-few-public-methods
     "R0913",  # too-many-arguments (too restrictive for APIs)
     "R0912",  # too-many-branches
@@ -592,6 +592,12 @@ disable = [
     "C0413",  # wrong-import-position (handled by isort)
     "E0401",  # unable-to-import (false positives for local modules in pylint)
     "E0611",  # no-name-in-module (false positives for local modules in pylint)
+    "E1101",  # no-member (false positives for Pydantic/FieldInfo, rich.Progress.tasks)
+    "E0601",  # used-before-assignment (false positives in try/except UTC, tomllib)
+    "E1126",  # invalid-sequence-index (rich TaskID)
+    "E0603",  # undefined-all-variable
+    "E1136",  # unsubscriptable-object
+    "E0110",  # abstract-class-instantiated
 ]
 
 [tool.pylint.master]
