@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.modules.patch_mode.src.patch_mode.commands.apply import app as patch_app
@@ -37,11 +38,22 @@ class TestGenerateUnifiedDiff:
 class TestApplyPatchLocal:
     """Scenario: Apply patch locally with preflight; no upstream write."""
 
-    def test_apply_local_success(self, tmp_path: Path) -> None:
+    def test_apply_local_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Given a patch file, When patch apply <file>, Then applies locally; no upstream."""
+        target = tmp_path / "sample.txt"
+        target.write_text("old\n", encoding="utf-8")
         patch_file = tmp_path / "p.diff"
-        patch_file.write_text("--- a\n+++ b\n+line\n")
-        result = runner.invoke(patch_app, [str(patch_file)])
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-old
++new
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(patch_app, [str(patch_file)], catch_exceptions=False)
         assert result.exit_code == 0
         assert "Applied patch locally" in result.stdout or "apply" in result.stdout.lower()
 
@@ -58,11 +70,61 @@ class TestApplyPatchLocal:
         f.write_text("")
         assert preflight_check(f) is False
 
-    def test_apply_patch_local_returns_true_for_valid_file(self, tmp_path: Path) -> None:
+    def test_apply_patch_local_returns_true_for_valid_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Given valid patch file, When apply_patch_local, Then returns True."""
+        target = tmp_path / "sample.txt"
+        target.write_text("before\n", encoding="utf-8")
         patch_file = tmp_path / "x.diff"
-        patch_file.write_text("+content\n")
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-before
++after
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
         assert apply_patch_local(patch_file, dry_run=False) is True
+
+    def test_apply_patch_local_applies_real_file_change(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Given valid unified diff, When apply_patch_local, Then target file content changes."""
+        target = tmp_path / "sample.txt"
+        target.write_text("hello\n", encoding="utf-8")
+        patch_file = tmp_path / "real.diff"
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-hello
++hi
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+        assert apply_patch_local(patch_file, dry_run=False) is True
+        assert target.read_text(encoding="utf-8") == "hi\n"
+
+    def test_apply_patch_local_returns_false_on_invalid_patch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Given invalid patch, When apply_patch_local, Then returns False."""
+        target = tmp_path / "sample.txt"
+        target.write_text("hello\n", encoding="utf-8")
+        patch_file = tmp_path / "invalid.diff"
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-does-not-match
++hi
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+        assert apply_patch_local(patch_file, dry_run=False) is False
 
 
 class TestApplyPatchWrite:
@@ -76,19 +138,60 @@ class TestApplyPatchWrite:
         assert result.exit_code == 0
         assert "skip" in result.stdout.lower() or "yes" in result.stdout.lower()
 
-    def test_apply_write_with_yes_succeeds(self, tmp_path: Path) -> None:
+    def test_apply_write_with_yes_succeeds(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Given patch file, When patch apply --write --yes, Then updates upstream (idempotent)."""
+        target = tmp_path / "sample.txt"
+        target.write_text("old\n", encoding="utf-8")
         patch_file = tmp_path / "w.diff"
-        patch_file.write_text("+line\n")
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-old
++new
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
         result = runner.invoke(patch_app, [str(patch_file), "--write", "--yes"])
         assert result.exit_code == 0
         assert "Wrote" in result.stdout or "write" in result.stdout.lower() or "Applied" in result.stdout
 
-    def test_apply_patch_write_confirmed_success(self, tmp_path: Path) -> None:
+    def test_apply_patch_write_confirmed_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """apply_patch_write with confirmed=True and valid file returns True."""
+        target = tmp_path / "sample.txt"
+        target.write_text("base\n", encoding="utf-8")
         patch_file = tmp_path / "z.diff"
-        patch_file.write_text("+content\n")
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-base
++updated
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
         assert apply_patch_write(patch_file, confirmed=True) is True
+
+    def test_apply_patch_write_returns_false_on_invalid_patch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """apply_patch_write fails when orchestration preflight fails."""
+        target = tmp_path / "sample.txt"
+        target.write_text("hello\n", encoding="utf-8")
+        patch_file = tmp_path / "bad.diff"
+        patch_file.write_text(
+            """--- a/sample.txt
++++ b/sample.txt
+@@ -1 +1 @@
+-wrong
++updated
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+        assert apply_patch_write(patch_file, confirmed=True) is False
 
 
 class TestIdempotency:
