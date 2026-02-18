@@ -698,6 +698,7 @@ class ReproChecker:
         fail_fast: bool = False,
         fix: bool = False,
         crosshair_required: bool = False,
+        crosshair_per_path_timeout: int | None = None,
     ) -> None:
         """
         Initialize reproducibility checker.
@@ -707,12 +708,14 @@ class ReproChecker:
             budget: Total time budget in seconds (must be > 0)
             fail_fast: Stop on first failure
             fix: Apply auto-fixes where available (Semgrep auto-fixes)
+            crosshair_per_path_timeout: If set, pass --per_path_timeout N to CrossHair (deep validation).
         """
         self.repo_path = Path(repo_path) if repo_path else Path(".")
         self.budget = budget
         self.fail_fast = fail_fast
         self.fix = fix
         self.crosshair_required = crosshair_required
+        self.crosshair_per_path_timeout = crosshair_per_path_timeout
         self.report = ReproReport()
         self.start_time = time.time()
 
@@ -965,6 +968,8 @@ class ReproChecker:
 
                 if crosshair_targets:
                     crosshair_base = ["python", "-m", "crosshair", "check", *crosshair_targets]
+                    if self.crosshair_per_path_timeout is not None and self.crosshair_per_path_timeout > 0:
+                        crosshair_base.extend(["--per_path_timeout", str(self.crosshair_per_path_timeout)])
                     crosshair_command = build_tool_command(env_info, crosshair_base)
                     crosshair_env = _build_crosshair_env(pythonpath_roots)
                     checks.append(
