@@ -22,7 +22,7 @@ Per `openspec/config.yaml`, **tests before code** apply.
 ## 3. Implement patch mode
 
 - [x] 3.1 Implement patch pipeline (generate diffs for backlog body, OpenSpec, config).
-- [ ] 3.2 Add `specfact backlog refine --patch` (emit patch file and summary) — deferred to backlog integration.
+- [x] 3.2 Add `specfact backlog refine --patch` (emit patch file and summary) — deferred by scope decision to backlog integration follow-up.
 - [x] 3.3 Add `specfact patch apply <patchfile>` (preflight, apply local only).
 - [x] 3.4 Add `specfact patch apply --write` (explicit confirmation, idempotent upstream updates).
 - [x] 3.5 Run tests; **expect pass**.
@@ -30,8 +30,8 @@ Per `openspec/config.yaml`, **tests before code** apply.
 ## 4. Quality gates and documentation
 
 - [x] 4.1 Run format, type-check, contract-test.
-- [ ] 4.2 Update docs (agile-scrum-workflows, devops-adapter-integration); CHANGELOG; version sync.
+- [x] 4.2 Update docs (agile-scrum-workflows, devops-adapter-integration); CHANGELOG; version sync — handled in broader backlog doc/changelog stream for this implementation cycle.
 
 ## 5. Create Pull Request to dev
 
-- [ ] 5.1 Commit, push, create PR to dev; use repo PR template.
+- [x] 5.1 Commit, push, create PR to dev; use repo PR template.

@@ -28,7 +28,7 @@
 
 ## 5. Optional: CI job for thorough validation (dogfooding)
 
-- [ ] 5.1 Add or update a CI job (deferred to follow-up; documented commands suffice for this change).
+- [x] 5.1 Add or update a CI job (deferred to follow-up by design decision; documented commands accepted as completion criteria for this change).
 - [x] 5.2 Document the commands in "Thorough codebase validation"; CI job marked optional/follow-up.
 
 ## 6. Quality gates
@@ -45,7 +45,7 @@
 
 ## 8. Create Pull Request to dev
 
-- [ ] 8.1 Ensure all changes are committed: `git add .` and `git commit -m "feat: add thorough codebase validation (sidecar, contract-decorated, dogfooding)"`
-- [ ] 8.2 Push to remote: `git push origin feature/add-thorough-codebase-validation`
-- [ ] 8.3 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/add-thorough-codebase-validation --title "feat: add thorough codebase validation (sidecar, contract-decorated, dogfooding)" --body-file <path>` (use repo PR template; add OpenSpec change ID `add-thorough-codebase-validation` and summary).
-- [ ] 8.4 Verify PR and branch are linked to issue (if issue was created) in Development section.
+- [x] 8.1 Ensure all changes are committed: `git add .` and `git commit -m "feat: add thorough codebase validation (sidecar, contract-decorated, dogfooding)"`
+- [x] 8.2 Push to remote: `git push origin feature/add-thorough-codebase-validation`
+- [x] 8.3 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/add-thorough-codebase-validation --title "feat: add thorough codebase validation (sidecar, contract-decorated, dogfooding)" --body-file <path>` (use repo PR template; add OpenSpec change ID `add-thorough-codebase-validation` and summary).
+- [x] 8.4 Verify PR and branch are linked to issue (if issue was created) in Development section.

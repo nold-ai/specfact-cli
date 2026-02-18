@@ -12,21 +12,21 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 
 ## Implementation status
 
-### Implemented (archived)
+### Implemented (archived and pending archive)
 
-| Change | Archived |
-|--------|----------|
-| arch-01-cli-modular-command-registry | 2026-02-04 |
-| arch-02-module-package-separation | 2026-02-06 |
-| arch-03-module-lifecycle-management | 2026-02-06 |
-| arch-04-core-contracts-interfaces | 2026-02-08 |
-| arch-05-bridge-registry | 2026-02-10 |
-| backlog-scrum-01-standup-exceptions-first | 2026-02-11 |
-| backlog-core-03-refine-writeback-field-splitting | 2026-02-12 |
-| sidecar-01-flask-support | 2026-02-12 |
-| ci-01-pr-orchestrator-log-artifacts | 2026-02-16 |
-| arch-06-enhanced-manifest-security | 2026-02-16 |
-| arch-07-schema-extension-system | 2026-02-16 |
+| Change | Status / Date |
+|--------|---------------|
+| arch-01-cli-modular-command-registry | archived 2026-02-04 |
+| arch-02-module-package-separation | archived 2026-02-06 |
+| arch-03-module-lifecycle-management | archived 2026-02-06 |
+| arch-04-core-contracts-interfaces | archived 2026-02-08 |
+| arch-05-bridge-registry | archived 2026-02-10 |
+| backlog-scrum-01-standup-exceptions-first | archived 2026-02-11 |
+| backlog-core-03-refine-writeback-field-splitting | archived 2026-02-12 |
+| sidecar-01-flask-support | archived 2026-02-12 |
+| ci-01-pr-orchestrator-log-artifacts | implemented 2026-02-16 (pending archive) |
+| arch-06-enhanced-manifest-security | implemented 2026-02-16 (pending archive) |
+| arch-07-schema-extension-system | implemented 2026-02-16 (pending archive) |
 
 ### Pending
 
@@ -63,8 +63,8 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | policy-engine | 01 | policy-engine-01-unified-framework ✅ (implemented 2026-02-17; pending archive) | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
-| patch-mode | 01 | patch-mode-01-preview-apply | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
-| validation | 01 | validation-01-deep-validation | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
+| patch-mode | 01 | patch-mode-01-preview-apply ✅ (implemented 2026-02-18; pending archive) | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
+| validation | 01 | validation-01-deep-validation ✅ (implemented 2026-02-18; pending archive) | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
 | bundle-mapper | 01 | bundle-mapper-01-mapping-strategy | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
 
 ### CI/CD (workflow and artifacts)
@@ -77,13 +77,13 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| workflow | 01 | workflow-01-git-worktree-management | TBD | — |
+| workflow | 01 | workflow-01-git-worktree-management ✅ (implemented 2026-02-18; pending archive) | [#267](https://github.com/nold-ai/specfact-cli/issues/267) | — |
 
 ### backlog-core (required by all backlog-* modules)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| backlog-core | 01 | backlog-core-01-dependency-analysis-commands | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
+| backlog-core | 01 | backlog-core-01-dependency-analysis-commands ✅ (implemented 2026-02-18; pending archive) | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
 
 ### backlog-scrum
@@ -111,7 +111,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| ceremony-cockpit | 01 | ceremony-cockpit-01-ceremony-aliases | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional: #220, #170, #171, #169, #183, #184) |
+| ceremony-cockpit | 01 | ceremony-cockpit-01-ceremony-aliases ✅ (implemented 2026-02-18; pending archive) | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional: #220, #170, #171, #169, #183, #184) |
 
 ### Profile and configuration layering (architecture integration plan, 2026-02-15)
 
