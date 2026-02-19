@@ -82,8 +82,8 @@ def ask_bundle_mapping(
             if 1 <= i <= len(available_bundles):
                 return available_bundles[i - 1]
         except ValueError:
-            pass
-        return None
+            console.print("[red]Invalid selection. Skipping bundle selection.[/red]")
+            return None
     if choice.isdigit() and candidates:
         i = int(choice)
         if 1 <= i <= len(candidates):
