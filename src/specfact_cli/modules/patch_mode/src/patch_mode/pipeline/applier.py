@@ -47,7 +47,7 @@ def apply_patch_write(patch_file: Path, confirmed: bool) -> bool:
     """Update upstream only with explicit confirmation; idempotent. Returns True on success."""
     if not confirmed:
         return False
-    return apply_patch_local(patch_file, dry_run=True)
+    return apply_patch_local(patch_file, dry_run=False)
 
 
 @beartype

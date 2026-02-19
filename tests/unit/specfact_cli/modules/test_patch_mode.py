@@ -25,7 +25,7 @@ class TestGenerateUnifiedDiff:
 
     def test_generate_returns_string(self) -> None:
         """Given content, When generate_unified_diff, Then returns non-empty string."""
-        out = generate_unified_diff("+line1\n+line2\n", description="test")
+        out = generate_unified_diff("line1\nline2\n", description="test")
         assert isinstance(out, str)
         assert "test" in out or "+line1" in out
 
@@ -33,6 +33,22 @@ class TestGenerateUnifiedDiff:
         """Given target path, When generate_unified_diff, Then result mentions path."""
         out = generate_unified_diff("content", target_path=Path("/tmp/foo"))
         assert "/tmp/foo" in out or "foo" in out
+
+    def test_generate_contains_unified_hunk_header(self) -> None:
+        """Given content, When generate_unified_diff, Then emits valid unified hunk metadata."""
+        out = generate_unified_diff("line1\nline2\n", target_path=Path("demo.txt"))
+        assert out.startswith("--- /dev/null\n+++ b/demo.txt\n")
+        assert "@@ -0,0 +1,2 @@" in out
+
+    def test_generated_diff_is_applicable(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Given generated unified diff, When apply_patch_local, Then git apply accepts and creates file."""
+        patch_file = tmp_path / "gen.diff"
+        patch_file.write_text(
+            generate_unified_diff("hello\nworld\n", target_path=Path("newfile.txt")), encoding="utf-8"
+        )
+        monkeypatch.chdir(tmp_path)
+        assert apply_patch_local(patch_file, dry_run=False) is True
+        assert (tmp_path / "newfile.txt").read_text(encoding="utf-8") == "hello\nworld\n"
 
 
 class TestApplyPatchLocal:
@@ -173,6 +189,7 @@ class TestApplyPatchWrite:
         )
         monkeypatch.chdir(tmp_path)
         assert apply_patch_write(patch_file, confirmed=True) is True
+        assert target.read_text(encoding="utf-8") == "updated\n"
 
     def test_apply_patch_write_returns_false_on_invalid_patch(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
