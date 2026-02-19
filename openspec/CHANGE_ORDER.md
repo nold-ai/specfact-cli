@@ -169,6 +169,17 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | ai-integration | 02 | ai-integration-02-mcp-server | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | validation-02 |
 | ai-integration | 03 | ai-integration-03-instruction-files | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | ai-integration-01 |
 
+### CLI end-user validation (validation gap plan, 2026-02-19)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| cli-val | 01 | cli-val-01-behavior-contract-standard | [#279](https://github.com/nold-ai/specfact-cli/issues/279) | — |
+| cli-val | 02 | cli-val-02-output-snapshot-stability | [#280](https://github.com/nold-ai/specfact-cli/issues/280) | — |
+| cli-val | 03 | cli-val-03-misuse-safety-proof | [#281](https://github.com/nold-ai/specfact-cli/issues/281) | #279 |
+| cli-val | 04 | cli-val-04-acceptance-test-runner | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | #279, #281 |
+| cli-val | 05 | cli-val-05-ci-integration | [#283](https://github.com/nold-ai/specfact-cli/issues/283) | #280, #282 |
+| cli-val | 06 | cli-val-06-copilot-test-generation | [#284](https://github.com/nold-ai/specfact-cli/issues/284) | #279 (soft: #283) |
+
 ### Integration governance and proof (architecture integration plan, 2026-02-15)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
@@ -252,6 +263,7 @@ One parent issue per module group for grouping. Set **Type** to Epic on the proj
 | Sidecar validation | [Epic] Sidecar validation | [#191](https://github.com/nold-ai/specfact-cli/issues/191) |
 | Bundle mapping | [Epic] Bundle/spec mapping | [#192](https://github.com/nold-ai/specfact-cli/issues/192) |
 | Architecture + Marketplace | [Epic] Architecture (CLI structure, modularity, performance) | [#194](https://github.com/nold-ai/specfact-cli/issues/194) |
+| CLI end-user validation | [Epic] CLI End-User Validation | [#285](https://github.com/nold-ai/specfact-cli/issues/285) |
 
 ---
 
@@ -266,6 +278,12 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - policy-engine-01 ✅, patch-mode-01 ✅
   - backlog-core-01 ✅
   - validation-01 ✅, sidecar-01 ✅, bundle-mapper-01 ✅
+
+- **Wave 1.5 — CLI end-user validation** (cross-cutting, parallel to Wave 2+):
+  - cli-val-01, cli-val-02 (no blockers — start immediately after Wave 1)
+  - cli-val-03, cli-val-06 (after cli-val-01)
+  - cli-val-04 (after cli-val-01 + cli-val-03)
+  - cli-val-05 (after cli-val-02 + cli-val-04 — capstone)
 
 - **Wave 2 — Marketplace + backlog module layer** (needs Wave 1):
   - marketplace-01 (needs arch-06)
@@ -319,6 +337,7 @@ A wave cannot be considered complete until all gate criteria listed for that wav
 
 - Wave 0 gate: Core modular CLI and bridge registry flows remain stable and archived changes are validated.
 - Wave 1 gate: arch-06/07, policy-engine-01, patch-mode-01, backlog-core-01, validation-01 produce passing contract and strict OpenSpec validation. ✅ Completed 2026-02-18.
+- Wave 1.5 gate: CLI behavior contract schema validated, snapshot tests pass for all command groups, black-box acceptance tests prove installed binary works, anti-pattern safety assertions pass for all Wave 1 commands, CI gates enforce all of the above.
 - Wave 2 gate: At least one backlog planning workflow completes with no blocking dependency regressions across backlog-core + marketplace-01.
 - Wave 3 gate: Higher-order backlog workflows and marketplace-02 interoperate without command-group regressions.
 - Wave 4 gate: `ceremony-cockpit-01` aliases resolve and execute against installed modules without fallback failures.
