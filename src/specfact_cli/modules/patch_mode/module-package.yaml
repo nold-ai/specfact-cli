@@ -1,0 +1,11 @@
+# SpecFact CLI module package manifest.
+name: patch-mode
+version: "0.1.0"
+commands:
+  - patch
+command_help:
+  patch: "Preview and apply patches (backlog body, OpenSpec, config); --apply local, --write upstream with confirmation."
+pip_dependencies: []
+module_dependencies: []
+tier: community
+core_compatibility: ">=0.28.0,<1.0.0"

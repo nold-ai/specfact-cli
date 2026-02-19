@@ -318,6 +318,45 @@ class TestReproChecker:
         checker = ReproChecker(repo_path=tmp_path, budget=30, fix=False)
         assert checker.fix is False
 
+    def test_repro_checker_crosshair_per_path_timeout_passed_to_command(self, tmp_path: Path):
+        """Test ReproChecker with crosshair_per_path_timeout passes --per_path_timeout to CrossHair."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "__init__.py").write_text("")
+        (src_dir / "foo.py").write_text("def bar() -> int:\n    return 1\n")
+
+        checker = ReproChecker(repo_path=tmp_path, budget=30, crosshair_per_path_timeout=60)
+        assert checker.crosshair_per_path_timeout == 60
+
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="Test",
+        )
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = ""
+        mock_proc.stderr = ""
+
+        with (
+            patch("specfact_cli.validators.repro_checker.subprocess.run") as mock_run,
+            patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
+            patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
+            patch("shutil.which", return_value="/usr/bin/crosshair"),
+        ):
+            mock_run.return_value = mock_proc
+            checker.run_all_checks()
+
+            crosshair_calls = [c for c in mock_run.call_args_list if c[0][0] and "crosshair" in str(c[0][0])]
+            assert crosshair_calls, "CrossHair should have been invoked"
+            cmd = crosshair_calls[0][0][0]
+            flat = list(cmd) if not isinstance(cmd, list) else cmd
+            assert "--per_path_timeout" in flat
+            idx = flat.index("--per_path_timeout")
+            assert flat[idx + 1] == "60"
+
     def test_repro_report_add_check(self):
         """Test ReproReport.add_check updates counts."""
         report = ReproReport()
