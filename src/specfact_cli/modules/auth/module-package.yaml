@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest.
 name: auth
-version: "0.27.0"
+version: 0.35.0
 commands:
   - auth
 command_help:
-  auth: "Authenticate with DevOps providers (GitHub, Azure DevOps)"
+  auth: Authenticate with DevOps providers (GitHub, Azure DevOps)
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Authenticate SpecFact with supported DevOps providers.
+license: Apache-2.0

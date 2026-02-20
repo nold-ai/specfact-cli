@@ -22,6 +22,7 @@ Complete technical reference for SpecFact CLI.
 - **[Feature Keys](feature-keys.md)** - Key normalization and formats
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
 - **[Schema Versioning](schema-versioning.md)** - Bundle schema versions and backward compatibility (v1.0, v1.1)
+- **[Module Security](module-security.md)** - Marketplace/module integrity and publisher metadata
 
 ## Quick Reference
 
@@ -38,6 +39,11 @@ Complete technical reference for SpecFact CLI.
 - `specfact spec generate-tests [--bundle <name>]` - Generate contract tests from specifications
 - `specfact spec mock [--bundle <name>]` - Launch mock server for development
 - `specfact init ide --ide <cursor|vscode|copilot|...>` - Initialize IDE integration explicitly
+- `specfact module install <name|namespace/name>` - Install marketplace module (bare names normalize to `specfact/<name>`)
+- `specfact module list [--source ...] [--show-origin]` - List modules with trust/publisher and optional origin details
+- `specfact module show <name>` - Show detailed module metadata and full command tree with short descriptions
+- `specfact module search <query>` - Search marketplace and installed modules
+- `specfact module uninstall <name|namespace/name>` / `specfact module upgrade [<name>|--all]` - Manage module lifecycle with source-aware behavior
 
 ### Modes
 

@@ -150,9 +150,19 @@ class ModulePackageMetadata(BaseModel):
         default_factory=list,
         description="Declarative schema extensions for Feature/ProjectBundle (arch-07).",
     )
+    description: str | None = Field(default=None, description="Module description for user-facing module details")
+    license: str | None = Field(default=None, description="SPDX license identifier or license name")
+    source: str = Field(default="builtin", description="Module source: builtin, marketplace, or custom")
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "Validated bridges must be returned as a list")
     def validate_service_bridges(self) -> list[ServiceBridgeMetadata]:
         """Return validated bridge declarations for lifecycle registration."""
         return list(self.service_bridges)
+
+    @model_validator(mode="after")
+    def validate_source(self) -> ModulePackageMetadata:
+        """Validate source is one of supported module origins."""
+        if self.source not in {"builtin", "marketplace", "custom"}:
+            raise ValueError("source must be one of: builtin, marketplace, custom")
+        return self
