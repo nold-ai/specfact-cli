@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest.
 name: spec
-version: "0.27.0"
+version: 0.35.0
 commands:
   - spec
 command_help:
-  spec: "Specmatic integration for API contract testing"
+  spec: Specmatic integration for API contract testing
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Integrate and run API specification and contract checks.
+license: Apache-2.0

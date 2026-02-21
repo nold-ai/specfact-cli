@@ -28,10 +28,11 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 - `commands.json` – Command names and help text used for fast root `specfact --help` without loading every command module.
 - `modules.json` – Per-module state (id, version, enabled) for optional module packages.
-  - Managed by `specfact init --list-modules`, `specfact init --enable-module ...`, `specfact init --disable-module ...`
+  - Managed primarily by `specfact module ...` commands (`list`, `install`, `uninstall`, `upgrade`)
+  - `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain compatibility aliases
   - Supports dependency-safe lifecycle operations with optional `--force` cascading behavior
 
-`specfact init` is bootstrap/module-lifecycle focused. IDE prompt/template setup is handled by `specfact init ide`.
+`specfact init` is bootstrap-focused; module lifecycle is canonical under `specfact module` with init aliases preserved for migration. IDE prompt/template setup is handled by `specfact init ide`.
 
 For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Modules design](architecture.md#modules-design).
 
@@ -452,10 +453,13 @@ Bootstraps local module lifecycle state (without IDE template copy side effects)
 # Bootstrap and discover modules
 specfact init
 
-# List enabled/disabled module state
-specfact init --list-modules
+# Canonical lifecycle commands
+specfact module list
+specfact module install specfact/backlog
+specfact module uninstall backlog
 
-# Manage modules (interactive selector in interactive terminals)
+# Compatibility aliases
+specfact init --list-modules
 specfact init --enable-module
 specfact init --disable-module
 ```

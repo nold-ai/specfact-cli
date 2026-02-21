@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest.
 name: init
-version: "0.27.0"
+version: 0.35.0
 commands:
   - init
 command_help:
-  init: "Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)"
+  init: Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Initialize SpecFact workspace and bootstrap local configuration.
+license: Apache-2.0

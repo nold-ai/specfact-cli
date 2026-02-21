@@ -77,6 +77,49 @@ SpecFact is transitioning from hard-wired command wiring to a module-first archi
 - Easier interface-based testing and safer incremental migrations.
 - Better path for pending OpenSpec-driven module evolution.
 
+## Module Marketplace
+
+SpecFact supports marketplace-driven module distribution with deterministic multi-location discovery.
+
+### Discovery Pattern
+
+Module discovery scans in strict priority order:
+
+1. Built-in modules (`site-packages/specfact_cli/modules/`)
+2. Marketplace modules (`~/.specfact/marketplace-modules/`)
+3. Custom modules (`~/.specfact/custom-modules/`)
+
+When duplicate module names exist, the higher-priority source wins and shadowed modules are ignored.
+
+### Registry Client Architecture
+
+The registry client fetches `index.json` from the central module repository and resolves:
+
+- module metadata (`id`, `namespace`, `latest_version`, compatibility)
+- download URL
+- checksum for integrity validation
+
+Install and search commands degrade gracefully in offline mode.
+
+### Install Sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as specfact module install
+    participant Registry as Marketplace Registry
+    participant Local as ~/.specfact/marketplace-modules
+
+    User->>CLI: install specfact/backlog
+    CLI->>Registry: fetch index.json
+    Registry-->>CLI: module metadata + checksum
+    CLI->>Registry: download tarball
+    Registry-->>CLI: module archive
+    CLI->>CLI: verify checksum + compatibility
+    CLI->>Local: extract and register module
+    CLI-->>User: install success
+```
+
 ## Operational Modes
 
 SpecFact CLI supports two operational modes for different use cases:
@@ -626,16 +669,16 @@ class ChangeArchive(BaseModel):
 - **File**: `~/.specfact/registry/modules.json` (created when you run `specfact init`).
 - **Content**: List of `{ "id", "version", "enabled" }` per module. Only modules with `enabled: true` have their commands registered.
 - **CLI**:
-  - `specfact init --list-modules` shows effective state.
-  - `specfact init --enable-module <id>` and `--disable-module <id>` update persisted state.
-  - In interactive terminals, `specfact init --enable-module` and `specfact init --disable-module` (without ids) open an interactive selector.
+  - Canonical lifecycle surface: `specfact module` (`install`, `list`, `uninstall`, `upgrade`).
+  - Compatibility aliases: `specfact init --list-modules`, `--enable-module`, `--disable-module` remain supported during migration.
+  - In interactive terminals, bare init compatibility flags still open an interactive selector.
   - In non-interactive mode, explicit module ids are required.
   - Safe dependency guards block invalid enable/disable actions unless `--force` is used.
   - With `--force`, enable cascades to required dependencies and disable cascades to enabled dependents.
 
 ### Lifecycle notes and roadmap
 
-- `specfact init` is bootstrap/module-lifecycle focused.
+- `specfact init` is bootstrap-focused; lifecycle UX is canonical in `specfact module` with init aliases preserved for compatibility.
 - `specfact init ide` is responsible for IDE prompt/template setup.
 - This lifecycle architecture is the baseline for future granular module updates and enhancements.
 - Third-party/community module installation is planned as a next step, but not implemented yet.

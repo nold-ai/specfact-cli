@@ -84,6 +84,16 @@ Why this matters:
 - **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Declare and use namespaced extension fields on Feature/ProjectBundle
 - **[Module Security](reference/module-security.md)** - Publisher, integrity (checksum/signature), and versioned dependencies
 
+
+## Module Marketplace
+
+SpecFact now supports a central marketplace workflow for module installation and lifecycle management.
+
+- **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
+- **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
+
+Compatibility note: `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain available as migration aliases while `specfact module` (`install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) is the canonical lifecycle command group.
+
 ## 📚 Documentation
 
 ### Guides
