@@ -24,6 +24,18 @@ MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 
 
 @beartype
+def _validate_archive_members(members: list[tarfile.TarInfo], extract_root: Path) -> None:
+    """Reject tar members that would escape the intended extraction directory."""
+    extract_root_resolved = extract_root.resolve()
+    for member in members:
+        member_path = (extract_root / member.name).resolve()
+        if member_path == extract_root_resolved:
+            continue
+        if extract_root_resolved not in member_path.parents:
+            raise ValueError(f"Downloaded module archive contains unsafe archive path: {member.name}")
+
+
+@beartype
 def verify_module_artifact(
     package_dir: Path,
     meta: ModulePackageMetadata,
@@ -66,6 +78,7 @@ def install_module(
     module_id: str,
     *,
     version: str | None = None,
+    reinstall: bool = False,
     install_root: Path | None = None,
 ) -> Path:
     """Install a marketplace module from tarball into marketplace modules root."""
@@ -77,7 +90,7 @@ def install_module(
     final_path = target_root / module_name
     manifest_path = final_path / "module-package.yaml"
 
-    if manifest_path.exists():
+    if manifest_path.exists() and not reinstall:
         logger.info("Module already installed (%s)", module_name)
         return final_path
 
@@ -89,7 +102,9 @@ def install_module(
         extract_root.mkdir(parents=True, exist_ok=True)
 
         with tarfile.open(archive_path, "r:gz") as archive:
-            archive.extractall(path=extract_root)
+            members = archive.getmembers()
+            _validate_archive_members(members, extract_root)
+            archive.extractall(path=extract_root, members=members)
 
         candidate_dirs = [p for p in extract_root.rglob("module-package.yaml") if p.is_file()]
         if not candidate_dirs:
@@ -112,6 +127,8 @@ def install_module(
         shutil.copytree(extracted_module_dir, staged_path)
 
         try:
+            if final_path.exists():
+                shutil.rmtree(final_path)
             staged_path.replace(final_path)
         except Exception:
             if staged_path.exists():

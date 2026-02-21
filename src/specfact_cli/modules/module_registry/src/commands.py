@@ -432,7 +432,7 @@ def upgrade(
     for target in target_ids:
         try:
             module_id = target if "/" in target else f"specfact/{target}"
-            install_module(module_id)
+            install_module(module_id, reinstall=True)
             upgraded.append(module_id)
         except Exception as exc:
             console.print(f"[red]Failed upgrading {target}: {exc}[/red]")

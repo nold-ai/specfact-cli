@@ -27,7 +27,7 @@ def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_install_command_accepts_bare_module_name(monkeypatch, tmp_path: Path) -> None:
-    captured = {"module_id": None}
+    captured: dict[str, str | None] = {"module_id": None}
 
     def _install(module_id: str, version=None):
         captured["module_id"] = module_id
@@ -562,9 +562,15 @@ def test_show_command_fails_for_unknown_module(monkeypatch) -> None:
 
 
 def test_upgrade_command(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, bool | None] = {"reinstall": None}
+
+    def _install(module_id: str, version=None, reinstall: bool = False):
+        captured["reinstall"] = reinstall
+        return tmp_path / module_id.split("/")[-1]
+
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.install_module",
-        lambda module_id, version=None: tmp_path / module_id.split("/")[-1],
+        _install,
     )
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
@@ -574,14 +580,17 @@ def test_upgrade_command(monkeypatch, tmp_path: Path) -> None:
     result = runner.invoke(app, ["upgrade", "backlog"])
 
     assert result.exit_code == 0
+    assert captured["reinstall"] is True
     assert "Upgraded" in result.stdout
 
 
 def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_path: Path) -> None:
     installed: list[str] = []
+    reinstall_flags: list[bool] = []
 
-    def _install(module_id: str, version=None):
+    def _install(module_id: str, version=None, reinstall: bool = False):
         installed.append(module_id)
+        reinstall_flags.append(reinstall)
         return tmp_path / module_id.split("/")[-1]
 
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
@@ -597,6 +606,7 @@ def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_p
 
     assert result.exit_code == 0
     assert installed == ["specfact/backlog"]
+    assert reinstall_flags == [True]
     assert "Upgraded" in result.stdout
 
 
