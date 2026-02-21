@@ -8,6 +8,22 @@ All notable changes to this project will be documented in this file.
 **Important:** Changes need to be documented below this block as this is the header section. Each section should be separated by a horizontal rule. Newer changelog entries need to be added on top of prior ones to keep the history chronological with most recent changes first.
 
 ---
+## [0.35.0] - 2026-02-20
+
+### Added
+
+- Central module marketplace foundations (OpenSpec change `marketplace-01-central-module-registry`) with multi-location discovery, source tracking (`builtin`/`marketplace`/`custom`), and source-priority shadow handling.
+- New module registry client and installer workflows for fetching registry index, secure module download with checksum verification, install/uninstall operations, and core compatibility validation.
+- New `specfact module` command group with `install`, `uninstall`, `search`, `list`, and `upgrade` subcommands.
+- New docs: [Installing Modules](docs/guides/installing-modules.md) and [Module Marketplace](docs/guides/module-marketplace.md), plus architecture and sidebar updates for marketplace workflows.
+
+### Changed
+
+- Module package metadata now includes `source` to persist module origin across discovery and lifecycle registration.
+- README module lifecycle baseline now includes marketplace command entry points.
+
+---
+
 ## [0.34.1] - 2026-02-18
 
 ### Fixed

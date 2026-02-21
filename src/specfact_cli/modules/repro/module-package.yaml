@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest.
 name: repro
-version: "0.27.0"
+version: 0.35.0
 commands:
   - repro
 command_help:
-  repro: "Run validation suite"
+  repro: Run validation suite
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Run reproducible validation and diagnostics workflows end-to-end.
+license: Apache-2.0

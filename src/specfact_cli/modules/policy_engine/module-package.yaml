@@ -1,21 +1,24 @@
 name: policy-engine
-version: "0.1.0"
+version: 0.35.0
 commands:
   - policy
 command_help:
-  policy: "Policy validation and suggestion workflows (DoR/DoD/Flow/PI)"
+  policy: Policy validation and suggestion workflows (DoR/DoD/Flow/PI)
 pip_dependencies: []
 module_dependencies: []
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
 tier: community
 schema_extensions:
   - target: ProjectBundle
     field: policy_engine_policy_status
-    type_hint: "dict[str, Any] | None"
-    description: "Latest policy validation status snapshot for the current project bundle."
+    type_hint: dict[str, Any] | None
+    description: Latest policy validation status snapshot for the current project bundle.
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
 integrity:
   checksum_algorithm: sha256
 dependencies: []
+description: Run policy evaluations with recommendation and compliance outputs.
+license: Apache-2.0

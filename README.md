@@ -158,13 +158,15 @@ Start with:
 
 SpecFact now has a lifecycle-managed module system:
 
-- `specfact init` is bootstrap-first: initializes local CLI state, discovers installed modules, and reports prompt status.
+- `specfact init` is bootstrap-first: initializes local CLI state and reports prompt status.
 - `specfact init ide` handles IDE prompt/template sync and IDE settings updates.
-- `specfact init --list-modules` shows effective enabled/disabled state.
-- `specfact init --enable-module` / `--disable-module` support:
-  - interactive selection in interactive terminals when no module id is provided
-  - explicit ids in non-interactive mode (for automation)
-  - dependency-aware safety checks with `--force` cascading enable/disable behavior
+- `specfact module` is the canonical lifecycle surface:
+  - `specfact module install <namespace/name>` installs marketplace modules into `~/.specfact/marketplace-modules/`.
+  - `specfact module list [--source builtin|marketplace|custom]` shows multi-source discovery state.
+  - `specfact module enable <id>` / `specfact module disable <id> [--force]` manage enabled state.
+  - `specfact module uninstall <name>` and `specfact module upgrade <name>` manage marketplace lifecycle.
+- `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain supported as compatibility aliases during migration.
+- Module lifecycle operations keep dependency-aware safety checks with `--force` cascading behavior.
 - Module manifests support dependency and core-version compatibility enforcement at registration time.
 
 This lifecycle model is the baseline for future granular module updates and enhancements. Module installation from third-party or open-source community providers is planned, but not implemented yet.

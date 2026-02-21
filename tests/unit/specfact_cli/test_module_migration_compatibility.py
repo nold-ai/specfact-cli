@@ -54,8 +54,11 @@ def test_module_app_entrypoints_import_module_local_commands() -> None:
             continue
 
         expected_import = f"from specfact_cli.modules.{module_name}.src.commands import app"
+        expected_multiline_prefix = f"from specfact_cli.modules.{module_name}.src.commands import ("
         text = app_path.read_text(encoding="utf-8")
-        if expected_import not in text:
+        has_single_line = expected_import in text
+        has_multiline = expected_multiline_prefix in text and "app," in text
+        if not (has_single_line or has_multiline):
             wrong_import.append(str(app_path.relative_to(PROJECT_ROOT)))
 
     assert not missing, "Missing module app entrypoint files:\n" + "\n".join(f"- {path}" for path in missing)
@@ -153,3 +156,59 @@ def test_module_discovery_registers_commands_from_manifests(tmp_path: Path, monk
     missing = sorted(expected_commands - registered)
 
     assert not missing, "Missing commands after registry bootstrap:\n" + "\n".join(f"- {cmd}" for cmd in missing)
+
+
+def test_builtin_module_manifest_versions_match_cli_version() -> None:
+    """Built-in module manifests under src/specfact_cli/modules SHALL stay version-synced with CLI."""
+    from specfact_cli import __version__
+
+    mismatches: list[str] = []
+    for module_name in _module_package_names():
+        manifest = MODULES_ROOT / module_name / "module-package.yaml"
+        if not manifest.exists():
+            continue
+        version_line = None
+        for line in manifest.read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("version:"):
+                version_line = line.split(":", 1)[1].strip().strip("\"'")
+                break
+        if version_line is None:
+            mismatches.append(f"{module_name}: missing version field")
+            continue
+        if version_line != __version__:
+            mismatches.append(f"{module_name}: {version_line} != {__version__}")
+
+    assert not mismatches, "Built-in module version drift detected:\n" + "\n".join(f"- {item}" for item in mismatches)
+
+
+def test_module_manifest_descriptions_are_meaningful() -> None:
+    """All module manifests SHOULD include concise non-placeholder descriptions."""
+    project_root = Path(__file__).resolve().parents[3]
+    manifest_paths = sorted(project_root.glob("**/module-package.yaml"))
+
+    issues: list[str] = []
+    for manifest in manifest_paths:
+        lines = manifest.read_text(encoding="utf-8").splitlines()
+        description = ""
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("description:"):
+                description = stripped.split(":", 1)[1].strip()
+                if (description.startswith('"') and description.endswith('"')) or (
+                    description.startswith("'") and description.endswith("'")
+                ):
+                    description = description[1:-1]
+                break
+
+        if not description:
+            issues.append(f"{manifest.relative_to(project_root)}: missing description")
+            continue
+
+        if description.lower().startswith("specfact module '"):
+            issues.append(f"{manifest.relative_to(project_root)}: placeholder description")
+            continue
+
+        if len(description) < 20 or len(description) > 120:
+            issues.append(f"{manifest.relative_to(project_root)}: description length out of range")
+
+    assert not issues, "Module manifest description quality issues:\n" + "\n".join(f"- {item}" for item in issues)
