@@ -31,6 +31,7 @@ def discover_all_modules(
     builtin_root: Path | None = None,
     marketplace_root: Path | None = None,
     custom_root: Path | None = None,
+    include_legacy_roots: bool | None = None,
 ) -> list[DiscoveredModule]:
     """Discover modules from all configured locations with deterministic priority."""
     from specfact_cli.registry.module_packages import discover_package_metadata, get_modules_root, get_modules_roots
@@ -50,13 +51,18 @@ def discover_all_modules(
     ]
 
     # Keep legacy discovery roots (workspace-level + SPECFACT_MODULES_ROOTS) as custom sources.
-    seen_root_paths = {path.resolve() for _source, path in roots}
-    for extra_root in get_modules_roots():
-        resolved = extra_root.resolve()
-        if resolved in seen_root_paths:
-            continue
-        seen_root_paths.add(resolved)
-        roots.append(("custom", extra_root))
+    # When explicit roots are provided (usually tests), legacy roots are disabled by default.
+    if include_legacy_roots is None:
+        include_legacy_roots = builtin_root is None and marketplace_root is None and custom_root is None
+
+    if include_legacy_roots:
+        seen_root_paths = {path.resolve() for _source, path in roots}
+        for extra_root in get_modules_roots():
+            resolved = extra_root.resolve()
+            if resolved in seen_root_paths:
+                continue
+            seen_root_paths.add(resolved)
+            roots.append(("custom", extra_root))
 
     for source, root in roots:
         if not root.exists() or not root.is_dir():
