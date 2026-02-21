@@ -30,13 +30,25 @@ Do not implement production code for new behavior until the corresponding tests 
 
 - [ ] 3.1 Confirm `specs/backlog-add/spec.md` exists and is complete (ADDED requirements, Given/When/Then for create_issue, add command, creation hierarchy).
 - [ ] 3.2 Map scenarios to implementation: create via GitHub/ADO, add command with parent validation, custom hierarchy from config, non-interactive mode.
+- [ ] 3.3 Confirm `specs/backlog-map-fields/spec.md` is complete for multi-provider map-fields setup behavior.
 
 ## 4. Tests first (TDD: write tests from spec scenarios; expect failure)
 
 - [ ] 4.1 Write unit tests for adapter create_issue: mock GitHub/ADO API; assert payload mapping and return shape (id, key, url).
-- [ ] 4.2 Write unit or integration tests from `specs/backlog-add/spec.md` scenarios: add with parent validation, hierarchy from config, non-interactive add, DoR check when --check-dor.
+- [ ] 4.2 Write unit/integration tests from `specs/backlog-add/spec.md` scenarios: parent validation, hierarchy rules, non-interactive add, DoR check, multiline body sentinel, description format selection, and ADO sprint/iteration selection.
 - [ ] 4.3 Run tests: `hatch run smart-test-unit` (or equivalent); **expect failure** (no implementation yet).
 - [ ] 4.4 Document which scenarios are covered by which test modules.
+- [ ] 4.5 Add unit tests for centralized retry behavior (retries on transient failures, no retry on non-transient failures).
+- [ ] 4.6 Add regression tests for duplicate-safe create retry behavior and ADO parent candidate resolution when template is omitted.
+- [ ] 4.7 Add regression tests for shared retry policy usage in additional write paths (non-idempotent comments and idempotent updates).
+- [ ] 4.8 Add regression tests for ADO parent candidate fetch without implicit sprint default and duplicate-safe create warning behavior.
+- [ ] 4.9 Add regression test for ADO sprint option discovery with project_id-resolved context.
+- [ ] 4.10 Add regression test for backlog add provider_fields forwarding for GitHub ProjectV2 Type field updates.
+- [ ] 4.11 Add regression test for backlog-config.yaml provider settings forwarding of GitHub ProjectV2 Type mapping metadata.
+- [ ] 4.12 Add regression test for missing GitHub ProjectV2 config warning in backlog add output.
+- [ ] 4.13 Add regression tests for multi-provider map-fields flow (provider selection, auth/discovery checks, config persistence, verification output).
+- [ ] 4.14 Add regression tests for `backlog init-config` scaffolding behavior (create, no-overwrite, force/override path).
+- [ ] 4.15 Add regression tests for GitHub repository issue-type discovery and fallback behavior when ProjectV2 has only Status field.
 
 ## 5. Extend BacklogAdapterMixin with create_issue (TDD: code until tests pass)
 
@@ -47,11 +59,31 @@ Do not implement production code for new behavior until the corresponding tests 
 
 ## 6. Implement creation hierarchy and add command (TDD: code until tests pass)
 
-- [ ] 6.1 Define optional creation_hierarchy in template or backlog_config schema (child type → list of allowed parent types); implement loader (from ProjectBundle.metadata.backlog_config or .specfact/spec.yaml).
+- [ ] 6.1 Define optional creation_hierarchy in template or backlog_config schema (child type → list of allowed parent types); implement loader (from ProjectBundle.metadata.backlog_config or .specfact/backlog-config.yaml).
 - [ ] 6.2 Implement add command: options --adapter, --project-id, --template, --type, --parent, --title, --body, --non-interactive, --check-dor; interactive prompts when key args missing (unless --non-interactive).
 - [ ] 6.3 Implement flow: load graph (fetch_all_issues + fetch_relationships or BacklogGraphBuilder when available); resolve type and parent; validate parent exists and allowed type from creation_hierarchy; optional DoR check (reuse backlog refine DoR); build payload; call adapter.create_issue; output id, key, url.
 - [ ] 6.4 Register `specfact backlog add` in backlog command group (same place as refine, analyze-deps).
 - [ ] 6.5 Run add-command tests; **expect pass**; fix until tests pass.
+- [ ] 6.6 Add interactive field collection where appropriate: acceptance criteria (multiline), priority, story points; map to provider payload fields when supported.
+- [ ] 6.7 Add interactive sprint/iteration selection (ADO) and explicit progress messages after multiline input capture and before create API call.
+- [ ] 6.8 Add interactive parent assignment flow: ask whether to set parent, then choose from hierarchy-allowed existing issues; apply provider-aware type mapping (including GitHub custom/epic labels via mapping).
+- [ ] 6.9 Add centralized retry policy in backlog adapter core logic and route GitHub/ADO create operations through it (retry transient failures only).
+- [ ] 6.10 Guard non-idempotent create operations against ambiguous automatic replay on timeout/connection failure to prevent duplicates.
+- [ ] 6.11 Resolve adapter-aware default template (ADO -> ado_scrum, GitHub -> github_projects) when --template is not provided.
+- [ ] 6.12 Apply shared retry policy to additional adapter write operations with per-operation ambiguity safety (non-idempotent vs idempotent).
+- [ ] 6.13 Disable implicit current-iteration filtering for parent candidate discovery flows (ADO) so hierarchy-valid parents are not hidden.
+- [ ] 6.14 Add duplicate-safe create failure warning in CLI for ambiguous transport errors (verify backlog before manual retry).
+- [ ] 6.15 Bind ADO org/project context before interactive sprint lookup so iteration options are discoverable from project_id.
+- [ ] 6.16 Forward GitHub Projects-v2 Type field configuration from template/custom config into create payload provider_fields.
+- [ ] 6.17 Resolve GitHub ProjectV2 provider field config from .specfact/backlog-config.yaml backlog provider settings when custom config is not provided.
+- [ ] 6.18 Add user-facing warning when GitHub ProjectV2 Type mapping config is missing or incomplete.
+- [ ] 6.19 Extend backlog map-fields into multi-provider guided setup (provider selection and sequential execution).
+- [ ] 6.20 Implement GitHub ProjectV2 discovery and type-option mapping flow in map-fields.
+- [ ] 6.21 Persist map-fields outputs into `.specfact/backlog-config.yaml` provider settings and verify required keys post-write.
+- [ ] 6.22 Add `specfact backlog init-config` command to scaffold `.specfact/backlog-config.yaml` defaults under backlog scope.
+- [ ] 6.23 Use GitHub repository issue types as source-of-truth in map-fields; keep ProjectV2 Type mapping optional when field/options are unavailable.
+- [ ] 6.24 Auto-load `.specfact/templates/backlog/field_mappings/github_custom.yaml` for `backlog add` when `--adapter github` and `--custom-config` is omitted; fall back to defaults when absent.
+- [ ] 6.25 Link GitHub parent selection using native issue relationship (`addSubIssue`) so parent appears in issue sidebar metadata.
 
 ## 7. Quality gates
 

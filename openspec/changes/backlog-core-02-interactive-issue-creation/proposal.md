@@ -2,56 +2,51 @@
 
 ## Why
 
+After backlog-core-01, teams can analyze dependencies but still create new work items manually in GitHub/ADO. That causes hierarchy drift (wrong parent types), missing readiness fields, and inconsistent sprint/iteration assignment.
 
-After implementing backlog adapters and dependency analysis (backlog-core-01), teams can analyze and sync backlog items but cannot create new issues from the CLI with proper scoping, hierarchy alignment, and Definition of Ready (DoR) checks. Without a dedicated add flow, users create issues manually in GitHub/ADO and risk orphaned or misaligned items. Adding `specfact backlog add` enables interactive creation with AI copilot assistance: draft → review → enhance → validate (graph, DoR) → create, so new issues fit the existing backlog structure and value chain.
-
-This change extends the **`backlog-core` module** (backlog-core-01) with the `backlog add` command.
-
-## Module Package Structure
-
-This change adds to the existing `modules/backlog-core/` module:
-
-```
-modules/backlog-core/
-  module-package.yaml          # updated: add 'backlog add' to commands list
-  src/backlog_core/
-    commands/
-      add.py                   # specfact backlog add (interactive issue creation)
-    adapters/
-      backlog_protocol.py      # extended: add create_issue() to BacklogGraphProtocol
-```
-
-**`module-package.yaml` update:** Add `backlog add` to commands list. No new module; this is a capability increment to backlog-core.
-
-## Module Package Structure
-
-This change adds to the existing `modules/backlog-core/` module:
-
-```
-modules/backlog-core/
-  module-package.yaml          # updated: add 'backlog add' to commands list
-  src/backlog_core/
-    commands/
-      add.py                   # specfact backlog add (interactive issue creation)
-    adapters/
-      backlog_protocol.py      # extended: add create_issue() to BacklogGraphProtocol
-```
-
-**`module-package.yaml` update:** Add `backlog add` to commands list. No new module; this is a capability increment to backlog-core.
+This change adds `specfact backlog add` as a guided creation workflow in the `backlog` command group, with provider-aware interactive UX and contract-safe adapter writes.
 
 ## What Changes
 
-
-- **NEW**: Add CLI command `specfact backlog add` in `modules/backlog-core/src/backlog_core/commands/add.py` for interactive creation of backlog issues (epic, feature, story, task, bug, spike) with optional parent, title, body, DoR validation, and optional `--sprint` to assign new issue to sprint (when provider supports it).
-- **NEW**: Support multiple backlog levels (epic, feature, story, task, bug, spike, custom) with configurable creation hierarchy (allowed parent types per child type) via template or backlog_config; default derived from existing type_mapping and dependency_rules in `ado_scrum.yaml` / `github_projects.yaml` templates.
-- **EXTEND** (arch-05 bridge registry): Extend `BacklogGraphProtocol` in `modules/backlog-core/src/backlog_core/adapters/backlog_protocol.py` with `create_issue(project_id: str, payload: dict) -> dict` returning created item (id, key, url). Adapter modules (github-adapter, ado-adapter) implement this method and register updated protocol conformance via bridge registry.
-- **NEW**: Add flow: load graph (BacklogGraphBuilder, fetch_all_issues, fetch_relationships from backlog-core-01), resolve type and parent from template/hierarchy, validate parent exists and allowed type, optional DoR check (**use policy-engine-01 when available**), map draft to provider payload, call adapter `create_issue`, output created id/key/url.
-- **EXTEND** (E5): Provide draft patch preview before create (integrate with patch-mode-01 when available) so user can review proposed issue body/fields before creating.
-- **EXTEND** (E5): When linking to existing issues (e.g. parent, blocks), support fuzzy match + user confirmation; no silent link (aligns with bundle-mapper-01).
-- **EXTEND**: Template or backlog_config with optional `creation_hierarchy` (allowed parent types per child type) so Scrum/SAFe/Kanban and custom hierarchies work without code changes.
+- **NEW**: `specfact backlog add` in `modules/backlog-core/src/backlog_core/commands/add.py` for interactive and non-interactive issue/work-item creation.
+- **EXTEND**: Backlog adapter protocol with `create_issue(project_id: str, payload: dict) -> dict` and concrete implementations in GitHub and ADO adapters.
+- **EXTEND**: GitHub parent assignment uses native issue relationship metadata (sidebar parent/sub-issue) via GraphQL sub-issue linking, not only body text conventions.
+- **NEW**: Configurable creation hierarchy (`creation_hierarchy`) from template/config for parent-type validation (for example epic -> feature -> story -> task).
+- **NEW**: Interactive creation UX for required fields including type/title/body, parent selection, sprint/iteration selection, and immediate create-progress feedback.
+- **NEW**: Multiline body entry with non-markdown sentinel (default `::END::`) and configurable marker.
+- **NEW**: Provider-agnostic draft fields for story-quality capture where applicable: acceptance criteria, priority, story points.
+- **NEW**: Description format selection (`markdown` or `classic`) with provider mapping (`ADO multiline format` handling).
+- **EXTEND**: GitHub custom mapping parity with ADO behavior: when `.specfact/templates/backlog/field_mappings/github_custom.yaml` exists and `--custom-config` is omitted, `backlog add` auto-loads it; otherwise it falls back to default mappings.
+- **EXTEND**: Parent selection behavior:
+  - ADO: hierarchy-aware parent candidates filtered by allowed parent types.
+  - GitHub: select from available issues and normalized type mapping (including custom/epic labels when configured).
+- **EXTEND**: `specfact backlog map-fields` to support a multi-provider field mapping workflow (ADO + GitHub), including auth checks, provider field discovery, mapping verification, and config persistence in `.specfact/backlog-config.yaml`. For GitHub, issue-type source-of-truth is repository issue types (`repository.issueTypes`), while ProjectV2 Type option mapping is optional enrichment when a suitable Type-like single-select field exists.
 
 ## Capabilities
-- **backlog-core** (extended): `backlog add` — interactive creation of backlog issues with type/parent selection, draft validation (graph and DoR), and create via adapter protocol; multi-level support with configurable hierarchy.
+
+- **backlog-core** (extended): `backlog add` interactive creation flow with hierarchy validation, readiness checks, and adapter-backed create operations.
+- **backlog** (extended): Provider-aware `backlog init-config` scaffolding and `backlog map-fields` setup for mapping backlog fields across supported adapters.
+- **backlog** (extended): Minimal default backlog-config scaffolding (without empty GitHub ProjectV2 placeholders); persist ProjectV2 mapping only when explicitly configured/discovered.
+
+## Impact
+
+- **Affected specs**: `openspec/changes/backlog-core-02-interactive-issue-creation/specs/backlog-add/spec.md`
+- **Affected code**:
+  - `modules/backlog-core/src/backlog_core/commands/add.py`
+  - `modules/backlog-core/src/backlog_core/adapters/backlog_protocol.py`
+  - `modules/backlog-core/src/backlog_core/graph/config_schema.py`
+  - `modules/backlog-core/src/backlog_core/graph/builder.py`
+  - `src/specfact_cli/adapters/backlog_base.py`
+  - `src/specfact_cli/adapters/github.py`
+  - `src/specfact_cli/adapters/ado.py`
+  - `src/specfact_cli/modules/backlog/src/commands.py`
+- **Affected tests**:
+  - `modules/backlog-core/tests/unit/test_add_command.py`
+  - `modules/backlog-core/tests/unit/test_adapter_create_issue.py`
+  - `modules/backlog-core/tests/unit/test_backlog_protocol.py`
+- **Documentation impact**:
+  - `docs/guides/agile-scrum-workflows.md`
+  - `docs/reference/commands.md`
 
 ---
 
@@ -60,5 +55,6 @@ modules/backlog-core/
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #173
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/173>
+- **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed
 - **Sanitized**: false

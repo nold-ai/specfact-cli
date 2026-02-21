@@ -42,6 +42,8 @@ class BacklogFilters:
     """Filter by release identifier."""
     limit: int | None = None
     """Maximum number of items to fetch (applied after filtering)."""
+    use_current_iteration_default: bool = True
+    """When sprint is omitted, whether provider may auto-resolve current iteration."""
 
     @staticmethod
     def normalize_filter_value(value: str | None) -> str | None:

@@ -1,14 +1,13 @@
-# SpecFact CLI module package manifest.
 name: backlog
-version: "0.27.0"
+version: 0.35.0
 commands:
   - backlog
 command_help:
-  backlog: "Backlog refinement and template management"
+  backlog: Backlog refinement and template management
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
 service_bridges:
   - id: ado
     converter_class: specfact_cli.modules.backlog.src.adapters.ado.AdoConverter
@@ -22,3 +21,9 @@ service_bridges:
   - id: github
     converter_class: specfact_cli.modules.backlog.src.adapters.github.GitHubConverter
     description: GitHub issue payload converter
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Manage backlog ceremonies, refinement, and dependency insights.
+license: Apache-2.0

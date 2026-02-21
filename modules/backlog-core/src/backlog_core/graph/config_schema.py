@@ -16,6 +16,10 @@ class DependencyConfig(BaseModel):
     type_mapping: dict[str, str] = Field(default_factory=dict, description="Raw type -> normalized type mapping")
     dependency_rules: dict[str, str] = Field(default_factory=dict, description="Raw relation -> normalized mapping")
     status_mapping: dict[str, str] = Field(default_factory=dict, description="Raw status -> normalized status mapping")
+    creation_hierarchy: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Allowed parent types per child type",
+    )
 
 
 class ProviderConfig(BaseModel):
@@ -48,6 +52,27 @@ def load_backlog_config_from_spec(spec_path: Path) -> BacklogConfigSchema | None
         return None
 
     loaded = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        return None
+
+    backlog_config = loaded.get("backlog_config")
+    if not isinstance(backlog_config, dict):
+        return None
+
+    payload = dict(backlog_config)
+    devops_stages = loaded.get("devops_stages")
+    if isinstance(devops_stages, dict):
+        payload["devops_stages"] = devops_stages
+
+    return BacklogConfigSchema.model_validate(payload)
+
+
+def load_backlog_config_from_backlog_file(config_path: Path) -> BacklogConfigSchema | None:
+    """Load backlog config from `.specfact/backlog-config.yaml` if present and valid."""
+    if not config_path.exists():
+        return None
+
+    loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         return None
 

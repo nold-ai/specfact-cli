@@ -11,10 +11,12 @@ functionality for status mapping, metadata extraction, and conflict resolution.
 
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from typing import Any
 
+import requests
 from beartype import beartype
 from icontract import ensure, require
 
@@ -34,6 +36,10 @@ class BacklogAdapterMixin(ABC):
     Future backlog adapters (ADO, Jira, Linear) should inherit from this mixin
     and implement the abstract methods to provide tool-specific implementations.
     """
+
+    RETRYABLE_HTTP_STATUSES: tuple[int, ...] = (429, 500, 502, 503, 504)
+    RETRY_DEFAULT_ATTEMPTS: int = 3
+    RETRY_BACKOFF_SECONDS: float = 0.5
 
     @abstractmethod
     @beartype
@@ -139,6 +145,71 @@ class BacklogAdapterMixin(ABC):
             return target_state[0] if target_state else "New"
 
         return target_state
+
+    @beartype
+    @require(lambda attempts: attempts is None or attempts > 0, "attempts must be > 0 when provided")
+    @require(
+        lambda backoff_seconds: backoff_seconds is None or backoff_seconds >= 0,
+        "backoff_seconds must be >= 0 when provided",
+    )
+    @require(
+        lambda retry_on_ambiguous_transport: isinstance(retry_on_ambiguous_transport, bool), "retry flag must be bool"
+    )
+    @ensure(lambda result: hasattr(result, "raise_for_status"), "Result must support raise_for_status")
+    def _request_with_retry(
+        self,
+        request_callable: Any,
+        *,
+        attempts: int | None = None,
+        backoff_seconds: float | None = None,
+        retry_on_ambiguous_transport: bool = True,
+    ) -> Any:
+        """Execute HTTP request with central retry policy for transient failures.
+
+        For non-idempotent writes, callers can disable transport-error replay by passing
+        retry_on_ambiguous_transport=False to avoid accidental duplicate side effects.
+        """
+        max_attempts = attempts or self.RETRY_DEFAULT_ATTEMPTS
+        delay = backoff_seconds if backoff_seconds is not None else self.RETRY_BACKOFF_SECONDS
+
+        last_error: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = request_callable()
+                status_code = int(getattr(response, "status_code", 0) or 0)
+                if status_code in self.RETRYABLE_HTTP_STATUSES and attempt < max_attempts:
+                    time.sleep(delay * (2 ** (attempt - 1)))
+                    continue
+                response.raise_for_status()
+                return response
+            except requests.HTTPError as error:
+                status_code = int(getattr(error.response, "status_code", 0) or 0)
+                is_transient = status_code in self.RETRYABLE_HTTP_STATUSES
+                last_error = error
+                if is_transient and attempt < max_attempts:
+                    time.sleep(delay * (2 ** (attempt - 1)))
+                    continue
+                raise
+            except (requests.Timeout, requests.ConnectionError) as error:
+                last_error = error
+                if retry_on_ambiguous_transport and attempt < max_attempts:
+                    time.sleep(delay * (2 ** (attempt - 1)))
+                    continue
+                raise
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Retry logic failed without response or error")
+
+    @abstractmethod
+    @beartype
+    @require(
+        lambda project_id: isinstance(project_id, str) and len(project_id.strip()) > 0, "Project ID must be non-empty"
+    )
+    @require(lambda payload: isinstance(payload, dict), "Payload must be dict")
+    @ensure(lambda result: isinstance(result, dict), "Must return created issue metadata dict")
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create backlog issue/work item from provider-agnostic payload."""
 
     @abstractmethod
     @beartype

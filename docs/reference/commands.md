@@ -3797,14 +3797,14 @@ specfact sync repository --repo . --watch --interval 2 --confidence 0.7
 
 ### `backlog` - Backlog Refinement and Template Management
 
-Backlog refinement commands for AI-assisted template-driven refinement of DevOps backlog items.
+Backlog refinement and dependency commands grouped under the `specfact backlog` command family.
 
 **Command Topology (recommended):**
 
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
 - `specfact backlog delta status|impact|cost-estimate|rollback-analysis ...`
-- `specfact backlog analyze-deps|trace-impact|sync|verify-readiness|diff|promote|generate-release-notes ...`
+- `specfact backlog add|analyze-deps|trace-impact|sync|verify-readiness|diff|promote|generate-release-notes ...`
 
 Compatibility commands `specfact backlog daily` and `specfact backlog refine` remain available, but ceremony entrypoints are preferred for discoverability.
 
@@ -3855,6 +3855,33 @@ specfact backlog delta cost-estimate --project-id 1 --adapter github
 specfact backlog delta rollback-analysis --project-id 1 --adapter github
 ```
 
+#### `backlog add`
+
+Create a backlog item with optional parent hierarchy validation and DoR checks.
+
+```bash
+specfact backlog add --project-id <id> [OPTIONS]
+```
+
+**Common options:**
+
+- `--adapter ADAPTER` - Backlog adapter id (default: `github`)
+- `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
+- `--type TYPE` - Child type to create (for example `story`, `task`, `feature`)
+- `--parent REF` - Optional parent reference (id/key/title); validated against graph
+- `--title TEXT` - Issue title
+- `--body TEXT` - Issue description/body
+- `--acceptance-criteria TEXT` - Acceptance criteria content (also supported via interactive multiline input)
+- `--priority TEXT` - Optional priority value (for example `1`, `high`, `P1`)
+- `--story-points VALUE` - Optional story points (integer or float)
+- `--sprint TEXT` - Optional sprint/iteration path assignment
+- `--body-end-marker TEXT` - Sentinel marker for multiline input (default: `::END::`)
+- `--description-format TEXT` - Description rendering mode (`markdown` or `classic`)
+- `--non-interactive` - Fail fast on missing required inputs instead of prompting
+- `--check-dor` - Validate draft against `.specfact/dor.yaml` before create
+- `--repo-path PATH` - Repository path used to load DoR configuration (default `.`)
+- `--custom-config PATH` - Optional config containing `creation_hierarchy`
+
 #### `backlog analyze-deps`
 
 Build and analyze backlog dependency graph for a provider project.
@@ -3866,7 +3893,7 @@ specfact backlog analyze-deps --project-id <id> [OPTIONS]
 **Common options:**
 
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
-- `--template TEMPLATE` - Mapping template (default: `github_projects`)
+- `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
 - `--custom-config PATH` - Optional custom mapping YAML
 - `--output PATH` - Optional markdown summary output
 - `--json-export PATH` - Optional graph JSON export
@@ -3882,7 +3909,7 @@ specfact backlog trace-impact <item-id> --project-id <id> [OPTIONS]
 **Common options:**
 
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
-- `--template TEMPLATE` - Mapping template (default: `github_projects`)
+- `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
 - `--custom-config PATH` - Optional custom mapping YAML
 
 #### `backlog verify-readiness`
@@ -3896,7 +3923,7 @@ specfact backlog verify-readiness --project-id <id> [OPTIONS]
 **Common options:**
 
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
-- `--template TEMPLATE` - Mapping template (default: `github_projects`)
+- `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
 - `--target-items CSV` - Optional comma-separated subset of item IDs
 
 #### `backlog diff`

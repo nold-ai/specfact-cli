@@ -1,92 +1,91 @@
 # Change Validation Report: backlog-core-02-interactive-issue-creation
 
-**Validation Date**: 2026-01-31T00:32:54+01:00  
+**Validation Date**: 2026-02-21 01:57:48 +0100  
 **Change Proposal**: [proposal.md](./proposal.md)  
-**Validation Method**: Dry-run simulation and format/OpenSpec compliance check
+**Validation Method**: Dry-run simulation in temporary workspace + dependency scan
 
 ## Executive Summary
 
-- **Breaking Changes**: 1 interface extension (new abstract method on BacklogAdapterMixin); all concrete backlog adapters must implement it.
-- **Dependent Files**: 2 affected (GitHubAdapter, AdoAdapter); no existing callers of create_issue.
-- **Impact Level**: Low
-- **Validation Result**: Pass
-- **User Decision**: N/A (no breaking-change options required)
+- Breaking Changes: 0 detected / 0 resolved
+- Dependent Files: 6 affected
+- Impact Level: Medium
+- Validation Result: Pass
+- User Decision: Proceed with implementation in current scope
 
 ## Breaking Changes Detected
 
-### Interface: BacklogAdapterMixin.create_issue
-
-- **Type**: New abstract method
-- **Old Signature**: (none; method does not exist)
-- **New Signature**: `create_issue(project_id: str, payload: dict) -> dict`
-- **Breaking**: Yes for implementors (any class inheriting BacklogAdapterMixin must implement the new method)
-- **Dependent Files**:
-  - `src/specfact_cli/adapters/github.py`: Must implement create_issue
-  - `src/specfact_cli/adapters/ado.py`: Must implement create_issue
-
-**Mitigation**: Change scope already includes implementing create_issue in both GitHub and ADO adapters; no external dependents of BacklogAdapterMixin exist outside this repo. No scope extension needed.
+No breaking API/interface changes were detected from the proposed delta:
+- `load_backlog_config_from_backlog_file()` is additive.
+- Existing `load_backlog_config_from_spec()` remains available for compatibility fallback.
+- `backlog map-fields` CLI enhancements are backward compatible for existing ADO usage.
 
 ## Dependencies Affected
 
 ### Critical Updates Required
-
-- `src/specfact_cli/adapters/github.py`: Implement create_issue (in scope)
-- `src/specfact_cli/adapters/ado.py`: Implement create_issue (in scope)
+- None
 
 ### Recommended Updates
+- `modules/backlog-core/src/backlog_core/graph/builder.py`: consider reading `.specfact/backlog-config.yaml` first in a follow-up for full consistency.
+- docs pages referencing `backlog map-fields` options should include provider-based flow.
 
-- None
+### Directly Scanned Dependencies
+- `modules/backlog-core/src/backlog_core/commands/add.py`
+- `modules/backlog-core/src/backlog_core/graph/builder.py`
+- `modules/backlog-core/tests/unit/test_schema_extensions.py`
+- `modules/backlog-core/tests/unit/test_add_command.py`
+- `tests/unit/commands/test_backlog_commands.py`
+- `src/specfact_cli/modules/backlog/src/commands.py`
 
 ## Impact Assessment
 
-- **Code Impact**: Additive; new command and adapter method. Existing refine/sync/analyze-deps unchanged.
-- **Test Impact**: New tests for create_issue and add command (TDD in tasks).
-- **Documentation Impact**: docs/guides/agile-scrum-workflows.md, backlog guide for backlog add workflow.
-- **Release Impact**: Minor (new feature).
+- **Code Impact**: New backlog config scaffold command and provider-aware map-fields persistence.
+- **Test Impact**: New tests required for init-config and github map-fields persistence; existing map-fields tests retained.
+- **Documentation Impact**: map-fields and backlog config docs should mention `.specfact/backlog-config.yaml`.
+- **Release Impact**: Minor (feature enhancement, backward compatible)
 
-## Dependency on add-backlog-dependency-analysis-and-commands
+## User Decision
 
-- **Note**: The plan states this change "Depends on" add-backlog-dependency-analysis-and-commands (BacklogGraphBuilder, fetch_all_issues, fetch_relationships). If that change is not yet merged, implementation can use minimal graph usage (e.g. fetch_backlog_item to validate parent exists) as stated in proposal Impact. No ambiguity; design and tasks already allow fallback.
+**Decision**: Implement now  
+**Rationale**: Align backlog provider configuration under dedicated `.specfact/backlog-config.yaml` and keep module metadata in sync with marketplace updates.  
+**Next Steps**:
+1. Implement `specfact backlog init-config` scaffold.
+2. Extend `specfact backlog map-fields` for provider selection and provider-specific persistence.
+3. Run quality gates (format/type/contract) and targeted tests for modified test modules.
 
 ## Format Validation
 
 - **proposal.md Format**: Pass
-  - Title format: Correct (# Change: ...)
-  - Required sections: All present (Why, What Changes, Capabilities, Impact)
-  - "What Changes" format: Correct (NEW/EXTEND bullets)
-  - "Capabilities" section: Present (backlog-add)
+  - Title format: Correct
+  - Required sections: All present (`Why`, `What Changes`, `Capabilities`, `Impact`)
+  - "What Changes" format: Correct
+  - "Capabilities" section: Present
   - "Impact" format: Correct
-  - Source Tracking section: Present (GitHub #173)
+  - Source Tracking section: Present
 - **tasks.md Format**: Pass
-  - Section headers: Hierarchical numbered (## 1. ... ## 10.)
-  - Task format: - [ ] N.N Description
-  - Sub-task format: Indented - [ ] N.N.N
-  - Config.yaml compliance: Pass (TDD section, branch first, PR last, version/changelog task, GitHub issue task)
-- **specs/backlog-add/spec.md Format**: Pass (ADDED requirements, Given/When/Then)
-- **design.md Format**: Pass (bridge adapter, sequence, contract, fallback)
+  - Section headers: Correct
+  - Task format: Correct
+  - Sub-task format: Correct
+  - Config.yaml compliance: Pass (worktree + testing + quality gate tasks present)
+- **specs Format**: Pass
+  - Given/When/Then format: Verified
+  - References existing patterns: Verified
+- **design.md Format**: Pass
+  - Bridge adapter integration: Documented
+  - Sequence diagrams: Not required for this delta
+- **Format Issues Found**: 0
+- **Format Issues Fixed**: 0
 - **Config.yaml Compliance**: Pass
 
 ## OpenSpec Validation
 
 - **Status**: Pass
-- **Validation Command**: `openspec validate add-backlog-add-interactive-issue-creation --strict`
+- **Validation Command**: `openspec validate backlog-core-02-interactive-issue-creation --strict`
 - **Issues Found**: 0
 - **Issues Fixed**: 0
+- **Re-validated**: Yes
 
 ## Validation Artifacts
 
-- No temporary workspace used (validation was format and dependency analysis only).
-- Breaking change is in-scope (adapter implementations are part of the change).
-
-## Module Architecture Alignment (Re-validated 2026-02-10)
-
-This change was re-validated after renaming and updating to align with the modular architecture (arch-01 through arch-07):
-
-- Module package structure updated to `modules/{name}/module-package.yaml` pattern
-- CLI command registration moved from `cli.py` to `module-package.yaml` declarations
-- Core model modifications replaced with arch-07 schema extensions where applicable
-- Adapter protocol extensions use arch-05 bridge registry (no direct mixin modification)
-- Publisher and integrity metadata added for arch-06 marketplace readiness
-- All old change ID references updated to new module-scoped naming
-
-**Result**: Pass — format compliant, module architecture aligned, no breaking changes introduced.
+- Temporary workspace: `/tmp/specfact-validation-backlog-core-02-1771635189/repo`
+- Interface scaffolds: analyzed in-place via additive function diff (`config_schema.py`, `commands.py`, `add.py`)
+- Dependency graph: generated from `rg` dependency scans across `src/`, `modules/`, and `tests/`
