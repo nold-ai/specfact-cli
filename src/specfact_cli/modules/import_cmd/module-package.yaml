@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest. Command name is "import"; package id import_cmd.
 name: import_cmd
-version: "0.27.0"
+version: 0.35.0
 commands:
   - import
 command_help:
-  import: "Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)"
+  import: Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Import projects and requirements from code and external tools.
+license: Apache-2.0

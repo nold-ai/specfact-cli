@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest.
 name: analyze
-version: "0.27.0"
+version: 0.35.0
 commands:
   - analyze
 command_help:
-  analyze: "Analyze codebase for contract coverage and quality"
+  analyze: Analyze codebase for contract coverage and quality
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Analyze codebase quality, contracts, and architecture signals.
+license: Apache-2.0

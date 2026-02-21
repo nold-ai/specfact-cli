@@ -78,3 +78,17 @@ The system SHALL provide `specfact module upgrade <module-name>` command that up
 - **AND** SHALL check if newer version available
 - **AND** SHALL download and install newer version
 - **AND** SHALL remove old version after successful install
+
+#### Scenario: Upgrade reinstalls when module already exists
+- **WHEN** user runs `specfact module upgrade backlog` and backlog is already installed
+- **THEN** system SHALL replace existing installed files with the upgraded package
+- **AND** SHALL NOT no-op due to existing install marker files
+
+### Requirement: Installation extraction is path-safe
+
+The system SHALL reject archive members that escape the intended extraction root.
+
+#### Scenario: Installer blocks path traversal entries
+- **WHEN** a downloaded marketplace tarball contains absolute paths or `..` traversal
+- **THEN** install SHALL fail before extraction
+- **AND** SHALL raise a validation error indicating unsafe archive content

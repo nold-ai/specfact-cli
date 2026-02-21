@@ -1,11 +1,16 @@
-# SpecFact CLI module package manifest.
 name: project
-version: "0.27.0"
+version: 0.35.0
 commands:
   - project
 command_help:
-  project: "Manage project bundles with persona workflows"
+  project: Manage project bundles with persona workflows
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Manage project bundles, contexts, and lifecycle workflows.
+license: Apache-2.0

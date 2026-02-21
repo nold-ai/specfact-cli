@@ -1,13 +1,18 @@
-# SpecFact CLI module package manifest.
 name: sync
-version: "0.27.0"
+version: 0.35.0
 commands:
   - sync
 command_help:
-  sync: "Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.)"
+  sync: Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.)
 pip_dependencies: []
 module_dependencies:
   - plan
   - sdd
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Synchronize repository state with connected external systems.
+license: Apache-2.0

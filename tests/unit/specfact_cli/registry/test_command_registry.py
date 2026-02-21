@@ -170,3 +170,17 @@ def test_cli_backlog_help_exits_zero():
         timeout=60,
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
+
+
+def test_cli_module_help_exits_zero():
+    """specfact module --help exits 0."""
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "specfact_cli", "module", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)

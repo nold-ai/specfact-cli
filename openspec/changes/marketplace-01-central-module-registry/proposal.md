@@ -7,13 +7,14 @@ The modular architecture (arch-01 through arch-07) provides strong encapsulation
 ## What Changes
 
 - **NEW**: Create `nold-ai/specfact-cli-modules` GitHub repository with registry index and module publishing infrastructure
-- **NEW**: Create `module` module with CLI commands for install/uninstall/search/list/upgrade operations
+- **NEW**: Create `module-registry` module package exposing `specfact module` CLI commands for install/uninstall/search/list/upgrade operations
 - **NEW**: Implement multi-location module discovery (built-in, marketplace, custom paths)
 - **NEW**: Create marketplace client for fetching registry index and downloading module tarballs
 - **NEW**: Create module installer with checksum verification and marketplace path management
 - **MODIFY**: Extend module discovery to scan multiple locations (~/.specfact/marketplace-modules, ~/.specfact/custom-modules)
 - **NEW**: Add registry index.json schema with module metadata (id, namespace, version, download URLs, checksums)
 - **NEW**: Add documentation for installing modules and marketplace usage
+- **MODIFY**: Harmonize module lifecycle UX by keeping `specfact init --enable-module/--disable-module/--list-modules` as deprecated compatibility aliases while centralizing lifecycle management under `specfact module`
 
 ## Capabilities
 
@@ -31,7 +32,9 @@ The modular architecture (arch-01 through arch-07) provides strong encapsulation
 ## Impact
 
 - **Affected code**:
-  - `src/specfact_cli/modules/module/` (new module with install/uninstall/search/list/upgrade commands)
+  - `src/specfact_cli/modules/module_registry/` (new module package backing `specfact module` commands)
+  - `src/specfact_cli/modules/init/src/commands.py` (deprecation-compatible delegation for lifecycle flags)
+  - `src/specfact_cli/cli.py` (compatibility normalization behavior retained for bare interactive lifecycle flags)
   - `src/specfact_cli/registry/module_discovery.py` (new: multi-location discovery)
   - `src/specfact_cli/registry/marketplace_client.py` (new: registry client)
   - `src/specfact_cli/registry/module_installer.py` (new: installation logic)
@@ -46,7 +49,7 @@ The modular architecture (arch-01 through arch-07) provides strong encapsulation
   - New repository: `nold-ai/specfact-cli-modules` (registry infrastructure)
   - Depends on arch-06 (Enhanced Manifest Security) for checksum verification
 - **Integration points**: Module discovery, installation workflow, registry client, module verification
-- **Backward compatibility**: Fully backward compatible (built-in modules remain functional, marketplace is additive)
+- **Backward compatibility**: Backward compatible via deprecation alias strategy (existing `init` lifecycle flags remain supported while `specfact module` is canonical)
 - **Rollback plan**: Disable marketplace client, revert to built-in-only discovery
 
 ---

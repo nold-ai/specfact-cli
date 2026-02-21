@@ -1,9 +1,9 @@
-name: upgrade
+name: module-registry
 version: 0.35.0
 commands:
-  - upgrade
+  - module
 command_help:
-  upgrade: Check for and install SpecFact CLI updates
+  module: Manage marketplace modules (install, uninstall, search, list, show, upgrade)
 pip_dependencies: []
 module_dependencies: []
 tier: community
@@ -12,5 +12,5 @@ publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
-description: Check and apply SpecFact CLI version upgrades.
+description: 'Manage modules: search, list, show, install, and upgrade.'
 license: Apache-2.0

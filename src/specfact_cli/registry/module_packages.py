@@ -123,24 +123,11 @@ def get_modules_roots() -> list[Path]:
 
 @beartype
 def discover_all_package_metadata() -> list[tuple[Path, ModulePackageMetadata]]:
-    """Discover module package metadata across all configured roots."""
-    discovered: list[tuple[Path, ModulePackageMetadata]] = []
-    seen_names: set[str] = set()
-    logger = get_bridge_logger(__name__)
+    """Discover module package metadata across built-in/marketplace/custom roots."""
+    from specfact_cli.registry.module_discovery import discover_all_modules
 
-    for modules_root in get_modules_roots():
-        for package_dir, meta in discover_package_metadata(modules_root):
-            if meta.name in seen_names:
-                logger.warning(
-                    "Duplicate module package name '%s' found at '%s'; keeping first occurrence.",
-                    meta.name,
-                    package_dir,
-                )
-                continue
-            seen_names.add(meta.name)
-            discovered.append((package_dir, meta))
-
-    return discovered
+    discovered = discover_all_modules()
+    return [(entry.package_dir, entry.metadata) for entry in discovered]
 
 
 def _package_sort_key(item: tuple[Path, ModulePackageMetadata]) -> tuple[int, str]:
@@ -154,7 +141,7 @@ def _package_sort_key(item: tuple[Path, ModulePackageMetadata]) -> tuple[int, st
 
 
 @beartype
-def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePackageMetadata]]:
+def discover_package_metadata(modules_root: Path, source: str = "builtin") -> list[tuple[Path, ModulePackageMetadata]]:
     """
     Scan modules root for package dirs that have module-package.yaml; parse and return (dir, metadata).
     """
@@ -255,6 +242,9 @@ def discover_package_metadata(modules_root: Path) -> list[tuple[Path, ModulePack
                 pip_dependencies_versioned=pip_deps_versioned,
                 service_bridges=validated_service_bridges,
                 schema_extensions=validated_schema_extensions,
+                description=str(raw["description"]) if raw.get("description") else None,
+                license=str(raw["license"]) if raw.get("license") else None,
+                source=source,
             )
             result.append((child, meta))
         except Exception:
