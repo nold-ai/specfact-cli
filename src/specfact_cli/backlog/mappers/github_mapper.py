@@ -43,7 +43,8 @@ class GitHubFieldMapper(FieldMapper):
             Dict mapping canonical field names to extracted values
         """
         body = item_data.get("body", "") or ""
-        labels = item_data.get("labels", [])
+        labels_raw = item_data.get("labels", [])
+        labels = labels_raw if isinstance(labels_raw, list) else []
         label_names = [label.get("name", "") if isinstance(label, dict) else str(label) for label in labels if label]
 
         fields: dict[str, Any] = {}
@@ -211,23 +212,44 @@ class GitHubFieldMapper(FieldMapper):
         Returns:
             Numeric value or None if not found
         """
-        # Pattern 1: ## Field Name\n\n<number>
-        section_pattern = rf"^##+\s+{re.escape(field_name)}\s*$\n\s*(\d+)"
-        match = re.search(section_pattern, body, re.MULTILINE)
-        if match:
-            try:
-                return int(match.group(1))
-            except (ValueError, IndexError):
-                pass
+        normalized_field = field_name.strip().lower()
+        if not normalized_field:
+            return None
 
-        # Pattern 2: **Field Name:** <number>
-        inline_pattern = rf"\*\*{re.escape(field_name)}:\*\*\s*(\d+)"
-        match = re.search(inline_pattern, body, re.IGNORECASE)
-        if match:
-            try:
-                return int(match.group(1))
-            except (ValueError, IndexError):
-                pass
+        lines = body.splitlines()
+
+        # Pattern 1: markdown section heading followed by a numeric line.
+        for idx, raw_line in enumerate(lines):
+            line = raw_line.strip()
+            if not line.startswith("##"):
+                continue
+            heading = line.lstrip("#").strip().lower()
+            if heading != normalized_field:
+                continue
+            for next_line in lines[idx + 1 :]:
+                candidate = next_line.strip()
+                if not candidate:
+                    continue
+                match = re.match(r"^(\d+)", candidate)
+                if match:
+                    try:
+                        return int(match.group(1))
+                    except (ValueError, IndexError):
+                        return None
+                break
+
+        # Pattern 2: inline markdown label, e.g. **Field Name:** 8
+        inline_prefix = f"**{normalized_field}:**"
+        for raw_line in lines:
+            line = raw_line.strip()
+            if line.lower().startswith(inline_prefix):
+                remainder = line[len(inline_prefix) :].strip()
+                match = re.match(r"^(\d+)", remainder)
+                if match:
+                    try:
+                        return int(match.group(1))
+                    except (ValueError, IndexError):
+                        return None
 
         return None
 
@@ -268,7 +290,12 @@ class GitHubFieldMapper(FieldMapper):
 
         # Check issue type metadata if available
         issue_type = item_data.get("issue_type") or item_data.get("type")
-        if issue_type:
-            return str(issue_type)
+        if isinstance(issue_type, str) and issue_type.strip():
+            return issue_type.strip()
+        if isinstance(issue_type, dict):
+            for key in ("name", "title"):
+                candidate = issue_type.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
 
         return None

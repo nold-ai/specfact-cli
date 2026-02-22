@@ -26,6 +26,13 @@ class BacklogGraphProtocol(Protocol):
     def fetch_relationships(self, project_id: str) -> list[dict[str, Any]]:
         """Fetch all issue/work-item relationships for a project."""
 
+    @beartype
+    @require(lambda project_id: project_id.strip() != "", "project_id must be non-empty")
+    @require(lambda payload: isinstance(payload, dict), "payload must be dict")
+    @ensure(lambda result: isinstance(result, dict), "create_issue must return dict")
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a provider issue/work item and return id/key/url metadata."""
+
 
 @beartype
 @require(lambda adapter: adapter is not None, "adapter must be provided")
@@ -35,7 +42,7 @@ def require_backlog_graph_protocol(adapter: Any) -> BacklogGraphProtocol:
     if not isinstance(adapter, BacklogGraphProtocol):
         msg = (
             f"Adapter '{type(adapter).__name__}' does not support BacklogGraphProtocol. "
-            "Expected methods: fetch_all_issues(project_id, filters), fetch_relationships(project_id)."
+            "Expected methods: fetch_all_issues(project_id, filters), fetch_relationships(project_id), create_issue(project_id, payload)."
         )
         raise TypeError(msg)
     return adapter

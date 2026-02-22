@@ -10,6 +10,62 @@ This guide explains how to use SpecFact CLI for agile/scrum workflows, including
 
 Preferred command paths are `specfact backlog ceremony standup ...` and `specfact backlog ceremony refinement ...`. Legacy `backlog daily`/`backlog refine` remain available for compatibility.
 
+Backlog module command surface:
+
+- `specfact backlog add`
+- `specfact backlog analyze-deps`
+- `specfact backlog trace-impact`
+- `specfact backlog verify-readiness`
+- `specfact backlog diff`
+- `specfact backlog sync`
+- `specfact backlog promote`
+- `specfact backlog generate-release-notes`
+- `specfact backlog delta status|impact|cost-estimate|rollback-analysis`
+
+## Backlog Issue Creation (`backlog add`)
+
+Use `specfact backlog add` to create a backlog item with optional parent hierarchy validation and DoR checks.
+
+```bash
+# Non-interactive creation
+specfact backlog add \
+  --adapter github \
+  --project-id nold-ai/specfact-cli \
+  --template github_projects \
+  --type story \
+  --parent FEAT-123 \
+  --title "Implement X" \
+  --body "Acceptance criteria: ..." \
+  --non-interactive
+
+# Enforce Definition of Ready from .specfact/dor.yaml before create
+specfact backlog add \
+  --adapter github \
+  --project-id nold-ai/specfact-cli \
+  --type story \
+  --title "Implement X" \
+  --body "Acceptance criteria: ..." \
+  --check-dor \
+  --repo-path .
+
+# Interactive ADO flow with sprint/iteration selection and story-quality fields
+specfact backlog add \
+  --adapter ado \
+  --project-id "dominikusnold/Specfact CLI"
+```
+
+Key behavior:
+
+- validates parent exists in current backlog graph before creating
+- validates child-parent type compatibility using `creation_hierarchy` from config/template
+- supports interactive prompts when required fields are missing (unless `--non-interactive`)
+- prompts for ADO sprint/iteration selection and resolves available iterations from `--project-id` context
+- supports multiline body and acceptance criteria capture (default sentinel `::END::`)
+- captures priority and story points for story-like items
+- supports description rendering mode (`markdown` or `classic`)
+- auto-selects template by adapter when omitted (`ado_scrum` for ADO, `github_projects` for GitHub)
+- creates via adapter protocol (`github` or `ado`) and prints created `id`, `key`, and `url`
+
 ## Overview
 
 SpecFact CLI supports real-world agile/scrum practices through:

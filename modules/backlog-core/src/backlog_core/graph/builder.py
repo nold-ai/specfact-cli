@@ -25,6 +25,10 @@ class BacklogConfigModel(BaseModel):
         description="Raw relationship type -> normalized dependency mapping",
     )
     status_mapping: dict[str, str] = Field(default_factory=dict, description="Raw status -> normalized status mapping")
+    creation_hierarchy: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Allowed parent types per child type",
+    )
 
 
 @beartype
@@ -105,6 +109,7 @@ class BacklogGraphBuilder:
                 "type_mapping": dependency_data.get("type_mapping", {}),
                 "dependency_rules": dependency_data.get("dependency_rules", {}),
                 "status_mapping": dependency_data.get("status_mapping", {}),
+                "creation_hierarchy": dependency_data.get("creation_hierarchy", {}),
                 "providers": {name: provider.model_dump() for name, provider in schema.providers.items()},
             }
         return BacklogConfigModel.model_validate(config_payload).model_dump()
@@ -117,7 +122,7 @@ class BacklogGraphBuilder:
             value = override.get(key)
             if value is not None:
                 merged[key] = value
-        for key in ("type_mapping", "dependency_rules", "status_mapping", "providers"):
+        for key in ("type_mapping", "dependency_rules", "status_mapping", "creation_hierarchy", "providers"):
             merged[key] = {**merged.get(key, {}), **override.get(key, {})}
         return merged
 

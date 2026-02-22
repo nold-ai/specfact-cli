@@ -32,6 +32,10 @@ class _FakeGitHubAdapter:
         _ = project_id
         return [{"source_id": "1", "target_id": "2", "type": "blocks"}]
 
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        _ = project_id, payload
+        return {"id": "3", "key": "#3", "url": "https://example.test/issues/3"}
+
 
 def test_backlog_analyze_deps_github_flow(tmp_path: Path, monkeypatch) -> None:
     runner = CliRunner()

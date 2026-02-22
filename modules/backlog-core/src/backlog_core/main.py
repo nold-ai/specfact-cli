@@ -7,6 +7,7 @@ import typer
 from typer.core import TyperGroup
 
 from backlog_core.commands import (
+    add,
     analyze_deps,
     diff,
     generate_release_notes,
@@ -25,13 +26,14 @@ class _BacklogCoreCommandGroup(TyperGroup):
         # Command groups first for discoverability.
         "delta": 10,
         # High-impact flow commands next.
-        "sync": 20,
-        "verify-readiness": 30,
-        "analyze-deps": 40,
-        "diff": 50,
-        "promote": 60,
-        "generate-release-notes": 70,
-        "trace-impact": 80,
+        "add": 20,
+        "sync": 30,
+        "verify-readiness": 40,
+        "analyze-deps": 50,
+        "diff": 60,
+        "promote": 70,
+        "generate-release-notes": 80,
+        "trace-impact": 90,
     }
 
     def list_commands(self, ctx: click.Context) -> list[str]:
@@ -44,6 +46,7 @@ backlog_app = typer.Typer(
     help="Backlog dependency analysis and sync",
     cls=_BacklogCoreCommandGroup,
 )
+backlog_app.command("add")(add)
 backlog_app.command("analyze-deps")(analyze_deps)
 backlog_app.command("trace-impact")(trace_impact)
 backlog_app.command("sync")(sync)
