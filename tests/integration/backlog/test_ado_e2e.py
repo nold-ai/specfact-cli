@@ -38,6 +38,10 @@ class _FakeAdoAdapter:
         _ = project_id
         return [{"source_id": "100", "target_id": "101", "type": "blocks"}]
 
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        _ = project_id, payload
+        return {"id": "102", "key": "ADO-102", "url": "https://example.test/workitems/102"}
+
 
 def test_backlog_trace_impact_ado_flow(monkeypatch) -> None:
     runner = CliRunner()

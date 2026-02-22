@@ -36,6 +36,10 @@ class _FakeVerifyAdapter:
             {"source_id": "101", "target_id": "102", "type": "relates_to"},
         ]
 
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        _ = project_id, payload
+        return {"id": "103", "key": "A-103", "url": "https://example.test/workitems/103"}
+
 
 def test_verify_readiness_returns_ready_exit_code(monkeypatch) -> None:
     runner = CliRunner()
