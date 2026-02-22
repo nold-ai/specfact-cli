@@ -128,7 +128,7 @@ class TestSpecValidationResult:
 class TestValidateSpecWithSpecmatic:
     """Test suite for validate_spec_with_specmatic function."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     async def test_validate_success(self, mock_to_thread, mock_get_cmd, tmp_path):
@@ -150,7 +150,7 @@ class TestValidateSpecWithSpecmatic:
         assert result.examples_valid is True
         assert mock_to_thread.call_count == 2  # Schema validation + examples
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     async def test_validate_specmatic_not_available(self, mock_get_cmd, tmp_path):
         """Test when Specmatic is not available."""
@@ -166,7 +166,7 @@ class TestValidateSpecWithSpecmatic:
         assert result.examples_valid is False
         assert "Specmatic" in result.errors[0] and "not available" in result.errors[0]
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     async def test_validate_with_previous_version(self, mock_to_thread, mock_get_cmd, tmp_path):
@@ -193,7 +193,7 @@ class TestValidateSpecWithSpecmatic:
 class TestCheckBackwardCompatibility:
     """Test suite for check_backward_compatibility function."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     async def test_backward_compatible(self, mock_to_thread, mock_get_cmd, tmp_path):
@@ -213,7 +213,7 @@ class TestCheckBackwardCompatibility:
         assert is_compatible is True
         assert breaking_changes == []
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     async def test_backward_incompatible(self, mock_to_thread, mock_get_cmd, tmp_path):
@@ -242,7 +242,7 @@ class TestCheckBackwardCompatibility:
 class TestGenerateSpecmaticTests:
     """Test suite for generate_specmatic_tests function."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     async def test_generate_tests_success(self, mock_to_thread, mock_get_cmd, tmp_path):
@@ -264,7 +264,7 @@ class TestGenerateSpecmaticTests:
 class TestCreateMockServer:
     """Test suite for create_mock_server function."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch("builtins.__import__")
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")

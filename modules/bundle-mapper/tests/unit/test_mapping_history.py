@@ -69,3 +69,29 @@ def test_save_user_confirmed_mapping_increments_history() -> None:
                 break
         else:
             pytest.fail("Expected backend-services in history counts")
+
+
+def test_item_key_similarity_does_not_false_match_tag_lists() -> None:
+    k1 = item_key(_item(assignees=["alice"], area="api", tags=["a", "b"]))
+    k2 = item_key(_item(assignees=["alice"], area="web", tags=["a"]))
+
+    assert item_keys_similar(k1, k2) is False
+
+
+def test_load_bundle_mapping_config_malformed_thresholds_use_defaults(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+backlog:
+  bundle_mapping:
+    auto_assign_threshold: high
+    confirm_threshold: medium
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_bundle_mapping_config(config_path=config_path)
+
+    assert cfg["auto_assign_threshold"] == 0.8
+    assert cfg["confirm_threshold"] == 0.5

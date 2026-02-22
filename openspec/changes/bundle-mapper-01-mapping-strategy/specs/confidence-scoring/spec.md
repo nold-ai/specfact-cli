@@ -62,6 +62,13 @@ The system SHALL score content similarity between item text and existing specs i
 - **WHEN** item text has no keywords in common with bundle specs
 - **THEN** the system assigns score 0.0 for that bundle
 
+#### Scenario: Conflicting content signal does not increase confidence
+
+- **GIVEN** explicit or historical scoring selected a primary bundle
+- **AND** top content similarity points to a different bundle
+- **WHEN** final confidence is calculated
+- **THEN** the content contribution is not added to the selected primary bundle confidence
+
 #### Scenario: Tokenization for matching
 
 - **WHEN** content similarity is computed
@@ -90,3 +97,9 @@ The system SHALL use configurable confidence thresholds for routing decisions.
 
 - **WHEN** user configures custom thresholds in `.specfact/config.yaml`
 - **THEN** the system uses custom thresholds instead of defaults
+
+#### Scenario: Malformed thresholds fall back to defaults
+
+- **WHEN** config contains non-numeric threshold values
+- **THEN** mapper initialization does not fail
+- **AND** default threshold values are used

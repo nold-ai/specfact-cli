@@ -62,10 +62,23 @@ The system SHALL persist mapping rules learned from user confirmations.
 - **WHEN** a new item matches historical pattern (same assignee, area, tags)
 - **THEN** the system uses historical mapping frequency to boost confidence score
 
+#### Scenario: Historical mapping ignores stale bundle ids
+
+- **GIVEN** history contains bundle ids that are no longer present in available bundles
+- **WHEN** historical scoring is computed
+- **THEN** stale bundle ids are ignored
+- **AND** returned historical bundle ids are always members of current available bundles
+
 #### Scenario: Mapping rules from config
 
 - **WHEN** config file contains mapping rules (e.g., "assignee=alice → backend-services")
 - **THEN** the system applies these rules before computing other signals
+
+#### Scenario: History key encoding is unambiguous
+
+- **WHEN** item keys are serialized for history matching
+- **THEN** field delimiters and tag-value delimiters do not collide
+- **AND** round-trip parsing preserves all tag values without truncation
 
 ### Requirement: Interactive Mapping UI
 
