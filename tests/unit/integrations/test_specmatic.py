@@ -1,8 +1,7 @@
 """Unit tests for Specmatic integration."""
 
+import asyncio
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from specfact_cli.integrations.specmatic import (
     SpecValidationResult,
@@ -128,10 +127,9 @@ class TestSpecValidationResult:
 class TestValidateSpecWithSpecmatic:
     """Test suite for validate_spec_with_specmatic function."""
 
-    @pytest.mark.asyncio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
-    async def test_validate_success(self, mock_to_thread, mock_get_cmd, tmp_path):
+    def test_validate_success(self, mock_to_thread, mock_get_cmd, tmp_path):
         """Test successful validation."""
         # Mock specmatic command
         mock_get_cmd.return_value = ["specmatic"]
@@ -143,33 +141,31 @@ class TestValidateSpecWithSpecmatic:
         spec_path = tmp_path / "openapi.yaml"
         spec_path.write_text("openapi: 3.0.0\n")
 
-        result = await validate_spec_with_specmatic(spec_path)
+        result = asyncio.run(validate_spec_with_specmatic(spec_path))
 
         assert result.is_valid is True
         assert result.schema_valid is True
         assert result.examples_valid is True
         assert mock_to_thread.call_count == 2  # Schema validation + examples
 
-    @pytest.mark.asyncio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
-    async def test_validate_specmatic_not_available(self, mock_get_cmd, tmp_path):
+    def test_validate_specmatic_not_available(self, mock_get_cmd, tmp_path):
         """Test when Specmatic is not available."""
         mock_get_cmd.return_value = None
 
         spec_path = tmp_path / "openapi.yaml"
         spec_path.write_text("openapi: 3.0.0\n")
 
-        result = await validate_spec_with_specmatic(spec_path)
+        result = asyncio.run(validate_spec_with_specmatic(spec_path))
 
         assert result.is_valid is False
         assert result.schema_valid is False
         assert result.examples_valid is False
         assert "Specmatic" in result.errors[0] and "not available" in result.errors[0]
 
-    @pytest.mark.asyncio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
-    async def test_validate_with_previous_version(self, mock_to_thread, mock_get_cmd, tmp_path):
+    def test_validate_with_previous_version(self, mock_to_thread, mock_get_cmd, tmp_path):
         """Test validation with previous version for backward compatibility."""
         mock_get_cmd.return_value = ["specmatic"]
         # Mock successful subprocess runs
@@ -183,7 +179,7 @@ class TestValidateSpecWithSpecmatic:
         previous_path = tmp_path / "openapi.v1.yaml"
         previous_path.write_text("openapi: 3.0.0\n")
 
-        result = await validate_spec_with_specmatic(spec_path, previous_path)
+        result = asyncio.run(validate_spec_with_specmatic(spec_path, previous_path))
 
         assert result.is_valid is True
         assert result.backward_compatible is True
@@ -193,10 +189,9 @@ class TestValidateSpecWithSpecmatic:
 class TestCheckBackwardCompatibility:
     """Test suite for check_backward_compatibility function."""
 
-    @pytest.mark.asyncio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
-    async def test_backward_compatible(self, mock_to_thread, mock_get_cmd, tmp_path):
+    def test_backward_compatible(self, mock_to_thread, mock_get_cmd, tmp_path):
         """Test when specs are backward compatible."""
         mock_get_cmd.return_value = ["specmatic"]
         # Mock successful backward compatibility check
@@ -208,15 +203,14 @@ class TestCheckBackwardCompatibility:
         new_spec = tmp_path / "new.yaml"
         new_spec.write_text("openapi: 3.0.0\n")
 
-        is_compatible, breaking_changes = await check_backward_compatibility(old_spec, new_spec)
+        is_compatible, breaking_changes = asyncio.run(check_backward_compatibility(old_spec, new_spec))
 
         assert is_compatible is True
         assert breaking_changes == []
 
-    @pytest.mark.asyncio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
-    async def test_backward_incompatible(self, mock_to_thread, mock_get_cmd, tmp_path):
+    def test_backward_incompatible(self, mock_to_thread, mock_get_cmd, tmp_path):
         """Test when specs are not backward compatible."""
         mock_get_cmd.return_value = ["specmatic"]
         # Mock failed backward compatibility check with breaking changes in output
@@ -232,7 +226,7 @@ class TestCheckBackwardCompatibility:
         new_spec = tmp_path / "new.yaml"
         new_spec.write_text("openapi: 3.0.0\n")
 
-        is_compatible, breaking_changes = await check_backward_compatibility(old_spec, new_spec)
+        is_compatible, breaking_changes = asyncio.run(check_backward_compatibility(old_spec, new_spec))
 
         assert is_compatible is False
         assert len(breaking_changes) > 0
@@ -242,10 +236,9 @@ class TestCheckBackwardCompatibility:
 class TestGenerateSpecmaticTests:
     """Test suite for generate_specmatic_tests function."""
 
-    @pytest.mark.asyncio
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
-    async def test_generate_tests_success(self, mock_to_thread, mock_get_cmd, tmp_path):
+    def test_generate_tests_success(self, mock_to_thread, mock_get_cmd, tmp_path):
         """Test successful test generation."""
         mock_get_cmd.return_value = ["specmatic"]
         mock_result = MagicMock(returncode=0, stderr="")
@@ -255,7 +248,7 @@ class TestGenerateSpecmaticTests:
         spec_path.write_text("openapi: 3.0.0\n")
         output_dir = tmp_path / "tests"
 
-        output = await generate_specmatic_tests(spec_path, output_dir)
+        output = asyncio.run(generate_specmatic_tests(spec_path, output_dir))
 
         assert output == output_dir
         mock_to_thread.assert_called_once()
@@ -264,12 +257,11 @@ class TestGenerateSpecmaticTests:
 class TestCreateMockServer:
     """Test suite for create_mock_server function."""
 
-    @pytest.mark.asyncio
     @patch("builtins.__import__")
     @patch("specfact_cli.integrations.specmatic._get_specmatic_command")
     @patch("specfact_cli.integrations.specmatic.asyncio.to_thread")
     @patch("specfact_cli.integrations.specmatic.asyncio.sleep")
-    async def test_create_mock_server(self, mock_sleep, mock_to_thread, mock_get_cmd, mock_import, tmp_path):
+    def test_create_mock_server(self, mock_sleep, mock_to_thread, mock_get_cmd, mock_import, tmp_path):
         """Test mock server creation."""
         import socket as real_socket
 
@@ -307,7 +299,7 @@ class TestCreateMockServer:
         spec_path = tmp_path / "openapi.yaml"
         spec_path.write_text("openapi: 3.0.0\n")
 
-        mock_server = await create_mock_server(spec_path, port=9000, strict_mode=True)
+        mock_server = asyncio.run(create_mock_server(spec_path, port=9000, strict_mode=True))
 
         assert mock_server.port == 9000
         assert mock_server.spec_path == spec_path

@@ -84,6 +84,13 @@ Why this matters:
 - **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Declare and use namespaced extension fields on Feature/ProjectBundle
 - **[Module Security](reference/module-security.md)** - Publisher, integrity (checksum/signature), and versioned dependencies
 
+### For Technical Readers
+
+- **[Architecture Reference](reference/architecture.md)** - Current architecture model and interfaces
+- **[Architecture Docs Index](architecture/README.md)** - Component graph, module system, data flow, state machines
+- **[Architecture Implementation Status](architecture/implementation-status.md)** - Implemented vs planned features
+- **[Architecture ADRs](architecture/adr/README.md)** - Decision records and template
+
 
 ## Module Marketplace
 
@@ -171,6 +178,9 @@ specfact sync bridge --adapter ado --mode export-only \
 - **[Command Reference](reference/commands.md)** - Complete command documentation
 - **[Authentication](reference/authentication.md)** - Device code auth flows and token storage
 - **[Architecture](reference/architecture.md)** - Technical design and principles
+- **[Architecture Docs Index](architecture/README.md)** - Deep-dive architecture documentation
+- **[Architecture Implementation Status](architecture/implementation-status.md)** - Current vs planned architecture scope
+- **[Architecture ADRs](architecture/adr/README.md)** - Architecture decision records
 - **[Bridge Registry](reference/bridge-registry.md)** 🆕 - Module-declared bridge converters and lifecycle registration
 - **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
 - **[Directory Structure](reference/directory-structure.md)** - Project structure

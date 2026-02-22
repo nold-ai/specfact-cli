@@ -192,6 +192,17 @@ class TestGitHubFieldMapper:
         fields = mapper.extract_fields(item_data)
         assert fields["work_item_type"] == "Story"
 
+    def test_extract_work_item_type_from_native_type_object(self) -> None:
+        """GitHub mapper resolves work item type from native issue type metadata."""
+        mapper = GitHubFieldMapper()
+        item_data = {
+            "body": "test",
+            "labels": [],
+            "type": {"name": "Feature"},
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["work_item_type"] == "Feature"
+
 
 class TestAdoFieldMapper:
     """Tests for AdoFieldMapper with default mappings."""

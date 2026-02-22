@@ -30,11 +30,13 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 | policy-engine-01-unified-framework | implemented 2026-02-17 (archived) |
 | patch-mode-01-preview-apply | implemented 2026-02-18 (archived) |
 | validation-01-deep-validation | implemented 2026-02-18 (archived) |
-| bundle-mapper-01-mapping-strategy | implemented 2026-02-18 (archived) |
+| bundle-mapper-01-mapping-strategy | implemented 2026-02-22 (archived) |
 | backlog-core-01-dependency-analysis-commands | implemented 2026-02-18 (archived) |
+| backlog-core-02-interactive-issue-creation | implemented 2026-02-22 (archived) |
 | ceremony-cockpit-01-ceremony-aliases | implemented 2026-02-18 (archived) |
 | workflow-01-git-worktree-management | implemented 2026-02-18 (archived) |
 | verification-01-wave1-delta-closure | implemented 2026-02-18 (archived) |
+| marketplace-01-central-module-registry | implemented 2026-02-22 (archived) |
 
 ### Pending
 
@@ -58,12 +60,13 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | — | — | arch-06, arch-07 implemented 2026-02-16 (see Implemented above) | — | — |
+| arch | 08 | arch-08-documentation-discrepancies-remediation | [#291](https://github.com/nold-ai/specfact-cli/issues/291) | — |
 
 ### Marketplace (module distribution)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| marketplace | 01 | marketplace-01-central-module-registry | [#214](https://github.com/nold-ai/specfact-cli/issues/214) | #208 |
+| marketplace | 01 | marketplace-01-central-module-registry (implemented 2026-02-22; archived) | [#214](https://github.com/nold-ai/specfact-cli/issues/214) | #208 |
 | marketplace | 02 | marketplace-02-advanced-marketplace-features | [#215](https://github.com/nold-ai/specfact-cli/issues/215) | #214 |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
@@ -73,7 +76,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | policy-engine | 01 | policy-engine-01-unified-framework (implemented 2026-02-17; archived) | [#176](https://github.com/nold-ai/specfact-cli/issues/176) | — |
 | patch-mode | 01 | patch-mode-01-preview-apply (implemented 2026-02-18; archived) | [#177](https://github.com/nold-ai/specfact-cli/issues/177) | — |
 | validation | 01 | validation-01-deep-validation (implemented 2026-02-18; archived) | [#163](https://github.com/nold-ai/specfact-cli/issues/163) | — |
-| bundle-mapper | 01 | bundle-mapper-01-mapping-strategy (implemented 2026-02-18; archived) | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
+| bundle-mapper | 01 | bundle-mapper-01-mapping-strategy (implemented 2026-02-22; archived) | [#121](https://github.com/nold-ai/specfact-cli/issues/121) | — |
 | verification | 01 | verification-01-wave1-delta-closure (implemented 2026-02-18; archived) | [#276](https://github.com/nold-ai/specfact-cli/issues/276) | #177 ✅, #163 ✅, #116 ✅, #121 ✅ |
 
 ### CI/CD (workflow and artifacts)
@@ -93,7 +96,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | backlog-core | 01 | backlog-core-01-dependency-analysis-commands ✅ (implemented 2026-02-18; archived) | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
-| backlog-core | 02 | backlog-core-02-interactive-issue-creation | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
+| backlog-core | 02 | backlog-core-02-interactive-issue-creation (implemented 2026-02-22; archived) | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
 
 ### backlog-scrum
 

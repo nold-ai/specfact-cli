@@ -6,8 +6,10 @@ Tests for backlog refinement commands, including preview output and filtering.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import yaml
 from rich.panel import Panel
 from typer.testing import CliRunner
 
@@ -237,6 +239,134 @@ class TestInteractiveMappingCommand:
         # Should fail with error about missing token
         assert result.exit_code != 0
         assert "token required" in result.stdout.lower() or "error" in result.stdout.lower()
+
+    @patch("questionary.checkbox")
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    def test_map_fields_provider_picker_accepts_choice_objects(
+        self,
+        mock_get_token: MagicMock,
+        mock_checkbox: MagicMock,
+        tmp_path,
+    ) -> None:
+        """Provider picker should accept questionary Choice-like objects with `.value`."""
+
+        class _ChoiceLike:
+            def __init__(self, value: str) -> None:
+                self.value = value
+
+        mock_checkbox.return_value.ask.return_value = [_ChoiceLike("github")]
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                app,
+                [
+                    "backlog",
+                    "map-fields",
+                    "--github-project-id",
+                    "nold-ai/specfact-demo-repo",
+                    "--github-project-v2-id",
+                    "PVT_project_id",
+                    "--github-type-field-id",
+                    "PVT_type_field",
+                    "--github-type-option",
+                    "task=OPT_TASK",
+                ],
+            )
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        assert "No providers selected" not in result.stdout
+
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    def test_map_fields_github_provider_persists_backlog_config(self, mock_get_token: MagicMock, tmp_path) -> None:
+        """Test GitHub provider mapping persistence into .specfact/backlog-config.yaml."""
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                app,
+                [
+                    "backlog",
+                    "map-fields",
+                    "--provider",
+                    "github",
+                    "--github-project-id",
+                    "nold-ai/specfact-demo-repo",
+                    "--github-project-v2-id",
+                    "PVT_project_id",
+                    "--github-type-field-id",
+                    "PVT_type_field",
+                    "--github-type-option",
+                    "task=OPT_TASK",
+                ],
+            )
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        cfg_file = tmp_path / ".specfact" / "backlog-config.yaml"
+        assert cfg_file.exists()
+        loaded = yaml.safe_load(cfg_file.read_text(encoding="utf-8"))
+        github_settings = loaded["backlog_config"]["providers"]["github"]["settings"]
+        mapping = github_settings["provider_fields"]["github_project_v2"]
+        assert mapping["project_id"] == "PVT_project_id"
+        assert mapping["type_field_id"] == "PVT_type_field"
+        assert mapping["type_option_ids"]["task"] == "OPT_TASK"
+        assert github_settings["field_mapping_file"] == ".specfact/templates/backlog/field_mappings/github_custom.yaml"
+        github_custom = tmp_path / ".specfact" / "templates" / "backlog" / "field_mappings" / "github_custom.yaml"
+        assert github_custom.exists()
+        github_custom_payload = yaml.safe_load(github_custom.read_text(encoding="utf-8"))
+        assert github_custom_payload["type_mapping"]["task"] == "task"
+
+    def test_backlog_init_config_scaffolds_default_file(self, tmp_path) -> None:
+        """Test backlog init-config creates default backlog-config scaffold."""
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["backlog", "init-config"])
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        cfg_file = tmp_path / ".specfact" / "backlog-config.yaml"
+        assert cfg_file.exists()
+        loaded = yaml.safe_load(cfg_file.read_text(encoding="utf-8"))
+        assert "backlog_config" in loaded
+        assert "providers" in loaded["backlog_config"]
+        assert "github" in loaded["backlog_config"]["providers"]
+        assert "ado" in loaded["backlog_config"]["providers"]
+
+    def test_backlog_init_config_does_not_overwrite_without_force(self, tmp_path) -> None:
+        """Test backlog init-config respects no-overwrite behavior by default."""
+        import os
+
+        cfg_dir = tmp_path / ".specfact"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        cfg_file = cfg_dir / "backlog-config.yaml"
+        cfg_file.write_text("backlog_config:\n  providers:\n    github:\n      adapter: github\n", encoding="utf-8")
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["backlog", "init-config"])
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        content = cfg_file.read_text(encoding="utf-8")
+        assert "adapter: github" in content
+        assert "already exists" in result.stdout.lower()
 
 
 class TestParseRefinedExportMarkdown:

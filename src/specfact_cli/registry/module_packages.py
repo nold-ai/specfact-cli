@@ -905,7 +905,8 @@ def register_module_package_commands(
                     cmd_name,
                 )
                 CommandRegistry._typer_cache.pop(cmd_name, None)
-                logger.debug("Module %s extended command group '%s'.", meta.name, cmd_name)
+                if is_debug_mode():
+                    logger.debug("Module %s extended command group '%s'.", meta.name, cmd_name)
                 continue
             help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
             loader = _make_package_loader(package_dir, meta.name, cmd_name)

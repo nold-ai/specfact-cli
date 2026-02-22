@@ -3,6 +3,7 @@
 from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.modules import module_io_shim
 
+from .add import add
 from .analyze_deps import analyze_deps, trace_impact
 from .diff import diff
 from .promote import promote
@@ -20,6 +21,7 @@ commands_interface = module_io_shim
 
 __all__ = [
     "BacklogGraphToPlanBundle",
+    "add",
     "analyze_deps",
     "commands_interface",
     "compute_delta",

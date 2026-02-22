@@ -33,6 +33,10 @@ class _FakeBacklogAdapter:
         _ = project_id
         return [{"source_id": "1", "target_id": "2", "type": "blocks"}]
 
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        _ = project_id, payload
+        return {"id": "3", "key": "TASK-3", "url": "https://example.test/issues/3"}
+
 
 def _write_baseline(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)

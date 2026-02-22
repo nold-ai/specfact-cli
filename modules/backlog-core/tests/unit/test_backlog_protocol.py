@@ -32,6 +32,10 @@ class _ValidAdapter:
         _ = project_id
         return []
 
+    def create_issue(self, project_id: str, payload: dict) -> dict:
+        _ = project_id, payload
+        return {"id": "1", "key": "1", "url": "https://example.test/1"}
+
 
 class _InvalidAdapter:
     def fetch_all_issues(self, project_id: str, filters: dict | None = None) -> list[dict]:

@@ -111,6 +111,12 @@ docs/internal/
 .claude/skills/openspec-*/
 !.claude/skills/openspec-workflows/
 
+.codex/skills/openspec-*/
+!.codex/skills/openspec-workflows/
+
+.vibe/skills/openspec-*/
+!.vibe/skills/openspec-workflows/
+
 # Semgrep rules (generated from tools/semgrep/ - source rules are versioned)
 .semgrep/
 
