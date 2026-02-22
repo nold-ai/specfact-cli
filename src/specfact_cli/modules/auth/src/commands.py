@@ -42,7 +42,7 @@ AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 AZURE_DEVOPS_SCOPES = [AZURE_DEVOPS_RESOURCE]
 DEFAULT_GITHUB_BASE_URL = "https://github.com"
 DEFAULT_GITHUB_API_URL = "https://api.github.com"
-DEFAULT_GITHUB_SCOPES = "repo"
+DEFAULT_GITHUB_SCOPES = "repo read:project project"
 DEFAULT_GITHUB_CLIENT_ID = "Ov23lizkVHsbEIjZKvRD"
 
 
@@ -589,7 +589,7 @@ def auth_github(
     scopes: str = typer.Option(
         DEFAULT_GITHUB_SCOPES,
         "--scopes",
-        help="OAuth scopes (comma or space separated)",
+        help="OAuth scopes (comma or space separated). Default: repo,read:project,project",
         hidden=True,
     ),
 ) -> None:

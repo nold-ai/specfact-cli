@@ -1161,8 +1161,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             payload["state_reason"] = state_reason
 
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(
+                lambda: requests.post(url, json=payload, headers=headers, timeout=30),
+                retry_on_ambiguous_transport=False,
+            )
             issue_data = response.json()
 
             # If issue was created as closed, add a comment explaining why
@@ -1281,8 +1283,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             payload["state_reason"] = state_reason
 
         try:
-            response = requests.patch(url, json=payload, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(lambda: requests.patch(url, json=payload, headers=headers, timeout=30))
             issue_data = response.json()
 
             # Add comment explaining status change
@@ -1346,8 +1347,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         payload = {"body": comment}
 
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            response.raise_for_status()
+            self._request_with_retry(
+                lambda: requests.post(url, json=payload, headers=headers, timeout=30),
+                retry_on_ambiguous_transport=False,
+            )
         except requests.RequestException as e:
             # Log but don't fail - comment is non-critical
             console.print(f"[yellow]⚠[/yellow] Failed to add comment to issue #{issue_number}: {e}")
@@ -1509,8 +1512,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 payload["state_reason"] = state_reason
 
         try:
-            response = requests.patch(url, json=payload, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(lambda: requests.patch(url, json=payload, headers=headers, timeout=30))
             issue_data = response.json()
 
             # Add comment if issue was closed due to status change, or if already closed with applied status
@@ -1684,8 +1686,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             patch_url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
             patch_payload = {"labels": all_labels}
 
-            patch_response = requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30)
-            patch_response.raise_for_status()
+            self._request_with_retry(lambda: requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30))
 
             return {
                 "issue_number": current_issue.get("number", issue_number),  # Use API response number (int)
@@ -2640,6 +2641,250 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return filtered_items
 
     @beartype
+    def _github_graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+        """Execute GitHub GraphQL request and return `data` payload."""
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github+json",
+        }
+        response = self._request_with_retry(
+            lambda: requests.post(
+                f"{self.base_url}/graphql",
+                json={"query": query, "variables": variables},
+                headers=headers,
+                timeout=30,
+            )
+        )
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("GitHub GraphQL response must be an object")
+        errors = payload.get("errors")
+        if isinstance(errors, list) and errors:
+            raise ValueError(f"GitHub GraphQL errors: {errors}")
+        data = payload.get("data")
+        return data if isinstance(data, dict) else {}
+
+    @beartype
+    def _try_set_github_issue_type(
+        self,
+        issue_node_id: str,
+        issue_type: str,
+        provider_fields: dict[str, Any] | None,
+    ) -> None:
+        """Best-effort GitHub issue type update using repository issue-type ids."""
+        if not issue_node_id or not isinstance(provider_fields, dict):
+            return
+
+        issue_cfg = provider_fields.get("github_issue_types")
+        if not isinstance(issue_cfg, dict):
+            return
+        type_ids = issue_cfg.get("type_ids")
+        if not isinstance(type_ids, dict):
+            return
+
+        issue_type_id = str(type_ids.get(issue_type) or type_ids.get(issue_type.lower()) or "").strip()
+        if not issue_type_id:
+            return
+
+        mutation = (
+            "mutation($issueId: ID!, $issueTypeId: ID!) { "
+            "updateIssue(input: {id: $issueId, issueTypeId: $issueTypeId}) { issue { id } } "
+            "}"
+        )
+        try:
+            self._github_graphql(
+                mutation,
+                {"issueId": issue_node_id, "issueTypeId": issue_type_id},
+            )
+        except (requests.RequestException, ValueError) as error:
+            console.print(f"[yellow]⚠[/yellow] Could not set GitHub issue Type automatically: {error}")
+
+    @beartype
+    def _try_link_github_sub_issue(
+        self,
+        owner: str,
+        repo: str,
+        parent_ref: Any,
+        sub_issue_node_id: str,
+    ) -> None:
+        """Best-effort native GitHub parent/sub-issue link using sidebar relationship."""
+        if not sub_issue_node_id:
+            return
+
+        parent_raw = str(parent_ref or "").strip()
+        if not parent_raw:
+            return
+
+        parent_number_text = parent_raw.removeprefix("#")
+        if not parent_number_text.isdigit():
+            return
+        parent_number = int(parent_number_text)
+
+        parent_query = (
+            "query($owner:String!, $repo:String!, $number:Int!) { "
+            "repository(owner:$owner, name:$repo) { issue(number:$number) { id } } "
+            "}"
+        )
+        link_mutation = (
+            "mutation($parentIssueId:ID!, $subIssueId:ID!) { "
+            "addSubIssue(input:{ issueId:$parentIssueId, subIssueId:$subIssueId, replaceParent:true }) { "
+            "issue { id } subIssue { id } "
+            "} "
+            "}"
+        )
+
+        try:
+            parent_data = self._github_graphql(
+                parent_query,
+                {"owner": owner, "repo": repo, "number": parent_number},
+            )
+            repository = parent_data.get("repository") if isinstance(parent_data, dict) else None
+            issue = repository.get("issue") if isinstance(repository, dict) else None
+            parent_issue_id = str(issue.get("id") or "").strip() if isinstance(issue, dict) else ""
+            if not parent_issue_id:
+                return
+            self._github_graphql(
+                link_mutation,
+                {"parentIssueId": parent_issue_id, "subIssueId": sub_issue_node_id},
+            )
+        except (requests.RequestException, ValueError) as error:
+            console.print(f"[yellow]⚠[/yellow] Could not create native GitHub parent/sub-issue link: {error}")
+
+    def _try_set_github_project_type_field(
+        self,
+        issue_node_id: str,
+        issue_type: str,
+        provider_fields: dict[str, Any] | None,
+    ) -> None:
+        """Best-effort GitHub Projects v2 Type field update for created issues."""
+        if not issue_node_id or not isinstance(provider_fields, dict):
+            return
+
+        project_cfg = provider_fields.get("github_project_v2")
+        if not isinstance(project_cfg, dict):
+            return
+
+        project_id = str(project_cfg.get("project_id") or "").strip()
+        type_field_id = str(project_cfg.get("type_field_id") or "").strip()
+        option_map = project_cfg.get("type_option_ids")
+        if not isinstance(option_map, dict):
+            return
+
+        option_id = str(option_map.get(issue_type) or option_map.get(issue_type.lower()) or "").strip()
+        if not project_id or not type_field_id or not option_id:
+            return
+
+        add_item_mutation = (
+            "mutation($projectId: ID!, $contentId: ID!) { "
+            "addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) { item { id } }"
+            " }"
+        )
+        set_type_mutation = (
+            "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { "
+            "updateProjectV2ItemFieldValue(input: {"
+            "projectId: $projectId, itemId: $itemId, fieldId: $fieldId, "
+            "value: { singleSelectOptionId: $optionId }"
+            "}) { projectV2Item { id } }"
+            " }"
+        )
+
+        try:
+            add_data = self._github_graphql(
+                add_item_mutation,
+                {"projectId": project_id, "contentId": issue_node_id},
+            )
+            add_result = add_data.get("addProjectV2ItemById") if isinstance(add_data, dict) else None
+            item = add_result.get("item") if isinstance(add_result, dict) else None
+            item_id = str(item.get("id") or "").strip() if isinstance(item, dict) else ""
+            if not item_id:
+                return
+            self._github_graphql(
+                set_type_mutation,
+                {
+                    "projectId": project_id,
+                    "itemId": item_id,
+                    "fieldId": type_field_id,
+                    "optionId": option_id,
+                },
+            )
+        except (requests.RequestException, ValueError) as error:
+            console.print(f"[yellow]⚠[/yellow] Could not set GitHub Projects Type field automatically: {error}")
+
+    @beartype
+    @require(
+        lambda project_id: isinstance(project_id, str) and len(project_id.strip()) > 0, "project_id must be non-empty"
+    )
+    @require(lambda payload: isinstance(payload, dict), "payload must be dict")
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a GitHub issue from provider-agnostic backlog payload."""
+        owner, repo = project_id.split("/", 1) if "/" in project_id else (self.repo_owner, self.repo_name)
+        if not owner or not repo:
+            raise ValueError(
+                "GitHub project_id must be '<owner>/<repo>' or adapter must be configured with repo_owner/repo_name"
+            )
+        if not self.api_token:
+            raise ValueError("GitHub API token required to create issues")
+
+        title = str(payload.get("title") or "").strip()
+        if not title:
+            raise ValueError("payload.title is required")
+
+        issue_type = str(payload.get("type") or "task").strip().lower()
+        description_format = str(payload.get("description_format") or "markdown").strip().lower()
+        body = str(payload.get("description") or payload.get("body") or "").strip()
+
+        acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
+        if acceptance_criteria:
+            if description_format == "classic":
+                body = f"{body}\n\nAcceptance Criteria:\n{acceptance_criteria}".strip()
+            else:
+                body = f"{body}\n\n## Acceptance Criteria\n{acceptance_criteria}".strip()
+
+        parent_id = payload.get("parent_id")
+        if parent_id:
+            parent_line = f"Parent: #{parent_id}"
+            body = f"{body}\n\n{parent_line}".strip() if body else parent_line
+
+        labels = [issue_type] if issue_type else []
+        priority = str(payload.get("priority") or "").strip()
+        if priority:
+            labels.append(f"priority:{priority.lower()}")
+        story_points = payload.get("story_points")
+        if story_points is not None:
+            labels.append(f"story-points:{story_points}")
+        url = f"{self.base_url}/repos/{owner}/{repo}/issues"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        response = self._request_with_retry(
+            lambda: requests.post(
+                url,
+                json={"title": title, "body": body, "labels": labels},
+                headers=headers,
+                timeout=30,
+            ),
+            retry_on_ambiguous_transport=False,
+        )
+        created = response.json()
+        issue_node_id = str(created.get("node_id") or "").strip()
+        if parent_id:
+            self._try_link_github_sub_issue(owner, repo, parent_id, issue_node_id)
+
+        provider_fields = payload.get("provider_fields")
+        if isinstance(provider_fields, dict):
+            self._try_set_github_issue_type(issue_node_id, issue_type, provider_fields)
+            self._try_set_github_project_type_field(issue_node_id, issue_type, provider_fields)
+
+        canonical_issue_number = str(created.get("number") or created.get("id") or "")
+        return {
+            "id": canonical_issue_number,
+            "key": canonical_issue_number,
+            "url": str(created.get("html_url") or created.get("url") or ""),
+        }
+
+    @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -2770,6 +3015,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 mapped = _normalize(value)
                 if mapped:
                     return mapped
+            if isinstance(value, dict):
+                for candidate_key in ("name", "title"):
+                    candidate_value = value.get(candidate_key)
+                    if isinstance(candidate_value, str):
+                        mapped = _normalize(candidate_value)
+                        if mapped:
+                            return mapped
 
         tags = issue_payload.get("tags")
         if isinstance(tags, list):
@@ -2962,8 +3214,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             payload["state"] = item.state
 
         # Update issue
-        response = requests.patch(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
+        response = self._request_with_retry(lambda: requests.patch(url, headers=headers, json=payload, timeout=30))
         updated_issue = response.json()
 
         # Convert back to BacklogItem

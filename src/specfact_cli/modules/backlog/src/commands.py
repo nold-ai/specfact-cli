@@ -69,6 +69,7 @@ class _BacklogCommandGroup(TyperGroup):
         # Compatibility / lower-frequency commands later.
         "refine": 100,
         "daily": 110,
+        "init-config": 118,
         "map-fields": 120,
     }
 
@@ -474,6 +475,85 @@ def _load_backlog_config() -> dict[str, Any]:
                 debug_log_operation("config_load", str(path), "error", error=repr(exc))
             break
     return config
+
+
+@beartype
+def _load_backlog_module_config_file() -> tuple[dict[str, Any], Path]:
+    """Load canonical backlog module config from `.specfact/backlog-config.yaml`."""
+    config_dir = os.environ.get("SPECFACT_CONFIG_DIR")
+    search_paths: list[Path] = []
+    if config_dir:
+        search_paths.append(Path(config_dir))
+    search_paths.append(Path.cwd() / ".specfact")
+
+    for base in search_paths:
+        path = base / "backlog-config.yaml"
+        if path.is_file():
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                if isinstance(data, dict):
+                    return data, path
+            except Exception as exc:
+                debug_log_operation("config_load", str(path), "error", error=repr(exc))
+            return {}, path
+
+    default_path = search_paths[-1] / "backlog-config.yaml"
+    return {}, default_path
+
+
+@beartype
+def _save_backlog_module_config_file(config: dict[str, Any], path: Path) -> None:
+    """Persist canonical backlog module config to `.specfact/backlog-config.yaml`."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.dump(config, sort_keys=False), encoding="utf-8")
+
+
+@beartype
+def _upsert_backlog_provider_settings(
+    provider: str,
+    settings_update: dict[str, Any],
+    *,
+    project_id: str | None = None,
+    adapter: str | None = None,
+) -> Path:
+    """Merge provider settings into `.specfact/backlog-config.yaml` and save."""
+    cfg, path = _load_backlog_module_config_file()
+    backlog_config = cfg.get("backlog_config")
+    if not isinstance(backlog_config, dict):
+        backlog_config = {}
+    providers = backlog_config.get("providers")
+    if not isinstance(providers, dict):
+        providers = {}
+
+    provider_cfg = providers.get(provider)
+    if not isinstance(provider_cfg, dict):
+        provider_cfg = {}
+
+    if adapter:
+        provider_cfg["adapter"] = adapter
+    if project_id:
+        provider_cfg["project_id"] = project_id
+
+    settings = provider_cfg.get("settings")
+    if not isinstance(settings, dict):
+        settings = {}
+
+    def _deep_merge(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
+        for key, value in src.items():
+            if isinstance(value, dict) and isinstance(dst.get(key), dict):
+                _deep_merge(dst[key], value)
+            else:
+                dst[key] = value
+        return dst
+
+    _deep_merge(settings, settings_update)
+    provider_cfg["settings"] = settings
+    providers[provider] = provider_cfg
+    backlog_config["providers"] = providers
+    cfg["backlog_config"] = backlog_config
+
+    _save_backlog_module_config_file(cfg, path)
+    return path
 
 
 @beartype
@@ -3767,22 +3847,74 @@ def refine(
         raise typer.Exit(1) from e
 
 
+@app.command("init-config")
+@beartype
+def init_config(
+    force: bool = typer.Option(False, "--force", help="Overwrite existing .specfact/backlog-config.yaml"),
+) -> None:
+    """Scaffold `.specfact/backlog-config.yaml` with default backlog provider config structure."""
+    cfg, path = _load_backlog_module_config_file()
+    if path.exists() and not force:
+        console.print(f"[yellow]⚠[/yellow] Config already exists: {path}")
+        console.print("[dim]Use --force to overwrite or run `specfact backlog map-fields` to update mappings.[/dim]")
+        return
+
+    default_config: dict[str, Any] = {
+        "backlog_config": {
+            "providers": {
+                "github": {
+                    "adapter": "github",
+                    "project_id": "",
+                    "settings": {
+                        "github_issue_types": {
+                            "type_ids": {},
+                        }
+                    },
+                },
+                "ado": {
+                    "adapter": "ado",
+                    "project_id": "",
+                    "settings": {
+                        "field_mapping_file": ".specfact/templates/backlog/field_mappings/ado_custom.yaml",
+                    },
+                },
+            }
+        }
+    }
+
+    if cfg and not force:
+        # unreachable due earlier return, keep for safety
+        default_config = cfg
+
+    _save_backlog_module_config_file(default_config if force or not cfg else cfg, path)
+    console.print(f"[green]✓[/green] Backlog config initialized: {path}")
+    console.print("[dim]Next: run `specfact backlog map-fields` to configure provider mappings.[/dim]")
+
+
 @app.command("map-fields")
-@require(
-    lambda ado_org, ado_project: (
-        isinstance(ado_org, str) and len(ado_org) > 0 and isinstance(ado_project, str) and len(ado_project) > 0
-    ),
-    "ADO org and project must be non-empty strings",
-)
 @beartype
 def map_fields(
-    ado_org: str = typer.Option(..., "--ado-org", help="Azure DevOps organization (required)"),
-    ado_project: str = typer.Option(..., "--ado-project", help="Azure DevOps project (required)"),
+    ado_org: str | None = typer.Option(None, "--ado-org", help="Azure DevOps organization"),
+    ado_project: str | None = typer.Option(None, "--ado-project", help="Azure DevOps project"),
     ado_token: str | None = typer.Option(
         None, "--ado-token", help="Azure DevOps PAT (optional, uses AZURE_DEVOPS_TOKEN env var if not provided)"
     ),
     ado_base_url: str | None = typer.Option(
         None, "--ado-base-url", help="Azure DevOps base URL (defaults to https://dev.azure.com)"
+    ),
+    provider: list[str] = typer.Option(
+        [], "--provider", help="Provider(s) to configure: ado, github (repeatable)", show_default=False
+    ),
+    github_project_id: str | None = typer.Option(None, "--github-project-id", help="GitHub owner/repo context"),
+    github_project_v2_id: str | None = typer.Option(None, "--github-project-v2-id", help="GitHub ProjectV2 node ID"),
+    github_type_field_id: str | None = typer.Option(
+        None, "--github-type-field-id", help="GitHub ProjectV2 Type field ID"
+    ),
+    github_type_option: list[str] = typer.Option(
+        [],
+        "--github-type-option",
+        help="Type mapping entry '<type>=<option-id>' (repeatable, e.g. --github-type-option task=OPT123)",
+        show_default=False,
     ),
     reset: bool = typer.Option(
         False, "--reset", help="Reset custom field mapping to defaults (deletes ado_custom.yaml)"
@@ -3807,6 +3939,547 @@ def map_fields(
 
     from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
     from specfact_cli.utils.auth_tokens import get_token
+
+    def _normalize_provider_selection(raw: Any) -> list[str]:
+        alias_map = {
+            "ado": "ado",
+            "azure devops": "ado",
+            "azure dev ops": "ado",
+            "azure dev-ops": "ado",
+            "azure_devops": "ado",
+            "azure_dev-ops": "ado",
+            "github": "github",
+        }
+
+        def _normalize_item(item: Any) -> str | None:
+            candidate: Any = item
+            if isinstance(item, dict) and "value" in item:
+                candidate = item.get("value")
+            elif hasattr(item, "value"):
+                candidate = item.value
+
+            text_item = str(candidate or "").strip().lower()
+            if not text_item:
+                return None
+            if text_item in {"done", "finish", "finished"}:
+                return None
+
+            cleaned = text_item.replace("(", " ").replace(")", " ").replace("-", " ").replace("_", " ")
+            cleaned = " ".join(cleaned.split())
+
+            mapped = alias_map.get(text_item) or alias_map.get(cleaned)
+            if mapped:
+                return mapped
+
+            # Last-resort parser for stringified choice objects containing value='ado' / value='github'.
+            if "value='ado'" in text_item or 'value="ado"' in text_item:
+                return "ado"
+            if "value='github'" in text_item or 'value="github"' in text_item:
+                return "github"
+
+            return None
+
+        normalized: list[str] = []
+        if isinstance(raw, list):
+            for item in raw:
+                mapped = _normalize_item(item)
+                if mapped and mapped not in normalized:
+                    normalized.append(mapped)
+            return normalized
+
+        if isinstance(raw, str):
+            for part in raw.replace(";", ",").split(","):
+                mapped = _normalize_item(part)
+                if mapped and mapped not in normalized:
+                    normalized.append(mapped)
+            return normalized
+
+        mapped = _normalize_item(raw)
+        return [mapped] if mapped else []
+
+    selected_providers = _normalize_provider_selection(provider)
+    if not selected_providers:
+        # Preserve historical behavior for existing explicit provider options.
+        if ado_org or ado_project or ado_token:
+            selected_providers = ["ado"]
+        elif github_project_id or github_project_v2_id or github_type_field_id or github_type_option:
+            selected_providers = ["github"]
+        else:
+            try:
+                import questionary  # type: ignore[reportMissingImports]
+
+                picked = questionary.checkbox(
+                    "Select providers to configure",
+                    choices=[
+                        questionary.Choice(title="Azure DevOps", value="ado"),
+                        questionary.Choice(title="GitHub", value="github"),
+                    ],
+                ).ask()
+                selected_providers = _normalize_provider_selection(picked)
+                if not selected_providers:
+                    console.print("[yellow]⚠[/yellow] No providers selected. Aborting.")
+                    raise typer.Exit(1)
+            except typer.Exit:
+                raise
+            except Exception:
+                selected_raw = typer.prompt("Providers to configure (comma-separated: ado,github)", default="")
+                selected_providers = _normalize_provider_selection(selected_raw)
+
+    if not selected_providers:
+        console.print("[red]Error:[/red] Please select at least one provider (ado or github).")
+        raise typer.Exit(1)
+
+    if any(item not in {"ado", "github"} for item in selected_providers):
+        console.print("[red]Error:[/red] --provider supports only: ado, github")
+        raise typer.Exit(1)
+
+    def _persist_github_custom_mapping_file(repo_issue_types: dict[str, str]) -> Path:
+        """Create or update github_custom.yaml with inferred type/hierarchy mappings."""
+        mapping_file = Path.cwd() / ".specfact" / "templates" / "backlog" / "field_mappings" / "github_custom.yaml"
+        mapping_file.parent.mkdir(parents=True, exist_ok=True)
+
+        default_payload: dict[str, Any] = {
+            "type_mapping": {
+                "epic": "epic",
+                "feature": "feature",
+                "story": "story",
+                "task": "task",
+                "bug": "bug",
+                "spike": "spike",
+            },
+            "creation_hierarchy": {
+                "epic": [],
+                "feature": ["epic"],
+                "story": ["feature", "epic"],
+                "task": ["story", "feature"],
+                "bug": ["story", "feature", "epic"],
+                "spike": ["feature", "epic"],
+                "custom": ["epic", "feature", "story"],
+            },
+            "dependency_rules": {
+                "blocks": "blocks",
+                "blocked_by": "blocks",
+                "relates": "relates_to",
+            },
+            "status_mapping": {
+                "open": "todo",
+                "closed": "done",
+                "todo": "todo",
+                "in progress": "in_progress",
+                "done": "done",
+            },
+        }
+
+        existing_payload: dict[str, Any] = {}
+        if mapping_file.exists():
+            try:
+                loaded = yaml.safe_load(mapping_file.read_text(encoding="utf-8")) or {}
+                if isinstance(loaded, dict):
+                    existing_payload = loaded
+            except Exception:
+                existing_payload = {}
+
+        def _deep_merge(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
+            for key, value in src.items():
+                if isinstance(value, dict) and isinstance(dst.get(key), dict):
+                    _deep_merge(dst[key], value)
+                else:
+                    dst[key] = value
+            return dst
+
+        final_payload = _deep_merge(dict(default_payload), existing_payload)
+
+        alias_to_canonical = {
+            "epic": "epic",
+            "feature": "feature",
+            "story": "story",
+            "user story": "story",
+            "task": "task",
+            "bug": "bug",
+            "spike": "spike",
+            "initiative": "epic",
+            "requirement": "feature",
+        }
+        discovered_map: dict[str, str] = {}
+        existing_type_mapping = final_payload.get("type_mapping")
+        if isinstance(existing_type_mapping, dict):
+            for key, value in existing_type_mapping.items():
+                discovered_map[str(key)] = str(value)
+        for raw_type_name in repo_issue_types:
+            normalized = str(raw_type_name).strip().lower().replace("_", " ").replace("-", " ")
+            canonical = alias_to_canonical.get(normalized, "custom")
+            discovered_map.setdefault(normalized, canonical)
+        final_payload["type_mapping"] = discovered_map
+
+        mapping_file.write_text(yaml.dump(final_payload, sort_keys=False), encoding="utf-8")
+        return mapping_file
+
+    def _run_github_mapping_setup() -> None:
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            stored = get_token("github", allow_expired=False)
+            token = stored.get("access_token") if isinstance(stored, dict) else None
+        if not token:
+            console.print("[red]Error:[/red] GitHub token required for github mapping setup")
+            console.print("[yellow]Use:[/yellow] specfact auth github or set GITHUB_TOKEN")
+            raise typer.Exit(1)
+
+        def _github_graphql(query: str, variables: dict[str, Any]) -> dict[str, Any]:
+            response = requests.post(
+                "https://api.github.com/graphql",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                },
+                json={"query": query, "variables": variables},
+                timeout=30,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict):
+                raise ValueError("Unexpected GitHub GraphQL response payload")
+            errors = payload.get("errors")
+            if isinstance(errors, list) and errors:
+                messages = [str(err.get("message")) for err in errors if isinstance(err, dict) and err.get("message")]
+                combined = "; ".join(messages)
+                lower_combined = combined.lower()
+                if "required scopes" in lower_combined and "read:project" in lower_combined:
+                    raise ValueError(
+                        "GitHub token is missing Projects scopes. Re-authenticate with: "
+                        "specfact auth github --scopes repo,read:project,project"
+                    )
+                raise ValueError(combined or "GitHub GraphQL returned errors")
+            data = payload.get("data")
+            return data if isinstance(data, dict) else {}
+
+        project_context = (github_project_id or "").strip() or typer.prompt(
+            "GitHub project context (owner/repo)", default=""
+        ).strip()
+        if "/" not in project_context:
+            console.print("[red]Error:[/red] GitHub project context must be in owner/repo format")
+            raise typer.Exit(1)
+        owner, repo_name = project_context.split("/", 1)
+        owner = owner.strip()
+        repo_name = repo_name.strip()
+        console.print(
+            f"[dim]Hint:[/dim] Open https://github.com/{owner}/{repo_name}/projects and use the project number shown there, "
+            "or paste a ProjectV2 node ID (PVT_xxx)."
+        )
+
+        project_ref = (github_project_v2_id or "").strip() or typer.prompt(
+            "GitHub ProjectV2 (number like 1, or node ID like PVT_xxx)", default=""
+        ).strip()
+
+        issue_types_query = (
+            "query($owner:String!, $repo:String!){ "
+            "repository(owner:$owner, name:$repo){ issueTypes(first:50){ nodes{ id name } } } "
+            "}"
+        )
+        repo_issue_types: dict[str, str] = {}
+        try:
+            issue_types_data = _github_graphql(issue_types_query, {"owner": owner, "repo": repo_name})
+            repository = (
+                issue_types_data.get("repository") if isinstance(issue_types_data.get("repository"), dict) else None
+            )
+            issue_types = repository.get("issueTypes") if isinstance(repository, dict) else None
+            nodes = issue_types.get("nodes") if isinstance(issue_types, dict) else None
+            if isinstance(nodes, list):
+                for node in nodes:
+                    if not isinstance(node, dict):
+                        continue
+                    type_name = str(node.get("name") or "").strip().lower()
+                    type_id = str(node.get("id") or "").strip()
+                    if type_name and type_id:
+                        repo_issue_types[type_name] = type_id
+        except (requests.RequestException, ValueError):
+            # Keep flow resilient; ProjectV2 mapping can still be configured without repository issue type ids.
+            repo_issue_types = {}
+
+        if repo_issue_types:
+            discovered = ", ".join(sorted(repo_issue_types.keys()))
+            console.print(f"[cyan]Discovered repository issue types:[/cyan] {discovered}")
+
+        cli_option_map: dict[str, str] = {}
+        for entry in github_type_option:
+            raw = entry.strip()
+            if "=" not in raw:
+                console.print(f"[yellow]⚠[/yellow] Skipping invalid --github-type-option '{raw}'")
+                continue
+            key, value = raw.split("=", 1)
+            key = key.strip().lower()
+            value = value.strip()
+            if key and value:
+                cli_option_map[key] = value
+
+        # Fast-path for fully specified non-interactive invocations.
+        if project_ref and (github_type_field_id or "").strip() and cli_option_map:
+            github_custom_mapping_file = _persist_github_custom_mapping_file(repo_issue_types)
+            config_path = _upsert_backlog_provider_settings(
+                "github",
+                {
+                    "field_mapping_file": ".specfact/templates/backlog/field_mappings/github_custom.yaml",
+                    "provider_fields": {
+                        "github_project_v2": {
+                            "project_id": project_ref,
+                            "type_field_id": str(github_type_field_id).strip(),
+                            "type_option_ids": cli_option_map,
+                        }
+                    },
+                    "github_issue_types": {"type_ids": repo_issue_types},
+                },
+                project_id=project_context,
+                adapter="github",
+            )
+            console.print(f"[green]✓[/green] GitHub ProjectV2 Type mapping saved to {config_path}")
+            console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+            return
+
+        project_id = ""
+        project_title = ""
+        fields_nodes: list[dict[str, Any]] = []
+
+        def _extract_project(node: dict[str, Any] | None) -> tuple[str, str, list[dict[str, Any]]]:
+            if not isinstance(node, dict):
+                return "", "", []
+            pid = str(node.get("id") or "").strip()
+            title = str(node.get("title") or "").strip()
+            fields = node.get("fields")
+            nodes = fields.get("nodes") if isinstance(fields, dict) else None
+            valid_nodes = [item for item in nodes if isinstance(item, dict)] if isinstance(nodes, list) else []
+            return pid, title, valid_nodes
+
+        try:
+            if project_ref.isdigit():
+                org_query = (
+                    "query($login:String!, $number:Int!) { "
+                    "organization(login:$login) { projectV2(number:$number) { id title fields(first:100) { nodes { "
+                    "__typename ... on ProjectV2Field { id name } "
+                    "... on ProjectV2SingleSelectField { id name options { id name } } "
+                    "... on ProjectV2IterationField { id name } "
+                    "} } } } "
+                    "}"
+                )
+                user_query = (
+                    "query($login:String!, $number:Int!) { "
+                    "user(login:$login) { projectV2(number:$number) { id title fields(first:100) { nodes { "
+                    "__typename ... on ProjectV2Field { id name } "
+                    "... on ProjectV2SingleSelectField { id name options { id name } } "
+                    "... on ProjectV2IterationField { id name } "
+                    "} } } } "
+                    "}"
+                )
+
+                number = int(project_ref)
+                org_error: str | None = None
+                user_error: str | None = None
+
+                try:
+                    org_data = _github_graphql(org_query, {"login": owner, "number": number})
+                    org_node = org_data.get("organization") if isinstance(org_data.get("organization"), dict) else None
+                    project_node = org_node.get("projectV2") if isinstance(org_node, dict) else None
+                    project_id, project_title, fields_nodes = _extract_project(
+                        project_node if isinstance(project_node, dict) else None
+                    )
+                except ValueError as error:
+                    org_error = str(error)
+
+                if not project_id:
+                    try:
+                        user_data = _github_graphql(user_query, {"login": owner, "number": number})
+                        user_node = user_data.get("user") if isinstance(user_data.get("user"), dict) else None
+                        project_node = user_node.get("projectV2") if isinstance(user_node, dict) else None
+                        project_id, project_title, fields_nodes = _extract_project(
+                            project_node if isinstance(project_node, dict) else None
+                        )
+                    except ValueError as error:
+                        user_error = str(error)
+
+                if not project_id and (org_error or user_error):
+                    detail = "; ".join(part for part in [org_error, user_error] if part)
+                    raise ValueError(detail)
+            else:
+                project_id = project_ref
+                query = (
+                    "query($projectId:ID!) { "
+                    "node(id:$projectId) { "
+                    "... on ProjectV2 { id title fields(first:100) { nodes { "
+                    "__typename ... on ProjectV2Field { id name } "
+                    "... on ProjectV2SingleSelectField { id name options { id name } } "
+                    "... on ProjectV2IterationField { id name } "
+                    "} } } "
+                    "} "
+                    "}"
+                )
+                data = _github_graphql(query, {"projectId": project_id})
+                node = data.get("node") if isinstance(data.get("node"), dict) else None
+                project_id, project_title, fields_nodes = _extract_project(node)
+        except (requests.RequestException, ValueError) as error:
+            message = str(error)
+            console.print(f"[red]Error:[/red] Could not discover GitHub ProjectV2 metadata: {message}")
+            if "required scopes" in message.lower() or "read:project" in message.lower():
+                console.print(
+                    "[yellow]Hint:[/yellow] Run `specfact auth github --scopes repo,read:project,project` "
+                    "or provide `GITHUB_TOKEN` with those scopes."
+                )
+            else:
+                console.print(
+                    f"[yellow]Hint:[/yellow] Verify the project exists under "
+                    f"https://github.com/{owner}/{repo_name}/projects and that the number/ID is correct."
+                )
+            raise typer.Exit(1) from error
+
+        if not project_id:
+            console.print(
+                "[red]Error:[/red] Could not resolve GitHub ProjectV2. Check owner/repo and project number or ID."
+            )
+            raise typer.Exit(1)
+
+        type_field_id = (github_type_field_id or "").strip()
+        selected_type_field: dict[str, Any] | None = None
+        single_select_fields = [
+            field
+            for field in fields_nodes
+            if isinstance(field.get("options"), list) and str(field.get("id") or "").strip()
+        ]
+
+        expected_type_names = {"epic", "feature", "story", "task", "bug"}
+
+        def _field_options(field: dict[str, Any]) -> set[str]:
+            raw = field.get("options")
+            if not isinstance(raw, list):
+                return set()
+            return {
+                str(opt.get("name") or "").strip().lower()
+                for opt in raw
+                if isinstance(opt, dict) and str(opt.get("name") or "").strip()
+            }
+
+        if type_field_id:
+            selected_type_field = next(
+                (field for field in single_select_fields if str(field.get("id") or "").strip() == type_field_id),
+                None,
+            )
+        else:
+            # Prefer explicit Type-like field names first.
+            selected_type_field = next(
+                (
+                    field
+                    for field in single_select_fields
+                    if str(field.get("name") or "").strip().lower()
+                    in {"type", "issue type", "item type", "work item type"}
+                ),
+                None,
+            )
+            # Otherwise pick a field whose options look like backlog item types (epic/feature/story/task/bug).
+            if selected_type_field is None:
+                selected_type_field = next(
+                    (
+                        field
+                        for field in single_select_fields
+                        if len(_field_options(field).intersection(expected_type_names)) >= 2
+                    ),
+                    None,
+                )
+
+        if selected_type_field is None and single_select_fields:
+            console.print("[cyan]Discovered project single-select fields:[/cyan]")
+            for field in single_select_fields:
+                field_name = str(field.get("name") or "")
+                options_preview = sorted(_field_options(field))
+                preview = ", ".join(options_preview[:8])
+                suffix = "..." if len(options_preview) > 8 else ""
+                console.print(f"  - {field_name} (id={field.get('id')}) | options: {preview}{suffix}")
+            # Simplified flow: do not force manual field picking here.
+            # Repository issue types are source-of-truth; ProjectV2 mapping is optional enrichment.
+
+        if selected_type_field is None:
+            console.print(
+                "[yellow]⚠[/yellow] No ProjectV2 Type-like single-select field found. "
+                "Skipping ProjectV2 type-option mapping for now."
+            )
+
+        type_field_id = (
+            str(selected_type_field.get("id") or "").strip() if isinstance(selected_type_field, dict) else ""
+        )
+        options_raw = selected_type_field.get("options") if isinstance(selected_type_field, dict) else None
+        options = [item for item in options_raw if isinstance(item, dict)] if isinstance(options_raw, list) else []
+
+        option_map: dict[str, str] = dict(cli_option_map)
+
+        option_name_to_id = {
+            str(opt.get("name") or "").strip().lower(): str(opt.get("id") or "").strip()
+            for opt in options
+            if str(opt.get("name") or "").strip() and str(opt.get("id") or "").strip()
+        }
+
+        if not option_map and option_name_to_id:
+            for issue_type in ["epic", "feature", "story", "task", "bug"]:
+                if issue_type in option_name_to_id:
+                    option_map[issue_type] = option_name_to_id[issue_type]
+
+        if not option_map and option_name_to_id:
+            available_names = ", ".join(sorted(option_name_to_id.keys()))
+            console.print(f"[cyan]Available Type options:[/cyan] {available_names}")
+            for issue_type in ["epic", "feature", "story", "task", "bug"]:
+                option_name = (
+                    typer.prompt(
+                        f"Type option name for '{issue_type}' (optional)",
+                        default=issue_type if issue_type in option_name_to_id else "",
+                    )
+                    .strip()
+                    .lower()
+                )
+                if option_name and option_name in option_name_to_id:
+                    option_map[issue_type] = option_name_to_id[option_name]
+
+        issue_type_id_map = {
+            issue_type: repo_issue_types.get(issue_type, "")
+            for issue_type in ["epic", "feature", "story", "task", "bug"]
+            if repo_issue_types.get(issue_type)
+        }
+
+        settings_update: dict[str, Any] = {}
+        if issue_type_id_map:
+            settings_update["github_issue_types"] = {"type_ids": issue_type_id_map}
+
+        if type_field_id and option_map:
+            settings_update["provider_fields"] = {
+                "github_project_v2": {
+                    "project_id": project_id,
+                    "type_field_id": type_field_id,
+                    "type_option_ids": option_map,
+                }
+            }
+        elif type_field_id and not option_map:
+            console.print(
+                "[yellow]⚠[/yellow] ProjectV2 Type field found, but no matching type options were configured. "
+                "Repository issue-type ids were still saved."
+            )
+
+        if not settings_update:
+            console.print(
+                "[red]Error:[/red] Could not resolve GitHub type mappings from repository issue types or ProjectV2 options."
+            )
+            raise typer.Exit(1)
+
+        github_custom_mapping_file = _persist_github_custom_mapping_file(repo_issue_types)
+        settings_update["field_mapping_file"] = ".specfact/templates/backlog/field_mappings/github_custom.yaml"
+
+        config_path = _upsert_backlog_provider_settings(
+            "github",
+            settings_update,
+            project_id=project_context,
+            adapter="github",
+        )
+
+        project_label = project_title or project_id
+        console.print(f"[green]✓[/green] GitHub mapping saved to {config_path}")
+        console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+        if type_field_id:
+            field_name = str(selected_type_field.get("name") or "") if isinstance(selected_type_field, dict) else ""
+            console.print(f"[dim]Project: {project_label} | Type field: {field_name}[/dim]")
+        else:
+            console.print("[dim]ProjectV2 Type field mapping skipped; repository issue types were captured.[/dim]")
 
     def _find_potential_match(canonical_field: str, available_fields: list[dict[str, Any]]) -> str | None:
         """
@@ -3869,6 +4542,10 @@ def map_fields(
 
         return None
 
+    if "ado" not in selected_providers and "github" in selected_providers:
+        _run_github_mapping_setup()
+        return
+
     # Resolve token (explicit > env var > stored token)
     api_token: str | None = None
     auth_scheme = "basic"
@@ -3898,6 +4575,14 @@ def map_fields(
         console.print("  1. Use --ado-token option")
         console.print("  2. Set AZURE_DEVOPS_TOKEN environment variable")
         console.print("  3. Use: specfact auth azure-devops")
+        raise typer.Exit(1)
+
+    if not ado_org:
+        ado_org = typer.prompt("Azure DevOps organization", default="").strip() or None
+    if not ado_project:
+        ado_project = typer.prompt("Azure DevOps project", default="").strip() or None
+    if not ado_org or not ado_project:
+        console.print("[red]Error:[/red] Azure DevOps organization and project are required when configuring ado")
         raise typer.Exit(1)
 
     # Build base URL
@@ -4172,5 +4857,20 @@ def map_fields(
     console.print()
     console.print(Panel("[bold green]✓ Mapping saved successfully[/bold green]", border_style="green"))
     console.print(f"[green]Location:[/green] {custom_mapping_file}")
+
+    provider_cfg_path = _upsert_backlog_provider_settings(
+        "ado",
+        {
+            "field_mapping_file": ".specfact/templates/backlog/field_mappings/ado_custom.yaml",
+            "ado_org": ado_org,
+            "ado_project": ado_project,
+        },
+        project_id=f"{ado_org}/{ado_project}" if ado_org and ado_project else None,
+        adapter="ado",
+    )
+    console.print(f"[green]Provider config:[/green] {provider_cfg_path}")
     console.print()
     console.print("[dim]You can now use this mapping with specfact backlog refine.[/dim]")
+
+    if "github" in selected_providers:
+        _run_github_mapping_setup()

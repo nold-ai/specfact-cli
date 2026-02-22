@@ -1657,7 +1657,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         ]
 
         try:
-            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30),
+                retry_on_ambiguous_transport=False,
+            )
             if is_debug_mode():
                 debug_log_operation(
                     "ado_patch",
@@ -1800,8 +1803,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
 
         try:
-            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            )
             work_item_data = response.json()
 
             work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
@@ -1933,8 +1937,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         ]
 
         try:
-            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            )
             work_item_data = response.json()
 
             work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
@@ -2040,8 +2045,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
 
         try:
-            response = requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            )
             work_item_data = response.json()
 
             work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
@@ -2442,8 +2448,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         comment_body = {"text": comment_text}
 
         try:
-            response = requests.post(url, json=comment_body, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(
+                lambda: requests.post(url, json=comment_body, headers=headers, timeout=30),
+                retry_on_ambiguous_transport=False,
+            )
             comment_data = response.json()
 
             comment_id = comment_data.get("id")
@@ -2690,6 +2698,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         self,
         sprint_filter: str | None,
         items: list[BacklogItem],
+        apply_current_when_missing: bool = True,
     ) -> tuple[str | None, list[BacklogItem]]:
         """
         Resolve sprint filter with path matching and ambiguity detection.
@@ -2705,6 +2714,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             ValueError: If ambiguous sprint name match is detected
         """
         if not sprint_filter:
+            if not apply_current_when_missing:
+                return None, items
             # No sprint filter - try to get current iteration
             current_iteration = self._get_current_iteration()
             if current_iteration:
@@ -2859,13 +2870,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Sprint will be resolved post-fetch to handle ambiguity
             pass
         else:
-            # No sprint/iteration - try current iteration
-            current_iteration = self._get_current_iteration()
-            if current_iteration:
-                resolved_iteration = current_iteration
-                conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
-            else:
-                console.print("[yellow]⚠ No current iteration found and no sprint/iteration filter provided[/yellow]")
+            # No sprint/iteration - optionally use current iteration default
+            if getattr(filters, "use_current_iteration_default", True):
+                current_iteration = self._get_current_iteration()
+                if current_iteration:
+                    resolved_iteration = current_iteration
+                    conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+                else:
+                    console.print(
+                        "[yellow]⚠ No current iteration found and no sprint/iteration filter provided[/yellow]"
+                    )
 
         if conditions:
             wiql_parts.append("AND " + " AND ".join(conditions))
@@ -3113,7 +3127,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Sprint filtering with path matching and ambiguity detection
         if filters.sprint:
             try:
-                _, filtered_items = self._resolve_sprint_filter(filters.sprint, filtered_items)
+                _, filtered_items = self._resolve_sprint_filter(
+                    filters.sprint,
+                    filtered_items,
+                    apply_current_when_missing=getattr(filters, "use_current_iteration_default", True),
+                )
             except ValueError as e:
                 # Ambiguous sprint match - raise with clear error message
                 console.print(f"[red]Error:[/red] {e}")
@@ -3136,6 +3154,115 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             filtered_items = filtered_items[: filters.limit]
 
         return filtered_items
+
+    @beartype
+    @require(
+        lambda project_id: isinstance(project_id, str) and len(project_id.strip()) > 0, "project_id must be non-empty"
+    )
+    @require(lambda payload: isinstance(payload, dict), "payload must be dict")
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
+    def create_issue(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create an Azure DevOps work item from provider-agnostic backlog payload."""
+        org, project = self._resolve_graph_project_context(project_id)
+        if not self.api_token:
+            raise ValueError("Azure DevOps API token is required")
+
+        title = str(payload.get("title") or "").strip()
+        if not title:
+            raise ValueError("payload.title is required")
+
+        raw_type = str(payload.get("type") or "task").strip().lower()
+        type_mapping = {
+            "epic": "Epic",
+            "feature": "Feature",
+            "story": "User Story",
+            "user story": "User Story",
+            "task": "Task",
+            "bug": "Bug",
+            "spike": "Task",
+        }
+        work_item_type = type_mapping.get(raw_type, "Task")
+
+        description = str(payload.get("description") or payload.get("body") or "").strip()
+        description_format = str(payload.get("description_format") or "markdown").strip().lower()
+        field_rendering_format = "Markdown" if description_format != "classic" else "Html"
+        patch_document: list[dict[str, Any]] = [
+            {"op": "add", "path": "/fields/System.Title", "value": title},
+            {"op": "add", "path": "/fields/System.Description", "value": description},
+            {"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": field_rendering_format},
+        ]
+
+        acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
+        if acceptance_criteria:
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
+                    "value": acceptance_criteria,
+                }
+            )
+
+        priority = payload.get("priority")
+        if priority not in (None, ""):
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": "/fields/Microsoft.VSTS.Common.Priority",
+                    "value": priority,
+                }
+            )
+
+        story_points = payload.get("story_points")
+        if story_points is not None:
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": "/fields/Microsoft.VSTS.Scheduling.StoryPoints",
+                    "value": story_points,
+                }
+            )
+
+        sprint = str(payload.get("sprint") or "").strip()
+        if sprint:
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": "/fields/System.IterationPath",
+                    "value": sprint,
+                }
+            )
+
+        parent_id = str(payload.get("parent_id") or "").strip()
+        if parent_id:
+            parent_url = f"{self.base_url}/{org}/{project}/_apis/wit/workItems/{parent_id}"
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": "/relations/-",
+                    "value": {"rel": "System.LinkTypes.Hierarchy-Reverse", "url": parent_url},
+                }
+            )
+
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
+        headers = {
+            "Content-Type": "application/json-patch+json",
+            **self._auth_headers(),
+        }
+        response = self._request_with_retry(
+            lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30),
+            retry_on_ambiguous_transport=False,
+        )
+        created = response.json()
+
+        created_id = str(created.get("id") or "")
+        html_url = str(created.get("_links", {}).get("html", {}).get("href") or "")
+        fallback_url = str(created.get("url") or "")
+
+        return {
+            "id": created_id,
+            "key": created_id,
+            "url": html_url or fallback_url,
+        }
 
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
@@ -3429,8 +3556,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Update work item
         try:
-            response = requests.patch(url, headers=headers, json=operations, timeout=30)
-            response.raise_for_status()
+            response = self._request_with_retry(
+                lambda: requests.patch(url, headers=headers, json=operations, timeout=30)
+            )
         except requests.HTTPError as e:
             user_msg = _log_ado_patch_failure(e.response, operations, url)
             e.ado_user_message = user_msg
