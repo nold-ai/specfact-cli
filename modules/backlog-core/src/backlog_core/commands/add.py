@@ -68,6 +68,7 @@ def _select_with_fallback(message: str, choices: list[str], default: str | None 
         if isinstance(selected, str) and selected.strip():
             return selected.strip()
     except Exception:
+        # If questionary is unavailable or fails, continue with plain-text prompt fallback.
         pass
 
     print_info(f"{message}: {', '.join(normalized)}")
@@ -98,6 +99,7 @@ def _interactive_sprint_selection(adapter_name: str, adapter_instance: Any, proj
             if hasattr(adapter_instance, "project"):
                 adapter_instance.project = resolved_project
         except Exception:
+            # Best-effort org/project resolution only; keep existing context on any failure.
             pass
 
     get_current = getattr(adapter_instance, "_get_current_iteration", None)

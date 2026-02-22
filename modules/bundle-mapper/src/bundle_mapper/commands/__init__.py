@@ -12,6 +12,7 @@ validate_bundle = module_io_shim.validate_bundle
 commands_interface = module_io_shim
 
 __all__ = [
+    "_MODULE_IO_CONTRACT",
     "commands_interface",
     "export_from_bundle",
     "import_to_bundle",
