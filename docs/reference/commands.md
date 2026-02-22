@@ -3865,6 +3865,8 @@ specfact backlog analyze-deps --project-id <id> [OPTIONS]
 
 **Common options:**
 
+**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
+
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
 - `--template TEMPLATE` - Mapping template (default: `github_projects`)
 - `--custom-config PATH` - Optional custom mapping YAML
@@ -3881,6 +3883,8 @@ specfact backlog trace-impact <item-id> --project-id <id> [OPTIONS]
 
 **Common options:**
 
+**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
+
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
 - `--template TEMPLATE` - Mapping template (default: `github_projects`)
 - `--custom-config PATH` - Optional custom mapping YAML
@@ -3894,6 +3898,8 @@ specfact backlog verify-readiness --project-id <id> [OPTIONS]
 ```
 
 **Common options:**
+
+**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
 
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
 - `--template TEMPLATE` - Mapping template (default: `github_projects`)
@@ -4096,6 +4102,39 @@ specfact backlog refine ado \
   --ado-org "my-org" \
   --ado-project "my-project" \
   --iteration "Project\\Release 1\\Sprint 1"
+```
+
+#### `patch apply`
+
+Apply a unified diff patch locally with preflight validation, or run explicit upstream-write orchestration.
+
+```bash
+specfact patch apply <PATCH_FILE> [OPTIONS]
+```
+
+**Options:**
+
+- `--dry-run` - Validate patch applicability only; do not apply locally
+- `--write` - Run upstream write orchestration path (requires confirmation)
+- `--yes`, `-y` - Confirm `--write` operation explicitly
+
+**Behavior:**
+
+- Local mode (`specfact patch apply <file>`) runs preflight then applies the patch to local files.
+- `--write` never runs unless `--yes` is provided.
+- Repeated `--write --yes` invocations for the same patch are idempotent and skip duplicate writes.
+
+**Examples:**
+
+```bash
+# Apply patch locally after preflight
+specfact patch apply backlog.diff
+
+# Validate patch only
+specfact patch apply backlog.diff --dry-run
+
+# Run explicit upstream write orchestration
+specfact patch apply backlog.diff --write --yes
 ```
 
 **Pre-built Templates:**
@@ -5012,9 +5051,9 @@ Replace `implement tasks` with the new AI IDE bridge workflow:
 
 ---
 
-### `init` - Bootstrap and Module Lifecycle Management
+### `init` - Bootstrap and Compatibility Module Lifecycle Aliases
 
-Bootstrap SpecFact local state and manage enabled/disabled command modules.
+Bootstrap SpecFact local state and expose compatibility aliases for legacy module lifecycle flags.
 
 ```bash
 specfact init [OPTIONS]
@@ -5022,10 +5061,12 @@ specfact init [OPTIONS]
 
 **Common options:**
 
+**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
+
 - `--repo PATH` - Repository path (default: current directory)
-- `--list-modules` - Show discovered modules with effective enabled/disabled state and exit
-- `--enable-module TEXT` - Enable module by id (repeatable)
-- `--disable-module TEXT` - Disable module by id (repeatable)
+- `--list-modules` - Compatibility alias for module lifecycle listing
+- `--enable-module TEXT` - Compatibility alias for enabling module id (repeatable)
+- `--disable-module TEXT` - Compatibility alias for disabling module id (repeatable)
 - `--force` - Override dependency guards; cascades dependency updates
 
 **Interactive behavior:**
@@ -5070,6 +5111,49 @@ specfact init --disable-module plan --force
 2. Discovers installed modules and applies enable/disable operations.
 3. Enforces module dependency and compatibility constraints.
 4. Reports IDE prompt status and points to `specfact init ide` for prompt/template setup.
+
+
+### `module` - Module Lifecycle and Marketplace Management
+
+Canonical module lifecycle commands for marketplace and locally discovered modules.
+
+```bash
+specfact module [OPTIONS] COMMAND [ARGS]...
+```
+
+**Commands:**
+
+- `install <name|namespace/name>` - Install marketplace module (bare names normalize to `specfact/<name>`)
+- `list [--source builtin|marketplace|custom] [--show-origin]` - List modules with `Trust`/`Publisher` and optional `Origin`
+- `show <name>` - Show detailed module metadata and full command tree (with subcommands and short descriptions)
+- `search <query>` - Search marketplace registry and installed modules (`Scope` column)
+- `enable <id>` - Enable module in lifecycle state registry
+- `disable <id> [--force]` - Disable module in lifecycle state registry
+- `uninstall <name|namespace/name>` - Uninstall marketplace module with source-aware guidance for built-in/custom modules
+- `upgrade [<name>] [--all]` - Upgrade one module or all marketplace-installed modules
+
+**Examples:**
+
+```bash
+# Install and inspect modules
+specfact module install specfact/backlog
+specfact module install backlog
+specfact module list
+specfact module list --show-origin
+specfact module show module-registry
+
+# Search and manage
+specfact module search backlog
+specfact module enable backlog
+specfact module disable backlog --force
+specfact module uninstall specfact/backlog
+specfact module upgrade
+```
+
+**Compatibility and migration:**
+
+- `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain migration aliases.
+- Prefer `specfact module ...` for all lifecycle operations.
 
 ### `init ide` - IDE Prompt/Template Setup
 

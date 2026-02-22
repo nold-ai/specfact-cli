@@ -156,3 +156,60 @@ The system SHALL derive protocol operation metadata from the effective module in
 - **THEN** protocol operation detection SHALL inspect the runtime-accessible interface used by lifecycle registration
 - **AND** detected operations SHALL be persisted in `ModulePackageMetadata.protocol_operations`.
 
+### Requirement: Module package manifest SHALL support publisher and integrity metadata
+
+The system SHALL support structured publisher and integrity metadata in `module-package.yaml`.
+
+#### Scenario: Manifest includes publisher identity
+
+- **WHEN** manifest includes `publisher` metadata
+- **THEN** parser SHALL capture `name`, `email`, and optional publisher attributes
+- **AND** parsed metadata SHALL be available to trust-validation workflows.
+
+#### Scenario: Manifest includes integrity metadata
+
+- **WHEN** manifest includes `integrity` metadata
+- **THEN** parser SHALL capture checksum and optional signature fields
+- **AND** validation SHALL ensure checksum format correctness.
+
+### Requirement: Manifest dependencies SHALL support versioned entries
+
+The system SHALL support versioned dependency declarations for both module and pip dependencies.
+
+#### Scenario: Versioned module dependency parsed
+
+- **WHEN** manifest declares module dependency with name and version specifier
+- **THEN** parser SHALL store both values in typed metadata
+- **AND** version specifier SHALL be validated as a supported constraint format.
+
+#### Scenario: Versioned pip dependency parsed
+
+- **WHEN** manifest declares pip dependency with name and version specifier
+- **THEN** parser SHALL preserve versioned dependency for installation-time resolution
+- **AND** legacy list formats SHALL remain backward compatible when possible.
+
+### Requirement: Module manifest declares schema extensions
+
+The system SHALL extend `ModulePackageMetadata` to include optional `schema_extensions` field declaring fields the module adds to core models.
+
+#### Scenario: Manifest schema includes schema_extensions
+- **WHEN** module-package.yaml is parsed
+- **THEN** it MAY include `schema_extensions` array
+- **AND** each entry SHALL specify: target model name, field definitions with type/description
+
+#### Scenario: Schema extension for Feature model
+- **WHEN** module declares schema_extensions for Feature
+- **THEN** manifest SHALL list fields being added
+- **AND** each field SHALL include type hint and description
+- **AND** module namespace is implicit from module name
+
+#### Scenario: Schema extension for ProjectBundle model
+- **WHEN** module declares schema_extensions for ProjectBundle
+- **THEN** manifest SHALL list fields being added
+- **AND** each field SHALL include type hint and description
+
+#### Scenario: Module without schema_extensions remains valid
+- **WHEN** module-package.yaml omits schema_extensions
+- **THEN** module SHALL load successfully
+- **AND** no extensions registered for that module
+

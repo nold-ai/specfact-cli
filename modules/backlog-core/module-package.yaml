@@ -1,25 +1,28 @@
 name: backlog-core
-version: "0.1.0"
+version: 0.1.0
 commands:
   - backlog
 command_help:
-  backlog: "Backlog dependency analysis, delta workflows, and release readiness"
+  backlog: Backlog dependency analysis, delta workflows, and release readiness
 pip_dependencies: []
 module_dependencies: []
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
 tier: community
 schema_extensions:
   project_bundle:
     backlog_core.backlog_graph:
-      type: "BacklogGraph | None"
-      description: "Dependency graph for backlog analysis"
+      type: BacklogGraph | None
+      description: Dependency graph for backlog analysis
   project_metadata:
     backlog_core.backlog_config:
-      type: "dict[str, Any] | None"
-      description: "Backlog provider and template configuration"
+      type: dict[str, Any] | None
+      description: Backlog provider and template configuration
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
 integrity:
   checksum_algorithm: sha256
 dependencies: []
+description: Provide advanced backlog analysis and readiness capabilities.
+license: Apache-2.0

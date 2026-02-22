@@ -20,3 +20,18 @@ The system SHALL extend registration to handle modules from built-in, marketplac
 - **WHEN** marketplace module is registered
 - **THEN** system SHALL validate id uses "namespace/name" format
 - **AND** SHALL log warning if flat name used
+
+
+### Requirement: Lifecycle command harmonization remains backward compatible
+
+The system SHALL keep existing init-based lifecycle flags functional while introducing `specfact module` as the canonical lifecycle command surface.
+
+#### Scenario: init lifecycle flags remain functional
+- **WHEN** user runs `specfact init --list-modules` or `--enable-module/--disable-module`
+- **THEN** system SHALL preserve current lifecycle behavior and state updates
+- **AND** SHALL provide deprecation guidance toward `specfact module` commands
+
+#### Scenario: module command is canonical lifecycle surface
+- **WHEN** user runs `specfact module list` or lifecycle operations
+- **THEN** system SHALL provide equivalent lifecycle management capabilities
+- **AND** documentation SHALL reference `specfact module` as primary UX

@@ -27,6 +27,8 @@ Practical guides for using SpecFact CLI effectively.
 - **[Backlog Refinement](backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items with persona/framework filtering, sprint/iteration support, and DoR validation
 - **[Specmatic Integration](specmatic-integration.md)** - API contract testing with Specmatic (validate specs, generate tests, mock servers)
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+- **[Installing Modules](installing-modules.md)** - Install, list, show, search, enable/disable, uninstall, and upgrade modules
+- **[Module Marketplace](module-marketplace.md)** - Discovery priority, trust vs origin semantics, and security model
 - **[Competitive Analysis](competitive-analysis.md)** - How SpecFact compares to other tools
 - **[Operational Modes](../reference/modes.md)** - CI/CD vs CoPilot modes (reference)
 

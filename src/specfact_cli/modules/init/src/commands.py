@@ -126,7 +126,9 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
         console.print("[dim]Backlog field mapping templates already exist (use --force to overwrite)[/dim]")
 
 
-app = typer.Typer(help="Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)")
+app = typer.Typer(
+    help="Bootstrap SpecFact. Module lifecycle flags under init are deprecated soon; use `specfact module ...` (use `init ide` for IDE setup)"
+)
 console = Console()
 _MODULE_IO_CONTRACT = ModuleIOContract
 import_to_bundle = module_io_shim.import_to_bundle
@@ -481,26 +483,29 @@ def init(
         [],
         "--enable-module",
         help=(
-            "Enable module by id (repeatable); if provided without value in interactive mode, "
-            "opens selector. In non-interactive mode, a module id is required."
+            "DEPRECATED soon: enable module by id (repeatable); if provided without value in interactive mode, "
+            "opens selector. In non-interactive mode, a module id is required. Prefer `specfact module ...`."
         ),
     ),
     disable_module: list[str] = typer.Option(
         [],
         "--disable-module",
         help=(
-            "Disable module by id (repeatable); if provided without value in interactive mode, "
-            "opens selector. In non-interactive mode, a module id is required."
+            "DEPRECATED soon: disable module by id (repeatable); if provided without value in interactive mode, "
+            "opens selector. In non-interactive mode, a module id is required. Prefer `specfact module ...`."
         ),
     ),
     list_modules: bool = typer.Option(
         False,
         "--list-modules",
-        help="List discovered installed modules with enabled/disabled status and exit.",
+        help="DEPRECATED soon: list module state (prefer `specfact module list`).",
     ),
 ) -> None:
     """
-    Bootstrap SpecFact local state and manage module lifecycle.
+    Bootstrap SpecFact local state.
+
+    Note: `--list-modules`, `--enable-module`, and `--disable-module` under `init` are deprecated soon.
+    Prefer `specfact module ...` for lifecycle operations.
 
     This command initializes/updates user-level module registry state, discovers
     installed modules, and manages enabled/disabled module lifecycle with dependency

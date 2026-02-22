@@ -78,13 +78,13 @@ Start with:
 
 SpecFact CLI uses a lifecycle-managed module system:
 
-- `specfact init` bootstraps local state and manages module enable/disable lifecycle.
+- `specfact init` bootstraps local state.
 - `specfact init ide` handles IDE prompt/template installation and updates.
-- `specfact init --list-modules` shows current enabled/disabled state.
-- `--enable-module` and `--disable-module` support interactive selection in interactive terminals and explicit ids in non-interactive mode.
+- `specfact module` is the canonical lifecycle surface for install/list/show/search/enable/disable/uninstall/upgrade.
+- `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain compatibility aliases.
 - Dependency and compatibility guards prevent invalid module states; `--force` enables dependency-aware cascades.
 
-This is the baseline for future granular module updates and enhancements. Third-party/community module installation is planned, but not available yet.
+This is the baseline for marketplace-driven module lifecycle and future community module distribution.
 
 ### Why the Module System Is the Foundation
 
@@ -104,6 +104,8 @@ For implementation details, see:
 
 - [Architecture](reference/architecture.md)
 - [Module Contracts](reference/module-contracts.md)
+- [Installing Modules](guides/installing-modules.md)
+- [Module Marketplace](guides/module-marketplace.md)
 
 ---
 

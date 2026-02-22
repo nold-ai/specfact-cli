@@ -261,3 +261,20 @@ If critical issues arise:
 **Q4: How to handle module dependencies (module A requires module B)?**
 - **Recommendation**: Deferred to marketplace-02 (dependency resolution)
 - **MVP**: module_dependencies field exists but not enforced during install
+
+
+### Decision 7: Lifecycle UX Harmonization (init vs module command)
+
+**Context:** `specfact init` already owns module enable/disable/list lifecycle flags from prior architecture changes. This marketplace change introduces a new canonical module management command group (`specfact module ...`), creating potential UX duplication.
+
+**Choice:** Keep `init` lifecycle flags as backward-compatible aliases while standardizing user guidance and documentation on `specfact module` as canonical lifecycle surface.
+
+**Rationale:**
+- Avoids breaking existing automation and user workflows built on `specfact init --enable-module/--disable-module/--list-modules`.
+- Preserves behavior required by existing canonical specs and tests while still reducing UX ambiguity.
+- Enables phased deprecation instead of disruptive removal.
+
+**Implementation constraints:**
+- No hard removal of init lifecycle flags in this change.
+- Alias behavior must remain functionally equivalent for state management operations.
+- Help text and docs should steer new users to `specfact module` lifecycle commands.

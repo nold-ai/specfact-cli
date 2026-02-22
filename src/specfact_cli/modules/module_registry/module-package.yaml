@@ -1,0 +1,16 @@
+name: module-registry
+version: 0.35.0
+commands:
+  - module
+command_help:
+  module: Manage marketplace modules (install, uninstall, search, list, show, upgrade)
+pip_dependencies: []
+module_dependencies: []
+tier: community
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: 'Manage modules: search, list, show, install, and upgrade.'
+license: Apache-2.0

@@ -19,12 +19,15 @@ def generate_unified_diff(
 ) -> str:
     """Produce a unified diff string from content (generate-only; no apply/write)."""
     if target_path is None:
-        target_path = Path("/dev/null")
-    header = f"--- {target_path}\n+++ {target_path}\n"
+        target_path = Path("patch_generated.txt")
+    target_str = str(target_path)
+    line_count = content.count("\n")
+    if content and not content.endswith("\n"):
+        line_count += 1
+    header = f"--- /dev/null\n+++ b/{target_str}\n"
     if description:
         header = f"# {description}\n" + header
-    lines = content.splitlines(keepends=True)
-    if not lines and content:
-        lines = [content]
-    hunk = "".join(f"+{line}" if not line.startswith("+") else line for line in lines)
-    return header + hunk
+    lines = content.splitlines()
+    hunk_header = f"@@ -0,0 +1,{line_count} @@\n"
+    hunk_body = "".join(f"+{line}\n" for line in lines)
+    return header + hunk_header + hunk_body

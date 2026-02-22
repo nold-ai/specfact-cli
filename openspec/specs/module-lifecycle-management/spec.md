@@ -294,3 +294,59 @@ The system SHALL report ModuleIOContract compliance based on actual module capab
 - **THEN** each warning condition SHALL be emitted once per module/event
 - **AND** a single summary line SHALL report aggregate full/partial/legacy counts.
 
+### Requirement: Registration pipeline SHALL enforce trust checks before enabling modules
+
+The system SHALL execute trust checks before module registration is finalized.
+
+#### Scenario: Trusted module proceeds to registration
+
+- **WHEN** checksum/signature checks pass for a module artifact
+- **THEN** registration pipeline SHALL continue and enable module commands.
+
+#### Scenario: Untrusted module is skipped or rejected
+
+- **WHEN** trust checks fail
+- **THEN** lifecycle pipeline SHALL skip or reject that module
+- **AND** SHALL provide diagnostic logging with failure reason.
+
+### Requirement: Trust failures SHALL not block unrelated module registration
+
+The system SHALL degrade gracefully when one module fails trust checks.
+
+#### Scenario: One module fails, others continue
+
+- **WHEN** one module fails integrity verification during registration
+- **THEN** other valid modules SHALL continue registration
+- **AND** overall startup SHALL remain operational with warnings.
+
+### Requirement: Registration loads and validates schema extensions
+
+The system SHALL extend module registration to load schema_extensions from manifests, validate namespace uniqueness, and populate the global extension registry.
+
+#### Scenario: Registration loads schema_extensions from manifest
+- **WHEN** module registration loads module-package.yaml
+- **THEN** system SHALL parse schema_extensions section if present
+- **AND** SHALL extract target models, field names, types, descriptions
+
+#### Scenario: Registration validates extension namespace uniqueness
+- **WHEN** module declares schema extension with field name
+- **THEN** system SHALL check global extension registry for conflicts
+- **AND** SHALL reject registration if `module.field` already declared by another module
+- **AND** SHALL log error with conflicting module name
+
+#### Scenario: Registration populates global extension registry
+- **WHEN** module registration succeeds with schema_extensions
+- **THEN** system SHALL add extensions to global registry
+- **AND** registry SHALL map module_name → extensions metadata
+
+#### Scenario: Registration logs registered extensions
+- **WHEN** module with schema_extensions completes registration
+- **THEN** system SHALL log: "Module X registered N schema extensions for [Feature, ProjectBundle]"
+- **AND** SHALL log at debug level the specific fields registered
+
+#### Scenario: Registration skips invalid extension declarations
+- **WHEN** module declares extension with malformed field name (e.g., contains dots)
+- **THEN** system SHALL log warning
+- **AND** SHALL skip that extension
+- **AND** SHALL NOT fail entire module registration
+

@@ -1,12 +1,17 @@
-# SpecFact CLI module package manifest.
 name: generate
-version: "0.27.0"
+version: 0.35.0
 commands:
   - generate
 command_help:
-  generate: "Generate artifacts from SDD and plans"
+  generate: Generate artifacts from SDD and plans
 pip_dependencies: []
 module_dependencies:
   - plan
 tier: community
-core_compatibility: ">=0.28.0,<1.0.0"
+core_compatibility: '>=0.28.0,<1.0.0'
+publisher:
+  name: nold-ai
+  url: https://github.com/nold-ai/specfact-cli-modules
+  email: oss@nold.ai
+description: Generate implementation artifacts from plans and SDD.
+license: Apache-2.0
