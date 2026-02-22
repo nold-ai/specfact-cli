@@ -58,6 +58,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | — | — | arch-06, arch-07 implemented 2026-02-16 (see Implemented above) | — | — |
+| arch | 08 | arch-08-documentation-discrepancies-remediation | TBD | — |
 
 ### Marketplace (module distribution)
 
