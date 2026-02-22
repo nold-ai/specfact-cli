@@ -47,7 +47,7 @@ No new application code or CLI behavior; documentation and spec-doc alignment on
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: (to be created after proposal approval)
-- **Issue URL**: TBD
+- **GitHub Issue**: #291
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/291
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: synced-2026-02-22

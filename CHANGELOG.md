@@ -7,7 +7,31 @@ All notable changes to this project will be documented in this file.
 
 **Important:** Changes need to be documented below this block as this is the header section. Each section should be separated by a horizontal rule. Newer changelog entries need to be added on top of prior ones to keep the history chronological with most recent changes first.
 
+
 ---
+
+## [0.36.0] - 2026-02-21
+
+### Added
+
+- Enhanced `specfact backlog add` interactive flow with multiline capture (`::END::` sentinel), acceptance criteria, priority, story points, parent selection, and description format selection (`markdown` or `classic`).
+- New `specfact backlog init-config` command to scaffold `.specfact/backlog-config.yaml` with safe provider defaults.
+- Expanded `specfact backlog map-fields` into a multi-provider setup flow (`ado`, `github`) with guided discovery/validation and canonical config persistence under `.specfact/backlog-config.yaml`.
+- GitHub backlog create flow now supports native sub-issue parent linking and optional issue-type / ProjectV2 Type assignment using configured GraphQL metadata.
+- Centralized retry support for backlog adapter write operations with duplicate-safe behavior for non-idempotent creates/comments.
+
+### Fixed
+
+- Azure DevOps interactive sprint/iteration selection now resolves context from `--project-id` so available iterations are discoverable during `backlog add`.
+- Azure DevOps parent candidate discovery no longer hides valid parents via implicit current-iteration filtering in hierarchy selection flows.
+- GitHub backlog field/type extraction now tolerates non-list labels and dict-shaped `issue_type` payloads (`name`/`title`) for more reliable type inference.
+
+### Changed
+
+- Backlog documentation now reflects the current `specfact backlog` command surface and updated `backlog add` behavior in both guide and command reference docs.
+
+---
+
 ## [0.35.0] - 2026-02-20
 
 ### Added
@@ -57,7 +81,26 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- None yet.
+- Architecture documentation remediation for OpenSpec change `arch-08-documentation-discrepancies-remediation`:
+  - New architecture implementation status page: `docs/architecture/implementation-status.md`.
+  - New ADR set with template and initial ADR: `docs/architecture/adr/`.
+  - New module development guide: `docs/guides/module-development.md`.
+
+### Changed
+
+- Reworked architecture references to align with implemented behavior:
+  - `docs/reference/architecture.md`
+  - `docs/architecture/README.md`
+  - `docs/architecture/component-graph.md`
+  - `docs/architecture/module-system.md`
+  - `docs/architecture/data-flow.md`
+  - `docs/architecture/state-machines.md`
+  - `docs/architecture/interface-contracts.md`
+- Updated adapter development documentation and navigation links for discoverability:
+  - `docs/guides/adapter-development.md`
+  - `docs/_layouts/default.html`
+  - `docs/index.md`
+- Simplified top-level `README.md` by removing deep architecture implementation details and linking technical readers to architecture docs.
 
 ---
 

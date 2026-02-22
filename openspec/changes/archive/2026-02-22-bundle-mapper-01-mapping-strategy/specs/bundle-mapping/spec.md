@@ -29,25 +29,6 @@ The system SHALL provide a `BundleMapper` that computes mapping from backlog ite
 - **WHEN** no signals match any bundle
 - **THEN** the system returns mapping with primary_bundle_id=None and confidence=0.0
 
-### Requirement: Confidence-Based Routing
-
-The system SHALL route bundle mappings based on confidence thresholds: auto-assign (>=0.8), prompt user (0.5-0.8), require explicit selection (<0.5).
-
-#### Scenario: Auto-assign high confidence
-
-- **WHEN** mapping confidence >= 0.8
-- **THEN** the system automatically assigns to bundle (unless user declines)
-
-#### Scenario: Prompt for medium confidence
-
-- **WHEN** mapping confidence 0.5-0.8
-- **THEN** the system prompts user with suggested bundle and rationale, allowing selection from candidates
-
-#### Scenario: Require explicit selection for low confidence
-
-- **WHEN** mapping confidence < 0.5
-- **THEN** the system requires user to explicitly select a bundle (no silent assignment)
-
 ### Requirement: Mapping History Persistence
 
 The system SHALL persist mapping rules learned from user confirmations.
