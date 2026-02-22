@@ -23,6 +23,7 @@ The system SHALL extend backlog adapters with a create method that accepts a uni
 - Payload is provider-agnostic (type, title, description, parent_id, optional fields)
 - Adapter performs provider-specific mapping (e.g. GitHub labels for type, body for description)
 - Failure (auth, validation) is reported; no silent swallow
+- Returned created-item identity uses canonical GitHub issue number for both `id` and `key` so follow-up parent/reference inputs resolve consistently.
 
 #### Scenario: Create work item via ADO adapter
 
@@ -38,6 +39,7 @@ The system SHALL extend backlog adapters with a create method that accepts a uni
 
 - ADO work item type is derived from unified type via template type_mapping
 - Parent link is created when parent_id is present and adapter supports it
+- When payload includes `sprint`, adapter maps it to `System.IterationPath` in create patch payload.
 
 ### Requirement: Backlog add command
 

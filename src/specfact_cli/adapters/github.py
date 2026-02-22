@@ -2878,9 +2878,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             self._try_set_github_issue_type(issue_node_id, issue_type, provider_fields)
             self._try_set_github_project_type_field(issue_node_id, issue_type, provider_fields)
 
+        canonical_issue_number = str(created.get("number") or created.get("id") or "")
         return {
-            "id": str(created.get("id") or ""),
-            "key": str(created.get("number") or created.get("id") or ""),
+            "id": canonical_issue_number,
+            "key": canonical_issue_number,
             "url": str(created.get("html_url") or created.get("url") or ""),
         }
 

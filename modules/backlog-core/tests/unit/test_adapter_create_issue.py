@@ -77,7 +77,7 @@ def test_github_create_issue_maps_payload_and_returns_shape(monkeypatch) -> None
     assert "priority:high" in labels
     assert "story-points:5" in labels
     assert "acceptance criteria" in captured["json"]["body"].lower()
-    assert result == {"id": "77", "key": "42", "url": "https://github.com/nold-ai/specfact-cli/issues/42"}
+    assert result == {"id": "42", "key": "42", "url": "https://github.com/nold-ai/specfact-cli/issues/42"}
 
 
 def test_ado_create_issue_maps_payload_and_parent_relation(monkeypatch) -> None:
@@ -122,6 +122,7 @@ def test_ado_create_issue_maps_payload_and_parent_relation(monkeypatch) -> None:
             "acceptance_criteria": "Given/When/Then",
             "priority": 1,
             "story_points": 8,
+            "sprint": "Project\\Release 1\\Sprint 3",
             "parent_id": "123",
             "description_format": "classic",
         },
@@ -141,6 +142,10 @@ def test_ado_create_issue_maps_payload_and_parent_relation(monkeypatch) -> None:
     )
     assert any(
         op.get("path") == "/fields/Microsoft.VSTS.Scheduling.StoryPoints" and op.get("value") == 8
+        for op in captured["json"]
+    )
+    assert any(
+        op.get("path") == "/fields/System.IterationPath" and op.get("value") == "Project\\Release 1\\Sprint 3"
         for op in captured["json"]
     )
     assert result == {
@@ -213,7 +218,7 @@ def test_github_create_issue_sets_projects_type_field_when_configured(monkeypatc
     assert set_variables["fieldId"] == "PVT_FIELD_TYPE"
     assert set_variables["optionId"] == "PVT_OPTION_STORY"
 
-    assert result == {"id": "88", "key": "55", "url": "https://github.com/nold-ai/specfact-cli/issues/55"}
+    assert result == {"id": "55", "key": "55", "url": "https://github.com/nold-ai/specfact-cli/issues/55"}
 
 
 def test_github_create_issue_sets_repository_issue_type_when_configured(monkeypatch) -> None:
@@ -265,7 +270,7 @@ def test_github_create_issue_sets_repository_issue_type_when_configured(monkeypa
     assert len(graphql_calls) == 1
     variables = graphql_calls[0][1]["variables"]
     assert variables == {"issueId": "ISSUE_NODE_77", "issueTypeId": "IT_kwDODWwjB84Brk47"}
-    assert result == {"id": "188", "key": "77", "url": "https://github.com/nold-ai/specfact-cli/issues/77"}
+    assert result == {"id": "77", "key": "77", "url": "https://github.com/nold-ai/specfact-cli/issues/77"}
 
 
 def test_github_create_issue_links_native_parent_subissue(monkeypatch) -> None:
@@ -326,4 +331,4 @@ def test_github_create_issue_links_native_parent_subissue(monkeypatch) -> None:
 
     link_variables = graphql_calls[1][1]["variables"]
     assert link_variables == {"parentIssueId": "ISSUE_NODE_PARENT_11", "subIssueId": "ISSUE_NODE_99"}
-    assert result == {"id": "288", "key": "99", "url": "https://github.com/nold-ai/specfact-cli/issues/99"}
+    assert result == {"id": "99", "key": "99", "url": "https://github.com/nold-ai/specfact-cli/issues/99"}

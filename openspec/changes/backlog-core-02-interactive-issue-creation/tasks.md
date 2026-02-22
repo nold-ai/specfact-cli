@@ -49,6 +49,7 @@ Do not implement production code for new behavior until the corresponding tests 
 - [x] 4.13 Add regression tests for multi-provider map-fields flow (provider selection, auth/discovery checks, config persistence, verification output).
 - [x] 4.14 Add regression tests for `backlog init-config` scaffolding behavior (create, no-overwrite, force/override path).
 - [x] 4.15 Add regression tests for GitHub repository issue-type discovery and fallback behavior when ProjectV2 has only Status field.
+- [x] 4.16 Add regression tests ensuring ADO `create_issue` persists `sprint` to `System.IterationPath` and GitHub `create_issue` returns canonical issue-number identity (`id == key == number`).
 
 ## 5. Extend BacklogAdapterMixin with create_issue (TDD: code until tests pass)
 
@@ -56,6 +57,7 @@ Do not implement production code for new behavior until the corresponding tests 
 - [x] 5.2 Implement `create_issue` in GitHub adapter: map payload to GitHub Issues API (POST /repos/{owner}/{repo}/issues); return dict with id, key (number), url.
 - [x] 5.3 Implement `create_issue` in ADO adapter: map payload to ADO Create Work Item API; set parent relation when parent_id present; return dict with id, key, url.
 - [x] 5.4 Run adapter create tests; **expect pass**; fix until tests pass.
+- [x] 5.5 Fix create-issue regressions: map ADO sprint payload to `System.IterationPath` and normalize GitHub create return identity to issue number.
 
 ## 6. Implement creation hierarchy and add command (TDD: code until tests pass)
 

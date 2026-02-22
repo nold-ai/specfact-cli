@@ -25,3 +25,30 @@ hatch test -v modules/backlog-core/tests/unit/test_backlog_protocol.py modules/b
 ```
 
 - Result: **PASSED** (11 passed)
+
+## Regression Fix Round: Sprint Persistence and Canonical GitHub Created ID
+
+### Failing-before Implementation
+
+- Timestamp: 2026-02-22 23:16:44 +0100
+- Command:
+
+```bash
+hatch test -v modules/backlog-core/tests/unit/test_adapter_create_issue.py
+```
+
+- Result: **FAILED** (expected at this stage)
+- Failure summary:
+  - GitHub `create_issue` returned internal DB id in `id` instead of canonical issue number (`id != key`).
+  - ADO `create_issue` did not map payload `sprint` to `/fields/System.IterationPath`.
+
+### Passing-after Implementation
+
+- Timestamp: 2026-02-22 23:17:07 +0100
+- Command:
+
+```bash
+hatch test -v modules/backlog-core/tests/unit/test_adapter_create_issue.py
+```
+
+- Result: **PASSED** (5 passed)

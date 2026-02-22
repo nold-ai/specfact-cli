@@ -3222,6 +3222,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 }
             )
 
+        sprint = str(payload.get("sprint") or "").strip()
+        if sprint:
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": "/fields/System.IterationPath",
+                    "value": sprint,
+                }
+            )
+
         parent_id = str(payload.get("parent_id") or "").strip()
         if parent_id:
             parent_url = f"{self.base_url}/{org}/{project}/_apis/wit/workItems/{parent_id}"
