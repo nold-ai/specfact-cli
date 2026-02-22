@@ -4100,9 +4100,11 @@ def map_fields(
             "initiative": "epic",
             "requirement": "feature",
         }
-        discovered_map = (
-            final_payload.get("type_mapping") if isinstance(final_payload.get("type_mapping"), dict) else {}
-        )
+        discovered_map: dict[str, str] = {}
+        existing_type_mapping = final_payload.get("type_mapping")
+        if isinstance(existing_type_mapping, dict):
+            for key, value in existing_type_mapping.items():
+                discovered_map[str(key)] = str(value)
         for raw_type_name in repo_issue_types:
             normalized = str(raw_type_name).strip().lower().replace("_", " ").replace("-", " ")
             canonical = alias_to_canonical.get(normalized, "custom")
