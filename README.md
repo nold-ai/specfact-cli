@@ -154,51 +154,11 @@ Start with:
 - **Backlogs**: GitHub Issues, Azure DevOps, Jira, Linear
 - **Contracts**: Specmatic, OpenAPI
 
-### Module Lifecycle Baseline
+For technical architecture details (module lifecycle, registry internals, adapters, and implementation status), use:
 
-SpecFact now has a lifecycle-managed module system:
-
-- `specfact init` is bootstrap-first: initializes local CLI state and reports prompt status.
-- `specfact init ide` handles IDE prompt/template sync and IDE settings updates.
-- `specfact module` is the canonical lifecycle surface:
-  - `specfact module install <namespace/name>` installs marketplace modules into `~/.specfact/marketplace-modules/`.
-  - `specfact module list [--source builtin|marketplace|custom]` shows multi-source discovery state.
-  - `specfact module enable <id>` / `specfact module disable <id> [--force]` manage enabled state.
-  - `specfact module uninstall <name>` and `specfact module upgrade <name>` manage marketplace lifecycle.
-- `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain supported as compatibility aliases during migration.
-- Module lifecycle operations keep dependency-aware safety checks with `--force` cascading behavior.
-- Module manifests support dependency and core-version compatibility enforcement at registration time.
-
-This lifecycle model is the baseline for future granular module updates and enhancements. Module installation from third-party or open-source community providers is planned, but not implemented yet.
-
-Contract-first module architecture highlights:
-
-- `ModuleIOContract` formalizes module IO operations (`import`, `export`, `sync`, `validate`) on `ProjectBundle`.
-- Core-module isolation is enforced by static analysis (`core` never imports `specfact_cli.modules.*` directly).
-- Registration tracks protocol operation coverage and schema compatibility metadata.
-- Bridge registry support allows module manifests to declare `service_bridges` converters (for example ADO/Jira/Linear/GitHub) loaded at lifecycle startup without direct core-to-module imports.
-- Protocol reporting classifies modules from effective runtime interfaces with a single aggregate summary (`Full/Partial/Legacy`).
-- Module manifests support publisher and integrity metadata (arch-06) with optional checksum and signature verification at registration time.
-
-Why this matters:
-
-- Feature areas can evolve independently without repeatedly modifying core CLI wiring.
-- Module teams can ship at different speeds while preserving stable core behavior.
-- Clear IO contracts reduce coupling and make future migrations (e.g., new adapters/modules) lower risk.
-- Core remains focused on lifecycle, registry, and validation orchestration rather than tool-specific command logic.
-
----
-
-## Developer Note: Command Layout
-
-- Primary command implementations live in `src/specfact_cli/modules/<module>/src/commands.py`.
-- Legacy imports from `src/specfact_cli/commands/*.py` are compatibility shims and only guarantee `app` re-exports.
-- Preferred imports for module code:
-  - `from specfact_cli.modules.<module>.src.commands import app`
-  - `from specfact_cli.modules.<module>.src.commands import <symbol>`
-- Shim deprecation timeline:
-  - Legacy shim usage is deprecated for non-`app` symbols now.
-  - Shim removal is planned no earlier than `v0.30` (or the next major migration window).
+- [Architecture Reference](docs/reference/architecture.md)
+- [Architecture Docs Index](docs/architecture/README.md)
+- [Architecture Implementation Status](docs/architecture/implementation-status.md)
 
 ---
 

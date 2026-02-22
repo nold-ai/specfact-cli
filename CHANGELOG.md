@@ -81,7 +81,26 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- None yet.
+- Architecture documentation remediation for OpenSpec change `arch-08-documentation-discrepancies-remediation`:
+  - New architecture implementation status page: `docs/architecture/implementation-status.md`.
+  - New ADR set with template and initial ADR: `docs/architecture/adr/`.
+  - New module development guide: `docs/guides/module-development.md`.
+
+### Changed
+
+- Reworked architecture references to align with implemented behavior:
+  - `docs/reference/architecture.md`
+  - `docs/architecture/README.md`
+  - `docs/architecture/component-graph.md`
+  - `docs/architecture/module-system.md`
+  - `docs/architecture/data-flow.md`
+  - `docs/architecture/state-machines.md`
+  - `docs/architecture/interface-contracts.md`
+- Updated adapter development documentation and navigation links for discoverability:
+  - `docs/guides/adapter-development.md`
+  - `docs/_layouts/default.html`
+  - `docs/index.md`
+- Simplified top-level `README.md` by removing deep architecture implementation details and linking technical readers to architecture docs.
 
 ---
 
