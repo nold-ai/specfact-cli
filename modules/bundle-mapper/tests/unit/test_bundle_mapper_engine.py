@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import yaml
 from bundle_mapper.mapper.engine import BundleMapper
 
 from specfact_cli.models.backlog_item import BacklogItem
@@ -65,3 +68,50 @@ def test_weighted_calculation_explicit_dominates() -> None:
     m = mapper.compute_mapping(item)
     assert m.primary_bundle_id == "backend"
     assert m.confidence >= 0.8
+
+
+def test_historical_mapping_ignores_stale_bundle_ids(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    key = "area=backend;assignee=alice;tags=bug,login"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "backlog": {
+                    "bundle_mapping": {
+                        "history": {
+                            key: {
+                                "counts": {
+                                    "removed-bundle": 50,
+                                    "backend-services": 2,
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    mapper = BundleMapper(available_bundle_ids=["backend-services"], config_path=config_path)
+    item = _item(assignees=["alice"], area="backend", tags=["bug", "login"])
+    mapping = mapper.compute_mapping(item)
+
+    assert mapping.primary_bundle_id == "backend-services"
+
+
+def test_conflicting_content_signal_does_not_increase_primary_confidence() -> None:
+    mapper = BundleMapper(
+        available_bundle_ids=["alpha", "beta"],
+        bundle_spec_keywords={"beta": {"beta"}},
+    )
+    item = _item(
+        tags=["bundle:alpha"],
+        title="beta",
+    )
+
+    mapping = mapper.compute_mapping(item)
+
+    assert mapping.primary_bundle_id == "alpha"
+    assert mapping.confidence == 0.8

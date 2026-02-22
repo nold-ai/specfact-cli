@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
+from urllib.parse import quote, unquote
 
 import yaml
 from beartype import beartype
@@ -58,25 +59,58 @@ class MappingRule(BaseModel):
 
 def item_key(item: _ItemLike) -> str:
     """Build a stable key for history lookup (area, assignee, tags)."""
-    area = (item.area or "").strip()
-    assignee = (item.assignees[0] if item.assignees else "").strip()
-    tags_str = "|".join(sorted(t.strip() for t in item.tags if t))
-    return f"area={area}|assignee={assignee}|tags={tags_str}"
+    area = quote((item.area or "").strip(), safe="")
+    assignee = quote((item.assignees[0] if item.assignees else "").strip(), safe="")
+    # Use comma-separated, URL-encoded tag values to avoid delimiter collisions.
+    tags = [quote(t.strip(), safe="") for t in sorted(t.strip() for t in item.tags if t)]
+    tags_str = ",".join(tags)
+    return f"area={area};assignee={assignee};tags={tags_str}"
 
 
 def item_keys_similar(key_a: str, key_b: str) -> bool:
     """Return True if keys share at least 2 of 3 non-empty components (area, assignee, tags). Empty fields are ignored to avoid matching unrelated items."""
 
-    def parts(k: str) -> tuple[str, str, str]:
-        d: dict[str, str] = {}
-        for seg in k.split("|"):
+    def _parse_key(k: str) -> tuple[str, str, str]:
+        # Preferred modern format: area=...;assignee=...;tags=a,b
+        if ";" in k:
+            d: dict[str, str] = {}
+            for seg in k.split(";"):
+                if "=" in seg:
+                    name, val = seg.split("=", 1)
+                    d[name.strip()] = val.strip()
+            area = unquote(d.get("area", ""))
+            assignee = unquote(d.get("assignee", ""))
+            tags_raw = d.get("tags", "")
+            tags = [unquote(t) for t in tags_raw.split(",") if t]
+            return (area, assignee, ",".join(tags))
+
+        # Legacy format: area=...|assignee=...|tags=a|b
+        d_legacy: dict[str, str] = {}
+        segments = k.split("|")
+        idx = 0
+        while idx < len(segments):
+            seg = segments[idx]
             if "=" in seg:
                 name, val = seg.split("=", 1)
-                d[name.strip()] = val.strip()
-        return (d.get("area", ""), d.get("assignee", ""), d.get("tags", ""))
+                name = name.strip()
+                val = val.strip()
+                if name == "tags":
+                    tag_parts = [val] if val else []
+                    j = idx + 1
+                    while j < len(segments) and "=" not in segments[j]:
+                        if segments[j]:
+                            tag_parts.append(segments[j].strip())
+                        j += 1
+                    d_legacy["tags"] = ",".join(tag_parts)
+                    idx = j
+                    continue
+                d_legacy[name] = val
+            idx += 1
 
-    a1, a2, a3 = parts(key_a)
-    b1, b2, b3 = parts(key_b)
+        return (d_legacy.get("area", ""), d_legacy.get("assignee", ""), d_legacy.get("tags", ""))
+
+    a1, a2, a3 = _parse_key(key_a)
+    b1, b2, b3 = _parse_key(key_b)
     matches = 0
     if a1 and b1 and a1 == b1:
         matches += 1
@@ -129,10 +163,17 @@ def load_bundle_mapping_config(config_path: Path | None = None) -> dict[str, Any
         with open(config_path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     bm = (data.get("backlog") or {}).get("bundle_mapping") or {}
+
+    def _safe_float(value: Any, default: float) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
     return {
         "rules": bm.get("rules", []),
         "history": bm.get("history", {}),
         "explicit_label_prefix": bm.get("explicit_label_prefix", DEFAULT_LABEL_PREFIX),
-        "auto_assign_threshold": float(bm.get("auto_assign_threshold", DEFAULT_AUTO_ASSIGN_THRESHOLD)),
-        "confirm_threshold": float(bm.get("confirm_threshold", DEFAULT_CONFIRM_THRESHOLD)),
+        "auto_assign_threshold": _safe_float(bm.get("auto_assign_threshold"), DEFAULT_AUTO_ASSIGN_THRESHOLD),
+        "confirm_threshold": _safe_float(bm.get("confirm_threshold"), DEFAULT_CONFIRM_THRESHOLD),
     }

@@ -1,9 +1,9 @@
 name: bundle-mapper
-version: 0.1.0
+version: "0.1.0"
 commands: []
 pip_dependencies: []
 module_dependencies: []
-core_compatibility: '>=0.28.0,<1.0.0'
+core_compatibility: ">=0.28.0,<1.0.0"
 tier: community
 schema_extensions:
   project_bundle: {}

@@ -134,6 +134,17 @@
   - [ ] 12.4.4 Run `hatch test --cover -v` one final time
   - [ ] 12.4.5 Verify no errors remain (formatting, linting, type-checking, tests)
 
+## 12R. Review Defect Remediation (2026-02-22)
+
+- [x] 12R.1 Add regression tests first (must fail before implementation)
+  - [x] 12R.1.1 Historical scoring ignores stale bundle IDs not present in available bundles
+  - [x] 12R.1.2 History key encoding is unambiguous and does not lose tag values
+  - [x] 12R.1.3 Conflicting content signal does not boost confidence for another primary bundle
+  - [x] 12R.1.4 Malformed threshold config values fall back to defaults without crashing
+- [x] 12R.2 Record failing run in `TDD_EVIDENCE.md` with command, timestamp, and failure summary
+- [x] 12R.3 Implement production fixes in mapper/history modules
+- [x] 12R.4 Re-run regression tests and record passing run in `TDD_EVIDENCE.md`
+
 ## 13. OpenSpec Validation
 
 - [ ] 13.1 Validate change proposal

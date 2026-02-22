@@ -107,3 +107,10 @@ This change was re-validated after renaming and updating to align with the modul
 - All old change ID references updated to new module-scoped naming
 
 **Result**: Pass — format compliant, module architecture aligned, no breaking changes introduced.
+
+## Remediation Re-Validation (2026-02-22)
+
+- Scope: review defect remediation for stale historical bundle IDs, history key encoding ambiguity, conflicting content contribution, and malformed threshold parsing.
+- Validation command: `openspec validate bundle-mapper-01-mapping-strategy --strict`
+- Result: `Change 'bundle-mapper-01-mapping-strategy' is valid`
+- Notes: telemetry flush warnings were emitted due restricted network (`edge.openspec.dev`) but validation completed successfully with exit code 0.

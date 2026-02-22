@@ -97,6 +97,8 @@ class BundleMapper:
                 continue
             counts = entry.get("counts", {})
             for bid, cnt in counts.items():
+                if self._available_bundle_ids and bid not in self._available_bundle_ids:
+                    continue
                 if cnt > best_count:
                     best_count = cnt
                     best_bundle = bid
@@ -182,10 +184,12 @@ class BundleMapper:
         if content_list:
             best_content = content_list[0]
             contrib = WEIGHT_CONTENT * best_content[1]
-            weighted += contrib
             if primary_bundle_id is None:
+                weighted += contrib
                 primary_bundle_id = best_content[0]
                 reasons.append(self._explain_score(best_content[0], best_content[1], "content_similarity"))
+            elif best_content[0] == primary_bundle_id:
+                weighted += contrib
 
         confidence = min(1.0, weighted)
         candidates: list[tuple[str, float]] = []

@@ -245,11 +245,20 @@ class TestAdoAdapter:
     @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
     @patch("specfact_cli.adapters.ado.requests.get")
-    def test_missing_api_token(self, mock_get: MagicMock, mock_patch: MagicMock, bridge_config: BridgeConfig) -> None:
+    @patch("specfact_cli.adapters.ado.get_token")
+    def test_missing_api_token(
+        self,
+        mock_get_token: MagicMock,
+        mock_get: MagicMock,
+        mock_patch: MagicMock,
+        bridge_config: BridgeConfig,
+    ) -> None:
         """Test error when API token is missing."""
         # Clear environment variable BEFORE creating adapter
         old_token = os.environ.pop("AZURE_DEVOPS_TOKEN", None)
         try:
+            # Ensure adapter cannot resolve token from persisted auth cache.
+            mock_get_token.return_value = None
             adapter = AdoAdapter(org="test-org", project="test-project", api_token=None)
 
             # Mock process template API call (called by _get_work_item_type)
