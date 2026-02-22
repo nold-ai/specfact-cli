@@ -2700,7 +2700,6 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             console.print(f"[yellow]⚠[/yellow] Could not set GitHub issue Type automatically: {error}")
 
     @beartype
-    @beartype
     def _try_link_github_sub_issue(
         self,
         owner: str,

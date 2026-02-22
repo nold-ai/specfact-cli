@@ -224,7 +224,7 @@ def _load_template_config(template: str) -> dict[str, Any]:
     module_root = Path(__file__).resolve().parents[1]
     template_file = module_root / "resources" / "backlog-templates" / f"{template}.yaml"
     shared_template_file = (
-        Path(__file__).resolve().parents[6]
+        Path(__file__).resolve().parents[5]
         / "src"
         / "specfact_cli"
         / "resources"
@@ -349,23 +349,6 @@ def _resolve_provider_fields_for_create(
             result["github_issue_types"] = issue_type_cfg
 
     return result or None
-
-
-@beartype
-def _has_complete_github_project_v2_type_mapping(provider_fields: dict[str, Any] | None, issue_type: str) -> bool:
-    """Return True when ProjectV2 Type mapping metadata is complete for selected issue type."""
-    if not isinstance(provider_fields, dict):
-        return False
-    project_cfg = provider_fields.get("github_project_v2")
-    if not isinstance(project_cfg, dict):
-        return False
-    project_id = str(project_cfg.get("project_id") or "").strip()
-    type_field_id = str(project_cfg.get("type_field_id") or "").strip()
-    option_ids = project_cfg.get("type_option_ids")
-    if not isinstance(option_ids, dict):
-        return False
-    option_id = str(option_ids.get(issue_type) or option_ids.get(issue_type.lower()) or "").strip()
-    return bool(project_id and type_field_id and option_id)
 
 
 @beartype
