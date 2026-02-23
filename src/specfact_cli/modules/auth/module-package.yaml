@@ -15,5 +15,5 @@ publisher:
 description: Authenticate SpecFact with supported DevOps providers.
 license: Apache-2.0
 integrity:
-  checksum: sha256:ca38c983e10c62d8d65f557417a3643409b76e06ebe47fd54d0615582cb3444c
-  signature: v1TpsqgswbM089IqRINWuPzqpy/lC01kT2xYM+RjLq+GnK9fbix2HRADomZIp1dzan/VB4WWZwX6vekZ+lHLCw==
+  checksum: sha256:ebb79ba19875e6669778e9ed490d51a676fdd0ac91823521a049a3565b486bb3
+  signature: 86T1P4Tem3AD92shR1R5ie9eLzRJ6nX9/FRjW00quaYyZRgvFgePdvc+cXHUAkaPRDtu+kMG0kKvF1TkH5ovAw==

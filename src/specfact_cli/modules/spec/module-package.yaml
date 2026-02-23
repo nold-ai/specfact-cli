@@ -15,5 +15,5 @@ publisher:
 description: Integrate and run API specification and contract checks.
 license: Apache-2.0
 integrity:
-  checksum: sha256:1e8693dddcb3688413378fb8eead352fec21bba95a517cfcb5330b36af05436a
-  signature: zjI4qvXPw+NlYG6RtDhxKMu5tRijkk6ZUXBvAz3mbdN3lgUN32fddJ4RK4UPt0i5PvlEwWZvcHWL4mHcpConBA==
+  checksum: sha256:e43ae430e82e59f4cf546df353e94a5be3c36ff5b6e3efba37ad5ca84a894e3c
+  signature: ltxYz9kloJQ+OCWWnB/B9P95PVNxM+lsQ0VOGjlsU0uZL5EaByAUjCuoAF5/NsQ1fsmaLpOWRsJYviYYL+6WBA==

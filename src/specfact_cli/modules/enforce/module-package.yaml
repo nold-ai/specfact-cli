@@ -16,5 +16,5 @@ publisher:
 description: Apply governance policies and quality gates to bundles.
 license: Apache-2.0
 integrity:
-  checksum: sha256:a0489a0b7d89d858ee9e31aa9c4e6bbdc6d514fd1dd0e133adaafdb859dd4000
-  signature: cMle25qRpzZNvgMfsdhiJlrHQGk1fsiFXpeiTplRdSVo5xegyzwWvXO/7jb59nBQX2p/JjqKUnGh/A143G57AA==
+  checksum: sha256:ad5d5ca9629147a1163dda4c03ee63914048e456e07fdcbb52c3cb7016a56fc9
+  signature: IIeQPnCLs09tqK9h9NJRRB48gutllpgmLiORM0Mj1d9d6Rr2XDPbAlrQiX2NhB3OcDjBQW32Co3rPQHXcy/WDQ==

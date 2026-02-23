@@ -15,5 +15,5 @@ publisher:
 description: Manage project bundles, contexts, and lifecycle workflows.
 license: Apache-2.0
 integrity:
-  checksum: sha256:239c30e346e7f4d752cc2729e264d13fdf1cc92543f3630147fbd98f129a2db3
-  signature: /atX+KwwHILB8ehUlk7Z0VI0o4dsAWmxiWL/BMduJ0PBwEs5pBfR0NGfBW/lpnkzgsStW60kwYA8hhxsTs4GDg==
+  checksum: sha256:356ab38ff9a044f26c4c9750ad6eec7192303a5f6b4b25f829cca5aee3e41192
+  signature: AmbkEPXATKCZsTVmAzUpB/Ou8DVnLM/ffEpP05lOqM/f5XQvTbNyPpuNq6tq85KKaJJDSLKNACHCOHv3dlmFCg==

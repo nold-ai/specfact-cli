@@ -15,5 +15,5 @@ publisher:
 description: Migrate project bundles across supported structure versions.
 license: Apache-2.0
 integrity:
-  checksum: sha256:528f7cd48964162e33f31871758e9d613cd96dd06a1344069945c7e603bccf2a
-  signature: bKrfU8SGoXCn6LBfLPV/4kXzk6djWA3uCs1Uq2ENx2bXrN1gjr+3f7cateZ6WBxw1Kz52QO7xGxqvw8g9DFfCw==
+  checksum: sha256:c4199b9d28d97ae3f3198c4b6d4086cf20a71b14eba3c78b27111368419c3767
+  signature: cs2H0NB10jZTrh0tkk8TybW8wogCax2Dt9gjxR/0pS9Z0zz1ZDBbV5JgoibHRU48UWXwuUiPkbLRJYwWnsVqBw==

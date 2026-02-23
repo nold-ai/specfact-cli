@@ -18,8 +18,8 @@ publisher:
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 integrity:
-  checksum: sha256:bbdccc5c364a28ff3b66123e31dbd685c4a2d783a8a13a888ca4a4aa5d0841aa
-  signature: RGQscLzQBcNOfqa5Gq5mpmGHjl2zdW4DFMBMpatNQSIqNhtnZEHUTydYbQcyWpWRzHaSvCUtTOhgjq4CpNJYCw==
+  checksum: sha256:c799eff0bf16445c403b7b3037524c1bca71b51673ae5c55885860886e2c5dc8
+  signature: 5Osen9Zt1GZjIxAiBQUYZKJZMcP/zkvQXzHhn0NYLK4M5jFeLgPsZiEH9l4NRBkQBJREIyQ+2z/npLZPCfwTBw==
 dependencies: []
 description: Run policy evaluations with recommendation and compliance outputs.
 license: Apache-2.0

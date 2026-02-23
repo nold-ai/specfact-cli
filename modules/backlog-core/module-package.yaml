@@ -1,5 +1,5 @@
 name: backlog-core
-version: 0.1.0
+version: 0.1.1
 commands:
 - backlog
 command_help:
@@ -22,8 +22,8 @@ publisher:
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 integrity:
-  checksum: sha256:2f40084e130787b41e82f2f496dc80e41635eb7e095adbb3af31a074824cb70d
-  signature: OyR/QkRQqbdj2OG6Bf3+vmFFdbd51FRQyNMDlguMgWf20koo6pTegEn36F/RJCpXTWnRVrQKpNNr8M27iUSLBQ==
+  checksum: sha256:9f973a09f2fbb3ac3c727b3cecd44907956c7e751930c31f2f78b7713c2fdf18
+  signature: 3NTfSnYBVJ5mjD0pVBIrSybBIWNgTfH3mYFqUFQkQi802OAq1xjf3/3IuGF1ZjjlgLV+yMkSgc8sfCzP6Dc/Ag==
 dependencies: []
 description: Provide advanced backlog analysis and readiness capabilities.
 license: Apache-2.0

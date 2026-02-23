@@ -15,5 +15,5 @@ publisher:
 description: Analyze codebase quality, contracts, and architecture signals.
 license: Apache-2.0
 integrity:
-  checksum: sha256:3225f0d57a37469d2ce00c3654d3d36ca7d286c32767443aa0704eefed657d9c
-  signature: jiYU5za8M0Yo80TnH1Hn+FcFFvwdXJrngEHYRmApSiKbLsQyvoNAMA7mFEg9fX7Ly9qV7NBdO2+m5X8YcRhPCw==
+  checksum: sha256:f6b3bbe0d380cd6ce305be4af8649fc6343b8fb1829da6218278ce37213bbec5
+  signature: z5Lmf++lduoS+dlL0iNRP535Yug4yN/L6B4jJs1KAoIeVtIfZ/xA/veSxUD/24WSAGx4fPHZE6kwvb74hC07CA==

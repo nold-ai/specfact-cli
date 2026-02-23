@@ -13,6 +13,9 @@ from typing import Any
 
 import yaml
 
+_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+_IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
+
 
 def _canonical_manifest_payload(manifest_data: dict[str, Any]) -> bytes:
     payload = dict(manifest_data)
@@ -21,9 +24,15 @@ def _canonical_manifest_payload(manifest_data: dict[str, Any]) -> bytes:
 
 
 def _module_payload(module_dir: Path) -> bytes:
+    def _is_hashable(path: Path) -> bool:
+        rel = path.relative_to(module_dir)
+        if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+            return False
+        return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
+
     entries: list[str] = []
     files = sorted(
-        (path for path in module_dir.rglob("*") if path.is_file()),
+        (path for path in module_dir.rglob("*") if path.is_file() and _is_hashable(path)),
         key=lambda p: p.relative_to(module_dir).as_posix(),
     )
     for path in files:

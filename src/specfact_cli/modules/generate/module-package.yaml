@@ -16,5 +16,5 @@ publisher:
 description: Generate implementation artifacts from plans and SDD.
 license: Apache-2.0
 integrity:
-  checksum: sha256:bc1072b0466ba02299e2cc75d92bba741fd34634547731e420ef27f33f2991ef
-  signature: cBcnxh6LJ9TYiEp29XXoJSFPWqmwHTV/cnCRM0eLJOhBoqI35URW3s+CX71JVGa1agoExlfk+1g6LKsM1Z0kBg==
+  checksum: sha256:d840cf1cf34cc1c19411a9e99a71ade573cd6f877a9b76f5b3a5db338ba176c1
+  signature: LqNTq2SXu2h47H74Tgenh0EYyIgxnQ1HGG2U7PECuPH187hchgY5azT+JSvXR6mE+jX2jXRX1/pYWY0pVt+HBQ==

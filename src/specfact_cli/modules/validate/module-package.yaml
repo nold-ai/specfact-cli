@@ -15,5 +15,5 @@ publisher:
 description: Run schema, contract, and workflow validation suites.
 license: Apache-2.0
 integrity:
-  checksum: sha256:22066b811f0bf3bcda202e4b1b8087d4183e268b64284441b04efe49f21c2e0a
-  signature: 4OnHXb/NqELblXF8/nOj9Freb5hC2n29bs46Emf9JrmpD3uO8XJPJN/5pb/KZlWUan02I3WoyYybkl5xX+fpBg==
+  checksum: sha256:0cfd33fa7ea7a02016c96324b7853875019e7666909f4af8cc50c4c85bf740e1
+  signature: KXkCKbsoPR2J7U3FnH6r8NtVJaGHMFp3o5yb+Hfj1XXN+pUL2SlV1ZqpzTseh3ZKkoNdKB8yLytkKl0jVa/DBA==

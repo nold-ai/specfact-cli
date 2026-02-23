@@ -15,5 +15,5 @@ publisher:
 description: Detect and report drift between code, plans, and specs.
 license: Apache-2.0
 integrity:
-  checksum: sha256:5c7b8bd466f191028545832f975a81936786f5f97fbec04e83b2e64b9a0f0f5e
-  signature: s/WrxtR9AgiLQemWUHewcjGJOMTUOjLnQ/elDDumPAhiH7SX92AEbQxN6ZCycgCSUAk3i22XVcS30DrSwm72DA==
+  checksum: sha256:71f48b98ece0d271d1013a93021cc082d178c7876895d1033065d4be26adc1a0
+  signature: 8yhxRp9pvVuKVBSjgi+6L5vJDjBgtepyWzHLVNC+OHv/e5zg5vUilw89V1tuxxvZHo89Cp8tAcsQgKxk2VVLDg==

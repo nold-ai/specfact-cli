@@ -15,5 +15,5 @@ publisher:
 description: Create and validate Spec-Driven Development manifests and mappings.
 license: Apache-2.0
 integrity:
-  checksum: sha256:a8a530c2b4637fadce5ab205bde13c657e2c3571863fa2c2fa798550b24796b2
-  signature: TsD0B3anf1qpWitiJ/mmtc96pYy2U2QUgTDq4HRkLSt/2DbfmlVbAMsEqQM6EzMy73V+Xxo45BP4L/gPPV+yCg==
+  checksum: sha256:044352d6e7dd4d3a3b29019ca95676a4c96ff4594e692829e31467dd9d348c28
+  signature: YUNrc6PF7TJdGSwrGnh320g7VeSbUFoyeKOYWhcP64DD4vonRUPqeuUj6IvXFczTGEcbkGJ6zrrOktuxyUSUAQ==

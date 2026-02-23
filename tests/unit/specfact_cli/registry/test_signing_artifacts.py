@@ -178,6 +178,51 @@ def test_sign_modules_py_checksum_changes_when_module_files_change(tmp_path: Pat
     assert second_checksum != first_checksum
 
 
+def test_sign_modules_py_ignores_transient_cache_files(tmp_path: Path):
+    """Checksum SHALL ignore generated cache files such as __pycache__/*.pyc."""
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+    module_dir = tmp_path / "sample-module"
+    module_dir.mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('stable')\n", encoding="utf-8")
+
+    import subprocess
+    import yaml
+
+    first = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        timeout=10,
+    )
+    assert first.returncode == 0
+    first_data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    first_checksum = first_data.get("integrity", {}).get("checksum")
+    assert isinstance(first_checksum, str) and first_checksum.startswith("sha256:")
+
+    cache_dir = module_dir / "src" / "__pycache__"
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "main.cpython-312.pyc").write_bytes(b"\x00\x01cache")
+
+    second = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        timeout=10,
+    )
+    assert second.returncode == 0
+    second_data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    second_checksum = second_data.get("integrity", {}).get("checksum")
+    assert isinstance(second_checksum, str) and second_checksum.startswith("sha256:")
+    assert second_checksum == first_checksum
+
+
 def test_sign_modules_workflow_exists():
     """CI workflow .github/workflows/sign-modules.yml SHALL exist."""
     assert SIGN_WORKFLOW.exists(), "sign-modules.yml workflow must exist"

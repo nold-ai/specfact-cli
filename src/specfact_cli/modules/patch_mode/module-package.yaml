@@ -16,5 +16,5 @@ publisher:
 description: Prepare, review, and apply structured repository patches safely.
 license: Apache-2.0
 integrity:
-  checksum: sha256:44ab2e64473ab7b31086ee0f3f2153aa545b7bacd628cff844576c6ac028bdf7
-  signature: uNXdthnZTJp0GbFvZ4Jm7jlV/1w0UfSKiME1/TNvLaV1SUOrGTd0nJCEZCVxnhxflIvzB/+CRy1VP5fIl22OBg==
+  checksum: sha256:b77c31a7d7e3d96e5d34dab9507e241dd939c3d45a1e9e8f69e04d5817488d21
+  signature: Hdb11DFA7/yJlrFywntr0GKrupDUnKgyFAQ/y6DEqretqjKA/+x+FICDKAGCq7Mm5uoPcD7/ZCMsZJdjHDyYAA==

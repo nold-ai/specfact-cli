@@ -18,5 +18,5 @@ publisher:
 description: Synchronize repository state with connected external systems.
 license: Apache-2.0
 integrity:
-  checksum: sha256:4591703ea03bcd89ea6d950b5ac4ce231ae47af9b4bc69704d5cd3acf708f38d
-  signature: xJnWHRCNnfUh6+Xsn29Y9lRhL66xfRPgbXlITVDZpgerMVg2uH2/SiTAPoRTxI/CHXKMCyD3Sq5zcbHG6KiyBw==
+  checksum: sha256:748a6875c0dc83cc24992445f6a5f28fdfd01be52eec22bd956bc9965c6d4120
+  signature: GwFyWP/QN5MHgP3zQt6nfWRTutNxFysinBTZrf6O80MpNmr0+6PwciQ3zLl0OrMVmml6Rm0TzjHszh3XypA1Bg==
