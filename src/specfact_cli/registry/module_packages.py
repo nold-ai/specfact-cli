@@ -108,6 +108,11 @@ def get_modules_roots() -> list[Path]:
     if repo_modules_root.exists():
         _add_root(repo_modules_root)
 
+    # Installed runtimes can still discover repo-level modules when invoked from a checkout.
+    cwd_modules_root = Path.cwd() / "modules"
+    if cwd_modules_root.exists():
+        _add_root(cwd_modules_root)
+
     # Optional extra roots for custom module locations.
     extra_roots = os.environ.get("SPECFACT_MODULES_ROOTS", "")
     for raw_root in extra_roots.split(os.pathsep):

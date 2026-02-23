@@ -1,5 +1,5 @@
 name: repro
-version: 0.36.0
+version: 0.36.1
 commands:
   - repro
 command_help:

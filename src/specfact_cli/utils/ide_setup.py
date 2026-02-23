@@ -124,6 +124,7 @@ SPECFACT_COMMANDS = [
     "specfact.sync-backlog",
     "specfact.backlog-daily",
     "specfact.backlog-refine",
+    "specfact.backlog-add",
     "specfact.validate",
 ]
 
