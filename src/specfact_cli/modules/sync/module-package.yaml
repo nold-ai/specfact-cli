@@ -1,13 +1,14 @@
 name: sync
-version: 0.36.1
+version: 0.37.0
 commands:
-  - sync
+- sync
 command_help:
-  sync: Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec, GitHub, ADO, Linear, Jira, etc.)
+  sync: Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec,
+    GitHub, ADO, Linear, Jira, etc.)
 pip_dependencies: []
 module_dependencies:
-  - plan
-  - sdd
+- plan
+- sdd
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
@@ -16,3 +17,6 @@ publisher:
   email: oss@nold.ai
 description: Synchronize repository state with connected external systems.
 license: Apache-2.0
+integrity:
+  checksum: sha256:4591703ea03bcd89ea6d950b5ac4ce231ae47af9b4bc69704d5cd3acf708f38d
+  signature: xJnWHRCNnfUh6+Xsn29Y9lRhL66xfRPgbXlITVDZpgerMVg2uH2/SiTAPoRTxI/CHXKMCyD3Sq5zcbHG6KiyBw==

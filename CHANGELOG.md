@@ -10,6 +10,38 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.37.0] - 2026-02-23
+
+### Added
+
+- Bundled module signing/verification now covers full module payload contents (all files in module directory), not only manifest fields.
+- `scripts/sign-module.sh` / `scripts/sign-modules.py` now support encrypted private keys with passphrase input via `--passphrase`, `--passphrase-stdin`, or `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`.
+- CI signing/verification workflow wiring now uses dedicated secrets `SPECFACT_MODULE_PRIVATE_SIGN_KEY` and `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`.
+- Signature verification tooling now supports module-version policy checks (`--enforce-version-bump`, `--version-check-base`) to prevent re-signing changed contents under unchanged versions.
+
+### Changed
+
+- `specfact init` output now explicitly points users to `specfact module` for module lifecycle commands.
+- `specfact module install` / `uninstall` now support explicit scope targeting (`user` or `project`) with `--repo` for project scope.
+- `specfact module install` command/help now documents and supports bundled-source resolution controls so users can install shipped modules selectively through the same lifecycle flow as marketplace installs.
+
+### Fixed
+
+- `specfact init` now seeds shipped module artifacts into `~/.specfact/modules`, so commands contributed by shipped modules (for example `specfact backlog add`) no longer depend on repository-local `modules/` folders.
+- Module installer/discovery now recognizes `~/.specfact/modules` as a canonical per-user root while remaining backward-compatible with legacy module roots.
+- Workspace-local module discovery is now restricted to `<repo>/.specfact/modules` (not `<repo>/modules`), preventing accidental ownership of arbitrary repository folders.
+- In repository context, project modules from `<repo>/.specfact/modules` now take precedence over user modules from `~/.specfact/modules`.
+- Added `specfact module init --scope project [--repo PATH]` so bundled modules can be seeded per-project, while default `specfact module init` continues to seed user scope.
+- Startup checks now include bundled-module freshness guidance on CLI version change and at most once per 24 hours, with actionable commands for project and user scopes.
+- Removed deprecated `specfact init` lifecycle flags (`--list-modules`, `--enable-module`, `--disable-module`) so module lifecycle management lives only under `specfact module`.
+- Added `specfact module list --show-bundled-available` to display bundled modules that are available locally but not yet installed, with user/project scope install hints.
+- `specfact module install` now resolves bundled modules before marketplace fallback, enabling subset install of shipped bundles.
+- `specfact module uninstall` now blocks ambiguous removals when module IDs exist in both user and project roots unless `--scope` is explicitly selected.
+- Module integrity runtime checks now avoid transient runtime artifacts (for example Python cache files) so installed modules do not fail trust checks due to local generated files.
+- Uninstall now correctly resolves legacy marketplace install roots when applicable, preventing false-success uninstall outcomes during upgrades.
+
+---
+
 ## [0.36.1] - 2026-02-23
 
 ### Fixed
@@ -110,6 +142,8 @@ All notable changes to this project will be documented in this file.
   - `docs/_layouts/default.html`
   - `docs/index.md`
 - Simplified top-level `README.md` by removing deep architecture implementation details and linking technical readers to architecture docs.
+
+### Fixed
 
 ---
 

@@ -1,7 +1,7 @@
 name: analyze
-version: 0.36.1
+version: 0.37.0
 commands:
-  - analyze
+- analyze
 command_help:
   analyze: Analyze codebase for contract coverage and quality
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Analyze codebase quality, contracts, and architecture signals.
 license: Apache-2.0
+integrity:
+  checksum: sha256:3225f0d57a37469d2ce00c3654d3d36ca7d286c32767443aa0704eefed657d9c
+  signature: jiYU5za8M0Yo80TnH1Hn+FcFFvwdXJrngEHYRmApSiKbLsQyvoNAMA7mFEg9fX7Ly9qV7NBdO2+m5X8YcRhPCw==

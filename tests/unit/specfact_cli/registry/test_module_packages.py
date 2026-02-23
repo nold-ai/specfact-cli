@@ -46,9 +46,11 @@ def test_get_modules_root_under_specfact_cli():
     assert root.exists() or not root.exists()
 
 
-def test_get_modules_roots_includes_cwd_modules_when_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Discovery roots include current-working-directory modules root when it exists."""
-    cwd_modules = tmp_path / "modules"
+def test_get_modules_roots_includes_workspace_dot_specfact_modules_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Discovery roots include workspace-local .specfact/modules when it exists."""
+    cwd_modules = tmp_path / ".specfact" / "modules"
     cwd_modules.mkdir(parents=True)
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("SPECFACT_MODULES_ROOTS", raising=False)
@@ -56,6 +58,19 @@ def test_get_modules_roots_includes_cwd_modules_when_present(tmp_path: Path, mon
     roots = [path.resolve() for path in get_modules_roots()]
 
     assert cwd_modules.resolve() in roots
+
+
+def test_get_modules_roots_ignores_workspace_plain_modules_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Discovery roots should not claim workspace ./modules as a SpecFact-managed root."""
+    (tmp_path / "modules").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SPECFACT_MODULES_ROOTS", raising=False)
+
+    roots = [path.resolve() for path in get_modules_roots()]
+
+    assert (tmp_path / "modules").resolve() not in roots
 
 
 def test_discover_package_metadata_finds_example(tmp_path: Path):

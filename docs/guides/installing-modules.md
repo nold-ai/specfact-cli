@@ -8,6 +8,7 @@ description: Install, list, show, enable, disable, uninstall, and upgrade SpecFa
 # Installing Modules
 
 Use the `specfact module` command group to manage marketplace and locally discovered modules.
+Use plain `specfact ...` commands in this guide (not `hatch run specfact ...`) so steps work across pipx, pip, uv tool installs, and packaged runtimes.
 
 ## Install Behavior
 
@@ -18,14 +19,43 @@ specfact module install specfact/backlog
 # Bare names are accepted and normalized to specfact/<name>
 specfact module install backlog
 
+# Install into project scope instead of user scope
+specfact module install backlog --scope project --repo /path/to/repo
+
+# Force bundled-only or marketplace-only source resolution
+specfact module install backlog --source bundled
+specfact module install backlog --source marketplace
+specfact module install backlog --source marketplace --trust-non-official
+
 # Install a specific version
 specfact module install specfact/backlog --version 0.35.0
 ```
 
 Notes:
 
+- Install defaults to user scope (`~/.specfact/modules`); use `--scope project` for `<repo>/.specfact/modules`.
+- Install source defaults to `auto` (bundled first, then marketplace fallback).
+- Use `--source bundled` or `--source marketplace` for explicit source selection.
+- Use `--trust-non-official` when running non-interactive installs for community/non-official publishers.
 - If a module is already available locally (`built-in` or `custom`), install is skipped with a clear message.
 - Invalid ids show an explicit error (`name` or `namespace/name` only).
+
+## Security and Trust Controls
+
+- Denylist file: `~/.specfact/module-denylist.txt`
+- Override path: `SPECFACT_MODULE_DENYLIST_FILE=/path/to/denylist.txt`
+- Denylisted module ids are blocked in both `specfact module install` and `specfact module init`.
+
+Publisher trust:
+
+- Official publisher (`nold-ai`) proceeds without prompt.
+- Non-official publishers require one-time trust acknowledgement.
+- In non-interactive mode, pass `--trust-non-official` (or set `SPECFACT_TRUST_NON_OFFICIAL=1`).
+
+Bundled integrity:
+
+- `specfact module init` and bundled installs verify bundled module integrity metadata before copying.
+- For developer workflows, unsigned bundles can be temporarily allowed with `SPECFACT_ALLOW_UNSIGNED=1`.
 
 ## List Modules
 
@@ -33,6 +63,7 @@ Notes:
 specfact module list
 specfact module list --show-origin
 specfact module list --source marketplace
+specfact module list --show-bundled-available
 ```
 
 Default columns:
@@ -86,14 +117,15 @@ Use `--force` to allow dependency-aware cascades when required.
 ```bash
 specfact module uninstall backlog
 specfact module uninstall specfact/backlog
+specfact module uninstall backlog --scope project --repo /path/to/repo
 ```
 
-Uninstall only removes marketplace-installed modules.
+Uninstall supports user and project scope roots.
 
 Clear guidance is provided for:
 
 - `built-in` modules (disable instead of uninstall)
-- `custom` modules (remove from local module roots)
+- collisions where a module exists in both user and project roots (explicit `--scope` required)
 - unknown/untracked modules (`module list --show-origin`)
 
 ## Upgrade Behavior

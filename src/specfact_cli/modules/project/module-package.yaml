@@ -1,7 +1,7 @@
 name: project
-version: 0.36.1
+version: 0.37.0
 commands:
-  - project
+- project
 command_help:
   project: Manage project bundles with persona workflows
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Manage project bundles, contexts, and lifecycle workflows.
 license: Apache-2.0
+integrity:
+  checksum: sha256:239c30e346e7f4d752cc2729e264d13fdf1cc92543f3630147fbd98f129a2db3
+  signature: /atX+KwwHILB8ehUlk7Z0VI0o4dsAWmxiWL/BMduJ0PBwEs5pBfR0NGfBW/lpnkzgsStW60kwYA8hhxsTs4GDg==

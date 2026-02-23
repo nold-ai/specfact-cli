@@ -37,6 +37,7 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 | workflow-01-git-worktree-management | implemented 2026-02-18 (archived) |
 | verification-01-wave1-delta-closure | implemented 2026-02-18 (archived) |
 | marketplace-01-central-module-registry | implemented 2026-02-22 (archived) |
+| backlog-core-05-user-modules-bootstrap | implemented 2026-02-23 (pending archive) |
 
 ### Pending
 
@@ -97,7 +98,8 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|---------------|----------|------------|
 | backlog-core | 01 | backlog-core-01-dependency-analysis-commands ✅ (implemented 2026-02-18; archived) | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation (implemented 2026-02-22; archived) | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
-| backlog-core | 04 | backlog-core-04-installed-runtime-discovery-and-add-prompt | TBD | #173 |
+| backlog-core | 04 | backlog-core-04-installed-runtime-discovery-and-add-prompt (implemented 2026-02-23; archived) | [#295](https://github.com/nold-ai/specfact-cli/issues/295) | #173 |
+| backlog-core | 05 | backlog-core-05-user-modules-bootstrap (implemented 2026-02-23; pending archive) | [#298](https://github.com/nold-ai/specfact-cli/issues/298) | #173 |
 
 ### backlog-scrum
 

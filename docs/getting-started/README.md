@@ -51,6 +51,7 @@ uvx specfact-cli@latest plan init my-project --interactive
 
 - 📖 **[Installation Guide](installation.md)** - Install SpecFact CLI
 - 📖 **[First Steps](first-steps.md)** - Step-by-step first commands
+- 📖 **[Module Bootstrap Checklist](module-bootstrap-checklist.md)** - Verify bundled modules are installed in user/project scope
 - 📖 **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](tutorial-openspec-speckit.md)** ⭐ **NEW** - Complete beginner-friendly tutorial
 - 📖 **[DevOps Backlog Integration](../guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows
 - 📖 **[Backlog Refinement](../guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items

@@ -1,7 +1,7 @@
 name: migrate
-version: 0.36.1
+version: 0.37.0
 commands:
-  - migrate
+- migrate
 command_help:
   migrate: Migrate project bundles between formats
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Migrate project bundles across supported structure versions.
 license: Apache-2.0
+integrity:
+  checksum: sha256:528f7cd48964162e33f31871758e9d613cd96dd06a1344069945c7e603bccf2a
+  signature: bKrfU8SGoXCn6LBfLPV/4kXzk6djWA3uCs1Uq2ENx2bXrN1gjr+3f7cateZ6WBxw1Kz52QO7xGxqvw8g9DFfCw==

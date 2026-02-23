@@ -7,26 +7,54 @@ description: Trust model, checksum and signature verification, and integrity lif
 
 # Module Security
 
-Module packages can carry **publisher** and **integrity** metadata so that installation and registration verify artifact trust before enabling a module.
+Module packages carry **publisher** and **integrity** metadata so installation, bootstrap, and runtime discovery verify trust before enabling a module.
 
 ## Trust model
 
 - **Manifest metadata**: `module-package.yaml` may include `publisher` (name, email, attributes) and `integrity` (checksum, optional signature).
-- **Checksum verification**: Before registration or install, the system verifies the manifest (or artifact) checksum when `integrity.checksum` is present. Supported algorithms: `sha256`, `sha384`, `sha512` in `algo:hex` format.
-- **Signature verification**: If `integrity.signature` is set and trusted key material is configured, signature verification validates provenance. Without key material, only checksum is enforced and a warning is logged.
-- **Unsigned modules**: Modules without `integrity` metadata are allowed (backward compatible). Set `SPECFACT_ALLOW_UNSIGNED=1` to document explicit opt-in when using strict policies.
+- **Checksum verification**: Verification computes a deterministic hash of the full module payload (all module files, with manifest canonicalization that excludes `integrity` itself). Supported algorithms: `sha256`, `sha384`, `sha512` in `algo:hex` format.
+- **Signature verification**: If `integrity.signature` is present and a public key is configured, signature validation proves provenance over the same full payload.
+- **Publisher trust gate**: Non-official publishers require one-time explicit trust (interactive confirmation or `--trust-non-official` / `SPECFACT_TRUST_NON_OFFICIAL`).
+- **Denylist gate**: Modules listed in denylist are blocked before install/bootstrap regardless of source.
 
-## Checksum flow
+## Integrity flow
 
 1. Discovery reads `module-package.yaml` and parses `integrity.checksum`.
-2. At registration time, the installer hashes the manifest content and compares it to the expected checksum.
+2. At install/bootstrap/verification time, the tool hashes the full module payload and compares it to `integrity.checksum`.
 3. On mismatch, the module is skipped and a security warning is logged.
 4. Other modules continue to register; one failing trust does not block the rest.
 
 ## Signing automation
 
-- **Script**: `scripts/sign-module.sh <path-to-module-package.yaml>` outputs a `sha256:` checksum suitable for the manifest `integrity.checksum` field.
-- **CI**: `.github/workflows/sign-modules.yml` can run on demand or on push to `main` when module manifests change, to produce or validate checksums.
+- **Script**: `scripts/sign-module.sh` signs one or more `module-package.yaml` manifests.
+- **Payload scope**: Signing covers all files under the module directory (not only the manifest).
+- **Encrypted key support**: Passphrase can be provided with:
+  - `--passphrase` (local only; avoid shell history in CI)
+  - `--passphrase-stdin` (recommended for secure piping)
+  - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
+- **Key sources**:
+  - `--key-file`
+  - `SPECFACT_MODULE_PRIVATE_SIGN_KEY` (PEM content)
+  - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE`
+- **Version guard**: Changed module contents must have a bumped module version before signing. Override exists only for controlled local cases via `--allow-same-version`.
+- **CI secrets**:
+  - `SPECFACT_MODULE_PRIVATE_SIGN_KEY`
+  - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
+- **Verification command**:
+  - `scripts/verify-modules-signature.py --require-signature --enforce-version-bump`
+  - `--version-check-base <git-ref>` can be used in CI PR comparisons.
+
+## Public key and key rotation
+
+- Store trusted public key in:
+  - `resources/keys/module-signing-public.pem`
+- Optional fallback path:
+  - `src/specfact_cli/resources/keys/module-signing-public.pem`
+- Rotate keys by:
+  1. generating a new key pair,
+  2. updating trusted public key in repository,
+  3. re-signing affected modules with incremented versions,
+  4. running signature verification and version-bump checks in CI.
 
 ## Versioned dependencies
 

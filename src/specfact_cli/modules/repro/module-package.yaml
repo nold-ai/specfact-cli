@@ -1,7 +1,7 @@
 name: repro
-version: 0.36.1
+version: 0.37.0
 commands:
-  - repro
+- repro
 command_help:
   repro: Run validation suite
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Run reproducible validation and diagnostics workflows end-to-end.
 license: Apache-2.0
+integrity:
+  checksum: sha256:6e51217b0d5157827dc6dbb120a5ed8ae58e7e11c71b00ff09ae2599e8a33942
+  signature: chxWJIjruzEbRUb8A6BOVA9aprfogBRwgZjpTRcvScmaqZ9GoBocIqbZNjbBgxKVonUAdRWicGV84hjQ2HxaDA==

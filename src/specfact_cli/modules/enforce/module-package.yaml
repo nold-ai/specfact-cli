@@ -1,12 +1,12 @@
 name: enforce
-version: 0.36.1
+version: 0.37.0
 commands:
-  - enforce
+- enforce
 command_help:
   enforce: Configure quality gates
 pip_dependencies: []
 module_dependencies:
-  - plan
+- plan
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
@@ -15,3 +15,6 @@ publisher:
   email: oss@nold.ai
 description: Apply governance policies and quality gates to bundles.
 license: Apache-2.0
+integrity:
+  checksum: sha256:a0489a0b7d89d858ee9e31aa9c4e6bbdc6d514fd1dd0e133adaafdb859dd4000
+  signature: cMle25qRpzZNvgMfsdhiJlrHQGk1fsiFXpeiTplRdSVo5xegyzwWvXO/7jb59nBQX2p/JjqKUnGh/A143G57AA==

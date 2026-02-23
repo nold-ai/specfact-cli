@@ -1,7 +1,7 @@
 name: backlog
-version: 0.36.1
+version: 0.37.0
 commands:
-  - backlog
+- backlog
 command_help:
   backlog: Backlog refinement and template management
 pip_dependencies: []
@@ -9,21 +9,24 @@ module_dependencies: []
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 service_bridges:
-  - id: ado
-    converter_class: specfact_cli.modules.backlog.src.adapters.ado.AdoConverter
-    description: Azure DevOps backlog payload converter
-  - id: jira
-    converter_class: specfact_cli.modules.backlog.src.adapters.jira.JiraConverter
-    description: Jira issue payload converter
-  - id: linear
-    converter_class: specfact_cli.modules.backlog.src.adapters.linear.LinearConverter
-    description: Linear issue payload converter
-  - id: github
-    converter_class: specfact_cli.modules.backlog.src.adapters.github.GitHubConverter
-    description: GitHub issue payload converter
+- id: ado
+  converter_class: specfact_cli.modules.backlog.src.adapters.ado.AdoConverter
+  description: Azure DevOps backlog payload converter
+- id: jira
+  converter_class: specfact_cli.modules.backlog.src.adapters.jira.JiraConverter
+  description: Jira issue payload converter
+- id: linear
+  converter_class: specfact_cli.modules.backlog.src.adapters.linear.LinearConverter
+  description: Linear issue payload converter
+- id: github
+  converter_class: specfact_cli.modules.backlog.src.adapters.github.GitHubConverter
+  description: GitHub issue payload converter
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 description: Manage backlog ceremonies, refinement, and dependency insights.
 license: Apache-2.0
+integrity:
+  checksum: sha256:13c85ff70048d91a472fc270892a360581226ee74d8c4d7f28d18c192973ed63
+  signature: mcnkVMtd9I/osvO69d1v0uiquQ7wYkY7zkacbgrGydvm+1EX3XaiFFf0o1p1G6xZmkx6i3kQmGmyOimU+K1eBg==

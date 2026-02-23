@@ -266,6 +266,7 @@ The CLI optimizes startup performance by:
 
 - **Template checks**: Only run when CLI version has changed since last check (stored in `~/.specfact/metadata.json`)
 - **Version checks**: Only run if >= 24 hours since last check (rate-limited to once per day)
+- **Bundled module freshness checks**: Run on CLI version change and otherwise at most once per 24 hours; suggests `specfact module init --scope project` and/or `specfact module init` when project/user modules are missing or outdated
 - **Skip checks**: Use `--skip-checks` to disable all startup checks (useful for CI/CD)
 
 This ensures fast startup times (< 2 seconds) while still providing important notifications when needed.
@@ -3892,8 +3893,6 @@ specfact backlog analyze-deps --project-id <id> [OPTIONS]
 
 **Common options:**
 
-**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
-
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
 - `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
 - `--custom-config PATH` - Optional custom mapping YAML
@@ -3910,8 +3909,6 @@ specfact backlog trace-impact <item-id> --project-id <id> [OPTIONS]
 
 **Common options:**
 
-**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
-
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
 - `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
 - `--custom-config PATH` - Optional custom mapping YAML
@@ -3925,8 +3922,6 @@ specfact backlog verify-readiness --project-id <id> [OPTIONS]
 ```
 
 **Common options:**
-
-**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
 
 - `--adapter ADAPTER` - Backlog adapter id (default: `github`)
 - `--template TEMPLATE` - Mapping template (default is adapter-aware: `github_projects` for GitHub, `ado_scrum` for ADO)
@@ -5078,9 +5073,7 @@ Replace `implement tasks` with the new AI IDE bridge workflow:
 
 ---
 
-### `init` - Bootstrap and Compatibility Module Lifecycle Aliases
-
-Bootstrap SpecFact local state and expose compatibility aliases for legacy module lifecycle flags.
+### `init` - Bootstrap Local State
 
 ```bash
 specfact init [OPTIONS]
@@ -5088,27 +5081,8 @@ specfact init [OPTIONS]
 
 **Common options:**
 
-**Migration note:** `specfact module` is the canonical lifecycle command group. Init lifecycle flags remain supported as compatibility aliases.
-
 - `--repo PATH` - Repository path (default: current directory)
-- `--list-modules` - Compatibility alias for module lifecycle listing
-- `--enable-module TEXT` - Compatibility alias for enabling module id (repeatable)
-- `--disable-module TEXT` - Compatibility alias for disabling module id (repeatable)
-- `--force` - Override dependency guards; cascades dependency updates
-
-**Interactive behavior:**
-
-- Default mode is auto-detected from terminal + CI environment.
-- In interactive terminals, passing `--enable-module` or `--disable-module` without ids opens an arrow-key selector.
-- In non-interactive mode, module ids are required (for example in CI/CD).
-
-**Dependency-aware behavior:**
-
-- Safe disable blocks disabling a module that is required by other enabled modules.
-- Safe enable blocks enabling a module when required dependencies are disabled.
-- `--force` performs dependency-aware cascading:
-  - disable cascades to enabled dependents
-  - enable cascades to required dependencies
+- `--install-deps` - Install contract enhancement dependencies (prefer `specfact init ide --install-deps`)
 
 **Examples:**
 
@@ -5116,27 +5090,15 @@ specfact init [OPTIONS]
 # Bootstrap only (no IDE prompt/template copy)
 specfact init
 
-# List lifecycle state
-specfact init --list-modules
-
-# Interactive selection (TTY)
-specfact init --enable-module
-specfact init --disable-module
-
-# Non-interactive explicit ids
-specfact --no-interactive init --enable-module backlog
-specfact --no-interactive init --disable-module upgrade
-
-# Force dependency cascade
-specfact init --enable-module sync --force
-specfact init --disable-module plan --force
+# Install dependencies during bootstrap
+specfact init --install-deps
 ```
 
 **What it does:**
 
 1. Initializes/updates user-level registry state under `~/.specfact/registry/`.
-2. Discovers installed modules and applies enable/disable operations.
-3. Enforces module dependency and compatibility constraints.
+2. Discovers installed modules and refreshes command help cache.
+3. Prints a header note that module management moved to `specfact module`.
 4. Reports IDE prompt status and points to `specfact init ide` for prompt/template setup.
 
 
@@ -5150,23 +5112,35 @@ specfact module [OPTIONS] COMMAND [ARGS]...
 
 **Commands:**
 
-- `install <name|namespace/name>` - Install marketplace module (bare names normalize to `specfact/<name>`)
-- `list [--source builtin|marketplace|custom] [--show-origin]` - List modules with `Trust`/`Publisher` and optional `Origin`
+- `init [--scope user|project] [--repo PATH] [--trust-non-official]` - Seed bundled modules into user root (default) or project root under `.specfact/modules`
+- `install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH] [--trust-non-official]` - Install module into user or project scope with explicit source selection
+- `list [--source builtin|project|user|marketplace|custom] [--show-origin] [--show-bundled-available]` - List modules with `Trust`/`Publisher`, optional `Origin`, and optional bundled-not-installed section
 - `show <name>` - Show detailed module metadata and full command tree (with subcommands and short descriptions)
 - `search <query>` - Search marketplace registry and installed modules (`Scope` column)
-- `enable <id>` - Enable module in lifecycle state registry
+- `enable <id> [--trust-non-official]` - Enable module in lifecycle state registry
 - `disable <id> [--force]` - Disable module in lifecycle state registry
-- `uninstall <name|namespace/name>` - Uninstall marketplace module with source-aware guidance for built-in/custom modules
+- `uninstall <name|namespace/name> [--scope user|project] [--repo PATH]` - Uninstall module from selected scope with ambiguity protection when module exists in both scopes
 - `upgrade [<name>] [--all]` - Upgrade one module or all marketplace-installed modules
 
 **Examples:**
 
 ```bash
+# Seed bundled modules
+specfact module init
+specfact module init --scope project
+specfact module init --scope project --repo /path/to/repo
+specfact module init --scope project --repo /path/to/repo --trust-non-official
+
 # Install and inspect modules
 specfact module install specfact/backlog
 specfact module install backlog
+specfact module install backlog --source bundled
+specfact module install backlog --source marketplace
+specfact module install backlog --source marketplace --trust-non-official
+specfact module install backlog --scope project --repo /path/to/repo
 specfact module list
 specfact module list --show-origin
+specfact module list --show-bundled-available
 specfact module show module-registry
 
 # Search and manage
@@ -5174,13 +5148,11 @@ specfact module search backlog
 specfact module enable backlog
 specfact module disable backlog --force
 specfact module uninstall specfact/backlog
+specfact module uninstall specfact/backlog --scope project --repo /path/to/repo
 specfact module upgrade
 ```
 
-**Compatibility and migration:**
-
-- `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain migration aliases.
-- Prefer `specfact module ...` for all lifecycle operations.
+Module lifecycle and marketplace operations are available under `specfact module ...`.
 
 ### `init ide` - IDE Prompt/Template Setup
 

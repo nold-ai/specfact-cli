@@ -1,12 +1,12 @@
 name: plan
-version: 0.36.1
+version: 0.37.0
 commands:
-  - plan
+- plan
 command_help:
   plan: Manage development plans
 pip_dependencies: []
 module_dependencies:
-  - sync
+- sync
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
@@ -15,3 +15,6 @@ publisher:
   email: oss@nold.ai
 description: Create and manage implementation plans for project execution.
 license: Apache-2.0
+integrity:
+  checksum: sha256:4119e9b502b8d69d53a0335501d169a45a2c2fac64268a99e789b393fa2ac577
+  signature: Ei+Ec2srSgm4S5ww4EPviCjOSM2U5rFAzZMNIRZYU1UGpdKlVgOGdKd7vOH6i9jblTSwxccKNLfylW+RFKfkDw==

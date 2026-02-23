@@ -1,4 +1,4 @@
-"""Module discovery across built-in, marketplace, and custom roots."""
+"""Module discovery across built-in, user, marketplace, and custom roots."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from specfact_cli.common import get_bridge_logger
 from specfact_cli.models.module_package import ModulePackageMetadata
 
 
+USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 CUSTOM_MODULES_ROOT = Path.home() / ".specfact" / "custom-modules"
 
@@ -29,31 +30,46 @@ class DiscoveredModule:
 @ensure(lambda result: isinstance(result, list), "Discovery result must be a list")
 def discover_all_modules(
     builtin_root: Path | None = None,
+    user_root: Path | None = None,
     marketplace_root: Path | None = None,
     custom_root: Path | None = None,
     include_legacy_roots: bool | None = None,
 ) -> list[DiscoveredModule]:
     """Discover modules from all configured locations with deterministic priority."""
-    from specfact_cli.registry.module_packages import discover_package_metadata, get_modules_root, get_modules_roots
+    from specfact_cli.registry.module_packages import (
+        discover_package_metadata,
+        get_modules_root,
+        get_modules_roots,
+        get_workspace_modules_root,
+    )
 
     logger = get_bridge_logger(__name__)
     discovered: list[DiscoveredModule] = []
     seen_names: set[str] = set()
 
     effective_builtin_root = builtin_root or get_modules_root()
+    effective_project_root = get_workspace_modules_root()
+    effective_user_root = user_root or USER_MODULES_ROOT
     effective_marketplace_root = marketplace_root or MARKETPLACE_MODULES_ROOT
     effective_custom_root = custom_root or CUSTOM_MODULES_ROOT
 
-    roots: list[tuple[str, Path]] = [
-        ("builtin", effective_builtin_root),
-        ("marketplace", effective_marketplace_root),
-        ("custom", effective_custom_root),
-    ]
+    roots: list[tuple[str, Path]] = [("builtin", effective_builtin_root)]
+    if effective_project_root is not None:
+        roots.append(("project", effective_project_root))
+    roots.extend(
+        [
+            ("user", effective_user_root),
+            ("marketplace", effective_marketplace_root),
+            ("custom", effective_custom_root),
+        ]
+    )
 
     # Keep legacy discovery roots (workspace-level + SPECFACT_MODULES_ROOTS) as custom sources.
     # When explicit roots are provided (usually tests), legacy roots are disabled by default.
     if include_legacy_roots is None:
-        include_legacy_roots = builtin_root is None and marketplace_root is None and custom_root is None
+        include_legacy_roots = (
+            builtin_root is None and user_root is None and marketplace_root is None and custom_root is None
+        )
 
     if include_legacy_roots:
         seen_root_paths = {path.resolve() for _source, path in roots}
@@ -72,7 +88,7 @@ def discover_all_modules(
         for package_dir, metadata in entries:
             module_name = metadata.name
             if module_name in seen_names:
-                if source in {"marketplace", "custom"}:
+                if source in {"user", "marketplace", "custom"}:
                     logger.warning(
                         "Module '%s' from %s at '%s' is shadowed by higher-priority source.",
                         module_name,

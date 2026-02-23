@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specfact_cli.registry import module_discovery
 from specfact_cli.registry.module_discovery import discover_all_modules
 
 
@@ -28,8 +29,10 @@ def test_discover_all_modules_scans_builtin_marketplace_and_custom(tmp_path: Pat
 
     discovered = discover_all_modules(
         builtin_root=builtin_root,
+        user_root=tmp_path / "missing-user",
         marketplace_root=marketplace_root,
         custom_root=custom_root,
+        include_legacy_roots=False,
     )
 
     names = {entry.metadata.name for entry in discovered}
@@ -49,7 +52,9 @@ def test_discover_all_modules_builtin_takes_priority(tmp_path: Path) -> None:
 
     discovered = discover_all_modules(
         builtin_root=builtin_root,
+        user_root=tmp_path / "missing-user",
         marketplace_root=marketplace_root,
+        include_legacy_roots=False,
     )
 
     backlog_entries = [entry for entry in discovered if entry.metadata.name == "backlog"]
@@ -64,9 +69,49 @@ def test_discover_all_modules_handles_missing_optional_paths(tmp_path: Path) -> 
 
     discovered = discover_all_modules(
         builtin_root=builtin_root,
+        user_root=tmp_path / "missing-user",
         marketplace_root=tmp_path / "missing-marketplace",
         custom_root=tmp_path / "missing-custom",
+        include_legacy_roots=False,
     )
 
     assert [entry.metadata.name for entry in discovered] == ["init"]
     assert discovered[0].source == "builtin"
+
+
+def test_discover_all_modules_scans_user_root(tmp_path: Path, monkeypatch) -> None:
+    """Discovery should include canonical user module root."""
+    builtin_root = tmp_path / "builtin"
+    user_root = tmp_path / "user-modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(user_root, "backlog-core")
+    monkeypatch.setattr(module_discovery, "USER_MODULES_ROOT", user_root)
+
+    discovered = discover_all_modules(builtin_root=builtin_root)
+
+    names = {entry.metadata.name for entry in discovered}
+    assert names == {"init", "backlog-core"}
+    sources = {entry.metadata.name: entry.source for entry in discovered}
+    assert sources["init"] == "builtin"
+    assert sources["backlog-core"] == "user"
+
+
+def test_discover_all_modules_project_scope_takes_priority_over_user(tmp_path: Path, monkeypatch) -> None:
+    """Workspace project modules should shadow user modules with same id."""
+    repo_root = tmp_path / "repo"
+    project_root = repo_root / ".specfact" / "modules"
+    builtin_root = tmp_path / "builtin"
+    user_root = tmp_path / "user-modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(project_root, "backlog-core")
+    _write_manifest(user_root, "backlog-core")
+
+    monkeypatch.chdir(repo_root)
+    discovered = discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        include_legacy_roots=True,
+    )
+
+    sources = {entry.metadata.name: entry.source for entry in discovered}
+    assert sources["backlog-core"] == "project"

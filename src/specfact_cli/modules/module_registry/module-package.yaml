@@ -1,7 +1,7 @@
 name: module-registry
-version: 0.36.1
+version: 0.37.0
 commands:
-  - module
+- module
 command_help:
   module: Manage marketplace modules (install, uninstall, search, list, show, upgrade)
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: 'Manage modules: search, list, show, install, and upgrade.'
 license: Apache-2.0
+integrity:
+  checksum: sha256:56470e8cd5f5e64c93b51e7b7e7e831917b0da1ceee51a7e61d24e31d4127fc8
+  signature: kB+2MVbab+icq5S0dgrm8/fTKF3Qo4T9EfBVn8nYPcr5zyh7oJKqA5Ja5FYXpL8MA1uLM0I2K/Gyuy3kTaW6DA==

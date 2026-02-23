@@ -1,7 +1,7 @@
 name: sdd
-version: 0.36.1
+version: 0.37.0
 commands:
-  - sdd
+- sdd
 command_help:
   sdd: Manage SDD (Spec-Driven Development) manifests
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Create and validate Spec-Driven Development manifests and mappings.
 license: Apache-2.0
+integrity:
+  checksum: sha256:a8a530c2b4637fadce5ab205bde13c657e2c3571863fa2c2fa798550b24796b2
+  signature: TsD0B3anf1qpWitiJ/mmtc96pYy2U2QUgTDq4HRkLSt/2DbfmlVbAMsEqQM6EzMy73V+Xxo45BP4L/gPPV+yCg==
