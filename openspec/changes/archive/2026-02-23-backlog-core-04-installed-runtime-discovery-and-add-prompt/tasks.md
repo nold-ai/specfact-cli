@@ -12,7 +12,7 @@ Per `openspec/config.yaml`, tests before code for behavior changes.
 
 ## 1. Branch and scope
 
-- [ ] 1.1 Work on `bugfix/backlog-core-04-installed-runtime-discovery-and-add-prompt` (or active equivalent) before implementation changes.
+- [x] 1.1 Work on `bugfix/backlog-core-04-installed-runtime-discovery-and-add-prompt` (or active equivalent) before implementation changes.
 - [x] 1.2 Confirm scope is limited to runtime module discovery parity and backlog-add prompt installation parity.
 
 ## 2. Specs first
@@ -42,4 +42,4 @@ Per `openspec/config.yaml`, tests before code for behavior changes.
 ## 6. Delivery
 
 - [x] 6.1 Update `openspec/CHANGE_ORDER.md` status and placement.
-- [ ] 6.2 Prepare PR with clear runtime parity verification notes (installed vs hatch behavior).
+- [x] 6.2 Prepare PR with clear runtime parity verification notes (installed vs hatch behavior).
