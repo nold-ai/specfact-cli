@@ -1,6 +1,7 @@
 """Unit tests for IDE setup utilities."""
 
 from specfact_cli.utils.ide_setup import (
+    SPECFACT_COMMANDS,
     copy_templates_to_ide,
     detect_ide,
     process_template,
@@ -236,3 +237,8 @@ class TestCopyTemplatesToIDE:
         # Verify file was overwritten
         content = (cursor_dir / "specfact.01-import.md").read_text()
         assert "New Content" in content or "# New Content" in content
+
+
+def test_specfact_commands_includes_backlog_add_prompt() -> None:
+    """IDE setup command list includes backlog-add prompt template."""
+    assert "specfact.backlog-add" in SPECFACT_COMMANDS

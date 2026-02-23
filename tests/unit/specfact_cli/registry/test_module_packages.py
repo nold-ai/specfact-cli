@@ -24,6 +24,7 @@ from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.module_packages import (
     discover_package_metadata,
     get_modules_root,
+    get_modules_roots,
     merge_module_state,
     register_module_package_commands,
 )
@@ -43,6 +44,18 @@ def test_get_modules_root_under_specfact_cli():
     assert root.name == "modules"
     assert "specfact_cli" in str(root)
     assert root.exists() or not root.exists()
+
+
+def test_get_modules_roots_includes_cwd_modules_when_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Discovery roots include current-working-directory modules root when it exists."""
+    cwd_modules = tmp_path / "modules"
+    cwd_modules.mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SPECFACT_MODULES_ROOTS", raising=False)
+
+    roots = [path.resolve() for path in get_modules_roots()]
+
+    assert cwd_modules.resolve() in roots
 
 
 def test_discover_package_metadata_finds_example(tmp_path: Path):
