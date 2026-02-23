@@ -1,5 +1,5 @@
 name: upgrade
-version: 0.36.0
+version: 0.36.1
 commands:
   - upgrade
 command_help:
