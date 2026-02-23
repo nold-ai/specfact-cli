@@ -1,5 +1,5 @@
 name: sdd
-version: 0.36.0
+version: 0.36.1
 commands:
   - sdd
 command_help:

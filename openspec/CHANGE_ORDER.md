@@ -97,6 +97,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|---------------|----------|------------|
 | backlog-core | 01 | backlog-core-01-dependency-analysis-commands ✅ (implemented 2026-02-18; archived) | [#116](https://github.com/nold-ai/specfact-cli/issues/116) | — |
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation (implemented 2026-02-22; archived) | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
+| backlog-core | 04 | backlog-core-04-installed-runtime-discovery-and-add-prompt | TBD | #173 |
 
 ### backlog-scrum
 
