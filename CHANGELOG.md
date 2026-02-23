@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.36.1] - 2026-02-23
+
+### Fixed
+
+- Installed runtime module discovery now includes `cwd/modules` when present, restoring command-surface parity (including `specfact backlog add`) between PyPI-installed and development runtimes when invoked from a repository checkout.
+- Added and auto-installed `resources/prompts/specfact.backlog-add.md` via IDE setup command templates (`specfact init ide`) for consistent backlog workflow slash prompts.
+
+---
+
 ## [0.36.0] - 2026-02-21
 
 ### Added

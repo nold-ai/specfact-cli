@@ -101,13 +101,13 @@ docs/internal/
 # Ignore specfact-cli prompt templates
 .cursor/commands/specfact.*.md
 .cursor/commands/opsx-*.md
-
 .cursor/skills/openspec-*/
 
 .github/prompts/specfact.*.md
 .github/prompts/opsx-*.md
 
 .claude/commands/opsx/
+.claude/commands/specfact.*.md
 .claude/skills/openspec-*/
 !.claude/skills/openspec-workflows/
 
