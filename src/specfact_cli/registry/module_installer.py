@@ -25,7 +25,7 @@ from specfact_cli.registry.module_security import assert_module_allowed, ensure_
 
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
-_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
 
 

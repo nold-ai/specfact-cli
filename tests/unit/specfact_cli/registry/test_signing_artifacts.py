@@ -191,6 +191,7 @@ def test_sign_modules_py_ignores_transient_cache_files(tmp_path: Path):
     source.write_text("print('stable')\n", encoding="utf-8")
 
     import subprocess
+
     import yaml
 
     first = subprocess.run(
@@ -221,6 +222,23 @@ def test_sign_modules_py_ignores_transient_cache_files(tmp_path: Path):
     second_checksum = second_data.get("integrity", {}).get("checksum")
     assert isinstance(second_checksum, str) and second_checksum.startswith("sha256:")
     assert second_checksum == first_checksum
+
+    logs_dir = module_dir / "logs" / "tests" / "junit"
+    logs_dir.mkdir(parents=True)
+    (logs_dir / "test-results.xml").write_text("<testsuite name='tmp'/>", encoding="utf-8")
+
+    third = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        timeout=10,
+    )
+    assert third.returncode == 0
+    third_data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    third_checksum = third_data.get("integrity", {}).get("checksum")
+    assert isinstance(third_checksum, str) and third_checksum.startswith("sha256:")
+    assert third_checksum == second_checksum
 
 
 def test_sign_modules_workflow_exists():

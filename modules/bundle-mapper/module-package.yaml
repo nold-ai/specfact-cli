@@ -19,8 +19,8 @@ publisher:
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 integrity:
-  checksum: sha256:bcf7bd40d4c9d137581b2e4d34f3708f7af9ea99941742500bf43e3e09f448ea
-  signature: v1mMck2+ltn5N3tAdFWZ7OKZziUC2bY+2n05U8ioETL9HvhxP3iM6TfgQt9Cl8/O/ZJrkhPJz4Uh0oMJnAZxAQ==
+  checksum: sha256:47ae7b777a2e04b9686cc0c14e6edeff685dd36fd93029178cf70ac88bec8d7c
+  signature: U6yBPMJW1en5KpsNKNL4XYY6NRund4SucU4axWOeW4860ds3IXO2q8ZN06Tr3ngqlt4IC671xb1FIfWl9KbcAA==
 dependencies: []
 description: Map backlog items to best-fit modules using scoring heuristics.
 license: Apache-2.0
