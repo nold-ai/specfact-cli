@@ -1,5 +1,5 @@
 name: sync
-version: 0.36.0
+version: 0.36.1
 commands:
   - sync
 command_help:
