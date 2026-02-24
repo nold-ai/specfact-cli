@@ -271,11 +271,9 @@ def test_verify_module_artifact_falls_back_when_signature_backend_unavailable(
             ValueError("Signature verification backend unavailable: No module named '_cffi_backend'")
         ),
     )
-    monkeypatch.setattr(module_installer, "_SIGNATURE_BACKEND_WARNING_EMITTED", False)
     caplog.set_level("WARNING")
 
     assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
-    assert module_installer._SIGNATURE_BACKEND_WARNING_EMITTED is True
 
 
 def test_verify_module_artifact_fails_if_signature_required_and_backend_unavailable(
@@ -304,7 +302,6 @@ def test_verify_module_artifact_fails_if_signature_required_and_backend_unavaila
             ValueError("Signature verification backend unavailable: No module named '_cffi_backend'")
         ),
     )
-    monkeypatch.setattr(module_installer, "_SIGNATURE_BACKEND_WARNING_EMITTED", False)
     caplog.set_level("WARNING")
 
     assert (
@@ -316,7 +313,6 @@ def test_verify_module_artifact_fails_if_signature_required_and_backend_unavaila
         )
         is False
     )
-    assert module_installer._SIGNATURE_BACKEND_WARNING_EMITTED is False
 
 
 def test_uninstall_module_falls_back_to_legacy_marketplace_root(tmp_path: Path, monkeypatch) -> None:
