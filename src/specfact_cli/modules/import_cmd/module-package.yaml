@@ -1,7 +1,7 @@
 name: import_cmd
-version: 0.36.1
+version: 0.37.0
 commands:
-  - import
+- import
 command_help:
   import: Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Import projects and requirements from code and external tools.
 license: Apache-2.0
+integrity:
+  checksum: sha256:0afde8c650b21b7e2a9e921ced829b47967b07dc0b39c5fd73570b20de75f51a
+  signature: 5upSkjAkCRIN/BJZwAHnJ9vt61i+cESzvt922Cjvez84OX5u4fd3NjSGNsseMUpmrUzExLNY4zYahxEyOTLZCQ==

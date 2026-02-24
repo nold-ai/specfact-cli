@@ -1,7 +1,7 @@
 name: spec
-version: 0.36.1
+version: 0.37.0
 commands:
-  - spec
+- spec
 command_help:
   spec: Specmatic integration for API contract testing
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Integrate and run API specification and contract checks.
 license: Apache-2.0
+integrity:
+  checksum: sha256:e43ae430e82e59f4cf546df353e94a5be3c36ff5b6e3efba37ad5ca84a894e3c
+  signature: ltxYz9kloJQ+OCWWnB/B9P95PVNxM+lsQ0VOGjlsU0uZL5EaByAUjCuoAF5/NsQ1fsmaLpOWRsJYviYYL+6WBA==

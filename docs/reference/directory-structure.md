@@ -28,11 +28,19 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 
 - `commands.json` – Command names and help text used for fast root `specfact --help` without loading every command module.
 - `modules.json` – Per-module state (id, version, enabled) for optional module packages.
-  - Managed primarily by `specfact module ...` commands (`list`, `install`, `uninstall`, `upgrade`)
-  - `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain compatibility aliases
+  - Managed by `specfact module ...` commands (`init`, `list`, `install`, `enable`, `disable`, `uninstall`, `upgrade`)
   - Supports dependency-safe lifecycle operations with optional `--force` cascading behavior
 
-`specfact init` is bootstrap-focused; module lifecycle is canonical under `specfact module` with init aliases preserved for migration. IDE prompt/template setup is handled by `specfact init ide`.
+`specfact init` is bootstrap-focused; module lifecycle is canonical under `specfact module`. IDE prompt/template setup is handled by `specfact init ide`.
+
+**Module artifact roots**:
+
+- Canonical per-user module root: `<user-home>/.specfact/modules`
+- Optional workspace-local module root: `<repo>/.specfact/modules`
+- Module denylist file: `<user-home>/.specfact/module-denylist.txt` (override with `SPECFACT_MODULE_DENYLIST_FILE`)
+- Trusted non-official publisher decisions are stored in `<user-home>/.specfact/metadata.json`
+- SpecFact does **not** auto-discover `<repo>/modules` to avoid assuming ownership of non-`.specfact` repository paths.
+- In repository context, `<repo>/.specfact/modules` has higher discovery precedence than `<user-home>/.specfact/modules`.
 
 For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Modules design](architecture.md#modules-design).
 
@@ -457,11 +465,6 @@ specfact init
 specfact module list
 specfact module install specfact/backlog
 specfact module uninstall backlog
-
-# Compatibility aliases
-specfact init --list-modules
-specfact init --enable-module
-specfact init --disable-module
 ```
 
 ### `specfact init ide`

@@ -1,7 +1,7 @@
 name: validate
-version: 0.36.1
+version: 0.37.0
 commands:
-  - validate
+- validate
 command_help:
   validate: Validation commands including sidecar validation
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Run schema, contract, and workflow validation suites.
 license: Apache-2.0
+integrity:
+  checksum: sha256:0cfd33fa7ea7a02016c96324b7853875019e7666909f4af8cc50c4c85bf740e1
+  signature: KXkCKbsoPR2J7U3FnH6r8NtVJaGHMFp3o5yb+Hfj1XXN+pUL2SlV1ZqpzTseh3ZKkoNdKB8yLytkKl0jVa/DBA==

@@ -21,9 +21,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli import __version__
+from specfact_cli.registry.module_installer import USER_MODULES_ROOT, get_outdated_or_missing_bundled_modules
 from specfact_cli.utils.ide_setup import IDE_CONFIG, detect_ide, find_package_resources_path
 from specfact_cli.utils.metadata import (
     get_last_checked_version,
+    get_last_module_freshness_check_timestamp,
     get_last_version_check_timestamp,
     is_version_check_needed,
     update_metadata,
@@ -51,6 +53,17 @@ class VersionCheckResult(NamedTuple):
     update_available: bool
     update_type: str | None  # "minor" or "major"
     error: str | None
+
+
+class ModuleFreshnessCheckResult(NamedTuple):
+    """Result of bundled module freshness checks for project/user scopes."""
+
+    project_outdated: bool
+    user_outdated: bool
+    project_outdated_modules: list[str]
+    user_outdated_modules: list[str]
+    project_modules_root: Path
+    user_modules_root: Path
 
 
 @beartype
@@ -268,6 +281,28 @@ def check_pypi_version(package_name: str = "specfact-cli", timeout: int = 3) -> 
 
 
 @beartype
+def check_module_freshness(repo_path: Path | None = None) -> ModuleFreshnessCheckResult:
+    """Check bundled module freshness for project and user scopes."""
+    if repo_path is None:
+        repo_path = Path.cwd()
+
+    project_modules_root = repo_path / ".specfact" / "modules"
+    user_modules_root = USER_MODULES_ROOT
+
+    project_outdated_modules = get_outdated_or_missing_bundled_modules(project_modules_root)
+    user_outdated_modules = get_outdated_or_missing_bundled_modules(user_modules_root)
+
+    return ModuleFreshnessCheckResult(
+        project_outdated=bool(project_outdated_modules),
+        user_outdated=bool(user_outdated_modules),
+        project_outdated_modules=project_outdated_modules,
+        user_outdated_modules=user_outdated_modules,
+        project_modules_root=project_modules_root,
+        user_modules_root=user_modules_root,
+    )
+
+
+@beartype
 def print_startup_checks(
     repo_path: Path | None = None,
     check_version: bool = True,
@@ -300,6 +335,9 @@ def print_startup_checks(
     # Check if version check should run (only if >= 24 hours since last check)
     last_version_check_timestamp = get_last_version_check_timestamp()
     should_check_version = check_version and is_version_check_needed(last_version_check_timestamp)
+    # Check modules on version change and otherwise at most once per 24 hours.
+    last_module_freshness_check_timestamp = get_last_module_freshness_check_timestamp()
+    should_check_modules = should_check_templates or is_version_check_needed(last_module_freshness_check_timestamp)
 
     # Use progress indicator for checks that might take time
     with Progress(
@@ -369,6 +407,35 @@ def print_startup_checks(
                 console.print()
                 console.print(Panel(update_message, border_style=update_type_color))
 
+        module_result = None
+        if should_check_modules:
+            modules_task = (
+                progress.add_task("[cyan]Checking bundled modules...[/cyan]", total=None) if show_progress else None
+            )
+            module_result = check_module_freshness(repo_path)
+            if modules_task:
+                progress.update(modules_task, description="[green]✓[/green] Checked bundled modules")
+
+        if module_result and (module_result.project_outdated or module_result.user_outdated):
+            guidance: list[str] = []
+            if module_result.project_outdated:
+                guidance.append(
+                    f"- Project scope ({module_result.project_modules_root}): "
+                    "[bold]specfact module init --scope project[/bold]"
+                )
+            if module_result.user_outdated:
+                guidance.append(f"- User scope ({module_result.user_modules_root}): [bold]specfact module init[/bold]")
+            guidance_text = "\n".join(guidance)
+            console.print()
+            console.print(
+                Panel(
+                    "[bold yellow]⚠ Bundled Modules Need Refresh[/bold yellow]\n\n"
+                    "Some bundled modules are missing or outdated.\n\n"
+                    f"{guidance_text}",
+                    border_style="yellow",
+                )
+            )
+
         # Update metadata after checks complete
         from datetime import datetime
 
@@ -377,6 +444,8 @@ def print_startup_checks(
             metadata_updates["last_checked_version"] = __version__
         if should_check_version:
             metadata_updates["last_version_check_timestamp"] = datetime.now(UTC).isoformat()
+        if should_check_modules:
+            metadata_updates["last_module_freshness_check_timestamp"] = datetime.now(UTC).isoformat()
 
         if metadata_updates:
             update_metadata(**metadata_updates)

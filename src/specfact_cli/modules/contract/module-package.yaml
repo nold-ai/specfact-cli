@@ -1,7 +1,7 @@
 name: contract
-version: 0.36.1
+version: 0.37.0
 commands:
-  - contract
+- contract
 command_help:
   contract: Manage OpenAPI contracts for project bundles
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Validate and manage API contracts for project bundles.
 license: Apache-2.0
+integrity:
+  checksum: sha256:7125e2fbf321727e41bbb2546577dc11d04a51669e57f809f77ad4da3c0232ed
+  signature: yQGYWpda3Kgg+HK5HSw9Oqo3L0tghwt/3yMXPo9I7bn1bzFduc8cdVe3E8bP9kLZ+QL2MnSrp8Ojxvd0shvdBw==

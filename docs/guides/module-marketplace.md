@@ -20,9 +20,9 @@ SpecFact supports centralized marketplace distribution with local multi-source d
 Local module discovery scans these roots in priority order:
 
 1. `built-in` modules (`src/specfact_cli/modules`)
-2. `marketplace` modules (`~/.specfact/marketplace-modules`)
-3. `custom` modules (`~/.specfact/custom-modules`)
-4. extra custom roots (workspace `modules/` and `SPECFACT_MODULES_ROOTS`)
+2. `project` modules (`<repo>/.specfact/modules`)
+3. `user` modules (`~/.specfact/modules`)
+4. legacy/custom roots (`~/.specfact/marketplace-modules`, `~/.specfact/custom-modules`, `SPECFACT_MODULES_ROOTS`)
 
 If module names collide, higher-priority sources win and lower-priority entries are shadowed.
 
@@ -47,15 +47,45 @@ Install workflow enforces integrity and compatibility checks:
 2. Download module archive
 3. Validate SHA-256 checksum
 4. Validate module `core_compatibility` against current CLI version
-5. Install into `~/.specfact/marketplace-modules/`
+5. Install into selected scope root (`~/.specfact/modules` or `<repo>/.specfact/modules`)
 
 Checksum mismatch blocks installation.
 
+Additional local hardening:
+
+- Denylist enforcement via `~/.specfact/module-denylist.txt` (or `SPECFACT_MODULE_DENYLIST_FILE`)
+- One-time trust gate for non-official publishers (`--trust-non-official` for non-interactive automation)
+- Bundled bootstrap/install verifies bundled integrity metadata before copy
+
+Release signing automation:
+
+- `scripts/sign-modules.py` updates manifest integrity metadata (checksum and optional signature)
+- Use `python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem <manifest...>` for local/manual signing
+- Wrapper alternative: `bash scripts/sign-module.sh --key-file /secure/path/module-signing-private.pem <manifest>`
+- Without key material, the script fails by default and recommends `--key-file`; checksum-only mode is explicit via `--allow-unsigned` (local testing only)
+- Encrypted keys are supported with passphrase via `--passphrase`, `--passphrase-stdin`, or `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
+- CI workflows inject private key material via `SPECFACT_MODULE_PRIVATE_SIGN_KEY` and passphrase via `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
+- Private signing keys must stay in CI secrets and never in repository history
+
+Public key for runtime verification:
+
+- Preferred bundled location (repo source): `resources/keys/module-signing-public.pem`
+- Installed package location: `specfact_cli/resources/keys/module-signing-public.pem`
+- Runtime checks key in this order: explicit arg -> `SPECFACT_MODULE_PUBLIC_KEY_PEM` -> bundled key file
+
+Scope boundary:
+
+- This change set hardens local and bundled module safety.
+- The online multi-registry ecosystem and production marketplace rollout remain tracked in `marketplace-02`.
+
 ## Marketplace vs Local Modules
 
-- `specfact module install` targets marketplace modules.
+- `specfact module install` supports source selection:
+  - `--source auto` (default): bundled-first, then marketplace fallback
+  - `--source bundled`: bundled sources only
+  - `--source marketplace`: marketplace only
 - If a requested module already exists locally (`built-in`/`custom`), install reports that no marketplace install is needed.
-- `specfact module uninstall` removes only marketplace-installed modules and provides actionable guidance for built-in/custom modules.
+- `specfact module uninstall` supports `--scope user|project` and prevents ambiguous removals when same module id exists in both scopes.
 
 ## Module Introspection
 

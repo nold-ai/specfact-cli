@@ -1,7 +1,7 @@
 name: drift
-version: 0.36.1
+version: 0.37.0
 commands:
-  - drift
+- drift
 command_help:
   drift: Detect drift between code and specifications
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Detect and report drift between code, plans, and specs.
 license: Apache-2.0
+integrity:
+  checksum: sha256:71f48b98ece0d271d1013a93021cc082d178c7876895d1033065d4be26adc1a0
+  signature: 8yhxRp9pvVuKVBSjgi+6L5vJDjBgtepyWzHLVNC+OHv/e5zg5vUilw89V1tuxxvZHo89Cp8tAcsQgKxk2VVLDg==

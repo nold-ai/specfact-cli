@@ -103,15 +103,9 @@ def get_modules_roots() -> list[Path]:
     # Core packaged modules.
     _add_root(get_modules_root())
 
-    # Workspace-level modules to support externalized module development.
-    repo_modules_root = Path(__file__).resolve().parents[3] / "modules"
-    if repo_modules_root.exists():
-        _add_root(repo_modules_root)
-
-    # Installed runtimes can still discover repo-level modules when invoked from a checkout.
-    cwd_modules_root = Path.cwd() / "modules"
-    if cwd_modules_root.exists():
-        _add_root(cwd_modules_root)
+    workspace_modules_root = get_workspace_modules_root()
+    if workspace_modules_root is not None:
+        _add_root(workspace_modules_root)
 
     # Optional extra roots for custom module locations.
     extra_roots = os.environ.get("SPECFACT_MODULES_ROOTS", "")
@@ -124,6 +118,22 @@ def get_modules_roots() -> list[Path]:
             _add_root(candidate_path)
 
     return roots
+
+
+def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
+    """Return nearest workspace-local .specfact/modules root from base path upward."""
+    start = base_path.resolve() if base_path is not None else Path.cwd().resolve()
+    for candidate in [start, *start.parents]:
+        git_dir = candidate / ".git"
+        if git_dir.exists():
+            workspace_modules_root = candidate / ".specfact" / "modules"
+            if workspace_modules_root.exists():
+                return workspace_modules_root
+            return None
+    workspace_modules_root = start / ".specfact" / "modules"
+    if workspace_modules_root.exists():
+        return workspace_modules_root
+    return None
 
 
 @beartype

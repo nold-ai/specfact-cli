@@ -1,7 +1,7 @@
 name: init
-version: 0.36.1
+version: 0.37.0
 commands:
-  - init
+- init
 command_help:
   init: Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Initialize SpecFact workspace and bootstrap local configuration.
 license: Apache-2.0
+integrity:
+  checksum: sha256:6d984c7e66a51171cdc0d9a01f7085bb25ba8e62cdaff66b56d94cda5cf7536c
+  signature: KF4bJEJD3rM0JsVm5IFV9qn5qdp8hZorBDZA8cXBAwP6nJfH4tGcTXkGFu60kFKsRpxf8C3qlR6aVHRWAcbtDA==

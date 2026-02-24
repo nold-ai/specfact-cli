@@ -1,7 +1,7 @@
 name: auth
-version: 0.36.1
+version: 0.37.0
 commands:
-  - auth
+- auth
 command_help:
   auth: Authenticate with DevOps providers (GitHub, Azure DevOps)
 pip_dependencies: []
@@ -14,3 +14,6 @@ publisher:
   email: oss@nold.ai
 description: Authenticate SpecFact with supported DevOps providers.
 license: Apache-2.0
+integrity:
+  checksum: sha256:ebb79ba19875e6669778e9ed490d51a676fdd0ac91823521a049a3565b486bb3
+  signature: 86T1P4Tem3AD92shR1R5ie9eLzRJ6nX9/FRjW00quaYyZRgvFgePdvc+cXHUAkaPRDtu+kMG0kKvF1TkH5ovAw==
