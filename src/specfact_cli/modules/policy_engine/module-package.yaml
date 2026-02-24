@@ -1,5 +1,5 @@
 name: policy-engine
-version: 0.37.1
+version: 0.37.2
 commands:
   - policy
 command_help:
@@ -19,8 +19,8 @@ publisher:
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 integrity:
-  checksum: sha256:88003e837e99353e8c1a5df988c296c784097c6d4c81fcf0b195c610adc6ab2a
-  signature: mGxDYiHVqmH+Iy9Ekzw9fS6cYS41W/O/eQyc75kg8PMj1FF1kWlCIRTkuE9TTHLmdD3ePz4cwGX5+PbkVioWAQ==
+  checksum: sha256:a239acb53ba59ca7d1f1063c90d60037a2501813d074aae0a4c4590b70a34648
+  signature: lG2M7QVkbaomLebkqLH3rRi64YCDGiABkaZfxl8082TSGfIcZ9K0gPXgNeEQZIKVZcVM9UnJe7NZ/fiQXr/JAw==
 dependencies: []
 description: Run policy evaluations with recommendation and compliance outputs.
 license: Apache-2.0

@@ -7,6 +7,7 @@ import os
 import shutil
 import tarfile
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -150,6 +151,26 @@ def _module_artifact_payload_stable(package_dir: Path) -> bytes:
         file_digest = hashlib.sha256(data).hexdigest()
         entries.append(f"{rel}:{file_digest}")
     return "\n".join(entries).encode("utf-8")
+
+
+@beartype
+def _is_signature_backend_unavailable(error: ValueError) -> bool:
+    """Return True when signature verification backend is unavailable in runtime."""
+    message = str(error)
+    return (
+        "No module named '_cffi_backend'" in message
+        or "requires the 'cryptography' package" in message
+        or "Signature verification backend unavailable" in message
+    )
+
+
+@lru_cache(maxsize=8)
+def _warn_signature_backend_unavailable_once(error_message: str) -> None:
+    """Emit signature-backend-unavailable warning at most once per distinct message."""
+    get_bridge_logger(__name__).warning(
+        "Module signature backend unavailable (%s). Falling back to checksum-only verification.",
+        error_message,
+    )
 
 
 @beartype
@@ -337,6 +358,12 @@ def verify_module_artifact(
         try:
             verify_signature(verification_payload, meta.integrity.signature, key_material)
         except ValueError as exc:
+            if _is_signature_backend_unavailable(exc):
+                if require_signature and not allow_unsigned:
+                    logger.warning("Module %s: signature is required but backend is unavailable", meta.name)
+                    return False
+                _warn_signature_backend_unavailable_once(str(exc))
+                return True
             logger.warning("Module %s: Signature check failed: %s", meta.name, exc)
             return False
     elif require_signature and not allow_unsigned:

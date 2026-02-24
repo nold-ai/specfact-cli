@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.37.1",
+        version="0.37.2",
         description=(
             "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
             "validation and contract enforcement for new projects and long-lived codebases."
@@ -20,6 +20,8 @@ if __name__ == "__main__":
             "PyYAML>=6.0.2",
             "requests>=2.32.3",
             "azure-identity>=1.17.1",
+            "cryptography>=43.0.0",
+            "cffi>=1.17.1",
             "typer>=0.15.0",
             "rich>=14.0.0",
             "jinja2>=3.1.0",
