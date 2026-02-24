@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.37.2] - 2026-02-24
+
+### Fixed
+
+- Restored runtime signature verification prerequisites by making `cryptography` and `cffi` hard installation dependencies for published package installs.
+- Prevented post-install signature verification failures caused by missing `_cffi_backend` in environments that previously installed `specfact-cli` without explicit crypto backend dependencies.
+
+---
+
 ## [0.37.1] - 2026-02-24
 
 ### Fixed

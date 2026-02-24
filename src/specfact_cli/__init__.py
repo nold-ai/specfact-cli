@@ -8,6 +8,6 @@ This package provides command-line tools for:
 - Supporting agile ceremonies and team workflows
 """
 
-__version__ = "0.37.1"
+__version__ = "0.37.2"
 
 __all__ = ["__version__"]

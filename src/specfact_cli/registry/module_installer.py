@@ -27,6 +27,7 @@ USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
+_SIGNATURE_BACKEND_WARNING_EMITTED = False
 
 
 @beartype
@@ -150,6 +151,17 @@ def _module_artifact_payload_stable(package_dir: Path) -> bytes:
         file_digest = hashlib.sha256(data).hexdigest()
         entries.append(f"{rel}:{file_digest}")
     return "\n".join(entries).encode("utf-8")
+
+
+@beartype
+def _is_signature_backend_unavailable(error: ValueError) -> bool:
+    """Return True when signature verification backend is unavailable in runtime."""
+    message = str(error)
+    return (
+        "No module named '_cffi_backend'" in message
+        or "requires the 'cryptography' package" in message
+        or "Signature verification backend unavailable" in message
+    )
 
 
 @beartype
@@ -325,6 +337,7 @@ def verify_module_artifact(
             return False
 
     if meta.integrity.signature:
+        global _SIGNATURE_BACKEND_WARNING_EMITTED
         key_material = _load_public_key_pem(public_key_pem)
         if not key_material:
             if require_signature and not allow_unsigned:
@@ -337,6 +350,17 @@ def verify_module_artifact(
         try:
             verify_signature(verification_payload, meta.integrity.signature, key_material)
         except ValueError as exc:
+            if _is_signature_backend_unavailable(exc):
+                if require_signature and not allow_unsigned:
+                    logger.warning("Module %s: signature is required but backend is unavailable", meta.name)
+                    return False
+                if not _SIGNATURE_BACKEND_WARNING_EMITTED:
+                    logger.warning(
+                        "Module signature backend unavailable (%s). Falling back to checksum-only verification.",
+                        exc,
+                    )
+                    _SIGNATURE_BACKEND_WARNING_EMITTED = True
+                return True
             logger.warning("Module %s: Signature check failed: %s", meta.name, exc)
             return False
     elif require_signature and not allow_unsigned:

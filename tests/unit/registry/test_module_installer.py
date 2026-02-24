@@ -245,6 +245,80 @@ def test_verify_module_artifact_ignores_runtime_cache_files(tmp_path: Path) -> N
     assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
 
 
+def test_verify_module_artifact_falls_back_when_signature_backend_unavailable(
+    monkeypatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('stable')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum, signature="c2ln"),
+    )
+
+    monkeypatch.setattr(
+        module_installer,
+        "verify_signature",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ValueError("Signature verification backend unavailable: No module named '_cffi_backend'")
+        ),
+    )
+    monkeypatch.setattr(module_installer, "_SIGNATURE_BACKEND_WARNING_EMITTED", False)
+    caplog.set_level("WARNING")
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
+    assert module_installer._SIGNATURE_BACKEND_WARNING_EMITTED is True
+
+
+def test_verify_module_artifact_fails_if_signature_required_and_backend_unavailable(
+    monkeypatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('stable')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum, signature="c2ln"),
+    )
+
+    monkeypatch.setattr(
+        module_installer,
+        "verify_signature",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ValueError("Signature verification backend unavailable: No module named '_cffi_backend'")
+        ),
+    )
+    monkeypatch.setattr(module_installer, "_SIGNATURE_BACKEND_WARNING_EMITTED", False)
+    caplog.set_level("WARNING")
+
+    assert (
+        module_installer.verify_module_artifact(
+            module_dir,
+            metadata,
+            allow_unsigned=False,
+            require_signature=True,
+        )
+        is False
+    )
+    assert module_installer._SIGNATURE_BACKEND_WARNING_EMITTED is False
+
+
 def test_uninstall_module_falls_back_to_legacy_marketplace_root(tmp_path: Path, monkeypatch) -> None:
     user_root = tmp_path / "modules"
     legacy_marketplace_root = tmp_path / "marketplace-modules"
