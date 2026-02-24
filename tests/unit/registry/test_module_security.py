@@ -36,7 +36,7 @@ def test_assert_module_allowed_raises_for_denylisted(monkeypatch) -> None:
 
 
 def test_ensure_publisher_trusted_requires_flag_in_non_interactive(monkeypatch) -> None:
-    monkeypatch.setattr("specfact_cli.registry.module_security.get_trusted_publishers", lambda: set())
+    monkeypatch.setattr("specfact_cli.registry.module_security.get_trusted_publishers", set)
 
     with pytest.raises(ValueError, match="--trust-non-official"):
         module_security.ensure_publisher_trusted(
@@ -48,7 +48,7 @@ def test_ensure_publisher_trusted_requires_flag_in_non_interactive(monkeypatch) 
 
 def test_ensure_publisher_trusted_persists_when_flag_enabled(monkeypatch) -> None:
     persisted: dict[str, list[str]] = {"trusted_module_publishers": []}
-    monkeypatch.setattr("specfact_cli.registry.module_security.get_trusted_publishers", lambda: set())
+    monkeypatch.setattr("specfact_cli.registry.module_security.get_trusted_publishers", set)
     monkeypatch.setattr(
         "specfact_cli.registry.module_security._persist_trusted_publishers",
         lambda publishers: persisted.update({"trusted_module_publishers": sorted(publishers)}),
