@@ -158,11 +158,11 @@ def test_module_discovery_registers_commands_from_manifests(tmp_path: Path, monk
     assert not missing, "Missing commands after registry bootstrap:\n" + "\n".join(f"- {cmd}" for cmd in missing)
 
 
-def test_builtin_module_manifest_versions_match_cli_version() -> None:
-    """Built-in module manifests under src/specfact_cli/modules SHALL stay version-synced with CLI."""
-    from specfact_cli import __version__
+def test_builtin_module_manifest_versions_follow_module_level_semver() -> None:
+    """Built-in module manifests SHALL use module-level semver, independent from CLI package version."""
+    issues: list[str] = []
+    semver_pattern = re.compile(r"^\d+\.\d+\.\d+$")
 
-    mismatches: list[str] = []
     for module_name in _module_package_names():
         manifest = MODULES_ROOT / module_name / "module-package.yaml"
         if not manifest.exists():
@@ -173,12 +173,12 @@ def test_builtin_module_manifest_versions_match_cli_version() -> None:
                 version_line = line.split(":", 1)[1].strip().strip("\"'")
                 break
         if version_line is None:
-            mismatches.append(f"{module_name}: missing version field")
+            issues.append(f"{module_name}: missing version field")
             continue
-        if version_line != __version__:
-            mismatches.append(f"{module_name}: {version_line} != {__version__}")
+        if not semver_pattern.match(version_line):
+            issues.append(f"{module_name}: invalid semver '{version_line}'")
 
-    assert not mismatches, "Built-in module version drift detected:\n" + "\n".join(f"- {item}" for item in mismatches)
+    assert not issues, "Built-in module version metadata issues:\n" + "\n".join(f"- {item}" for item in issues)
 
 
 def test_module_manifest_descriptions_are_meaningful() -> None:
