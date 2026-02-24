@@ -189,6 +189,20 @@ def _iter_manifests() -> list[Path]:
     return manifests
 
 
+def _ensure_valid_git_ref(git_ref: str) -> None:
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{git_ref}^{{commit}}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        details = (exc.stderr or exc.stdout or "").strip()
+        suffix = f": {details}" if details else ""
+        raise ValueError(f"--base-ref is invalid or not resolvable: {git_ref}{suffix}") from exc
+
+
 def _module_has_git_changes_since(module_dir: Path, git_ref: str) -> bool:
     try:
         changed = subprocess.run(
@@ -387,6 +401,10 @@ def main() -> int:
     if args.manifests:
         manifests = [Path(manifest) for manifest in args.manifests]
     elif args.changed_only:
+        try:
+            _ensure_valid_git_ref(args.base_ref)
+        except ValueError as exc:
+            parser.error(str(exc))
         manifests = [
             manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)
         ]

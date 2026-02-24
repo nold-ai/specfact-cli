@@ -210,6 +210,53 @@ def test_sign_modules_py_changed_only_auto_bump_and_sign(tmp_path: Path):
     assert signed.get("integrity", {}).get("checksum", "").startswith("sha256:")
 
 
+def test_sign_modules_py_changed_only_fails_on_invalid_base_ref(tmp_path: Path):
+    """Changed-only signing SHALL fail fast when --base-ref does not resolve."""
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+
+    source.parent.mkdir(parents=True)
+    manifest.write_text(
+        "name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n",
+        encoding="utf-8",
+    )
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--changed-only",
+            "--base-ref",
+            "not-a-real-ref",
+            "--bump-version",
+            "patch",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    assert "--base-ref is invalid" in result.stderr
+
+
 def test_sign_modules_py_checksum_changes_when_module_files_change(tmp_path: Path):
     """Checksum SHALL reflect full module payload, not only manifest metadata."""
     if not SIGN_PYTHON_SCRIPT.exists():
