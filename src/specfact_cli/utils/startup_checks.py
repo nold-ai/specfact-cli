@@ -21,7 +21,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli import __version__
-from specfact_cli.registry.module_installer import USER_MODULES_ROOT, get_outdated_or_missing_bundled_modules
+from specfact_cli.registry.module_installer import get_outdated_or_missing_bundled_modules
 from specfact_cli.utils.ide_setup import IDE_CONFIG, detect_ide, find_package_resources_path
 from specfact_cli.utils.metadata import (
     get_last_checked_version,
@@ -287,7 +287,7 @@ def check_module_freshness(repo_path: Path | None = None) -> ModuleFreshnessChec
         repo_path = Path.cwd()
 
     project_modules_root = repo_path / ".specfact" / "modules"
-    user_modules_root = USER_MODULES_ROOT
+    user_modules_root = Path.home() / ".specfact" / "modules"
 
     project_outdated_modules = get_outdated_or_missing_bundled_modules(project_modules_root)
     user_outdated_modules = get_outdated_or_missing_bundled_modules(user_modules_root)
