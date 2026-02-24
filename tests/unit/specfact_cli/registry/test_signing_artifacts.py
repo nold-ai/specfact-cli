@@ -4,6 +4,7 @@ Tests for signing automation artifacts (arch-06): script and CI workflow.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -272,6 +273,11 @@ def test_pr_orchestrator_contains_verify_module_signatures_job():
     assert "--enforce-version-bump" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
+    assert re.search(
+        r"verify-module-signatures:.*?uses: actions/checkout@v4.*?fetch-depth: 0",
+        content,
+        re.DOTALL,
+    )
 
 
 def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():

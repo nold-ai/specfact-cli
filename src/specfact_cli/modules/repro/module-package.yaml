@@ -1,7 +1,7 @@
 name: repro
-version: 0.37.0
+version: 0.37.1
 commands:
-- repro
+  - repro
 command_help:
   repro: Run validation suite
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Run reproducible validation and diagnostics workflows end-to-end.
 license: Apache-2.0
 integrity:
-  checksum: sha256:f9c90f35d3285ea9bfa4ebfcc0f304f43394848ab3bbe6063acd515404a85f06
-  signature: lj69naFWhg9Va5c3XSCkCNJ68UOhRIwUbIP+yANLTpmK24eAEpfHgUzyQEKCZh9X+a4+f7IDv4elYGvLyl2gDg==
+  checksum: sha256:9167dc7b6d87478d39b5597262cd36e491b62e38253f6bd984f83ecaf5c6a36c
+  signature: DeyWsQRqOQsqlevDAZVMl9GO8K8JxCnbRddH5rhuJCQKIaLQ/gVilYklpzfK6hGota5tUi9zs88gFMFrBN1jCw==

@@ -1,7 +1,7 @@
 name: drift
-version: 0.37.0
+version: 0.37.1
 commands:
-- drift
+  - drift
 command_help:
   drift: Detect drift between code and specifications
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Detect and report drift between code, plans, and specs.
 license: Apache-2.0
 integrity:
-  checksum: sha256:71f48b98ece0d271d1013a93021cc082d178c7876895d1033065d4be26adc1a0
-  signature: 8yhxRp9pvVuKVBSjgi+6L5vJDjBgtepyWzHLVNC+OHv/e5zg5vUilw89V1tuxxvZHo89Cp8tAcsQgKxk2VVLDg==
+  checksum: sha256:5bf84d0a840bbdb47ccacda4490d19685d1298c3f7fd3b8e48ca641a08727e08
+  signature: S8djuQsc+7LBZH8myx+aUNeSfSpnLHXL70iCrK9yCfyYJbqDklQpKNxBGJQ4DjzrApm6ZyTBoxZdmA1BxDvDBw==

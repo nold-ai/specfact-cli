@@ -1,7 +1,7 @@
 name: backlog
-version: 0.37.0
+version: 0.37.1
 commands:
-- backlog
+  - backlog
 command_help:
   backlog: Backlog refinement and template management
 pip_dependencies: []
@@ -9,18 +9,18 @@ module_dependencies: []
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 service_bridges:
-- id: ado
-  converter_class: specfact_cli.modules.backlog.src.adapters.ado.AdoConverter
-  description: Azure DevOps backlog payload converter
-- id: jira
-  converter_class: specfact_cli.modules.backlog.src.adapters.jira.JiraConverter
-  description: Jira issue payload converter
-- id: linear
-  converter_class: specfact_cli.modules.backlog.src.adapters.linear.LinearConverter
-  description: Linear issue payload converter
-- id: github
-  converter_class: specfact_cli.modules.backlog.src.adapters.github.GitHubConverter
-  description: GitHub issue payload converter
+  - id: ado
+    converter_class: specfact_cli.modules.backlog.src.adapters.ado.AdoConverter
+    description: Azure DevOps backlog payload converter
+  - id: jira
+    converter_class: specfact_cli.modules.backlog.src.adapters.jira.JiraConverter
+    description: Jira issue payload converter
+  - id: linear
+    converter_class: specfact_cli.modules.backlog.src.adapters.linear.LinearConverter
+    description: Linear issue payload converter
+  - id: github
+    converter_class: specfact_cli.modules.backlog.src.adapters.github.GitHubConverter
+    description: GitHub issue payload converter
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
@@ -28,5 +28,5 @@ publisher:
 description: Manage backlog ceremonies, refinement, and dependency insights.
 license: Apache-2.0
 integrity:
-  checksum: sha256:7d03208b0b6b801a9c6e146846391211f7cffe57c88640337ce43e7448c3f673
-  signature: ZOQNPi4ydBZqqbhJ9Li8JuT2+X1os27/1VCYt2HRojJLAeJvIjNd7NsXuoZorAC6frm7thJTjqEnJB/805leCA==
+  checksum: sha256:db36a40672119b436b50bd4142400feec3398ae2732cfa357eacb7b40d8b8582
+  signature: NXgVtRf+ubB+upfAacJUTX8yaGw/cdZa9SSxqusak3ijGZe5POtK+ud+n2lnVMCg/9pOzoq8wdgsTrVr3mkCDA==

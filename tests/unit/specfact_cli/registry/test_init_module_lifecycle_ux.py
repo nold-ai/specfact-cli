@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import click
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -14,31 +15,42 @@ from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo
 runner = CliRunner()
 
 
+def _unstyled(text: str) -> str:
+    """Return console output with ANSI styling removed."""
+    return click.unstyle(text)
+
+
 def test_init_rejects_deprecated_list_modules_option(tmp_path: Path) -> None:
     """`specfact init --list-modules` is removed; lifecycle lives under `specfact module`."""
 
     result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--list-modules"])
+    output = _unstyled(result.output)
 
     assert result.exit_code != 0
-    assert "No such option: --list-modules" in result.output
+    assert "No such option" in output
+    assert "--list-modules" in output
 
 
 def test_init_rejects_deprecated_enable_module_option(tmp_path: Path) -> None:
     """`specfact init --enable-module` is removed; use `specfact module enable`."""
 
     result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--enable-module", "sync"])
+    output = _unstyled(result.output)
 
     assert result.exit_code != 0
-    assert "No such option: --enable-module" in result.output
+    assert "No such option" in output
+    assert "--enable-module" in output
 
 
 def test_init_rejects_deprecated_disable_module_option(tmp_path: Path) -> None:
     """`specfact init --disable-module` is removed; use `specfact module disable`."""
 
     result = runner.invoke(app, ["init", "--repo", str(tmp_path), "--disable-module", "sync"])
+    output = _unstyled(result.output)
 
     assert result.exit_code != 0
-    assert "No such option: --disable-module" in result.output
+    assert "No such option" in output
+    assert "--disable-module" in output
 
 
 def test_init_bootstrap_only_does_not_run_ide_setup(tmp_path: Path, monkeypatch) -> None:

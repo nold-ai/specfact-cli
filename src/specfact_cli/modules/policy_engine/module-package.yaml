@@ -1,7 +1,7 @@
 name: policy-engine
-version: 0.37.0
+version: 0.37.1
 commands:
-- policy
+  - policy
 command_help:
   policy: Policy validation and suggestion workflows (DoR/DoD/Flow/PI)
 pip_dependencies: []
@@ -9,17 +9,18 @@ module_dependencies: []
 core_compatibility: '>=0.28.0,<1.0.0'
 tier: community
 schema_extensions:
-- target: ProjectBundle
-  field: policy_engine_policy_status
-  type_hint: dict[str, Any] | None
-  description: Latest policy validation status snapshot for the current project bundle.
+  - target: ProjectBundle
+    field: policy_engine_policy_status
+    type_hint: dict[str, Any] | None
+    description: Latest policy validation status snapshot for the current project
+      bundle.
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 integrity:
-  checksum: sha256:c799eff0bf16445c403b7b3037524c1bca71b51673ae5c55885860886e2c5dc8
-  signature: 5Osen9Zt1GZjIxAiBQUYZKJZMcP/zkvQXzHhn0NYLK4M5jFeLgPsZiEH9l4NRBkQBJREIyQ+2z/npLZPCfwTBw==
+  checksum: sha256:88003e837e99353e8c1a5df988c296c784097c6d4c81fcf0b195c610adc6ab2a
+  signature: mGxDYiHVqmH+Iy9Ekzw9fS6cYS41W/O/eQyc75kg8PMj1FF1kWlCIRTkuE9TTHLmdD3ePz4cwGX5+PbkVioWAQ==
 dependencies: []
 description: Run policy evaluations with recommendation and compliance outputs.
 license: Apache-2.0

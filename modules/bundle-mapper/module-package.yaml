@@ -1,5 +1,5 @@
 name: bundle-mapper
-version: 0.1.1
+version: 0.1.2
 commands: []
 pip_dependencies: []
 module_dependencies: []
@@ -19,8 +19,8 @@ publisher:
   url: https://github.com/nold-ai/specfact-cli-modules
   email: oss@nold.ai
 integrity:
-  checksum: sha256:47ae7b777a2e04b9686cc0c14e6edeff685dd36fd93029178cf70ac88bec8d7c
-  signature: U6yBPMJW1en5KpsNKNL4XYY6NRund4SucU4axWOeW4860ds3IXO2q8ZN06Tr3ngqlt4IC671xb1FIfWl9KbcAA==
+  checksum: sha256:1012f453bc4ae83b22e2cfabce13e5e324d9b4cdf454ce0159b5c5e17dd36f77
+  signature: LlPqbIH6uD70AInX28PpVurOEv+W/Ztarj5yQhZ3MkC3yORcQrh6ISvJsQeFHFiV1cmnYck7RfDipl4FJyzDAA==
 dependencies: []
 description: Map backlog items to best-fit modules using scoring heuristics.
 license: Apache-2.0
