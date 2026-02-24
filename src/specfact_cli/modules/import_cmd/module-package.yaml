@@ -1,5 +1,5 @@
 name: import_cmd
-version: 0.37.2
+version: 0.1.0
 commands:
   - import
 command_help:
@@ -15,5 +15,5 @@ publisher:
 description: Import projects and requirements from code and external tools.
 license: Apache-2.0
 integrity:
-  checksum: sha256:ed7387b3bc4de4fc6e320b976f180befe49961669c337257851de7da385d9ca4
-  signature: j2HV/fWLN7nzmTzWseUIPNv+E0gw5Pif4+a8c6Qe8eHimUxnx6OAauLV9HgawdW9GG52YkDIwpTOkAZ6BBLCBg==
+  checksum: sha256:246f8402200e57947a50f61102ef8057dd75a6ad2768d359774600557daead8b
+  signature: sCgBiKEtN5r2br/6ZAYmII7XjjZ9Ru8WqqPfXXaE2shn0eQBiDxKKH/ATNBZphtYJbTfXEpQFZg3oVja4jITCg==

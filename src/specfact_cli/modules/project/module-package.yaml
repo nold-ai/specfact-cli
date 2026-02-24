@@ -1,5 +1,5 @@
 name: project
-version: 0.37.2
+version: 0.1.0
 commands:
   - project
 command_help:
@@ -15,5 +15,5 @@ publisher:
 description: Manage project bundles, contexts, and lifecycle workflows.
 license: Apache-2.0
 integrity:
-  checksum: sha256:80789cfb916a67bbbcd2c9416ebae21fe79affb60596d0bc218777c6652cf5d7
-  signature: RI2XsxN5BBurAWYlAAYm4amcCWsJ/McnJUqSua/2mDGx/KW7WoXVaMD4xccCatjTDqL6Lr7ctkVh4iQ6wTqoDg==
+  checksum: sha256:bb6a1c0004d242fa6829975d307470f6f9b895690d4052ae6a9d7a64ec9c7a25
+  signature: HIX5WUIWEpjcIZ/lYD9bTk0HqmUXaJ68EZmiS3+IIjx3/GiQ0VcW+QtMxOpRZxYA/MnHZvIB5PdQGjOeahA/Bg==

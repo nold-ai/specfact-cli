@@ -1,5 +1,5 @@
 name: drift
-version: 0.37.2
+version: 0.1.0
 commands:
   - drift
 command_help:
@@ -15,5 +15,5 @@ publisher:
 description: Detect and report drift between code, plans, and specs.
 license: Apache-2.0
 integrity:
-  checksum: sha256:368d6beaf1b4356741c1dbdd8125800e466abb47d8a18e14e2c0f9c66c94397b
-  signature: +gU8OTtpxWqIKTk2xoL4Msed1alxTk4soy/HYG4wJuOcwQgaxG7tM/WEWTRMCXHTN4kCiN+3Wqp975FUtW0UDw==
+  checksum: sha256:0bf406486ada20fa82273f62a46567a63231be00bca1aa0da335405081d868ee
+  signature: 22k+r94pdCPh7lP4UYZfvlNRlTQaSasXwzDJWE33I1Pzeq1hPRnyXBylx9x7IvdDqACLTnCIz5j6R8XKCu1WAQ==

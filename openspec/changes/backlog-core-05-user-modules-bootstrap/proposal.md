@@ -5,11 +5,13 @@
 
 
 
+
 `specfact backlog add` is still missing in installed-runtime contexts when command discovery depends on repository-local `modules/` folders. This makes behavior vary by working directory and machine.
 
 For production usage, shipped modules and their resources should be managed as user-level artifacts. We need a reliable path where `specfact module init` prepares a per-user module root (not repo-local) so command availability is stable.
 
 ## What Changes
+
 
 
 
@@ -31,6 +33,8 @@ For production usage, shipped modules and their resources should be managed as u
 - **NEW**: Require signature/checksum verification for shipped/bundled modules using release-generated signatures (not publisher-name trust alone).
 - **NEW**: Add release signing automation for bundled modules in this repository so module signatures are generated during release orchestration without exposing private keys.
 - **NEW**: Support encrypted signing keys with passphrase input via CLI flag, stdin, or environment variable, and wire CI signing steps to dedicated secrets (`SPECFACT_MODULE_PRIVATE_SIGN_KEY`, `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`).
+- **NEW**: Add changed-module release automation that selects only modules with payload changes, applies module-level semver bump, and performs bump/sign/verify in one workflow.
+- **MODIFY**: Treat bundled module versions as independent semver from CLI package version; only changed module payloads require module version increments.
 - **MODIFY**: Document and codify boundary with `marketplace-02`: this change hardens local/shipped module trust and install safety; online multi-registry ecosystem remains in `marketplace-02`.
 - **MODIFY**: Add tests for init/module discovery parity that verify `backlog add` availability does not depend on current working directory.
 - **MODIFY**: Strengthen prompt resource detection/copy tests so `specfact init ide` consistently finds bundled prompt resources and installs them to project target locations.
@@ -48,6 +52,6 @@ For production usage, shipped modules and their resources should be managed as u
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #298
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/298>
-- **Last Synced Status**: implemented
+- **Last Synced Status**: proposed
 - **Sanitized**: false
 <!-- content_hash: deb60d1fd1a5ed08 -->

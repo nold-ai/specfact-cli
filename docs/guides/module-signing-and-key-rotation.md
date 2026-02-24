@@ -44,22 +44,23 @@ openssl pkey -in module-signing-private.pem -pubout -out module-signing-public.p
 Preferred (strict, with private key):
 
 ```bash
-python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem src/specfact_cli/modules/*/module-package.yaml
-python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem modules/*/module-package.yaml
+KEY_FILE="${SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE:-.specfact/sign-keys/module-signing-private.pem}"
+python scripts/sign-modules.py --key-file "$KEY_FILE" src/specfact_cli/modules/*/module-package.yaml
+python scripts/sign-modules.py --key-file "$KEY_FILE" modules/*/module-package.yaml
 ```
 
 Encrypted private key options:
 
 ```bash
 # Prompt interactively for passphrase (TTY)
-python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem modules/backlog-core/module-package.yaml
+python scripts/sign-modules.py --key-file "$KEY_FILE" modules/backlog-core/module-package.yaml
 
 # Explicit passphrase flag (avoid shell history when possible)
-python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem --passphrase '***' modules/backlog-core/module-package.yaml
+python scripts/sign-modules.py --key-file "$KEY_FILE" --passphrase '***' modules/backlog-core/module-package.yaml
 
 # Passphrase over stdin (CI-safe pattern)
 printf '%s' "$SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" | \
-  python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem --passphrase-stdin modules/backlog-core/module-package.yaml
+  python scripts/sign-modules.py --key-file "$KEY_FILE" --passphrase-stdin modules/backlog-core/module-package.yaml
 ```
 
 Versioning guard:
@@ -67,14 +68,29 @@ Versioning guard:
 - The signer enforces module version increments for changed module contents.
 - If module files changed and version is unchanged, signing fails until version is bumped.
 - Override exists for exceptional local workflows: `--allow-same-version` (not recommended).
+- Module versions are independent from CLI package version; bump only modules whose payload changed.
+
+Changed-modules automation (recommended for release prep):
+
+```bash
+# Bump changed modules by patch and sign only those modules
+hatch run python scripts/sign-modules.py \
+  --key-file "$KEY_FILE" \
+  --changed-only \
+  --base-ref origin/dev \
+  --bump-version patch
+
+# Verify after signing
+hatch run python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --version-check-base origin/dev
+```
 
 Wrapper for single manifest:
 
 ```bash
-bash scripts/sign-module.sh --key-file /secure/path/module-signing-private.pem modules/backlog-core/module-package.yaml
+bash scripts/sign-module.sh --key-file "$KEY_FILE" modules/backlog-core/module-package.yaml
 # stdin passphrase:
 printf '%s' "$SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" | \
-  bash scripts/sign-module.sh --key-file /secure/path/module-signing-private.pem --passphrase-stdin modules/backlog-core/module-package.yaml
+  bash scripts/sign-module.sh --key-file "$KEY_FILE" --passphrase-stdin modules/backlog-core/module-package.yaml
 ```
 
 Local test-only unsigned mode:

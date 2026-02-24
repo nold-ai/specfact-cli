@@ -36,6 +36,7 @@ Per `openspec/config.yaml`, tests before code for behavior changes.
 - [x] 3.13 Add tests for denylist enforcement on `module install` and `module init` bootstrap paths.
 - [x] 3.14 Add tests for one-time trust prompt/flag behavior for non-official publishers in interactive and non-interactive modes.
 - [x] 3.15 Add tests for bundled signature/checksum verification during install/bootstrap (pass and fail paths).
+- [x] 3.16 Add tests for changed-module release automation (changed-only selection, auto version bump, unchanged-module skip).
 - [x] 3.4 Run targeted tests and record failing results in `TDD_EVIDENCE.md`.
 
 ## 4. Implementation
@@ -58,6 +59,8 @@ Per `openspec/config.yaml`, tests before code for behavior changes.
 - [x] 4.16 Enforce signature/checksum verification for shipped/bundled module install/bootstrap paths.
 - [x] 4.17 Add release signing script/workflow integration for bundled modules (private key via CI secret; no key material in repo).
 - [x] 4.18 Add encrypted-key passphrase handling in signing scripts (`--passphrase`, `--passphrase-stdin`, env var) and update CI signing secrets wiring.
+- [x] 4.19 Implement changed-module automation in signing tooling (select changed manifests by git base, optional semver bump, re-sign).
+- [x] 4.20 Ensure module version enforcement is payload-change based and remains decoupled from CLI package version.
 
 ## 5. Validation and docs
 
@@ -71,6 +74,7 @@ Per `openspec/config.yaml`, tests before code for behavior changes.
 - [x] 5.9 Align marketplace guide with user/project scope roots and legacy root compatibility note.
 - [x] 5.10 Document denylist/trust prompt/signature verification behavior and automation flags for CI.
 - [x] 5.11 Document scope boundary with `marketplace-02` (online registry ecosystem vs local/shipped trust hardening).
+- [x] 5.12 Document module release workflow for changed-only bump/sign/verify and module-level semver strategy.
 - [x] 5.4 Run `openspec validate backlog-core-05-user-modules-bootstrap --strict` and update `CHANGE_VALIDATION.md`.
 
 ## 6. Delivery

@@ -4176,6 +4176,7 @@ def map_fields(
             "}"
         )
         repo_issue_types: dict[str, str] = {}
+        repo_issue_types_error: str | None = None
         try:
             issue_types_data = _github_graphql(issue_types_query, {"owner": owner, "repo": repo_name})
             repository = (
@@ -4191,13 +4192,25 @@ def map_fields(
                     type_id = str(node.get("id") or "").strip()
                     if type_name and type_id:
                         repo_issue_types[type_name] = type_id
-        except (requests.RequestException, ValueError):
-            # Keep flow resilient; ProjectV2 mapping can still be configured without repository issue type ids.
+        except (requests.RequestException, ValueError) as error:
+            repo_issue_types_error = str(error)
             repo_issue_types = {}
 
         if repo_issue_types:
             discovered = ", ".join(sorted(repo_issue_types.keys()))
             console.print(f"[cyan]Discovered repository issue types:[/cyan] {discovered}")
+        else:
+            console.print(
+                "[red]Error:[/red] Could not discover repository issue types for this GitHub repository. "
+                "Automatic issue Type updates require `github_issue_types.type_ids`."
+            )
+            if repo_issue_types_error:
+                console.print(f"[dim]Details:[/dim] {repo_issue_types_error}")
+            console.print(
+                "[yellow]Hint:[/yellow] Re-authenticate with required scopes and rerun mapping: "
+                "`specfact auth github --scopes repo,read:project,project`."
+            )
+            raise typer.Exit(1)
 
         cli_option_map: dict[str, str] = {}
         for entry in github_type_option:

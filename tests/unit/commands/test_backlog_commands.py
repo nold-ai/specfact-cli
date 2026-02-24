@@ -27,6 +27,7 @@ from specfact_cli.modules.backlog.src.commands import (
     _parse_refinement_output_fields,
     _resolve_refine_export_comment_window,
     _resolve_refine_preview_comment_window,
+    app as backlog_app,
 )
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
@@ -242,8 +243,10 @@ class TestInteractiveMappingCommand:
 
     @patch("questionary.checkbox")
     @patch("specfact_cli.utils.auth_tokens.get_token")
+    @patch("requests.post")
     def test_map_fields_provider_picker_accepts_choice_objects(
         self,
+        mock_post: MagicMock,
         mock_get_token: MagicMock,
         mock_checkbox: MagicMock,
         tmp_path,
@@ -256,6 +259,12 @@ class TestInteractiveMappingCommand:
 
         mock_checkbox.return_value.ask.return_value = [_ChoiceLike("github")]
         mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {"repository": {"issueTypes": {"nodes": [{"id": "IT_TASK", "name": "Task"}]}}}
+        }
+        mock_post.return_value = mock_response
 
         import os
 
@@ -263,9 +272,8 @@ class TestInteractiveMappingCommand:
         try:
             os.chdir(tmp_path)
             result = runner.invoke(
-                app,
+                backlog_app,
                 [
-                    "backlog",
                     "map-fields",
                     "--github-project-id",
                     "nold-ai/specfact-demo-repo",
@@ -284,18 +292,35 @@ class TestInteractiveMappingCommand:
         assert "No providers selected" not in result.stdout
 
     @patch("specfact_cli.utils.auth_tokens.get_token")
-    def test_map_fields_github_provider_persists_backlog_config(self, mock_get_token: MagicMock, tmp_path) -> None:
+    @patch("requests.post")
+    def test_map_fields_github_provider_persists_backlog_config(
+        self, mock_post: MagicMock, mock_get_token: MagicMock, tmp_path
+    ) -> None:
         """Test GitHub provider mapping persistence into .specfact/backlog-config.yaml."""
         mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {
+                "repository": {
+                    "issueTypes": {
+                        "nodes": [
+                            {"id": "IT_BUG", "name": "Bug"},
+                            {"id": "IT_TASK", "name": "Task"},
+                        ]
+                    }
+                }
+            }
+        }
+        mock_post.return_value = mock_response
         import os
 
         cwd = Path.cwd()
         try:
             os.chdir(tmp_path)
             result = runner.invoke(
-                app,
+                backlog_app,
                 [
-                    "backlog",
                     "map-fields",
                     "--provider",
                     "github",
@@ -321,11 +346,52 @@ class TestInteractiveMappingCommand:
         assert mapping["project_id"] == "PVT_project_id"
         assert mapping["type_field_id"] == "PVT_type_field"
         assert mapping["type_option_ids"]["task"] == "OPT_TASK"
+        assert github_settings["github_issue_types"]["type_ids"]["task"] == "IT_TASK"
+        assert github_settings["github_issue_types"]["type_ids"]["bug"] == "IT_BUG"
         assert github_settings["field_mapping_file"] == ".specfact/templates/backlog/field_mappings/github_custom.yaml"
         github_custom = tmp_path / ".specfact" / "templates" / "backlog" / "field_mappings" / "github_custom.yaml"
         assert github_custom.exists()
         github_custom_payload = yaml.safe_load(github_custom.read_text(encoding="utf-8"))
         assert github_custom_payload["type_mapping"]["task"] == "task"
+
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    @patch("requests.post")
+    def test_map_fields_github_provider_fails_when_issue_types_unavailable(
+        self, mock_post: MagicMock, mock_get_token: MagicMock, tmp_path
+    ) -> None:
+        """GitHub map-fields should fail when repository issue type IDs cannot be discovered."""
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {"data": {"repository": {"issueTypes": {"nodes": []}}}}
+        mock_post.return_value = mock_response
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                backlog_app,
+                [
+                    "map-fields",
+                    "--provider",
+                    "github",
+                    "--github-project-id",
+                    "nold-ai/specfact-demo-repo",
+                    "--github-project-v2-id",
+                    "PVT_project_id",
+                    "--github-type-field-id",
+                    "PVT_type_field",
+                    "--github-type-option",
+                    "task=OPT_TASK",
+                ],
+            )
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code != 0
+        assert "repository issue types" in result.stdout.lower()
 
     def test_backlog_init_config_scaffolds_default_file(self, tmp_path) -> None:
         """Test backlog init-config creates default backlog-config scaffold."""

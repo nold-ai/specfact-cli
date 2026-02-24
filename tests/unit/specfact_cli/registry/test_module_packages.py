@@ -315,6 +315,24 @@ def test_unaffected_modules_register_when_one_fails_trust(monkeypatch, tmp_path:
     assert "bad_cmd" not in names
 
 
+def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch, tmp_path: Path) -> None:
+    """Integrity failure should emit concise risk guidance instead of raw checksum diagnostics."""
+    from specfact_cli.registry import module_packages as mp
+
+    shown_messages: list[str] = []
+    metadata = [(tmp_path / "bad", ModulePackageMetadata(name="bad", version="0.1.0", commands=["bad_cmd"]))]
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: metadata)
+    monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: False)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    monkeypatch.setattr(mp, "print_warning", shown_messages.append)
+
+    register_module_package_commands()
+
+    assert any("failed integrity verification and was not loaded" in msg for msg in shown_messages)
+    assert any("Run `specfact module init`" in msg for msg in shown_messages)
+    assert not any("Checksum mismatch" in msg for msg in shown_messages)
+
+
 def test_module_state_read_write(tmp_path: Path):
     """read_modules_state / write_modules_state roundtrip."""
     os.environ["SPECFACT_REGISTRY_DIR"] = str(tmp_path)

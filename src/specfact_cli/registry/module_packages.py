@@ -817,6 +817,11 @@ def register_module_package_commands(
             skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
             continue
         if not verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
+            print_warning(
+                f"Security check: module '{meta.name}' failed integrity verification and was not loaded. "
+                "This may indicate tampering or an outdated local module copy. "
+                "Run `specfact module init` to restore trusted bundled modules."
+            )
             skipped.append((meta.name, "integrity/trust check failed"))
             continue
         if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
