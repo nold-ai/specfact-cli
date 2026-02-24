@@ -83,9 +83,10 @@ if [ "$SHOULD_PUBLISH" = "true" ]; then
     echo "🚀 Publishing to PyPI..."
     
     # Build package
+    # Use hatch build to match the project's configured packaging flow.
     echo "📦 Building package..."
-    python -m pip install --upgrade build twine
-    python -m build
+    python -m pip install --upgrade hatch twine
+    hatch build
     
     # Validate package
     echo "🔍 Validating package..."
