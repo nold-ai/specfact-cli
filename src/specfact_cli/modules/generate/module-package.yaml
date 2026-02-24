@@ -1,12 +1,12 @@
 name: generate
-version: 0.36.1
+version: 0.37.0
 commands:
-  - generate
+- generate
 command_help:
   generate: Generate artifacts from SDD and plans
 pip_dependencies: []
 module_dependencies:
-  - plan
+- plan
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
@@ -15,3 +15,6 @@ publisher:
   email: oss@nold.ai
 description: Generate implementation artifacts from plans and SDD.
 license: Apache-2.0
+integrity:
+  checksum: sha256:d840cf1cf34cc1c19411a9e99a71ade573cd6f877a9b76f5b3a5db338ba176c1
+  signature: LqNTq2SXu2h47H74Tgenh0EYyIgxnQ1HGG2U7PECuPH187hchgY5azT+JSvXR6mE+jX2jXRX1/pYWY0pVt+HBQ==

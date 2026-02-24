@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.36.1"
+version = "0.37.0"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -377,6 +377,9 @@ packages = [
 "resources/templates" = "specfact_cli/resources/templates"
 "resources/schemas" = "specfact_cli/resources/schemas"
 "resources/mappings" = "specfact_cli/resources/mappings"
+"resources/keys" = "specfact_cli/resources/keys"
+"modules/backlog-core" = "specfact_cli/resources/modules/backlog-core"
+"modules/bundle-mapper" = "specfact_cli/resources/modules/bundle-mapper"
 # Note: resources/semgrep files are in src/specfact_cli/resources/semgrep/ and are automatically included
 
 [tool.hatch.build.targets.sdist]

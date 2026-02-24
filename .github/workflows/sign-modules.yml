@@ -1,29 +1,102 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-# Sign module manifests for integrity (arch-06). Outputs checksums for manifest integrity fields.
-name: Sign Modules
+# Harden module signing by enforcing strict verification and deterministic signing output checks.
+name: Module Signature Hardening
 
 on:
   workflow_dispatch: {}
   push:
-    branches: [main]
+    branches: [dev, main]
     paths:
-      - "src/specfact_cli/modules/**/module-package.yaml"
-      - "modules/**/module-package.yaml"
+      - "src/specfact_cli/modules/**"
+      - "modules/**"
+      - "resources/keys/**"
+      - "scripts/sign-modules.py"
+      - "scripts/verify-modules-signature.py"
+      - ".github/workflows/sign-modules.yml"
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "src/specfact_cli/modules/**"
+      - "modules/**"
+      - "resources/keys/**"
+      - "scripts/sign-modules.py"
+      - "scripts/verify-modules-signature.py"
+      - ".github/workflows/sign-modules.yml"
 
 jobs:
-  sign:
-    name: Sign module manifests
+  verify:
+    name: Verify module signatures
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Sign module manifests
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install signer dependencies
         run: |
-          for f in $(find . -name 'module-package.yaml' -not -path './.git/*' 2>/dev/null | head -20); do
-            if [ -f "scripts/sign-module.sh" ]; then
-              bash scripts/sign-module.sh "$f" || true
-            fi
-          done
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml cryptography cffi
+
+      - name: Verify bundled module signatures
+        run: |
+          BASE_REF=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          fi
+          if [ -n "$BASE_REF" ]; then
+            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --version-check-base "$BASE_REF"
+          else
+            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump
+          fi
+
+  reproducibility:
+    name: Assert signing reproducibility
+    runs-on: ubuntu-latest
+    needs: [verify]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install signer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml cryptography cffi
+
+      - name: Re-sign manifests and assert no diff
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
+        run: |
+          if [ -z "${SPECFACT_MODULE_PRIVATE_SIGN_KEY}" ]; then
+            echo "::notice::Skipping reproducibility check because SPECFACT_MODULE_PRIVATE_SIGN_KEY is not configured."
+            exit 0
+          fi
+
+          mapfile -t MANIFESTS < <(find src/specfact_cli/modules modules -name 'module-package.yaml' -type f 2>/dev/null | sort)
+          if [ "${#MANIFESTS[@]}" -eq 0 ]; then
+            echo "No module manifests found"
+            exit 0
+          fi
+
+          python scripts/sign-modules.py "${MANIFESTS[@]}"
+
+          if ! git diff --exit-code -- src/specfact_cli/modules modules; then
+            echo "::error::Module signatures are stale for the configured signing key. Re-sign and commit manifest updates."
+            git --no-pager diff --name-only -- src/specfact_cli/modules modules
+            exit 1
+          fi

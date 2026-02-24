@@ -165,6 +165,25 @@ Run all steps in order before committing. Every step must pass with no errors.
 5. `hatch run contract-test`         # contract-first validation
 6. `hatch run smart-test`            # targeted test run (use `smart-test-full` for larger modifications)
 
+### Module Signature Gate (Required for Change Finalization)
+
+Before PR creation, every change MUST pass bundled module signature verification:
+
+1. Run `hatch run ./scripts/verify-modules-signature.py --require-signature`.
+2. If verification fails because module contents changed, re-sign affected manifests:
+   - `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`
+3. Re-run verification until green.
+
+Rules:
+
+- Do not merge/PR with stale or missing integrity metadata for bundled modules.
+- Treat signature verification as a quality gate equal to lint/type-check/tests.
+- Module version bump is mandatory before signing changed module contents. Do not keep the same module version when module files or signatures change.
+- For any module re-sign/sign operation, increment module version using semver (major/minor/patch) so published/registered versions are immutable.
+- Use signer/verifier enforcement paths:
+  - signer rejects changed modules with unchanged version by default;
+  - verifier/CI enforces version-bump checks for changed manifests.
+
 ### OpenSpec Workflow
 
 Before modifying application code, **always** verify that an active OpenSpec change in `openspec/changes/` **explicitly covers the requested modification**. This is the spec-driven workflow defined in `openspec/config.yaml`. Skip only when the user explicitly says `"skip openspec"` or `"implement without openspec change"`.

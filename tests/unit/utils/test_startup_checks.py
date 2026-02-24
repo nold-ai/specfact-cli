@@ -15,6 +15,7 @@ from specfact_cli.utils.metadata import (
     update_metadata,
 )
 from specfact_cli.utils.startup_checks import (
+    ModuleFreshnessCheckResult,
     TemplateCheckResult,
     VersionCheckResult,
     calculate_file_hash,
@@ -453,8 +454,13 @@ class TestPrintStartupChecks:
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     def test_print_startup_checks_no_issues(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        _mock_update_metadata: MagicMock,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
     ):
         """Test when no issues are found."""
         mock_templates.return_value = None
@@ -476,8 +482,10 @@ class TestPrintStartupChecks:
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     def test_print_startup_checks_outdated_templates(
         self,
+        _mock_update_metadata: MagicMock,
         mock_console: MagicMock,
         mock_version: MagicMock,
         mock_templates: MagicMock,
@@ -524,8 +532,10 @@ class TestPrintStartupChecks:
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     def test_print_startup_checks_version_update_major(
         self,
+        _mock_update_metadata: MagicMock,
         mock_console: MagicMock,
         mock_version: MagicMock,
         mock_templates: MagicMock,
@@ -563,8 +573,10 @@ class TestPrintStartupChecks:
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     def test_print_startup_checks_version_update_minor(
         self,
+        _mock_update_metadata: MagicMock,
         mock_console: MagicMock,
         mock_version: MagicMock,
         mock_templates: MagicMock,
@@ -621,8 +633,13 @@ class TestPrintStartupChecks:
     @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     def test_print_startup_checks_version_check_disabled(
-        self, mock_version: MagicMock, mock_templates: MagicMock, _mock_version_meta: MagicMock
+        self,
+        _mock_update_metadata: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        _mock_version_meta: MagicMock,
     ):
         """Test that version check can be disabled."""
         print_startup_checks(check_version=False)
@@ -828,3 +845,98 @@ class TestPrintStartupChecksOptimization:
         call_kwargs = mock_update_metadata.call_args[1]
         assert "last_checked_version" in call_kwargs
         assert "last_version_check_timestamp" in call_kwargs
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    def test_module_freshness_check_runs_on_version_change(
+        self,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Module freshness check should run when CLI version changed."""
+        from specfact_cli.utils import startup_checks
+
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+        update_metadata(last_checked_version="0.0.1")
+        mock_check_templates.return_value = None
+        mock_check_version.return_value = VersionCheckResult(
+            current_version="1.0.0",
+            latest_version="1.0.0",
+            update_available=False,
+            update_type=None,
+            error=None,
+        )
+        called = {"module_freshness": False}
+
+        def _module_freshness(_repo_path: Path):
+            called["module_freshness"] = True
+            return
+
+        monkeypatch.setattr(startup_checks, "check_module_freshness", _module_freshness, raising=False)
+
+        print_startup_checks(repo_path=tmp_path, check_version=True)
+
+        assert called["module_freshness"] is True
+
+    @patch("specfact_cli.utils.startup_checks.check_ide_templates")
+    @patch("specfact_cli.utils.startup_checks.check_pypi_version")
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
+    @patch("specfact_cli.utils.startup_checks.console")
+    def test_startup_warns_when_project_or_user_modules_are_stale(
+        self,
+        mock_console: MagicMock,
+        mock_update_metadata: MagicMock,
+        mock_check_version: MagicMock,
+        mock_check_templates: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Startup guidance should include both project and user module init commands when stale."""
+        from specfact_cli.utils import startup_checks
+
+        mock_home = tmp_path / "home"
+        mock_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: mock_home)
+        mock_check_templates.return_value = None
+        mock_check_version.return_value = VersionCheckResult(
+            current_version="1.0.0",
+            latest_version="1.0.0",
+            update_available=False,
+            update_type=None,
+            error=None,
+        )
+        monkeypatch.setattr(
+            startup_checks,
+            "check_module_freshness",
+            lambda _repo_path: ModuleFreshnessCheckResult(
+                project_outdated=True,
+                user_outdated=True,
+                project_outdated_modules=["backlog-core"],
+                user_outdated_modules=["bundle-mapper"],
+                project_modules_root=tmp_path / ".specfact" / "modules",
+                user_modules_root=mock_home / ".specfact" / "modules",
+            ),
+            raising=False,
+        )
+        monkeypatch.setattr(startup_checks, "get_last_checked_version", lambda: None, raising=False)
+        monkeypatch.setattr(startup_checks, "get_last_version_check_timestamp", lambda: None, raising=False)
+
+        print_startup_checks(repo_path=tmp_path, check_version=True)
+
+        for call in mock_console.print.call_args_list:
+            args = call[0] if call[0] else []
+            for arg in args:
+                if hasattr(arg, "renderable"):
+                    renderable_str = str(arg.renderable)
+                    if (
+                        "specfact module init --scope project" in renderable_str
+                        and "specfact module init" in renderable_str
+                    ):
+                        return
+        pytest.fail("Module freshness guidance message not found in console output")

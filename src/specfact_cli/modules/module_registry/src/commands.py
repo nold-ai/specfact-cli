@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import inspect
+import shutil
+from pathlib import Path
 
 import typer
 from beartype import beartype
@@ -12,13 +14,21 @@ from rich.table import Table
 from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.marketplace_client import fetch_registry_index
 from specfact_cli.registry.module_discovery import discover_all_modules
-from specfact_cli.registry.module_installer import install_module, uninstall_module
+from specfact_cli.registry.module_installer import (
+    USER_MODULES_ROOT,
+    get_bundled_module_metadata,
+    install_bundled_module,
+    install_module,
+    sync_bundled_modules_to_user_root,
+    uninstall_module,
+)
 from specfact_cli.registry.module_lifecycle import (
     apply_module_state_update,
     get_modules_with_state,
     render_modules_table,
     select_module_ids_interactive,
 )
+from specfact_cli.registry.module_security import ensure_publisher_trusted
 from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import is_non_interactive
 
@@ -27,22 +37,88 @@ app = typer.Typer(help="Manage marketplace modules")
 console = Console()
 
 
+@app.command(name="init")
+@beartype
+def init_modules(
+    scope: str = typer.Option("user", "--scope", help="Bootstrap scope: user or project"),
+    repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
+    trust_non_official: bool = typer.Option(
+        False,
+        "--trust-non-official",
+        help="Trust and persist non-official publishers for this bootstrap operation",
+    ),
+) -> None:
+    """Bootstrap shipped module artifacts into user or project module root."""
+    scope_normalized = scope.strip().lower()
+    if scope_normalized not in {"user", "project"}:
+        console.print("[red]Invalid scope. Use 'user' or 'project'.[/red]")
+        raise typer.Exit(1)
+
+    target_root = USER_MODULES_ROOT
+    if scope_normalized == "project":
+        repo_path = (repo or Path.cwd()).resolve()
+        target_root = repo_path / ".specfact" / "modules"
+
+    try:
+        seeded = sync_bundled_modules_to_user_root(
+            target_root=target_root,
+            trust_non_official=trust_non_official,
+            non_interactive=is_non_interactive(),
+        )
+    except OSError as exc:
+        console.print(f"[red]Failed to seed modules into {target_root}: {exc}[/red]")
+        raise typer.Exit(1) from exc
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]Seeded {seeded} module(s) into {target_root}[/green]")
+
+
 @app.command()
 @beartype
 def install(
     module_id: str = typer.Argument(..., help="Module id (name or namespace/name format)"),
     version: str | None = typer.Option(None, "--version", help="Install a specific version"),
+    scope: str = typer.Option("user", "--scope", help="Install scope: user or project"),
+    source: str = typer.Option("auto", "--source", help="Install source: auto, bundled, or marketplace"),
+    repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
+    trust_non_official: bool = typer.Option(
+        False,
+        "--trust-non-official",
+        help="Trust and persist non-official publisher for this module install",
+    ),
 ) -> None:
-    """Install a module from marketplace registry."""
+    """Install a module from bundled artifacts or marketplace registry."""
+    scope_normalized = scope.strip().lower()
+    if scope_normalized not in {"user", "project"}:
+        console.print("[red]Invalid scope. Use 'user' or 'project'.[/red]")
+        raise typer.Exit(1)
+    source_normalized = source.strip().lower()
+    if source_normalized not in {"auto", "bundled", "marketplace"}:
+        console.print("[red]Invalid source. Use 'auto', 'bundled', or 'marketplace'.[/red]")
+        raise typer.Exit(1)
+
+    repo_path = (repo or Path.cwd()).resolve()
+    target_root = USER_MODULES_ROOT if scope_normalized == "user" else repo_path / ".specfact" / "modules"
+
     normalized = module_id if "/" in module_id else f"specfact/{module_id}"
     if normalized.count("/") != 1:
         console.print("[red]Invalid module id. Use 'name' or 'namespace/name'.[/red]")
         raise typer.Exit(1)
 
     requested_name = normalized.split("/", 1)[1]
+    if (target_root / requested_name / "module-package.yaml").exists():
+        console.print(f"[yellow]Module '{requested_name}' is already installed in {target_root}.[/yellow]")
+        return
+
     discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
     existing = discovered_by_name.get(requested_name)
-    if existing is not None and existing.source != "marketplace":
+    skip_sources = {"builtin", "project", "user", "custom"}
+    if scope_normalized == "project":
+        skip_sources.discard("user")
+    if scope_normalized == "user":
+        skip_sources.discard("project")
+    if existing is not None and existing.source in skip_sources:
         console.print(
             f"[yellow]Module '{requested_name}' is already available from source '{existing.source}'. "
             "No marketplace install needed.[/yellow]"
@@ -50,7 +126,29 @@ def install(
         return
 
     try:
-        installed_path = install_module(normalized, version=version)
+        if source_normalized in {"auto", "bundled"} and install_bundled_module(
+            requested_name,
+            target_root=target_root,
+            trust_non_official=trust_non_official,
+            non_interactive=is_non_interactive(),
+        ):
+            console.print(f"[green]Installed bundled module[/green] {requested_name} -> {target_root / requested_name}")
+            return
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    if source_normalized == "bundled":
+        console.print(f"[red]Bundled module '{requested_name}' was not found in packaged bundled sources.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        installed_path = install_module(
+            normalized,
+            version=version,
+            install_root=target_root,
+            trust_non_official=trust_non_official,
+            non_interactive=is_non_interactive(),
+        )
     except Exception as exc:
         console.print(f"[red]Failed installing {normalized}: {exc}[/red]")
         raise typer.Exit(1) from exc
@@ -59,7 +157,11 @@ def install(
 
 @app.command()
 @beartype
-def uninstall(module_name: str = typer.Argument(..., help="Installed module name (name or namespace/name)")) -> None:
+def uninstall(
+    module_name: str = typer.Argument(..., help="Installed module name (name or namespace/name)"),
+    scope: str | None = typer.Option(None, "--scope", help="Uninstall scope: user or project"),
+    repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
+) -> None:
     """Uninstall a marketplace module."""
     normalized = module_name
     if "/" in normalized:
@@ -67,6 +169,47 @@ def uninstall(module_name: str = typer.Argument(..., help="Installed module name
             console.print("[red]Invalid module id. Use 'name' or 'namespace/name'.[/red]")
             raise typer.Exit(1)
         normalized = normalized.split("/", 1)[1]
+
+    scope_normalized = scope.strip().lower() if scope else None
+    if scope_normalized is not None and scope_normalized not in {"user", "project"}:
+        console.print("[red]Invalid scope. Use 'user' or 'project'.[/red]")
+        raise typer.Exit(1)
+
+    repo_path = (repo or Path.cwd()).resolve()
+    project_root = repo_path / ".specfact" / "modules"
+    user_root = USER_MODULES_ROOT
+    project_module_dir = project_root / normalized
+    user_module_dir = user_root / normalized
+    project_exists = project_module_dir.exists()
+    user_exists = user_module_dir.exists()
+
+    if scope_normalized is None:
+        if project_exists and user_exists:
+            console.print(
+                f"[red]Module '{normalized}' exists in both user and project module roots. "
+                "Use --scope user or --scope project to uninstall the correct copy.[/red]"
+            )
+            raise typer.Exit(1)
+        if project_exists:
+            scope_normalized = "project"
+        elif user_exists:
+            scope_normalized = "user"
+
+    if scope_normalized == "project":
+        if not project_exists:
+            console.print(f"[red]Module '{normalized}' is not installed in project scope ({project_root}).[/red]")
+            raise typer.Exit(1)
+        shutil.rmtree(project_module_dir)
+        console.print(f"[green]Uninstalled[/green] {normalized} from {project_root}")
+        return
+
+    if scope_normalized == "user":
+        if not user_exists:
+            console.print(f"[red]Module '{normalized}' is not installed in user scope ({user_root}).[/red]")
+            raise typer.Exit(1)
+        shutil.rmtree(user_module_dir)
+        console.print(f"[green]Uninstalled[/green] {normalized} from {user_root}")
+        return
 
     discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
     existing = discovered_by_name.get(normalized)
@@ -77,10 +220,12 @@ def uninstall(module_name: str = typer.Argument(..., help="Installed module name
             f"[red]Cannot uninstall built-in module '{normalized}'. Use `specfact module disable {normalized}` instead.[/red]"
         )
         raise typer.Exit(1)
-    if source == "custom":
+    if source in {"project", "custom"}:
+        user_modules_root = str(USER_MODULES_ROOT)
         console.print(
-            f"[red]Cannot uninstall custom module '{normalized}' via marketplace uninstall. "
-            "Remove it from your local module roots (workspace `modules/` or `~/.specfact/custom-modules`).[/red]"
+            f"[red]Cannot uninstall {source} module '{normalized}' via marketplace uninstall. "
+            f"Remove it from your local module roots (workspace `.specfact/modules`, `{user_modules_root}`, "
+            "or custom module roots).[/red]"
         )
         raise typer.Exit(1)
     if source == "unknown":
@@ -103,6 +248,11 @@ def uninstall(module_name: str = typer.Argument(..., help="Installed module name
 def enable(
     module_id: str | None = typer.Argument(None, help="Module id to enable; omit in interactive mode to select"),
     force: bool = typer.Option(False, "--force", help="Override dependency checks and cascade dependencies"),
+    trust_non_official: bool = typer.Option(
+        False,
+        "--trust-non-official",
+        help="Trust and persist non-official publishers while enabling modules",
+    ),
 ) -> None:
     """Enable modules in lifecycle state registry."""
     enable_ids: list[str]
@@ -117,7 +267,17 @@ def enable(
         if not enable_ids:
             return
 
+    modules_by_id = {str(module.get("id", "")): module for module in get_modules_with_state()}
     try:
+        for selected in enable_ids:
+            selected_row = modules_by_id.get(selected)
+            if selected_row is None:
+                continue
+            ensure_publisher_trusted(
+                str(selected_row.get("publisher", "")).strip() or None,
+                trust_non_official=trust_non_official,
+                non_interactive=is_non_interactive(),
+            )
         apply_module_state_update(enable_ids=enable_ids, disable_ids=[], force=force)
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
@@ -338,14 +498,47 @@ def _derive_module_command_entries(metadata: object) -> list[tuple[str, str]]:
 @app.command(name="list")
 @beartype
 def list_modules(
-    source: str | None = typer.Option(None, "--source", help="Filter by origin: builtin, marketplace, custom"),
+    source: str | None = typer.Option(
+        None, "--source", help="Filter by origin: builtin, project, user, marketplace, custom"
+    ),
     show_origin: bool = typer.Option(False, "--show-origin", help="Show raw origin column in addition to trust"),
+    show_bundled_available: bool = typer.Option(
+        False,
+        "--show-bundled-available",
+        help="Show bundled modules available in package artifacts but not installed in active roots",
+    ),
 ) -> None:
     """List installed modules with trust labels and optional origin details."""
     modules = get_modules_with_state()
     if source:
         modules = [m for m in modules if str(m.get("source", "")) == source]
     render_modules_table(console, modules, show_origin=show_origin)
+
+    bundled = get_bundled_module_metadata()
+    installed_ids = {str(module.get("id", "")).strip() for module in get_modules_with_state()}
+    available = [meta for name, meta in bundled.items() if name not in installed_ids]
+    if not show_bundled_available:
+        if available:
+            console.print(
+                "[dim]Bundled modules are available but not installed. "
+                "Use `specfact module list --show-bundled-available` to inspect them.[/dim]"
+            )
+        return
+
+    if not available:
+        console.print("[dim]All bundled modules are already installed in active module roots.[/dim]")
+        return
+
+    available.sort(key=lambda meta: meta.name.lower())
+    table = Table(title="Bundled Modules Available (Not Installed)")
+    table.add_column("Module", style="cyan")
+    table.add_column("Version", style="magenta")
+    table.add_column("Description", style="white")
+    for metadata in available:
+        table.add_row(metadata.name, metadata.version, metadata.description or "")
+    console.print(table)
+    console.print("[dim]Install bundled modules into user scope: specfact module init[/dim]")
+    console.print("[dim]Install bundled modules into project scope: specfact module init --scope project[/dim]")
 
 
 @app.command()

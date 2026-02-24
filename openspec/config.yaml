@@ -132,6 +132,13 @@ rules:
       openspec/changes/<change-id>/TDD_EVIDENCE.md with failing-before and passing-after test commands,
       timestamps, and short result summaries.
     - Include quality gate tasks: format, lint, type-check, test coverage
+    - |-
+      Module signing quality gate (required before PR): Include tasks to
+        - (1) run `hatch run ./scripts/verify-modules-signature.py --require-signature`;
+        - (2) when verification fails after module changes, re-sign affected manifests with
+          `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`;
+        - (3) enforce module version bump before signing changed modules (major/minor/patch as appropriate);
+        - (4) re-run verification until fully green.
     - Reference existing test patterns in tests/unit/, tests/integration/, tests/e2e/
     - |-
       Version and changelog (required before PR): Include a task that

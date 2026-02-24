@@ -39,8 +39,8 @@ Complete technical reference for SpecFact CLI.
 - `specfact spec generate-tests [--bundle <name>]` - Generate contract tests from specifications
 - `specfact spec mock [--bundle <name>]` - Launch mock server for development
 - `specfact init ide --ide <cursor|vscode|copilot|...>` - Initialize IDE integration explicitly
-- `specfact module install <name|namespace/name>` - Install marketplace module (bare names normalize to `specfact/<name>`)
-- `specfact module list [--source ...] [--show-origin]` - List modules with trust/publisher and optional origin details
+- `specfact module install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH]` - Install modules with scope and source control (bare names normalize to `specfact/<name>`)
+- `specfact module list [--source ...] [--show-origin] [--show-bundled-available]` - List modules with trust/publisher, optional origin details, and optional bundled-not-installed section
 - `specfact module show <name>` - Show detailed module metadata and full command tree with short descriptions
 - `specfact module search <query>` - Search marketplace and installed modules
 - `specfact module uninstall <name|namespace/name>` / `specfact module upgrade [<name>|--all]` - Manage module lifecycle with source-aware behavior

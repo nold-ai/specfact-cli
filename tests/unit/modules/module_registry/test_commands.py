@@ -6,7 +6,9 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.modules.module_registry.src.commands import app
+from specfact_cli.registry.module_installer import USER_MODULES_ROOT
 
 
 runner = CliRunner()
@@ -16,7 +18,7 @@ def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.install_module",
-        lambda module_id, version=None: tmp_path / module_id.split("/")[-1],
+        lambda module_id, version=None, install_root=None, **_kwargs: tmp_path / module_id.split("/")[-1],
     )
 
     result = runner.invoke(app, ["install", "specfact/backlog"])
@@ -29,12 +31,16 @@ def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
 def test_install_command_accepts_bare_module_name(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, str | None] = {"module_id": None}
 
-    def _install(module_id: str, version=None):
+    def _install(module_id: str, version=None, install_root=None, **_kwargs):
         captured["module_id"] = module_id
         return tmp_path / module_id.split("/")[-1]
 
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+    )
 
     result = runner.invoke(app, ["install", "bundle-mapper"])
 
@@ -64,7 +70,7 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
 
     called = {"install": False}
 
-    def _install(module_id: str, version=None):
+    def _install(module_id: str, version=None, **_kwargs):
         called["install"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -76,6 +82,192 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
     assert result.exit_code == 0
     assert called["install"] is False
     assert "already available" in result.stdout
+
+
+def test_install_command_project_scope_installs_to_project_modules_root(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {"install_root": None, "module_id": None}
+
+    def _install(module_id: str, version=None, install_root=None, **_kwargs):
+        captured["module_id"] = module_id
+        captured["install_root"] = install_root
+        return tmp_path / "installed"
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+        raising=False,
+    )
+
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir(parents=True)
+    result = runner.invoke(app, ["install", "backlog", "--scope", "project", "--repo", str(repo_path)])
+
+    assert result.exit_code == 0
+    assert captured["module_id"] == "specfact/backlog"
+    assert captured["install_root"] == repo_path / ".specfact" / "modules"
+
+
+def test_install_command_prefers_bundled_source_when_available(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
+        lambda: {
+            "bundle-mapper": ModulePackageMetadata(
+                name="bundle-mapper",
+                version="0.1.0",
+                description="Bundled mapper",
+            )
+        },
+        raising=False,
+    )
+
+    called = {"bundled": False, "marketplace": False}
+
+    def _install_bundled(module_name: str, target_root: Path, **_kwargs) -> bool:
+        called["bundled"] = module_name == "bundle-mapper"
+        return True
+
+    def _install_marketplace(*_args, **_kwargs):
+        called["marketplace"] = True
+        raise AssertionError("Marketplace installer must not be called when bundled module exists")
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        _install_bundled,
+        raising=False,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install_marketplace)
+
+    result = runner.invoke(app, ["install", "bundle-mapper"])
+
+    assert result.exit_code == 0
+    assert called["bundled"] is True
+    assert called["marketplace"] is False
+
+
+def test_install_command_project_scope_does_not_skip_when_user_scope_module_exists(monkeypatch, tmp_path: Path) -> None:
+    class _Meta:
+        name = "bundle-mapper"
+
+    class _Entry:
+        metadata = _Meta()
+        source = "user"
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", lambda: [_Entry()])
+
+    called = {"marketplace": False}
+
+    def _install_marketplace(module_id: str, version=None, install_root=None, **_kwargs):
+        called["marketplace"] = True
+        return tmp_path / module_id.split("/")[-1]
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install_marketplace)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+    )
+
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir(parents=True)
+    result = runner.invoke(app, ["install", "bundle-mapper", "--scope", "project", "--repo", str(repo_path)])
+
+    assert result.exit_code == 0
+    assert called["marketplace"] is True
+
+
+def test_install_command_source_marketplace_skips_bundled_resolution(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
+        lambda: {"bundle-mapper": ModulePackageMetadata(name="bundle-mapper", version="0.1.0")},
+    )
+
+    called = {"bundled": False, "marketplace": False}
+
+    def _bundled(*_args, **_kwargs):
+        called["bundled"] = True
+        return True
+
+    def _marketplace(module_id: str, version=None, install_root=None, **_kwargs):
+        called["marketplace"] = True
+        return tmp_path / module_id.split("/")[-1]
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_bundled_module", _bundled)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _marketplace)
+
+    result = runner.invoke(app, ["install", "bundle-mapper", "--source", "marketplace"])
+
+    assert result.exit_code == 0
+    assert called["bundled"] is False
+    assert called["marketplace"] is True
+
+
+def test_install_command_requires_explicit_trust_for_non_official_in_non_interactive(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
+
+    def _install(module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False):
+        if not trust_non_official and non_interactive:
+            raise ValueError("requires --trust-non-official")
+        return tmp_path / module_id.split("/")[-1]
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["install", "community-module", "--source", "marketplace"])
+
+    assert result.exit_code == 1
+    assert "--trust-non-official" in result.stdout
+
+
+def test_install_command_passes_trust_flag_to_marketplace_installer(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
+    captured: dict[str, bool | None] = {"trust_non_official": None, "non_interactive": None}
+
+    def _install(module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False):
+        captured["trust_non_official"] = trust_non_official
+        captured["non_interactive"] = non_interactive
+        return tmp_path / module_id.split("/")[-1]
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["install", "community-module", "--source", "marketplace", "--trust-non-official"])
+
+    assert result.exit_code == 0
+    assert captured["trust_non_official"] is True
+    assert captured["non_interactive"] is True
+
+
+def test_module_init_passes_trust_flag_and_non_interactive(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {"trust_non_official": None, "non_interactive": None}
+
+    def _sync(*, target_root, trust_non_official=False, non_interactive=False):
+        captured["trust_non_official"] = trust_non_official
+        captured["non_interactive"] = non_interactive
+        return 1
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.sync_bundled_modules_to_user_root", _sync)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
+
+    result = runner.invoke(app, ["init", "--scope", "project", "--repo", str(tmp_path), "--trust-non-official"])
+
+    assert result.exit_code == 0
+    assert captured["trust_non_official"] is True
+    assert captured["non_interactive"] is True
 
 
 def test_uninstall_command_with_source_validation(monkeypatch) -> None:
@@ -98,6 +290,30 @@ def test_uninstall_command_with_source_validation(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert called["ok"] is True
+
+
+def test_uninstall_command_requires_scope_when_module_exists_in_user_and_project(monkeypatch, tmp_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    project_modules = repo_path / ".specfact" / "modules" / "bundle-mapper"
+    user_modules = tmp_path / "user-modules" / "bundle-mapper"
+    project_modules.mkdir(parents=True)
+    user_modules.mkdir(parents=True)
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", tmp_path / "user-modules"
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules",
+        list,
+    )
+
+    result = runner.invoke(app, ["uninstall", "bundle-mapper", "--repo", str(repo_path)])
+
+    assert result.exit_code == 1
+    assert "exists in both user and project module roots" in result.stdout
+    assert "--scope" in result.stdout
+    assert "user" in result.stdout
+    assert "project" in result.stdout
 
 
 def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch) -> None:
@@ -402,6 +618,99 @@ def test_list_command_source_filter(monkeypatch) -> None:
     assert "init" not in result.stdout
 
 
+def test_list_command_show_bundled_available_separate_section_with_hints(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {
+                "id": "init",
+                "version": "0.1.0",
+                "enabled": True,
+                "source": "builtin",
+                "official": True,
+                "publisher": "nold-ai",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
+        lambda: {
+            "init": ModulePackageMetadata(name="init", version="0.1.0", description="Core init module"),
+            "backlog-core": ModulePackageMetadata(
+                name="backlog-core",
+                version="0.2.0",
+                description="Backlog workflows",
+            ),
+        },
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["list", "--show-bundled-available"])
+
+    assert result.exit_code == 0
+    assert "Bundled Modules Available" in result.stdout
+    assert "backlog-core" in result.stdout
+    assert "specfact module init" in result.stdout
+    assert "specfact module init --scope project" in result.stdout
+
+
+def test_list_command_show_bundled_available_empty_when_all_installed(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {
+                "id": "init",
+                "version": "0.1.0",
+                "enabled": True,
+                "source": "builtin",
+                "official": True,
+                "publisher": "nold-ai",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
+        lambda: {
+            "init": ModulePackageMetadata(name="init", version="0.1.0", description="Core init module"),
+        },
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["list", "--show-bundled-available"])
+
+    assert result.exit_code == 0
+    assert "Bundled Modules Available" not in result.stdout
+    assert "All bundled modules are already installed" in result.stdout
+
+
+def test_list_command_without_flag_shows_hint_when_bundled_available(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {
+                "id": "init",
+                "version": "0.1.0",
+                "enabled": True,
+                "source": "builtin",
+                "official": True,
+                "publisher": "nold-ai",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
+        lambda: {
+            "init": ModulePackageMetadata(name="init", version="0.1.0", description="Core init module"),
+            "backlog-core": ModulePackageMetadata(name="backlog-core", version="0.2.0", description="Backlog"),
+        },
+    )
+
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "--show-bundled-available" in result.stdout
+
+
 def test_show_command_displays_module_details(monkeypatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
@@ -680,6 +989,10 @@ def test_enable_command_interactive_mode_selection(monkeypatch) -> None:
         "specfact_cli.modules.module_registry.src.commands.select_module_ids_interactive",
         lambda *_args, **_kwargs: ["backlog"],
     )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.ensure_publisher_trusted",
+        lambda *_args, **_kwargs: None,
+    )
 
     captured = {"enable_ids": None}
 
@@ -702,3 +1015,53 @@ def test_disable_command_non_interactive_requires_module_id(monkeypatch) -> None
 
     assert result.exit_code == 1
     assert "Non-interactive mode requires explicit module id value" in result.stdout
+
+
+def test_module_init_bootstraps_user_modules(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.sync_bundled_modules_to_user_root",
+        lambda **_kwargs: 2,
+    )
+
+    result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 0
+    assert f"Seeded 2 module(s) into {USER_MODULES_ROOT}" in result.stdout
+
+
+def test_module_init_project_scope_defaults_to_cwd_repo(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    captured: dict[str, Path | None] = {"target_root": None}
+
+    def _sync(target_root=None, **_kwargs):
+        captured["target_root"] = target_root
+        return 1
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.sync_bundled_modules_to_user_root", _sync)
+
+    result = runner.invoke(app, ["init", "--scope", "project"])
+
+    assert result.exit_code == 0
+    assert captured["target_root"] == tmp_path / ".specfact" / "modules"
+    assert "Seeded 1 module(s) into" in result.stdout
+    assert str(tmp_path / ".specfact" / "modules") in result.stdout
+
+
+def test_module_init_project_scope_supports_explicit_repo(monkeypatch, tmp_path: Path) -> None:
+    explicit_repo = tmp_path / "customer-a"
+    explicit_repo.mkdir(parents=True)
+    captured: dict[str, Path | None] = {"target_root": None}
+
+    def _sync(target_root=None, **_kwargs):
+        captured["target_root"] = target_root
+        return 1
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.sync_bundled_modules_to_user_root", _sync)
+
+    result = runner.invoke(app, ["init", "--scope", "project", "--repo", str(explicit_repo)])
+
+    assert result.exit_code == 0
+    assert captured["target_root"] == explicit_repo / ".specfact" / "modules"
+    compact_output = result.stdout.replace("\n", "")
+    assert "Seeded 1 module(s) into" in compact_output
+    assert str(explicit_repo / ".specfact" / "modules").replace("\n", "") in compact_output

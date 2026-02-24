@@ -138,6 +138,14 @@ def get_last_version_check_timestamp() -> str | None:
 
 
 @beartype
+@ensure(lambda result: result is None or isinstance(result, str), "Must return str or None")
+def get_last_module_freshness_check_timestamp() -> str | None:
+    """Get the last module freshness check timestamp from metadata."""
+    metadata = get_metadata()
+    return metadata.get("last_module_freshness_check_timestamp")
+
+
+@beartype
 @require(
     lambda timestamp: timestamp is None or isinstance(timestamp, str),
     "Timestamp must be string or None",

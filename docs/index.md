@@ -46,10 +46,11 @@ Recommended command entrypoints:
 
 1. **[Installation](getting-started/installation.md)** - Get started in 60 seconds
 2. **[First Steps](getting-started/first-steps.md)** - Run your first command
-3. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
-4. **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post comments, and Copilot export (GitHub/ADO)
-5. **[Working With Existing Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Legacy-first guide
-6. **[The Existing Code Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
+3. **[Module Bootstrap Checklist](getting-started/module-bootstrap-checklist.md)** - Quickly verify bundled modules are installed for user/project scope
+4. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
+5. **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post comments, and Copilot export (GitHub/ADO)
+6. **[Working With Existing Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Legacy-first guide
+7. **[The Existing Code Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
 
 ### Using GitHub Spec-Kit or OpenSpec?
 
@@ -82,6 +83,7 @@ Why this matters:
 
 - **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - How to use verified modules (arch-06) and schema extensions (arch-07) from the CLI and as a module author
 - **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Declare and use namespaced extension fields on Feature/ProjectBundle
+- **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Runbook for public key placement, signing, CI verification, key rotation, and emergency revocation
 - **[Module Security](reference/module-security.md)** - Publisher, integrity (checksum/signature), and versioned dependencies
 
 ### For Technical Readers
@@ -98,8 +100,9 @@ SpecFact now supports a central marketplace workflow for module installation and
 
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
+- **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Signing and key management runbook
 
-Compatibility note: `specfact init --list-modules`, `--enable-module`, and `--disable-module` remain available as migration aliases while `specfact module` (`install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) is the canonical lifecycle command group.
+Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) for module management.
 
 ## 📚 Documentation
 
