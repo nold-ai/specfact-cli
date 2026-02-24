@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import sys
 import tarfile
 import tempfile
 from functools import lru_cache
@@ -22,12 +23,21 @@ from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry.crypto_validator import verify_checksum, verify_signature
 from specfact_cli.registry.marketplace_client import download_module
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
+from specfact_cli.runtime import is_debug_mode
 
 
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
+
+
+@beartype
+def _integrity_debug_details_enabled() -> bool:
+    """Return True when verbose integrity diagnostics should be shown."""
+    if is_debug_mode():
+        return True
+    return "--debug" in sys.argv[1:]
 
 
 @beartype
@@ -336,13 +346,17 @@ def verify_module_artifact(
         try:
             stable_payload = _module_artifact_payload_stable(package_dir)
             verify_checksum(stable_payload, meta.integrity.checksum)
-            logger.info(
-                "Module %s: checksum matched with generated-file exclusions (cache/transient files ignored)",
-                meta.name,
-            )
+            if _integrity_debug_details_enabled():
+                logger.debug(
+                    "Module %s: checksum matched with generated-file exclusions (cache/transient files ignored)",
+                    meta.name,
+                )
             verification_payload = stable_payload
         except ValueError:
-            logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
+            if _integrity_debug_details_enabled():
+                logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
+            else:
+                logger.debug("Module %s: Integrity check failed: %s", meta.name, exc)
             return False
 
     if meta.integrity.signature:

@@ -635,12 +635,20 @@ jobs:
           fi
           python -m pip install --upgrade pip
           python -m pip install pyyaml cryptography cffi
-          mapfile -t MANIFESTS < <(find src/specfact_cli/modules -name 'module-package.yaml' -type f)
-          if [ "${#MANIFESTS[@]}" -eq 0 ]; then
-            echo "No bundled module manifests found to sign."
-            exit 0
+          python - <<'PY'
+          import cffi
+          import cryptography
+          import yaml
+
+          print("✅ signing dependencies available:", yaml.__version__, cryptography.__version__, cffi.__version__)
+          PY
+          BASE_REF="${{ github.event.before }}"
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ]; then
+            BASE_REF="HEAD~1"
           fi
-          python scripts/sign-modules.py "${MANIFESTS[@]}"
+          git rev-parse --verify "$BASE_REF" >/dev/null 2>&1 || BASE_REF="HEAD~1"
+          echo "Using module-signing base ref: $BASE_REF"
+          python scripts/sign-modules.py --changed-only --base-ref "$BASE_REF" --bump-version patch
 
       - name: Get version from PyPI publish step
         id: get_version

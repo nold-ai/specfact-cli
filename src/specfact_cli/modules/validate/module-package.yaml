@@ -1,5 +1,5 @@
 name: validate
-version: 0.37.2
+version: 0.1.0
 commands:
   - validate
 command_help:
@@ -15,5 +15,5 @@ publisher:
 description: Run schema, contract, and workflow validation suites.
 license: Apache-2.0
 integrity:
-  checksum: sha256:b1f954e5fef7f8b964299aec54f75b3b24ebc50c24b90db8598fc4b3d8532ee1
-  signature: +1azi81aZmGaQxiu4i9gcemRTPyBthDiwP+VWEeK9AGTcTPHjz/meuY3GsO8c33SBVsNltZ3PEggQpw7h8kDCw==
+  checksum: sha256:01252349bfc86e36138b2acb4e82e60bcaaa84b0f60dc1bfcf4ca554a02bad67
+  signature: rU1JJUw057QUVp6YaEEM0vcx+/hrciNsh2A3SlD4xhZwbPyzf9O+RvaAh99q/iAns9EzmsqMDW9IYafLXmEYDQ==

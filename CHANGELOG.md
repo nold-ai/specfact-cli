@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.37.3] - 2026-02-24
+
+### Changed
+
+- Improved bundled module release workflow by adding changed-module-only signing automation (`--changed-only`, `--base-ref`, `--bump-version`) so module versions remain decoupled from CLI version and only changed modules are bumped/signed.
+- Updated CI release signing flow in PR orchestrator to use changed-module signing with resilient base-ref resolution and explicit signing dependency checks on GitHub runners.
+- Updated developer documentation for module signing to use portable key-file configuration patterns instead of absolute key paths.
+
+### Fixed
+
+- Suppressed startup checksum fallback noise in normal CLI operation; fallback diagnostics are now debug-only.
+- Improved startup integrity failure UX with user-friendly risk warning and mitigation guidance while preserving raw checksum diagnostics in `--debug` mode.
+- Fixed `specfact backlog map-fields` GitHub setup behavior to fail fast when repository issue type IDs are unavailable instead of persisting incomplete type mapping state.
+
+---
+
 ## [0.37.2] - 2026-02-24
 
 ### Fixed

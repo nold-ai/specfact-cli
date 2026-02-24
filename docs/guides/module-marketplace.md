@@ -60,8 +60,11 @@ Additional local hardening:
 Release signing automation:
 
 - `scripts/sign-modules.py` updates manifest integrity metadata (checksum and optional signature)
-- Use `python scripts/sign-modules.py --key-file /secure/path/module-signing-private.pem <manifest...>` for local/manual signing
-- Wrapper alternative: `bash scripts/sign-module.sh --key-file /secure/path/module-signing-private.pem <manifest>`
+- Use `KEY_FILE="${SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE:-.specfact/sign-keys/module-signing-private.pem}"` and run `python scripts/sign-modules.py --key-file "$KEY_FILE" <manifest...>` for local/manual signing
+- Use changed-only automation to avoid re-signing all modules:
+  - `hatch run python scripts/sign-modules.py --key-file "$KEY_FILE" --changed-only --base-ref origin/dev --bump-version patch`
+  - this bumps/signs only changed modules and keeps module versioning decoupled from CLI package version
+- Wrapper alternative: `bash scripts/sign-module.sh --key-file "$KEY_FILE" <manifest>`
 - Without key material, the script fails by default and recommends `--key-file`; checksum-only mode is explicit via `--allow-unsigned` (local testing only)
 - Encrypted keys are supported with passphrase via `--passphrase`, `--passphrase-stdin`, or `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
 - CI workflows inject private key material via `SPECFACT_MODULE_PRIVATE_SIGN_KEY` and passphrase via `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`

@@ -1,5 +1,5 @@
 name: sync
-version: 0.37.2
+version: 0.1.0
 commands:
   - sync
 command_help:
@@ -18,5 +18,5 @@ publisher:
 description: Synchronize repository state with connected external systems.
 license: Apache-2.0
 integrity:
-  checksum: sha256:6fcd7b3d1276c318b6ca94f61df056ebff42ec5d4c6770e5b5c7c396dccdf156
-  signature: 6/DQ1LgbzysUep7niPIK9iW/AYd0g4/152yEu0qksuLhPMtC88ghMTgcho1ooBQZjvYuA/T2wOVUcv5Y+UsLBw==
+  checksum: sha256:05023a72241101dd19a9c402fcb4882e40a925d0958b95b4b13217032ad8e31b
+  signature: rovvEszsr1+/kq2yy9R1g01fjhlG38R2eIwg/aXZy789SKq9ttBkBqJ6d1U+ysXYzOUBqgc6WwcfCI1X2Il7Dg==

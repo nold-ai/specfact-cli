@@ -1,5 +1,5 @@
 name: auth
-version: 0.37.2
+version: 0.1.0
 commands:
   - auth
 command_help:
@@ -15,5 +15,5 @@ publisher:
 description: Authenticate SpecFact with supported DevOps providers.
 license: Apache-2.0
 integrity:
-  checksum: sha256:fd0c9ff643c73a25c229e5925b58446ff25af7ec5ab4412d3eff9704b4cc10c1
-  signature: 4KKwmf58+3boa+2jMF9m2NvjGcXB6Jdjfu0C6MV5Io+XjF6FUPyOmf7iz2xH9afgTTeVLVdc7X5EjJJGm5tMAQ==
+  checksum: sha256:561fc420c18f9702b1cbb396cb1c0443909646ad8857f508d532d648fe812a9d
+  signature: IUFyErHdSMMRtdGCUjDZhkU6hujDv1J5IHQXKYelK4RGqeekYUFer13IeG7S1xZZ5ckmvsgF1592UsTCSV2BAA==

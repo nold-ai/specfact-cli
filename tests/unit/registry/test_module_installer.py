@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import tarfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -221,6 +222,92 @@ def test_verify_module_artifact_detects_tamper_in_non_manifest_file(tmp_path: Pa
     assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is False
 
 
+def test_verify_module_artifact_checksum_mismatch_hides_raw_details_without_debug(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum),
+    )
+    source.write_text("print('tampered')\n", encoding="utf-8")
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
+    monkeypatch.setattr(module_installer, "is_debug_mode", lambda: False, raising=False)
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is False
+    mock_logger.warning.assert_not_called()
+    mock_logger.debug.assert_called()
+
+
+def test_verify_module_artifact_checksum_mismatch_logs_raw_details_in_debug(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum),
+    )
+    source.write_text("print('tampered')\n", encoding="utf-8")
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
+    monkeypatch.setattr(module_installer, "is_debug_mode", lambda: True, raising=False)
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is False
+    mock_logger.warning.assert_called_once()
+
+
+def test_verify_module_artifact_checksum_mismatch_logs_raw_details_when_debug_flag_in_argv(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum),
+    )
+    source.write_text("print('tampered')\n", encoding="utf-8")
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
+    monkeypatch.setattr(module_installer, "is_debug_mode", lambda: False, raising=False)
+    monkeypatch.setattr(module_installer.sys, "argv", ["specfact", "--debug", "module", "list"])
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is False
+    mock_logger.warning.assert_called_once()
+
+
 def test_verify_module_artifact_ignores_runtime_cache_files(tmp_path: Path) -> None:
     module_dir = tmp_path / "secure"
     (module_dir / "src").mkdir(parents=True)
@@ -243,6 +330,70 @@ def test_verify_module_artifact_ignores_runtime_cache_files(tmp_path: Path) -> N
     pycache_file.write_bytes(b"\x00\x01\x02")
 
     assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
+
+
+def test_verify_module_artifact_fallback_does_not_emit_info_in_normal_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    pycache_file = module_dir / "__pycache__" / "main.cpython-312.pyc"
+    pycache_file.parent.mkdir(parents=True)
+    pycache_file.write_bytes(b"\x00\x01\x02")
+
+    stable_payload = module_installer._module_artifact_payload_stable(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(stable_payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum),
+    )
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
+    monkeypatch.setattr(module_installer, "is_debug_mode", lambda: False, raising=False)
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
+    mock_logger.info.assert_not_called()
+    mock_logger.debug.assert_not_called()
+
+
+def test_verify_module_artifact_fallback_emits_debug_in_debug_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    pycache_file = module_dir / "__pycache__" / "main.cpython-312.pyc"
+    pycache_file.parent.mkdir(parents=True)
+    pycache_file.write_bytes(b"\x00\x01\x02")
+
+    stable_payload = module_installer._module_artifact_payload_stable(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(stable_payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum),
+    )
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
+    monkeypatch.setattr(module_installer, "is_debug_mode", lambda: True, raising=False)
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
+    mock_logger.info.assert_not_called()
+    mock_logger.debug.assert_called_once()
 
 
 def test_verify_module_artifact_falls_back_when_signature_backend_unavailable(

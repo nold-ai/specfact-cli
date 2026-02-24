@@ -157,10 +157,10 @@ def _read_manifest_version(path: Path) -> str | None:
     return version or None
 
 
-def _read_manifest_version_from_git(head_ref: str, path: Path) -> str | None:
+def _read_manifest_version_from_git(git_ref: str, path: Path) -> str | None:
     try:
         output = subprocess.run(
-            ["git", "show", f"{head_ref}:{path.as_posix()}"],
+            ["git", "show", f"{git_ref}:{path.as_posix()}"],
             check=True,
             capture_output=True,
             text=True,
@@ -180,10 +180,33 @@ def _read_manifest_version_from_git(head_ref: str, path: Path) -> str | None:
     return version or None
 
 
-def _module_has_git_changes(module_dir: Path) -> bool:
+def _iter_manifests() -> list[Path]:
+    roots = [Path("src/specfact_cli/modules"), Path("modules")]
+    manifests: list[Path] = []
+    for root in roots:
+        if root.exists():
+            manifests.extend(sorted(root.rglob("module-package.yaml")))
+    return manifests
+
+
+def _ensure_valid_git_ref(git_ref: str) -> None:
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{git_ref}^{{commit}}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        details = (exc.stderr or exc.stdout or "").strip()
+        suffix = f": {details}" if details else ""
+        raise ValueError(f"--base-ref is invalid or not resolvable: {git_ref}{suffix}") from exc
+
+
+def _module_has_git_changes_since(module_dir: Path, git_ref: str) -> bool:
     try:
         changed = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD", "--", module_dir.as_posix()],
+            ["git", "diff", "--name-only", git_ref, "--", module_dir.as_posix()],
             check=True,
             capture_output=True,
             text=True,
@@ -199,7 +222,60 @@ def _module_has_git_changes(module_dir: Path) -> bool:
     return bool(changed or untracked)
 
 
-def _enforce_version_bump_before_signing(manifest_path: Path, *, allow_same_version: bool) -> None:
+def _parse_semver(version: str) -> tuple[int, int, int]:
+    parts = version.split(".")
+    if len(parts) != 3 or any(not part.isdigit() for part in parts):
+        raise ValueError(f"Unsupported version format for auto-bump (expected x.y.z): {version}")
+    return int(parts[0]), int(parts[1]), int(parts[2])
+
+
+def _bump_semver(version: str, bump_type: str) -> str:
+    major, minor, patch = _parse_semver(version)
+    if bump_type == "major":
+        return f"{major + 1}.0.0"
+    if bump_type == "minor":
+        return f"{major}.{minor + 1}.0"
+    if bump_type == "patch":
+        return f"{major}.{minor}.{patch + 1}"
+    raise ValueError(f"Unsupported bump type: {bump_type}")
+
+
+def _write_manifest(path: Path, data: dict[str, Any]) -> None:
+    path.write_text(
+        yaml.dump(
+            data,
+            Dumper=_IndentedSafeDumper,
+            sort_keys=False,
+            allow_unicode=False,
+            default_flow_style=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _auto_bump_manifest_version(manifest_path: Path, *, base_ref: str, bump_type: str) -> bool:
+    current_version = _read_manifest_version(manifest_path)
+    if not current_version:
+        raise ValueError(f"Manifest missing version: {manifest_path}")
+
+    previous_version = _read_manifest_version_from_git(base_ref, manifest_path)
+    if previous_version is None or current_version != previous_version:
+        return False
+
+    raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"Invalid manifest YAML: {manifest_path}")
+    bumped = _bump_semver(current_version, bump_type)
+    raw["version"] = bumped
+    _write_manifest(manifest_path, raw)
+    print(f"{manifest_path}: version {current_version} -> {bumped}")
+    return True
+
+
+def _enforce_version_bump_before_signing(
+    manifest_path: Path, *, allow_same_version: bool, comparison_ref: str = "HEAD"
+) -> None:
     if allow_same_version:
         return
 
@@ -207,14 +283,14 @@ def _enforce_version_bump_before_signing(manifest_path: Path, *, allow_same_vers
     if not current_version:
         raise ValueError(f"Manifest missing version: {manifest_path}")
 
-    previous_version = _read_manifest_version_from_git("HEAD", manifest_path)
+    previous_version = _read_manifest_version_from_git(comparison_ref, manifest_path)
     if previous_version is None:
         return
     if current_version != previous_version:
         return
 
     module_dir = manifest_path.parent
-    if not _module_has_git_changes(module_dir):
+    if not _module_has_git_changes_since(module_dir, comparison_ref):
         return
 
     raise ValueError(
@@ -251,17 +327,7 @@ def sign_manifest(manifest_path: Path, private_key: Any | None) -> None:
         integrity["signature"] = _sign_payload(payload, private_key)
 
     raw["integrity"] = integrity
-    manifest_path.write_text(
-        yaml.dump(
-            raw,
-            Dumper=_IndentedSafeDumper,
-            sort_keys=False,
-            allow_unicode=False,
-            default_flow_style=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    _write_manifest(manifest_path, raw)
 
     status = "checksum+signature" if "signature" in integrity else "checksum"
     print(f"{manifest_path}: {status}")
@@ -296,7 +362,23 @@ def main() -> int:
         action="store_true",
         help="Bypass version-bump enforcement for changed module contents (not recommended).",
     )
-    parser.add_argument("manifests", nargs="+", help="module-package.yaml path(s)")
+    parser.add_argument(
+        "--changed-only",
+        action="store_true",
+        help="Select only manifests whose module payload changed since --base-ref.",
+    )
+    parser.add_argument(
+        "--base-ref",
+        default="HEAD",
+        help="Git ref used for change detection when --changed-only is set (default: HEAD).",
+    )
+    parser.add_argument(
+        "--bump-version",
+        choices=("patch", "minor", "major"),
+        default="",
+        help="Auto-bump changed module version when unchanged from --base-ref before signing.",
+    )
+    parser.add_argument("manifests", nargs="*", help="module-package.yaml path(s)")
     args = parser.parse_args()
 
     passphrase = _resolve_passphrase(args)
@@ -315,12 +397,36 @@ def main() -> int:
             "For local testing only, re-run with --allow-unsigned."
         )
 
-    for manifest in args.manifests:
+    manifests: list[Path]
+    if args.manifests:
+        manifests = [Path(manifest) for manifest in args.manifests]
+    elif args.changed_only:
         try:
-            manifest_path = Path(manifest)
+            _ensure_valid_git_ref(args.base_ref)
+        except ValueError as exc:
+            parser.error(str(exc))
+        manifests = [
+            manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)
+        ]
+    else:
+        parser.error("Provide one or more manifests, or use --changed-only.")
+
+    if args.changed_only and not manifests:
+        print(f"No changed module manifests detected since {args.base_ref}.")
+        return 0
+
+    for manifest_path in manifests:
+        try:
+            if args.changed_only and args.bump_version:
+                _auto_bump_manifest_version(
+                    manifest_path,
+                    base_ref=args.base_ref,
+                    bump_type=args.bump_version,
+                )
             _enforce_version_bump_before_signing(
                 manifest_path,
                 allow_same_version=args.allow_same_version,
+                comparison_ref=args.base_ref if args.changed_only else "HEAD",
             )
             sign_manifest(manifest_path, private_key)
         except ValueError as exc:

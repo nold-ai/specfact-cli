@@ -1,5 +1,5 @@
 name: plan
-version: 0.37.2
+version: 0.1.0
 commands:
   - plan
 command_help:
@@ -16,5 +16,5 @@ publisher:
 description: Create and manage implementation plans for project execution.
 license: Apache-2.0
 integrity:
-  checksum: sha256:60f6ea69f2178bb8395ab19743318849b2caea1aad9a880d230da5c87236fd3e
-  signature: luy557R50WTq4gvm3Equ5SV1RMDJOs+szawTwEpgl8eGTuuDd24Nxakb9erW7qzbV5Cn0COsZffUfKvNzH4jBw==
+  checksum: sha256:f7d992a44b0bcee0a6cc3cb4857dbe9c57a3bbe314398893f1337c8c5e4070b6
+  signature: MI5BELFxfgZNusPlP6lLKSEdRZR5MdjyOE+IsVutMJHWESmCoO9SmlzycZbHYKBdz9v2BI04kcXsy/AI4+fjDQ==

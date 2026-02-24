@@ -211,3 +211,53 @@ Shipped/bundled modules SHALL be verified by signature/checksum before install/b
 - **WHEN** user runs `specfact module init` or installs bundled module
 - **THEN** operation fails for that module
 - **AND** module is not installed silently.
+
+#### Scenario: Integrity fallback diagnostics are debug-only
+
+- **GIVEN** bundled module checksum verification succeeds only after generated-file exclusions fallback
+- **WHEN** verification runs in normal mode (without `--debug`)
+- **THEN** fallback diagnostic details are not emitted as regular INFO output.
+
+- **GIVEN** bundled module checksum verification succeeds only after generated-file exclusions fallback
+- **WHEN** verification runs with global debug mode enabled (`--debug`)
+- **THEN** fallback diagnostic details are emitted as debug-level diagnostics.
+
+#### Scenario: Startup integrity failure shows user-friendly risk warning
+
+- **GIVEN** module integrity verification fails during startup command registration
+- **WHEN** CLI starts in normal mode (without `--debug`)
+- **THEN** output shows a concise user-facing warning that the module was not loaded and may be tampered/outdated
+- **AND** output includes mitigation guidance (for example `specfact module init`)
+- **AND** raw checksum mismatch internals are not shown in normal startup logs.
+
+#### Scenario: Startup integrity failure keeps raw diagnostics in debug mode
+
+- **GIVEN** module integrity verification fails during startup command registration
+- **WHEN** CLI starts with global debug mode enabled (`--debug`)
+- **THEN** raw verification diagnostics (for example checksum mismatch details) are available in debug logging for troubleshooting.
+
+### Requirement: Bundled Module Release Versioning and Signing Automation
+
+Bundled module release tooling SHALL support module-level versioning independent of CLI package version and automate changed-module signing workflow.
+
+#### Scenario: Changed modules are auto-bumped and signed
+
+- **GIVEN** one or more bundled modules changed since a chosen git base ref
+- **AND** changed module manifest version is unchanged
+- **WHEN** release signing runs with changed-module automation enabled
+- **THEN** only changed module manifests are selected
+- **AND** changed module versions are incremented using configured semver bump strategy
+- **AND** selected manifests are re-signed and re-verified in the same workflow.
+
+#### Scenario: Unchanged modules keep version and signature metadata
+
+- **GIVEN** bundled modules with no payload changes since selected git base ref
+- **WHEN** changed-module automation runs
+- **THEN** unchanged modules are not re-versioned and not re-signed.
+
+#### Scenario: Module versions remain decoupled from CLI package version
+
+- **GIVEN** CLI package version changes without payload change in a bundled module
+- **WHEN** module signing/version checks run
+- **THEN** bundled module version does not need to change
+- **AND** module versioning is enforced only by module payload change semantics.

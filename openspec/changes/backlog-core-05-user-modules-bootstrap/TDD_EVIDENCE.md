@@ -123,3 +123,84 @@
 - Result summary:
   - `63 passed` across signing-artifacts, module-security, installer, and module command suites.
   - Formatting checks passed after implementation.
+
+## Follow-up failing run (integrity fallback log-level noise)
+
+- Timestamp: 2026-02-24T21:26:13Z
+- Command(s): `python -m pytest tests/unit/registry/test_module_installer.py -k "fallback_does_not_emit_info_in_normal_mode or fallback_emits_debug_in_debug_mode" -q`
+- Failure summary:
+  - `test_verify_module_artifact_fallback_does_not_emit_info_in_normal_mode` failed because `verify_module_artifact` emitted fallback details via `logger.info(...)` in non-debug mode.
+  - `test_verify_module_artifact_fallback_emits_debug_in_debug_mode` failed because fallback diagnostics were not emitted through debug-level logging.
+
+## Follow-up passing run (integrity fallback log-level noise)
+
+- Timestamp: 2026-02-24T21:26:13Z
+- Command(s):
+  - `python -m pytest tests/unit/registry/test_module_installer.py -k "fallback_does_not_emit_info_in_normal_mode or fallback_emits_debug_in_debug_mode" -q`
+  - `python -m pytest tests/unit/registry/test_module_installer.py -q`
+- Result summary:
+  - Targeted fallback-log tests: `2 passed`.
+  - Full installer test file: `20 passed`.
+
+## Follow-up failing run (GitHub map-fields missing issue-type IDs)
+
+- Timestamp: 2026-02-24T21:42:09Z
+- Command(s): `python -m pytest tests/unit/commands/test_backlog_commands.py -k "map_fields_github_provider_persists_backlog_config or map_fields_github_provider_fails_when_issue_types_unavailable" -q`
+- Failure summary:
+  - `test_map_fields_github_provider_fails_when_issue_types_unavailable` failed because `backlog map-fields` returned success even when repository issue types were empty/unavailable.
+  - This left `github_issue_types.type_ids` unconfigured and allowed `backlog add` to keep warning despite setup attempts.
+
+## Follow-up passing run (GitHub map-fields missing issue-type IDs)
+
+- Timestamp: 2026-02-24T21:42:09Z
+- Command(s):
+  - `python -m pytest tests/unit/commands/test_backlog_commands.py -k "map_fields_github_provider_persists_backlog_config or map_fields_github_provider_fails_when_issue_types_unavailable" -q`
+  - `python -m pytest modules/backlog-core/tests/unit/test_add_command.py -k "warns_when_github_issue_type_mapping_missing" -q`
+- Result summary:
+  - GitHub map-fields targeted tests: `2 passed`.
+  - Backlog add warning path regression check: `1 passed`.
+
+## Follow-up failing run (startup integrity warning noise)
+
+- Timestamp: 2026-02-24T22:54:14+01:00
+- Command(s): `hatch run specfact module list`
+- Failure summary:
+  - Startup emitted raw logger warning with checksum internals:
+    - `Module backlog: Integrity check failed: Checksum mismatch: ...`
+  - Warning was noisy and not user-guided, and exposed technical checksum detail in normal mode.
+
+## Follow-up passing run (startup integrity warning UX + debug separation)
+
+- Timestamp: 2026-02-24T22:57:56+01:00
+- Command(s):
+  - `python -m pytest tests/unit/registry/test_module_installer.py -k "checksum_mismatch_hides_raw_details_without_debug or checksum_mismatch_logs_raw_details_in_debug" -q`
+  - `python -m pytest tests/unit/specfact_cli/registry/test_module_packages.py -k "integrity_failure_shows_user_friendly_risk_warning" -q`
+  - `PYTHONPATH=src python -m specfact_cli.cli module list`
+  - `PYTHONPATH=src python -m specfact_cli.cli --debug module list`
+- Result summary:
+  - New debug-gating tests: `3 passed`.
+  - User-warning UX test: `1 passed`.
+  - CLI startup now shows a concise risk warning with mitigation guidance (`specfact module init`) instead of raw checksum mismatch internals in normal mode.
+  - With `--debug`, raw checksum mismatch diagnostics are shown for troubleshooting.
+
+## Follow-up failing run (changed-module release automation)
+
+- Timestamp: 2026-02-24T23:05:56+01:00
+- Command(s): `python -m pytest tests/unit/specfact_cli/registry/test_signing_artifacts.py -k "changed_module_automation or changed_only_auto_bump" -q`
+- Failure summary:
+  - `test_sign_modules_py_help_mentions_changed_module_automation` failed because signer help did not expose changed-module automation flags.
+  - `test_sign_modules_py_changed_only_auto_bump_and_sign` failed because `sign-modules.py` did not accept `--changed-only`, `--base-ref`, or `--bump-version`.
+
+## Follow-up passing run (changed-module release automation)
+
+- Timestamp: 2026-02-24T23:08:05+01:00
+- Command(s):
+  - `python -m pytest tests/unit/specfact_cli/registry/test_signing_artifacts.py -k "changed_module_automation or changed_only_auto_bump" -q`
+  - `python -m pytest tests/unit/specfact_cli/registry/test_signing_artifacts.py -q`
+  - `python scripts/sign-modules.py --allow-unsigned --changed-only --base-ref HEAD --bump-version patch`
+  - `python -m pytest tests/unit/registry/test_module_installer.py tests/unit/specfact_cli/registry/test_module_packages.py tests/unit/commands/test_backlog_commands.py -q`
+- Result summary:
+  - New changed-module automation tests: `2 passed`.
+  - Full signing-artifacts suite: `15 passed`.
+  - Changed-only automation bumped and re-signed changed bundled manifest (`backlog`), restoring runtime integrity sync.
+  - Regression safety suites after module re-sign: `95 passed, 1 skipped`.

@@ -1,6 +1,12 @@
 # Change Validation Report: backlog-core-05-user-modules-bootstrap
 
 - Status: valid
-- Validation command: `openspec validate backlog-core-05-user-modules-bootstrap --strict`
+- Workflow: `wf-validate-change` (executed via OpenSpec CLI equivalents)
+- Validation command(s):
+  - `openspec status --change "backlog-core-05-user-modules-bootstrap" --json`
+  - `openspec instructions apply --change "backlog-core-05-user-modules-bootstrap" --json`
+  - `openspec validate backlog-core-05-user-modules-bootstrap --strict`
 - Validation result: `Change 'backlog-core-05-user-modules-bootstrap' is valid`
-- Notes: CLI validation passed; local environment emitted non-blocking telemetry network flush warnings.
+- Notes:
+  - Status/instructions confirmed spec-driven schema and artifact completeness.
+  - Validation emitted non-blocking schema warnings from `openspec/config.yaml` rule format, but strict change validation succeeded.

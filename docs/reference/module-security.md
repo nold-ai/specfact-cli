@@ -37,6 +37,8 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY` (PEM content)
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE`
 - **Version guard**: Changed module contents must have a bumped module version before signing. Override exists only for controlled local cases via `--allow-same-version`.
+- **Changed-only release mode**: `scripts/sign-modules.py --changed-only --base-ref <git-ref> --bump-version <patch|minor|major>` auto-selects modules with payload changes, bumps versions when unchanged, and signs only those modules.
+- **Version decoupling**: module versions are semver-managed per module payload and do not need to track CLI package version.
 - **CI secrets**:
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY`
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
