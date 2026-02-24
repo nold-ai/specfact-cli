@@ -1,7 +1,7 @@
 name: upgrade
-version: 0.37.0
+version: 0.37.1
 commands:
-- upgrade
+  - upgrade
 command_help:
   upgrade: Check for and install SpecFact CLI updates
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Check and apply SpecFact CLI version upgrades.
 license: Apache-2.0
 integrity:
-  checksum: sha256:76305e1fb38f2b6e8d30180beee67c6cfd60636d7ca8d4becdde7b02246f152a
-  signature: vflvfJCcZA2km2ClnJQQ4eFAY5GbTUOTvH2Mj1onu1FRpFsJ0K62yay9DFLrinobcTOyMVfdYNUe+0B54Wo+Cg==
+  checksum: sha256:d8c5f2fb4ed4c252701c07125cba0587262700b6738740ef1c8c174611cc5c3b
+  signature: MDFyw5rJ3GBJ+PVMEwCMHsqtiItxryM4XpKm/h+M4bxJKFRHDww5i8Uzpl1MDBucnpW6KGoMeo7GNKgQjeHxBA==

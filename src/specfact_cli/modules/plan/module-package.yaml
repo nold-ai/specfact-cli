@@ -1,12 +1,12 @@
 name: plan
-version: 0.37.0
+version: 0.37.1
 commands:
-- plan
+  - plan
 command_help:
   plan: Manage development plans
 pip_dependencies: []
 module_dependencies:
-- sync
+  - sync
 tier: community
 core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
@@ -16,5 +16,5 @@ publisher:
 description: Create and manage implementation plans for project execution.
 license: Apache-2.0
 integrity:
-  checksum: sha256:e2a19eda7ab371371e7e387b46326471e49224163afbbf9934bf776e433f21e0
-  signature: th+bRnk+OtJXXWU1tfQWDwOstfJ2fIy2v1T4nLSqpoaMT1dcV4mPS0yNBenUbhok0DA5mEoRggILwVm1LlneBQ==
+  checksum: sha256:5e2ccf7212f590f19e6b68e0a6a90e6f72e1bebd28d570f1005cf3fbe320663a
+  signature: QQxUVU+cB2XP9rs5VsYdANzrr9S5Y4VKu5B0PY+h+wx3F7mdfLsyg9xzQj4mgDeby3/XIjXQC4jywNqoqErtDg==

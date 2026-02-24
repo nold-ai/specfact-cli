@@ -1,7 +1,7 @@
 name: migrate
-version: 0.37.0
+version: 0.37.1
 commands:
-- migrate
+  - migrate
 command_help:
   migrate: Migrate project bundles between formats
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Migrate project bundles across supported structure versions.
 license: Apache-2.0
 integrity:
-  checksum: sha256:c4199b9d28d97ae3f3198c4b6d4086cf20a71b14eba3c78b27111368419c3767
-  signature: cs2H0NB10jZTrh0tkk8TybW8wogCax2Dt9gjxR/0pS9Z0zz1ZDBbV5JgoibHRU48UWXwuUiPkbLRJYwWnsVqBw==
+  checksum: sha256:3e2b5ea6a71f3917dbec01c92739e5280ff51163b8c64a60e757c33e5a334e6d
+  signature: 0USQ8OTre4Czs0lMzK2Oa2q2CwquGwPdLKnpVNZmSh9ytdiQqG2fx0BvdqDFi460gxx0sxOKAiWDJ+0/coKBBw==

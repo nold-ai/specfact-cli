@@ -1,7 +1,7 @@
 name: auth
-version: 0.37.0
+version: 0.37.1
 commands:
-- auth
+  - auth
 command_help:
   auth: Authenticate with DevOps providers (GitHub, Azure DevOps)
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Authenticate SpecFact with supported DevOps providers.
 license: Apache-2.0
 integrity:
-  checksum: sha256:ebb79ba19875e6669778e9ed490d51a676fdd0ac91823521a049a3565b486bb3
-  signature: 86T1P4Tem3AD92shR1R5ie9eLzRJ6nX9/FRjW00quaYyZRgvFgePdvc+cXHUAkaPRDtu+kMG0kKvF1TkH5ovAw==
+  checksum: sha256:d085de940d5de887f858462eff10a75e5acdb2e31cc61ed7dc79bfe6e4527e76
+  signature: SyoiHxZHlmQLzdnqn45c8B/dzZuqyWzflAo/hf0PWsckPSfeGN6ytlGgTJPV8Rq8IG96aVnPkir2dEJ4gavxAQ==

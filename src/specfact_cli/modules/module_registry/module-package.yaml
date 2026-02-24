@@ -1,7 +1,7 @@
 name: module-registry
-version: 0.37.0
+version: 0.37.1
 commands:
-- module
+  - module
 command_help:
   module: Manage marketplace modules (install, uninstall, search, list, show, upgrade)
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: 'Manage modules: search, list, show, install, and upgrade.'
 license: Apache-2.0
 integrity:
-  checksum: sha256:1dff9652feedc61a8c9431148732a611588a2a5f5f0ed6a65c431b4d123a6254
-  signature: ctvLzRFWkRqVAZFUF0Tj/RNmaa/BDGieRDoNNjbtB++AtxmK4KhF1c4bqYkjhJ5SkG9xGHC6nK06P4UOEFcBAA==
+  checksum: sha256:71f9c1bc5ae79c2a234920b5dcb1be415b4b2255de5827786344280320291629
+  signature: rNpk992cIrwe9BATaH26EPTVgkj1W1ZJcYnAnOikYqGAPxr+f2xprf4kAvHMym2naI0N+P1fjbT8ZnpP2zenCw==

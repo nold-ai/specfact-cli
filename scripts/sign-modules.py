@@ -20,6 +20,13 @@ _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ru
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
 
 
+class _IndentedSafeDumper(yaml.SafeDumper):
+    """Safe dumper that indents sequence items under their parent key."""
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False):
+        return super().increase_indent(flow=flow, indentless=False)
+
+
 def _canonical_payload(manifest_data: dict[str, Any]) -> bytes:
     payload = dict(manifest_data)
     payload.pop("integrity", None)
@@ -245,8 +252,9 @@ def sign_manifest(manifest_path: Path, private_key: Any | None) -> None:
 
     raw["integrity"] = integrity
     manifest_path.write_text(
-        yaml.safe_dump(
+        yaml.dump(
             raw,
+            Dumper=_IndentedSafeDumper,
             sort_keys=False,
             allow_unicode=False,
             default_flow_style=False,

@@ -1,7 +1,7 @@
 name: project
-version: 0.37.0
+version: 0.37.1
 commands:
-- project
+  - project
 command_help:
   project: Manage project bundles with persona workflows
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Manage project bundles, contexts, and lifecycle workflows.
 license: Apache-2.0
 integrity:
-  checksum: sha256:356ab38ff9a044f26c4c9750ad6eec7192303a5f6b4b25f829cca5aee3e41192
-  signature: AmbkEPXATKCZsTVmAzUpB/Ou8DVnLM/ffEpP05lOqM/f5XQvTbNyPpuNq6tq85KKaJJDSLKNACHCOHv3dlmFCg==
+  checksum: sha256:130e53a4266f90a6236d892c513692641e6675387bf7a63c8ac51871a27494eb
+  signature: Nu1HNs0tAWUzLrXcHWpUWqpxsq68uYgBZWcR34nmH7iGdejEvBRh7zIC/Gx7G0nQBdVbfc4rtZEvJx55CT38CA==

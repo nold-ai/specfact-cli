@@ -1,7 +1,7 @@
 name: contract
-version: 0.37.0
+version: 0.37.1
 commands:
-- contract
+  - contract
 command_help:
   contract: Manage OpenAPI contracts for project bundles
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Validate and manage API contracts for project bundles.
 license: Apache-2.0
 integrity:
-  checksum: sha256:7125e2fbf321727e41bbb2546577dc11d04a51669e57f809f77ad4da3c0232ed
-  signature: yQGYWpda3Kgg+HK5HSw9Oqo3L0tghwt/3yMXPo9I7bn1bzFduc8cdVe3E8bP9kLZ+QL2MnSrp8Ojxvd0shvdBw==
+  checksum: sha256:577b9ee6af8075c0ebf58665a50ec5be6b2de935f401454f831447905320b649
+  signature: gHyTzZkYnLDxf27XFNHH/pauUhZ5ZZfTwPNQBwWCZ/v4oEdDV8gGjDr84g2KSsH8myrE7J8q47iBChxqO+FjBw==

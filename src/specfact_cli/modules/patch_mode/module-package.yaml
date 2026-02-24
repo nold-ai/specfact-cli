@@ -1,7 +1,7 @@
 name: patch-mode
-version: 0.37.0
+version: 0.37.1
 commands:
-- patch
+  - patch
 command_help:
   patch: Preview and apply patches (backlog body, OpenSpec, config); --apply local,
     --write upstream with confirmation.
@@ -16,5 +16,5 @@ publisher:
 description: Prepare, review, and apply structured repository patches safely.
 license: Apache-2.0
 integrity:
-  checksum: sha256:b77c31a7d7e3d96e5d34dab9507e241dd939c3d45a1e9e8f69e04d5817488d21
-  signature: Hdb11DFA7/yJlrFywntr0GKrupDUnKgyFAQ/y6DEqretqjKA/+x+FICDKAGCq7Mm5uoPcD7/ZCMsZJdjHDyYAA==
+  checksum: sha256:05cb624a43ac45da4a467e1a990b8ceb378a7f5d9a1d4edbf583198a8d9bc73b
+  signature: txeDUarIvALJFnaZVWky9OjJ04m9yHPnuKrA4MzOSZaOwaq9OqfLn10dPFwENveOkJ09MErBycS3QaeD8UL6AQ==

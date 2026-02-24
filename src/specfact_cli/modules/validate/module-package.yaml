@@ -1,7 +1,7 @@
 name: validate
-version: 0.37.0
+version: 0.37.1
 commands:
-- validate
+  - validate
 command_help:
   validate: Validation commands including sidecar validation
 pip_dependencies: []
@@ -15,5 +15,5 @@ publisher:
 description: Run schema, contract, and workflow validation suites.
 license: Apache-2.0
 integrity:
-  checksum: sha256:0cfd33fa7ea7a02016c96324b7853875019e7666909f4af8cc50c4c85bf740e1
-  signature: KXkCKbsoPR2J7U3FnH6r8NtVJaGHMFp3o5yb+Hfj1XXN+pUL2SlV1ZqpzTseh3ZKkoNdKB8yLytkKl0jVa/DBA==
+  checksum: sha256:cec0b0ed07a1bfb596c4ff0d0e80422b8a28c76d17cf358110550b594a132932
+  signature: wDHd+UXbv7luqntwGsRKf4eDRIxDr97hk1avCYHR88TyhGHjZglmzAeFQuDBR4Dx5BLSCl8WKFT8Vh6y/wquDg==

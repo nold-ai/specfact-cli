@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.37.1] - 2026-02-24
+
+### Fixed
+
+- Fixed module signing script YAML serialization crash (`TypeError` from invalid `safe_dump` + custom dumper usage) by switching to a compatible dumper path.
+- Fixed `pr-orchestrator` signature verification regression by forcing full git history checkout in `verify-module-signatures` so version-bump diff checks do not fail on shallow clones.
+- Stabilized module manifest formatting/signing flow to remain compatible with `yamllint` while preserving deterministic checksum/signature verification behavior.
+
+---
+
 ## [0.37.0] - 2026-02-23
 
 ### Added
