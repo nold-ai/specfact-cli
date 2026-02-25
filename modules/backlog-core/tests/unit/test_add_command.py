@@ -15,8 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO_ROOT / "modules" / "backlog-core" / "src"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from backlog_core.main import backlog_app
 from backlog_core.commands.add import _has_github_repo_issue_type_mapping
+from backlog_core.main import backlog_app
 
 
 runner = CliRunner()
