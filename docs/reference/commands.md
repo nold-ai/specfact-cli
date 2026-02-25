@@ -4268,6 +4268,12 @@ specfact backlog map-fields [OPTIONS]
 - `--ado-base-url` - Azure DevOps base URL (optional, defaults to `https://dev.azure.com`)
 - `--reset` - Reset custom field mapping to defaults (deletes `ado_custom.yaml` and restores default mappings)
 
+**GitHub Notes:**
+
+- In GitHub mode, repository issue-type IDs are the primary mapping source for automatic issue Type updates.
+- GitHub ProjectV2 metadata is optional. Leaving ProjectV2 input blank keeps repository issue-type mapping enabled.
+- If ProjectV2 was configured previously and you rerun mapping with blank ProjectV2 input, stale `github_project_v2` mapping is cleared to avoid invalid ProjectV2 update attempts during `backlog add`.
+
 **Token Resolution Priority:**
 
 1. Explicit `--ado-token` parameter

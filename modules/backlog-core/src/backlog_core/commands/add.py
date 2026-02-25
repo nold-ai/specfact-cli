@@ -286,13 +286,19 @@ def _resolve_provider_fields_for_create(
         return {}
 
     def _extract_github_issue_types(source: dict[str, Any]) -> dict[str, Any]:
+        def _has_type_id_mapping(candidate: dict[str, Any]) -> bool:
+            raw_type_ids = candidate.get("type_ids")
+            if not isinstance(raw_type_ids, dict):
+                return False
+            return any(str(value).strip() for value in raw_type_ids.values())
+
         provider_fields = source.get("provider_fields")
         if isinstance(provider_fields, dict):
             candidate = provider_fields.get("github_issue_types")
-            if isinstance(candidate, dict):
+            if isinstance(candidate, dict) and _has_type_id_mapping(candidate):
                 return dict(candidate)
         fallback = source.get("github_issue_types")
-        if isinstance(fallback, dict):
+        if isinstance(fallback, dict) and _has_type_id_mapping(fallback):
             return dict(fallback)
         return {}
 

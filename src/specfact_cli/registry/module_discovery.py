@@ -10,11 +10,13 @@ from icontract import ensure
 
 from specfact_cli.common import get_bridge_logger
 from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.utils.prompts import print_warning
 
 
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 CUSTOM_MODULES_ROOT = Path.home() / ".specfact" / "custom-modules"
+_SHADOW_HINT_KEYS: set[tuple[str, str, str, str]] = set()
 
 
 @dataclass(frozen=True)
@@ -45,7 +47,7 @@ def discover_all_modules(
 
     logger = get_bridge_logger(__name__)
     discovered: list[DiscoveredModule] = []
-    seen_names: set[str] = set()
+    seen_by_name: dict[str, DiscoveredModule] = {}
 
     effective_builtin_root = builtin_root or get_modules_root()
     effective_project_root = get_workspace_modules_root()
@@ -87,23 +89,40 @@ def discover_all_modules(
         entries = discover_package_metadata(root, source=source)
         for package_dir, metadata in entries:
             module_name = metadata.name
-            if module_name in seen_names:
+            if module_name in seen_by_name:
+                existing = seen_by_name[module_name]
+                if source == "user" and existing.source == "project":
+                    warning_key = (
+                        module_name,
+                        existing.source,
+                        source,
+                        str(existing.package_dir.resolve()),
+                    )
+                    if warning_key not in _SHADOW_HINT_KEYS:
+                        _SHADOW_HINT_KEYS.add(warning_key)
+                        print_warning(
+                            f"Module '{module_name}' from project scope ({existing.package_dir}) takes precedence over "
+                            f"user-scoped module ({package_dir}) in this workspace. The user copy is ignored here. "
+                            f"Inspect origins with `specfact module list --show-origin`; if stale, clean user scope "
+                            f"with `specfact module uninstall {module_name} --scope user`."
+                        )
                 if source in {"user", "marketplace", "custom"}:
-                    logger.warning(
-                        "Module '%s' from %s at '%s' is shadowed by higher-priority source.",
+                    logger.debug(
+                        "Module '%s' from %s at '%s' is shadowed by higher-priority source %s at '%s'.",
                         module_name,
                         source,
                         package_dir,
+                        existing.source,
+                        existing.package_dir,
                     )
                 continue
 
-            seen_names.add(module_name)
-            discovered.append(
-                DiscoveredModule(
-                    package_dir=package_dir,
-                    metadata=metadata,
-                    source=source,
-                )
+            entry = DiscoveredModule(
+                package_dir=package_dir,
+                metadata=metadata,
+                source=source,
             )
+            seen_by_name[module_name] = entry
+            discovered.append(entry)
 
     return discovered

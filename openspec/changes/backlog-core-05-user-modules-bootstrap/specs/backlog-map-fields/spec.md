@@ -18,3 +18,19 @@ The system SHALL verify auth context and discover provider fields/metadata befor
 - **WHEN** `specfact backlog map-fields` persists GitHub settings
 - **THEN** `.specfact/backlog-config.yaml` includes `backlog_config.providers.github.settings.github_issue_types.type_ids`
 - **AND** subsequent `specfact backlog add` can consume those IDs for issue-type updates.
+
+#### Scenario: GitHub ProjectV2 mapping is optional
+
+- **GIVEN** GitHub repository issue types are successfully discovered
+- **AND** the user leaves GitHub ProjectV2 input empty
+- **WHEN** `specfact backlog map-fields` runs
+- **THEN** the command succeeds and persists repository issue-type IDs
+- **AND** ProjectV2 field mapping is skipped without a hard failure.
+
+#### Scenario: Blank ProjectV2 input clears stale ProjectV2 mapping
+
+- **GIVEN** existing `backlog-config` contains stale `provider_fields.github_project_v2` values
+- **AND** GitHub repository issue types are successfully discovered
+- **WHEN** `specfact backlog map-fields` runs with blank ProjectV2 input
+- **THEN** stale `provider_fields.github_project_v2` configuration is cleared
+- **AND** subsequent `specfact backlog add` does not attempt ProjectV2 type-field updates from stale IDs.

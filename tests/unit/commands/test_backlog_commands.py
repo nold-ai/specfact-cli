@@ -393,6 +393,121 @@ class TestInteractiveMappingCommand:
         assert result.exit_code != 0
         assert "repository issue types" in result.stdout.lower()
 
+    @patch("questionary.checkbox")
+    @patch("specfact_cli.modules.backlog.src.commands.typer.prompt")
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    @patch("requests.post")
+    def test_map_fields_github_provider_allows_blank_project_v2(
+        self,
+        mock_post: MagicMock,
+        mock_get_token: MagicMock,
+        mock_prompt: MagicMock,
+        mock_checkbox: MagicMock,
+        tmp_path,
+    ) -> None:
+        """GitHub map-fields should not require ProjectV2 when repository issue types are available."""
+        mock_checkbox.return_value.ask.return_value = ["github"]
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_prompt.side_effect = [
+            "nold-ai/specfact-demo-repo",  # owner/repo
+            "",  # blank project ref (optional)
+        ]
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {
+                "repository": {
+                    "issueTypes": {
+                        "nodes": [
+                            {"id": "IT_BUG", "name": "Bug"},
+                            {"id": "IT_TASK", "name": "Task"},
+                        ]
+                    }
+                }
+            }
+        }
+        mock_post.return_value = mock_response
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(backlog_app, ["map-fields"])
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        assert "projectv2 type field mapping skipped" in result.stdout.lower()
+        cfg_file = tmp_path / ".specfact" / "backlog-config.yaml"
+        assert cfg_file.exists()
+        loaded = yaml.safe_load(cfg_file.read_text(encoding="utf-8"))
+        github_settings = loaded["backlog_config"]["providers"]["github"]["settings"]
+        assert github_settings["github_issue_types"]["type_ids"]["task"] == "IT_TASK"
+        provider_fields = github_settings.get("provider_fields", {})
+        if isinstance(provider_fields, dict):
+            assert provider_fields.get("github_project_v2") is None
+
+    @patch("questionary.checkbox")
+    @patch("specfact_cli.modules.backlog.src.commands.typer.prompt")
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    @patch("requests.post")
+    def test_map_fields_blank_project_v2_clears_stale_project_mapping(
+        self,
+        mock_post: MagicMock,
+        mock_get_token: MagicMock,
+        mock_prompt: MagicMock,
+        mock_checkbox: MagicMock,
+        tmp_path,
+    ) -> None:
+        """Blank ProjectV2 input should clear stale ProjectV2 provider_fields mapping."""
+        spec_dir = tmp_path / ".specfact"
+        spec_dir.mkdir(parents=True, exist_ok=True)
+        (spec_dir / "backlog-config.yaml").write_text(
+            """
+backlog_config:
+  providers:
+    github:
+      adapter: github
+      project_id: nold-ai/specfact-demo-repo
+      settings:
+        provider_fields:
+          github_project_v2:
+            project_id: PVT_project_id
+            type_field_id: PVT_type_field
+            type_option_ids:
+              task: PVT_option_task
+""".strip(),
+            encoding="utf-8",
+        )
+        mock_checkbox.return_value.ask.return_value = ["github"]
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_prompt.side_effect = [
+            "nold-ai/specfact-demo-repo",
+            "",
+        ]
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {"repository": {"issueTypes": {"nodes": [{"id": "IT_TASK", "name": "Task"}]}}}
+        }
+        mock_post.return_value = mock_response
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(backlog_app, ["map-fields"])
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        loaded = yaml.safe_load((spec_dir / "backlog-config.yaml").read_text(encoding="utf-8"))
+        github_settings = loaded["backlog_config"]["providers"]["github"]["settings"]
+        provider_fields = github_settings.get("provider_fields", {})
+        assert provider_fields.get("github_project_v2") is None
+
     def test_backlog_init_config_scaffolds_default_file(self, tmp_path) -> None:
         """Test backlog init-config creates default backlog-config scaffold."""
         import os

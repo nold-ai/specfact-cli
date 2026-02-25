@@ -409,7 +409,7 @@ def install_module(
     manifest_path = final_path / "module-package.yaml"
 
     if manifest_path.exists() and not reinstall:
-        logger.info("Module already installed (%s)", module_name)
+        logger.debug("Module already installed (%s)", module_name)
         return final_path
 
     archive_path = download_module(module_id, version=version)
@@ -481,7 +481,7 @@ def install_module(
                 shutil.rmtree(staged_path)
             raise
 
-    logger.info("Installed marketplace module '%s' to '%s'", module_id, final_path)
+    logger.debug("Installed marketplace module '%s' to '%s'", module_id, final_path)
     return final_path
 
 
@@ -519,7 +519,7 @@ def uninstall_module(
         if not module_path.exists():
             continue
         shutil.rmtree(module_path)
-        logger.info("Uninstalled module '%s' from '%s'", module_name, root)
+        logger.debug("Uninstalled module '%s' from '%s'", module_name, root)
         return
 
     roots_str = ", ".join(str(root) for root in candidate_roots)

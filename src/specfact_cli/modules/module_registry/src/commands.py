@@ -515,7 +515,7 @@ def list_modules(
     render_modules_table(console, modules, show_origin=show_origin)
 
     bundled = get_bundled_module_metadata()
-    installed_ids = {str(module.get("id", "")).strip() for module in get_modules_with_state()}
+    installed_ids = {str(module.get("id", "")).strip() for module in modules}
     available = [meta for name, meta in bundled.items() if name not in installed_ids]
     if not show_bundled_available:
         if available:

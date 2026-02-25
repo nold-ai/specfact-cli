@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.37.4] - 2026-02-25
+
+### Changed
+
+- `specfact backlog map-fields` GitHub flow now treats ProjectV2 as optional and clears stale `provider_fields.github_project_v2` when ProjectV2 input is intentionally left blank.
+- GitHub module discovery shadow behavior now emits a single actionable project-over-user precedence hint per process instead of repeating raw warning lines across repeated discovery calls.
+- Registry diagnostic messages that are operational/debug in nature were moved from normal `INFO/WARNING` output to `DEBUG` where appropriate to reduce noisy default command output.
+
+### Fixed
+
+- Fixed `specfact backlog add` GitHub issue-type mapping precedence so valid `settings.github_issue_types.type_ids` is used when `settings.provider_fields.github_issue_types` is present but empty.
+- Fixed stale GitHub ProjectV2 IDs continuing to trigger type-field update attempts after optional map-fields flows by explicitly clearing old ProjectV2 settings in blank-ProjectV2 reconfiguration.
+- Reduced duplicate discovery work in `specfact module list` by avoiding repeated module-state fetches within the same command run.
+
+---
+
 ## [0.37.3] - 2026-02-24
 
 ### Changed

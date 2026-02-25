@@ -15,7 +15,6 @@ from specfact_cli.registry.module_packages import (
     discover_all_package_metadata,
     expand_disable_with_dependents,
     expand_enable_with_dependencies,
-    get_discovered_modules_for_state,
     merge_module_state,
     validate_disable_safe,
     validate_enable_safe,
@@ -34,24 +33,24 @@ def get_modules_with_state(
     disable_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return discovered modules with version, enabled state, source, and trust metadata."""
-    modules_list = get_discovered_modules_for_state(enable_ids=enable_ids or [], disable_ids=disable_ids or [])
     discovered = discover_all_modules()
-    source_map = {entry.metadata.name: entry.source for entry in discovered}
-    official_map = {
-        entry.metadata.name: bool(
-            entry.metadata.publisher and entry.metadata.publisher.name.strip().lower() == "nold-ai"
+    discovered_list: list[tuple[str, str]] = [(entry.metadata.name, entry.metadata.version) for entry in discovered]
+    state = read_modules_state()
+    enabled_map = merge_module_state(discovered_list, state, enable_ids or [], disable_ids or [])
+
+    modules_list: list[dict[str, Any]] = []
+    for entry in discovered:
+        publisher_name = entry.metadata.publisher.name if entry.metadata.publisher else "unknown"
+        modules_list.append(
+            {
+                "id": entry.metadata.name,
+                "version": entry.metadata.version,
+                "enabled": enabled_map.get(entry.metadata.name, True),
+                "source": entry.source,
+                "official": bool(publisher_name.strip().lower() == "nold-ai"),
+                "publisher": publisher_name,
+            }
         )
-        for entry in discovered
-    }
-    publisher_map = {
-        entry.metadata.name: entry.metadata.publisher.name if entry.metadata.publisher else "unknown"
-        for entry in discovered
-    }
-    for item in modules_list:
-        module_id = str(item.get("id", ""))
-        item["source"] = source_map.get(module_id, "unknown")
-        item["official"] = official_map.get(module_id, False)
-        item["publisher"] = publisher_map.get(module_id, "unknown")
     return modules_list
 
 
@@ -80,7 +79,10 @@ def apply_module_state_update(*, enable_ids: list[str], disable_ids: list[str], 
             for module_id, dependents in blocked_disable.items():
                 lines.append(f"Cannot disable '{module_id}': required by enabled modules: {', '.join(dependents)}")
             raise ValueError("\n".join(lines))
-    modules_list = get_discovered_modules_for_state(enable_ids=enable_ids, disable_ids=disable_ids)
+    modules_list = [
+        {"id": meta.name, "version": meta.version, "enabled": enabled_map.get(meta.name, True)}
+        for _package_dir, meta in packages
+    ]
     write_modules_state(modules_list)
     run_discovery_and_write_cache(__version__)
     return get_modules_with_state()
