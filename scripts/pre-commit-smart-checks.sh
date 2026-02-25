@@ -29,6 +29,17 @@ has_staged_workflows() {
   staged_files | grep -E '^\.github/workflows/.*\\.ya?ml$' >/dev/null 2>&1
 }
 
+run_module_signature_verification() {
+  info "🔐 Verifying bundled module signatures/version bumps"
+  if hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump; then
+    success "✅ Module signature/version verification passed"
+  else
+    error "❌ Module signature/version verification failed"
+    warn "💡 Re-sign changed modules with version bump before commit"
+    exit 1
+  fi
+}
+
 run_yaml_lint_if_needed() {
   if has_staged_yaml; then
     info "🔎 YAML changes detected — running yamllint (relaxed)"
@@ -107,6 +118,9 @@ check_safe_change() {
 }
 
 warn "🔍 Running pre-commit checks (YAML/workflows + smart tests)"
+
+# Always enforce module signature/version policy before commit
+run_module_signature_verification
 
 # Always run lint checks when relevant files changed
 run_yaml_lint_if_needed
