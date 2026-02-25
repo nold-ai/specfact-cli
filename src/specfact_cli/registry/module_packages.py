@@ -892,17 +892,17 @@ def register_module_package_commands(
             elif operations:
                 partial_modules.append((meta.name, operations))
                 if is_debug_mode():
-                    logger.debug("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+                    logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
                 protocol_partial += 1
             else:
                 legacy_modules.append(meta.name)
                 if is_debug_mode():
-                    logger.debug("Module %s: No ModuleIOContract (legacy mode)", meta.name)
+                    logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
                 protocol_legacy += 1
         except Exception as exc:
             legacy_modules.append(meta.name)
             if is_debug_mode():
-                logger.debug("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
+                logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
             meta.protocol_operations = []
             protocol_legacy += 1
 
@@ -945,7 +945,7 @@ def register_module_package_commands(
         if legacy_modules:
             print_warning(f"Legacy modules: {', '.join(sorted(set(legacy_modules)))}")
         if is_debug_mode():
-            logger.debug(
+            logger.info(
                 "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
                 protocol_full + protocol_partial,
                 discovered_count,
