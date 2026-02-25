@@ -618,6 +618,44 @@ def test_list_command_source_filter(monkeypatch) -> None:
     assert "init" not in result.stdout
 
 
+def test_list_command_bundled_available_uses_unfiltered_installed_set(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {
+                "id": "init",
+                "version": "0.1.0",
+                "enabled": True,
+                "source": "builtin",
+                "official": True,
+                "publisher": "nold-ai",
+            },
+            {
+                "id": "backlog-core",
+                "version": "0.2.0",
+                "enabled": True,
+                "source": "project",
+                "official": True,
+                "publisher": "nold-ai",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
+        lambda: {
+            "init": ModulePackageMetadata(name="init", version="0.1.0", description="Core init module"),
+            "backlog-core": ModulePackageMetadata(name="backlog-core", version="0.2.0", description="Backlog"),
+        },
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["list", "--source", "builtin", "--show-bundled-available"])
+
+    assert result.exit_code == 0
+    assert "Bundled Modules Available" not in result.stdout
+    assert "All bundled modules are already installed" in result.stdout
+
+
 def test_list_command_show_bundled_available_separate_section_with_hints(monkeypatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",

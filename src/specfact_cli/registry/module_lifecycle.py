@@ -79,8 +79,9 @@ def apply_module_state_update(*, enable_ids: list[str], disable_ids: list[str], 
             for module_id, dependents in blocked_disable.items():
                 lines.append(f"Cannot disable '{module_id}': required by enabled modules: {', '.join(dependents)}")
             raise ValueError("\n".join(lines))
+    final_enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
     modules_list = [
-        {"id": meta.name, "version": meta.version, "enabled": enabled_map.get(meta.name, True)}
+        {"id": meta.name, "version": meta.version, "enabled": final_enabled_map.get(meta.name, True)}
         for _package_dir, meta in packages
     ]
     write_modules_state(modules_list)
